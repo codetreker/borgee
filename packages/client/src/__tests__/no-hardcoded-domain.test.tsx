@@ -71,7 +71,7 @@ describe('NO-HARDCODED-DOMAIN — REG-NHD reverse-grep + env injection', () => {
     expect(src).toMatch(/ENV VITE_AGENT_WS_SERVER=\$\{VITE_AGENT_WS_SERVER\}/);
   });
 
-  test('REG-NHD-005 — deploy workflows pass --build-arg per env', () => {
+  test('REG-NHD-005 — deploy workflows pass --build-arg per env + CORS_ORIGIN inline override', () => {
     // testing → testing-borgee.codetrek.cn
     const test = read('.github/workflows/deploy-test.yml');
     expect(test).toMatch(/--build-arg VITE_AGENT_WS_SERVER=wss:\/\/testing-borgee\.codetrek\.cn/);
@@ -80,6 +80,12 @@ describe('NO-HARDCODED-DOMAIN — REG-NHD reverse-grep + env injection', () => {
     // staging+prod → borgee.codetrek.cn (staging 是 smoke-test prod artifact, 共用 build)
     const prod = read('.github/workflows/deploy.yml');
     expect(prod).toMatch(/--build-arg VITE_AGENT_WS_SERVER=wss:\/\/borgee\.codetrek\.cn/);
+    // staging+prod CORS_ORIGIN inline override 真挂 (反靠 host compose 不可控)
+    expect(prod).toMatch(/CORS_ORIGIN=https:\/\/staging-borgee\.codetrek\.cn/);
+    expect(prod).toMatch(/CORS_ORIGIN=https:\/\/borgee\.codetrek\.cn/);
+    // 反向锁: 2 inline override 真生效 (反 silent host compose dep)
+    const overrideHits = (prod.match(/docker-compose\.override\.yml/g) || []).length;
+    expect(overrideHits).toBeGreaterThanOrEqual(2);
   });
 
   test('REG-NHD-006 — production source 0 hit codetrek.cn (cross-package reverse-grep, code only)', () => {

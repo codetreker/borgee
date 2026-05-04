@@ -71,6 +71,16 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee-staging
+            # no-hardcoded-domain (#644): inline override 注 CORS_ORIGIN env
+            # (跟 deploy-test.yml inline compose 同模式; 反靠 host compose 不
+            # 可控). config.go::Validate 在 production 路径 panic-fast on
+            # missing CORS_ORIGIN, 此 override 真挂避免合后启动 panic 死.
+            cat > docker-compose.override.yml << 'COMPEOF'
+            services:
+              borgee-staging:
+                environment:
+                  - CORS_ORIGIN=https://staging-borgee.codetrek.cn
+            COMPEOF
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
@@ -105,6 +115,16 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee
+            # no-hardcoded-domain (#644): inline override 注 CORS_ORIGIN env
+            # (跟 deploy-test.yml + staging 同模式). config.go::Validate 在
+            # production 路径 panic-fast on missing CORS_ORIGIN, 此 override
+            # 真挂避免合后启动 panic 死.
+            cat > docker-compose.override.yml << 'COMPEOF'
+            services:
+              borgee-prod:
+                environment:
+                  - CORS_ORIGIN=https://borgee.codetrek.cn
+            COMPEOF
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
