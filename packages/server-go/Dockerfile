@@ -8,6 +8,11 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/client/package.json packages/client/
 RUN pnpm install --frozen-lockfile --filter @borgee/client
 COPY packages/client packages/client
+# no-hardcoded-domain: VITE_AGENT_WS_SERVER injected at build time per env
+# (deploy.yml / deploy-test.yml). Default fallback `wss://localhost:4900`
+# (set in NodeManager.tsx) when build arg absent — local dev sandbox.
+ARG VITE_AGENT_WS_SERVER
+ENV VITE_AGENT_WS_SERVER=${VITE_AGENT_WS_SERVER}
 RUN pnpm --filter @borgee/client build
 
 FROM golang:1.25-bookworm AS go-builder

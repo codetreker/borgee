@@ -30,7 +30,7 @@ func Load() (*Config, error) {
 		Host:          envStr("HOST", "0.0.0.0"),
 		LogLevelStr:   envStr("LOG_LEVEL", "info"),
 		NodeEnv:       envStr("NODE_ENV", ""),
-		CORSOrigin:    envStr("CORS_ORIGIN", "https://borgee.codetrek.cn"),
+		CORSOrigin:    envStr("CORS_ORIGIN", ""),
 		DatabasePath:  envStr("DATABASE_PATH", "data/collab.db"),
 		UploadDir:     envStr("UPLOAD_DIR", "data/uploads"),
 		WorkspaceDir:  envStr("WORKSPACE_DIR", "data/workspaces"),
@@ -59,6 +59,13 @@ func (c *Config) IsDevelopment() bool {
 func (c *Config) Validate() error {
 	if !c.IsDevelopment() && c.JWTSecret == "" {
 		return fmt.Errorf("JWT_SECRET is required in production")
+	}
+	// no-hardcoded-domain milestone: CORS_ORIGIN is required in non-dev.
+	// 反 silent prod default `https://borgee.codetrek.cn` 烧 fork / staging /
+	// testing / on-prem 部署. Pattern same as #635 admin-password panic-on-missing
+	// (review checklist 1.A bootstrap fail-loud).
+	if !c.IsDevelopment() && c.CORSOrigin == "" {
+		return fmt.Errorf("CORS_ORIGIN env required (e.g. https://your-deploy-host.example.com)")
 	}
 	return nil
 }

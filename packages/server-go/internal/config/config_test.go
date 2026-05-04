@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ func TestConfigValidate(t *testing.T) {
 		t.Fatal("expected error for missing JWT secret in production")
 	}
 
-	cfg2 := &Config{NodeEnv: "production", JWTSecret: "secret"}
+	cfg2 := &Config{NodeEnv: "production", JWTSecret: "secret", CORSOrigin: "https://example.com"}
 	if err := cfg2.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -31,6 +32,21 @@ func TestConfigValidate(t *testing.T) {
 	cfg3 := &Config{NodeEnv: "development", JWTSecret: ""}
 	if err := cfg3.Validate(); err != nil {
 		t.Fatalf("unexpected error in dev: %v", err)
+	}
+
+	// REG-NHD-002 — no-hardcoded-domain: CORS_ORIGIN required in production
+	// (反 silent prod default `https://borgee.codetrek.cn`).
+	cfg4 := &Config{NodeEnv: "production", JWTSecret: "secret", CORSOrigin: ""}
+	if err := cfg4.Validate(); err == nil {
+		t.Fatal("expected error for missing CORS_ORIGIN in production")
+	} else if !strings.Contains(err.Error(), "CORS_ORIGIN env required") {
+		t.Errorf("error msg should mention CORS_ORIGIN env required; got %v", err)
+	}
+
+	// REG-NHD-002b — dev path: CORS_ORIGIN empty is fine.
+	cfg5 := &Config{NodeEnv: "development", JWTSecret: "", CORSOrigin: ""}
+	if err := cfg5.Validate(); err != nil {
+		t.Fatalf("dev should allow empty CORS_ORIGIN; got %v", err)
 	}
 }
 
