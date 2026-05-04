@@ -167,8 +167,13 @@ function NodeDetail({ node, online, channels, onDelete }: {
     setCopied(false);
   }, [loadBindings]);
 
-  const startCmd = `npx @codetreker/borgee-remote-agent --server wss://collab.codetrek.cn --token ${showToken ? node.connection_token : '••••••••'} --dirs /path/to/dir`;
-  const fullCmd = `npx @codetreker/borgee-remote-agent --server wss://collab.codetrek.cn --token ${node.connection_token} --dirs /path/to/dir`;
+  // no-hardcoded-domain milestone: server URL injected at build time via
+  // VITE_AGENT_WS_SERVER (.env.example documents the var). 0 hardcoded
+  // codetrek.cn 字面 in source — fork / staging / testing / on-prem 部署
+  // 真生效 (deploy.yml + deploy-test.yml inject per-env value).
+  const agentWsServer = (import.meta.env.VITE_AGENT_WS_SERVER as string | undefined) ?? 'wss://localhost:4900';
+  const startCmd = `npx @codetreker/borgee-remote-agent --server ${agentWsServer} --token ${showToken ? node.connection_token : '••••••••'} --dirs /path/to/dir`;
+  const fullCmd = `npx @codetreker/borgee-remote-agent --server ${agentWsServer} --token ${node.connection_token} --dirs /path/to/dir`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullCmd);

@@ -28,7 +28,7 @@
 
 ## In-flight 当前状态 (≤10 行)
 
-- ADMIN-SPA-UI-COVERAGE-WAVE2 (第二波 4 endpoint UI: runtimes/heartbeat-lag/archived/description-history, **0 server** ≤350 LOC, REG-ASUC2-001..007 🟢) feat/admin-spa-ui-coverage-wave2 战马C
+- NO-HARDCODED-DOMAIN (fork-friendly: 0 hardcoded codetrek.cn in production code + CORS_ORIGIN env panic-fast, REG-NHD-001..006 🟢) fix/no-hardcoded-domain 战马C
 - (history — Phase 4+ ✅ closure, post-closure follow-up wave merged; detail → phase-4.md)
 
 ---

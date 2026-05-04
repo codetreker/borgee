@@ -31,6 +31,7 @@ jobs:
         run: |
           docker build \
             -f packages/server-go/Dockerfile \
+            --build-arg VITE_AGENT_WS_SERVER=wss://testing-borgee.codetrek.cn \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE }}:test \
             .
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE }}:test
@@ -64,6 +65,7 @@ jobs:
                   - WORKSPACE_DIR=/app/data/workspaces
                   - CLIENT_DIST=/app/client/dist
                   - JWT_SECRET=test-env-jwt-secret-b07b08
+                  - CORS_ORIGIN=https://testing-borgee.codetrek.cn
             volumes:
               borgee-test-data:
             COMPEOF

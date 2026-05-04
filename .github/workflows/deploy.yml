@@ -46,9 +46,16 @@ jobs:
         run: echo '${{ secrets.HARBOR_API_TOKEN }}' | docker login ${{ env.REGISTRY }} -u '${{ env.HARBOR_USER }}' --password-stdin
 
       - name: Build and push
+        # no-hardcoded-domain: VITE_AGENT_WS_SERVER baked at build time.
+        # staging+prod 共用同一 image (deploy-prod re-tags build_tag → prod
+        # via Harbor API, see step below). 复用 prod URL 因 staging 是
+        # smoke-test prod artifact 的环境 (admin UI 无 real users); 反差
+        # 化为单独 staging build 的 deploy 复杂度. testing 独立 build 走
+        # deploy-test.yml (testing-borgee.codetrek.cn URL).
         run: |
           docker build \
             -f packages/server-go/Dockerfile \
+            --build-arg VITE_AGENT_WS_SERVER=wss://borgee.codetrek.cn \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ steps.tag.outputs.build_tag }} \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE }}:staging \
             .
@@ -64,6 +71,16 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee-staging
+            # no-hardcoded-domain (#644): inline override 注 CORS_ORIGIN env
+            # (跟 deploy-test.yml inline compose 同模式; 反靠 host compose 不
+            # 可控). config.go::Validate 在 production 路径 panic-fast on
+            # missing CORS_ORIGIN, 此 override 真挂避免合后启动 panic 死.
+            cat > docker-compose.override.yml << 'COMPEOF'
+            services:
+              borgee-staging:
+                environment:
+                  - CORS_ORIGIN=https://staging-borgee.codetrek.cn
+            COMPEOF
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
@@ -98,6 +115,16 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee
+            # no-hardcoded-domain (#644): inline override 注 CORS_ORIGIN env
+            # (跟 deploy-test.yml + staging 同模式). config.go::Validate 在
+            # production 路径 panic-fast on missing CORS_ORIGIN, 此 override
+            # 真挂避免合后启动 panic 死.
+            cat > docker-compose.override.yml << 'COMPEOF'
+            services:
+              borgee-prod:
+                environment:
+                  - CORS_ORIGIN=https://borgee.codetrek.cn
+            COMPEOF
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
