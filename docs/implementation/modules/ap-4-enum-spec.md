@@ -1,7 +1,7 @@
 # AP-4-enum spec brief — capability 清单 enum 化 + reflect-lint 单源 (≤80 行)
 
 > 飞马 · 2026-04-30 · Phase 5+ wrapper milestone (跟 AL-5 / CV-2 v2 / AP-2 #525 / AP-3 #521 同模式)
-> **蓝图锚**: [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.1 (ABAC 存储, capability list = SSOT) + §3 反 hardcode drift
+> **蓝图锚**: [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.1 (ABAC 存储, capability list = SSOT) + §3 反 hardcode drift
 > **关联**: AP-1 #493 capabilities.go 14 const 已落 + Capabilities map 反向 lookup; AP-4 #551 reactions ACL 闭 (双义占号修正 — 本 spec 是 capability **enum 化** 真路径, 跟 AP-4 reactions ACL 不冲突)
 > **命名澄清**: PROGRESS.md line 272 `[ ] AP-4 capability 清单 enum 化` 占号无 spec, 本文真补 — 跟 AP-4 #551 reactions ACL 是**两个 milestone 共用 AP-4 标号**, 本 spec 用文件名 `ap-4-enum-spec.md` 避双义
 

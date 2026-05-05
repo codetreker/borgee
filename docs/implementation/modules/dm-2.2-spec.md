@@ -1,7 +1,7 @@
 # DM-2.2 spec brief — mention server parser + WS push + offline fallback
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (DM-2.1 #361 schema 已 merge, 续作 DM-2.2 server)
-> **蓝图锚**: [`concept-model.md`](../../blueprint/concept-model.md) §4 (mention 只 ping target 不抄 owner) + §4.1 (离线 fallback owner system DM, ❌ 不转发原 body, 5min/(agent,channel) 节流) + §13 隐私默认
+> **蓝图锚**: [`concept-model.md`](../../blueprint/current/concept-model.md) §4 (mention 只 ping target 不抄 owner) + §4.1 (离线 fallback owner system DM, ❌ 不转发原 body, 5min/(agent,channel) 节流) + §13 隐私默认
 > **关联**: 上游 DM-2.1 #361 (战马B 实施 message_mentions v=15 已 merge) + DM-2 spec brief #312 (飞马, merged 7de76f9) + acceptance template #293 (烈马, merged) + 文案锁 #314 (野马, merged) + AL-3 #310 PresenceTracker.IsOnline (真接, 不再 stub) + RT-1.1 #290 envelope cursor 单调
 > **章程闸**: G3.4 协作场骨架 demo 隐含依赖 (mention 在 channel 协作场是核心 UX 路径之一)
 

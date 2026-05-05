@@ -1,6 +1,6 @@
 // pushSubscribe — DL-4.5 client Web Push subscription helper.
 //
-// Blueprint: docs/blueprint/client-shape.md L22 (Mobile PWA + Web Push
+// Blueprint: docs/blueprint/current/client-shape.md L22 (Mobile PWA + Web Push
 // VAPID) + L37 ("没推送 = AI 团队像后台脚本不像同事") + L42 (manifest +
 // install prompt + Web Push + standalone).
 // Spec: docs/implementation/modules/dl-4-spec.md §1 DL-4.5.

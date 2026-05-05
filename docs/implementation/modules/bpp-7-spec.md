@@ -1,6 +1,6 @@
 # BPP-7 spec brief — plugin SDK 真接入 (≤80 行)
 
-> 战马D · Phase 6 起步 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1+§2 (BPP-1..BPP-6 协议全) + §3 (plugin SDK 真接入). 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-7. 依赖 BPP-1 #304 envelope (whitelist 15 frame) + BPP-3 #489 PluginFrameDispatcher + BPP-3.2 #498 retry cache + BPP-4 #499 watchdog + BPP-5 #503 reconnect + BPP-6 #522 cold-start + AL-1 #492 5-state + REFACTOR-REASONS #496 6-dict.
+> 战马D · Phase 6 起步 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1+§2 (BPP-1..BPP-6 协议全) + §3 (plugin SDK 真接入). 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-7. 依赖 BPP-1 #304 envelope (whitelist 15 frame) + BPP-3 #489 PluginFrameDispatcher + BPP-3.2 #498 retry cache + BPP-4 #499 watchdog + BPP-5 #503 reconnect + BPP-6 #522 cold-start + AL-1 #492 5-state + REFACTOR-REASONS #496 6-dict.
 
 ## 0. 关键约束 (3 条立场, 蓝图 §3 + BPP-1..6 字面承袭)
 

@@ -2,7 +2,7 @@
 // PermissionDeniedFrame to the target agent's plugin connection
 // (server→plugin direction lock).
 //
-// Blueprint锚: docs/blueprint/auth-permissions.md §2 不变量 "Permission
+// Blueprint锚: docs/blueprint/current/auth-permissions.md §2 不变量 "Permission
 // denied 走 BPP — 不靠 HTTP 错误码, 由协议层路由到 owner DM" + §4.1 row
 // 字面 frame 字段 (`attempted_action`, `required_capability`, `current_scope`).
 // Spec: docs/implementation/modules/bpp-3.1-spec.md.

@@ -1,6 +1,6 @@
 # Acceptance Template — ADM-1 PrivacyPromise (用户隐私承诺页)
 
-> 蓝图: `docs/blueprint/admin-model.md` §4.1 (3 条承诺锁) + §1.3 (Admin 看 / 看不到 边界)
+> 蓝图: `docs/blueprint/current/admin-model.md` §4.1 (3 条承诺锁) + §1.3 (Admin 看 / 看不到 边界)
 > 反查表: `docs/qa/adm-1-privacy-promise-checklist.md` (野马 #211/#228 spec) · 实施 spec: `docs/qa/adm-1-implementation-spec.md`
 > 前置: ADM-0.1/0.2/0.3 ✅ · Owner: 战马B (实施) / 烈马 (验收) / 野马 (文案 + 闸 4 demo 签字)
 

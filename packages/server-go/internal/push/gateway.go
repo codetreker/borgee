@@ -1,7 +1,7 @@
 // Package push — gateway.go: DL-4.3 Web Push gateway (server → browser
 // push via VAPID).
 //
-// Blueprint锚: docs/blueprint/client-shape.md L46 字面 "manifest.json +
+// Blueprint锚: docs/blueprint/current/client-shape.md L46 字面 "manifest.json +
 // push subscription endpoint + VAPID key 生成 + server-go 一个 push
 // 通道接 data-layer §3.4 global_events fan-out".
 // Spec brief: docs/implementation/modules/dl-4-spec.md §1 DL-4.3.

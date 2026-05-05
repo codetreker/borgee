@@ -1,7 +1,7 @@
 # CHN-3 spec brief — channel 分组个人微调层 (collapsed + position + pin)
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马B 落, 跟 CV-4 并行不抢号)
-> **蓝图锚**: [`channel-model.md`](../../blueprint/channel-model.md) §1.4 (作者定义大局 + 个人偏好微调) + §3.4 (差距 — 缺个人折叠/排序, 蓝图建议表 `user_channel_layout(user_id, channel_id, collapsed, position)`)
+> **蓝图锚**: [`channel-model.md`](../../blueprint/current/channel-model.md) §1.4 (作者定义大局 + 个人偏好微调) + §3.4 (差距 — 缺个人折叠/排序, 蓝图建议表 `user_channel_layout(user_id, channel_id, collapsed, position)`)
 > **关联**: 野马 #366 stance v0 (7 立场 byte-identical 锚, 已 LGTM); CHN-1 ✅ (#276 schema + #286 server + #288 client `ChannelGroupComponent.tsx` 作者侧 group CRUD 已就位); CHN-2 in-flight (#357 spec / #353 acceptance / #354 文案锁 — DM 拆死前提); CV-1/RT-1 不依赖
 > **章程闸**: G3.4 协作场骨架 demo 隐含 UX (个人侧栏 reorder + pin demo 可视价值)
 

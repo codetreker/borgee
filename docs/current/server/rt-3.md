@@ -1,7 +1,7 @@
 # RT-3 ⭐ multi-device fanout + 活物感 4 态 + thinking subject 反约束 (≤80 行)
 
 > 落地: PR feat/rt-3 · RT-3.1 server (PresenceState enum + ThinkingErrCodeSubjectRequired const) + RT-3.2 client (useRT3Presence hook + RT3PresenceDot component) + closure (REG-RT3-007/008)
-> 蓝图锚: [`realtime.md`](../../blueprint/realtime.md) §0 + §1.1 (thinking subject ⭐) + §1.4 (活物感 4 态)
+> 蓝图锚: [`realtime.md`](../../blueprint/current/realtime.md) §0 + §1.1 (thinking subject ⭐) + §1.4 (活物感 4 态)
 > 立场承袭: [`rt-3-spec.md`](../../implementation/modules/rt-3-spec.md) §0 ① DL-1+RT-1 byte-identical + ② 4 态 enum SSOT + thinking subject 必带 + ③ 0 schema/endpoint 改
 
 ## 1. PresenceState 4 态 enum SSOT (`internal/datalayer/presence.go`)

@@ -3,7 +3,7 @@
 // MentionPushNotifier interface that internal/api/mention_dispatch.go
 // expects.
 //
-// Blueprint锚: docs/blueprint/client-shape.md L37 ("@你, agent 完成长任务
+// Blueprint锚: docs/blueprint/current/client-shape.md L37 ("@你, agent 完成长任务
 // — AI 团队异步协作的核心 UX") + DL-4 spec §1 DL-4.6 fan-out hook.
 //
 // What this adapter does:

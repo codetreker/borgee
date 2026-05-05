@@ -7,7 +7,7 @@ import "gorm.io/gorm"
 // Blueprint锚: `auth-permissions.md` §1.2 (Scope 层级 v1 三层 — `*` /
 // `channel:<id>` / `artifact:<id>` 全 ✅, expires_at 列 "schema 保留, UI
 // 不做") + §5 与现状的差距 ("expires_at 列 — 加列 (schema 不破), 暂不
-// 业务化"). Spec stance: docs/blueprint/auth-permissions.md §1.2 字面承袭.
+// 业务化"). Spec stance: docs/blueprint/current/auth-permissions.md §1.2 字面承袭.
 //
 // What this migration does:
 //   1. ALTER TABLE user_permissions ADD COLUMN expires_at INTEGER NULL

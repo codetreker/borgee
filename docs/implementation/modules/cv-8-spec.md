@@ -1,6 +1,6 @@
 # CV-8 spec brief — artifact comment thread reply (CV-5/CV-7 续, 1-level thread)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5 #530 messages 表单源 + CV-7 #535 thinking 5-pattern 锁链第 5 处. CV-8 是 1-level thread reply — 复用 `messages.reply_to_id` 既有列 (schema 既有, 0 ALTER), 复用 POST `/api/v1/channels/{channelId}/messages` 既有 endpoint (字段 reply_to_id 已支持).
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5 #530 messages 表单源 + CV-7 #535 thinking 5-pattern 锁链第 5 处. CV-8 是 1-level thread reply — 复用 `messages.reply_to_id` 既有列 (schema 既有, 0 ALTER), 复用 POST `/api/v1/channels/{channelId}/messages` 既有 endpoint (字段 reply_to_id 已支持).
 
 ## 0. 关键约束 (4 项立场, 蓝图字面 + 跨链)
 

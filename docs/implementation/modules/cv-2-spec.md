@@ -1,7 +1,7 @@
 # CV-2 spec brief — 锚点对话 (anchor comments on artifacts)
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马A 落)
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.4 (artifact 集合) + §1.6 (锚点对话 = owner review agent 产物的工具) + §2 v1 不做清单第 5 条 (\"段落锚点对话, v2 加\")
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.4 (artifact 集合) + §1.6 (锚点对话 = owner review agent 产物的工具) + §2 v1 不做清单第 5 条 (\"段落锚点对话, v2 加\")
 > **关联**: CV-1 三段四件全闭 ✅ (#334+#342+#346+#348) — artifact + version 表 + Markdown ONLY + RT-1 envelope 接管已就位; RT-1 #290 cursor 单调 envelope 复用; CHN-1 #276 channel 权限继承; AL-3 不依赖
 > **章程闸**: G3.2 锚点对话 E2E 强依赖 — Phase 3 退出公告硬约束
 

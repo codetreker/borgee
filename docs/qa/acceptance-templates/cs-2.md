@@ -1,7 +1,7 @@
 # Acceptance Template — CS-2: 故障三态 + 四层 UX 呈现
 
 > Spec: `docs/implementation/modules/cs-2-spec.md` (飞马 + 战马D v0)
-> 蓝图: `docs/blueprint/client-shape.md` §1.3 (故障 UX 分层呈现 + 三态枚举 + plain language + inline 修复)
+> 蓝图: `docs/blueprint/current/client-shape.md` §1.3 (故障 UX 分层呈现 + 三态枚举 + plain language + inline 修复)
 > Stance: `docs/qa/cs-2-stance-checklist.md` (野马 / 飞马 v0)
 > 前置: AL-1b #462 PresenceDot ✅ + AL-4 #417 runtime status reason ✅ + reasons.IsValid #496 SSOT 包 ✅ + RT-4 #562 ChannelPresenceList ✅
 > Owner: 战马D (主战) + 飞马 (spec) + 烈马 (acceptance) + 野马 (4 层 UX 文案)

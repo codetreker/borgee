@@ -1,7 +1,7 @@
 # Acceptance Template — CHN-1: channel schema + API (creator-only / archive / agent silent / per-org name)
 
-> 蓝图: `docs/blueprint/channel-model.md` §1.1 (creator-only default), §1.4 (per-org name uniqueness), §2 (archived 不删 + agent silent join)
-> 蓝图: `docs/blueprint/concept-model.md` §1.4 (主体验 — 团队感知 + DM)
+> 蓝图: `docs/blueprint/current/channel-model.md` §1.1 (creator-only default), §1.4 (per-org name uniqueness), §2 (archived 不删 + agent silent join)
+> 蓝图: `docs/blueprint/current/concept-model.md` §1.4 (主体验 — 团队感知 + DM)
 > Implementation: `docs/implementation/modules/chn-1-spec.md`
 > 拆 PR: **CHN-1.1** schema (#276 merged b6e95ce) + **CHN-1.2** API handler (#286 merged f7ac4ed) + **CHN-1.3** client SPA (#288 merged adaf521)
 > Owner: 战马A 实施 / 烈马 验收

@@ -1,6 +1,6 @@
 # Acceptance Template — ADM-0: admin 拆表 (3 段串行 PR)
 
-> 蓝图: `docs/blueprint/admin-model.md` §1.2 + §1.3 + §2 + §3
+> 蓝图: `docs/blueprint/current/admin-model.md` §1.2 + §1.3 + §2 + §3
 > Implementation: `docs/architecture/admin-model.md` ADM-0
 > R3 决议: 4 人 review 立场冲突 #2 (B29 路线, 2026-04-28)
 > 烈马一票否决 gate: G2.0 (cookie 串扰反向断言)

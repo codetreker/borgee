@@ -1,6 +1,6 @@
 # AP-5 spec brief — messages endpoints ACL audit (CV-7 #535 同模式 gap 防御性扫)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.2 + REG-INV-002 fail-closed + AP-4 #551 reactions 同模式扩展. AP-4 闭合 reactions 一处 gap; AP-5 系统扫 messages.go + dm_4_message_edit.go 全 endpoint 是否同 gap, 一次锁满.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.2 + REG-INV-002 fail-closed + AP-4 #551 reactions 同模式扩展. AP-4 闭合 reactions 一处 gap; AP-5 系统扫 messages.go + dm_4_message_edit.go 全 endpoint 是否同 gap, 一次锁满.
 
 ## 0. 关键约束 (4 项立场, 跨链承袭)
 

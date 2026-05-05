@@ -1,7 +1,7 @@
 # BPP-2 spec brief — 协议抽象语义层 (semantic action dispatch + reverse-channel task lifecycle)
 
 > 战马E (PM 客串) · 2026-04-29 · ≤80 行 spec lock (实施 3 段拆 PR 由战马 落, Phase 4 plugin-protocol 主线起步第一段)
-> **蓝图锚**: [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.3 ("Plugin 调 Borgee 抽象语义层 C, 不直对 REST" + 7 v1 必须语义动作 + dispatch 层权限收敛 — 协议红线 "不允许 plugin 下穿语义层直调 REST") + §1.5 ("配置热更新按字段分类" — `agent_config_update` server→plugin) + §1.6 ("失联与故障状态" — task_started/task_finished 是 busy/idle source 唯一上行) + §2.1 §2.2 (BPP 接口清单 v1 — 控制面 6 frame + 数据面 3 frame) + §3 ("现状差距 — plugin 通过 WS api_request 直调 REST → 新增高级动作 API + dispatch 层 + 权限收敛")
+> **蓝图锚**: [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.3 ("Plugin 调 Borgee 抽象语义层 C, 不直对 REST" + 7 v1 必须语义动作 + dispatch 层权限收敛 — 协议红线 "不允许 plugin 下穿语义层直调 REST") + §1.5 ("配置热更新按字段分类" — `agent_config_update` server→plugin) + §1.6 ("失联与故障状态" — task_started/task_finished 是 busy/idle source 唯一上行) + §2.1 §2.2 (BPP 接口清单 v1 — 控制面 6 frame + 数据面 3 frame) + §3 ("现状差距 — plugin 通过 WS api_request 直调 REST → 新增高级动作 API + dispatch 层 + 权限收敛")
 > **关联**: 已闭 BPP-1 ✅ #304 (envelope CI lint 真落, 9 frame whitelist + reflect schema lock); BPP-1 仅锁 envelope 形, 未拆"动作语义层" — BPP-2 接力把语义动作从 `api_request` 直调 REST 重构为 `semantic_action` 帧路径; AL-1b busy/idle 跟 BPP-2.2 task_started/task_finished 同期 (蓝图 §2.3 字面 source 必须 plugin 上行); AL-2b ConfigUpdated 跟 BPP-2.3 agent_config_update 同期 (BPP-3 SSOT 真接管)
 > **章程闸**: Phase 4 起步路径第一段 — plugin-protocol module 接 BPP-1 ✅ 后, AL-1b / AL-2a 等都依赖 BPP-2 抽象语义层 dispatch + reverse-channel 落地
 

@@ -1,7 +1,7 @@
 # CHN-4 spec brief — 协作场骨架收口 (channel × artifact × anchor × iterate × mention 跨视图整合)
 
 > 烈马 · 2026-04-29 · ≤80 行 spec lock (Phase 3 章程 9 milestone 收口锚, G3.4 demo 路径全闭)
-> **蓝图锚**: [`channel-model.md`](../../blueprint/channel-model.md) §1.1 (channel = 协作场, 不是单纯聊天容器) + §3.1 (channel 作为协作场, workspace 升级为协作场另一支柱) + §1.4 (作者定义 + 个人微调) + `canvas-vision.md` §1.2 (D-lite) + §1.4 (artifact 集合) + §1.6 (锚点 = 人审 agent 产物)
+> **蓝图锚**: [`channel-model.md`](../../blueprint/current/channel-model.md) §1.1 (channel = 协作场, 不是单纯聊天容器) + §3.1 (channel 作为协作场, workspace 升级为协作场另一支柱) + §1.4 (作者定义 + 个人微调) + `canvas-vision.md` §1.2 (D-lite) + §1.4 (artifact 集合) + §1.6 (锚点 = 人审 agent 产物)
 > **关联**: 已锁 spec — CV-1 ✅ #334+#342+#346+#348 / CV-2 #356 (v3 #368) / CV-3 #363 / CV-4 #365 / CHN-1 ✅ / CHN-2 #357 / CHN-3 #371; 已锁文案锁 — CV-1/CV-2 #355/#368 / CV-3 #370 / CHN-2 #354/#364 / CHN-3 (待); CM-4 minimal presence ✅ / RT-1 #290+#292+#296 ✅ envelope cursor 单调 / DM-2 #361+#372 mention 路径
 > **章程闸**: G3.4 协作场骨架 demo **收口闸位** — Phase 3 退出公告"协作场可见路径"全闭依赖此 spec, 是 9 milestone 拼图最后一块
 

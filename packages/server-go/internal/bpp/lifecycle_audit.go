@@ -6,7 +6,7 @@
 // ADM-2.1 #484 admin_actions audit table — does NOT introduce a separate
 // `plugin_lifecycle_events` table (立场 ①).
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.6 + §3 plugin lifecycle.
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 + §3 plugin lifecycle.
 // Spec: docs/implementation/modules/bpp-8-spec.md §0 立场 ①+②+③ + §1
 // 拆段 BPP-8.2.
 //

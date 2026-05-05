@@ -1,7 +1,7 @@
 // Package bpp — plugin_frame_dispatcher.go: BPP-3 unified plugin-upstream
 // BPP frame dispatcher boundary.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §2.2 (Plugin → Server data
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §2.2 (Plugin → Server data
 // plane) — BPP frames carry `{type, ...payload-direct-fields}`, distinct
 // from the RPC envelope `{type, id, data}` used by api_request/
 // api_response.

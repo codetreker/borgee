@@ -46,7 +46,7 @@
 
 ## 4f. BPP-3.2.2 — Capability grant DM 三按钮 (Phase 5)
 
-> BPP-3.2.2 (#494 follow-up) · 蓝图 [`auth-permissions.md`](../../../blueprint/auth-permissions.md) §1.3 主入口 + content-lock [`bpp-3.2-content-lock.md`](../../../qa/bpp-3.2-content-lock.md) §3 DOM 字面锁.
+> BPP-3.2.2 (#494 follow-up) · 蓝图 [`auth-permissions.md`](../../../blueprint/current/auth-permissions.md) §1.3 主入口 + content-lock [`bpp-3.2-content-lock.md`](../../../qa/bpp-3.2-content-lock.md) §3 DOM 字面锁.
 
 owner 收 system DM (BPP-3.2.1 server 写) → SystemMessageBubble (`packages/client/src/components/SystemMessageBubble.tsx`) 检测 quick_action JSON 是 BPP-3.2 shape (含 `action ∈ grant/reject/snooze` + 4 必填字段) → 渲染**三按钮**:
 
@@ -76,7 +76,7 @@ CM-onboarding 既有单按钮 (`{kind: 'button', label, action}`) 路径不变 �
 
 ## 4g. AL-5.2 — Agent error recovery DM 单 "重连" button (Phase 5)
 
-> AL-5 (#516) · 蓝图 [`agent-lifecycle.md`](../../../blueprint/agent-lifecycle.md) §2.3 (5-state error → online edge) + spec [`al-5-spec.md`](../../../implementation/modules/al-5-spec.md) §1 AL-5.2 byte-identical.
+> AL-5 (#516) · 蓝图 [`agent-lifecycle.md`](../../../blueprint/current/agent-lifecycle.md) §2.3 (5-state error → online edge) + spec [`al-5-spec.md`](../../../implementation/modules/al-5-spec.md) §1 AL-5.2 byte-identical.
 
 agent 翻 error 后, owner 收 system DM (AL-5.1 server 写, follow-up) → `SystemMessageBubble` 检测 quick_action JSON 是 AL-5 shape (`action='recover'` + `agent_id` + `reason` + `request_id`) → 渲染**单按钮**:
 

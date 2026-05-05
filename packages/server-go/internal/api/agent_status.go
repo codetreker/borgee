@@ -10,7 +10,7 @@ import (
 
 // AL-1b.2 (#R3 Phase 4) — agent status endpoint.
 //
-// Blueprint锚: docs/blueprint/agent-lifecycle.md §2.3 (5-state, 2026-04-28
+// Blueprint锚: docs/blueprint/current/agent-lifecycle.md §2.3 (5-state, 2026-04-28
 // 4 人 review #5 决议: busy/idle 跟 BPP 同期 Phase 4). Spec:
 // docs/implementation/modules/al-1b-spec.md (战马C v0) §1 拆段 AL-1b.2.
 // Acceptance: docs/qa/acceptance-templates/al-1b.md §2.1 / §2.5.

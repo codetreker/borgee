@@ -1,6 +1,6 @@
 # Implementation · BPP-1 (Borgee Plugin Protocol Phase 3 启动)
 
-> 蓝图: [`../../blueprint/plugin-protocol.md`](../../blueprint/plugin-protocol.md) · [`../../blueprint/realtime.md §2.3`](../../blueprint/realtime.md) · [`../../blueprint/r3-decisions.md §R3-4`](../../blueprint/r3-decisions.md)
+> 蓝图: [`../../blueprint/current/plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) · [`../../blueprint/current/realtime.md §2.3`](../../blueprint/current/realtime.md) · [`../../blueprint/_meta/r3-decisions.md §R3-4`](../../blueprint/_meta/r3-decisions.md)
 > 现状: Phase 2 RT-0 (#218 client + #237 server) 已落 `/ws` hub + 2 frame (invitation_pending/decided), 字段顺序 byte-identical 锁
 > 阶段: ⚡ v0 (Phase 3 解封后启动) · 所属 Phase: BPP-1.1~1.3 在 Phase 3; AL-1b 跟 BPP-1.2 同期 (owner 在 agent-lifecycle module)
 

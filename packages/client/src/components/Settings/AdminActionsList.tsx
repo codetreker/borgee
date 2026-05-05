@@ -1,6 +1,6 @@
 // AdminActionsList — ADM-2.2 用户设置页 → "影响记录" 子段 (acceptance §4.1.c).
 //
-// Blueprint: docs/blueprint/admin-model.md §1.4 第四档 (普通 user 只见
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 第四档 (普通 user 只见
 // 与自己相关的 audit 条目).
 // Content lock: docs/qa/adm-2-content-lock.md §4 (audit 列表字面锁 + 空态).
 // Spec: docs/implementation/modules/adm-2-spec.md §2.2.

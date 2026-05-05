@@ -1,6 +1,6 @@
 # Implementation · Agent Lifecycle
 
-> 蓝图: [`../../blueprint/agent-lifecycle.md`](../../blueprint/agent-lifecycle.md)
+> 蓝图: [`../../blueprint/current/agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md)
 > 现状: agent 创建已存在 (admin API), 但状态只有 enabled/disabled 二态, 没有"故障态", 没有四态 UX, presence 只有 CM-4 引入的 minimal in-process map
 > 阶段: ⚡ v0
 > 所属 Phase: Phase 4

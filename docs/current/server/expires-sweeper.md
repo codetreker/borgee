@@ -1,6 +1,6 @@
 # AP-2 expires_at sweeper — implementation note
 
-> AP-2 (#525) · Phase 5+ · 蓝图 [`auth-permissions.md`](../../blueprint/auth-permissions.md) §5 (周期性 sweep, 不要求实时) + AP-1.1 #493 schema (`user_permissions.expires_at` reserved) + ADM-2.1 #484 admin_actions audit reuse + AL-1b #458 sweeper goroutine pattern.
+> AP-2 (#525) · Phase 5+ · 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §5 (周期性 sweep, 不要求实时) + AP-1.1 #493 schema (`user_permissions.expires_at` reserved) + ADM-2.1 #484 admin_actions audit reuse + AL-1b #458 sweeper goroutine pattern.
 
 ## 1. 立场
 

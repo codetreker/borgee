@@ -1,6 +1,6 @@
 # Implementation · Auth & Permissions
 
-> 蓝图: [`../../blueprint/auth-permissions.md`](../../blueprint/auth-permissions.md)
+> 蓝图: [`../../blueprint/current/auth-permissions.md`](../../blueprint/current/auth-permissions.md)
 > 现状: `user_permissions(user_id, permission, resource)` 表已有, 但缺 ABAC scope 层级, 没有 UI bundle, 跨 org 限制不严格
 > 阶段: ⚡ v0
 > 所属 Phase: AP-0 在 Phase 1 (跟 CM-1 并行); AP-1~4 在 Phase 4

@@ -1,6 +1,6 @@
 # Implementation · Data Layer (剩余)
 
-> 蓝图: [`../../blueprint/data-layer.md`](../../blueprint/data-layer.md)
+> 蓝图: [`../../blueprint/current/data-layer.md`](../../blueprint/current/data-layer.md)
 > 现状: 大部分总账已落 (随各模块进表), 剩 events 双流 / 阈值哨 / 分布式 ready 接口抽象
 > 阶段: ⚡ v0 + 部分 v1 准备
 > 所属 Phase: Phase 4 (DL-2/DL-3 部分作 v0→v1 切换 checklist 准备)

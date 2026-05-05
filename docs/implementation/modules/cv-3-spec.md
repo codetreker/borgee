@@ -1,7 +1,7 @@
 # CV-3 spec brief — D-lite 画布渲染 (artifact 类型扩展: code + image/link)
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马A 落)
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.2 (D-lite, 不是 Miro) + §1.4 (artifact 集合: Markdown / 代码片段带语言标注 / 设计稿图片或链接 / 看板待办 v2+) + §2 v1 不做清单 (❌ 无限画布 / ❌ 多 artifact 关联视图 / ❌ CRDT / ❌ PDF / ❌ 看板)
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.2 (D-lite, 不是 Miro) + §1.4 (artifact 集合: Markdown / 代码片段带语言标注 / 设计稿图片或链接 / 看板待办 v2+) + §2 v1 不做清单 (❌ 无限画布 / ❌ 多 artifact 关联视图 / ❌ CRDT / ❌ PDF / ❌ 看板)
 > **关联**: CV-1 三段四件全闭 ✅ Markdown ONLY (#334+#342+#346+#348) — artifact_versions schema + RT-1 envelope + Markdown 渲染就位; CV-2 三段进行中 (#359 schema + #360 server, #361 锚点对话 envelope 复用); CHN-1 #276 channel 权限继承; RT-1 #290 cursor envelope 复用
 > **章程闸**: G3.4 协作场骨架 demo 价值 — D-lite "画布" 视觉差异化 (代码高亮 + 图片嵌入) 是退出公告 demo 必要素材
 

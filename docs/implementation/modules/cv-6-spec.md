@@ -1,7 +1,7 @@
 # CV-6 spec brief — artifact 全文搜索 (Phase 5+ 续作)
 
 > 战马C · 2026-04-30 · ≤80 行 spec lock (4 件套之一; canvas-vision §1.4 续作 — artifact 全文搜索 给 owner 大量 artifact 累积时定位)
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.4 (artifact 集合: 多类型 markdown / code / image_link / video_link / pdf_link, "首屏快读" 字面承袭 — 大量 artifact 时 owner 需 search 入口) + [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.3 主入口 + [`channel-model.md`](../../blueprint/channel-model.md) §1.4 channel.created_by owner 主权
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.4 (artifact 集合: 多类型 markdown / code / image_link / video_link / pdf_link, "首屏快读" 字面承袭 — 大量 artifact 时 owner 需 search 入口) + [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.3 主入口 + [`channel-model.md`](../../blueprint/current/channel-model.md) §1.4 channel.created_by owner 主权
 > **关联**: CV-1 #348 markdown artifact + artifact_versions ✅ + CV-3 #408 三 kind enum + CV-2 v2 #517 五 kind enum (markdown/code/image_link/video_link/pdf_link) ✅ + CV-3 v2 #528 thumbnail_url ✅ + CV-1.2 #342 owner-only ACL (channel.created_by gate) + AP-1 #493 HasCapability SSOT + AP-3 #521 cross-org gate
 
 > ⚠️ CV-6 是 **wrapper milestone** (跟 CV-2 v2 / CV-3 v2 / AL-5 / AP-2 / AP-3 wrapper 同模式) — 复用 SQLite FTS5 (内置 search infra, 不另起 elasticsearch / opensearch / typesense), **不裂新 search service**, 仅补 server-side FTS5 virtual table + GET /artifacts/search?q= owner-only endpoint + client SearchBox.

@@ -1,7 +1,7 @@
 # RT-0 Server Review Prep — 5 分钟过审 checklist
 
 > 飞马 · 2026-04-28 · 战马A RT-0 server PR 预备 (≤ 500 LOC)
-> 引: `docs/blueprint/realtime.md §2.3` + #218 client review (schema 已 lock)
+> 引: `docs/blueprint/current/realtime.md §2.3` + #218 client review (schema 已 lock)
 
 ## 1. 5 条盯点
 

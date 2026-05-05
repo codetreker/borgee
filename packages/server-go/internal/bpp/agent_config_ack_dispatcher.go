@@ -1,7 +1,7 @@
 // Package bpp — agent_config_ack_dispatcher.go: AL-2b ack frame 入站
 // dispatcher source-of-truth.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.5 (热更新 + 幂等
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (热更新 + 幂等
 // reload + ack 回执) + §2.2 (data plane, Plugin → Server).
 // Spec brief: docs/implementation/modules/al-2b-spec.md (烈马 #465 v0)
 // + docs/implementation/modules/al-2b.2-server-hook-spec.md §1

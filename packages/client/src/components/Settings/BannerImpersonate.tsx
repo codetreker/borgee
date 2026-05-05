@@ -1,6 +1,6 @@
 // BannerImpersonate — ADM-2.2 顶部红横幅 (业主端).
 //
-// Blueprint: docs/blueprint/admin-model.md §1.4 红线 2 ("Impersonate 必须显眼,
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 2 ("Impersonate 必须显眼,
 // 红色横幅 + 倒计时") + ADM-1 §4.1 R3 第 2 条 ("24h 时窗顶部红色横幅常驻可
 // 随时撤销") 兑现.
 // Content lock: docs/qa/adm-2-content-lock.md §2 (字面 byte-identical).

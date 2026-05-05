@@ -1,7 +1,7 @@
 // Package api — preview.go: CV-2 v2 server handler for artifact preview
 // thumbnail / media URL recording (Phase 5).
 //
-// Blueprint: docs/blueprint/canvas-vision.md §1.4 (artifact 集合: Markdown
+// Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合: Markdown
 // / 代码片段 / image_link / video_link / pdf_link; preview 是首屏快读).
 // Spec brief: docs/implementation/modules/cv-2-v2-media-preview-spec.md
 // (战马D v0). Stance: 3 立场 (① server CDN thumbnail 不 inline / ② HTML5

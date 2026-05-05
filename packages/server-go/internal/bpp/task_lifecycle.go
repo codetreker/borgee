@@ -15,7 +15,7 @@
 // task lifecycle 的算法结果不是独立信号). 因此 bppEnvelopeWhitelist
 // 留 11 frame 不动, 5-frame 共序锁字段数各 frame 自报 (各自 _test 已锁).
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.6 (失联与故障状态 +
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 +
 // "工作中状态需要 plugin 主动心跳上报 — 缺心跳按未知") + §2.2 (data
 // plane Plugin → Borgee). agent-lifecycle.md §2.3 字面: "busy / idle
 // source 必须是 plugin 上行的 task_started / task_finished frame, 没

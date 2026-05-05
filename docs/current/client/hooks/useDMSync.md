@@ -1,6 +1,6 @@
 # useDMSync hook (DM-3.2) — implementation note
 
-> DM-3.2 (#508) · Phase 5 候选 · 蓝图 [`concept-model.md`](../../blueprint/concept-model.md) §1.3 + DM-2 #361/#372/#388 (mention dispatch) + RT-1.3 #296 (cursor backfill) + RT-3 #488 (多端推 + thinking 反约束).
+> DM-3.2 (#508) · Phase 5 候选 · 蓝图 [`concept-model.md`](../../blueprint/current/concept-model.md) §1.3 + DM-2 #361/#372/#388 (mention dispatch) + RT-1.3 #296 (cursor backfill) + RT-3 #488 (多端推 + thinking 反约束).
 
 ## 1. 立场
 

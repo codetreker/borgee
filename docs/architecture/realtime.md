@@ -1,6 +1,6 @@
 # Implementation · Realtime
 
-> 蓝图: [`../../blueprint/realtime.md`](../../blueprint/realtime.md)
+> 蓝图: [`../../blueprint/current/realtime.md`](../../blueprint/current/realtime.md)
 > 现状: 当前已有 messages 推送, 但没有"活物感"动效, 没有 artifact 推送, 离线回放未拆人/agent
 > 阶段: ⚡ v0
 > 所属 Phase: **RT-1 在 Phase 3 (CV-4 demo 必需), RT-2/RT-3 在 Phase 4**

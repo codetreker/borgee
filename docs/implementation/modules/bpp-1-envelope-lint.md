@@ -1,7 +1,7 @@
 # BPP-1 envelope CI lint — spec stub (Phase 4 占号)
 
 > **状态**: 占号 stub (Phase 2 G2.6 留账行 PR 锁用), 实施留 Phase 4 BPP-1。
-> **蓝图锚**: [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §2 + §2.1 控制面 + §2.2 数据面; [`realtime.md`](../../blueprint/realtime.md) §2.3 (`/ws` ↔ BPP envelope 等同性, 飞马 R3)。
+> **蓝图锚**: [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §2 + §2.1 控制面 + §2.2 数据面; [`realtime.md`](../../blueprint/current/realtime.md) §2.3 (`/ws` ↔ BPP envelope 等同性, 飞马 R3)。
 > **关联**: PR #237 envelope 模板 + PR #267 §5 + PR #269 RT-1 §0 守门。
 
 ## 1. envelope schema (Phase 4 锁)

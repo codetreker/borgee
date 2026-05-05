@@ -1,6 +1,6 @@
 # Implementation · Channel Model
 
-> 蓝图: [`../../blueprint/channel-model.md`](../../blueprint/channel-model.md)
+> 蓝图: [`../../blueprint/current/channel-model.md`](../../blueprint/current/channel-model.md)
 > 现状: [`../../current/server/`](../../current/server/) — channels / messages 表已存在, 但缺 workspace 概念, DM 与 channel 边界模糊, 分组只有作者侧
 > 阶段: ⚡ v0
 > 所属 Phase: Phase 3 — 见 [`execution-plan.md`](../00-foundation/execution-plan.md)

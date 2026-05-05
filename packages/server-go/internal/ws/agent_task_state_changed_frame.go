@@ -3,7 +3,7 @@
 // channel members when an agent transitions busy↔idle, derived from
 // BPP-2.2 task_started / task_finished plugin upstream frames.
 //
-// Blueprint锚: docs/blueprint/realtime.md §1.1 (活物感 / thinking 强制带
+// Blueprint锚: docs/blueprint/current/realtime.md §1.1 (活物感 / thinking 强制带
 // subject) + §0 字面 "v1 realtime 只做'足够让用户感到 AI 在工作'的最小集"
 // + agent-lifecycle.md §2.3 (busy/idle source 必须 plugin 上行 frame) +
 // plugin-protocol.md §1.6.

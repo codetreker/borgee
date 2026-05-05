@@ -1,6 +1,6 @@
 # HB-3 v2 spec brief — heartbeat decay 锁链第 3 处 (≤80 行)
 
-> 战马D · Phase 6 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.6 (失联与故障状态) + BPP-4 #499 watchdog 30s threshold + BPP-8 #532 lifecycle audit. 模块锚: HB-3 v2 (新 wrapper, 跟 #507 HB-3 host_grants 拆死锚). 依赖 BPP-4 #499 watchdog + BPP-8 #532 lifecycle audit + AL-1 #492 5-state + REFACTOR-REASONS #496 6-dict.
+> 战马D · Phase 6 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态) + BPP-4 #499 watchdog 30s threshold + BPP-8 #532 lifecycle audit. 模块锚: HB-3 v2 (新 wrapper, 跟 #507 HB-3 host_grants 拆死锚). 依赖 BPP-4 #499 watchdog + BPP-8 #532 lifecycle audit + AL-1 #492 5-state + REFACTOR-REASONS #496 6-dict.
 >
 > ⚠️ **命名拆死**: HB-3 #507 host_grants schema 已落 (蓝图 host-bridge §1.3); 本 milestone HB-3 v2 = **heartbeat decay** 主题 (跟 host-bridge 域不交). spec 文件名 `hb-3-v2-spec.md` 字面拆死, 反向 grep `HB3HostGrants\|host_grants` 在 hb_3_v2*.go 0 hit 反断.
 

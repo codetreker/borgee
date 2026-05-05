@@ -1,6 +1,6 @@
 # Acceptance Template — AL-1b busy/idle (BPP 同期)
 
-> 蓝图: `docs/blueprint/agent-lifecycle.md` §2.3 (5-state) · Implementation: `docs/implementation/modules/al-1b-spec.md` (战马C v0)
+> 蓝图: `docs/blueprint/current/agent-lifecycle.md` §2.3 (5-state) · Implementation: `docs/implementation/modules/al-1b-spec.md` (战马C v0)
 > 前置: AL-1a (#249) ✅ + AL-3 (#310/#317/#324) ✅ + AL-4 (#398) ✅ + BPP-2 frame schema 留账 · Owner: 战马C 三段全做 / 验收 烈马 / 文案 野马
 > 拆 PR: **AL-1b.1** schema (本 PR v=21) + **AL-1b.2** server endpoint + state machine (待 PR) + **AL-1b.3** client SPA dot UI (待 PR)
 

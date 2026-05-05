@@ -1,6 +1,6 @@
 # Acceptance Template — CV-1: artifact schema + commit/rollback API + canvas UI
 
-> 蓝图: `docs/blueprint/canvas-vision.md` §0 (一句话 — channel 围 artifact 协作) + §1.1-§1.6 (五条立场) + §2 (v1 做/不做)
+> 蓝图: `docs/blueprint/current/canvas-vision.md` §0 (一句话 — channel 围 artifact 协作) + §1.1-§1.6 (五条立场) + §2 (v1 做/不做)
 > Spec: `docs/implementation/modules/cv-1-spec.md` (飞马 #306, 3 立场 + 3 拆段 + 7 grep 反查 + 6 反约束)
 > 立场反查: `docs/qa/cv-1-stance-checklist.md` v0 (野马 #282, 7 项立场 + 5 黑名单 grep + v0/v1 切换三条件) + `docs/qa/cv-1-stance-v1-supplement.md` v1 (野马 #307, ②③⑤⑦ 字段/边界/反断细化)
 > v1 解封三条件 (#295 §5): RT-1 三段 ✅ (#290+#292+#296) + AL-3 三轨 ✅ (#301+#302+#303+#305) + BPP-1 envelope CI lint ✅ (#304, G2.6 ⏸️→✅ DONE commit `4724efa`) — 全满足

@@ -9,7 +9,7 @@ import (
 
 // AL-1b.2 (#R3 Phase 4) agent_status row helpers.
 //
-// Blueprint锚: docs/blueprint/agent-lifecycle.md §2.3 (5-state, busy/idle
+// Blueprint锚: docs/blueprint/current/agent-lifecycle.md §2.3 (5-state, busy/idle
 // 跟 BPP 同期 Phase 4 — source 必须 plugin 上行 task_started / task_finished
 // frame). Spec: docs/implementation/modules/al-1b-spec.md (战马C v0) §1
 // 拆段 AL-1b.2. Migration: al_1b_1_agent_status.go (v=21, AL-1b.1 #453).

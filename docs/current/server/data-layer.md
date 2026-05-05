@@ -1,7 +1,7 @@
 # Data Layer (DL-1) — 4 接口抽象当前状态 (≤80 行)
 
 > 落地: PR feat/dl-1 · DL-1.1 4 interface + factory + 12 unit + DL-1.2 server.go wire + 5 sample handler 注入 + CI dl1-no-direct-store
-> 蓝图锚: [`data-layer.md`](../../blueprint/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)"
+> 蓝图锚: [`data-layer.md`](../../blueprint/current/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)"
 > 立场承袭: [`dl-1-spec.md`](../../implementation/modules/dl-1-spec.md) §0 ① 4 interface byte-identical + ② factory + DI seam + ③ 0 schema/0 endpoint
 
 ## 1. interface 4 条 SSOT (`internal/datalayer/`)

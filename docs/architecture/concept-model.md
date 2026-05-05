@@ -1,6 +1,6 @@
 # Implementation · Concept Model
 
-> 蓝图: [`../../blueprint/concept-model.md`](../../blueprint/concept-model.md)
+> 蓝图: [`../../blueprint/current/concept-model.md`](../../blueprint/current/concept-model.md)
 > 现状: [`../../current/`](../../current/) — 当前 `users` 表只有 `id / role / owner_id`, 无 `organizations` 概念
 > 阶段: ⚡ v0 (允许删库重建)
 > 所属 Phase: Phase 1 (CM-1, CM-3) + Phase 2 (CM-4) — 见 [`execution-plan.md`](../00-foundation/execution-plan.md)
@@ -195,7 +195,7 @@ CM-1 + CM-3 + CM-4 + CM-5 全部 acceptance spec 通过 → concept-model 模块
 
 完成后:
 - `../../current/` 中关于 user 身份模型的描述需要更新 (但本文档不维护 current, 由实施时 audit)
-- blueprint/concept-model.md 中 §7 差距表中所有"❌"都变成"✅"
+- blueprint/current/concept-model.md 中 §7 差距表中所有"❌"都变成"✅"
 
 ## 4. 不在 concept-model 范围
 

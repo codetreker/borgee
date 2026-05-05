@@ -11,7 +11,7 @@ import (
 
 // CM-onboarding (#42) — Welcome channel + system message helpers.
 //
-// Blueprint: docs/blueprint/concept-model.md §10 + onboarding-journey.md §3.
+// Blueprint: docs/blueprint/current/concept-model.md §10 + onboarding-journey.md §3.
 //
 // Contract (handler-level invariant per acceptance-templates/cm-onboarding.md
 // "数据契约 (步骤 1)"):

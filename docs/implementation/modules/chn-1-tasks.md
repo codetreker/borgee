@@ -1,6 +1,6 @@
 # CHN-1 PR 拆分 — channel + memberships (Phase 3 第一波)
 
-> **范围**: blueprint [`channel-model.md`](../../blueprint/channel-model.md) §1.1 / §2 关键不变量 + [`concept-model.md`](../../blueprint/concept-model.md) §1.2 / §1.3。
+> **范围**: blueprint [`channel-model.md`](../../blueprint/current/channel-model.md) §1.1 / §2 关键不变量 + [`concept-model.md`](../../blueprint/current/concept-model.md) §1.2 / §1.3。
 > **不在本文件**: workspace artifact (CV-1) / DM 拆分 (CHN-2) / 个人分组 (CHN-3) — 留 [`channel-model.md`](channel-model.md) 后续 milestone 处理。
 > **依赖**: Phase 1 CM-1.1 (channels.org_id 已加列, 见 cm_1_1_organizations.go:38) + Phase 2 CM-3 (resource org_id 直查 PR #208) 已 merge; Phase 2 闸 4 通过后开闸。
 > **总工期**: 6-8 天 server + 2-3 天 client; 拆 ≤ 3 PR, 每 PR ≤ 3 天 (foundation 规则)。
@@ -17,7 +17,7 @@
 
 ## 1. 反约束 — agent 进 channel 默认 silent
 
-> **蓝图立场** ([`concept-model.md`](../../blueprint/concept-model.md) §1.2 + §1.3): agent = 同事, 但**不指挥每条消息**。CHN-1 落地必须保证 agent 加入 channel 后**默认不主动说话**, 直到被 mention / owner 显式触发。
+> **蓝图立场** ([`concept-model.md`](../../blueprint/current/concept-model.md) §1.2 + §1.3): agent = 同事, 但**不指挥每条消息**。CHN-1 落地必须保证 agent 加入 channel 后**默认不主动说话**, 直到被 mention / owner 显式触发。
 
 - `channel_members` 加冷列 `silent BOOLEAN DEFAULT 1 WHERE user_id is agent` (CHN-1.1 在迁移里 backfill, agent 行 silent=1, human 行 silent=0)。
 - CHN-1.2 GET /channels/:id 响应里 members[].silent 暴露给前端 (但不让 client 改; 只能 owner via PATCH)。

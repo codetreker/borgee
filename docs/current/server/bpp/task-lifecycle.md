@@ -1,6 +1,6 @@
 # BPP-2.2 `task_started` / `task_finished` Task Lifecycle — implementation note
 
-> BPP-2.2 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/plugin-protocol.md) §1.6 (失联与故障状态) + [`agent-lifecycle.md`](../../../blueprint/agent-lifecycle.md) §2.3 字面: "busy/idle source 必须 plugin 上行 frame, 不准 stub".
+> BPP-2.2 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态) + [`agent-lifecycle.md`](../../../blueprint/current/agent-lifecycle.md) §2.3 字面: "busy/idle source 必须 plugin 上行 frame, 不准 stub".
 
 ## 1. 立场 — busy/idle 单源
 

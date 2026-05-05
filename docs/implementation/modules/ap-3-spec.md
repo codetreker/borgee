@@ -1,7 +1,7 @@
 # AP-3 spec brief — cross-org owner-only 强制 (Phase 5+ 续作)
 
 > 战马C · 2026-04-29 · ≤80 行 spec lock (4 件套之一; AP-1 #493 留账之一 wrapper milestone)
-> **蓝图锚**: [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.2 (Scope 层级 v1 三层 — `*` / `channel:<id>` / `artifact:<id>`) + §1.3 主入口 + [`channel-model.md`](../../blueprint/channel-model.md) §1.4 (channel.created_by = owner 主权列) + [`auth-permissions.md`](../../blueprint/auth-permissions.md) §5 与现状的差距 ("cross-org 强制 — AP-3 后续 milestone")
+> **蓝图锚**: [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.2 (Scope 层级 v1 三层 — `*` / `channel:<id>` / `artifact:<id>`) + §1.3 主入口 + [`channel-model.md`](../../blueprint/current/channel-model.md) §1.4 (channel.created_by = owner 主权列) + [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §5 与现状的差距 ("cross-org 强制 — AP-3 后续 milestone")
 > **关联**: AP-1 #493 ABAC HasCapability SSOT + capabilities.go 14 const ✅ + AP-1.1 #493 user_permissions.expires_at 列 ✅ + CHN-1 #286 channel-org membership + CM-3 #208 cross-org 资源归属 + ADM-0 §1.3 admin god-mode 红线
 > **命名**: AP-1 已落 (单组织内 ABAC + capability 白名单 + 严格 403); AP-3 接 AP-1 留账 cross-org 边界 (跨 organization 不发 capability, 反向: agent 无 cross-org permission); AP-2 名占给 AP-1.bis 留账 (expires_at 业务化 v2+, ADM-0 sweeper)
 

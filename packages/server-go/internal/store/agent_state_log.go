@@ -1,6 +1,6 @@
 // Package store — AL-1 状态机 validator + state log helpers.
 //
-// Blueprint: docs/blueprint/agent-lifecycle.md §2.3 (4 态: online / busy /
+// Blueprint: docs/blueprint/current/agent-lifecycle.md §2.3 (4 态: online / busy /
 // idle / error). 跟 AL-1a #249 三态 stub + AL-1b #453/#457 5-state busy/idle
 // 同源 — 此模块是 server reducer + audit log 真接管.
 //

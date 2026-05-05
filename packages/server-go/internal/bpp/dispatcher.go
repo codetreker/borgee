@@ -1,7 +1,7 @@
 // Package bpp — dispatcher.go: BPP-2.1 source-of-truth for the
 // semantic_action dispatch layer (plugin → server → existing REST handler).
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.3 (Plugin 调 Borgee
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.3 (Plugin 调 Borgee
 // 抽象语义层 C, 不直对 REST + 协议红线 "不允许 plugin 下穿语义层直调
 // REST" + 7 v1 必须语义动作字面). Spec brief: docs/implementation/modules/
 // bpp-2-spec.md (战马E #460 v0) §0 立场 ① + §1 拆段 BPP-2.1.

@@ -1,6 +1,6 @@
 # BPP-5 spec brief — plugin reconnect handshake + cursor resume 协议化 (≤80 行)
 
-> 战马A · Phase 5 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.6 (失联与故障状态 — 重连恢复) + §2.1 (control-plane `connect` 握手). 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-5. 依赖 BPP-1 #304 envelope (whitelist 13→14) + BPP-3 #489 PluginFrameDispatcher + BPP-4 #499 watchdog (error→reconnect 反向) + RT-1.3 #296 session.resume cursor replay (复用, 不另起 sequence) + AL-1 5-state (#496 reasons SSOT 单源).
+> 战马A · Phase 5 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态 — 重连恢复) + §2.1 (control-plane `connect` 握手). 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-5. 依赖 BPP-1 #304 envelope (whitelist 13→14) + BPP-3 #489 PluginFrameDispatcher + BPP-4 #499 watchdog (error→reconnect 反向) + RT-1.3 #296 session.resume cursor replay (复用, 不另起 sequence) + AL-1 5-state (#496 reasons SSOT 单源).
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.6 + RT-1.3 字面)
 

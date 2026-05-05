@@ -2,7 +2,7 @@
 //
 // Spec: docs/qa/adm-2-content-lock.md §5 (admin SPA 跨端字面拆死) +
 // docs/current/admin/README.md §6 (admin-rail audit-log).
-// Blueprint: docs/blueprint/admin-model.md §1.4 红线 (admin/user 路径分叉,
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 (admin/user 路径分叉,
 // ADM-0 §1.3 同模式).
 //
 // 跨端字面拆死立场 (ADM-2 NEG-010):

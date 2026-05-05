@@ -1,6 +1,6 @@
 # CV-12 spec brief — artifact comment search (CV-5..CV-11 续, client only)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 + CV-5..CV-11 单源延伸 + CV-9/10/11 client-only 同模式 + thinking 5-pattern 第 9 处链 (无新增, 但锁链不漂). CV-12 让 artifact comment 内容可搜索 — 复用既有 `GET /api/v1/channels/{channelId}/messages/search?q=` (CV-5 既有 message-search endpoint), channelId 走 artifact: namespace channel UUID. **0 server production code + 0 schema 改 + 0 新 endpoint + 0 新 lib**.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 + CV-5..CV-11 单源延伸 + CV-9/10/11 client-only 同模式 + thinking 5-pattern 第 9 处链 (无新增, 但锁链不漂). CV-12 让 artifact comment 内容可搜索 — 复用既有 `GET /api/v1/channels/{channelId}/messages/search?q=` (CV-5 既有 message-search endpoint), channelId 走 artifact: namespace channel UUID. **0 server production code + 0 schema 改 + 0 新 endpoint + 0 新 lib**.
 
 ## 0. 关键约束 (4 项立场, 跨链承袭)
 

@@ -3,7 +3,7 @@
 // state transitions (pending/running/completed/failed) for an
 // artifact_iterations row to the artifact's channel members.
 //
-// Blueprint锚: docs/blueprint/canvas-vision.md §1.4 (artifact 自带版本
+// Blueprint锚: docs/blueprint/current/canvas-vision.md §1.4 (artifact 自带版本
 // 历史: agent 每次修改产生一个版本) + §1.5 (agent 写内容默认允许).
 // Spec brief: docs/implementation/modules/cv-4-spec.md §0 立场 ② CV-1
 // commit 单源 + §1 拆段 CV-4.2 + 飞马 #365 envelope 9 字段字面.

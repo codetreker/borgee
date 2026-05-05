@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 // bisMessageRead is migration v=8 — AP-0-bis backfill.
 //
-// Blueprint: docs/blueprint/auth-permissions.md §3 (Messaging capability list);
+// Blueprint: docs/blueprint/current/auth-permissions.md §3 (Messaging capability list);
 // R3 决议 #1 (2026-04-28): agent default capability set 锁 [message.send,
 // message.read]. New agents pick this up via store.GrantDefaultPermissions
 // (queries.go); existing agents in the wild predate the row, so this migration

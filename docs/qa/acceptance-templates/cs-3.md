@@ -1,7 +1,7 @@
 # Acceptance Template — CS-3: PWA install + Web Push UI
 
 > Spec: `docs/implementation/modules/cs-3-spec.md` (飞马 + 战马D v0)
-> 蓝图: `docs/blueprint/client-shape.md` §1.1 (PWA 主战场) + §1.4 (Web Push 数据通路)
+> 蓝图: `docs/blueprint/current/client-shape.md` §1.1 (PWA 主战场) + §1.4 (Web Push 数据通路)
 > Stance: `docs/qa/cs-3-stance-checklist.md` (野马 / 飞马 v0)
 > 前置: DL-4 #485 pushSubscribe.ts ✅ + manifest.json + sw.js 既有 ✅
 > Owner: 战马D (主战) + 飞马 (spec) + 烈马 (acceptance) + 野马 (文案)

@@ -4,7 +4,7 @@
 // targets go through the owner system DM fallback path (DM-2.2
 // mention_dispatch.go), which does NOT use this frame.
 //
-// Blueprint锚: docs/blueprint/concept-model.md §4 (agent 代表自己 —
+// Blueprint锚: docs/blueprint/current/concept-model.md §4 (agent 代表自己 —
 // mention 只 ping target, 不抄送 owner) + §13 隐私默认.
 // Spec brief: docs/implementation/modules/dm-2-spec.md §0 立场 ② + §1
 // 拆段 DM-2.2 (#312, merged) + #362 spec brief 8 字段 envelope.

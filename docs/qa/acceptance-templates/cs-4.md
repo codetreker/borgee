@@ -1,7 +1,7 @@
 # Acceptance Template — CS-4: IndexedDB 乐观缓存
 
 > Spec: `docs/implementation/modules/cs-4-spec.md` (飞马 + 战马D v0)
-> 蓝图: `docs/blueprint/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque)
+> 蓝图: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque)
 > Stance: `docs/qa/cs-4-stance-checklist.md` (野马 / 飞马 v0)
 > 前置: RT-1 #290 cursor opaque ✅ + DM-3 useDMSync ✅ + CS-2 #595 故障三态 (in-flight) + CS-3 #598 PWA (in-flight)
 > Owner: 战马D (主战) + 飞马 (spec) + 烈马 (acceptance) + 野马 (文案)

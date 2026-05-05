@@ -1,7 +1,7 @@
 // Package api — anchors.go: CV-2.2 server API for anchor-thread CRUD +
 // comment + resolve + WS push (`anchor_comment_added`).
 //
-// Blueprint: docs/blueprint/canvas-vision.md §1.4 (artifact 集合) +
+// Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合) +
 // §1.6 (锚点对话 = owner review agent 产物的工具).
 // Spec brief: docs/implementation/modules/cv-2-spec.md (飞马 v0/v1/v2,
 // 3 立场 + 3 拆段). Schema源: migration v=14 cv_2_1_anchor_comments

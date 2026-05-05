@@ -1,7 +1,7 @@
 # ADM-0 PR Review Checklist (飞马预备)
 
 > 用途: ADM-0.1 / ADM-0.2 / ADM-0.3 三段 PR review **前置死单**, 防止 review 时临时拍脑袋。
-> 锚点: [`admin-model.md`](admin-model.md) §ADM-0 + blueprint [`admin-model.md`](../../blueprint/admin-model.md) §1.2 / §1.3 / §2 / §3
+> 锚点: [`admin-model.md`](admin-model.md) §ADM-0 + blueprint [`admin-model.md`](../../blueprint/current/admin-model.md) §1.2 / §1.3 / §2 / §3
 > 来源决议: PR #188 (蓝图 R3) + PR #189 (implementation R3 重排)
 > 维护: 飞马; 战马 PR 来后逐项打勾, 任一红线触发 → request changes 不商量
 

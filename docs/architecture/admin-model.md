@@ -1,6 +1,6 @@
 # Implementation · Admin Model
 
-> 蓝图: [`../../blueprint/admin-model.md`](../../blueprint/admin-model.md)
+> 蓝图: [`../../blueprint/current/admin-model.md`](../../blueprint/current/admin-model.md)
 > 现状: `users.role='admin'` 与普通 user 同表; cookie 共享; `/admin-api/v1/*` 走同一 session; 无独立 SPA, 无明确隐私契约, 无分层透明
 > 阶段: ⚡ v0
 > 所属 Phase: ADM-0 在 **Phase 2** 落地 (闸 #2 admin 路线决议派生); ADM-1/2/3 仍在 Phase 4

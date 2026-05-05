@@ -1,6 +1,6 @@
 # AP-4 spec brief — reactions ACL 收紧 (CV-7 #535 既存 gap 修)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.2 + REG-INV-002 fail-closed + ADM-0 §1.3 admin rail 红线 + CV-7 #535 既存 gap 修. AP-4 给 reactions PUT/DELETE/GET 加 channel-member ACL gate (跟 messages POST/GET 同源既有 ACL helper). DM-5 #549 e2e §3.3 反向断时发现此 gap (REG-DM5-005 文档化), AP-4 闭合.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.2 + REG-INV-002 fail-closed + ADM-0 §1.3 admin rail 红线 + CV-7 #535 既存 gap 修. AP-4 给 reactions PUT/DELETE/GET 加 channel-member ACL gate (跟 messages POST/GET 同源既有 ACL helper). DM-5 #549 e2e §3.3 反向断时发现此 gap (REG-DM5-005 文档化), AP-4 闭合.
 
 ## 0. 关键约束 (4 项立场, 蓝图字面)
 

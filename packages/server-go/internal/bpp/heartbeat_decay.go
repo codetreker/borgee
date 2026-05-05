@@ -1,6 +1,6 @@
 // Package bpp — heartbeat_decay.go: HB-3 v2.1 decay 三档 derive helper.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.6 (失联非 binary).
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联非 binary).
 // Spec brief: docs/implementation/modules/hb-3-v2-spec.md §0.1 + §1
 // HB-3 v2.1.
 //

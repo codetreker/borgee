@@ -16,7 +16,7 @@
 // mw, ADM-0 §1.3 红线). 反向 grep `cross.org.*bypass\|skip.*org.*check`
 // 在 internal/api/ count==0.
 //
-// 蓝图锚: docs/blueprint/auth-permissions.md §1.1 (ABAC source of truth)
+// 蓝图锚: docs/blueprint/current/auth-permissions.md §1.1 (ABAC source of truth)
 // + §1.2 (Scope 三层 v1: `*` / `channel:<id>` / `artifact:<id>`) + §5
 // (cross-org 强制 — AP-3 后续 milestone) + channel-model.md §1.4 (主权列).
 //

@@ -1,7 +1,7 @@
 # DM-2 spec brief — mention (@user / @agent) 实施 spec
 
 > 飞马 · 2026-04-28 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马B 落)
-> **蓝图锚**: [`concept-model.md`](../../blueprint/concept-model.md) §4 (agent 代表自己 — mention 只 ping target, 不抄送 owner) + §4.1 (离线 fallback — owner 系统 DM + 节流 5 分钟/channel + ❌ 不转发原始内容) + §13 隐私默认
+> **蓝图锚**: [`concept-model.md`](../../blueprint/current/concept-model.md) §4 (agent 代表自己 — mention 只 ping target, 不抄送 owner) + §4.1 (离线 fallback — owner 系统 DM + 节流 5 分钟/channel + ❌ 不转发原始内容) + §13 隐私默认
 > **关联**: 烈马 [`docs/qa/acceptance-templates/dm-2.md`](../../qa/acceptance-templates/dm-2.md) (#293 LGTM merged, 11 验收 + 反查锚) + 野马 #211 ADM-0 反查表 (mention 按 sender_id 不展开 owner) + AL-3 #277/#310 PresenceTracker (在线判断真接, 不再 stub)
 
 > ⚠️ 锚说明: `@channel` 不在 DM-2 范围 (留 DM-3), 此 spec 只锁 `@<user_id>` / `@<agent_id>` (同表同语义, 立场 ⑥ agent=同事)

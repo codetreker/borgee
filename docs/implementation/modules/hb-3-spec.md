@@ -1,6 +1,6 @@
 # HB-3 spec brief — host_grants schema SSOT + 情境化授权 (≤80 行)
 
-> 战马A · Phase 5 host-bridge · ≤80 行 · 蓝图 [`host-bridge.md`](../../blueprint/host-bridge.md) §1.3 (情境化授权 4 类) + §1.5 release gate 第 5 行 (撤销 grant → daemon < 100ms 拒绝). 模块锚 [`host-bridge.md`](host-bridge.md) §HB-3. 依赖 HB-1 #491 install-butler spec + HB-2 #491 host-bridge daemon spec (HB-2 §3.2 grants store contract 已锁: read-only consumer + HB-3 持 schema). Blocked-by: HB-1 / HB-2 真实施 (Go binary skeleton 等 DL-4 manifest endpoint; HB stack Go 重审拍板, 撤 Rust crate 路径).
+> 战马A · Phase 5 host-bridge · ≤80 行 · 蓝图 [`host-bridge.md`](../../blueprint/current/host-bridge.md) §1.3 (情境化授权 4 类) + §1.5 release gate 第 5 行 (撤销 grant → daemon < 100ms 拒绝). 模块锚 [`host-bridge.md`](host-bridge.md) §HB-3. 依赖 HB-1 #491 install-butler spec + HB-2 #491 host-bridge daemon spec (HB-2 §3.2 grants store contract 已锁: read-only consumer + HB-3 持 schema). Blocked-by: HB-1 / HB-2 真实施 (Go binary skeleton 等 DL-4 manifest endpoint; HB stack Go 重审拍板, 撤 Rust crate 路径).
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.3 字面)
 

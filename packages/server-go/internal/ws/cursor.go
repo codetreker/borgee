@@ -1,7 +1,7 @@
 // Package ws — cursor.go: RT-1.1 (#269) source-of-truth for the
 // monotonic event cursor + per-(artifact_id, version) dedup gate that
 // fronts the `artifact_updated` push frame defined in
-// docs/blueprint/realtime.md §1.4 + §2.1.
+// docs/blueprint/current/realtime.md §1.4 + §2.1.
 //
 // Behaviour contract (飞马 review §0 hardline + RT-1 spec §1.1):
 //

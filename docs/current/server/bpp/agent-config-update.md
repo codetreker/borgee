@@ -1,6 +1,6 @@
 # BPP-2.3 `agent_config_update` — implementation note
 
-> BPP-2.3 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/plugin-protocol.md) §1.5 (配置热更新按字段分类生效 + 幂等 reload) + §1.4 表 (Borgee 管 vs Runtime 管 字段划界).
+> BPP-2.3 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/current/plugin-protocol.md) §1.5 (配置热更新按字段分类生效 + 幂等 reload) + §1.4 表 (Borgee 管 vs Runtime 管 字段划界).
 
 ## 1. 立场
 

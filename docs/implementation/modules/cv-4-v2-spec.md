@@ -1,6 +1,6 @@
 # CV-4 v2 spec brief — canvas iteration history list + timeline UI 续 (≤80 行)
 
-> 战马D · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.4 (artifact 多版本 + iterate 历史可见) + CV-4 v1 (#398/#414/#417) iteration request lifecycle 落. 模块锚 [`canvas-vision.md`](canvas-vision.md) §CV-4. 依赖 CV-4 v1 `artifact_iterations` 表 v=18 + CV-1 既有 `POST /artifacts/:id/commits` + RT-1 `ArtifactUpdated` frame + CV-3 v2 `preview_url` (#517) + ADM-0 §1.3 红线.
+> 战马D · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.4 (artifact 多版本 + iterate 历史可见) + CV-4 v1 (#398/#414/#417) iteration request lifecycle 落. 模块锚 [`canvas-vision.md`](canvas-vision.md) §CV-4. 依赖 CV-4 v1 `artifact_iterations` 表 v=18 + CV-1 既有 `POST /artifacts/:id/commits` + RT-1 `ArtifactUpdated` frame + CV-3 v2 `preview_url` (#517) + ADM-0 §1.3 红线.
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.4 + CV-4 v1 字面承袭)
 

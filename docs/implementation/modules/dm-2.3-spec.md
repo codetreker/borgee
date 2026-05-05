@@ -1,7 +1,7 @@
 # DM-2.3 spec brief — client SPA mention 渲染 (DM-2 主线最后一段)
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (DM-2.2 #372 server 实施全闭后续作; DM-2 主线收口)
-> **蓝图锚**: [`concept-model.md`](../../blueprint/concept-model.md) §4 (mention 路由 — 显示 display_name 不漏 raw UUID) + §4.1 (离线 fallback 是 owner 后台事不污染发送方); [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.5 (agent 默认允许参与, 二元 🤖↔👤)
+> **蓝图锚**: [`concept-model.md`](../../blueprint/current/concept-model.md) §4 (mention 路由 — 显示 display_name 不漏 raw UUID) + §4.1 (离线 fallback 是 owner 后台事不污染发送方); [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.5 (agent 默认允许参与, 二元 🤖↔👤)
 > **关联**: 上游全闭 — DM-2.1 #361 schema v=15 ✅ / DM-2.2 #372 server parser + WS push + offline fallback ✅ (MentionPushedFrame 8 字段 byte-identical 落地); 锚 #312 飞马 DM-2 spec brief (merged 7de76f9) §1 CV-2.3 + #293 烈马 acceptance §3 + #314 野马文案锁 (display_name 渲染字面) + 既有 `lib/markdown.ts:55-58` `<@user_id>` token 渲染同模式 (CV-1 既有路径, DM-2.3 复用扩 mention 候选 + WS 实时刷)
 > **章程闸**: G3.4 协作场骨架 demo 收口路径之一 (CHN-4 #374 e2e 链含 mention 流 + 离线 fallback owner DM 截屏)
 

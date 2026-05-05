@@ -1,7 +1,7 @@
 // Package api — thumbnail.go: CV-3 v2 server handler for code/markdown
 // artifact thumbnail recording (Phase 5+, #cv-3-v2).
 //
-// Blueprint: docs/blueprint/canvas-vision.md §1.4 (artifact 集合: 多类型,
+// Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合: 多类型,
 // "首屏快读不是浏览器内全量解码" 字面). Spec brief:
 // docs/implementation/modules/cv-3-v2-spec.md (战马C v0, 484ec08).
 // Stance: 3 立场 (① server CDN thumbnail 不 inline / ② https only 复用

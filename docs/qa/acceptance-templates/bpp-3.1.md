@@ -1,7 +1,7 @@
 # Acceptance Template — BPP-3.1: `permission_denied` BPP frame 推送 (server→plugin)
 
 > Spec: `docs/implementation/modules/bpp-3.1-spec.md` (战马C v0)
-> 蓝图: `docs/blueprint/auth-permissions.md` §2 不变量 "Permission denied 走 BPP" + §4.1 row 字面 frame 字段; `docs/blueprint/plugin-protocol.md` §2.1 control plane (server→plugin)
+> 蓝图: `docs/blueprint/current/auth-permissions.md` §2 不变量 "Permission denied 走 BPP" + §4.1 row 字面 frame 字段; `docs/blueprint/current/plugin-protocol.md` §2.1 control plane (server→plugin)
 > 前置: BPP-1 #304 envelope CI lint ✅ + BPP-2 #485 dispatcher + task lifecycle + agent_config_update ✅
 > 关联: AP-1 #493 abac.go::HasCapability false 路径 deferred wiring (interface seam, AP-1 merge 后 1-line follow-up)
 > Owner: 战马C 一 milestone 一 PR

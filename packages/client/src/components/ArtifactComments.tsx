@@ -1,6 +1,6 @@
 // ArtifactComments — CV-5.2 client SPA: artifact-level comment list + composer.
 //
-// Blueprint: docs/blueprint/canvas-vision.md §0 L24 字面 "Linear issue +
+// Blueprint: docs/blueprint/current/canvas-vision.md §0 L24 字面 "Linear issue +
 // comment, 不是 Miro 白板". Spec: docs/implementation/modules/cv-5-spec.md
 // §1 CV-5.2 (client). Stance: docs/qa/cv-5-stance-checklist.md.
 //

@@ -1,6 +1,6 @@
 # BPP-4 spec brief — 失联检测 + ack timeout + retry policy + dead-letter (≤80 行)
 
-> 战马A · Phase 4 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.6 失联与故障状态 + §2.2 data plane heartbeat. 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-4. 依赖 BPP-1 envelope (#304) + BPP-2 ack lifecycle (#485) + BPP-3 plugin frame dispatcher (#489) + AL-1a runtime 6-dict (#249) + AL-3 SessionsTracker (#310).
+> 战马A · Phase 4 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.6 失联与故障状态 + §2.2 data plane heartbeat. 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-4. 依赖 BPP-1 envelope (#304) + BPP-2 ack lifecycle (#485) + BPP-3 plugin frame dispatcher (#489) + AL-1a runtime 6-dict (#249) + AL-3 SessionsTracker (#310).
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.6 字面)
 

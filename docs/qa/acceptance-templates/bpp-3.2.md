@@ -1,7 +1,7 @@
 # Acceptance Template — BPP-3.2: `permission_denied` plugin UX 流 (owner DM + 一键 grant + plugin retry)
 
 > Spec: `docs/implementation/modules/bpp-3.2-spec.md` (战马C v0, c8e37a4)
-> 蓝图: `docs/blueprint/auth-permissions.md` §1.3 主入口 (动态请求 → owner DM → 一键 grant) + §2 不变量 + §4 BPP frame · `plugin-protocol.md` §1.5 (`agent_config_update` 触发 plugin reload)
+> 蓝图: `docs/blueprint/current/auth-permissions.md` §1.3 主入口 (动态请求 → owner DM → 一键 grant) + §2 不变量 + §4 BPP frame · `plugin-protocol.md` §1.5 (`agent_config_update` 触发 plugin reload)
 > 前置: BPP-3.1 #494 PermissionDeniedFrame ✅ + AP-1 #493 abac.go + capabilities.go 14 const ✅ + DM-2 #361/#372/#388 message_mentions ✅ + BPP-2 #485 ValidSemanticOps ✅
 > Owner: 战马C (主战) + 野马 (文案) + 烈马 (验收)
 

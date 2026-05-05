@@ -32,7 +32,7 @@
 
 ## 3. 锚点
 
-- R3 决议看板: `docs/blueprint/r3-decisions.md` (8 条决议 status)
+- R3 决议看板: `docs/blueprint/_meta/r3-decisions.md` (8 条决议 status)
 - Phase 2 闸进度: `docs/qa/phase-2-gate-status.md` (G2.0-G2.audit)
-- 蓝图 audit-rotation: `docs/blueprint/blueprint-audit-rotation.md` (#219, drift 防漂)
+- 蓝图 audit-rotation: `docs/blueprint/_meta/blueprint-audit-rotation.md` (#219, drift 防漂)
 - 反查表: `docs/qa/adm-0-stance-checklist.md` + `adm-1-privacy-promise-checklist.md` + `cm-3-org-id-checklist.md`

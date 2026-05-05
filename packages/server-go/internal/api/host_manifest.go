@@ -1,7 +1,7 @@
 // Package api — hb_1_plugin_manifest.go: HB-1 install-butler server-side
 // `GET /api/v1/plugin-manifest` endpoint (v0 [A] scope).
 //
-// Blueprint锚: docs/blueprint/host-bridge.md §1.1+§1.2 + spec brief
+// Blueprint锚: docs/blueprint/current/host-bridge.md §1.1+§1.2 + spec brief
 // docs/implementation/modules/hb-1-spec.md v1 (战马D 升级 战马A v0 #491).
 //
 // Public surface:

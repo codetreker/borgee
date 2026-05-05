@@ -1,7 +1,7 @@
 # Agent Lifecycle Implementation Note — presence + WS lifecycle hook
 
 > 战马 A · #317 implement 后给野马 / 飞马 review 的速读卡 (规则 6 docs/current 留账补丁).
-> 关联: 蓝图 `docs/blueprint/agent-lifecycle.md` §2.3 / acceptance `docs/qa/acceptance-templates/al-3.md` / 数据 `docs/current/server/data-model.md` (`presence_sessions` v=12).
+> 关联: 蓝图 `docs/blueprint/current/agent-lifecycle.md` §2.3 / acceptance `docs/qa/acceptance-templates/al-3.md` / 数据 `docs/current/server/data-model.md` (`presence_sessions` v=12).
 > 范围: AL-3.1 schema (#310) + AL-3.2 hub WS lifecycle hook 写端 (#317). AL-3.3 client UI dot + 5s+60s 节流 + presence.changed frame 留下一阶段.
 
 ## §AL-3 presence_sessions + PresenceWriter / PresenceTracker

@@ -1,6 +1,6 @@
 // ArtifactPanel — CV-1.3 client SPA canvas UI (#342 server / #334 schema).
 //
-// Blueprint: docs/blueprint/canvas-vision.md §0 (channel 围 artifact 协作)
+// Blueprint: docs/blueprint/current/canvas-vision.md §0 (channel 围 artifact 协作)
 // + §1.1-§1.6 (D-lite + workspace per channel + Markdown ONLY v1).
 // Spec: docs/implementation/modules/cv-1-spec.md §3 (CV-1.3 段).
 // Acceptance: docs/qa/acceptance-templates/cv-1.md §3.1-§3.3.

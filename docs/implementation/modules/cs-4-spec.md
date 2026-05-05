@@ -1,7 +1,7 @@
 # CS-4 spec brief — IndexedDB 乐观缓存 (≤80 行)
 
 > 飞马 + 战马D · 2026-04-30 · Phase 4+ Client Shape 第四段 (蓝图 client-shape.md §1.4)
-> **蓝图锚**: [`client-shape.md`](../../blueprint/client-shape.md) §1.4 (本地持久化乐观缓存 B 路径) + §0 (Web SPA 协作主战场) + `data-layer.md` §4.A.2 (cursor opaque 协议)
+> **蓝图锚**: [`client-shape.md`](../../blueprint/current/client-shape.md) §1.4 (本地持久化乐观缓存 B 路径) + §0 (Web SPA 协作主战场) + `data-layer.md` §4.A.2 (cursor opaque 协议)
 > **关联**: RT-1 #290 cursor backfill (CS-4 同步入口) + DM-3 useDMSync hook (既有 client-side cursor 同步) + CS-2 #595 故障三态 (failed 时 cache miss → optimistic fallback) + CS-3 #598 PWA install / Push UI + CS-1 spec §3 留账 (CS-4 = IndexedDB 乐观缓存)
 > **命名**: CS-4 = Client Shape 第四段 — IndexedDB first-paint cache (CS-1=三栏 / CS-2=故障 UX / CS-3=PWA install + Push)
 

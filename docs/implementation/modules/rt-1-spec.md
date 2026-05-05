@@ -1,6 +1,6 @@
 # RT-1 Spec — realtime push protocol (artifact 推送 + cursor 单调)
 
-> **范围**: blueprint [`realtime.md`](../../blueprint/realtime.md) §1.3 (人/agent 拆 replay) + §1.4 (cursor 去重) + §2.3 (`/ws` ↔ BPP envelope 等同) + §2.1 BPP `artifact.commit/progress` frame。
+> **范围**: blueprint [`realtime.md`](../../blueprint/current/realtime.md) §1.3 (人/agent 拆 replay) + §1.4 (cursor 去重) + §2.3 (`/ws` ↔ BPP envelope 等同) + §2.1 BPP `artifact.commit/progress` frame。
 > **不在本文件**: artifact 表 / 版本 (CV-1) / channel schema (CHN-1) / BPP CI lint (BPP-1)。
 > **依赖**: Phase 2 闸 4 ✅ + CHN-1 + CV-1.1 merged。**总工期**: 6-7 天 (server 4-5 + client 2-3), ≤ 3 PR / 每 PR ≤ 3 天。
 

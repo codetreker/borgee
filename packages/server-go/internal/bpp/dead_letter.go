@@ -2,7 +2,7 @@
 // log (best-effort 立场: log warn, **不入持久队列**, RT-1.3 cursor
 // replay 兜底).
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.5 (runtime 不缓存)
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (runtime 不缓存)
 // + RT-1.3 #296 cursor replay (重连后 plugin 主动拉缺失 frame).
 // Spec brief: docs/implementation/modules/bpp-4-spec.md §0.3 + §1
 // BPP-4.2. Acceptance: docs/qa/acceptance-templates/bpp-4.md §2.

@@ -1,6 +1,6 @@
 # Acceptance Template — AL-4: agent_runtime registry (plugin process descriptor 启停)
 
-> 蓝图: `docs/blueprint/agent-lifecycle.md` §2.2 (默认 remote-agent + power user 直配 plugin 双路径) + §2.2 v1 务实边界 (v1 only OpenClaw / Mac+Linux / 不优化多 runtime 并行) + §4 (remote-agent 安全模型留第 6 轮); `README.md` §1 立场 #7 (Borgee 不带 runtime — 走 plugin 接); `concept-model.md` §0
+> 蓝图: `docs/blueprint/current/agent-lifecycle.md` §2.2 (默认 remote-agent + power user 直配 plugin 双路径) + §2.2 v1 务实边界 (v1 only OpenClaw / Mac+Linux / 不优化多 runtime 并行) + §4 (remote-agent 安全模型留第 6 轮); `README.md` §1 立场 #7 (Borgee 不带 runtime — 走 plugin 接); `concept-model.md` §0
 > Implementation: `docs/implementation/modules/al-4-spec.md` (飞马 #313, 3 立场 + 3 拆段 + 7 grep 反查 含 4 反约束 + 7 反约束)
 > 关联: AL-1a #249 三态机 + AL-3 #310 PresenceTracker + BPP-1 #304 envelope CI lint + ADM-0 立场 ⑦
 > 拆 PR: **AL-4.1** schema migration v=15 (`agent_runtimes` 表) — TBD / **AL-4.2** server registry + start/stop API + heartbeat — TBD / **AL-4.3** client SPA agent settings 启停 UI — TBD

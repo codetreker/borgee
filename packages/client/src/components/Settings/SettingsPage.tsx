@@ -1,6 +1,6 @@
 // SettingsPage — ADM-1 用户设置页骨架 (Phase 4 启动 milestone) + ADM-2 扩展.
 //
-// Blueprint: docs/blueprint/admin-model.md §4.1 + §1.4 (ADM-2 audit + impersonate)
+// Blueprint: docs/blueprint/current/admin-model.md §4.1 + §1.4 (ADM-2 audit + impersonate)
 // Spec: docs/qa/adm-1-implementation-spec.md §1 + docs/implementation/modules/adm-2-spec.md §2
 // Acceptance: docs/qa/acceptance-templates/adm-1.md §2 + adm-2.md §4.1.c+§4.2.a
 //

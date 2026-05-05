@@ -1,6 +1,6 @@
 # Acceptance Template — ADM-2: 分层透明 audit (用户可见性) v1
 
-> 蓝图: `docs/blueprint/admin-model.md` §1.4 (L82-105, "谁能看到什么" 四档分层 + 三条红线)
+> 蓝图: `docs/blueprint/current/admin-model.md` §1.4 (L82-105, "谁能看到什么" 四档分层 + 三条红线)
 > 蓝图不变量: §2 (L109-120, "受影响者必感知" + "Audit 100% 留痕" + "Audit 分层可见")
 > Implementation: `docs/implementation/modules/adm-2-spec.md` (战马D PM 客串 v0)
 > Content lock: `docs/qa/adm-2-content-lock.md` (system DM + 红横幅字面)

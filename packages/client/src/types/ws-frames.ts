@@ -1,5 +1,5 @@
 // ws-frames.ts — RT-0 (#40) client-side TypeScript interfaces for the
-// agent invitation push frames defined in docs/blueprint/realtime.md §2.3.
+// agent invitation push frames defined in docs/blueprint/current/realtime.md §2.3.
 //
 // Phase 2 路线: server pushes these via the existing /ws hub; Phase 4 BPP
 // will swap the wire layer without changing the schema. The CI lint

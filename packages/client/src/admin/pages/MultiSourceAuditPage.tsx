@@ -1,6 +1,6 @@
 // MultiSourceAuditPage — ADM-3 multi-source audit 合并查询 admin SPA 页.
 //
-// Blueprint: docs/blueprint/admin-model.md §1.4 来源透明 (人/agent/admin/混合).
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 来源透明 (人/agent/admin/混合).
 // Spec: docs/implementation/modules/adm-3-spec.md §1 ADM3.2.
 //
 // 立场:

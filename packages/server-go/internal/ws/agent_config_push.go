@@ -2,7 +2,7 @@
 // emitting AgentConfigUpdateFrame to the target agent's plugin
 // connection (server→plugin direction lock).
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.5 (热更新分级 + 幂等
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (热更新分级 + 幂等
 // reload + runtime 不缓存) + §2.1 (control-plane row `agent_config_update`).
 // Spec: AL-2b acceptance #452 §2.1 + AL-2b.1 frames PR #472 (BPP envelope
 // 7+7 字段 byte-identical).

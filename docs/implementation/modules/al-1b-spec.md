@@ -1,7 +1,7 @@
 # AL-1b spec brief — busy/idle 状态扩展 (BPP 同期)
 
 > 战马C · 2026-04-29 · ≤80 行 spec lock (跟 al-3-spec / al-4-spec 同模式)
-> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.3 (5-state, 2026-04-28 4 人 review #5 决议: busy/idle 跟 BPP 同期 Phase 4)
+> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.3 (5-state, 2026-04-28 4 人 review #5 决议: busy/idle 跟 BPP 同期 Phase 4)
 > **关联**: AL-1a (#249) ✅ online/offline/error 三态 / AL-3 (#310/#317/#324) ✅ presence WS hub / AL-4 (#398) ✅ agent_runtimes process-level / BPP-2 留账 task_started/task_finished frame
 > **acceptance**: `docs/qa/acceptance-templates/al-1b.md` (烈马 #193 v0)
 

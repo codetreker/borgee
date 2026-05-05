@@ -1,6 +1,6 @@
 # AL-7 spec brief — audit log retention + archive (≤80 行)
 
-> 战马D · Phase 6 · ≤80 行 · 蓝图 [`admin-model.md`](../../blueprint/admin-model.md) §3 admin_actions retention + ADM-2.1 #484 forward-only audit 终结收尾. 模块锚 [`auth-permissions.md`](auth-permissions.md) §AL-7. 依赖 ADM-2.1 #484 admin_actions + AP-2 #525 sweeper (time.Ticker) + BPP-4 #499 watchdog + BPP-8 #532 lifecycle audit + AL-1 #492 + REFACTOR-REASONS #496 6-dict + ADM-0 §1.3 红线.
+> 战马D · Phase 6 · ≤80 行 · 蓝图 [`admin-model.md`](../../blueprint/current/admin-model.md) §3 admin_actions retention + ADM-2.1 #484 forward-only audit 终结收尾. 模块锚 [`auth-permissions.md`](auth-permissions.md) §AL-7. 依赖 ADM-2.1 #484 admin_actions + AP-2 #525 sweeper (time.Ticker) + BPP-4 #499 watchdog + BPP-8 #532 lifecycle audit + AL-1 #492 + REFACTOR-REASONS #496 6-dict + ADM-0 §1.3 红线.
 
 ## 0. 关键约束 (3 条立场, 蓝图 §3 + ADM-2.1 字面承袭)
 

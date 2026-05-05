@@ -1,6 +1,6 @@
 # Implementation · Canvas Vision
 
-> 蓝图: [`../../blueprint/canvas-vision.md`](../../blueprint/canvas-vision.md)
+> 蓝图: [`../../blueprint/current/canvas-vision.md`](../../blueprint/current/canvas-vision.md)
 > 现状: 当前没有 artifact / 画布概念, workspace 表都还没建 (CHN-1 之后才有)
 > 阶段: ⚡ v0
 > 所属 Phase: Phase 3

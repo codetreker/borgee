@@ -1,7 +1,7 @@
 # CHN-2 spec brief — DM 概念独立 (跟 channel 拆死)
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马B 落, 跟 DM-2 v=14 schema 协调)
-> **蓝图锚**: [`channel-model.md`](../../blueprint/channel-model.md) §1.2 (DM 概念独立, 底层可复用) + §3.2 (现状差距 — UI 不够区分 + DM 当前有 workspace 入口需禁用)
+> **蓝图锚**: [`channel-model.md`](../../blueprint/current/channel-model.md) §1.2 (DM 概念独立, 底层可复用) + §3.2 (现状差距 — UI 不够区分 + DM 当前有 workspace 入口需禁用)
 > **关联**: CHN-1 三段全闭 ✅ (#276+#286+#288) — channel/membership/workspace 已就位 (DM 复用 `channels.type='dm'` 老路径); DM-2 战马B 进行中 (v=14 schema 卡); CV-1 ✅ workspace 升 artifact, DM 必须显式禁 workspace 入口 (蓝图 §1.2 ❌); ADM-0 god-mode 不读 DM body 红线 (§ADM-0.3)
 > **章程闸**: 配 G3.4 协作场骨架 demo — DM 跟 channel 视觉/交互必须显著区分 (野马 demo 截屏可识别)
 

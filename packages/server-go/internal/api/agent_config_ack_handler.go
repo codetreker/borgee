@@ -2,7 +2,7 @@
 // AgentConfigAckHandler + OwnerResolver wiring the plugin-upstream
 // agent_config_ack BPP frame into the SSOT plane.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.5 (热更新 + 幂等
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (热更新 + 幂等
 // reload + ack 回执) + §2.2 (data plane, Plugin → Server).
 // Spec brief: docs/implementation/modules/al-2b.2-server-hook-spec.md §1
 // (落点 `internal/api/agent_config_ack_handler.go`).

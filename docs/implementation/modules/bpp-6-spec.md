@@ -1,6 +1,6 @@
 # BPP-6 spec brief — plugin cold-start handshake + state re-derive (≤80 行)
 
-> 战马D · Phase 5 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.6 (失联与故障状态 — 进程死亡 vs 网络重连) + §2.1 (control-plane handshake). 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-6. 依赖 BPP-1 #304 envelope (whitelist 14→15) + BPP-3 #489 PluginFrameDispatcher + BPP-5 #503 reconnect_handshake (含 cursor) — BPP-6 是 BPP-5 反向 (无 cursor 路径) + AL-1 5-state #492 (reasons SSOT 单源) + RT-1.3 #296 cursor (cold-start 不复用, 重新发号).
+> 战马D · Phase 5 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态 — 进程死亡 vs 网络重连) + §2.1 (control-plane handshake). 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-6. 依赖 BPP-1 #304 envelope (whitelist 14→15) + BPP-3 #489 PluginFrameDispatcher + BPP-5 #503 reconnect_handshake (含 cursor) — BPP-6 是 BPP-5 反向 (无 cursor 路径) + AL-1 5-state #492 (reasons SSOT 单源) + RT-1.3 #296 cursor (cold-start 不复用, 重新发号).
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.6 + AL-1 字面)
 

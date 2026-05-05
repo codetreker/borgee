@@ -1,7 +1,7 @@
 # DL-1 spec brief — Data Layer 4 接口抽象 (Storage / Presence / EventBus / Repository) (≤80 行)
 
 > 飞马 · 2026-04-30 · Phase 4+ Data Layer 接口抽象 (蓝图 data-layer.md §4 B 接口抽象 4 条)
-> **蓝图锚**: [`data-layer.md`](../../blueprint/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)" + §1 v1 协议层 portable + 接口层抽象立场
+> **蓝图锚**: [`data-layer.md`](../../blueprint/current/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)" + §1 v1 协议层 portable + 接口层抽象立场
 > **关联**: DL-4 #485 PWA Web Push (已落, 是 EventBus 真消费者) + AL-3 #324 PresenceTracker (in-memory) + CV-1 artifacts.go Storage (local fs) + 全 milestone Repository (SQLite gorm 直查) — 4 处既有实施需 wrap 抽象层
 > **命名**: DL-1 = data-layer 第一段接口抽象, 跟 DL-2 (events 双流) / DL-3 (阈值哨) 拆死
 
