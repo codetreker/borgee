@@ -2,7 +2,7 @@
 
 > **状态**: ✅ **SIGNED** (烈马, 2026-04-30)
 > **闸**: Phase 3 G3.2 退出闸 — CV-2.3 anchor comments e2e PASS + 烈马 QA acceptance signoff
-> **关联**: 详细 acceptance log 锚 [`docs/qa/signoffs/g3.2-cv2-liema-signoff.md`](signoffs/g3.2-cv2-liema-signoff.md) (5/5 一签 2026-04-29) + evidence bundle [`docs/evidence/g3-exit/README.md`](../evidence/g3-exit/README.md) §2
+> **关联**: 详细 acceptance log 锚 [`docs/qa/signoffs/g3.2-cv2-liema-signoff.md`](signoffs/g3.2-cv2-liema-signoff.md) (5/5 一签 2026-04-29) + evidence bundle [`docs/_archive/evidence/g3-exit/README.md`](../evidence/g3-exit/README.md) §2
 
 ---
 

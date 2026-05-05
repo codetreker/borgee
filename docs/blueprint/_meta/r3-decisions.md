@@ -40,7 +40,7 @@ R3-8 (CI lint + Playwright) ✅
 
 ## 3. 锚点 (反查 / 不重复落)
 
-- 完整 6 条立场冲突分析: `docs/conflicts/b29-vs-blueprint.md` (战马 R3 5-栏对照)
+- 完整 6 条立场冲突分析: `docs/_archive/conflicts/b29-vs-blueprint.md` (战马 R3 5-栏对照)
 - 野马 §4.1 文案锁原文: `docs/blueprint/current/admin-model.md` §4.1 + `docs/qa/adm-1-privacy-promise-checklist.md`
 - 烈马 INFRA-2 acceptance 缺字: `docs/qa/infra-2-acceptance.md`
 - 飞马 P0 god-mode 元数据 vs 内容隔离: `docs/blueprint/current/admin-model.md` §1.3 + §2 + `docs/qa/adm-0-stance-checklist.md` §1 ④

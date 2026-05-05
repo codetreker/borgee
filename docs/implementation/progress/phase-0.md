@@ -21,7 +21,7 @@
 - [x] G0.2 acceptance 验证脚本 (1 fail + 1 pass) — 证据: PR #170 `pr-template` lint 自检, run [25008169145](https://github.com/codetreker/borgee/actions/runs/25008169145) FAIL → run [25008849364](https://github.com/codetreker/borgee/actions/runs/25008849364) PASS
 - [x] G0.3 PR 模板生效 (≥ 1 PR 三区块齐) — 证据: PR #169-#173 全部含 `Blueprint:`/`Touches:`/`Current 同步`/`Stage:` 五块, lint 全绿
 - [x] G0.4 测试 harness 可用 (1 个 fake clock 用例跑通) — 证据: PR #171 `TestAfterFiresWhenDeadlineCrossed` Advance 触发已注册 After waiter PASS; 烈马本地联合 smoke (fake clock + OpenSeeded + Advance) 一次通过
-- [x] G0.5 current sync CI lint 工作 — 证据: [`docs/evidence/g0.5/README.md`](../evidence/g0.5/README.md) (双向闭环: fail 路径 PR #170 第一推送拒绝 + pass 路径 #170-#173 全绿; exclude_globs 防纯测试 PR 误伤)
+- [x] G0.5 current sync CI lint 工作 — 证据: [`docs/_archive/evidence/g0.5/README.md`](../evidence/g0.5/README.md) (双向闭环: fail 路径 PR #170 第一推送拒绝 + pass 路径 #170-#173 全绿; exclude_globs 防纯测试 PR 误伤)
 - [x] **G0.audit** v0 代码债 audit 表本 Phase 行已登记 — 飞马 (README §audit: schema_migrations 框架 DONE + main flaky test TODO 已入表)
 
 
@@ -29,6 +29,6 @@
 
 | 日期 | 更新人 | 变化 |
 |------|--------|------|
-| 2026-04-28 | 烈马 | Phase 0 闭环: PR #169-#173 全 merged + Gates G0.1-G0.5 + G0.audit 全 ✅, G0.5 evidence 落 `docs/evidence/g0.5/README.md` |
+| 2026-04-28 | 烈马 | Phase 0 闭环: PR #169-#173 全 merged + Gates G0.1-G0.5 + G0.audit 全 ✅, G0.5 evidence 落 `docs/_archive/evidence/g0.5/README.md` |
 
 ---

@@ -14,7 +14,7 @@
 3. **3 真 drift cleanup (audit-反转 + COL-B27 历史标记)**:
    - **D1** `e2e/tests/ap-2-bundle.spec.ts:163` fallback OR 删 — 仅查 `borgee_admin_session`, miss 则 fail-loud throw (反 silent-skip 漂 — §3.2 admin god-mode UI 反向断言 case 真跑)
    - **D2** `internal/api/internal_coverage_test.go:137` 死 cookie line `borgee_admin_token` 真删 (jsonReq helper user-rail only, admin endpoint 不会走 borgee_admin_token, 0 行为改)
-   - **D3** `docs/tasks/COL-B27/design.md` 加历史标记 (v0.1 草稿写 `borgee_admin_token`, ADM-0.1 #479 改 SSOT 为 `borgee_admin_session`, 设计文 §3+§5+§9+§13 字面是历史草稿残留 — 加 header 标记不动正文)
+   - **D3** `docs/_archive/legacy-tasks/COL-B27/design.md` 加历史标记 (v0.1 草稿写 `borgee_admin_token`, ADM-0.1 #479 改 SSOT 为 `borgee_admin_session`, 设计文 §3+§5+§9+§13 字面是历史草稿残留 — 加 header 标记不动正文)
 
 ## 1. 拆段实施 (3 段, 一 milestone 一 PR)
 
@@ -43,7 +43,7 @@ grep -cE 'throw new Error.*borgee_admin_session' packages/e2e/tests/ap-2-bundle.
 grep -cE 'borgee_admin_token' packages/server-go/internal/api/internal_coverage_test.go  # ==0
 
 # 5) D3 COL-B27 历史标记
-grep -cE 'COOKIE-NAME-CLEANUP.*历史标记' docs/tasks/COL-B27/design.md  # ≥1
+grep -cE 'COOKIE-NAME-CLEANUP.*历史标记' docs/_archive/legacy-tasks/COL-B27/design.md  # ≥1
 
 # 6) post-#633 haystack gate + 既有 test
 go test -tags 'sqlite_fts5' -timeout=300s ./... && pnpm vitest run  # ALL PASS (含 admin auth e2e)
