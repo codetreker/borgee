@@ -1,7 +1,7 @@
 # Phase 2 退出公告 — 条件性全过
 
 > 烈马 · 2026-04-28 · 草稿 v1
-> 受众: dev / QA / 内部 review (业主感知公告走野马 `announcements/phase-2-exit-summary.md` 那条, 不重复)
+> 受众: dev / QA / 内部 review (业主感知公告走野马 `../implementation/00-foundation/phase-2-exit-summary.md` 那条, 不重复)
 > 配套: 飞马 readiness review **PR #267** (`phase-2-readiness-review.md`, 6 ✅ + 2 留账 ✅ READY 判定)
 > 配套: 烈马 QA 联签 `signoffs/g2-exit-gate-liema-signoff.md` + 野马 PM 立场签 `signoffs/phase-2-yema-stance-signoff.md`
 > 状态锚: `phase-2-gate-status.md` v3 (#251) 看板实时 + `phase-2-closing-checklist.md` (#257)
@@ -74,7 +74,7 @@
   - PARTIAL 项 #248 condition signoff 形式齐: G2.1/G2.2 (#237+#239) / G2.4 4/6 (野马补签路径已锚 al-1b.md + adm-1.md + g2.4-demo-signoff.md)
   - SIGNED 5+1 闸证据全部回链 PR + REG: G2.0 #223 / G2.3 #236 / G2.6 注释锁 #237 / G2.audit #244+#251 / AL-1a #249+#252
 
-> team-lead (建军) 在 4 联签齐后宣布 Phase 2 关闭, 同步触发 `announcements/phase-2-exit-summary.md` 业主公告发布。
+> team-lead (建军) 在 4 联签齐后宣布 Phase 2 关闭, 同步触发 `../implementation/00-foundation/phase-2-exit-summary.md` 业主公告发布。
 
 ## 8. 更新日志
 
