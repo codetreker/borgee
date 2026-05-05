@@ -49,11 +49,19 @@ jobs:
       - name: Install dependencies
         run: cd packages/server-go && go mod download
       - name: Run tests with race detector (no coverage)
-        # TEST-FIX-3 立场 ③: 主 race job 维持 120s timeout (反全局 bump mask).
-        # race-heavy sub-test (TestClosedStoreInternalErrorBranches) 已隔离到
-        # `//go:build race_heavy` tag, 走独立 sub-job (go-test-race-heavy)
-        # 不污染主 race job timeout 阈值. 主 race job 是 race regression 早期信号.
-        run: cd packages/server-go && go test -tags sqlite_fts5 -timeout=120s -race ./...
+        # CI race budget: 180s 跟 go-test-race-heavy sub-job (line 76) byte-identical.
+        # 真因 (#649 panic 真凿实): race detector ~3x slower + ubuntu CI runner cold-build
+        # /JIT warmup + 738 api test cumulative + 5 background sweeper/monitor goroutine
+        # per test (ThresholdMonitor / EventsArchive / EventsRetention / RetentionSweeper /
+        # HeartbeatRetentionSweeper, 全 ctx-aware 真无 leak). 本地 race 12s, CI 慢 runner
+        # 命中 120s 边界 panic. 调 180s 跟 heavy 对齐 50% headroom.
+        # 反 mask cov: 阈值是 cov %, 不是 timeout — race regression 早期信号通过 cumulative
+        # job time slope 监测 (release-gate 别 budget), 不靠 timeout 抓.
+        # 历史 TEST-FIX-3 立场 ③ 维持 120s 阻"全局 bump mask" — 但 #649 panic 凿实 race
+        # 真测试 cumulative 已逼 120s 边界, 反信号 mask 真因 = budget 不足. 调 180s 是
+        # giving real budget, 不是 mask race regression — race regression 仍由 stack
+        # dump/data race 真信号抓 (panic 显示 race detector 触发还是 timeout 触发不同).
+        run: cd packages/server-go && go test -tags sqlite_fts5 -timeout=180s -race ./...
 
   go-test-race-heavy:
     # TEST-FIX-3: race-heavy sub-job, 单独跑 `//go:build race_heavy` tag 文件
