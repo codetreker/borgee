@@ -2,7 +2,7 @@
 // dispatcher. Wired into the BPP-3 #489 PluginFrameDispatcher boundary
 // to handle FrameTypeBPPReconnectHandshake.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.6 (重连恢复) +
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (重连恢复) +
 // §2.1 (control-plane connect 路径承袭) + RT-1.3 #296 cursor replay
 // (复用 ResolveResume incremental mode).
 // Spec: docs/implementation/modules/bpp-5-spec.md §0+§1 BPP-5.2.

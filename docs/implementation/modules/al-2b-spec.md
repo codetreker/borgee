@@ -1,7 +1,7 @@
 # AL-2b spec brief — `agent_config_update` BPP frame + ack 路径 (跟 BPP-3 同 PR 合)
 
 > 烈马 · 2026-04-29 · ≤200 行 spec lock (跟 #452 acceptance v1 同源, 实施视角拆 PR 由战马待派, 跟 BPP-3 同 PR 合规划)
-> **蓝图锚**: [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.4 (Borgee=SSOT 字段划界) + §1.5 (热更新分级 — 字段下发 + 幂等 reload + runtime 不缓存) + §2.1 (`agent_config_update` 控制面帧 server→plugin) + [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.1 (用户改完 PATCH → plugin 立即收 → 下条消息渲染就用新值)
+> **蓝图锚**: [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.4 (Borgee=SSOT 字段划界) + §1.5 (热更新分级 — 字段下发 + 幂等 reload + runtime 不缓存) + §2.1 (`agent_config_update` 控制面帧 server→plugin) + [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.1 (用户改完 PATCH → plugin 立即收 → 下条消息渲染就用新值)
 > **关联**: AL-2a #264/#447 (SSOT 表 v=20 + REST PATCH /api/v1/agents/:id/config + 轮询 reload 临时路径) + AL-2a content-lock #454 + AL-2a stance #454 + #452 烈马 acceptance v1 (12 项 4 段); BPP-1 ✅ #304 (envelope CI lint reflect 自动覆盖 frame 字段顺序); 跟 BPP-2 spec (#460) §1.3 + §1.6 字面对齐
 > **章程闸**: Phase 4 入口 — 跟 BPP-3 同 PR 合, BPP-3 plugin 启停 + AL-2b config 下发 共 hub.cursors sequence (drift 跨 PR review 抓出)
 

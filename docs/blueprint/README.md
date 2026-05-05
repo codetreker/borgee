@@ -35,17 +35,17 @@
 
 | # | 文档 | 内容 |
 |---|------|------|
-| 1 | [`concept-model.md`](concept-model.md) | **核心概念: 组织 / 人 / agent 三层身份**(最先读) |
-| 2 | [`channel-model.md`](channel-model.md) | Channel / DM / Workspace 形状层规范 |
-| 3 | [`canvas-vision.md`](canvas-vision.md) | 画布 / 文档协作: workspace = artifact 集合 |
-| 4 | [`agent-lifecycle.md`](agent-lifecycle.md) | Agent 创建 / 状态 / 退役 — 协作平台不是 agent 平台 |
-| 5 | [`plugin-protocol.md`](plugin-protocol.md) | BPP(Borgee Plugin Protocol)— runtime 接入中立协议 |
-| 6 | [`host-bridge.md`](host-bridge.md) | Borgee Helper: 用户机器上的特权进程(信任五支柱) |
-| 7 | [`realtime.md`](realtime.md) | 推送 / 状态 / 回放 — 让用户感到 AI 在工作的最小集 |
-| 8 | [`auth-permissions.md`](auth-permissions.md) | 权限模型: ABAC 存储 + UI bundle, 跨 org 只减不加 |
-| 9 | [`admin-model.md`](admin-model.md) | Admin 与隐私契约: 元数据可管, 内容不可读 |
-| 10 | [`data-layer.md`](data-layer.md) | 数据层总账 + 分布式 ready 三层 |
-| 11 | [`client-shape.md`](client-shape.md) | Client: 一份 SPA + Tauri 桌面壳 + Mobile PWA |
+| 1 | [`concept-model.md`](current/concept-model.md) | **核心概念: 组织 / 人 / agent 三层身份**(最先读) |
+| 2 | [`channel-model.md`](current/channel-model.md) | Channel / DM / Workspace 形状层规范 |
+| 3 | [`canvas-vision.md`](current/canvas-vision.md) | 画布 / 文档协作: workspace = artifact 集合 |
+| 4 | [`agent-lifecycle.md`](current/agent-lifecycle.md) | Agent 创建 / 状态 / 退役 — 协作平台不是 agent 平台 |
+| 5 | [`plugin-protocol.md`](current/plugin-protocol.md) | BPP(Borgee Plugin Protocol)— runtime 接入中立协议 |
+| 6 | [`host-bridge.md`](current/host-bridge.md) | Borgee Helper: 用户机器上的特权进程(信任五支柱) |
+| 7 | [`realtime.md`](current/realtime.md) | 推送 / 状态 / 回放 — 让用户感到 AI 在工作的最小集 |
+| 8 | [`auth-permissions.md`](current/auth-permissions.md) | 权限模型: ABAC 存储 + UI bundle, 跨 org 只减不加 |
+| 9 | [`admin-model.md`](current/admin-model.md) | Admin 与隐私契约: 元数据可管, 内容不可读 |
+| 10 | [`data-layer.md`](current/data-layer.md) | 数据层总账 + 分布式 ready 三层 |
+| 11 | [`client-shape.md`](current/client-shape.md) | Client: 一份 SPA + Tauri 桌面壳 + Mobile PWA |
 
 ## 14 条核心立场(从 11 篇提炼)
 

@@ -1,7 +1,7 @@
 # BPP-2 文案锁 / 立场反查清单 (野马 + 战马E PM 客串 v0)
 
 > 战马E (PM 客串) · 2026-04-29 · ≤80 行 byte-identical 文案锁 (4 件套并行, 跟 cv-4-content-lock #380 + al-4-content-lock #321 + chn-2-content-lock #354 同模式)
-> **蓝图锚**: [`plugin-protocol.md`](../blueprint/plugin-protocol.md) §1.3 (语义动作层 7 op 白名单字面) + §1.5 (配置热更新 6 fields 白名单字面) + §1.6 (busy/idle source 上行 frame 唯一) + §2.1+§2.2 (BPP 接口清单 v1)
+> **蓝图锚**: [`plugin-protocol.md`](../blueprint/current/plugin-protocol.md) §1.3 (语义动作层 7 op 白名单字面) + §1.5 (配置热更新 6 fields 白名单字面) + §1.6 (busy/idle source 上行 frame 唯一) + §2.1+§2.2 (BPP 接口清单 v1)
 > **关联**: spec `docs/implementation/modules/bpp-2-spec.md` (战马E v0) + acceptance `docs/qa/acceptance-templates/bpp-2.md` (战马E v0) + 复用 AL-1a #249 6 reason byte-identical (跟 AL-1a #249 + AL-3 #305 + CV-4 #380 + AL-2a #454 + AL-1b #458 + AL-4 #387/#461 **六处单测锁**同源)
 
 ## §1 字面锁 (改 = 改两处: 此文档 + spec / acceptance / 实施代码)

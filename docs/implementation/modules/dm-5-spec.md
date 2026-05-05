@@ -1,6 +1,6 @@
 # DM-5 spec brief — DM message reaction summary (CV-7..CV-12 续, client only)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`concept-model.md`](../../blueprint/concept-model.md) §4 + DM-2/DM-3/DM-4 续 + CV-7 #535 既有 reaction endpoint 复用 + CV-9..CV-12 client-only 同模式. DM-5 让 DM message reaction 渲染 aggregated count chip — server 既有 GET `/api/v1/messages/{id}/reactions` 已返 `[{emoji, count, user_ids}]` (store/queries_phase2b.go::AggregatedReaction), client 仅渲染. **0 server production code + 0 schema 改 + 0 新 endpoint + 0 新 lib**.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`concept-model.md`](../../blueprint/current/concept-model.md) §4 + DM-2/DM-3/DM-4 续 + CV-7 #535 既有 reaction endpoint 复用 + CV-9..CV-12 client-only 同模式. DM-5 让 DM message reaction 渲染 aggregated count chip — server 既有 GET `/api/v1/messages/{id}/reactions` 已返 `[{emoji, count, user_ids}]` (store/queries_phase2b.go::AggregatedReaction), client 仅渲染. **0 server production code + 0 schema 改 + 0 新 endpoint + 0 新 lib**.
 
 ## 0. 关键约束 (4 项立场, 跨链承袭)
 

@@ -1,6 +1,6 @@
 // Package store — ADM-2.2 admin_actions audit + impersonate_grants helpers.
 //
-// Blueprint: docs/blueprint/admin-model.md §1.4 (谁能看到什么 + 三红线) +
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 (谁能看到什么 + 三红线) +
 // §2 不变量 (受影响者必感知 + Audit 100% 留痕 + 分层可见).
 // Spec: docs/implementation/modules/adm-2-spec.md §2.
 // Content lock: docs/qa/adm-2-content-lock.md §1 (5 system DM 模板).

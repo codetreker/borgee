@@ -2,7 +2,7 @@
 // dispatcher. Wired into the BPP-3 #489 PluginFrameDispatcher boundary
 // to handle FrameTypeBPPColdStartHandshake.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.6 (失联与故障状态 —
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 —
 // 进程死亡 vs 网络重连) + §2.1 control-plane handshake.
 // Spec: docs/implementation/modules/bpp-6-spec.md §0+§1 BPP-6.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-6.md §2.

@@ -1,7 +1,7 @@
 // Package api — search.go: CV-6 server handler for artifact full-text
 // search via SQLite FTS5 (Phase 5+, #cv-6).
 //
-// Blueprint: docs/blueprint/canvas-vision.md §1.4 (artifact 集合, "首屏快读
+// Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合, "首屏快读
 // 不是浏览器内全量解码"). Spec brief:
 // docs/implementation/modules/cv-6-spec.md (战马C v0, d2fe1f0).
 //

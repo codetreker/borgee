@@ -1,7 +1,7 @@
 // Package api_test — ap_1_2_artifacts_e2e_test.go: AP-1.2 end-to-end
 // pinning ABAC capability gate on POST /api/v1/artifacts/{id}/commits.
 //
-// 蓝图: docs/blueprint/auth-permissions.md §1.2 三层 scope + §1.4 agent
+// 蓝图: docs/blueprint/current/auth-permissions.md §1.2 三层 scope + §1.4 agent
 // 严格. Spec: docs/implementation/modules/ap-1-spec.md (Phase 4 entry 8/8).
 //
 // Pins:

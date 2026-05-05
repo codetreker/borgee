@@ -1,7 +1,7 @@
 # BPP-3.2 spec brief — `permission_denied` plugin UX 流 (owner DM + 一键 grant + 自动重试)
 
 > 战马C · 2026-04-29 · ≤80 行 · Phase 5 plugin-protocol 第三段 (BPP-3.1 #494 真后续, 4 件套 spec 第一件)
-> 关联: BPP-3.1 #494 PermissionDeniedFrame (server→plugin) ✅ + AP-1 #493 abac.go::HasCapability + capabilities.go const + DM-2 #361/#372/#388 message_mentions + system DM 路径 ✅ + 蓝图 [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.3 主入口 (动态请求 → server 给 owner 写 system message → 一键 grant) + §2 不变量 "Permission denied 走 BPP" 闭环
+> 关联: BPP-3.1 #494 PermissionDeniedFrame (server→plugin) ✅ + AP-1 #493 abac.go::HasCapability + capabilities.go const + DM-2 #361/#372/#388 message_mentions + system DM 路径 ✅ + 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.3 主入口 (动态请求 → server 给 owner 写 system message → 一键 grant) + §2 不变量 "Permission denied 走 BPP" 闭环
 > Owner: 战马C 后续整 milestone 实施 (3 PR 拆 / 同 branch 叠 commit)
 
 ---

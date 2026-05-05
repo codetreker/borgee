@@ -35,4 +35,4 @@ Phase 2 全过 ⇔ **严格闸** (G2.0/2.3/2.audit) ✅ + **条件性闸** (G2.1
 
 ## 5. 锚点
 
-立场↔实施: `docs/blueprint/phase-2-stance-vs-impl.md` (#243). R3 决议: `docs/blueprint/r3-decisions.md`. 烈马 condition signoff: `docs/qa/signoffs/phase-2-uat-walkthrough.md` (#248).
+立场↔实施: `docs/blueprint/_meta/phase-2-stance-vs-impl.md` (#243). R3 决议: `docs/blueprint/_meta/r3-decisions.md`. 烈马 condition signoff: `docs/qa/signoffs/phase-2-uat-walkthrough.md` (#248).

@@ -6,7 +6,7 @@ import (
 
 // webPushSubscriptions is migration v=26 — Phase 4 / DL-4 must-fix.
 //
-// Blueprint锚: docs/blueprint/client-shape.md L22 ("**Mobile PWA** 离桌面后
+// Blueprint锚: docs/blueprint/current/client-shape.md L22 ("**Mobile PWA** 离桌面后
 // 的'团队感知'通道 + Web Push (VAPID)") + L37 ("没推送 = AI 团队像后台
 // 脚本不像同事") + L42 ("manifest + install prompt + Web Push + standalone").
 // data-layer §3.4 global_events fan-out 为 hook 上游.

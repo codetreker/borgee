@@ -1,7 +1,7 @@
 # AL-4 spec brief — agent_runtime registry (plugin process descriptor 启停)
 
 > 飞马 · 2026-04-28 v0 / 2026-04-29 v1 + v2 · ≤80 行 spec lock (实施视角拆 PR 由战马待派, Phase 4 入口前置)
-> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.2 (默认 remote-agent + power user 直配 plugin 双路径) + §2.2 v1 务实边界表 (v1 only OpenClaw / Mac+Linux / 不优化多 runtime 并行) + §4 (remote-agent 安全模型 — 二进制下载/沙箱/资源限制留第 6 轮); [`README.md`](../../blueprint/README.md) §1 立场 #7 (Borgee 不带 runtime — 走 plugin 接) + [`concept-model.md`](../../blueprint/concept-model.md) §0 (不调 LLM / 不带 runtime / 不定义角色模板)
+> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.2 (默认 remote-agent + power user 直配 plugin 双路径) + §2.2 v1 务实边界表 (v1 only OpenClaw / Mac+Linux / 不优化多 runtime 并行) + §4 (remote-agent 安全模型 — 二进制下载/沙箱/资源限制留第 6 轮); [`README.md`](../../blueprint/README.md) §1 立场 #7 (Borgee 不带 runtime — 走 plugin 接) + [`concept-model.md`](../../blueprint/current/concept-model.md) §0 (不调 LLM / 不带 runtime / 不定义角色模板)
 > **关联 (v2 全景同步)**: AL-1a #249 三态机 + AL-3 #310 PresenceTracker (session 在线 — DM-2.2 #372 IsOnline 真接同源) + BPP-1 #304 envelope CI lint (跟 5-frame 同模式 type/cursor 头位: RT-1=7 / AnchorCommentAdded=10 / MentionPushed=8 / IterationStateChanged=9); **CV-4 #365 iterate runtime 接口** (AL-4 未落 stub fail-closed reason='runtime_not_registered' 同源) + CHN-4 #374/#375 协作场骨架 demo (runtime 启停 demo 路径之一) + ADM-0 立场 ⑦ admin 元数据 only
 
 > ⚠️ 锚说明: 蓝图 agent-lifecycle.md 章节 §2.2 字面 "runtime 安装管家" 是 remote-agent 角色, 落地到 server 侧表现为 `agent_runtimes` registry 表; 此 spec 锁的是 **registry 元数据 + 启停 API + UI**, 不锁 remote-agent 二进制下载/沙箱 (留第 6 轮 §4). 跟立场 #7 "Borgee 不带 runtime" 不冲突 — registry 存的是 plugin process descriptor (endpoint / status / 心跳), 不存 LLM 调用本身.

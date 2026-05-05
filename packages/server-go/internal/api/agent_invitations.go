@@ -223,7 +223,7 @@ func (h *AgentInvitationHandler) handleCreate(w http.ResponseWriter, r *http.Req
 
 	// RT-0 (#40): push agent_invitation_pending to the agent's owner so
 	// the bell badge updates ≤ 3s without polling. Field order locked
-	// to docs/blueprint/realtime.md §2.3 + PR #218 client TS interface.
+	// to docs/blueprint/current/realtime.md §2.3 + PR #218 client TS interface.
 	expiresMs := int64(0)
 	if inv.ExpiresAt != nil {
 		expiresMs = *inv.ExpiresAt

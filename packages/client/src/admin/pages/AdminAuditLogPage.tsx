@@ -1,6 +1,6 @@
 // AdminAuditLogPage — ADM-2.2 admin SPA audit-log 页 (#484).
 //
-// Blueprint: docs/blueprint/admin-model.md §1.4 红线 (admin 写动作必须留迹 +
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 (admin 写动作必须留迹 +
 // admin 之间互可见 — 立场 ③).
 // Spec: docs/current/admin/README.md §6 admin-rail GET /admin-api/v1/audit-log
 //   - 立场 ③ 默认无 WHERE; 三 filter (?actor_id / ?action / ?target_user_id)

@@ -1,6 +1,6 @@
 # CV-7 spec brief — artifact comment edit / delete / reaction (CV-5 续)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5 #530 messages 表单源 + thinking 5-pattern 第 4 处链承袭. CV-7 是 CV-5 续 — comment edit/delete/reaction 三动作 byte-identical 复用 messages 表既有 PUT/DELETE/reactions endpoint, **0 新表**.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5 #530 messages 表单源 + thinking 5-pattern 第 4 处链承袭. CV-7 是 CV-5 续 — comment edit/delete/reaction 三动作 byte-identical 复用 messages 表既有 PUT/DELETE/reactions endpoint, **0 新表**.
 
 ## 0. 关键约束 (4 项立场, 蓝图字面 + 跨链)
 

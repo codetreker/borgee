@@ -1,7 +1,7 @@
 // Package api — runtimes.go: AL-4.2 server registry + start/stop API +
 // heartbeat hook for agent_runtimes (process-level descriptor).
 //
-// Blueprint锚: docs/blueprint/agent-lifecycle.md §2.2 (默认 remote-agent +
+// Blueprint锚: docs/blueprint/current/agent-lifecycle.md §2.2 (默认 remote-agent +
 // power user 直配 plugin 双路径 + v1 务实边界 — only OpenClaw / Mac+Linux /
 // 不优化多 runtime 并行) + §2.3 (故障可解释) + §4 (remote-agent 安全模型留
 // 第 6 轮); README.md §1 立场 #7 (Borgee 不带 runtime — 走 plugin 接);

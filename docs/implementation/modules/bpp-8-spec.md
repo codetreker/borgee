@@ -1,6 +1,6 @@
 # BPP-8 spec brief — plugin lifecycle audit log (≤80 行)
 
-> 战马D · Phase 6 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §1.6 (失联与故障状态) + §3 (plugin lifecycle audit) + ADM-2.1 admin_actions forward-only 五 milestone 跨链同精神. 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-8. 依赖 BPP-3 #489 dispatcher + BPP-4 #499 watchdog + BPP-5 #503 reconnect + BPP-6 #522 cold-start + BPP-7 SDK + AL-1 #492 5-state + REFACTOR-REASONS #496 6-dict + ADM-2.1 #484 admin_actions table.
+> 战马D · Phase 6 · ≤80 行 · 蓝图 [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态) + §3 (plugin lifecycle audit) + ADM-2.1 admin_actions forward-only 五 milestone 跨链同精神. 模块锚 [`plugin-protocol.md`](plugin-protocol.md) §BPP-8. 依赖 BPP-3 #489 dispatcher + BPP-4 #499 watchdog + BPP-5 #503 reconnect + BPP-6 #522 cold-start + BPP-7 SDK + AL-1 #492 5-state + REFACTOR-REASONS #496 6-dict + ADM-2.1 #484 admin_actions table.
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.6 + ADM-2.1 字面承袭)
 

@@ -1,6 +1,6 @@
 # RT-3 ⭐ `agent_task_state_changed` Frame — implementation note
 
-> RT-3 (#488) · Phase 4 · 蓝图 [`realtime.md`](../../../blueprint/realtime.md) §0 + §1.1 ⭐ "thinking 必须带 subject" + agent-lifecycle.md §2.3 (busy/idle source 必须 plugin 上行 frame).
+> RT-3 (#488) · Phase 4 · 蓝图 [`realtime.md`](../../../blueprint/current/realtime.md) §0 + §1.1 ⭐ "thinking 必须带 subject" + agent-lifecycle.md §2.3 (busy/idle source 必须 plugin 上行 frame).
 
 ## 1. 立场
 

@@ -1,6 +1,6 @@
 # CV-5 spec brief — artifact comments (canvas vision, agent ↔ comment 单源)
 
-> 战马E · Phase 5 收尾 · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 字面 "心智更接近 Linear issue + comment，而不是 Miro 白板" + DM-2.2 #372 mention 同源 fan-out + RT-3 #488 cursor 共序锚 + AL-1b/BPP-2.2 thinking subject 5-pattern 反约束链.
+> 战马E · Phase 5 收尾 · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 字面 "心智更接近 Linear issue + comment，而不是 Miro 白板" + DM-2.2 #372 mention 同源 fan-out + RT-3 #488 cursor 共序锚 + AL-1b/BPP-2.2 thinking subject 5-pattern 反约束链.
 
 ## 0. 关键约束 (3 项立场, 蓝图字面)
 

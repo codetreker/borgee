@@ -8,7 +8,7 @@
 //   # 期望 0 hit (应改为 HasCapability(ctx, auth.CommitArtifact, scope))
 //
 // Spec锚: docs/implementation/modules/ap-1-spec.md §1 立场 ③ + §2 反约束 #1.
-// 蓝图锚: docs/blueprint/auth-permissions.md §1 (ABAC + UI bundle 混合).
+// 蓝图锚: docs/blueprint/current/auth-permissions.md §1 (ABAC + UI bundle 混合).
 //
 // admin god-mode capability 不在此白名单 — admin 走 /admin-api/* 单独
 // middleware (admin.RequireAdmin), ADM-0 §1.3 红线 + spec §1 立场 ③ 字面.

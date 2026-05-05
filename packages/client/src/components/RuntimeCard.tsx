@@ -2,7 +2,7 @@
 // owner-only DOM gate + 4 态 badge byte-identical 跟 AL-1a #249 +
 // AL-3 #305 + DM-2 #314 同源.
 //
-// Blueprint锚: docs/blueprint/agent-lifecycle.md §2.2 (默认 remote-agent
+// Blueprint锚: docs/blueprint/current/agent-lifecycle.md §2.2 (默认 remote-agent
 // + power user 直配 plugin 双路径) + §2.3 (故障可解释) + §11 (沉默胜
 // 于假 loading); README.md §1 立场 #7 (Borgee 不带 runtime, plugin
 // process descriptor only).

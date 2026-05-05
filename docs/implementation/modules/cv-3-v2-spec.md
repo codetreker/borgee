@@ -1,7 +1,7 @@
 # CV-3 v2 spec brief — code/markdown artifact thumbnail (Phase 5+ 续作)
 
 > 战马C · 2026-04-30 · ≤80 行 spec lock (4 件套之一; CV-3 #408 续作 — code / markdown artifact thumbnail 给 list / sidebar 首屏快读)
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.4 (artifact 集合: 多类型, "首屏快读不是浏览器内全量解码" 字面) + §1.6 锚点对话 (review 入口 thumbnail 加速 owner 扫一眼)
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.4 (artifact 集合: 多类型, "首屏快读不是浏览器内全量解码" 字面) + §1.6 锚点对话 (review 入口 thumbnail 加速 owner 扫一眼)
 > **关联**: CV-3 #408 三 kind enum (markdown/code/image_link) ✅ + CV-2 v2 #517 server CDN thumbnail + media preview path ✅ (`artifacts.preview_url TEXT NULL`, POST /preview owner-only, https-only XSS 红线) + CV-1 #348 markdown artifact ✅ + CV-3.2 #400 ValidateImageLinkURL XSS 红线第一道
 > **命名**: CV-3 #408 v1 已闭 (三 kind enum + code prism renderer + image_link XSS 红线); CV-3 v2 = code/markdown thumbnail 续作 (跟 CV-2 v2 #517 image_link/video_link/pdf_link thumbnail 同精神, 此 milestone 补 code/markdown 两 kind 的 thumbnail 路径)
 

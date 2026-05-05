@@ -11,7 +11,7 @@ import { PRIVACY_PROMISES } from '../components/Settings/PrivacyPromise';
 // vite ?raw import — 跟 ArtifactPanel-kind-switch.test.tsx 同模式
 // (avoids node fs deps in client package).
 // @ts-ignore vite ?raw import lacks built-in TS module decl
-import adminModelSrc from '../../../../docs/blueprint/admin-model.md?raw';
+import adminModelSrc from '../../../../docs/blueprint/current/admin-model.md?raw';
 
 describe('PrivacyPromise drift — doc §4.1 ↔ 组件常量 byte-identical', () => {
   it('admin-model.md §4.1 三条承诺字面 1:1 跟 PRIVACY_PROMISES 同源', () => {

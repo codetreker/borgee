@@ -1,7 +1,7 @@
 # BPP-3.2 文案锁 / DOM 字面锁 (战马C + 野马 v0)
 
 > 战马C · 2026-04-29 · ≤40 行 byte-identical 锁 (4 件套第三件; 跟 BPP-2 #485 + AL-1b #458 + AP-1 #493 同模式)
-> **蓝图锚**: [`auth-permissions.md`](../blueprint/auth-permissions.md) §1.3 主入口字面 (DM body + 三按钮)
+> **蓝图锚**: [`auth-permissions.md`](../blueprint/current/auth-permissions.md) §1.3 主入口字面 (DM body + 三按钮)
 > **关联**: spec `docs/implementation/modules/bpp-3.2-spec.md` (战马C v0, c8e37a4) + stance `docs/qa/bpp-3.2-stance-checklist.md` (战马C v0) + acceptance `docs/qa/acceptance-templates/bpp-3.2.md` (战马C v0); 复用 BPP-3.1 #494 frame body + AP-1 #493 capabilities const
 
 ## §1 DM body 字面锁 (蓝图 §1.3 主入口字面承袭)
@@ -56,7 +56,7 @@ byte-identical 跟 BPP-2.2 `bpp.task_subject_empty` + BPP-2.3 `bpp.config_field_
 ## §5 跨 PR drift 守 (双向 grep CI lint)
 
 改 `required_capability` / `current_scope` / `request_id` = 改五处 (双向 grep 等价单测覆盖):
-1. `docs/blueprint/auth-permissions.md` §4.1 row
+1. `docs/blueprint/current/auth-permissions.md` §4.1 row
 2. `packages/server-go/internal/auth/abac.go` 403 body (AP-1 #493)
 3. `packages/server-go/internal/bpp/envelope.go::PermissionDeniedFrame` 字段 (BPP-3.1 #494)
 4. `packages/server-go/internal/api/capability_grant.go` DM body 模板 (BPP-3.2.1)

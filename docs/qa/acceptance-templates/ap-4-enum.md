@@ -1,7 +1,7 @@
 # Acceptance Template — AP-4-enum: capability 清单 enum 化 + reflect-lint 单源
 
 > Spec: `docs/implementation/modules/ap-4-enum-spec.md` (飞马 v0, 71 行)
-> 蓝图: `docs/blueprint/auth-permissions.md` §1.1 (ABAC + capability list = SSOT) + §3 反 hardcode drift
+> 蓝图: `docs/blueprint/current/auth-permissions.md` §1.1 (ABAC + capability list = SSOT) + §3 反 hardcode drift
 > Stance: `docs/qa/ap-4-enum-stance-checklist.md` (野马 / 飞马 v0)
 > 前置: AP-1 #493 capabilities.go 14 const ✅ + reasons SSOT 包 #496 ✅ + BPP-4 / HB-3 release-gate ✅
 > 命名澄清: 跟 AP-4 #551 reactions ACL 共用 AP-4 标号 — 本 acceptance 用 `ap-4-enum.md` 避双义.

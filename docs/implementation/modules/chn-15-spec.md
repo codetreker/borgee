@@ -1,7 +1,7 @@
 # CHN-15 spec brief — channel readonly toggle (战马C v0)
 
 > Phase 6+ wrapper milestone (跟 CHN-7 mute / CHN-9 visibility / CHN-12 sort / CHN-13 search 同模式) — owner 一键把 channel 切 "只读" 状态: 仅 channel.created_by 可发言, 其他成员发消息 403; owner-only toggle. **0 schema 改** 复用 user_channel_layout.collapsed bitmap (bit 4).
-> **蓝图锚**: [`channel-model.md`](../../blueprint/channel-model.md) §3 layout per-user (extension) + §1.4 owner 主权 + [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.3 admin god-mode 红线 + ADM-0 §1.3.
+> **蓝图锚**: [`channel-model.md`](../../blueprint/current/channel-model.md) §3 layout per-user (extension) + §1.4 owner 主权 + [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.3 admin god-mode 红线 + ADM-0 §1.3.
 > **关联**: CHN-3.1 #410 user_channel_layout schema (collapsed bitmap) + CHN-7 #550 mute (bit 1) + CHN-8 notification-pref (bits 2-3) + CHN-9 visibility (3 enum) + CHN-1.2 channel.created_by gate.
 
 ## §0 关键约束 (3 条立场, 蓝图字面承袭)

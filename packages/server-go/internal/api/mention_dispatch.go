@@ -1,7 +1,7 @@
 // Package api — mention_dispatch.go: DM-2.2 server-side parser + fanout
 // orchestrator for `@<target_user_id>` mentions.
 //
-// Blueprint锚: docs/blueprint/concept-model.md §4 (agent 代表自己 —
+// Blueprint锚: docs/blueprint/current/concept-model.md §4 (agent 代表自己 —
 // mention 只 ping target, 不抄送 owner) + §4.1 (离线 fallback owner
 // system DM + 节流 5min/(agent,channel) + 不转发原 body) + §13 隐私.
 // Spec brief: docs/implementation/modules/dm-2-spec.md §0 立场 ①②③ +

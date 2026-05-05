@@ -4,7 +4,7 @@
 // Spec: docs/implementation/modules/hb-3-spec.md §1 HB-3.1.
 // Acceptance: docs/qa/acceptance-templates/hb-3.md §1.
 // Stance: docs/qa/hb-3-stance-checklist.md §1+§2+§3.
-// Blueprint锚: docs/blueprint/host-bridge.md §1.3 (4 类: install/exec/
+// Blueprint锚: docs/blueprint/current/host-bridge.md §1.3 (4 类: install/exec/
 // filesystem/network) + §1.5 release gate 第 5 行 (撤销 < 100ms) + §2
 // 信任五支柱第 3 条 (可审计日志).
 //

@@ -1,6 +1,6 @@
 # CV-11 spec brief — artifact comment markdown 渲染 (CV-5..CV-10 续, client only)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5..CV-10 单源延伸 + CV-9 #539 / CV-10 #541 client-only 同模式 + thinking 5-pattern 第 8 处链. CV-11 让 artifact comment body 渲染 markdown — 复用既有 `lib/markdown::renderMarkdown` (marked + DOMPurify), **0 server production code + 0 schema 改 + 0 新 endpoint + 0 新 lib**.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5..CV-10 单源延伸 + CV-9 #539 / CV-10 #541 client-only 同模式 + thinking 5-pattern 第 8 处链. CV-11 让 artifact comment body 渲染 markdown — 复用既有 `lib/markdown::renderMarkdown` (marked + DOMPurify), **0 server production code + 0 schema 改 + 0 新 endpoint + 0 新 lib**.
 
 ## 0. 关键约束 (4 项立场, 跨链承袭)
 

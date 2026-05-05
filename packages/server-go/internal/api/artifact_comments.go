@@ -2,7 +2,7 @@
 // comment threads (canvas-vision §0 L24 字面 "Linear issue + comment, 不是
 // Miro 白板").
 //
-// Blueprint锚: docs/blueprint/canvas-vision.md L24 + DM-2.2 #372 mention
+// Blueprint锚: docs/blueprint/current/canvas-vision.md L24 + DM-2.2 #372 mention
 // router 同精神 (comment / message 同表同语义不裂) + RT-3 #488 cursor 共序锚
 // + thinking subject 5-pattern 反约束链 (RT-3 / BPP-2.2 / AL-1b / CV-5 第 4
 // 处). Spec brief: docs/implementation/modules/cv-5-spec.md (战马E v0

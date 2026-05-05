@@ -1,5 +1,5 @@
 // Package bpp — envelope.go: BPP-1 (#274/#280) source-of-truth for the
-// 9 envelope frames defined in docs/blueprint/plugin-protocol.md §2.1
+// 9 envelope frames defined in docs/blueprint/current/plugin-protocol.md §2.1
 // (control plane, Borgee→Plugin) + §2.2 (data plane, Plugin→Borgee).
 //
 // Layout contract — BPP-1 envelope is byte-identical with RT-0 (#237)

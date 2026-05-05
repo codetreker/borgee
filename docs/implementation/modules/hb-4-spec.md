@@ -1,6 +1,6 @@
 # HB-4 spec brief — release gate ⭐ + 信任五支柱可见 (≤80 行)
 
-> 战马A · Phase 5 host-bridge release gate · ≤80 行 · 蓝图 [`host-bridge.md`](../../blueprint/host-bridge.md) §1.5 (v1 release 硬指标 6 行) + §2 信任五支柱 (开源/签名/可审计日志/可吊销/限定能力). 模块锚 [`host-bridge.md`](host-bridge.md) §HB-4 ⭐ (4.1+4.2 双挂). 依赖 HB-1 #491 spec + HB-2 #491 spec + HB-3 #504 实施 (audit log schema 跨四 milestone 同源已就绪) + BPP-4 #499 + BPP-5 #503 (best-effort 立场承袭). 烈马 R2 基准锁: GitHub Actions ubuntu-latest 4vCPU 16GB, CI 数字为准.
+> 战马A · Phase 5 host-bridge release gate · ≤80 行 · 蓝图 [`host-bridge.md`](../../blueprint/current/host-bridge.md) §1.5 (v1 release 硬指标 6 行) + §2 信任五支柱 (开源/签名/可审计日志/可吊销/限定能力). 模块锚 [`host-bridge.md`](host-bridge.md) §HB-4 ⭐ (4.1+4.2 双挂). 依赖 HB-1 #491 spec + HB-2 #491 spec + HB-3 #504 实施 (audit log schema 跨四 milestone 同源已就绪) + BPP-4 #499 + BPP-5 #503 (best-effort 立场承袭). 烈马 R2 基准锁: GitHub Actions ubuntu-latest 4vCPU 16GB, CI 数字为准.
 
 ## 0. 关键约束 (3 条立场, 蓝图 §1.5+§2 字面)
 

@@ -1,5 +1,5 @@
 // Package ws — event_schemas.go: RT-0 (#40) source-of-truth for the
-// agent invitation push frames defined in docs/blueprint/realtime.md
+// agent invitation push frames defined in docs/blueprint/current/realtime.md
 // §2.3.
 //
 // Phase 2 routes these via the existing /ws hub; Phase 4 BPP will swap

@@ -1,7 +1,7 @@
 # BPP-1 envelope CI lint — spec brief (烈马 acceptance 守门)
 
 > 烈马 · 2026-04-28 · v0
-> 蓝图: `docs/blueprint/plugin-protocol.md` §2.1 (控制面 6 帧) + §2.2 (数据面 3 帧)
+> 蓝图: `docs/blueprint/current/plugin-protocol.md` §2.1 (控制面 6 帧) + §2.2 (数据面 3 帧)
 > 占号 stub: PR **#274** (`docs(impl): BPP-1 envelope CI lint spec stub`)
 > 配套 acceptance: `docs/qa/acceptance-templates/al-2a.md` (BPP frame 在 AL-2a 反向断言 count==0)
 > 守门闸: G2.6 留账 (Phase 2 退出公告 §4) → BPP-1 PR 内含真 lint workflow 后升 ✅

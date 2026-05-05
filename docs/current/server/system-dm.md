@@ -1,6 +1,6 @@
 # System DM — Admin Action 受影响者通知 (ADM-2.2)
 
-> ADM-2.2 (#484) · Phase 4 · 蓝图 [`admin-model.md`](../../blueprint/admin-model.md) §1.4 三红线 1 ("受影响者必感知") + §2 不变量 ("Audit 100% 留痕"). Content lock: [`docs/qa/adm-2-content-lock.md`](../../qa/adm-2-content-lock.md) §1 (5 模板字面). Stance: [`docs/qa/adm-2-stance-checklist.md`](../../qa/adm-2-stance-checklist.md) §2 ADM2-NEG-001..010.
+> ADM-2.2 (#484) · Phase 4 · 蓝图 [`admin-model.md`](../../blueprint/current/admin-model.md) §1.4 三红线 1 ("受影响者必感知") + §2 不变量 ("Audit 100% 留痕"). Content lock: [`docs/qa/adm-2-content-lock.md`](../../qa/adm-2-content-lock.md) §1 (5 模板字面). Stance: [`docs/qa/adm-2-stance-checklist.md`](../../qa/adm-2-stance-checklist.md) §2 ADM2-NEG-001..010.
 
 ## 1. 立场
 
@@ -50,7 +50,7 @@ DM emit 失败 (channel 缺失 / 网络) → 仅 log warn, audit 行已落不 ro
 
 ## 4. BPP-3.2.1 — `request_capability_grant` system DM (Phase 5)
 
-> BPP-3.2.1 (#494 follow-up) · Phase 5 · 蓝图 [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.3 主入口字面 + spec [`bpp-3.2-spec.md`](../../implementation/modules/bpp-3.2-spec.md) §1 立场 ① + content-lock [`bpp-3.2-content-lock.md`](../../qa/bpp-3.2-content-lock.md) §1+§2.
+> BPP-3.2.1 (#494 follow-up) · Phase 5 · 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.3 主入口字面 + spec [`bpp-3.2-spec.md`](../../implementation/modules/bpp-3.2-spec.md) §1 立场 ① + content-lock [`bpp-3.2-content-lock.md`](../../qa/bpp-3.2-content-lock.md) §1+§2.
 
 ### 4.1 触发路径
 

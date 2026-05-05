@@ -1,7 +1,7 @@
 # BPP-3.1 spec brief — `permission_denied` BPP frame 推送 (server → plugin)
 
 > 战马C · 2026-04-29 · ≤80 行 · Phase 4 plugin-protocol 第二段 (BPP-2 ✅ #485 之后, 接 AP-1 #493 留账闭环)
-> 关联: 蓝图 [`auth-permissions.md`](../../blueprint/auth-permissions.md) §2 不变量 "Permission denied 走 BPP — 不靠 HTTP 错误码, 由协议层路由到 owner DM" + §4.1 字面 frame 字段 (`permission_denied` row: `attempted_action`, `required_capability`, `current_scope`, `reason`); [`plugin-protocol.md`](../../blueprint/plugin-protocol.md) §2.1 control plane (server→plugin); AP-1 #493 abac.go::HasCapability 403 body `{required_capability, current_scope}` byte-identical 同源 (跨 PR drift 防御)
+> 关联: 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §2 不变量 "Permission denied 走 BPP — 不靠 HTTP 错误码, 由协议层路由到 owner DM" + §4.1 字面 frame 字段 (`permission_denied` row: `attempted_action`, `required_capability`, `current_scope`, `reason`); [`plugin-protocol.md`](../../blueprint/current/plugin-protocol.md) §2.1 control plane (server→plugin); AP-1 #493 abac.go::HasCapability 403 body `{required_capability, current_scope}` byte-identical 同源 (跨 PR drift 防御)
 > Owner: 战马C 一 milestone 一 PR
 
 ---

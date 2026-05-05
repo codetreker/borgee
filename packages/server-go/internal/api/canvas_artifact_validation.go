@@ -7,7 +7,7 @@ import (
 
 // ----- CV-3.2 (#363 v1 / #397 patch) artifact kind validation -----
 //
-// Blueprint锚: docs/blueprint/canvas-vision.md §1.4 (artifact 集合:
+// Blueprint锚: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合:
 // Markdown / 代码片段带语言标注 / 设计稿图片或链接 / 看板 v2+) + §2
 // v1 不做清单. Spec: docs/implementation/modules/cv-3-spec.md (飞马
 // #363 v0 → #397 v1 follow-up) §0 立场 ①②③ + §1 拆段 CV-3.2 +

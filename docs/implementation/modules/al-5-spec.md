@@ -1,7 +1,7 @@
 # AL-5 spec brief — agent 错误恢复路径 wrapper milestone
 
 > 战马C · 2026-04-29 · ≤80 行 spec lock (4 件套之一; Phase 5 候选, 跟 BPP-3.2 同期)
-> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.3 (5-state error 状态字面 — `error → online` 恢复路径) + §1.6 (失联与故障状态: BPP-4 watchdog 检测异常翻 state, AL-5 处理后续恢复) + [`auth-permissions.md`](../../blueprint/auth-permissions.md) §1.3 主入口字面承袭 (owner DM 通知机制 BPP-3.2 已落)
+> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.3 (5-state error 状态字面 — `error → online` 恢复路径) + §1.6 (失联与故障状态: BPP-4 watchdog 检测异常翻 state, AL-5 处理后续恢复) + [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §1.3 主入口字面承袭 (owner DM 通知机制 BPP-3.2 已落)
 > **关联**: AL-1 #492 5-state state machine + ValidateTransition (`error → online` valid edge 已锁) + BPP-4 watchdog spec (timeout 翻 error) + BPP-3.2 #498 owner DM 通知机制 (复用 DM-2 + system message 既有 path) + REFACTOR-REASONS #496 SSOT (6 reason 字面单源, AL-5 不新增字典)
 > **命名**: 原"AL-3"已被 presence (Phase 3 #310/#317/#324/#327 三段全闭) 占用; 此新 wrapper milestone 命名 AL-5 避免 registry 命名冲突
 

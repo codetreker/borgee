@@ -1,6 +1,6 @@
 # Acceptance Template — AL-3: presence (online/offline) + WS lifecycle hook + UI dot
 
-> 蓝图: `docs/blueprint/agent-lifecycle.md` §2.3 (Phase 2 在线列表只承诺 online/offline + error 旁路, busy/idle 留 Phase 4 BPP-1 同期) + §11 文案守 (Sidebar 不准 "灰点 + 不说原因")
+> 蓝图: `docs/blueprint/current/agent-lifecycle.md` §2.3 (Phase 2 在线列表只承诺 online/offline + error 旁路, busy/idle 留 Phase 4 BPP-1 同期) + §11 文案守 (Sidebar 不准 "灰点 + 不说原因")
 > Contract 占号: `packages/server-go/internal/presence/contract.go` (#277, G2.5 留账锚) — `PresenceTracker.IsOnline` + `Sessions` 接口签名锁死 (read 端不动, AL-3 仅扩 write)
 > Implementation: `docs/implementation/modules/al-3-spec.md` (飞马 #301, 3 立场 + 6 grep 锚 + 5 反约束)
 > 立场反查: `docs/qa/al-3-stance-checklist.md` (野马 #303, 7 项立场 — agent-only / 三态 / 单一真源 / 跨 org / 5s+60s / 隐藏多端 / admin 白名单)

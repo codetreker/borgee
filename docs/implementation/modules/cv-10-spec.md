@@ -1,6 +1,6 @@
 # CV-10 spec brief — artifact comment 草稿持久化 + restore (CV-5..CV-9 续, client only)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5..CV-9 单源延伸 + CV-9 #539 同模式 (client-only, 0 server code). CV-10 让 artifact comment 输入框 unsaved-state 跨 reload 不丢 — 纯 localStorage, **0 server production code + 0 schema 改 + 0 新 endpoint**.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 字面 "Linear issue + comment" + CV-5..CV-9 单源延伸 + CV-9 #539 同模式 (client-only, 0 server code). CV-10 让 artifact comment 输入框 unsaved-state 跨 reload 不丢 — 纯 localStorage, **0 server production code + 0 schema 改 + 0 新 endpoint**.
 
 ## 0. 关键约束 (4 项立场, 蓝图字面 + 跨链)
 

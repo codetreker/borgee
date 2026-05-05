@@ -1,7 +1,7 @@
 # CV-1 spec brief — canvas vision artifact (Phase 3 v1 解封后第一波 spec)
 
 > 飞马 · 2026-04-28 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马A 落)
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §0 (一句话 — channel 围 artifact 协作) + §1.1-§1.6 (五条立场 — D-lite + workspace per channel + Markdown ONLY v1) + §2 (v1 做/不做)
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §0 (一句话 — channel 围 artifact 协作) + §1.1-§1.6 (五条立场 — D-lite + workspace per channel + Markdown ONLY v1) + §2 (v1 做/不做)
 > **关联**: 野马 [`docs/qa/cv-1-stance-checklist.md`](../../qa/cv-1-stance-checklist.md) v0+v0.1 (7 立场 + 5 黑名单 grep + v0/v1 切换三条件) + 飞马 #295 v1 transition 三条件; RT-1 三段闭环 (#290+#292+#296) ✅; AL-3 三轨闭环 (#301+#302+#303+#305) ✅; BPP-1 envelope CI lint #304 ✅ (G2.6 真落)
 
 > ⚠️ 锚说明: v1 解封三条件 (RT-1 ✅ + AL-3 ✅ + BPP-1 lint ✅) Phase 3 解封后已全满足, 此 spec 直开 v1 实施视角拆段, 不再走 v0 占号路径

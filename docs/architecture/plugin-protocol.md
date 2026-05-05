@@ -1,6 +1,6 @@
 # Implementation · Plugin Protocol (BPP)
 
-> 蓝图: [`../../blueprint/plugin-protocol.md`](../../blueprint/plugin-protocol.md)
+> 蓝图: [`../../blueprint/current/plugin-protocol.md`](../../blueprint/current/plugin-protocol.md)
 > 现状: 当前有 OpenClaw plugin 私有协议, 没有"BPP 中立协议"概念
 > 阶段: ⚡ v0 (允许直接换协议, plugin 同步发版)
 > 所属 Phase: Phase 4

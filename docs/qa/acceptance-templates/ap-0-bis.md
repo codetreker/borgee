@@ -1,6 +1,6 @@
 # Acceptance Template — AP-0-bis: message.read 默认 + backfill 迁移
 
-> 蓝图: `docs/blueprint/auth-permissions.md` §3 (R3 已固化 message.read)
+> 蓝图: `docs/blueprint/current/auth-permissions.md` §3 (R3 已固化 message.read)
 > Implementation: `docs/architecture/auth-permissions.md` AP-0-bis
 > R3 决议: 4 人 review 立场冲突 #1 (2026-04-28)
 > 依赖: ADM-0.2 已 merge (cookie 拆 + RequirePermission 短路砍 落地后才能挂 message.read gate); 与 INFRA-2 / CM-onboarding 可并行; CM-3 backfill pattern 沿用此处 helper

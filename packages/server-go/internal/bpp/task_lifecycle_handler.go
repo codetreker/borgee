@@ -2,7 +2,7 @@
 // Plugin-upstream task_started / task_finished frames → server fanout
 // AgentTaskStateChangedFrame (busy/idle) via Hub.PushAgentTaskStateChanged.
 //
-// Blueprint锚: docs/blueprint/realtime.md §1.1 ⭐ (活物感 / thinking 必带
+// Blueprint锚: docs/blueprint/current/realtime.md §1.1 ⭐ (活物感 / thinking 必带
 // subject) + agent-lifecycle.md §2.3 (busy/idle source = plugin 上行 frame).
 // Spec: docs/implementation/modules/rt-3-spec.md §0 立场 ②+③ + §1 RT-3.2.
 //

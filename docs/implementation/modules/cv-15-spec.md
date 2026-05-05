@@ -1,7 +1,7 @@
 # CV-15 spec brief — artifact comment edit history audit (战马C v0)
 
 > Phase 6+ wrapper milestone — artifact comment edit history audit, GET-only readonly view (跟 DM-7 #558 messages.edit_history 模式承袭). **0 schema 改** — artifact comments 走 messages 表 (CV-5 #530 立场 ①), `edit_history` 列 DM-7.1 v=34 已加 (复用 byte-identical), CV-15 仅加 GET endpoint scoped 到 `content_type='artifact_comment'` filter.
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.4 artifact 集合 + [`dm-model.md`](../../blueprint/dm-model.md) §3 forward-only audit history 同精神.
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.4 artifact 集合 + [`dm-model.md`](../../blueprint/dm-model.md) §3 forward-only audit history 同精神.
 > **关联**: CV-5 #530 artifact comments 走 messages 表单源 (立场 ①, 不裂 artifact_comments 表) + CV-7 #535 既有 PATCH /api/v1/messages/{id} edit path (sender owner-only ACL) + DM-7 #558 messages.edit_history schema v=34 + UpdateMessage SSOT history append.
 
 > ⚠️ **架构发现**: team-lead 派活原案是 "v=45 ALTER artifact_comments ADD COLUMN edit_history". 真状况:

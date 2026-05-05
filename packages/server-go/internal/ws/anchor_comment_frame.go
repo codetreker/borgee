@@ -2,7 +2,7 @@
 // for the `anchor_comment_added` push frame. Anchors review-comments
 // posted on artifact_versions to the artifact's channel members.
 //
-// Blueprint锚: docs/blueprint/canvas-vision.md §1.6 (锚点对话 = owner
+// Blueprint锚: docs/blueprint/current/canvas-vision.md §1.6 (锚点对话 = owner
 // review agent 产物的工具). Spec brief: docs/implementation/modules/cv-2-spec.md
 // §0 立场 ① + ③ + §1 拆段 CV-2.2 + spec v2 字面 envelope (10 字段, 字段名
 // `author_kind` 不复用 CV-1 `committer_kind`).

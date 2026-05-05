@@ -1,7 +1,7 @@
 # Phase 3 / Phase 4 立场 vision (草稿)
 
 > **状态**: v0 草稿 (野马, 2026-04-28) — R4 review anchor, 不是详细计划; Phase 3 启动时再细化为 milestone 级 execution-plan
-> **配套**: `r3-decisions.md` (#216, R3-4 / R3-5 / R3-7 三条 Phase 4 同期) + `phase-2-exit-summary.md` (#225) §5 placeholder 实化 + `g2.4-unblock-path.md` (#232) §2 里程碑表延伸
+> **配套**: `r3-decisions.md` (#216, R3-4 / R3-5 / R3-7 三条 Phase 4 同期) + `../../implementation/00-foundation/phase-2-exit-summary.md` (#225) §5 placeholder 实化 + `g2.4-unblock-path.md` (#232) §2 里程碑表延伸
 > **目的**: Phase 2 退出 gate 联签时给业主 / stakeholder 看 Phase 3+4 主线方向, 不承诺细节字面
 
 ---

@@ -1,6 +1,6 @@
 // AL-3.3 (#R3 Phase 2) — Agent runtime PresenceDot component.
 //
-// 蓝图 docs/blueprint/agent-lifecycle.md §2.3 + §11 文案守:
+// 蓝图 docs/blueprint/current/agent-lifecycle.md §2.3 + §11 文案守:
 // Phase 2 仅承诺 online / offline + error 旁路 (busy/idle 留 BPP-1 同期).
 // Sidebar 严禁 "灰点不说原因" — 离线必须明确 "已离线", 故障必须显 reason.
 //

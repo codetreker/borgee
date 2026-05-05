@@ -1,6 +1,6 @@
 # Web Push Client Subscribe (DL-4.5) — implementation note
 
-> DL-4.5 (#490) · Phase 4 · 蓝图 [`client-shape.md`](../../blueprint/client-shape.md) L22 (Mobile PWA + Web Push VAPID) + L37 ("没推送 = AI 团队像后台脚本不像同事") + L46 (实现路径).
+> DL-4.5 (#490) · Phase 4 · 蓝图 [`client-shape.md`](../../blueprint/current/client-shape.md) L22 (Mobile PWA + Web Push VAPID) + L37 ("没推送 = AI 团队像后台脚本不像同事") + L46 (实现路径).
 
 ## 1. 立场
 

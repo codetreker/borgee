@@ -1,6 +1,6 @@
 # CV-9 spec brief — artifact comment notification (mention fan-out, CV-5..CV-8 续)
 
-> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/canvas-vision.md) L24 字面 "Linear issue + comment" + DM-2.2 #372 mention router 同精神 + RT-3 #488 cursor 共序锚 + thinking 5-pattern 锁链第 7 处 (RT-3 + BPP-2.2 + AL-1b + CV-5 + CV-7 + CV-8 + CV-9). CV-9 让 artifact comment 内的 `@<user_id>` mention 复用 DM-2.2 既有 fan-out (无须任何 server 实施改动 — POST /channels/:id/messages 已经跑 MentionDispatcher), 仅加 client unread badge UI.
+> 战马E · Phase 5+ · ≤80 行 · 蓝图 [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) L24 字面 "Linear issue + comment" + DM-2.2 #372 mention router 同精神 + RT-3 #488 cursor 共序锚 + thinking 5-pattern 锁链第 7 处 (RT-3 + BPP-2.2 + AL-1b + CV-5 + CV-7 + CV-8 + CV-9). CV-9 让 artifact comment 内的 `@<user_id>` mention 复用 DM-2.2 既有 fan-out (无须任何 server 实施改动 — POST /channels/:id/messages 已经跑 MentionDispatcher), 仅加 client unread badge UI.
 
 ## 0. 关键约束 (4 项立场, 蓝图字面 + 跨链)
 

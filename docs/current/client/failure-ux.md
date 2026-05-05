@@ -1,6 +1,6 @@
 # CS-2 故障 UX 分层呈现 (client)
 
-> 锚: `docs/blueprint/client-shape.md` §1.3 + `docs/implementation/modules/cs-2-spec.md` v0
+> 锚: `docs/blueprint/current/client-shape.md` §1.3 + `docs/implementation/modules/cs-2-spec.md` v0
 > 落点: 战马D + 飞马 + 烈马 + 野马 (一 milestone 一 PR, 0 server prod + 0 schema)
 
 ## 故障三态枚举 (lib/cs2-failure-state.ts)

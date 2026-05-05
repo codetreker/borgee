@@ -1,7 +1,7 @@
 # AL-3 spec brief — presence (在线/离线 真状态) 配套 #277 stub 接力
 
 > 飞马 · 2026-04-28 · ≤80 行 spec lock (实施视角拆 PR 由战马A 落)
-> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.3 (四态机 — online/offline/error/busy-idle 含离线态) + §2.2 (默认 remote-agent — 走 /ws hub 心跳决定 reach); [`realtime.md`](../../blueprint/realtime.md) §2.3 (`/ws` ↔ BPP envelope 等同 — presence 状态变更不进 envelope, 走独立 push)
+> **蓝图锚**: [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.3 (四态机 — online/offline/error/busy-idle 含离线态) + §2.2 (默认 remote-agent — 走 /ws hub 心跳决定 reach); [`realtime.md`](../../blueprint/current/realtime.md) §2.3 (`/ws` ↔ BPP envelope 等同 — presence 状态变更不进 envelope, 走独立 push)
 > **关联**: G2.5 留账闸 #277 (`internal/presence/contract.go` PresenceTracker 接口 stub merged) + #267 readiness §5 (presence 与 RT-1 拆死, 不复用 events 路径)
 
 > ⚠️ 锚说明: 蓝图 agent-lifecycle.md 章节到 §5 为止, 无独立 §3 presence 段; 此 spec 按字面对齐 §2.2 默认远程 + §2.3 四态机的 \"reach\" 语义, 不重新编号蓝图。

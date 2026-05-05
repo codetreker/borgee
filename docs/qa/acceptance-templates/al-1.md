@@ -1,6 +1,6 @@
 # Acceptance Template — AL-1: 状态四态扩展 (state machine + 历史 audit)
 
-> 蓝图: `docs/blueprint/agent-lifecycle.md` §2.3 (4 态: online / busy / idle / error + cross-state transition lock + 故障可解释)
+> 蓝图: `docs/blueprint/current/agent-lifecycle.md` §2.3 (4 态: online / busy / idle / error + cross-state transition lock + 故障可解释)
 > 依赖: AL-1a ✅ (#249 三态 + 6 reason) + AL-1b ✅ (#453/#457/#462 5-state busy/idle) + BPP-2.2 ✅ (#485 task_started/task_finished frame) — 此 milestone 是 wrapper, 落 state machine validator + historical audit + GET endpoint
 > Owner: 战马D 实施 / 烈马 验收
 > R3 注: AL-1 是 AL-1a + AL-1b + state log audit 三件 wrapper, 蓝图 §2.3 行为不变量在此真实施 (validator gate + history)

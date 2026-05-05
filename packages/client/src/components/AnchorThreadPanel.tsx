@@ -1,6 +1,6 @@
 // AnchorThreadPanel — CV-2.3 client SPA anchor side panel (#360 server).
 //
-// Blueprint: docs/blueprint/canvas-vision.md §1.4 (artifact 集合) +
+// Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合) +
 // §1.6 (锚点对话 = owner review agent 产物的工具). Spec brief:
 // docs/implementation/modules/cv-2-spec.md §0 (3 立场) + §1 段 CV-2.3.
 // Acceptance: docs/qa/acceptance-templates/cv-2.md §3. Content-lock:

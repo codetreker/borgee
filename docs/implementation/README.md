@@ -153,7 +153,7 @@ Borgee 当前**无外部用户**。这给了实施巨大的简化空间——但
 ## 与 blueprint 的对应
 
 ```
-blueprint/concept-model.md     ← 目标态: 应该是什么样
+blueprint/current/concept-model.md     ← 目标态: 应该是什么样
    │
    ▼
 implementation/concept-model.md ← 实施: 一步一步怎么走到那

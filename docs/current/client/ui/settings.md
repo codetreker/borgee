@@ -27,7 +27,7 @@
 
 ### 3.1 三承诺锁
 
-`PRIVACY_PROMISES`：3 元组字面 byte-identical 跟 `docs/blueprint/admin-model.md §4.1 R3` 同源（drift test CI 拦）：
+`PRIVACY_PROMISES`：3 元组字面 byte-identical 跟 `docs/blueprint/current/admin-model.md §4.1 R3` 同源（drift test CI 拦）：
 
 1. **Admin 是平台运维, 不是协作者** — 永不出现在 channel / DM / 团队列表里。
 2. **Admin 看不到消息 / 文件 / artifact 内容** — 除非你主动授权 impersonate (24h 时窗, 顶部红色横幅常驻, 可随时撤销)。
@@ -60,7 +60,7 @@ DOM：`<tr className={'privacy-row-' + row.kind} data-row-kind={row.kind}>` — 
 
 ### 3.3 drift test (doc-as-truth)
 
-`__tests__/PrivacyPromise.drift.test.ts` 走 vite `?raw` import 读 `docs/blueprint/admin-model.md`，断言：
+`__tests__/PrivacyPromise.drift.test.ts` 走 vite `?raw` import 读 `docs/blueprint/current/admin-model.md`，断言：
 
 - heading anchor `### 4.1 用户侧隐私承诺页文案 (ADM-1 acceptance 硬标尺)` toContain
 - 三条 numbered `${i+1}. ${promise}` toContain（每条字面跟 PRIVACY_PROMISES 1:1）
@@ -88,7 +88,7 @@ DOM：`<tr className={'privacy-row-' + row.kind} data-row-kind={row.kind}>` — 
 
 ## 6. 锚
 
-- 蓝图：`docs/blueprint/admin-model.md` §4.1 (3 条承诺) + §1.3 (Admin 看 / 看不到 边界)
+- 蓝图：`docs/blueprint/current/admin-model.md` §4.1 (3 条承诺) + §1.3 (Admin 看 / 看不到 边界)
 - spec：`docs/qa/adm-1-implementation-spec.md` (#228) + checklist `docs/qa/adm-1-privacy-promise-checklist.md` (#211)
 - acceptance：`docs/qa/acceptance-templates/adm-1.md` (11 验收项，9/11 ✅ + 2/11 ⏸️ ADM-2 留账)
 - registry：`docs/qa/regression-registry.md` REG-ADM1-001..006 (6 🟢)
@@ -152,7 +152,7 @@ privacy tab 渲染从 `<PrivacyPromise/>` 单段扩为 3 段:
 
 ### 7.7 锚
 
-- 蓝图: `docs/blueprint/admin-model.md` §1.4 (谁能看到什么 + 三红线) + §3 (impersonation_grants 数据模型片段) + §4.1 R3 (ADM-1 文案兑现锚)
+- 蓝图: `docs/blueprint/current/admin-model.md` §1.4 (谁能看到什么 + 三红线) + §3 (impersonation_grants 数据模型片段) + §4.1 R3 (ADM-1 文案兑现锚)
 - spec: `docs/implementation/modules/adm-2-spec.md` §2-3
 - content lock: `docs/qa/adm-2-content-lock.md` §1+§2+§3+§4
 - stance: `docs/qa/adm-2-stance-checklist.md` (7 立场 + 10 反约束)

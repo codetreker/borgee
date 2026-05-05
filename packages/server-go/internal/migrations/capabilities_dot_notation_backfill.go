@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 // capabilitiesDotNotationBackfill is migration v=48 — CAPABILITY-DOT.
 //
 // Spec: docs/implementation/modules/capability-dot-spec.md §0.2 立场 ②.
-// 蓝图: docs/blueprint/auth-permissions.md §1 字面 `<domain>.<verb>` 风格.
+// 蓝图: docs/blueprint/current/auth-permissions.md §1 字面 `<domain>.<verb>` 风格.
 //
 // What this migration does:
 //   - Updates the existing `user_permissions.capability` TEXT column values

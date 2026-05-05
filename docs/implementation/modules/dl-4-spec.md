@@ -1,6 +1,6 @@
 # DL-4 spec brief — Web Push gateway + PWA installable manifest API (must-fix 收口)
 
-> 战马E · Phase 4 · ≤200 行 spec · 蓝图 [`client-shape.md`](../../blueprint/client-shape.md) L22 ("Mobile PWA + Web Push (VAPID)") + L37 ("没推送 = AI 团队像后台脚本不像同事") + L46 (实现路径: manifest.json + push subscription endpoint + VAPID key + server-go push 通道接 [data-layer §3.4 global_events fan-out](../../blueprint/data-layer.md)).
+> 战马E · Phase 4 · ≤200 行 spec · 蓝图 [`client-shape.md`](../../blueprint/current/client-shape.md) L22 ("Mobile PWA + Web Push (VAPID)") + L37 ("没推送 = AI 团队像后台脚本不像同事") + L46 (实现路径: manifest.json + push subscription endpoint + VAPID key + server-go push 通道接 [data-layer §3.4 global_events fan-out](../../blueprint/current/data-layer.md)).
 >
 > ⚠️ **拆死锚 — 跟 HB-1 #491 plugin-manifest 命名碰撞防御** (zhanma-a 抓出 drift): 本 spec 的 manifest endpoint 是 **PWA installable web app manifest** (浏览器 install prompt 用, HTTPS + bearer 无签). HB-1 的 `GET /api/v1/plugin-manifest` 是 **install-butler 消费的 binary plugin manifest** (双签必需, 蓝图 host-bridge §1.2 ① + §4.5 "未签 100% reject"). 两个 endpoint 两套安全模型, 本 PR endpoint 命名走 `/api/v1/pwa/manifest` (含 `pwa` 字面避混淆), 不用 `manifest/plugins` 字面.
 

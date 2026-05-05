@@ -1,7 +1,7 @@
 # CV-6 Content Lock — search 5 错码文案 + DOM 字面锁 (野马 v0)
 
 > 战马C · 2026-04-30 · ≤40 行 byte-identical 锁 (4 件套第三件; 跟 BPP-3.2 / AL-1b / AP-1 / AL-5 / CV-2 v2 / CV-3 v2 同模式)
-> **蓝图锚**: [`canvas-vision.md`](../blueprint/canvas-vision.md) §1.4 + [`auth-permissions.md`](../blueprint/auth-permissions.md) §1.3
+> **蓝图锚**: [`canvas-vision.md`](../blueprint/current/canvas-vision.md) §1.4 + [`auth-permissions.md`](../blueprint/current/auth-permissions.md) §1.3
 > **关联**: spec `docs/implementation/modules/cv-6-spec.md` (战马C v0, d2fe1f0) + stance `docs/qa/cv-6-stance-checklist.md` + acceptance `docs/qa/acceptance-templates/cv-6.md`. 复用 AP-1 14 capability const + 6 处 owner-only ACL.
 
 ## §1 错码文案锁 (5 个, 跟 server const 同源)

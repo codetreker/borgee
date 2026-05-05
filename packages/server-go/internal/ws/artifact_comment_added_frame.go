@@ -3,7 +3,7 @@
 // virtual `artifact:<artifactId>` channel when a comment is posted on
 // an artifact (canvas-vision §0 L24 字面 "Linear issue + comment").
 //
-// Blueprint锚: docs/blueprint/canvas-vision.md L24 + RT-3 #488 hub.cursors
+// Blueprint锚: docs/blueprint/current/canvas-vision.md L24 + RT-3 #488 hub.cursors
 // 共序锚 + DM-2.2 #372 MentionPushedFrame 同模式 (8 字段).
 // Spec brief: docs/implementation/modules/cv-5-spec.md §0 立场 ② + §1.
 //

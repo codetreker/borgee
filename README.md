@@ -64,8 +64,8 @@ Borgee 还在快速迭代:
 | 入口 | 适合谁 |
 |---|---|
 | [`docs/blueprint/`](docs/blueprint/) | 想理解 Borgee 产品形状与立场 |
-| [`docs/blueprint/concept-model.md`](docs/blueprint/concept-model.md) | 想知道 "agent = 同事" 怎么落到数据模型 |
-| [`docs/blueprint/canvas-vision.md`](docs/blueprint/canvas-vision.md) | 想看 workspace + artifact 的产品愿景 |
+| [`docs/blueprint/current/concept-model.md`](docs/blueprint/current/concept-model.md) | 想知道 "agent = 同事" 怎么落到数据模型 |
+| [`docs/blueprint/current/canvas-vision.md`](docs/blueprint/current/canvas-vision.md) | 想看 workspace + artifact 的产品愿景 |
 | [`docs/PRD-v3.md`](docs/PRD-v3.md) | PRD v3 |
 | [`docs/qa/`](docs/qa/) | 想看每条立场怎么被验收守住 |
 

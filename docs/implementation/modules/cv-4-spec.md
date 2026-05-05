@@ -1,7 +1,7 @@
 # CV-4 spec brief — artifact iterate 完整流 (agent 多版本协作 orchestration)
 
 > 飞马 · 2026-04-29 · ≤80 行 spec lock (实施视角 3 段拆 PR 由战马A 落, CV 主线收口跟 CV-3 demo 双栈)
-> **蓝图锚**: [`canvas-vision.md`](../../blueprint/canvas-vision.md) §1.4 ("artifact 自带版本历史: agent 每次修改产生一个版本, 人可以回滚") + §1.5 ("agent 写内容默认允许 / 创建新 artifact 默认允许") + §2 v1 做清单 ("agent 可 iterate, 再次写入触发新版本") + §3 差距 ("Agent iterate / 版本历史: 无 → 需要新表 + 写入策略")
+> **蓝图锚**: [`canvas-vision.md`](../../blueprint/current/canvas-vision.md) §1.4 ("artifact 自带版本历史: agent 每次修改产生一个版本, 人可以回滚") + §1.5 ("agent 写内容默认允许 / 创建新 artifact 默认允许") + §2 v1 做清单 ("agent 可 iterate, 再次写入触发新版本") + §3 差距 ("Agent iterate / 版本历史: 无 → 需要新表 + 写入策略")
 > **关联**: 已闭 3/4 前置 — CV-1 #334+#342+#346+#348 (artifact + version + commit/rollback ✅) / RT-1 #290+#292+#296 (ArtifactUpdated frame ✅) / CV-2 #359+#360 (anchor + comment, server 进行中) / CM-4 minimal presence (`IsOnline` 接口契约 ✅, agent-lifecycle.md §0 字面); AL-4 runtime 待 (本 spec 不强依赖 AL-4 落地, 走接口存根 + AL-4 后接管真启停)
 > **章程闸**: G3.4 协作场骨架 demo 双栈撑 — CV-3 是"渲染广度" (markdown/code/image), CV-4 是"协作纵深" (人 → agent iterate → 版本演进 → review 闭环)
 

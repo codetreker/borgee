@@ -6,7 +6,7 @@ import (
 )
 
 // TestValidateTransition_ValidEdges pins the full state graph (蓝图 §2.3).
-// 跟 docs/blueprint/agent-lifecycle.md §2.3 字面对齐.
+// 跟 docs/blueprint/current/agent-lifecycle.md §2.3 字面对齐.
 func TestValidateTransition_ValidEdges(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

@@ -1,6 +1,6 @@
 # Acceptance Template — RT-0: /ws push 顶住 BPP
 
-> 蓝图: `docs/blueprint/realtime.md` §2.3 (R3 已固化 push frame schema)
+> 蓝图: `docs/blueprint/current/realtime.md` §2.3 (R3 已固化 push frame schema)
 > Implementation: `docs/architecture/realtime.md` RT-0
 > R3 决议: 4 人 review 立场冲突 #4 (飞马硬约束 + 野马硬条件, 2026-04-28)
 > 依赖: **INFRA-2 (Playwright scaffold) 必须前置** (烈马 R3, latency ≤ 3s vitest 跑不了)

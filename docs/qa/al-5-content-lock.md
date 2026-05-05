@@ -1,7 +1,7 @@
 # AL-5 文案锁 / DOM 字面锁 (战马C + 野马 v0)
 
 > 战马C · 2026-04-29 · ≤40 行 byte-identical 锁 (4 件套第三件; 跟 BPP-3.2 #498 + AL-1b #458 + AP-1 #493 同模式)
-> **蓝图锚**: [`agent-lifecycle.md`](../blueprint/agent-lifecycle.md) §1.6 失联与故障 + [`auth-permissions.md`](../blueprint/auth-permissions.md) §1.3 主入口字面承袭
+> **蓝图锚**: [`agent-lifecycle.md`](../blueprint/current/agent-lifecycle.md) §1.6 失联与故障 + [`auth-permissions.md`](../blueprint/current/auth-permissions.md) §1.3 主入口字面承袭
 > **关联**: spec `docs/implementation/modules/al-5-spec.md` (战马C v0, 1dded5e) + stance `docs/qa/al-5-stance-checklist.md` + acceptance `docs/qa/acceptance-templates/al-5.md`. 复用 BPP-3.2.1 #498 SendSystemDM + REFACTOR-REASONS #496 reasons SSOT 6-dict.
 
 ## §1 DM body 字面锁 (蓝图 §1.6 + 野马签字)
@@ -59,7 +59,7 @@ byte-identical 跟 BPP-2.2 `bpp.task_subject_empty` + BPP-3.1 `bpp.permission_de
 ## §5 跨 PR drift 守 (双向 grep CI lint)
 
 改 `recover` action / `重连` label / 4 错码 = 改五处 (双向 grep 等价单测覆盖):
-1. `docs/blueprint/agent-lifecycle.md` §1.6 + `auth-permissions.md` §1.3
+1. `docs/blueprint/current/agent-lifecycle.md` §1.6 + `auth-permissions.md` §1.3
 2. `internal/agent/recover.go` (DM body template + reason validation)
 3. `internal/api/agent_recover.go` (POST /agents/:id/recover handler + 4 错码)
 4. `packages/client/src/components/SystemMessageBubble.tsx` (单按钮 DOM 锁 + isAL5RecoverPayload type guard)

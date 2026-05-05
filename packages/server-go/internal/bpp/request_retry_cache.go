@@ -1,7 +1,7 @@
 // Package bpp — request_retry_cache.go: BPP-3.2.3 plugin SDK in-memory
 // retry cache for permission_denied → owner grant → auto-retry flow.
 //
-// Blueprint锚: docs/blueprint/auth-permissions.md §1.3 主入口字面承袭
+// Blueprint锚: docs/blueprint/current/auth-permissions.md §1.3 主入口字面承袭
 // + plugin-protocol.md §1.6 失联与故障状态. Spec: bpp-3.2-spec.md §1
 // 立场 ③ + bpp-3.2-stance §3 + content-lock §4 错码字面锁.
 //

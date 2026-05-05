@@ -1,7 +1,7 @@
 // Package api — artifacts.go: CV-1.2 server API for artifact CRUD +
 // commit + rollback + WS push.
 //
-// Blueprint: docs/blueprint/canvas-vision.md §0 (channel 围 artifact 协作)
+// Blueprint: docs/blueprint/current/canvas-vision.md §0 (channel 围 artifact 协作)
 // + §1.1-§1.6 (D-lite + workspace per channel + Markdown ONLY v1) + §2
 // (v1 做/不做). Spec brief: docs/implementation/modules/cv-1-spec.md
 // (3 立场 + 3 拆段). Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 立场)

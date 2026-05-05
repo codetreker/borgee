@@ -232,7 +232,7 @@ SQLite cannot `ADD CHECK` post-create — covered by data-invariant + 5 reverse-
 
 ### 7.9 v11 — `chn_1_1_channels_org_scoped`
 
-Blueprint: `docs/blueprint/channel-model.md` §1.1 (Channel = 协作场) + §2 关键不变量 (Channel 跨 org 共享 / 创建者归属) + `concept-model.md` §1.2 (agent = 同事, 默认沉默)。Phase 3 第一波, PR 拆分文档 #265。
+Blueprint: `docs/blueprint/current/channel-model.md` §1.1 (Channel = 协作场) + §2 关键不变量 (Channel 跨 org 共享 / 创建者归属) + `concept-model.md` §1.2 (agent = 同事, 默认沉默)。Phase 3 第一波, PR 拆分文档 #265。
 
 **What changes**:
 1. **Pre-flight dup detection**: `SELECT COUNT(*) GROUP BY (org_id, name) HAVING cnt > 1`. Cross-org historic dup → hard-fail with row list, **no auto-rename** (CHN-1 spec: 历史行人工 audit, 防丢历史)。

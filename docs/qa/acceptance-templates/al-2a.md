@@ -1,7 +1,7 @@
 # Acceptance Template — AL-2a: agent 配置 SSOT 表 + update API
 
-> 蓝图: `docs/blueprint/agent-lifecycle.md` §2.1 (L28-39, "用户完全自主决定 agent 的 name/prompt/能力/model")
-> 蓝图: `docs/blueprint/plugin-protocol.md` §1.4 (L63-91, Borgee=SSOT 字段划界) + §1.5 (L93-107, 热更新分级 — 字段下发, **AL-2a 不含 BPP frame**)
+> 蓝图: `docs/blueprint/current/agent-lifecycle.md` §2.1 (L28-39, "用户完全自主决定 agent 的 name/prompt/能力/model")
+> 蓝图: `docs/blueprint/current/plugin-protocol.md` §1.4 (L63-91, Borgee=SSOT 字段划界) + §1.5 (L93-107, 热更新分级 — 字段下发, **AL-2a 不含 BPP frame**)
 > Implementation: `docs/architecture/agent-lifecycle.md` §AL-2 (L41-52, AL-2a 拆段)
 > R3 决议: AL-2 拆 a/b — AL-2a 只落 config 表 + REST update API; agent 端 reload 走轮询; BPP `agent_config_update` frame 留给 AL-2b 与 BPP-3 同合 (战马 D5 锁紧)
 > 依赖: 无 (可并行 CM-*)

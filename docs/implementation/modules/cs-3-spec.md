@@ -1,7 +1,7 @@
 # CS-3 spec brief — PWA install + Web Push UI (≤80 行)
 
 > 飞马 + 战马D · 2026-04-30 · Phase 4+ Client Shape 第三段 (蓝图 client-shape.md §1.1+§1.4)
-> **蓝图锚**: [`client-shape.md`](../../blueprint/client-shape.md) §1.1 (一份 SPA + 三个分发壳, **PWA 主战场**) + §1.4 (Web Push 数据通路) + §0 (Web SPA 协作主战场)
+> **蓝图锚**: [`client-shape.md`](../../blueprint/current/client-shape.md) §1.1 (一份 SPA + 三个分发壳, **PWA 主战场**) + §1.4 (Web Push 数据通路) + §0 (Web SPA 协作主战场)
 > **关联**: DL-4 #485 PWA Web Push gateway server-side ✅ merged (`pushSubscribe.ts` + `/api/v1/push/subscribe` POST/DELETE 既有 byte-identical 不动) + DL-4 manifest.json + sw.js 已落 + CS-1 spec §3 留账承袭 (CS-3 = PWA install + Web Push, CS-4 = IndexedDB 乐观缓存)
 > **命名**: CS-3 = Client Shape 第三段 — PWA install + Web Push UI (CS-2 = 故障 UX, CS-4 = IndexedDB)
 

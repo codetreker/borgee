@@ -1,6 +1,6 @@
 # AL-5 agent error recovery endpoint — implementation note
 
-> AL-5 (#TBD) · Phase 5 · 蓝图 [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.3 (5-state error → online recovery edge) + AL-1 #492 single-gate helper + REFACTOR-REASONS #496 SSOT.
+> AL-5 (#TBD) · Phase 5 · 蓝图 [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.3 (5-state error → online recovery edge) + AL-1 #492 single-gate helper + REFACTOR-REASONS #496 SSOT.
 
 ## 1. 立场
 

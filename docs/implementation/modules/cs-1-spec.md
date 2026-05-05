@@ -1,7 +1,7 @@
 # CS-1 spec brief — 三栏布局 + Artifact 分级展开 (≤80 行)
 
 > 飞马 · 2026-04-30 · Phase 4+ Client Shape 主体框架 (蓝图 client-shape.md §1.2)
-> **蓝图锚**: [`client-shape.md`](../../blueprint/client-shape.md) §1.2 (主界面: 三栏 + 顶部团队栏 + Artifact 分级展开) + §0 (Web SPA 是协作主战场) + §1.4 (本地持久化乐观缓存)
+> **蓝图锚**: [`client-shape.md`](../../blueprint/current/client-shape.md) §1.2 (主界面: 三栏 + 顶部团队栏 + Artifact 分级展开) + §0 (Web SPA 是协作主战场) + §1.4 (本地持久化乐观缓存)
 > **关联**: CHN-9 #553 visibility 三态 (private/public/creator_only) + CV-1..14 artifact panel 既有渲染 + RT-4 #562 channel presence (顶部团队栏数据源) + AL-1b 5-state (头像状态色环)
 > **命名**: CS-1 = Client Shape 第一段 — 三栏主体框架 (CS-2 留: 顶部团队栏故障 UX, CS-3 留: PWA install + Web Push)
 

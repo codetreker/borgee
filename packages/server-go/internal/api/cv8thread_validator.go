@@ -2,7 +2,7 @@
 // thinking-subject 5-pattern validator (5-pattern 第 6 处链 byte-identical 跟
 // RT-3 + BPP-2.2 + AL-1b + CV-5 + CV-7 同字符).
 //
-// Blueprint锚: docs/blueprint/realtime.md §1.1 ⭐ "thinking 必须带 subject".
+// Blueprint锚: docs/blueprint/current/realtime.md §1.1 ⭐ "thinking 必须带 subject".
 // Spec: docs/implementation/modules/cv-8-spec.md §0 立场 ③.
 //
 // 5-pattern (改 = 改 6 处 byte-identical):

@@ -1,6 +1,6 @@
 # Acceptance Template — BPP-3: plugin 上行 BPP frame 统一 dispatcher 边界
 
-> Spec: `docs/blueprint/plugin-protocol.md` §2.2 (Plugin → Server data plane)
+> Spec: `docs/blueprint/current/plugin-protocol.md` §2.2 (Plugin → Server data plane)
 > Implementation: `docs/architecture/plugin-protocol.md` §BPP-3
 > (与 AL-2b deferred ack ingress 接管, 见 `bpp-2-spec.md` §3 跨段约束)
 > Owner: 战马A 实施 / 烈马 验收

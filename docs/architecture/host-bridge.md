@@ -1,6 +1,6 @@
 # Implementation · Host Bridge (Borgee Helper)
 
-> 蓝图: [`../../blueprint/host-bridge.md`](../../blueprint/host-bridge.md)
+> 蓝图: [`../../blueprint/current/host-bridge.md`](../../blueprint/current/host-bridge.md)
 > 现状: 当前有 remote-agent (Tauri shell), 但只是窗口壳, 没有"信任五支柱", 没有 install-butler / host-bridge daemon 概念
 > 阶段: ⚡ v0
 > 所属 Phase: Phase 4

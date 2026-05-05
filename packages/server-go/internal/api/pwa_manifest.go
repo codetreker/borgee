@@ -1,7 +1,7 @@
 // Package api — pwa_manifest.go: DL-4.4 PWA installable Web App Manifest
 // endpoint (must-fix 收口).
 //
-// Blueprint锚: docs/blueprint/client-shape.md L22 ("Mobile PWA + Web Push
+// Blueprint锚: docs/blueprint/current/client-shape.md L22 ("Mobile PWA + Web Push
 // VAPID") + L42 ("manifest + install prompt + Web Push + standalone")
 // + L46 (实现路径: manifest.json + push subscription endpoint + VAPID).
 // Spec: docs/implementation/modules/dl-4-spec.md §1 DL-4.4.

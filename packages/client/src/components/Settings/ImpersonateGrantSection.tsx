@@ -1,6 +1,6 @@
 // ImpersonateGrantSection — ADM-2.2 业主授权页子段 (acceptance §4.2.a).
 //
-// Blueprint: docs/blueprint/admin-model.md §1.4 红线 2 第二档 (业主主动
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 2 第二档 (业主主动
 // 授权 24h impersonate) + ADM-1 §4.1 R3 第 2 条 (24h 时窗 + 顶部红色
 // 横幅常驻 + 可随时撤销).
 // Content lock: docs/qa/adm-2-content-lock.md §3.

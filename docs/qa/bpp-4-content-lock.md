@@ -1,7 +1,7 @@
 # BPP-4 文案锁 / 立场反查清单 (战马A v0)
 
 > 战马A · 2026-04-29 · ≤80 行 byte-identical 文案锁 (跟 BPP-2 #485 content-lock + AL-2b #481 content-lock 同模式)
-> **蓝图锚**: [`plugin-protocol.md`](../blueprint/plugin-protocol.md) §1.6 (失联与故障状态 + 故障 UX 区分表 2 类) + module `plugin-protocol.md` §BPP-4 acceptance ("kill plugin → 30s 内 agent 显示 error" 字面)
+> **蓝图锚**: [`plugin-protocol.md`](../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态 + 故障 UX 区分表 2 类) + module `plugin-protocol.md` §BPP-4 acceptance ("kill plugin → 30s 内 agent 显示 error" 字面)
 > **关联**: spec `docs/implementation/modules/bpp-4-spec.md` (战马A v0) + acceptance `docs/qa/acceptance-templates/bpp-4.md` (战马A v0) + stance `docs/qa/bpp-4-stance-checklist.md` (战马A v0) + 复用 AL-1a #249 6 reason byte-identical (跟 AL-1a + AL-3 + CV-4 + AL-2a + AL-1b + AL-4 + BPP-2.2 + AL-2b **八处单测锁链** 同源)
 
 ## §1 字面锁 (改 = 改三处: 此文档 + spec / acceptance / 实施代码)

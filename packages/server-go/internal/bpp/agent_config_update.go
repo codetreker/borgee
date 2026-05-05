@@ -1,7 +1,7 @@
 // Package bpp — agent_config_update.go: BPP-2.3 source-of-truth for
 // the agent_config_update fields whitelist + idempotent reload validation.
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.5 (配置热更新按字段
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (配置热更新按字段
 // 分类生效 + "plugin 必须支持幂等 reload, runtime 不缓存 agent 定义 —
 // 每次 inference 前读最新 config") + §1.4 表字面 (Borgee 管: name/avatar/
 // prompt/model/capabilities/enabled / Runtime 管: API key / 温度参数

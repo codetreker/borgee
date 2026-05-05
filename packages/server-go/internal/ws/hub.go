@@ -291,7 +291,7 @@ func (h *Hub) BroadcastEventToAll(eventType string, payload any) {
 
 // PushAgentInvitationPending / PushAgentInvitationDecided are the RT-0
 // (#40) entry points for shipping the agent_invitation_{pending,decided}
-// frames defined in docs/blueprint/realtime.md §2.3.
+// frames defined in docs/blueprint/current/realtime.md §2.3.
 //
 // Why two typed methods (not one `Push(frame any)`): the review prep
 // (docs/qa/rt-0-server-review-prep.md §S2 + 拒收红线) makes 编译期 schema

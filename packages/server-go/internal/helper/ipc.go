@@ -8,7 +8,7 @@
 // gate the "IPC primitive choice" decision so HB-2 v0(C) can build
 // portable Cargo workspace OR portable Go cmd without re-deciding.
 //
-// Blueprint锚: docs/blueprint/host-bridge.md §1.2 + §1.4.
+// Blueprint锚: docs/blueprint/current/host-bridge.md §1.2 + §1.4.
 // Spec: docs/implementation/modules/hb-2-0-spec.md §1 (CI matrix
 // prerequisite — `os: [ubuntu-latest, macos-latest, windows-latest]`
 // + 3 IPC unit per platform 反向断 IPC primitive 路径选对).

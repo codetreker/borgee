@@ -1,7 +1,7 @@
 // Package api — push_subscriptions.go: DL-4 web push subscription REST
 // endpoints (must-fix 收口).
 //
-// Blueprint: docs/blueprint/client-shape.md L22 (Mobile PWA + Web Push
+// Blueprint: docs/blueprint/current/client-shape.md L22 (Mobile PWA + Web Push
 // VAPID) + L37 ("没推送 = AI 团队像后台脚本不像同事") + L46 (实现路径).
 // Spec: docs/implementation/modules/dl-4-spec.md (本 PR 同期 §1 DL-4.2).
 //

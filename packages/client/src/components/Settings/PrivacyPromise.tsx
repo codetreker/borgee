@@ -1,6 +1,6 @@
 // PrivacyPromise — ADM-1 用户侧隐私承诺组件 (Phase 4 启动 milestone).
 //
-// Blueprint: docs/blueprint/admin-model.md §4.1 (3 条承诺锁 + 8 行 ✅/❌ 表格)
+// Blueprint: docs/blueprint/current/admin-model.md §4.1 (3 条承诺锁 + 8 行 ✅/❌ 表格)
 // Spec: docs/qa/adm-1-implementation-spec.md §1-§5 (1 组件 + 1 页面 + 5 反向断言)
 // Acceptance: docs/qa/acceptance-templates/adm-1.md §1/§2/§3 (11 验收项)
 // 反查表: docs/qa/adm-1-privacy-promise-checklist.md (野马 #211/#228 spec)
@@ -19,7 +19,7 @@ import { renderMarkdown } from '../../lib/markdown';
 
 /**
  * PRIVACY_PROMISES — admin-model.md §4.1 R3 三条承诺字面 1:1.
- * drift test 反查 doc-as-truth: 任何字面修改必同步改 docs/blueprint/admin-model.md
+ * drift test 反查 doc-as-truth: 任何字面修改必同步改 docs/blueprint/current/admin-model.md
  * (跟 CM-onboarding TestWelcomeConstantsMirrorMigrations 同模式).
  */
 export const PRIVACY_PROMISES = [

@@ -1,6 +1,6 @@
 # Implementation · Client Shape
 
-> 蓝图: [`../../blueprint/client-shape.md`](../../blueprint/client-shape.md)
+> 蓝图: [`../../blueprint/current/client-shape.md`](../../blueprint/current/client-shape.md)
 > 现状: 当前 SPA 在 `/src/client/`, Tauri 壳已有 (remote-agent → Borgee Helper); Mobile 完全没有
 > 阶段: ⚡ v0
 > 所属 Phase: Phase 4

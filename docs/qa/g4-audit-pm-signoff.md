@@ -15,7 +15,7 @@
 - ✅ **沉默胜于假活物感** (蓝图 §0 立场 ④) — 锁链 6 处 (AL-3 + RT-3 ⭐ + CV-14 + CS-3 + CS-4 + CS-2) 字面承袭 byte-identical, online 态隐藏横幅 / "刚刚活跃" 不显式 thinking 中间态
 
 ### §1.2 14 立场原文锚跨 Phase 4 漂移真测
-跟 `docs/blueprint/concept-model.md` §0+§1.2 14 立场字面 byte-identical 跨链, PM 4 主题 audit (phase-4-stance-checklist.md §1-§4) 真兑现:
+跟 `docs/blueprint/current/concept-model.md` §0+§1.2 14 立场字面 byte-identical 跨链, PM 4 主题 audit (phase-4-stance-checklist.md §1-§4) 真兑现:
 - §1 byte-identical 文案锁链 (`已归档/已置顶/已静音/编辑历史/此消息已删除/...` 跨 DM/CV/CHN/AL/HB 30+ 锚同义词反向 reject 守住)
 - §2 owner-only ACL 用户感知红线 (anchor #360 锁链 22+ PRs 跨链一致)
 - §3 admin god-mode 不窥视红线 (跨 30+ milestone 0 hit)

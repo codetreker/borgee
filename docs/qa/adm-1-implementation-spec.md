@@ -61,7 +61,7 @@ export const PRIVACY_PROMISES = [
 | 设置页"隐私" tab 默认展开不可折叠 | `SettingsPage.test.tsx::privacy section is always visible` | DOM 不可有 `<details>` 包裹; `expect(promiseSection).toBeVisible()` |
 | §3 表格 ❌ 红 / ✅ 灰 / impersonate amber | `PrivacyPromise.test.tsx::row class names match policy` | CSS class 反查 + computed style `#d33` / `#d97706` |
 | admin 写动作 system DM 含 `admin_name` 非 raw UUID | `internal/api/admin_audit_test.go::TestAdminWriteEmitsNamedDM` (与 ADM-0 反查 ③ **共测试**, 双签依赖一测) | grep DM body 不含 raw UUID 字面 |
-| drift test: doc §4.1 = `PRIVACY_PROMISES` 常量 | `PrivacyPromise.drift.test.ts::doc 字面 = 组件常量` | 读 `docs/blueprint/admin-model.md` §4.1 → 等于 `PRIVACY_PROMISES` 三元组 |
+| drift test: doc §4.1 = `PRIVACY_PROMISES` 常量 | `PrivacyPromise.drift.test.ts::doc 字面 = 组件常量` | 读 `docs/blueprint/current/admin-model.md` §4.1 → 等于 `PRIVACY_PROMISES` 三元组 |
 
 ---
 

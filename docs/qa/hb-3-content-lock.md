@@ -1,7 +1,7 @@
 # HB-3 文案锁 — 弹窗三按钮 DOM 字面 + 反向同义词禁词 (战马A v0)
 
 > 战马A · 2026-04-29 · ≤40 行 byte-identical 文案锁 (跟 BPP-2 #485 / AL-2b #481 / CHN-2 #354 content-lock 同模式)
-> **蓝图锚**: [`host-bridge.md`](../blueprint/host-bridge.md) §1.3 弹窗 UX 字面: `[✗ 拒绝]    [✓ 仅这一次]    [✓ 始终允许]`
+> **蓝图锚**: [`host-bridge.md`](../blueprint/current/host-bridge.md) §1.3 弹窗 UX 字面: `[✗ 拒绝]    [✓ 仅这一次]    [✓ 始终允许]`
 > **关联**: spec `docs/implementation/modules/hb-3-spec.md` §1 HB-3.3 + acceptance `docs/qa/acceptance-templates/hb-3.md` §3.1 + stance `docs/qa/hb-3-stance-checklist.md` §0 立场 ⑤
 
 ## §1 字面锁 (改 = 改三处: 此文档 + spec §1 HB-3.3 + 实施代码 HostGrantsPanel.tsx)

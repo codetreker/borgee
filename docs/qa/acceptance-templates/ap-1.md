@@ -1,7 +1,7 @@
 # Acceptance Template — AP-1: ABAC 单 SSOT + capability 白名单 + 严格 403 (Phase 4 entry 8/8)
 
 > Spec: `docs/implementation/modules/ap-1-spec.md` (飞马 v0, 96 行)
-> 蓝图: `docs/blueprint/auth-permissions.md` §1 (ABAC + UI bundle 混合) + §1.2 v1 三 scope (`*` / `channel:<id>` / `artifact:<id>`) + §1.4 跨 org 只能减权 + §2 不变量 (Permission denied 走 BPP)
+> 蓝图: `docs/blueprint/current/auth-permissions.md` §1 (ABAC + UI bundle 混合) + §1.2 v1 三 scope (`*` / `channel:<id>` / `artifact:<id>`) + §1.4 跨 org 只能减权 + §2 不变量 (Permission denied 走 BPP)
 > 前置: AP-0 #177 ✅ + AP-0-bis #206 ✅ + ADM-0.2/0.3 cookie 拆 ✅ + Phase 4 ADM-1/2 ✅
 > Owner: 战马C (主战) + 飞马 (spec 协作)
 

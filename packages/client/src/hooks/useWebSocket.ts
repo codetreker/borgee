@@ -448,7 +448,7 @@ export function useWebSocket() {
         // RT-0 (#40): owner-side push — replaces the 60s bell-badge
         // poll. Bridge to a window CustomEvent so InvitationsInbox /
         // Sidebar can subscribe without coupling to this hook.
-        // Schema lock: docs/blueprint/realtime.md §2.3 (BPP-byte-identical).
+        // Schema lock: docs/blueprint/current/realtime.md §2.3 (BPP-byte-identical).
         dispatchInvitationPending(data as unknown as AgentInvitationPendingFrame);
         break;
       }
@@ -461,7 +461,7 @@ export function useWebSocket() {
         // CV-1.2 (#342): server → client signal that an artifact's head
         // moved (commit or rollback). Envelope is signal-only (立场 ⑤),
         // ArtifactPanel re-fetches GET /artifacts/:id for body+committer.
-        // Schema lock: docs/blueprint/realtime.md §2.3 + cursor.go::ArtifactUpdatedFrame
+        // Schema lock: docs/blueprint/current/realtime.md §2.3 + cursor.go::ArtifactUpdatedFrame
         // (BPP-1 #304 envelope CI lint enforces byte-identical wire shape).
         dispatchArtifactUpdated(data as unknown as ArtifactUpdatedFrame);
         break;

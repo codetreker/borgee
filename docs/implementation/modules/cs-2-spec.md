@@ -1,7 +1,7 @@
 # CS-2 spec brief — 故障三态 + 四层 UX 呈现 (≤80 行)
 
 > 飞马 + 战马D · 2026-04-30 · Phase 4+ Client Shape 第二段 (蓝图 client-shape.md §1.3)
-> **蓝图锚**: [`client-shape.md`](../../blueprint/client-shape.md) §1.3 (故障 UX 分层呈现 + 三态枚举 + plain language + inline 修复) + §0 (Web SPA 协作主战场)
+> **蓝图锚**: [`client-shape.md`](../../blueprint/current/client-shape.md) §1.3 (故障 UX 分层呈现 + 三态枚举 + plain language + inline 修复) + §0 (Web SPA 协作主战场)
 > **关联**: AL-1b #462 5-state 头像状态色环 (busy/idle 跟故障三态拆分立场承袭) + AL-3 #305 PresenceDot + AL-4 #417 runtime status (`error` reason 6-dict byte-identical) + RT-4 #562 ChannelPresenceList (顶部团队栏数据源) + reasons.IsValid #496 SSOT 包 (跟 AL-1a 6-reason byte-identical 锁链)
 > **命名**: CS-2 = Client Shape 第二段 — 故障 UX 分层呈现 (CS-3 留: PWA install + Web Push, CS-4 留: IndexedDB 乐观缓存 — 跟 CS-1 spec §3 留账 byte-identical)
 

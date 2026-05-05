@@ -1,6 +1,6 @@
 # AL-2 wrapper spec brief — agent lifecycle release gate ⭐ (≤80 行)
 
-> 战马A · Phase 5 agent-lifecycle 收口闸 · ≤80 行 · 蓝图 [`agent-lifecycle.md`](../../blueprint/agent-lifecycle.md) §2.3 (5-state graph + reason 字典) + §1.6 (失联与故障状态). 模块锚 [`agent-lifecycle.md`](agent-lifecycle.md). 跟 HB-4 #509 release gate 同模式 (≥10 硬条件 + CI workflow + 不允许人工 sign-off 跳过). 依赖 AL-1a #249 reason 6-dict + AL-1.4 #492 5-state graph + AL-1b #482 busy/idle + AL-2a #480 config + AL-2b #481 BPP frame + AL-3 #310 presence + AL-4 #427 agent_runtimes + reasons SSOT #496 + BPP-2.2 #485 + BPP-4 #499 + BPP-5 #503.
+> 战马A · Phase 5 agent-lifecycle 收口闸 · ≤80 行 · 蓝图 [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.3 (5-state graph + reason 字典) + §1.6 (失联与故障状态). 模块锚 [`agent-lifecycle.md`](agent-lifecycle.md). 跟 HB-4 #509 release gate 同模式 (≥10 硬条件 + CI workflow + 不允许人工 sign-off 跳过). 依赖 AL-1a #249 reason 6-dict + AL-1.4 #492 5-state graph + AL-1b #482 busy/idle + AL-2a #480 config + AL-2b #481 BPP frame + AL-3 #310 presence + AL-4 #427 agent_runtimes + reasons SSOT #496 + BPP-2.2 #485 + BPP-4 #499 + BPP-5 #503.
 
 ## 0. 关键约束 (3 条立场, 蓝图 §2.3 字面承袭)
 

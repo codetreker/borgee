@@ -1,6 +1,6 @@
 # BPP-2.1 `semantic_action` Dispatcher — implementation note
 
-> BPP-2.1 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/plugin-protocol.md) §1.3 (抽象语义层 + 7 v1 必须语义动作) + 协议红线 "不允许 plugin 下穿语义层直调 REST".
+> BPP-2.1 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/current/plugin-protocol.md) §1.3 (抽象语义层 + 7 v1 必须语义动作) + 协议红线 "不允许 plugin 下穿语义层直调 REST".
 
 ## 1. 立场
 

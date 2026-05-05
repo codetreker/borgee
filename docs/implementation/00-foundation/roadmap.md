@@ -12,18 +12,18 @@
 
 | # | 模块 | 蓝图 | 实施 | 所属 Phase | 状态 | Milestones |
 |---|------|------|------|-----------|------|------------|
-| 0 | 基建: schema_migrations 框架 | [data-layer §3.2](../../blueprint/data-layer.md) | [→](execution-plan.md#phase-0--基建闭环) | Phase 0 | TODO | INFRA-1 |
-| 1 | concept-model | [→](../../blueprint/concept-model.md) | [→](../modules/concept-model.md) | Phase 1 + Phase 2 | TODO | CM-1 / CM-3 / CM-4 |
-| 2 | channel-model | [→](../../blueprint/channel-model.md) | [→](../modules/channel-model.md) | Phase 3 | TODO | CHN-1 ~ CHN-4 |
-| 3 | canvas-vision | [→](../../blueprint/canvas-vision.md) | [→](../modules/canvas-vision.md) | Phase 3 | TODO | CV-1 ~ CV-4 |
-| 4 | agent-lifecycle | [→](../../blueprint/agent-lifecycle.md) | [→](../modules/agent-lifecycle.md) | Phase 4 | TODO | AL-1 ~ AL-4 |
-| 5 | plugin-protocol (BPP) | [→](../../blueprint/plugin-protocol.md) | [→](../modules/plugin-protocol.md) | Phase 4 | TODO | BPP-1 ~ BPP-4 |
-| 6 | host-bridge (Borgee Helper) | [→](../../blueprint/host-bridge.md) | [→](../modules/host-bridge.md) | Phase 4 | TODO | HB-1 ~ HB-4 |
-| 7 | realtime | [→](../../blueprint/realtime.md) | [→](../modules/realtime.md) | Phase 4 | TODO | RT-1 ~ RT-3 |
-| 8 | auth-permissions | [→](../../blueprint/auth-permissions.md) | [→](../modules/auth-permissions.md) | Phase 1+ (AP-0) / Phase 4 | TODO | AP-0 ~ AP-4 |
-| 9 | admin-model | [→](../../blueprint/admin-model.md) | [→](../modules/admin-model.md) | Phase 4 | TODO | ADM-1 ~ ADM-3 |
-| 10 | data-layer (剩余) | [→](../../blueprint/data-layer.md) | [→](../modules/data-layer.md) | Phase 4 | TODO | DL-1 ~ DL-3 |
-| 11 | client-shape | [→](../../blueprint/client-shape.md) | [→](../modules/client-shape.md) | Phase 4 | TODO | CS-1 ~ CS-3 |
+| 0 | 基建: schema_migrations 框架 | [data-layer §3.2](../../blueprint/current/data-layer.md) | [→](execution-plan.md#phase-0--基建闭环) | Phase 0 | TODO | INFRA-1 |
+| 1 | concept-model | [→](../../blueprint/current/concept-model.md) | [→](../modules/concept-model.md) | Phase 1 + Phase 2 | TODO | CM-1 / CM-3 / CM-4 |
+| 2 | channel-model | [→](../../blueprint/current/channel-model.md) | [→](../modules/channel-model.md) | Phase 3 | TODO | CHN-1 ~ CHN-4 |
+| 3 | canvas-vision | [→](../../blueprint/current/canvas-vision.md) | [→](../modules/canvas-vision.md) | Phase 3 | TODO | CV-1 ~ CV-4 |
+| 4 | agent-lifecycle | [→](../../blueprint/current/agent-lifecycle.md) | [→](../modules/agent-lifecycle.md) | Phase 4 | TODO | AL-1 ~ AL-4 |
+| 5 | plugin-protocol (BPP) | [→](../../blueprint/current/plugin-protocol.md) | [→](../modules/plugin-protocol.md) | Phase 4 | TODO | BPP-1 ~ BPP-4 |
+| 6 | host-bridge (Borgee Helper) | [→](../../blueprint/current/host-bridge.md) | [→](../modules/host-bridge.md) | Phase 4 | TODO | HB-1 ~ HB-4 |
+| 7 | realtime | [→](../../blueprint/current/realtime.md) | [→](../modules/realtime.md) | Phase 4 | TODO | RT-1 ~ RT-3 |
+| 8 | auth-permissions | [→](../../blueprint/current/auth-permissions.md) | [→](../modules/auth-permissions.md) | Phase 1+ (AP-0) / Phase 4 | TODO | AP-0 ~ AP-4 |
+| 9 | admin-model | [→](../../blueprint/current/admin-model.md) | [→](../modules/admin-model.md) | Phase 4 | TODO | ADM-1 ~ ADM-3 |
+| 10 | data-layer (剩余) | [→](../../blueprint/current/data-layer.md) | [→](../modules/data-layer.md) | Phase 4 | TODO | DL-1 ~ DL-3 |
+| 11 | client-shape | [→](../../blueprint/current/client-shape.md) | [→](../modules/client-shape.md) | Phase 4 | TODO | CS-1 ~ CS-3 |
 
 ## 首波 demo 路径 (v0)
 

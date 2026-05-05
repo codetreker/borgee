@@ -1,7 +1,7 @@
 // Package bpp — heartbeat_watchdog.go: BPP-4.1 plugin liveness 监测 +
 // 状态翻转 (lastSeenAt > 30s → mark agent error/network_unreachable).
 //
-// Blueprint锚: docs/blueprint/plugin-protocol.md §1.6 (失联与故障状态 +
+// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 +
 // 故障 UX 区分表 — "runtime_disconnected" 平台问题). Spec brief:
 // docs/implementation/modules/bpp-4-spec.md §0.2. Acceptance:
 // docs/qa/acceptance-templates/bpp-4.md §1.

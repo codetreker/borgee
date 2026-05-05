@@ -1,6 +1,6 @@
 # Acceptance Template — CM-onboarding: Welcome channel + auto-join + system message
 
-> 蓝图: `docs/blueprint/concept-model.md` §10 (R3 引用 onboarding-journey)
+> 蓝图: `docs/blueprint/current/concept-model.md` §10 (R3 引用 onboarding-journey)
 > Journey doc: `docs/implementation/00-foundation/onboarding-journey.md` (野马 PR #190)
 > R3 决议: 4 人 review 盲点 B1 + 立场 §1.4 + §11 (2026-04-28)
 > 依赖: PR #190 (野马 onboarding-journey) merged + 文案锁定

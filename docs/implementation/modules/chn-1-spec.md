@@ -1,7 +1,7 @@
 # CHN-1 spec brief — 蓝图锁配套战马A #265 拆段
 
 > 飞马 · 2026-04-28 · ≤80 行 spec lock (实施视角 #265 拆 PR 由战马A 落)
-> **蓝图锚**: [`channel-model.md`](../../blueprint/channel-model.md) §1.1 (Channel = 协作场) + §1.4 (作者分组 + 个人微调) + §2 (关键不变量); [`concept-model.md`](../../blueprint/concept-model.md) §1.4 (主体验 — 团队感知 + DM 对话)
+> **蓝图锚**: [`channel-model.md`](../../blueprint/current/channel-model.md) §1.1 (Channel = 协作场) + §1.4 (作者分组 + 个人微调) + §2 (关键不变量); [`concept-model.md`](../../blueprint/current/concept-model.md) §1.4 (主体验 — 团队感知 + DM 对话)
 > **关联**: 战马A #265 (CHN-1 拆段实施) + #276 (CHN-1.1 schema migration v=11)
 
 > ⚠️ 锚说明: 业主原派活引 channel-model.md §1.6, 现行蓝图章节只到 §1.4 + §2 不变量, 此处按字面立场对齐 §1.4 (作者分组) + §2 (不变量), 不重新编号蓝图。
