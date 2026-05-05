@@ -4,6 +4,14 @@
 > 状态: 建军 + 飞马 + 野马 三方对齐, 2026-04-27 首次发布。
 > 归档 tag: `archive/discussion-final`(commit 5a788e9) 保留首次产出的原始形态。
 
+## 蓝图状态机 (按 blueprintflow blueprint-iteration skill)
+
+- `current/` — 当前蓝图 (frozen, 实施基于此). 11 模型 SOT 真值居此, 实施 PR 引此为准.
+- `next/` — 下一版蓝图 (草拟期). 蓝图迭代时 fork 一份到 `next/`, 改完拍板再 promote → `current/`.
+- `_meta/` — 蓝图 meta (decisions / phase / audit / review trigger). **不是模型 SOT**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
+
+> 当前过渡期 (docs-skeleton PR-1): 11 模型 .md 仍在本目录平铺, 待 docs-blueprint-reorg PR-3 移入 `current/`. 6 meta 文件届时移入 `_meta/`.
+
 ## 这是什么 / 不是什么
 
 | 是 | 不是 |
