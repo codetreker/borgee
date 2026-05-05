@@ -10,7 +10,36 @@
 - `next/` — 下一版蓝图 (草拟期). 蓝图迭代时 fork 一份到 `next/`, 改完拍板再 promote → `current/`.
 - `_meta/` — 蓝图 meta (decisions / phase / audit / review trigger). **不是模型 SOT**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
 
-> 当前过渡期 (docs-skeleton PR-1): 11 模型 .md 仍在本目录平铺, 待 docs-blueprint-reorg PR-3 移入 `current/`. 6 meta 文件届时移入 `_meta/`.
+### `current/` — 11 模型 SOT (按概念依赖排序)
+
+| # | 文档 | 一句话 |
+|---|------|------|
+| 1 | [`current/concept-model.md`](current/concept-model.md) | 核心概念: 组织 / 人 / agent 三层身份 (最先读) |
+| 2 | [`current/channel-model.md`](current/channel-model.md) | Channel / DM / Workspace 形状层规范 |
+| 3 | [`current/canvas-vision.md`](current/canvas-vision.md) | 画布 / 文档协作: workspace = artifact 集合 |
+| 4 | [`current/agent-lifecycle.md`](current/agent-lifecycle.md) | Agent 创建 / 状态 / 退役 — 协作平台不是 agent 平台 |
+| 5 | [`current/plugin-protocol.md`](current/plugin-protocol.md) | BPP — runtime 接入中立协议 |
+| 6 | [`current/host-bridge.md`](current/host-bridge.md) | Borgee Helper: 用户机器上的特权进程 (信任五支柱) |
+| 7 | [`current/realtime.md`](current/realtime.md) | 推送 / 状态 / 回放 — 让用户感到 AI 在工作的最小集 |
+| 8 | [`current/auth-permissions.md`](current/auth-permissions.md) | 权限模型: ABAC 存储 + UI bundle, 跨 org 只减不加 |
+| 9 | [`current/admin-model.md`](current/admin-model.md) | Admin 与隐私契约: 元数据可管, 内容不可读 |
+| 10 | [`current/data-layer.md`](current/data-layer.md) | 数据层总账 + 分布式 ready 三层 |
+| 11 | [`current/client-shape.md`](current/client-shape.md) | Client: 一份 SPA + Tauri 桌面壳 + Mobile PWA |
+
+### `_meta/` — 6 meta (过程治理记录)
+
+| 文档 | 一句话 |
+|---|------|
+| [`_meta/r3-decisions.md`](_meta/r3-decisions.md) | R3 review 7 条决策结论 (含 R3-4/5/7 Phase 4 同期) |
+| [`_meta/r4-review-trigger.md`](_meta/r4-review-trigger.md) | R4 review 触发条件 (Phase 4 收尾时启动) |
+| [`_meta/blueprint-audit-rotation.md`](_meta/blueprint-audit-rotation.md) | 蓝图 audit 轮换协议 (反实施漂蓝图) |
+| [`_meta/phase-2-stance-vs-impl.md`](_meta/phase-2-stance-vs-impl.md) | Phase 2 立场 vs 实施落差表 |
+| [`_meta/phase-3-4-vision.md`](_meta/phase-3-4-vision.md) | Phase 3+4 主线方向 (R4 anchor) |
+| [`_meta/phase-3-trigger-conditions.md`](_meta/phase-3-trigger-conditions.md) | Phase 3 启动触发条件 |
+
+### `next/` — 下一版蓝图 (草拟期)
+
+> 待评审蓝图提案. 当前空 — 蓝图迭代时 fork `current/X.md` 到 `next/X.md`, 评审拍板后 promote → `current/`.
 
 ## 这是什么 / 不是什么
 
@@ -31,21 +60,7 @@
 
 ## 文档导航
 
-按概念依赖排序:
-
-| # | 文档 | 内容 |
-|---|------|------|
-| 1 | [`concept-model.md`](current/concept-model.md) | **核心概念: 组织 / 人 / agent 三层身份**(最先读) |
-| 2 | [`channel-model.md`](current/channel-model.md) | Channel / DM / Workspace 形状层规范 |
-| 3 | [`canvas-vision.md`](current/canvas-vision.md) | 画布 / 文档协作: workspace = artifact 集合 |
-| 4 | [`agent-lifecycle.md`](current/agent-lifecycle.md) | Agent 创建 / 状态 / 退役 — 协作平台不是 agent 平台 |
-| 5 | [`plugin-protocol.md`](current/plugin-protocol.md) | BPP(Borgee Plugin Protocol)— runtime 接入中立协议 |
-| 6 | [`host-bridge.md`](current/host-bridge.md) | Borgee Helper: 用户机器上的特权进程(信任五支柱) |
-| 7 | [`realtime.md`](current/realtime.md) | 推送 / 状态 / 回放 — 让用户感到 AI 在工作的最小集 |
-| 8 | [`auth-permissions.md`](current/auth-permissions.md) | 权限模型: ABAC 存储 + UI bundle, 跨 org 只减不加 |
-| 9 | [`admin-model.md`](current/admin-model.md) | Admin 与隐私契约: 元数据可管, 内容不可读 |
-| 10 | [`data-layer.md`](current/data-layer.md) | 数据层总账 + 分布式 ready 三层 |
-| 11 | [`client-shape.md`](current/client-shape.md) | Client: 一份 SPA + Tauri 桌面壳 + Mobile PWA |
+> 11 模型 + 6 meta 完整索引见上面 [蓝图状态机](#蓝图状态机-按-blueprintflow-blueprint-iteration-skill) 段. 下面是核心立场.
 
 ## 14 条核心立场(从 11 篇提炼)
 
