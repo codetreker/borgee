@@ -33,4 +33,4 @@
 - 蓝图固化: PR #188 (merged)
 - implementation 重排: PR #189 (merged)
 - onboarding journey: PR #190
-- 立场冲突对照表: `docs/conflicts/b29-vs-blueprint.md`
+- 立场冲突对照表: `docs/_archive/conflicts/b29-vs-blueprint.md`

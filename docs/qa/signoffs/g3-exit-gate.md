@@ -4,7 +4,7 @@
 > Trigger: G3 4 闸 ✅ SIGNED (G3.1 + G3.2 + G3.3 + G3.4) + G3.audit v1 fill #448 ✅ → Phase 3 退出 gate 收尾联签 (team-lead 派, 用户拍板章程严守 9 milestone 全闭再公告)
 > 联签依据: 烈马 G3.1/3.2/3.4 acceptance signoff (待 batch merge) + 野马 G3.3 PM 签 #403 + 飞马 G3.audit #448 + team-lead admin 公告
 > 模板: 跟 `g1-exit-gate.md` / `g2-exit-gate-liema-signoff.md` 同模式
-> 关联: `docs/qa/phase-3-readiness-review.md` (烈马 v2 patch #390) / `docs/implementation/00-foundation/g3-audit.md` (战马A v0 + 飞马 v1 fill #448) / `docs/evidence/g3-exit/README.md` (战马 G3 evidence bundle #442)
+> 关联: `docs/qa/phase-3-readiness-review.md` (烈马 v2 patch #390) / `docs/implementation/00-foundation/g3-audit.md` (战马A v0 + 飞马 v1 fill #448) / `docs/_archive/evidence/g3-exit/README.md` (战马 G3 evidence bundle #442)
 
 ---
 

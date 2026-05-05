@@ -3,7 +3,7 @@
 > 作者: 战马A v0 skeleton (#443) + 飞马 v1 fill · 2026-04-30 · Phase 3 退出 gate 收口
 > 目的: G1 / G2 audit 同款单源 — Phase 3 全 11 milestone 落地后, 4 闸 + audit 一次集成.
 > 状态: 🟢 **v1 fill** — 7 段齐 (PR # 锚 / 立场反查 / acceptance 闭 / 4 gate 状态 / evidence / 飞马 signoff 占位 / 留账)
-> 关联: `docs/qa/regression-registry.md` (REG-* 翻 🟢) · `docs/evidence/g3-exit/README.md` (#442) · `docs/qa/signoffs/g3-exit-gate.md` (待落 — 建军真签).
+> 关联: `docs/qa/regression-registry.md` (REG-* 翻 🟢) · `docs/_archive/evidence/g3-exit/README.md` (#442) · `docs/qa/signoffs/g3-exit-gate.md` (待落 — 建军真签).
 
 ---
 
@@ -68,7 +68,7 @@ REG 链承袭 — 一处真源, 五处单测 grep count==1 锁:
 
 ## 5. Evidence bundle 锚
 
-- **G3 evidence bundle**: `docs/evidence/g3-exit/README.md` (战马 #442 merged f71e26f) — 4 闸 evidence path + acceptance 闭锁 + 跨 milestone byte-identical 链全锚.
+- **G3 evidence bundle**: `docs/_archive/evidence/g3-exit/README.md` (战马 #442 merged f71e26f) — 4 闸 evidence path + acceptance 闭锁 + 跨 milestone byte-identical 链全锚.
 - **本 audit**: 本文 — Phase 3 代码债清单 + 闸状态总览 (跟 G1/G2 audit 同模式).
 - **双轨**: evidence (#442) 给签字依据, audit (本文) 给代码债清单, 二者拆死不重合 — 跟 G1/G2 同款.
 
