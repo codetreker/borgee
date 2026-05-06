@@ -1,4 +1,4 @@
-# DM-11 — cross-DM message search REST endpoint
+# DM Search — cross-DM message search REST endpoint
 
 > **Source-of-truth pointer.** Code at
 > `packages/server-go/internal/api/message_search.go` (handler) +
