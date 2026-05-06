@@ -31,7 +31,7 @@
 | 文档 | 一句话 |
 |---|------|
 | [`_meta/r3-decisions.md`](_meta/r3-decisions.md) | R3 review 7 条决策结论 (含 R3-4/5/7 Phase 4 同期) |
-| [`_meta/r4-review-trigger.md`](_meta/r4-review-trigger.md) | R4 review 触发条件 (Phase 4 收尾时启动) |
+| [`_meta/r4-review-trigger.md`](_meta/r4-review-trigger.md) | R4 review 触发条件 (Phase 2 退出 + Phase 3 启动) |
 | [`_meta/blueprint-audit-rotation.md`](_meta/blueprint-audit-rotation.md) | 蓝图 audit 轮换协议 (反实施漂蓝图) |
 | [`_meta/phase-2-stance-vs-impl.md`](_meta/phase-2-stance-vs-impl.md) | Phase 2 立场 vs 实施落差表 |
 | [`_meta/phase-3-4-vision.md`](_meta/phase-3-4-vision.md) | Phase 3+4 主线方向 (R4 anchor) |

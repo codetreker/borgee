@@ -1,5 +1,7 @@
 # R4 Review Trigger — Phase 2 退出 + Phase 3 启动锁立场
 
+> ⚠️ **历史绕过声明** (2026-05-06 audit): 此 trigger 在 Phase 2 退出 (#284, 2026-04-28) 时即满足, 但 R4 决议从未启动. Phase 4+ 已全 closure (PR #621), 此 trigger 锁定对象失效. 留作 R5+ 模板参考.
+
 > 飞马 · 2026-04-28 · Phase 2 closing → Phase 3 BPP-1 启动前的强制 review 闸. 沿用 R3 (#188+#189) 24h 节奏.
 
 ## 1. 触发条件 (任一满足即拉群, 命中即冻 BPP-1 merge)
