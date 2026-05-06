@@ -165,3 +165,6 @@ remote_bindings:
 2. `readFile` 用 `utf-8` 解码所有文件——二进制内容会损坏。当前没有 base64 通道，也没有按 MIME 切分支。
 3. 没有任何配额：单 daemon 没限速、server 端 `Hub.ProxyRequest` 也只有超时；恶意/失控调用方可以把 daemon 推到 IO 瓶颈。
 4. 心跳是 30 s 单向 ping，server 不回 pong——daemon 不会"探测自己被对端忘记"，只能等下次 send 失败或 TCP 断开。
+
+## npm 发布
+包名 `@codetreker/borgee-remote-agent`，repository `codetreker/borgee`。

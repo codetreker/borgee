@@ -142,3 +142,6 @@ src/
 - 看 transport 决策：开 OpenClaw debug log，`probeSSE` 的结果决定走 SSE 还是 poll。
 - "我自己发的消息又收到"：通常是 `botUserId` 没解析对，自检过滤失效。
 - agent 在 channel 里"看不见消息"：99% 是 agent 还没被 owner 拉进该 channel；server 侧 `CanAccessChannel` 决定能不能收到事件。
+
+## npm 发布
+包名 `@codetreker/borgee-openclaw-plugin`，repository `codetreker/borgee`。`files` 包含 `dist`、`openclaw.plugin.json`、`skills`。
