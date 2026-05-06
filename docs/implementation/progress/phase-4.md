@@ -2,7 +2,7 @@
 
 > 引自 [PROGRESS.md](../PROGRESS.md) 概览表 Phase 4+ 行 — milestone 翻牌点单源在此. 含 AL/BPP/HB/RT/AP/CM/ADM/DL/CS 9 模块组.
 
-> **真值基线** (2026-05-06): 49/49 milestone (44 G4 + 5 wave) ✅; REG 846 = 815 G5.audit baseline + 31 wave 后续追加 (829 🟢 + 16 ⚪ + 1 🟡); cov 85%+.
+> **真值基线** (2026-05-06): 46/46 milestone (41 G4 + 5 wave) ✅; REG 846 = 815 G5.audit baseline + 31 wave 后续追加 (829 🟢 + 16 ⚪ + 1 🟡); cov 85%+.
 
 ## Phase 4+ — 剩余模块
 
@@ -86,9 +86,6 @@ AP-3 ─┘
 - [x] **CS-1** (#601) — 三栏 + Artifact 分级 ✅ Phase 4+ client wrapper milestone…
 - [x] **CS-2** (#595) — 故障三态 + 4 层 UX ✅ (详见 line 84 CS-2 entry; PR #595)
 - [x] **CS-3** (#598) — PWA install + Web Push UI — 战马D / 飞马 / 烈马 / 野马 一 milestone 一 PR…
-- [x] **CS-1** — 三栏 + Artifact 分级 ✅ (详见 line 80 CS-1 entry; PR feat/cs-1)
-- [x] **CS-2** (#595) — 故障三态 + 4 层 UX 呈现 — 战马D 一 milestone 一 PR ✅ #595…
-- [x] **CS-3** (#598) — PWA install + Web Push UI ✅ (详见 line 82 CS-3 entry; PR #598)
 
 ### infra (元 milestone, Phase 4+ wrapper)
 - [x] **TEST-FIX-3-COV** (#612) — cov 阈值恢复 84%→85% + deterministic 真补 ✅ 整 milestone 一 PR…
