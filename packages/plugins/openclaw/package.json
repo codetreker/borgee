@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
-  "files": ["dist"],
+  "files": ["dist", "openclaw.plugin.json", "skills"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/codetreker/collab.git",
+    "url": "https://github.com/codetreker/borgee.git",
     "directory": "packages/plugins/openclaw"
   },
   "license": "MIT",
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
-    "openclaw": "file:/home/ubuntu/.nvm/versions/node/v24.14.1/lib/node_modules/openclaw"
+    "openclaw": ">=2026.4.15"
   },
   "peerDependencies": {
     "openclaw": ">=2026.4.15"
