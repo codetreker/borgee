@@ -67,6 +67,10 @@ jobs:
                   - CLIENT_DIST=/app/client/dist
                   - JWT_SECRET=test-env-jwt-secret-b07b08
                   - CORS_ORIGIN=https://testing-borgee.codetrek.cn
+                  # admin bootstrap (auth.go::BootstrapWith 必填,
+                  # 缺则启动时 panic). 密码走 secret 不入仓库.
+                  - BORGEE_ADMIN_LOGIN=admin
+                  - BORGEE_ADMIN_PASSWORD=${{ secrets.BORGEE_ADMIN_PASSWORD_TEST }}
             volumes:
               borgee-test-data:
             COMPEOF
