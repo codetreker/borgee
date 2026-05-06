@@ -44,6 +44,7 @@ jobs:
           key: ${{ secrets.ALIYUN_SSH_KEY }}
           command_timeout: 5m
           script: |
+            set -e
             mkdir -p /opt/dockers/collab-test
             cat > /opt/dockers/collab-test/docker-compose.yml << 'COMPEOF'
             services:
@@ -70,7 +71,7 @@ jobs:
               borgee-test-data:
             COMPEOF
             cd /opt/dockers/collab-test
-            docker compose pull
+            docker compose pull || (echo "❌ docker compose pull failed (network / harbor)" && exit 1)
             docker compose up -d --force-recreate --remove-orphans
             sleep 5
             # Fail-loud image SHA 比对: 验 container 真用新 image, 反 docker
