@@ -17,8 +17,8 @@ without polluting the platform-level permission schema.
 
 ## Stance (蓝图 host-bridge.md §1.3 + §1.5 + §2 字面)
 
-- **schema SSOT.** HB-3 持 ownership; HB-2 daemon (Rust crate
-  `packages/host-bridge/`, 真实施跟 HB-2 同 PR) + install-butler
+- **schema SSOT.** HB-3 持 ownership; HB-2 daemon (Go module
+  `packages/borgee-helper/`, #617 已 merged) + install-butler
   read-only consumer. server-go `internal/api/host_grants.go` 是唯一
   INSERT/UPDATE/DELETE 路径.
 - **字典分立 (host vs runtime).** `host_grants` 跟 AP-1
@@ -119,9 +119,10 @@ byte-identical with HB-1/HB-2/BPP-4 audit schema.
 Regression rows: `REG-HB3-001..011` in
 `docs/qa/regression-registry.md`.
 
-## HB-2 daemon read-path contract (deferred to HB-2 implementation)
+## HB-2 daemon read-path contract (Go, packages/borgee-helper/, #617 merged)
 
-HB-2 host-bridge daemon (Rust crate, 待 HB-2 真实施 PR) 走单一 SELECT:
+HB-2 host-bridge daemon (Go module `packages/borgee-helper/`, #617 已 merged)
+走单一 SELECT:
 
 ```sql
 SELECT scope, expires_at FROM host_grants
@@ -131,9 +132,9 @@ WHERE user_id = ? AND agent_id = ? AND grant_type = ?
 LIMIT 1;
 ```
 
-Daemon 不写, 不缓存. CI lint (待 HB-2 PR 加) reverse-grep
-`host_grants.*INSERT|host_grants.*UPDATE` in `packages/host-bridge/`
-must be 0 hit.
+Daemon 不写, 不缓存. CI lint reverse-grep
+`host_grants.*INSERT|host_grants.*UPDATE` in `packages/borgee-helper/`
+must be 0 hit. 真包入口 → [`../../borgee-helper.md`](../../borgee-helper.md).
 
 ## Adding a new grant_type
 

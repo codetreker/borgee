@@ -76,4 +76,4 @@
 - Storage 切对象存储 (蓝图 §4.B.8) 留 v2+ — archive_offloader 当前单机磁盘
 - Prometheus/Datadog metrics export 留 v2+ /metrics endpoint (admin god-mode 永不挂)
 - events_archive 跨 db UNION ALL 查询留 v3+ admin 必要时手动 attach
-- HB-2 v0(D) Borgee Helper 阈值哨 (host_grants 表) 留 HB-2 follow-up
+- HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/`); 阈值哨 (`host_grants` 表) wire 留 v1.x

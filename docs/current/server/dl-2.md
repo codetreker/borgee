@@ -78,7 +78,7 @@ row-level `retention_days` 列覆盖 default (NULL = use kind default).
 
 - DL-3 阈值哨 (DB size / WAL checkpoint / write lock wait 监控) 留 DL-3 单 milestone
 - EventBus 切 NATS/Redis 留 DL-3 阈值哨触发再启
-- HB-2 v0(D) Borgee Helper SQLite consumer 留 HB-2 单 milestone
+- HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/internal/grants/sqlite_consumer.go`)
 - session_resume_hint 表 (蓝图 §2.7) 留 DL-5+
 - events fanout 接 RT-3 留 follow-up
 - per-user events feed / inbox 留 DL-5+

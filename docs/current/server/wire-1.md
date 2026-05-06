@@ -72,5 +72,5 @@
 ## 7. 留账 (透明)
 
 - events 接 RT-3 fanout 上游 hook (DL-2 cold → RT-3 hub.PushFrame 桥) 留 v1.x follow-up
-- HB-2 v0(D) Borgee Helper SQLite consumer 阈值哨 wire 留 HB-2 v1
+- HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/internal/grants/sqlite_consumer.go`); 阈值哨 wire 留 v1.x
 - ADM-3 v1 host_bridge placeholder 真接 留 ADM-3.bis (HB-1 audit 表 v1 未落)
