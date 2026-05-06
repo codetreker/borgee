@@ -633,7 +633,6 @@ body {
 .user-avatar-small {
   width: 28px;
   height: 28px;
-  min-width: 28px;
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
@@ -645,7 +644,6 @@ body {
   font-size: 13px;
   font-weight: 700;
   position: relative;
-  overflow: hidden;
 }
 
 .avatar-status {
