@@ -44,6 +44,7 @@ jobs:
           key: ${{ secrets.ALIYUN_SSH_KEY }}
           command_timeout: 5m
           script: |
+            set -e
             mkdir -p /opt/dockers/collab-test
             cat > /opt/dockers/collab-test/docker-compose.yml << 'COMPEOF'
             services:
@@ -70,8 +71,24 @@ jobs:
               borgee-test-data:
             COMPEOF
             cd /opt/dockers/collab-test
-            docker compose pull
-            docker compose up -d
+            docker compose pull || (echo "❌ docker compose pull failed (network / harbor)" && exit 1)
+            docker compose up -d --force-recreate --remove-orphans
             sleep 5
-            curl -sf http://localhost:4902/health > /dev/null && echo "✅ Test healthy" || (echo "❌ Test unhealthy" && exit 1)
+            # Fail-loud image SHA 比对: 验 container 真用新 image, 反 docker
+            # conflict 假绿. 烈马 #658 e2e 抓到 testing-borgee 5 天 stale 真因 —
+            # `up -d` 不带 --force-recreate 时撞 container name conflict 不
+            # recreate, 旧容器 /health 仍 ✅, step 假绿. 跟 deploy.yml
+            # staging/prod L85+L129 --force-recreate 同模式, 加 SHA 比对兜底
+            # 防 force-recreate 因 pull 失败而 silently skip 仍跑旧镜像.
+            RUNNING_SHA=$(docker inspect borgee-test --format='{{.Image}}' 2>/dev/null) || (echo "❌ docker inspect borgee-test failed" && exit 1)
+            PULLED_SHA=$(docker inspect --type=image cr.codetrek.work/default/borgee:test --format='{{.Id}}' 2>/dev/null) || (echo "❌ docker inspect image failed" && exit 1)
+            if [ "$RUNNING_SHA" != "$PULLED_SHA" ]; then
+              echo "❌ container running stale image: $RUNNING_SHA != $PULLED_SHA"
+              exit 1
+            fi
+            # 跟 deploy.yml staging/prod L88-90 + L132-134 同模式: log StartedAt
+            # 让审计可见 container 真新.
+            UPTIME=$(docker inspect --format '{{.State.StartedAt}}' borgee-test 2>/dev/null || echo "")
+            if [ -n "$UPTIME" ]; then echo "Container started at: $UPTIME"; fi
+            curl -sf http://localhost:4902/health > /dev/null && echo "✅ Test healthy ($RUNNING_SHA)" || (echo "❌ Test unhealthy" && exit 1)
             docker image prune -f
