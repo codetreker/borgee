@@ -2,6 +2,8 @@
 
 > 引自 [PROGRESS.md](../PROGRESS.md) 概览表 Phase 4+ 行 — milestone 翻牌点单源在此. 含 AL/BPP/HB/RT/AP/CM/ADM/DL/CS 9 模块组.
 
+> **真值基线** (2026-05-06): 49/49 milestone (44 G4 + 5 wave) ✅; REG 846 = 815 G5.audit baseline + 31 wave 后续追加 (829 🟢 + 16 ⚪ + 1 🟡); cov 85%+.
+
 ## Phase 4+ — 剩余模块
 
 按需排序。**已知依赖锁紧 (绘制成依赖箭头, 不允许颠倒)**:
