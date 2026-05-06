@@ -71,6 +71,16 @@ jobs:
               borgee-test-data:
             COMPEOF
             cd /opt/dockers/collab-test
+            # 兜底清孤儿 container (#660 follow-up): --force-recreate 只对
+            # compose track 的 service container 生效, 现有 testing 上的
+            # 孤儿 container (project name 不匹配 / labels 丢) 撞名时
+            # compose 走 "Creating" 路径直接 fail. 双层兜底:
+            # 1) compose down: 清 compose 自己 track 的 + 顺手 --remove-orphans
+            # 2) docker rm -f: 兜 compose 不认的同名 container (孤儿)
+            # `|| true` 让 set -e 不在 "无容器" 正常情况炸; 真 docker daemon
+            # 挂的 fail 会在后面 pull / up 阶段被 set -e 抓.
+            docker compose down --remove-orphans 2>/dev/null || true
+            docker rm -f borgee-test 2>/dev/null || true
             docker compose pull || (echo "❌ docker compose pull failed (network / harbor)" && exit 1)
             docker compose up -d --force-recreate --remove-orphans
             sleep 5

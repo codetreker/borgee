@@ -74,12 +74,27 @@ func (p *recordingPusher) snapshot() []pusherCall {
 // server.New already registered the handler with the production hub.
 func cv12General(t *testing.T, ts string, ownerToken string) string {
 	t.Helper()
-	_, data := testutil.JSON(t, "GET", ts+"/api/v1/channels", ownerToken, nil)
-	channels := data["channels"].([]any)
+	resp, data := testutil.JSON(t, "GET", ts+"/api/v1/channels", ownerToken, nil)
+	// 防御: 并行测试压力大时 list channels 偶尔返 5xx, 直接走
+	// data["channels"].([]any) 会 panic. 先验状态码 + comma-ok 断言.
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list channels failed: status=%d body=%v", resp.StatusCode, data)
+	}
+	channels, ok := data["channels"].([]any)
+	if !ok {
+		t.Fatalf("list channels: missing channels[], body=%v", data)
+	}
 	for _, c := range channels {
-		cm := c.(map[string]any)
+		cm, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
 		if cm["name"] == "general" {
-			return cm["id"].(string)
+			id, ok := cm["id"].(string)
+			if !ok {
+				t.Fatalf("general channel: missing id, body=%v", cm)
+			}
+			return id
 		}
 	}
 	t.Fatal("general channel not found")

@@ -27,10 +27,20 @@ func cv22Setup(t *testing.T) (url string, ownerTok string, s *store.Store, chID 
 	ts, store, _ := testutil.NewTestServer(t)
 	ownerTok = testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	chID = cv12General(t, ts.URL, ownerTok)
-	_, art := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+chID+"/artifacts", ownerTok, map[string]any{
+	resp, art := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+chID+"/artifacts", ownerTok, map[string]any{
 		"title": "Plan", "body": "para A.\npara B.\npara C.",
 	})
-	artID = art["id"].(string)
+	// 防御: 并行测试压力大时 POST 偶尔返 5xx, 这时 art 是空 map, 直接走
+	// 类型断言 art["id"].(string) 会 panic. 先验状态码 + 用 comma-ok
+	// 形式断言, 真出错时给可读消息而不是 panic 栈.
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		t.Fatalf("create artifact failed: status=%d body=%v", resp.StatusCode, art)
+	}
+	id, ok := art["id"].(string)
+	if !ok {
+		t.Fatalf("create artifact: missing id, body=%v", art)
+	}
+	artID = id
 	url = ts.URL
 	s = store
 	return
