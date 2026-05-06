@@ -1,0 +1,67 @@
+# Client ArtifactDrawer — 右栏 drawer / split / fullscreen 渲染 (current)
+
+> 锚: 蓝图 [`client-shape.md §1.2`](../../blueprint/current/client-shape.md) Artifact 分级展开 · 实现 PR #601
+> 落点: `packages/client/src/components/ArtifactDrawer.tsx`
+> 关联: 4-态 state machine + grid 布局 [`app-shell.md`](app-shell.md)
+
+## 文件清单
+
+| 文件 | 角色 |
+|---|---|
+| `packages/client/src/components/ArtifactDrawer.tsx` | 右栏容器 (`mode='closed'` 时返 `null` 不挂 DOM); header 含 promote / close 按钮; drawer 模式额外挂 drag handle |
+
+## Artifact 分级展开 (蓝图 §1.2 byte-identical)
+
+避免"自动劈开屏幕" — artifact 触发分两级:
+
+| 操作 | 行为 |
+|---|---|
+| 首次点击 artifact 引用 | 右侧**抽屉**展开 (轻量预览) — `mode='drawer'` |
+| 显式动作 (拖拽 / 二次点击 promote 按钮) | 升级为 **split view** (聊天 + artifact 并存) — `mode='split'` |
+
+`ArtifactDrawer` 仅渲染 `mode ∈ {drawer, split, fullscreen}`; `closed` 时 React 返 `null`, AppShell grid 同步收缩到 2 栏.
+
+## Props 契约
+
+| prop | 类型 | 角色 |
+|---|---|---|
+| `mode`             | `'drawer' \| 'split' \| 'fullscreen' \| 'closed'` | iteration 当前态 (closed 时不挂 DOM) |
+| `artifactId`       | `string \| null` | 当前 artifact id (传 `data-artifact-id` 给 e2e/QA 锚) |
+| `onClose`          | `() => void` | close button → `useArtifactPanel.close()` |
+| `onPromoteToSplit` | `() => void` | drawer 升级 split (按钮 OR drag handle 触发) |
+| `children`         | `ReactNode` | 既有 ArtifactPanel 内容 byte-identical (CS-1 不改内部渲染) |
+
+## DOM 锚 (改 = 改两处: 此组件 + acceptance template)
+
+| 锚 | 触发条件 | 备注 |
+|---|---|---|
+| `div[data-testid="artifact-drawer"]`              | mode != closed | 根容器 |
+| `div[data-mode="drawer\|split\|fullscreen"]`      | 同上 | mode 真值 attr |
+| `div[data-artifact-id="<ulid>"]`                  | 同上 | 当前 artifact id (空字符串 = null) |
+| `button[data-testid="artifact-drawer-promote"]`   | 仅 mode='drawer' | aria-label `"展开"`, 字面 `⇔` |
+| `button[data-testid="artifact-drawer-close"]`     | mode != closed | aria-label `"关闭"`, 字面 `×` |
+| `div[data-testid="artifact-drawer-drag-handle"]`  | 仅 mode='drawer' | `role="separator" aria-orientation="vertical"`; mouseUp → onPromoteToSplit |
+
+## drawer → split transition 三入口
+
+| 入口 | DOM | 调用 |
+|---|---|---|
+| 显式按钮 | `button[data-testid="artifact-drawer-promote"]` | `onPromoteToSplit()` |
+| drag handle | `div[data-testid="artifact-drawer-drag-handle"]` mouseUp | `onPromoteToSplit()` |
+| (二次点击 artifact 引用) | 来自 caller 上层 ArtifactReference | `onPromoteToSplit()` |
+
+三入口走同一 `onPromoteToSplit` callback → `useArtifactPanel.promoteToSplit()` 单源 transition. 反约束: `closed → split` 不在三入口任一中可达 (closed 态 ArtifactDrawer 不挂 DOM, 按钮 + drag handle 都不存在).
+
+## 反向 grep 守门
+
+| 锚 | 期望 |
+|---|---|
+| `mode === 'closed'` 时挂 DOM | 0 hit (`mode==='closed'` 直接 `return null`) |
+| `setMode\(['"]split['"]\)` 直调 | 0 hit (caller 必走 `onPromoteToSplit` callback) |
+| drag handle 字面 `cursor` style 漂 | 仅在 `artifact-drawer-drag-handle` className 一处 |
+
+## 不在范围 (留尾)
+
+- artifact body 渲染 (走 `children` ArtifactPanel byte-identical, CS-1 不改)
+- mobile drag handle 触摸事件支持 (现仅 mouse; touch 走 fullscreen 直 modal)
+- drawer ↔ split 中间态 (拖拽过程中宽度 % 锁) — 现一次性切, 留 v2 微交互
