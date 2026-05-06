@@ -287,10 +287,13 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
       {state.currentUser && (
         <div className="sidebar-footer">
           <div className="current-user">
-            <div className="user-avatar-small">
+            <div
+              className="user-avatar-small"
+              title={state.currentUser.display_name}
+              aria-label={state.currentUser.display_name}
+            >
               {state.currentUser.display_name[0]?.toUpperCase()}
             </div>
-            <span className="user-name-small">{state.currentUser.display_name}</span>
             <button
               className="icon-btn logout-btn"
               title="Logout"
