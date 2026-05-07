@@ -107,4 +107,59 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
       expect(panel).not.toContain(drift);
     }
   });
+
+  // gh#701 drift 修 — md 早期写过 `<form data-form="agent-config">`,
+  // 实际代码用 `<section data-agent-config="root">`. drift 已修 (md 改对齐
+  // code+test). 这条单测扫整个 packages/ + docs/qa/ 树, 守"data-form=
+  // 'agent-config'" 不再出现 (反 md 又漂回 form / 代码又漂去 form).
+  it('反向锚 (gh#701): 整个 packages/ + docs/qa/ 树没 data-form="agent-config" 字面 (容器是 section, 不是 form)', () => {
+    // 路径: HERE = packages/client/src/__tests__ → ..*4 = repo root.
+    const REPO_ROOT = nodePath.join(HERE, '..', '..', '..', '..');
+    const SCAN_DIRS = [
+      nodePath.join(REPO_ROOT, 'packages'),
+      nodePath.join(REPO_ROOT, 'docs', 'qa'),
+    ];
+    const FORBIDDEN = /data-form=["']agent-config["']/;
+
+    function walk(dir: string): string[] {
+      const out: string[] = [];
+      let entries: string[];
+      try {
+        entries = fs.readdirSync(dir);
+      } catch {
+        return out;
+      }
+      for (const name of entries) {
+        // skip node_modules / .worktrees / dist 等大目录
+        if (name === 'node_modules' || name === 'dist' || name === '.worktrees' || name.startsWith('.')) continue;
+        const full = nodePath.join(dir, name);
+        let stat;
+        try { stat = fs.statSync(full); } catch { continue; }
+        if (stat.isDirectory()) {
+          out.push(...walk(full));
+        } else if (/\.(ts|tsx|md|js|jsx|go)$/.test(name)) {
+          out.push(full);
+        }
+      }
+      return out;
+    }
+
+    const hits: string[] = [];
+    for (const dir of SCAN_DIRS) {
+      for (const file of walk(dir)) {
+        // 跳过测试文件自身 (它有 forbidden 字面在反向断言里 — 那是检测用)
+        if (file.endsWith('al-2a-content-lock.test.ts')) continue;
+        // 跳过 al-2a-content-lock.md 自身 (它的反向锚段落在文档里 *写出*
+        // forbidden 字面作为 "❌ 不准用" 的字面引用 — 这是文档功能不是漂移).
+        if (file.endsWith('al-2a-content-lock.md')) continue;
+        let content: string;
+        try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
+        if (FORBIDDEN.test(content)) {
+          hits.push(file);
+        }
+      }
+    }
+    // 0 hit — 容器 byte-identical = section, 反 md / code 漂去 form
+    expect(hits).toEqual([]);
+  });
 });
