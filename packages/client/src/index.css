@@ -2634,10 +2634,21 @@ body {
 
 /* ─── Agent Manager ────────────────────────────────── */
 
+/* gh#683: 修 Agents 页面默认太窄 + Manage 撑大闪烁.
+ *   父元素 .main-content 是 flex-column (cross-axis = 水平方向), 此处
+ *   `margin: 0 auto` 在 flex 子项的 cross-axis 上会吸收两侧 free space,
+ *   把元素缩到内容自然宽度再居中, 而不是拉伸到 100%. 后果:
+ *   1280 viewport / 1020 主区, 默认只占 334px (空状态内容宽度),
+ *   一旦点 Manage 展开内容变多, 跳到 max-width 800px → 视觉闪烁.
+ *   加 `width: 100%` 强制 stretch, 配 max-width: 800px = 大屏 800px /
+ *   ≤800 屏 100%, 永远不随内容跳变. `box-sizing: border-box` 让 padding
+ *   计入总宽, 避免在窄屏下 100% + padding 溢出. */
 .agent-page {
   padding: 20px;
+  width: 100%;
   max-width: 800px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .agent-card {
