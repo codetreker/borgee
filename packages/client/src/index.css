@@ -2687,6 +2687,32 @@ body {
   margin: 8px 0;
 }
 
+/* ─── #684 Agent detail card (Manage 展开后 6 卡 wrapper) ────────────── */
+/*
+ * yema brief §2.1: Identity / Credentials / Runtime / Config / Permissions /
+ * Channels 6 个 section, 每卡 16px margin + 浅色 border + 12px padding.
+ * 反原 inline `<div style={{marginBottom:12, borderTop:1px solid border}}>`
+ * 平铺无分组; 卡片化让"读 (Identity)" vs "写 (Permissions/Channels)" 视觉分层.
+ *
+ * Identity 卡 (header) 跟其它 5 卡共用 wrapper, 但视觉上做容器, 不做卡片
+ * (border 0 + padding 0 by override) — Identity 是 agent header, 已经有
+ * agent-card 边框包着, 再套一层会双框.
+ */
+.agent-detail-card {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.agent-detail-card-identity {
+  /* Identity 卡是 header, 不另外套框 — agent-card 外框已经够了. */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
 /* ─── Typing Indicator ────────────────────────────────── */
 
 .typing-indicator {
