@@ -61,7 +61,7 @@ export default function GroupHeader({ group, collapsed, onToggle, onContextMenu,
       onContextMenu={e => { e.preventDefault(); onContextMenu?.(e); }}
       {...attributes}
     >
-      <span className={`group-header-arrow${collapsed ? ' collapsed' : ''}`}>{collapsed ? '▶' : '▼'}</span>
+      <span className={`group-header-arrow${collapsed ? ' collapsed' : ''}`} aria-hidden="true">{collapsed ? '▶' : '▼'}</span>
       {renaming ? (
         <input
           ref={inputRef}
@@ -78,13 +78,21 @@ export default function GroupHeader({ group, collapsed, onToggle, onContextMenu,
       {isOwner && !renaming && (
         <span className="group-header-actions">
           <span
-            className="drag-handle"
+            className="drag-handle group-header-drag-handle"
+            aria-label="拖动分组"
             {...listeners}
             onClick={e => e.stopPropagation()}
           >
             ≡
           </span>
-          <button className="icon-btn" style={{ fontSize: '0.75rem', padding: '0 4px' }} onClick={e => { e.stopPropagation(); onContextMenu?.(e); }}>⋯</button>
+          <button
+            type="button"
+            className="icon-btn group-header-menu-btn"
+            aria-label="分组菜单"
+            onClick={e => { e.stopPropagation(); onContextMenu?.(e); }}
+          >
+            ⋯
+          </button>
         </span>
       )}
     </div>
