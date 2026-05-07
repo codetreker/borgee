@@ -151,6 +151,7 @@
 - `command-registry.test.ts` — resolve 优先级、ambiguous、search 前缀过滤、`setRemoteCommands` 替换语义。
 - `channel-sort.test.ts` — position 字符串 lex 排序 + `last_message_at` fallback。
 - `channel-groups-ui.test.ts` — 分组展示逻辑。
+- `GroupHeader.test.tsx` — 分组头排版锁: 折叠时三角字符 ▶ (朝右) / 展开 ▼ (朝下) 不再用 CSS 旋转; drag-handle 跟 ⋯ 按钮统一 20px 方块 (`group-header-drag-handle` / `group-header-menu-btn`), 不再混 `.icon-btn` 32x32 撑高 header. 修 issue #689.
 - `agent-invitations.test.ts` — CM-4.2 client：`createAgentInvitation` / `listAgentInvitations(role)` / `fetchAgentInvitation` / `decideAgentInvitation` 的请求形状、`{invitation}` / `{invitations}` 解包、409 → `ApiError`、`stateToLabel` 4 状态中文映射。
 - `agent-state.test.ts` (AL-1a) — `describeAgentState` 三态文案锁 + 6 reason code 表覆盖, 防退化。
 - `presence.test.ts` (AL-3.3) — `markPresence` cache + 5s 节流单测：跨窗口立即通知 / 窗口内 burst trailing flush / 多 agent anchor 独立 / 空 agentID 防御 / `PRESENCE_THROTTLE_MS===5000` 字面锁。fake clock 走 `__resetPresenceStoreForTest(()=>nowMs)` 注入。

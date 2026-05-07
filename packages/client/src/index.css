@@ -383,7 +383,9 @@ body {
 .group-header {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px 12px;
   cursor: pointer;
   user-select: none;
   font-size: 0.75rem;
@@ -400,15 +402,18 @@ body {
 }
 
 .group-header-arrow {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 12px;
-  margin-right: 4px;
+  height: 16px;
   font-size: 0.6rem;
-  transition: transform 0.15s ease;
+  line-height: 1;
 }
 
 .group-header-arrow.collapsed {
-  transform: rotate(-90deg);
+  /* 折叠时直接用字符 ▶ (朝右), 展开时是 ▼ (朝下); 不再用 CSS 旋转, 旋转
+     会把 ▶ 转成朝上, 这正是 #689 报的"三角方向不对". */
 }
 
 .group-header-name {
@@ -3759,6 +3764,9 @@ body {
 
 .group-header-actions {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -3769,9 +3777,43 @@ body {
   }
 }
 
-.group-header-actions .icon-btn {
-  font-size: 0.75rem;
-  padding: 0 4px;
+/* 让 drag-handle (≡) 跟 ⋯ 按钮 在 group-header 里都是同样的 20px 方块,
+   彻底修 #689 第 1 条 "按钮和文字没有对齐". 不再继承 channel-item 上的
+   .drag-handle hover 半透明规则 (那条针对的是频道行, 不是分组头). */
+.group-header-actions .group-header-drag-handle,
+.group-header-actions .group-header-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-sidebar-dim);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.group-header-actions .group-header-drag-handle {
+  opacity: 1;
+  cursor: grab;
+}
+
+.group-header-actions .group-header-drag-handle:active {
+  cursor: grabbing;
+}
+
+@media (hover: hover) {
+  .group-header-actions .group-header-menu-btn:hover {
+    background: var(--bg-sidebar-hover);
+    color: var(--text-sidebar);
+  }
+  .group-header-actions .group-header-drag-handle:hover {
+    color: var(--text-sidebar);
+  }
 }
 
 .group-header-rename-input {
