@@ -1,6 +1,6 @@
 # 687 — 自己消息未读修 (implementation design)
 
-> blueprintflow `implementation-design` skill 输出. Dev (zhanma 战马) 写, Architect / PM / QA 3 角色 review. Security 角色 Borgee team 当前缺, 待用户决定是否引入真 Security 角色后再审 — **不让 Architect 或 PM 兼看 Security** (按 `blueprintflow-team-roles` skill 硬性规定).
+> blueprintflow `implementation-design` skill 输出. Dev (zhanma 战马) 写, 4 角色 review: Architect (feima 飞马) / PM (yema 野马) / QA (liema 烈马) / Security (heima 黑马). 按 `blueprintflow-team-roles` skill 硬性规定 Architect/PM 都不准兼 Security, heima 是独立角色.
 >
 > 关联:
 > - GitHub issue: #687
@@ -199,6 +199,7 @@ system message 在创建时通常没有人类 sender (用一个 system user ID).
 `packages/server-go/internal/api/messages_self_unread_test.go` (新文件):
 1. `TestSelfMessageUpdatesLastReadAt` — owner 发消息 → 立刻拉 channel 列表 → unread_count == 0
 2. `TestPeerMessageStillUnread` — 反向断言: peer 发消息对 owner 算未读 (Layer 2 没误伤别人消息)
+3. `TestOwnMessageDoesNotMarkOtherChannel` — 反过度过滤: owner 在 channel A 发消息不影响 channel B 的 unread_count (B 里 peer 发的消息仍算未读). feima Architect review 加的, 防 Layer 2 改写跨 channel 漏过滤.
 
 ### 7.2 client 单测 (vitest)
 
@@ -234,7 +235,9 @@ rollback: revert PR. 三层独立, 每层都能单独 revert 不破其它两层.
 
 ## §10 已知留账
 
-- 多设备 last_read_at 并发场景: 设备 A 发消息时 server `MarkChannelRead` 把 last_read_at 推到 now=t1. 同时设备 B (同 user) 也在 channel A, 设备 B 已经在 t2>t1 的位置 (通过别的方式更新过 last_read_at, 比如 scroll-to-bottom 触发 mark-read). 如果服务器没做 max(now, existing) 而是直接覆盖, 可能让设备 B 的 last_read_at 退回到 t1, 引入设备 B 已读消息又显未读. 看 `Store.MarkChannelRead` 当前实现是 unconditional `Update("last_read_at", now)`, 真有这个回退风险, 但是 Layer 2 SQL 兜底 (own message 永远不算 own 自己未读) 把这个 race 的可见性砍掉. **本次修不展开**, 留账.
+- 多设备 last_read_at 并发场景: 设备 A 发消息时 server `MarkChannelRead` 把 last_read_at 推到 now=t1. 同时设备 B (同 user) 也在 channel A, 设备 B 已经在 t2>t1 的位置 (通过别的方式更新过 last_read_at, 比如 scroll-to-bottom 触发 mark-read). 如果服务器没做 max(now, existing) 而是直接覆盖, 可能让设备 B 的 last_read_at 退回到 t1, 引入设备 B 已读消息又显未读. 看 `Store.MarkChannelRead` 当前实现是 unconditional `Update("last_read_at", now)`, 真有这个回退风险.
+  - **Layer 2 SQL 只兜 own message** (`m.sender_id != userID`): 设备 A 发的消息不会对自己未读. 但**别人的消息** race 不兜 — 比如另一个用户 X 在 t1.5 (t1 < t1.5 < t2) 发了一条消息, 设备 B 原本读到 t2 已经标记 X 这条已读, 设备 A 一发自己消息把 last_read_at 推回 t1, 设备 B 刷新 / 拉 channel 列表时 X 的消息 created_at=t1.5 > t1 → 又算未读. 这条不在 Layer 2 防御覆盖范围内.
+  - **本次修不展开**, 留账. fix 方向: `MarkChannelRead` 改成 `UPDATE ... SET last_read_at = MAX(last_read_at, ?)` (SQLite `MAX(coalesce(last_read_at, 0), ?)`) 即可, 但需要单独评估 SQL 兼容性 + 加测试. 在新 followup issue 处理.
 - Security 视角: 没有引入新 auth 路径. unread 信息暴露的是用户自己 channel 的元数据, 不跨 user. 不引 IDOR.
 
 ## 4 角色 review checklist
@@ -244,6 +247,6 @@ rollback: revert PR. 三层独立, 每层都能单独 revert 不破其它两层.
 - [ ] **Architect (feima)**: 三层修法是否最小手术 / 跟现有 ws envelope (flattenWsFrame, #680) 协调 / SQL 5 处改是否有遗漏 / 性能影响是否可接受 / 边角情况 §4 是否覆盖完整
 - [ ] **PM (yema)**: 产品体验对不对 (自己发的不该自己未读, 别人发的该未读, 这是直觉合理的); rule 6 docs/current 真的不需要同步? 4.4 ack race / 4.6 channel 切换的 UX 边角符合预期吗
 - [ ] **QA (liema)**: §7.3 testing 真验 5 步路径能跑吗; §7.1 server 单测覆盖 / §7.2 client 单测覆盖够不够; 反向 acceptance 想得到吗 (peer 发的还是要算未读)
-- [ ] **Security (待 spawn)**: Borgee team 当前缺 Security 角色. 按 `blueprintflow-team-roles` skill 硬性规定, Architect/PM 都不准兼 Security. 等用户决定是否引入真 Security 角色后再签. 暂时 block 在这条 — 当前 doc 触及的 Security 视角参考点 (供未来真 Security review 时检查): §10 IDOR (unread 元数据不跨 user); agent §4.8 (agent 跟普通 user 同路径); §4.9 (system message 不引特殊 sender 路径); 反向 agent / owner DM 行为不变.
+- [ ] **Security (heima)**: §10 IDOR (unread 元数据不跨 user); agent §4.8 (agent 跟普通 user 同路径); §4.9 (system message 不引特殊 sender 路径); 反向 agent / owner DM 行为不变; 没有引入新 auth 路径.
 
 签字格式: 任意角色 SendMessage zhanma 写 "design 687 LGTM (角色名)" 或 "design 687 NACK: 具体问题".
