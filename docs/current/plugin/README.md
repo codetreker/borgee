@@ -145,3 +145,10 @@ src/
 
 ## npm 发布
 包名 `@codetreker/borgee-openclaw-plugin`，repository `codetreker/borgee`。`files` 包含 `dist`、`openclaw.plugin.json`、`skills`。
+
+## 发布流程
+
+1. Dev 开 PR bump `packages/plugins/openclaw/package.json` 版本号 → CI 通过 → 合并
+2. 在 GitHub Actions 手动触发 `Publish OpenClaw Plugin` workflow
+3. Workflow 自动检查版本是否已发布，未发布则 `npm publish --provenance`
+4. npm registry 兜底：同版本不允许覆盖
