@@ -1,7 +1,7 @@
-# AL-2a SPA agent settings 文案锁 (野马 G4.x demo 预备)
+# AL-2a SPA agent 配置文案锁 (野马 G4.x demo 预备)
 
-> **状态**: v0 (野马, 2026-04-29)
-> **目的**: AL-2a.x client UI 实施前锁 SPA agent settings form + button + toast + disabled state 文案 byte-identical — 跟 AL-3 #305 / DM-2 #314 / AL-4 #321 / CHN-2 #354 / CV-2 #355 / CV-3 #370 / CV-4 #380 / CHN-4 #382 / CHN-3 #402 同模式 (用户感知签字 + 文案 byte-identical), 防 AL-2a 实施时把 SSOT 字段漂入 runtime-only 字段 / 失败 toast 漂同义词 / disabled state 视觉模糊。
+> **状态**: v1 (gh#701 drift 修, zhanma-c 2026-05-08) — 跟 v0 (野马, 2026-04-29) 对比: 容器元素 form→section + 标题"设置"→"配置" + 文件名 AgentSettings*→AgentConfigPanel, 跟代码 + 测试事实真值对齐 (PR #454 之后代码 + test 用了 6 天稳定, drift 真因是 md 早写代码晚写漂的, 真值 = code+test)
+> **目的**: AL-2a.x client UI 实施前锁 SPA agent 配置面板 + button + toast + disabled state 文案 byte-identical — 跟 AL-3 #305 / DM-2 #314 / AL-4 #321 / CHN-2 #354 / CV-2 #355 / CV-3 #370 / CV-4 #380 / CHN-4 #382 / CHN-3 #402 同模式 (用户感知签字 + 文案 byte-identical), 防 AL-2a 实施时把 SSOT 字段漂入 runtime-only 字段 / 失败 toast 漂同义词 / disabled state 视觉模糊。
 > **关联**: 蓝图 `plugin-protocol.md` §1.4 (Borgee SSOT 字段划界 — name/avatar/prompt/model/能力开关/启用状态/memory_ref) + §1.5 (热更新分级); 蓝图 `agent-lifecycle.md` §2.1 (用户完全自主决定 agent 的 name/prompt/能力/model); 飞马 spec brief `docs/implementation/modules/al-2-spec.md`; 烈马 acceptance template `al-2a.md` 7 项 (REG-AL2A-001..007); AL-1a #249 6 reason codes byte-identical (失败 reason 同源).
 > **#338 cross-grep 反模式遵守**: 既有 `lib/agent-state.ts` REASON_LABELS (#249) + AL-3 #305 toast 模板 + CV-1 #347 kindBadge 字面已稳定, 本锁字面跟既有 byte-identical 引用 (改 reason = 改源头), 不臆想新词。
 
@@ -11,7 +11,7 @@
 
 | # | 场景 | 字面锁 (byte-identical) | 反约束 |
 |---|------|-----|------|
-| ① | **agent settings form 入口** (agent 详情页 owner-only) | DOM: `<form data-form="agent-config" data-agent-id="{id}">` byte-identical (`data-form` attr 锁); 标题 `"Agent 设置"` byte-identical 中文 (反 "Agent Config" / "配置" / "设置"); owner-only DOM omit (跟 CV-1 #347 line 254 + CV-4 #380 ① + AL-4 #321 同模式 defense-in-depth) | ❌ 不准 "Settings" / "Config" / "Configuration" / "配置" 同义词漂移 (中文 "设置" byte-identical 锁); ❌ 非 owner DOM omit (反 disable 渲染); ❌ 不准 admin SPA 渲染此 form (admin god-mode 字段白名单不含 agent_configs.blob, 跟 ADM-0 §1.3 红线 + AL-4 #379 v2 同模式) |
+| ① | **agent 配置面板入口** (agent 详情页 owner-only) | DOM: `<section data-agent-config="root" data-schema-version="{n}">` byte-identical (`data-agent-config` attr 锁); 标题 `"Agent 配置"` byte-identical 中文 (反 "Agent Settings" / "Agent Config" / "设置" / "Configuration"); owner-only DOM omit (跟 CV-1 #347 line 254 + CV-4 #380 ① + AL-4 #321 同模式 defense-in-depth) | ❌ 不准 "Settings" / "Config" / "Configuration" / "设置" 同义词漂移 (中文 "配置" byte-identical 锁); ❌ 非 owner DOM omit (反 disable 渲染); ❌ 不准 admin SPA 渲染此面板 (admin god-mode 字段白名单不含 agent_configs.blob, 跟 ADM-0 §1.3 红线 + AL-4 #379 v2 同模式); ❌ 不准用 `<form data-form="agent-config">` 容器 (跟代码 AgentConfigPanel.tsx L110 事实真值 byte-identical 锁; gh#701 drift 修 — md 早期写过 form 但代码用 section, 真值 = section)
 | ② | **SSOT form 字段锁** (蓝图 §1.4 字段划界 byte-identical) | form 字段 byte-identical 跟蓝图 §1.4 "归 Borgee 管" 列同源: `name` / `avatar` / `prompt` / `model` / `capabilities` (能力开关) / `enabled` (启用状态) / `memory_ref` 七字段; **不准** runtime-only 字段进 form (跟 §1.4 反约束 byte-identical) | ❌ 不准 form 出现 `temperature` / `token_limit` / `api_key` / `retry_policy` / `rate_limit` / `memory_content` 字段 (蓝图 §1.4 "归 Runtime 管" 列字面禁); ❌ 不准 model 字段写死下拉 (走 `runtime_schema_advertise` 通用渲染, 蓝图 §1.4 "不写死 OpenClaw/Hermes 具体模型列表"); ❌ 不准 memory_ref 直接编辑 memory 内容 (蓝图 §1.4 "memory 内容在 runtime") |
 | ③ | **保存按钮 + 成功 toast** | 保存按钮文案: `"保存"` byte-identical (反 "Save" / "更新" / "提交" / "Apply" 同义词); 成功 toast: `"已保存"` byte-identical 1.5s (跟 CV-3 #370 ③ "已复制" toast 1.5s 同精神 + 中文 byte-identical 锁); PATCH `/api/v1/agents/:id/config` body 含整 blob (SSOT 整体替换, 跟 spec §AL-2a 同源) | ❌ 不准 "Save" / "Update" / "Apply" / "更新" 同义词; ❌ 不准 toast 持续 >3s (UX 噪声); ❌ 不准 PATCH body 仅含变更字段 — 必须整 blob 替换 (反 multi-row config_key 漂移漂入); ❌ 不准成功 toast 显示 `schema_version` 数字 (隐藏内部状态 — UX 简洁) |
 | ④ | **失败 toast** (PATCH /config 失败 — 网络 / 409 / 403) | 失败 toast 字面 byte-identical: `"保存失败 ({reason_label})"` (跟 CV-4 #380 ③ "失败: {reason_label}" + AL-3 #305 ③ "故障 ({reason_label})" 同括号格式精神, byte-identical reason_label 走 AL-1a #249 REASON_LABELS); 4xx / 5xx 走映射: 409 → reason='conflict' / 403 → reason='unauthorized' / 5xx → reason='unknown' (跟 #249 6 reason 不直接对应, 可在 AL-2a SPA 侧加 2 项 SPA-only reason `conflict` + `unauthorized`, 但**仍跟 AL-1a 模板字面同源**) | ❌ 不准 raw error.message 显示 (隐私 + UX, 跟 AL-3 #305 + CV-4 #380 ③ 同精神); ❌ 不准 "Save failed" / "Failed to save" / "请稍后重试" 同义词; ❌ 不准 reason_label 漂出枚举 (改 reason = 改 AL-1a #249 + AL-3 #305 + CV-4 #380 + AL-4 #387/#461 + AL-1b #458 + 本锁 **六处单测锁** 模式承袭) |
@@ -24,27 +24,30 @@
 ## 2. 反向 grep — AL-2a.x PR merge 后跑, 全部预期 0 命中 (除标 ≥1)
 
 ```bash
-# ① form data-form attr + 标题 byte-identical (预期 ≥1)
-grep -rnE 'data-form=["'"'"']agent-config["'"'"']' packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
-grep -rnE "['\"](Settings|Config|Configuration|配置)['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+# ① 容器 data-attr + 标题 byte-identical (预期 ≥1)
+grep -rnE 'data-agent-config=["'"'"']root["'"'"']' packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
+grep -rnE "['\"]Agent 配置['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
+grep -rnE "['\"](Settings|Config|Configuration|设置|Agent Settings)['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
+# ① gh#701 drift 防御反向锁 — md / packages 都不准再出现 form data-form="agent-config" (代码事实是 section + data-agent-config)
+grep -rnE 'data-form=["'"'"']agent-config["'"'"']' packages/ docs/qa/ 2>/dev/null  # 预期 0
 # ② SSOT form 不准含 runtime-only 字段
-grep -rnE 'name=["'"'"']?(temperature|token_limit|api_key|retry_policy|rate_limit|memory_content)["'"'"']?' packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+grep -rnE 'name=["'"'"']?(temperature|token_limit|api_key|retry_policy|rate_limit|memory_content)["'"'"']?' packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
 # ② model 字段不写死下拉 (走 runtime_schema_advertise 通用渲染)
-grep -rnE "['\"](gpt-4|gpt-3\\.5|claude-3|gemini)['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+grep -rnE "['\"](gpt-4|gpt-3\\.5|claude-3|gemini)['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
 # ③ 保存按钮文案 + 成功 toast byte-identical (预期 ≥1 + 预期 ≥1)
-grep -rnE "['\"]保存['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
+grep -rnE "['\"]保存['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
 grep -rnE "['\"]已保存['\"]" packages/client/src/ 2>/dev/null | grep -v _test  # 预期 ≥1
-grep -rnE "['\"](Save|Update|Apply|提交|更新)['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+grep -rnE "['\"](Save|Update|Apply|提交|更新)['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
 # ④ 失败 toast 字面 + reason_label 走 REASON_LABELS (预期 ≥1)
 grep -rnE "['\"]保存失败 \\(\\$\\{.*reason.*\\}\\)['\"]|['\"]保存失败 \\(\\{.*\\}\\)['\"]" packages/client/src/ 2>/dev/null | grep -v _test  # 预期 ≥1
-grep -rnE 'REASON_LABELS\[' packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
-grep -rnE "['\"](Save failed|Failed to save|请稍后重试|网络错误)['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+grep -rnE 'REASON_LABELS\[' packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
+grep -rnE "['\"](Save failed|Failed to save|请稍后重试|网络错误)['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
 # ⑤ disabled state aria-disabled + "保存中…" byte-identical (预期 ≥1)
-grep -rnE 'aria-disabled=["'"'"']true["'"'"']' packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
-grep -rnE "['\"]保存中…['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
-grep -rnE "['\"](Saving\\.\\.\\.|Submitting\\.\\.\\.|处理中)['\"]" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+grep -rnE 'aria-disabled=["'"'"']true["'"'"']' packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
+grep -rnE "['\"]保存中…['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test  # 预期 ≥1
+grep -rnE "['\"](Saving\\.\\.\\.|Submitting\\.\\.\\.|处理中)['\"]" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
 # ⑥ schema_version 不进 UI form (UI 噪声防御)
-grep -rnE "label=['\"].*schema.*version|aria-label=['\"].*schema.*version" packages/client/src/components/AgentSettings*.tsx 2>/dev/null | grep -v _test
+grep -rnE "label=['\"].*schema.*version|aria-label=['\"].*schema.*version" packages/client/src/components/AgentConfigPanel*.tsx 2>/dev/null | grep -v _test
 # ⑦ agent silent default — 不发 system message
 grep -rnE "['\"]\\{agent_name\\} 已更新设置['\"]|agent.*config.*system.*message" packages/server-go/internal/api/ 2>/dev/null | grep -v _test
 # ⑦ AL-2b 留账 — agent_config_update BPP frame 不在 AL-2a (spec + acceptance §1.5)
@@ -55,7 +58,7 @@ grep -rnE 'agent_config_update' packages/server-go/internal/ws/ packages/server-
 
 ## 3. 验收挂钩 (AL-2a.x PR 必带)
 
-- ① form DOM e2e: owner 视角 `data-form="agent-config"` 渲染 + 非 owner DOM omit (count==0) + admin god-mode 反向断言不渲染
+- ① 容器 DOM e2e: owner 视角 `data-agent-config="root"` 渲染 + 非 owner DOM omit (count==0) + admin god-mode 反向断言不渲染 + gh#701 drift 反向锁 `data-form="agent-config"` 在 packages/ + docs/qa/ count==0
 - ② SSOT 字段 e2e + vitest: 7 字段 byte-identical 跟蓝图 §1.4 同源 + 反向断言无 runtime-only 字段 + model 走 runtime_schema_advertise 通用渲染
 - ③ 保存 + 成功 toast e2e: PATCH 成功 → toast `"已保存"` byte-identical 1.5s + PATCH body 整 blob 替换反向断言
 - ④ 失败 toast e2e: 模拟 409/403/5xx → toast `"保存失败 ({reason_label})"` byte-identical + reason_label 走 REASON_LABELS (改 reason = 改六处单测锁: AL-1a #249 + AL-3 #305 + CV-4 #380 + AL-4 #387/#461 + AL-1b #458 + 本锁)
