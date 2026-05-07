@@ -4,10 +4,10 @@
 
 ## 1. 入口
 
-- Sidebar 底部 ⚙️ 按钮（`data-action="open-settings"`）→ `App.tsx::onSettingsOpen` → `App.tsx::showSettings` state。
-- 跟 `showAgents` / `showInvitations` / `showWorkspaces` / `showNodes` 同模式（App-level state 切视图，无 react-router）。
-- `closeAllViews()` 互斥重置。
-- 视图渲染：`<SettingsPage onBack={() => setShowSettings(false)} />`。
+- Sidebar 底部 ⚙️ 按钮（`data-action="open-settings"`）→ `App.tsx::onSettingsOpen` → `App.tsx::requestMainView('settings')`。
+- 跟 agents / invitations / workspaces / remote-nodes 同模式：5 个 sidepane 共用一个 `mainView: MainView` 字符串状态（见 `lib/mainView.ts`），同时只有一个能 active，反堆栈。`requestMainView()` 在切换前跑 `runUnsavedGuards()`，触发 `useUnsavedChangesGuard` 注册的未保存改动提示。
+- `closeAllViews()` = `setMainView('channel')`。
+- 视图渲染：`<SettingsPage onBack={() => setMainView('channel')} />`。
 
 > **路径分叉**（ADM-0 红线）：用户 SPA `components/Settings/SettingsPage.tsx` 跟 admin SPA `admin/pages/SettingsPage.tsx` 同名共存不混用 — admin SPA 走 `react-router` + `/admin-api/*` cookie；用户 SPA 走 App-level state + `/api/v1/*` cookie。两者 cookie 拆 + endpoint 拆，不会串扰（REG-ADM0-001/002 共享底线）。
 
