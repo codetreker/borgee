@@ -153,13 +153,51 @@ WS 广播跟 HTTP 200 是两个独立路径. 哪个先到都行:
 
 `reconcilePendingMessages` 在 `selectChannel` 时跑, 用 `clientMessageId` 匹配 pending. 跟 unread 计算不重叠 — pending 是发送中的 client-only 状态, 不进 server unread SQL. 不影响.
 
-### 4.6 channel 切换 vs Mark-read race
+### 4.6 channel 切换 vs Mark-read race + 多设备时序
 
 用户在 channel A 发完消息, 立刻切到 channel B. 两步 race:
-- 发消息 server-side `MarkChannelRead` 跑
-- selectChannel B 走 `markChannelRead(B)` (不是 A)
+- 发消息 server-side `MarkChannelRead(A, user)` 跑
+- `selectChannel(B)` 触发 `markChannelRead(B)` (不是 A)
 
 切到 B 不动 A 的 last_read_at. A 的 last_read_at 由发消息那条 `MarkChannelRead` 更新. 两步独立, 不 race.
+
+下面 mermaid 时序图把"单设备 channel 切换"+ "多设备 own message"两个常见场景画在同一张图里 (liema QA review 第 5 条要的二维完整性), 把 §10 留账段提到的 last_read_at 回退 race 也画在右侧:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DA as 设备 A (user)
+    participant DB as 设备 B (同 user)
+    participant X as 用户 X (peer in A)
+    participant SV as Server
+
+    Note over DA,SV: t0: 初态 — last_read_at(user, A) = t0_baseline
+
+    X->>SV: t1.5 POST /messages (channel A) "X 的消息 m1.5"
+    SV-->>DB: ws new_message frame {sender_id: X.id, channel: A}
+    Note over DB: DB 在 channel A, 收到 m1.5<br/>scroll-to-bottom 触发<br/>markChannelRead(A) → last_read_at = t2
+
+    Note over DA,DB: t2 < t3: 设备 A 切到 channel B (没切回 A)<br/>设备 B 仍停在 channel A
+
+    DA->>SV: t3 POST /messages (channel A) "A 的 own m3"
+    Note over SV: Layer 1: handleCreateMessage 后顺手<br/>MarkChannelRead(A, user) 把 last_read_at 推到 t3<br/>(注: t3 > t2, 此时不退步)
+    SV-->>DA: HTTP 201 + ws new_message {sender_id: user.id}
+    SV-->>DB: ws new_message {sender_id: user.id, channel: A}
+    Note over DA: Layer 3: reducer 看 sender_id == user.id<br/>跳 unread bump (#682 own-message 不增 unread)
+    Note over DB: Layer 3 同样跳 (反多设备闪通知)
+
+    Note over DA: t4: DA 刷新 / 拉 GET /channels
+    DA->>SV: GET /channels?user=user
+    Note over SV: Layer 2: unread SQL 加 m.sender_id != user.id<br/>own m3 不算 unread (永真)<br/>X 的 m1.5: created_at=t1.5 vs last_read_at=t3<br/>t1.5 < t3 → 不算 unread (DA 已读)
+    SV-->>DA: channel A unread_count = 0 ✅
+
+    Note over DA,DB: 留账场景 (§10 race, 这次不修)<br/>如果 t1.5 在 [t2, t3) 之间发生:<br/>DB 读到 t2 时 m1.5 还没发 → 不在 last_read_at 覆盖里<br/>SV 在 t3 把 last_read_at 推到 t3 (不退步, 因 t3 > t2 OK)<br/>但若 SV 是 unconditional Update, 假设 DB 在 t2 后又前进到 t4_DB > t3,<br/>而 DA 在 t3 的 MarkChannelRead 把 last_read_at 退回 t3 < t4_DB →<br/>DB 视角 t3..t4_DB 之间 X 的 (别人的) 消息又算 unread.<br/>Layer 2 不兜别人消息 race. fix 方向: SQL Update 改 MAX(now, existing).
+```
+
+**总结**:
+- 同设备 channel A↔B 切换: A 的 last_read_at 由 §2.1 Layer 1 在发消息时维护, 不依赖 selectChannel; selectChannel(B) 只动 B 的 last_read_at. 单设备无 race.
+- 多设备 own message: Layer 3 client reducer 拦 own unread bump (反 UI 闪) + Layer 2 server SQL 兜底 (反刷新看见 own unread).
+- 跨设备别人消息 race: 留账见 §10, 不在本 PR 范围, fix 在新 issue 处理.
 
 ### 4.7 已删除消息
 
@@ -200,22 +238,41 @@ system message 在创建时通常没有人类 sender (用一个 system user ID).
 1. `TestSelfMessageUpdatesLastReadAt` — owner 发消息 → 立刻拉 channel 列表 → unread_count == 0
 2. `TestPeerMessageStillUnread` — 反向断言: peer 发消息对 owner 算未读 (Layer 2 没误伤别人消息)
 3. `TestOwnMessageDoesNotMarkOtherChannel` — 反过度过滤: owner 在 channel A 发消息不影响 channel B 的 unread_count (B 里 peer 发的消息仍算未读). feima Architect review 加的, 防 Layer 2 改写跨 channel 漏过滤.
+4. `TestMarkReadFailureLayer2Fallback` — Layer 1 兜底验证: 用 mock store 让 `MarkChannelRead` 返错 (Layer 1 不更新 last_read_at), 然后 owner 发消息 → 拉 channel 列表 → unread_count == 0 (Layer 2 SQL 仍过滤 own message). liema QA review 第 2 条要的 — 验证三层 in-depth 真的能独立兜底, 不是名义上分层实际耦合.
 
 ### 7.2 client 单测 (vitest)
 
 加进现有 `__tests__/AppContext.test.tsx` 或新建 `app-context-add-message.test.tsx`:
-1. 收到自己的 ws message 在 non-current channel 时不 bump unread
-2. 收到别人的 ws message 在 non-current channel 时正常 bump unread
-3. currentChannel == messageChannel 时不管谁发都不 bump (现有行为不变)
+1. 收到自己的 ws message 在 non-current channel 时不 bump unread (Layer 3 拦)
+2. 收到别人的 ws message 在 non-current channel 时正常 bump unread (反向: 防 Layer 3 误伤别人)
+3. 多设备 own message 入非当前 channel: 设备 B 当前在 channel A, 设备 A 在 channel C 发 own message, 设备 B 收到 ws frame 后 reducer 看 sender_id == currentUser.id → 跳 unread bump (channel C 在 B 的 sidebar 上不闪未读). 反过度: 设备 B 收到别人在 channel C 发的消息仍正常 bump.
+4. currentChannel == messageChannel 时不管谁发都不 bump (现有行为不变)
 
 ### 7.3 真验 (liema testing 环境)
 
-5 步复现路径:
+5 步复现路径 (跑前先做 step 0 真验前置):
+
+**Step 0 — 真验前置 (跟 liema 商定):**
+- 确认 testing-borgee.codetrek.cn 有可登录测试账号, 账号在 welcome channel 是 member (默认所有 testing 账号都是). 如果新建测试账号没 join welcome, 先手动 invite / accept.
+- 确认 testing 环境是 PR 部署的 build (检查页脚 build hash 跟当前 PR commit SHA 一致), 不是 stale 上一版.
+- 浏览器开 devtools network, 留 console 看有没有 5xx / unhandled rejection. 真有 → 直接 NACK 报回 dev.
+- 备一个第二浏览器 / incognito 登第二账号, 用于 §4.2 多设备路径真验 (可选, liema 决定要不要扩跑).
+
+**主路径 5 步:**
 1. 登录 testing-borgee.codetrek.cn
 2. 创建第二个 channel 让 welcome 失焦
 3. 在 welcome 发消息
 4. 切到第二 channel
 5. 切回 welcome — sidebar 不应再显未读提示
+
+### 7.4 e2e 自动化
+
+不在本 PR 范围, 在 followup issue **#700** 处理. 当前 PR 只跑:
+- vitest client 单测 (§7.2)
+- go test server 单测 (§7.1)
+- liema 真表单 5 步路径 (§7.3)
+
+#700 会加 playwright 走 testing 环境真 UI input/click/screenshot 自动化跑这条路径 (按 user MEMORY 铁律 `e2e_no_curl_only_ui` + `e2e_full_smoke_regression`: 真 UI 模拟才算 e2e).
 
 ## §8 Rule 6 docs/current 同步
 
@@ -238,6 +295,7 @@ rollback: revert PR. 三层独立, 每层都能单独 revert 不破其它两层.
 - 多设备 last_read_at 并发场景: 设备 A 发消息时 server `MarkChannelRead` 把 last_read_at 推到 now=t1. 同时设备 B (同 user) 也在 channel A, 设备 B 已经在 t2>t1 的位置 (通过别的方式更新过 last_read_at, 比如 scroll-to-bottom 触发 mark-read). 如果服务器没做 max(now, existing) 而是直接覆盖, 可能让设备 B 的 last_read_at 退回到 t1, 引入设备 B 已读消息又显未读. 看 `Store.MarkChannelRead` 当前实现是 unconditional `Update("last_read_at", now)`, 真有这个回退风险.
   - **Layer 2 SQL 只兜 own message** (`m.sender_id != userID`): 设备 A 发的消息不会对自己未读. 但**别人的消息** race 不兜 — 比如另一个用户 X 在 t1.5 (t1 < t1.5 < t2) 发了一条消息, 设备 B 原本读到 t2 已经标记 X 这条已读, 设备 A 一发自己消息把 last_read_at 推回 t1, 设备 B 刷新 / 拉 channel 列表时 X 的消息 created_at=t1.5 > t1 → 又算未读. 这条不在 Layer 2 防御覆盖范围内.
   - **本次修不展开**, 留账. fix 方向: `MarkChannelRead` 改成 `UPDATE ... SET last_read_at = MAX(last_read_at, ?)` (SQLite `MAX(coalesce(last_read_at, 0), ?)`) 即可, 但需要单独评估 SQL 兼容性 + 加测试. 在新 followup issue 处理.
+- **TODO #700** — e2e 自动化 spec: 用 playwright 走 testing 环境真 UI input/click/screenshot 自动化复现 §7.3 5 步路径, 加进 smoke + regression suite. 见 issue #700.
 - Security 视角: 没有引入新 auth 路径. unread 信息暴露的是用户自己 channel 的元数据, 不跨 user. 不引 IDOR.
 
 ## 4 角色 review checklist
