@@ -33,6 +33,7 @@ import {
   type AgentConfig,
   type AgentConfigBlob,
 } from '../lib/api';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 
 // 失败 toast 文案锁 — 跟 server-go agent_config.go const
 // agentConfigSaveErrorMsg byte-identical 同源 (al-2a-content-lock.md ①).
@@ -84,6 +85,19 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
       cancelled = true;
     };
   }, [agentId, onError]);
+
+  // gh#703 — sidepane 切换守卫. agent 配置 form 是 SSOT blob 整体编辑,
+  // isDirty 按 JSON.stringify draft vs config.blob 推算 (反 deep equal 引
+  // 第三方 + 反字段逐个比). 加载中或没 config 时不算 dirty (避免初始 render
+  // 误触发). saving 中也不算 dirty (用户已经点了保存等服务器, 不要再弹一次).
+  useUnsavedChangesGuard(
+    () =>
+      !loading &&
+      !saving &&
+      config !== null &&
+      JSON.stringify(draft) !== JSON.stringify(config.blob),
+    'Agent 配置有未保存改动, 离开会丢失. 确认离开吗?',
+  );
 
   async function handleSave() {
     setSaving(true);
