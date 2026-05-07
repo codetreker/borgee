@@ -627,11 +627,14 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .user-avatar-small {
   width: 28px;
   height: 28px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
@@ -652,11 +655,6 @@ body {
   border: 2px solid var(--bg-sidebar);
   border-radius: 50%;
   background: #3ba55d;
-}
-
-.user-name-small {
-  font-size: 13px;
-  font-weight: 500;
 }
 
 /* ─── Main Content ─────────────────────────────────────── */
