@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
 )
 
@@ -199,12 +198,17 @@ func TestMarkReadFailureLayer2Fallback(t *testing.T) {
 	// Owner 发消息. Layer 1 这一刻把 last_read_at 推到 now.
 	_ = testutil.PostMessage(t, ts.URL, ownerToken, generalID, "owner msg 1")
 
-	// 模拟 Layer 1 没起作用 — 把 last_read_at 强制退回 0 (NULL 不行,
-	// 因为 GORM Update 不会改 NULL ↔ value, 直接 db.Model UPDATE 是
-	// 最干净的). 退到 0 让 m.created_at > 0 永真, Layer 1 兜不住.
-	if err := s.DB().Model(&store.ChannelMember{}).
-		Where("channel_id = ? AND user_id = ?", generalID, owner.ID).
-		Update("last_read_at", 0).Error; err != nil {
+	// 模拟 Layer 1 没起作用 — 把 last_read_at 强制退回 0. 走 raw SQL Exec
+	// 而不是 GORM Model().Update(): GORM Model 那条要 import internal/store
+	// 拿 ChannelMember{} 类型, 撞 release-gate DL-1.2 sentinel (反 internal/api
+	// 直 import internal/store, 历史 baseline 锁 115 文件; 加 internal/store
+	// import 升 1 直接 fail). raw SQL 用 testutil 暴露的 *gorm.DB, 不引入
+	// store 类型依赖 — 跟 agent_config_ack_handler_test.go::s.DB().Exec(...)
+	// 一样的模式.
+	if err := s.DB().Exec(
+		"UPDATE channel_members SET last_read_at = 0 WHERE channel_id = ? AND user_id = ?",
+		generalID, owner.ID,
+	).Error; err != nil {
 		t.Fatalf("force-reset last_read_at: %v", err)
 	}
 
