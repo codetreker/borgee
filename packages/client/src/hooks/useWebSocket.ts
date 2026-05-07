@@ -29,6 +29,38 @@ const PING_INTERVAL = 25_000;
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
 const AUTH_FAILURE_CODES = new Set([4001, 4003]);
 
+/**
+ * 服务器有两种 WebSocket frame 形状, 客户端 handler 只懂"平铺"形:
+ *
+ *   1. `BroadcastEventToAll` (hub.go:284-289): `{type, data: payload}`
+ *      其中 payload 例如 `{group: {...}}` — 这种把 payload 字段嵌在
+ *      `data` 下.
+ *   2. 直接 push frame (例如 PushArtifactUpdated, 见 cursor_test.go:175):
+ *      `{type, cursor, ...fields}` — 这种 payload 字段已经平铺在顶层.
+ *
+ * handler (handleMessage 那个 switch) 全部按"平铺"读字段
+ * (data.group / data.channel / data.cursor 等). 它跟 backfill 路径
+ * `{type, ...ev.payload}` 形状一致.
+ *
+ * 这个 helper 把两种形状都展平成一种, 让 handler 不用关心 frame 是不是
+ * 走 BroadcastEventToAll 包了一层 — 拿到的永远是平铺. 这就是 #678 创建
+ * 分组白屏的根本修法 (`group_created` 走 BroadcastEventToAll, 之前没展平,
+ * handler 读 `data.group` 总是 undefined).
+ *
+ * 对外 export 让单测可以直接验合约, 不需要起整个 WebSocket mock.
+ */
+export function flattenWsFrame(frame: unknown): { type: string; [key: string]: unknown } {
+  if (!frame || typeof frame !== 'object') return { type: '' };
+  const f = frame as Record<string, unknown>;
+  const type = typeof f.type === 'string' ? f.type : '';
+  const { data: payload, ...rest } = f;
+  const flatPayload = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+  // 顺序: rest (含原 type) → flatPayload (覆盖同名 payload 字段) → type 显式
+  // 收尾确保 type 永远是 string. 如果 payload 里也带 type, 会被最后的 type
+  // 覆盖 — 这是我们想要的, type 永远从顶层来.
+  return { ...rest, ...flatPayload, type };
+}
+
 export function useWebSocket() {
   const { state, dispatch } = useAppContext();
   const { showToast } = useToast();
@@ -167,7 +199,7 @@ export function useWebSocket() {
     ws.onmessage = (event) => {
       if (!mountedRef.current) return;
       try {
-        const data = JSON.parse(event.data);
+        const frame = JSON.parse(event.data);
         // RT-1.2 cursor tracking: any frame that carries a numeric
         // `cursor` (RT-1.1 ArtifactUpdatedFrame is the first; backfill
         // events forwarded through handleMessageRef also carry one)
@@ -175,10 +207,11 @@ export function useWebSocket() {
         // is monotonic so out-of-order arrivals are a no-op. We do
         // this BEFORE the handler dispatch so reconnect-mid-handler
         // is still correct.
-        if (typeof data?.cursor === 'number') {
-          persistLastSeenCursor(data.cursor);
+        if (typeof frame?.cursor === 'number') {
+          persistLastSeenCursor(frame.cursor);
         }
-        handleMessageRef.current(data);
+        // 平铺 envelope (#680 修): 见模块顶部 flattenWsFrame 注释.
+        handleMessageRef.current(flattenWsFrame(frame));
       } catch {
         // Invalid JSON
       }
