@@ -121,11 +121,25 @@ async function openAgentConfigPanel(page: Page) {
   // mobile 路径: hamburger 可见 → 点开 sidebar (desktop 路径 hamburger DOM
   // 不渲染, count == 0, isVisible() == false, 跳过).
   const hamburger = page.locator('.hamburger-btn');
-  if (await hamburger.count() > 0 && await hamburger.isVisible()) {
+  const isMobile = await hamburger.count() > 0 && await hamburger.isVisible();
+  if (isMobile) {
     await hamburger.click();
   }
   await page.locator('[data-testid="sidebar-nav-agents"]').click();
   await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
+  // mobile sidebar 不会自动关 (Sidebar.tsx L316 onClick={onAgentsOpen} 不调
+  // onClose, 不像 channel 选择 L106-107 同时调). sidebar-overlay 遮在
+  // .main-content 上, click 任何 main-content 内元素被截获. 手动点 overlay
+  // 关 sidebar 才能 click .agent-card 内 Manage button. (跟 PR #699 mobile
+  // case 不撞这条因为它在 .artifact-empty button — Canvas tab 切换时 sidebar
+  // 走 closeAllViews 自动关, gh#698 sidebar-nav-agents 不走 closeAllViews.)
+  if (isMobile) {
+    const overlay = page.locator('.sidebar-overlay');
+    if (await overlay.count() > 0 && await overlay.isVisible()) {
+      await overlay.click();
+      await expect(overlay).toHaveCount(0);
+    }
+  }
   // Manage 展开 (展开后才会 mount AgentConfigPanel — design §1 路径).
   const manageBtn = page.locator('.agent-card button.btn-sm', { hasText: 'Manage' }).first();
   await manageBtn.click();
