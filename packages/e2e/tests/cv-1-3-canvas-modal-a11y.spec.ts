@@ -180,7 +180,20 @@ test.describe('gh#691 Canvas modal a11y + IME + mobile + 失败处理', () => {
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
     await attachToken(ctx, owner.token);
     const page = await ctx.newPage();
-    await gotoCanvasTab(page, channelName);
+
+    // Mobile viewport (<768px) sidebar 默认折叠 (App.tsx isMobile + sidebar-closed),
+    // .channel-name 不可点直到 hamburger 打开. 不用 gotoCanvasTab helper —
+    // helper 是按 desktop 路径写的, mobile 要先 click hamburger.
+    await page.goto(clientURL());
+    await expect(page.locator('.sidebar-title').or(page.locator('.hamburger-btn'))).toBeVisible({ timeout: 10_000 });
+    // mobile: 点 hamburger 打开 sidebar.
+    const hamburger = page.locator('.hamburger-btn');
+    if (await hamburger.isVisible()) {
+      await hamburger.click();
+    }
+    await page.locator('.channel-name', { hasText: channelName }).first().click();
+    await page.locator('.channel-view-tab', { hasText: 'Canvas' }).click();
+    await expect(page.locator('.artifact-panel')).toBeVisible();
 
     await page.locator('.artifact-empty button.btn-primary').click();
     const modal = page.locator('[data-testid="artifact-create-modal"]');
