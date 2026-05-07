@@ -4,7 +4,7 @@
 > 蓝图: `blueprint/current/channel-model.md` (沉默 — 视觉细节属于实施层, 蓝图不写视觉规则)
 > 产品方向: yema 已审过 (跟 Slack / Discord / Telegram 同模式)
 > Dev 主笔: zhanma-c
-> 4 签状态: ⚪ feima (架构师) / ⚪ yema (PM) / ⚪ liema (QA) / ⚪ Security — 待用户决定是否 spawn 这个角色; **不允许 yema / feima / liema 兼任 Security**, 没 spawn 就空着 (按 implementation-design skill: Security 跟 Architect 不能双角色, 必须独立)
+> 4 签状态: ✅ feima (架构师, 1 条澄清已纳入 §1 + 1 条测试建议已纳入 §6) / ✅ yema (PM, 1 条建议已纳入 §6) / ⚪ liema (QA) / ⚪ Security — 待用户决定是否 spawn 这个角色; **不允许 yema / feima / liema 兼任 Security**, 没 spawn 就空着 (按 implementation-design skill: Security 跟 Architect 不能双角色, 必须独立)
 
 ## §1 数据流
 
@@ -31,6 +31,13 @@
        → MessageItem 重渲染 → length > 0 路径
        → ➕ 按钮位置自动从工具栏切到 ReactionBar 末尾
 ```
+
+**picker 锚定** (按 feima review 澄清): ReactionAddButton 自己内联 emoji
+picker (跟现有 ReactionBar 模式一致), picker 在 DOM 上锚到自己的 ➕ 按钮
+位置 (`position: absolute; bottom: 100%`). 两个挂载点 (`.message-actions`
+工具栏里的 ➕ + ReactionBar 末尾的 ➕) 各自一个 ReactionAddButton 实例,
+各自一份 `useState(open)` + outside-click + escape 处理, picker state
+互不串扰. 不存在"两个挂载点共享一个 picker"的情况.
 
 ## §2 数据模型
 
@@ -88,9 +95,13 @@
 - `packages/client/src/components/MessageItem.tsx` — 主改文件, 加 `canAddReaction` 推算 + 调整 ReactionBar / ReactionAddButton 渲染分支
 - `packages/client/src/components/ReactionBar.tsx` — `reactions=[]` 时直接 `return null` (历史行为是 `return <div className="reaction-bar reaction-bar-empty">` 占位); pills 末尾用 `<ReactionAddButton variant="inline-pill" />` 替既有 inline `<button>`
 - `packages/client/src/components/ReactionAddButton.tsx` — **新文件**, ➕ 按钮 + emoji 选择面板 (复用 `@emoji-mart/react` + `lib/api.addReaction`)
-- `packages/client/src/index.css` — 删 `.reaction-add-hidden` 规则 (悬浮空 bar 占位用的, 不再需要); 加 `.message-action-btn.message-action-react` 让工具栏的 ➕ 字号小一点 (跟 reaction-pill 同款 11px)
+- `packages/client/src/index.css` — 删 `.reaction-add-hidden` 规则 (悬浮空 bar 占位用的, 不再需要) + 删 `.reaction-bar-empty` 规则 (按 yema review: 既然 ReactionBar 在 reactions=[] 时 `return null`, 那个修饰类也没东西匹配了, 一起清干净); 加 `.message-action-btn.message-action-react` 让工具栏的 ➕ 字号小一点 (跟 reaction-pill 同款 11px)
 - `packages/client/src/__tests__/ReactionBar.test.tsx` — **新文件**, 锁 `reactions=[] return null` + 反向断言 `.reaction-bar-empty` / `.reaction-add-hidden` 都不再出现
 - `packages/client/src/__tests__/ReactionAddButton.test.tsx` — **新文件**, 锁两种 variant 各自的 className + ➕ 文字 + title + 点击开关 picker
+- `packages/client/src/__tests__/MessageItem-reaction-toggle.test.tsx` — **新文件** (按 feima review: 需要集成测覆盖组合点, 单测两个子组件不够), 锁两路径:
+  1. `reactions=[]` → 工具栏 ➕ 出现 (toolbar-btn variant), ReactionBar 不渲染 (DOM 没 `.reaction-bar`)
+  2. `reactions=[一个]` → 工具栏 ➕ 不出 (避免重复), ReactionBar 渲染 + 末尾 ➕ (inline-pill variant)
+  > 写法: mock useAppContext 减依赖, 直接渲染 MessageItem 验 DOM
 
 复用既有不动:
 - `lib/api.addReaction / removeReaction` — 不改
