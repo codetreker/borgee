@@ -163,6 +163,8 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
           data-agent-config-field="prompt"
           value={draft.prompt ?? ''}
           onChange={e => setDraft({ ...draft, prompt: e.target.value })}
+          rows={8}
+          style={{ resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
         />
       </label>
 
