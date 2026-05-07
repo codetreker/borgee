@@ -2,15 +2,15 @@
 
 ## 团队角色映射
 
-本工程用 [blueprintflow](https://github.com/codetreker/blueprintflow) 协作 skills. 角色 ↔ blueprintflow 通用名映射:
+本工程用 [blueprintflow](https://github.com/codetreker/blueprintflow) 协作 skills. 我们自己起的代号 ↔ blueprintflow 通用名映射:
 
 | 本工程代号 | 角色 | blueprintflow 通用名 |
 |---|---|---|
-| **feima 飞马** | 架构师 + reviewer | architect |
+| **feima 飞马** | 架构师 + 代码审稿人 | architect |
 | **yema 野马** | 产品 PM | pm |
-| **liema 烈马** | QA + acceptance | qa |
+| **liema 烈马** | QA + 验收 | qa |
 | **zhanma / zhanma-c / zhanma-d 战马 (3 个)** | 开发 dev | dev |
-| **team-lead** | 协调 + merge gate | facilitator |
+| **team-lead** | 协调 + 合并把关 | facilitator |
 
 **标准配置**: 3 dev + 1 architect + 1 PM + 1 QA + 1 team-lead (总 7 人).
 
@@ -27,22 +27,22 @@
 
 skills 列表 (按职责):
 - `blueprintflow:blueprintflow-workflow` — 总流程
-- `blueprintflow:blueprintflow-brainstorm` — 立场头脑风暴
+- `blueprintflow:blueprintflow-brainstorm` — 产品方向头脑风暴
 - `blueprintflow:blueprintflow-blueprint-write` — 蓝图写作
-- `blueprintflow:blueprintflow-phase-plan` — Phase 规划
-- `blueprintflow:blueprintflow-phase-exit-gate` — Phase 退出闸
-- `blueprintflow:blueprintflow-milestone-fourpiece` — milestone 4 件套
-- `blueprintflow:blueprintflow-pr-review-flow` — PR review + merge 流程
-- `blueprintflow:blueprintflow-git-workflow` — git workflow (worktree / branch / PR)
+- `blueprintflow:blueprintflow-phase-plan` — Phase (一段开发周期) 规划
+- `blueprintflow:blueprintflow-phase-exit-gate` — Phase 收尾把关
+- `blueprintflow:blueprintflow-milestone-fourpiece` — milestone 4 件套 (开工前 4 份基础文档)
+- `blueprintflow:blueprintflow-pr-review-flow` — PR 审稿 + 合并流程
+- `blueprintflow:blueprintflow-git-workflow` — git 工作流 (worktree / branch / PR)
 - `blueprintflow:blueprintflow-team-roles` — 团队角色定位
-- `blueprintflow:blueprintflow-teamlead-fast-cron-checkin` — Teamlead 快节奏巡检 (15 min)
-- `blueprintflow:blueprintflow-teamlead-slow-cron-checkin` — Teamlead 慢节奏 audit (2 h)
+- `blueprintflow:blueprintflow-teamlead-fast-cron-checkin` — Teamlead 快节奏定时检查 (每 15 分钟)
+- `blueprintflow:blueprintflow-teamlead-slow-cron-checkin` — Teamlead 慢节奏审查 (每 2 小时)
 
 ## 跑 test 必须加 timeout
 
-血账: 战马 e 跑 test 卡 40 分钟无响应, 拖死整个 milestone 推进.
+历史教训: 战马 e 跑 test 卡 40 分钟没响应, 拖死整个 milestone 推进.
 
-**硬规**: 任何 `go test` / `npm test` / `pnpm test` / `playwright test` / `vitest` 调用 **必须**加 timeout, 不留无界 hang 路径.
+**硬性规定**: 任何 `go test` / `npm test` / `pnpm test` / `playwright test` / `vitest` 调用 **必须**加 timeout, 不留卡住的路径.
 
 ```bash
 # Go
@@ -56,22 +56,22 @@ pnpm exec playwright test --timeout=30000
 pnpm vitest run --testTimeout=10000
 ```
 
-**Bash 工具调用**也必须设 `timeout` 参数 (max 600000ms = 10min):
+**Bash 工具调用**也必须设 `timeout` 参数 (最长 600000ms = 10min):
 - 单个 test 包: 2-3 min
 - 全套 test: 5-10 min
 - **绝不无 timeout 跑 test**, 卡住 = 整个 agent 浪费
 
 如 test 真需要 >10min, 用 `run_in_background: true` 提交后做别的, 不阻塞主线.
 
-## changelog-slim 立场 (反 docs 重复)
+## 文档不要写重复内容 (跟 PR / git log 已有的不再抄一遍)
 
-血账: spec brief §5+/§6/§7 派活+自审+更新日志段, phase-N.md narrative 段, closure 各段 narrative — 都是 PR body / git log / git blame 单源真值复制, 没新信息, 还撞 docs 冲突主因 (blueprintflow PR #22 同立场).
+历史教训: spec brief (需求摘要文档) 第 §5 段往后, 第 §6 段, 第 §7 段塞分配任务、自检、更新日志这类内容; phase-N.md (一段开发周期的总文件) 写大段叙述; closure doc (milestone 收尾文档) 各段也是叙述 — 这些信息已经在 PR body、git log、git blame 里有原始记录了, 抄一遍既没新信息, 还成了文档冲突的主要原因 (blueprintflow PR #22 已经为同一件事立过同样的规矩).
 
-**硬规**:
+**必须遵守的规则**:
 
-- **spec brief 仅 §0-§4** (关键约束 / 拆段 / 留账 / 反查 grep / 不在范围), 不写 §5+ 派活/自审/更新日志段 — 信息走 SendMessage / Task / PR review / git log
-- **phase-N.md 不写 narrative changelog** (PR# + 一行 milestone 翻牌行已够; 详情走 PR body + git log + git blame)
-- **closure doc 不重述 PR narrative** (单源走 PR body / git log; closure 仅留真值表 + 反向 grep + 三联签结论)
-- **regression-registry 行只锚 spec / 验证 / Owner / PR / 状态** (反 narrative 字面塞)
+- **spec brief 只写 §0-§4 段**: 关键约束 / 拆段安排 / 已知没做完的留着记 / 反向 grep 检查 / 不在范围内. 不写 §5+ 的分配任务、自检、更新日志段 — 这些信息走 SendMessage / Task / PR 审稿 / git log.
+- **phase-N.md 不写大段叙述更新日志**: 把 PR 编号 + 一行 milestone 完成打勾就够了; 详情去看 PR body + git log + git blame.
+- **closure doc 不重抄 PR 描述**: 详情的原始记录就在 PR body / git log 一处; closure 只留事实清单 + 反向 grep 检查 + 三个角色都签字通过 (PM 产品 + Architect 架构 + QA 验收) 的结论.
+- **regression-registry (回归项总账) 每行只填关键字段**: 对应到哪条规格 / 怎么验证 / 负责人 / PR / 状态. 不要塞大段叙述.
 
-立场承袭"一次做干净不留尾"用户铁律 + blueprintflow PR #22 changelog 反模式禁.
+这条规矩跟用户拍的「一次做干净不留尾」原则走, 也跟 blueprintflow PR #22 把"重复写文档"列为不该这么做的写法的决定一致.
