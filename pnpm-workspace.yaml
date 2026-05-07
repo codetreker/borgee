@@ -1,3 +1,12 @@
 packages:
   - "packages/*"
   - "packages/plugins/*"
+
+# gh#683 PR #694 修: pnpm 10+ 用 --filter <pkg> 安装时不一定读 root
+# package.json 的 pnpm.onlyBuiltDependencies, 改放到 pnpm-workspace.yaml
+# 是 pnpm 10+ 推荐位置 (跟 root package.json 同字段 belt-and-suspenders
+# 双保险, 任一被读到就行). esbuild 是合法 native binary 安装包, 必须
+# 允许跑 install script 把对应平台的二进制解出来, 否则 vite build 在
+# linux/amd64 docker 镜像里 import esbuild 跑不起来.
+onlyBuiltDependencies:
+  - esbuild

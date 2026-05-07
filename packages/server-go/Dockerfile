@@ -3,7 +3,11 @@
 
 FROM node:22-bookworm AS client-builder
 WORKDIR /src
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# pnpm 版本锁到 @10, 跟 .github/workflows/ci.yml + deploy.yml 用的
+# pnpm/action-setup@v4 version: 10 一致. 不用 @latest 浮动 — pnpm 升级到
+# 新版本后 onlyBuiltDependencies 处理变了, 跟 CI 不一致会撞 build script
+# ERR_PNPM_IGNORED_BUILDS (gh#683 PR #694 testing 部署事故).
+RUN corepack enable && corepack prepare pnpm@10 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/client/package.json packages/client/
 RUN pnpm install --frozen-lockfile --filter @borgee/client

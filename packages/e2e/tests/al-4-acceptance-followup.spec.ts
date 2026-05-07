@@ -185,6 +185,37 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     expect(await stopBtnDisabled.count()).toBe(0);
   });
 
+  // gh#683 回归 — Agents 页面默认宽度. 历史问题: `.agent-page` 是
+  // flex-column 父项的子项, 没设 width: 100%, 默认只占内容自然宽 (334px),
+  // 点 Manage 展开后跳到 max-width 800px → 视觉闪烁. 修法: width: 100%.
+  // 在 1280 viewport 下断言空状态 (没 agent) 的 .agent-page 实际占用就
+  // 接近 max-width 800px, 不再缩到 334px.
+  test('gh#683 — Agents 页面默认占满 max-width 800px (1280 viewport, 空状态不再缩到内容宽度)', async ({ page, baseURL }) => {
+    const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
+    const adminCtx = await adminLogin(serverURL);
+    const inviteCode = await mintInvite(adminCtx, 'gh-683-width');
+    const owner = await registerUser(serverURL, inviteCode, 'gh683-width');
+    await attachToken(page.context(), baseURL!, owner.token);
+
+    // 锁定 1280 viewport, 跟 liema 复现条件一致.
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    await page.goto('/');
+    await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
+    await page.locator('[data-testid="sidebar-nav-agents"]').click();
+    await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
+
+    // 真 DOM bounding rect 测宽度 (空状态: 没 agent, 没 manage 展开).
+    const widthEmpty = await page.locator('.agent-page').evaluate((el) => el.getBoundingClientRect().width);
+
+    // gh#683 修复前默认只占 334px. 修复后应该接近 max-width 800px
+    // (允许少量 padding/scrollbar 浮动). 断言 ≥ 700px 留余地, 但远超
+    // 修复前的 334px, 一旦回归到 cross-axis auto-shrink 行为这个断言
+    // 会立刻失败.
+    expect(widthEmpty, `gh#683 回归: .agent-page 默认宽度应接近 800px, 实际 ${widthEmpty}px (修复前 334px)`).toBeGreaterThanOrEqual(700);
+    expect(widthEmpty, `.agent-page max-width 仍应是 800px 上限`).toBeLessThanOrEqual(820);
+  });
+
   test('G2.7 demo screenshot — AL-4 admin runtime list 主路径 (agent settings page 全景)', async ({ page, baseURL }) => {
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
