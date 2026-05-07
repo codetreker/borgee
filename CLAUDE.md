@@ -30,19 +30,19 @@ skills 列表 (按职责):
 - `blueprintflow:blueprintflow-brainstorm` — 产品方向头脑风暴
 - `blueprintflow:blueprintflow-blueprint-write` — 蓝图写作
 - `blueprintflow:blueprintflow-phase-plan` — Phase (一段开发周期) 规划
-- `blueprintflow:blueprintflow-phase-exit-gate` — Phase 退出闸
+- `blueprintflow:blueprintflow-phase-exit-gate` — Phase 收尾把关
 - `blueprintflow:blueprintflow-milestone-fourpiece` — milestone 4 件套 (开工前 4 份基础文档)
 - `blueprintflow:blueprintflow-pr-review-flow` — PR 审稿 + 合并流程
 - `blueprintflow:blueprintflow-git-workflow` — git 工作流 (worktree / branch / PR)
 - `blueprintflow:blueprintflow-team-roles` — 团队角色定位
-- `blueprintflow:blueprintflow-teamlead-fast-cron-checkin` — Teamlead 快节奏巡检 (15 min)
-- `blueprintflow:blueprintflow-teamlead-slow-cron-checkin` — Teamlead 慢节奏审查 (2 h)
+- `blueprintflow:blueprintflow-teamlead-fast-cron-checkin` — Teamlead 快节奏定时检查 (每 15 分钟)
+- `blueprintflow:blueprintflow-teamlead-slow-cron-checkin` — Teamlead 慢节奏审查 (每 2 小时)
 
 ## 跑 test 必须加 timeout
 
 历史教训: 战马 e 跑 test 卡 40 分钟没响应, 拖死整个 milestone 推进.
 
-**硬性规定**: 任何 `go test` / `npm test` / `pnpm test` / `playwright test` / `vitest` 调用 **必须**加 timeout, 不留没上界的 hang 路径.
+**硬性规定**: 任何 `go test` / `npm test` / `pnpm test` / `playwright test` / `vitest` 调用 **必须**加 timeout, 不留卡住的路径.
 
 ```bash
 # Go
@@ -65,7 +65,7 @@ pnpm vitest run --testTimeout=10000
 
 ## 文档不要写重复内容 (跟 PR / git log 已有的不再抄一遍)
 
-历史教训: spec brief (需求摘要文档) 第 §5 段往后, 第 §6 段, 第 §7 段塞分配任务、自检、更新日志这类内容; phase-N.md (一段开发周期的总文件) 写大段叙述; closure doc (milestone 收尾文档) 各段也是叙述 — 这些信息已经在 PR body、git log、git blame 里有原始记录了, 抄一遍既没新信息, 还成了 docs 冲突的主要原因 (blueprintflow PR #22 已经为同一件事立过同样的规矩).
+历史教训: spec brief (需求摘要文档) 第 §5 段往后, 第 §6 段, 第 §7 段塞分配任务、自检、更新日志这类内容; phase-N.md (一段开发周期的总文件) 写大段叙述; closure doc (milestone 收尾文档) 各段也是叙述 — 这些信息已经在 PR body、git log、git blame 里有原始记录了, 抄一遍既没新信息, 还成了文档冲突的主要原因 (blueprintflow PR #22 已经为同一件事立过同样的规矩).
 
 **必须遵守的规则**:
 
