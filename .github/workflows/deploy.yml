@@ -71,20 +71,9 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee-staging
-            # no-hardcoded-domain (#644): inline override 注 CORS_ORIGIN env
-            # (跟 deploy-test.yml inline compose 同模式; 反靠 host compose 不
-            # 可控). config.go::Validate 在 production 路径 panic-fast on
-            # missing CORS_ORIGIN, 此 override 真挂避免合后启动 panic 死.
-            cat > docker-compose.override.yml << 'COMPEOF'
-            services:
-              borgee-staging:
-                environment:
-                  - CORS_ORIGIN=https://staging-borgee.codetrek.cn
-                  # admin bootstrap (auth.go::BootstrapWith 必填,
-                  # 缺则启动时 panic). 密码走 secret 不入仓库.
-                  - BORGEE_ADMIN_LOGIN=admin
-                  - BORGEE_ADMIN_PASSWORD=${{ secrets.BORGEE_ADMIN_PASSWORD_STAGING }}
-            COMPEOF
+            # 服务器上 docker-compose.yml + .env 由人工管, yaml 不再写
+            # docker-compose.override.yml. 环境变量 (CORS_ORIGIN /
+            # BORGEE_ADMIN_* / JWT_SECRET 等) 都在 .env 里.
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
@@ -119,26 +108,15 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee
-            # no-hardcoded-domain (#644): inline override 注 CORS_ORIGIN env
-            # (跟 deploy-test.yml + staging 同模式). config.go::Validate 在
-            # production 路径 panic-fast on missing CORS_ORIGIN, 此 override
-            # 真挂避免合后启动 panic 死.
-            cat > docker-compose.override.yml << 'COMPEOF'
-            services:
-              borgee-prod:
-                environment:
-                  - CORS_ORIGIN=https://borgee.codetrek.cn
-                  # admin bootstrap (auth.go::BootstrapWith 必填,
-                  # 缺则启动时 panic). 密码走 secret 不入仓库.
-                  - BORGEE_ADMIN_LOGIN=admin
-                  - BORGEE_ADMIN_PASSWORD=${{ secrets.BORGEE_ADMIN_PASSWORD_PROD }}
-            COMPEOF
+            # 服务器上 docker-compose.yml + .env 由人工管, yaml 不再写
+            # docker-compose.override.yml. 环境变量 (CORS_ORIGIN /
+            # BORGEE_ADMIN_* / JWT_SECRET 等) 都在 .env 里.
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
             curl -sf http://localhost:4900/ > /dev/null && echo "✅ Production healthy" || (echo "❌ Production unhealthy" && exit 1)
             # Verify container is fresh (uptime < 60s)
-            UPTIME=$(docker inspect --format '{{.State.StartedAt}}' borgee-prod 2>/dev/null || echo "")
+            UPTIME=$(docker inspect --format '{{.State.StartedAt}}' borgee 2>/dev/null || echo "")
             if [ -n "$UPTIME" ]; then echo "Container started at: $UPTIME"; fi
             docker image prune -f
 
