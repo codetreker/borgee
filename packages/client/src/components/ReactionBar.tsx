@@ -1,7 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import Picker from '@emoji-mart/react';
-import emojiData from '@emoji-mart/data';
+// ReactionBar — 消息下方一排 reaction 药丸 + 末尾添加按钮.
+//
+// design 锚: docs/implementation/design/686-message-spacing-reaction-position.md
+// - §4 没 reaction 时直接 return null 不渲染容器 (反 .reaction-bar-empty
+//   占位撑容器 ~40px 这条 bug)
+// - §1 picker 锚定: 末尾的 ➕ 由 <ReactionAddButton variant="inline-pill" />
+//   统一管, picker state 跟 .message-actions 工具栏的 ReactionAddButton
+//   实例各自独立, 不串扰
+import React from 'react';
 import * as api from '../lib/api';
+import ReactionAddButton from './ReactionAddButton';
 
 interface Reaction {
   emoji: string;
@@ -11,27 +18,13 @@ interface Reaction {
 
 interface Props {
   reactions: Reaction[];
+  channelId: string;
   messageId: string;
   currentUserId?: string;
   userMap: Map<string, string>;
 }
 
-export default function ReactionBar({ reactions, messageId, currentUserId, userMap }: Props) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const addBtnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (pickerRef.current?.contains(e.target as Node)) return;
-      if (addBtnRef.current?.contains(e.target as Node)) return;
-      setPickerOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [pickerOpen]);
-
+export default function ReactionBar({ reactions, channelId, messageId, currentUserId, userMap }: Props) {
   const handleToggle = async (emoji: string) => {
     const reaction = reactions.find(r => r.emoji === emoji);
     const hasReacted = reaction?.user_ids.includes(currentUserId ?? '');
@@ -42,33 +35,14 @@ export default function ReactionBar({ reactions, messageId, currentUserId, userM
         await api.addReaction(messageId, emoji);
       }
     } catch {
-      // ignore
+      // ignore — server 端会推 UPDATE_REACTIONS 走 WS, client 自正
     }
   };
 
-  const handlePickerSelect = async (emoji: { native: string }) => {
-    setPickerOpen(false);
-    try {
-      await api.addReaction(messageId, emoji.native);
-    } catch {
-      // ignore
-    }
-  };
-
-  if (reactions.length === 0 && !pickerOpen) {
-    return (
-      <div className="reaction-bar reaction-bar-empty">
-        <button
-          ref={addBtnRef}
-          className="reaction-pill reaction-add reaction-add-hidden"
-          onClick={() => setPickerOpen(v => !v)}
-          title="添加表情"
-        >
-          ➕
-        </button>
-      </div>
-    );
-  }
+  // gh#686 §4: 没 reaction 时直接不渲染容器, 不再用 .reaction-bar-empty
+  // 占位撑出 ~40px. 添加表情的 ➕ 改放到 .message-actions 浮起工具栏 (跟
+  // edit/delete 一组), 见 MessageItem 渲染分支.
+  if (reactions.length === 0) return null;
 
   return (
     <div className="reaction-bar">
@@ -78,6 +52,7 @@ export default function ReactionBar({ reactions, messageId, currentUserId, userM
         return (
           <button
             key={r.emoji}
+            type="button"
             className={`reaction-pill ${isActive ? 'reaction-active' : ''}`}
             onClick={() => handleToggle(r.emoji)}
             title={names}
@@ -86,23 +61,13 @@ export default function ReactionBar({ reactions, messageId, currentUserId, userM
           </button>
         );
       })}
-      <button
-        ref={addBtnRef}
-        className="reaction-pill reaction-add"
-        onClick={() => setPickerOpen(v => !v)}
-        title="添加表情"
-      >
-        ➕
-      </button>
-      {pickerOpen && (
-        <div className="reaction-picker-popover" ref={pickerRef}>
-          <Picker
-            data={emojiData}
-            onEmojiSelect={handlePickerSelect}
-            locale="zh"
-            previewPosition="none"
-          />
-        </div>
+      {currentUserId && (
+        <ReactionAddButton
+          channelId={channelId}
+          messageId={messageId}
+          currentUserId={currentUserId}
+          variant="inline-pill"
+        />
       )}
     </div>
   );
