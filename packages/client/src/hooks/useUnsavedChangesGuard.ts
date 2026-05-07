@@ -25,7 +25,7 @@
 // - registerUnsavedGuard / runUnsavedGuards 都 export 让单测可以直接验,
 //   不用搞 React Testing Library 的全 App 渲染.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 type Guard = {
   isDirty: () => boolean;
@@ -80,16 +80,32 @@ export function _clearUnsavedGuardsForTest(): void {
 /**
  * React hook: 在组件 mount 期间注册一个 dirty 守卫, unmount 自动清理.
  *
- * isDirty 是 stable 引用 (用 useCallback) 还是每次 render 新建都行 — guard
- * 注册一次后存的是当前的 isDirty 函数引用; 如果想运行时更新条件, 请通过
- * isDirty 内部读 ref 或 state.
+ * # useRef 包 isDirty 反 React closure staleness (#695 feima review 抓的)
  *
- * 用 useEffect 只在 mount/unmount 触发; 我们不重新注册以避免抖动.
+ * 调用方常这么写 (AgentManager.tsx 就是):
+ *
+ *   useUnsavedChangesGuard(
+ *     () => createdKey === null && (displayName.trim() !== '' || agentId.trim() !== ''),
+ *     '...'
+ *   );
+ *
+ * 这个箭头函数闭包绑定的是 mount 那一刻的 displayName / agentId / createdKey
+ * (都是空 / null). 之前的实现把这个闭包直接存进 module-level Set, 后来用户
+ * 填表单 React 重新 render 但 hook 里的 isDirty 没变 — Set 里那条永远拿
+ * 旧闭包跑, 永远返 false. 守卫对外看着注册了, 实际不工作.
+ *
+ * 修法: 用 useRef 装一个 *引用*, 每次 render 把最新的 isDirty 写进
+ * `isDirtyRef.current`, useEffect 只在 mount 时把"调 ref" 注册进 Set.
+ * 这样 Set 里那条永远调当前 render 的 isDirty, 拿到当前 React state.
+ *
+ * deps 改成 `[message]` 而不是 `[]` — message 改了重新注册让 Set 里存的
+ * message 跟显示的同步; isDirty 的 staleness 由 ref 解决, 不用进 deps.
  */
 export function useUnsavedChangesGuard(isDirty: () => boolean, message?: string): void {
+  const isDirtyRef = useRef(isDirty);
+  isDirtyRef.current = isDirty;
   useEffect(() => {
-    const unregister = registerUnsavedGuard(isDirty, message);
+    const unregister = registerUnsavedGuard(() => isDirtyRef.current(), message);
     return unregister;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [message]);
 }
