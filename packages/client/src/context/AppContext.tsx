@@ -151,28 +151,35 @@ function reducer(state: AppState, action: Action): AppState {
       if (existing.some(m => m.id === action.message.id)) return state;
       msgs.set(action.channelId, [...existing, action.message]);
 
+      // #687 Layer 3 — own message 在 non-current channel 不 bump unread.
+      // 多设备场景: 设备 A 发消息, 设备 B (同 user) 收到 ws frame, 如果 B
+      // 当前不在该 channel, reducer 不能把 own message 算成未读 (UX flicker).
+      // currentUser 可能 null (auth 未完成); optional chain 让对比走 undefined !==
+      // sender_id, isOwnMessage = false → 走原行为. 不引入新 crash 路径.
+      const isOwnMessage = !!state.currentUser && action.message.sender_id === state.currentUser.id;
+
       // Update channel last_message_at and bump unread if not current channel
       const channels = state.channels.map(c => {
         if (c.id !== action.channelId) return c;
         return { ...c, last_message_at: action.message.created_at };
       });
 
-      // Increment unread for non-current channel
+      // Increment unread for non-current channel (Layer 3: skip own).
       const updatedChannels = channels.map(c => {
-        if (c.id === action.channelId && c.id !== state.currentChannelId) {
+        if (c.id === action.channelId && c.id !== state.currentChannelId && !isOwnMessage) {
           return { ...c, unread_count: (c.unread_count ?? 0) + 1 };
         }
         return c;
       });
 
-      // Update DM channels too
+      // Update DM channels too (Layer 3: skip own).
       const dmChannels = state.dmChannels.map(dm => {
         if (dm.id !== action.channelId) return dm;
         const updated = {
           ...dm,
           last_message: { content: action.message.content, created_at: action.message.created_at },
         };
-        if (dm.id !== state.currentChannelId) {
+        if (dm.id !== state.currentChannelId && !isOwnMessage) {
           updated.unread_count = (dm.unread_count ?? 0) + 1;
         }
         return updated;
@@ -449,6 +456,14 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+
+// __test_reducer + __test_initialState — 测试专用 export. AppProvider 里
+// `useReducer(reducer, initialState)` 走非 export 的 closure; 测试 (例如
+// #687 ADD_MESSAGE 三层防御 client 单测) 想直接调 reducer 不起整个 React
+// 树, 走这两个 export. 反约束: production import 这俩等于绕 AppProvider
+// 控制流, 不允许 — 文件名 `_test_*` 是 lint hint.
+export const __test_reducer = reducer;
+export const __test_initialState = initialState;
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
