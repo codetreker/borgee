@@ -153,11 +153,13 @@ test.describe('gh#691 Canvas modal a11y + IME + mobile + 失败处理', () => {
     const createModal = page.locator('[data-testid="artifact-create-modal"]');
     await expect(createModal).toBeVisible();
 
-    const role = await createModal.locator('.modal-content').getAttribute('role');
+    // data-testid 已经放在 .modal-content 元素上 (ArtifactPanel.tsx
+    // L772-777 同一元素), 不再 .locator('.modal-content') 在自身找.
+    const role = await createModal.getAttribute('role');
     expect(role).toBe('dialog');
-    const ariaModal = await createModal.locator('.modal-content').getAttribute('aria-modal');
+    const ariaModal = await createModal.getAttribute('aria-modal');
     expect(ariaModal).toBe('true');
-    const ariaLabelledBy = await createModal.locator('.modal-content').getAttribute('aria-labelledby');
+    const ariaLabelledBy = await createModal.getAttribute('aria-labelledby');
     expect(ariaLabelledBy).toBe('artifact-create-modal-title');
     // h3 同 id.
     await expect(createModal.locator('#artifact-create-modal-title')).toHaveText('新建 Markdown artifact');
@@ -185,7 +187,8 @@ test.describe('gh#691 Canvas modal a11y + IME + mobile + 失败处理', () => {
     await expect(modal).toBeVisible();
 
     // modal-content 实际宽度应 ≤ 90vw (375 * 0.9 = 337.5px).
-    const width = await modal.locator('.modal-content').evaluate((el) =>
+    // data-testid="artifact-create-modal" 直接放在 .modal-content 元素上.
+    const width = await modal.evaluate((el) =>
       el.getBoundingClientRect().width,
     );
     expect(width, `mobile modal width ${width}px should be ≤ 337.5px (90vw of 375)`).toBeLessThanOrEqual(338);
