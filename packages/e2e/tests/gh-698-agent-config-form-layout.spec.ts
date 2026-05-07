@@ -127,23 +127,24 @@ async function openAgentConfigPanel(page: Page) {
   }
   await page.locator('[data-testid="sidebar-nav-agents"]').click();
   await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
-  // mobile sidebar 不会自动关 (Sidebar.tsx L316 onClick={onAgentsOpen} 不调
-  // onClose, 不像 channel 选择 L106-107 同时调). sidebar-overlay 遮在
-  // .main-content 上, click 任何 main-content 内元素被截获. 手动点 overlay
-  // 关 sidebar 才能 click .agent-card 内 Manage button. (跟 PR #699 mobile
-  // case 不撞这条因为它在 .artifact-empty button — Canvas tab 切换时 sidebar
-  // 走 closeAllViews 自动关, gh#698 sidebar-nav-agents 不走 closeAllViews.)
-  //
-  // gh#698 e2e v4: overlay.click() 没 force 时被 .channel-list 拦 pointer
-  // event (即便 overlay 在 DOM 上 visible). 加 { force: true } 跳 hit-testing
-  // 直接派 click 到 overlay 元素本身. 用户真路径也是点 overlay 区域
-  // (overlay 整 .main-content 几乎全屏), force 模拟没失真.
+  // gh#698 e2e v6: 本地 reproduce 真因. mobile sidebar-overlay (z 199, inset 0)
+  // 全屏遮 .main-content, Manage button 在 overlay 之下不可点. v3-v5 反复试
+  // overlay click / force click 都有坑 (overlay 被 sidebar 遮 / React onClick
+  // 不 fire / force click manageBtn 跳 React handler). v6 直接走 page.evaluate
+  // 找 React fiber 上的 click handler — 不靠 Playwright hit-testing 也不靠 raw
+  // mouse event. mobile 路径用 evaluate, desktop 路径走原生 click.
   if (isMobile) {
-    const overlay = page.locator('.sidebar-overlay');
-    if (await overlay.count() > 0) {
-      await overlay.click({ force: true });
-      await expect(overlay).toHaveCount(0);
-    }
+    // 找 sidebar-overlay 元素直接调 onClick (closeSidebar) 关 sidebar.
+    // overlay 是 React-rendered <div onClick={closeSidebar}>, 找元素上的
+    // React props 触发 onClick. 简化: 直接 evaluate dispatch 一个 React 能
+    // 接的 click event (bubbles + cancelable + 走 React event delegation).
+    await page.evaluate(() => {
+      const overlay = document.querySelector('.sidebar-overlay') as HTMLElement | null;
+      if (overlay) {
+        overlay.click();  // native click 走 React event delegation, 触发 closeSidebar
+      }
+    });
+    await expect(page.locator('.sidebar-overlay')).toHaveCount(0, { timeout: 5_000 });
   }
   // Manage 展开 (展开后才会 mount AgentConfigPanel — design §1 路径).
   const manageBtn = page.locator('.agent-card button.btn-sm', { hasText: 'Manage' }).first();
