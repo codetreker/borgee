@@ -134,10 +134,16 @@ async function gotoCanvasTab(page: Page, channelName: string) {
 /**
  * Drive the empty-state create button on the owner's UI. Returns the
  * artifact id captured from the POST /channels/{id}/artifacts response.
+ *
+ * gh#691: 创建路径从 window.prompt (浏览器原生 dialog) 改成应用内 modal.
+ * 守卫 pattern (liema review): 标志位 + 末尾断言, 不用 listener throw
+ * (listener 内 throw 是异步 unhandled rejection, 不 fail 当前 step).
  */
 async function createArtifactViaUI(page: Page, title: string): Promise<string> {
-  page.once('dialog', async (d) => {
-    await d.accept(title);
+  let nativeDialogTriggered = false;
+  page.on('dialog', async (d) => {
+    nativeDialogTriggered = true;
+    await d.dismiss();
   });
   const respPromise = page.waitForResponse(
     (r) =>
@@ -148,9 +154,14 @@ async function createArtifactViaUI(page: Page, title: string): Promise<string> {
       !r.url().includes('/versions'),
   );
   await page.locator('.artifact-empty button.btn-primary').click();
+  const modal = page.locator('[data-testid="artifact-create-modal"]');
+  await expect(modal).toBeVisible({ timeout: 3_000 });
+  await modal.locator('input.input-field').fill(title);
+  await modal.locator('button[type="submit"]').click();
   const resp = await respPromise;
   const j = (await resp.json()) as { id: string };
   await expect(page.locator('.artifact-version-tag')).toHaveText('v1', { timeout: 5_000 });
+  expect(nativeDialogTriggered, 'gh#691 回归: 触发了浏览器原生 dialog').toBe(false);
   return j.id;
 }
 
@@ -210,14 +221,17 @@ test.describe('CV-1.3 client Canvas tab — acceptance §3.1-§3.3', () => {
 
     // §3.2 byte-identical rollback row label: trigger rollback to v1, expect
     // v3 row label = "v3 (rollback from v1)".
-    ownerPage.once('dialog', async (d) => {
-      await d.accept();
-    });
+    // gh#691: rollback 之前用 window.confirm, 改成应用内 modal. 这里点
+    // rollback 按钮 → 应用内确认 modal 出来 → 点 "确认回滚" 按钮.
     await ownerPage
       .locator('.artifact-version-row')
       .filter({ has: ownerPage.locator('.artifact-version-label', { hasText: /^v1$/ }) })
       .locator('.artifact-rollback-btn')
       .click();
+    const rollbackModal = ownerPage.locator('[data-testid="artifact-rollback-confirm-modal"]');
+    await expect(rollbackModal).toBeVisible({ timeout: 3_000 });
+    await expect(rollbackModal).toContainText('确认回滚到 v1?');
+    await rollbackModal.locator('button.btn-danger', { hasText: '确认回滚' }).click();
     await expect(ownerPage.locator('.artifact-version-tag')).toHaveText('v3', { timeout: 5_000 });
     const v3Row = ownerPage
       .locator('.artifact-version-row')

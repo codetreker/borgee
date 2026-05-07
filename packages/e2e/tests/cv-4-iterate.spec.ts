@@ -135,10 +135,17 @@ async function gotoCanvas(page: Page, channelName: string): Promise<void> {
   await expect(page.locator('.artifact-panel')).toBeVisible();
 }
 
-/** Drive the empty-state create button — UI path 默认 type='markdown'. */
+/** Drive the empty-state create button — UI path 默认 type='markdown'.
+ *
+ * gh#691: 创建路径从 window.prompt (浏览器原生 dialog) 改成应用内 modal.
+ * 守卫 pattern (liema review): 标志位 + 末尾断言, 不用 listener throw
+ * (listener 内 throw 是异步 unhandled rejection, 不 fail 当前 step).
+ */
 async function createArtifactViaUI(page: Page, title: string): Promise<string> {
-  page.once('dialog', async (d) => {
-    await d.accept(title);
+  let nativeDialogTriggered = false;
+  page.on('dialog', async (d) => {
+    nativeDialogTriggered = true;
+    await d.dismiss();
   });
   const respPromise = page.waitForResponse(
     (r) =>
@@ -149,9 +156,14 @@ async function createArtifactViaUI(page: Page, title: string): Promise<string> {
       !r.url().includes('/versions'),
   );
   await page.locator('.artifact-empty button.btn-primary').click();
+  const modal = page.locator('[data-testid="artifact-create-modal"]');
+  await expect(modal).toBeVisible({ timeout: 3_000 });
+  await modal.locator('input.input-field').fill(title);
+  await modal.locator('button[type="submit"]').click();
   const resp = await respPromise;
   const j = (await resp.json()) as { id: string };
   await expect(page.locator('.artifact-version-tag')).toHaveText('v1', { timeout: 5_000 });
+  expect(nativeDialogTriggered, 'gh#691 回归: 触发了浏览器原生 dialog').toBe(false);
   return j.id;
 }
 

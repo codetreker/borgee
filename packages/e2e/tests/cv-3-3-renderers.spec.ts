@@ -127,8 +127,11 @@ async function gotoCanvasTab(page: Page, channelName: string): Promise<void> {
  * code block 触发 markdown 内嵌代码渲染.
  */
 async function createArtifactViaUI(page: Page, title: string): Promise<string> {
-  page.once('dialog', async (d) => {
-    await d.accept(title);
+  // gh#691: 创建路径改为应用内 modal. 守卫: 标志位 + 末尾断言.
+  let nativeDialogTriggered = false;
+  page.on('dialog', async (d) => {
+    nativeDialogTriggered = true;
+    await d.dismiss();
   });
   const respPromise = page.waitForResponse(
     (r) =>
@@ -139,9 +142,14 @@ async function createArtifactViaUI(page: Page, title: string): Promise<string> {
       !r.url().includes('/versions'),
   );
   await page.locator('.artifact-empty button.btn-primary').click();
+  const modal = page.locator('[data-testid="artifact-create-modal"]');
+  await expect(modal).toBeVisible({ timeout: 3_000 });
+  await modal.locator('input.input-field').fill(title);
+  await modal.locator('button[type="submit"]').click();
   const resp = await respPromise;
   const j = (await resp.json()) as { id: string };
   await expect(page.locator('.artifact-version-tag')).toHaveText('v1', { timeout: 5_000 });
+  expect(nativeDialogTriggered, 'gh#691 回归: 触发了浏览器原生 dialog').toBe(false);
   return j.id;
 }
 
