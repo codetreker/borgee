@@ -24,7 +24,8 @@
 //   - 不用 client timestamp 排序 (列表按 version asc, RT-1 ① 反约束)
 //   - rollback 不是 PATCH body 字段 (调 rollbackArtifact action endpoint)
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent, MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useToast } from './Toast';
 import { useArtifactUpdated, useAnchorCommentAdded } from '../hooks/useWsHubFrames';
@@ -62,6 +63,26 @@ const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 // 字面表 ① ("评论此段"). 不准 "Comment" / "添加评论" / "回复" / "讨论".
 const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 
+// gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
+// byte-identical, 改这些 = 改 design + 反向 grep 检查 e2e 真验报告).
+//   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
+//   ARTIFACT_CREATE_FAIL_PREFIX — 创建失败 modal 内文案前缀 (yema C 混合)
+//   ARTIFACT_CREATE_NETWORK_ERR — 网络错时模糊兜底
+//   ARTIFACT_ROLLBACK_CONFIRM_TEMPLATE — 回滚 modal 文案模板 (跟原 confirm 字面 byte-identical)
+//   ARTIFACT_ROLLBACK_FAIL_TOAST — 回滚失败 toast (yema C 混合, 跟 CONFLICT_TOAST 风格一致)
+//   ARTIFACT_CREATE_MODAL_TITLE_ID / ARTIFACT_ROLLBACK_MODAL_TITLE_ID — aria-labelledby (liema a11y)
+const ARTIFACT_CREATE_MODAL_TITLE = '新建 Markdown artifact';
+const ARTIFACT_CREATE_INPUT_LABEL = 'Artifact 标题:';
+const ARTIFACT_CREATE_DEFAULT_TITLE = '未命名 artifact';
+const ARTIFACT_CREATE_FAIL_PREFIX = '创建失败: ';
+const ARTIFACT_CREATE_NETWORK_ERR = '创建失败, 请检查网络后重试';
+const ARTIFACT_ROLLBACK_FAIL_TOAST = '回滚失败, 请重试';
+const ARTIFACT_CREATE_MODAL_TITLE_ID = 'artifact-create-modal-title';
+const ARTIFACT_ROLLBACK_MODAL_TITLE_ID = 'artifact-rollback-modal-title';
+function rollbackConfirmText(toVersion: number): string {
+  return `确认回滚到 v${toVersion}? 旧版本不会删除, 会新建一条 rollback 记录.`;
+}
+
 export default function ArtifactPanel({ channelId }: Props) {
   const { state } = useAppContext();
   const { showToast } = useToast();
@@ -81,6 +102,21 @@ export default function ArtifactPanel({ channelId }: Props) {
   const [editBody, setEditBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  // gh#691: 应用内 modal 状态 + 错误 + 触发按钮 ref. 修前用 window.prompt /
+  // window.confirm 弹浏览器原生对话框 (issue #691 用户实测). 改成应用内
+  // modal-overlay + modal-content 风格统一 (跟 CreateGroupModal /
+  // ConfirmDeleteModal 同款).
+  //   - createDraftTitle: 创建 modal 当前输入. null = modal 关; 非 null = 打开.
+  //   - createErrMsg: yema C 混合 — 创建失败时 modal 不关, 错误显在 modal 内.
+  //   - pendingRollbackVersion: 待确认回滚的目标版本号. null = 回滚 modal 关.
+  //   - createTriggerRef / rollbackTriggerRef: liema a11y #3 — 关 modal 后
+  //     focus 回原触发按钮; fallback 落 .artifact-panel (触发按钮可能 unmount).
+  const [createDraftTitle, setCreateDraftTitle] = useState<string | null>(null);
+  const [createErrMsg, setCreateErrMsg] = useState<string | null>(null);
+  const [pendingRollbackVersion, setPendingRollbackVersion] = useState<number | null>(null);
+  const createTriggerRef = useRef<HTMLElement | null>(null);
+  const rollbackTriggerRef = useRef<HTMLElement | null>(null);
 
   // CV-2.3 anchor state — 选区 → 锚点 entry + side thread panel.
   const [anchors, setAnchors] = useState<AnchorThread[]>([]);
@@ -177,6 +213,10 @@ export default function ArtifactPanel({ channelId }: Props) {
   // CV-1.3 v1: one artifact per channel surface — listing API is out of
   // scope for this PR, so we lazy-create on first interaction. Until the
   // user creates one we render the "create" affordance.
+  //
+  // gh#691 design §4 边界: channel 切换时一并 reset modal state, 防 modal
+  // 错挂在新 channel 上 (新 modal 不阻塞主线程, 用户切 channel 时旧 modal
+  // 可能仍开着指向旧 channel 的操作).
   useEffect(() => {
     setArtifact(null);
     setVersions([]);
@@ -186,6 +226,9 @@ export default function ArtifactPanel({ channelId }: Props) {
     setAnchors([]);
     setActiveAnchorId(null);
     setSelection(null);
+    setCreateDraftTitle(null);
+    setCreateErrMsg(null);
+    setPendingRollbackVersion(null);
   }, [channelId]);
 
   // Reload anchors when artifact lands.
@@ -246,18 +289,41 @@ export default function ArtifactPanel({ channelId }: Props) {
     setSelection({ start, end: start + text.length });
   }, [artifact, editing]);
 
-  const handleCreate = async () => {
-    const title = window.prompt('Artifact 标题:', '未命名 artifact');
-    if (!title || !title.trim()) return;
+  // gh#691 + design §4 yema C 混合: 修前用 window.prompt 弹原生 dialog 阻塞
+  // 主线程, 改成应用内 modal. handleCreate 仅打开 modal + 记触发按钮 ref;
+  // doCreate 真创建.
+  //   失败行为 (C 混合): modal 不关 + setCreateErrMsg 给 modal 内显 + input
+  //   保留用户输入 + busy=false 让 "创建" 按钮 enable. 用户可改 title 重试.
+  //   (跟 CreateGroupModal 失败留 modal 模式一致.)
+  //
+  // 反约束 (heima Security): 不在 client 对 title 做 sanitize. server 端字段
+  // 验证 + 渲染时 marked + DOMPurify 双层防护已足够 (跟蓝图 §4 markdown ONLY
+  // 同源, 反 client sanitize 重复).
+  const handleCreate = (e?: ReactMouseEvent<HTMLButtonElement>) => {
+    if (e) createTriggerRef.current = e.currentTarget;
+    setCreateErrMsg(null);
+    setCreateDraftTitle(ARTIFACT_CREATE_DEFAULT_TITLE);
+  };
+
+  const doCreate = async (title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
     setBusy(true);
-    setErrMsg(null);
+    setCreateErrMsg(null);
     try {
-      const created = await createArtifact(channelId, { title: title.trim(), body: '' });
+      const created = await createArtifact(channelId, { title: trimmed, body: '' });
       setArtifact(created);
       const list = await listArtifactVersions(created.id);
       setVersions(list.versions);
+      // 创建成功才关 modal + focus return.
+      setCreateDraftTitle(null);
+      restoreFocus(createTriggerRef);
     } catch (err) {
-      setErrMsg(err instanceof Error ? err.message : '创建失败');
+      // C 混合: 失败 modal 不关, 错误显 modal 内, input 保留.
+      const msg = err instanceof Error
+        ? `${ARTIFACT_CREATE_FAIL_PREFIX}${err.message}`
+        : ARTIFACT_CREATE_NETWORK_ERR;
+      setCreateErrMsg(msg);
     } finally {
       setBusy(false);
     }
@@ -320,10 +386,24 @@ export default function ArtifactPanel({ channelId }: Props) {
     }
   };
 
-  const handleRollback = async (toVersion: number) => {
+  // gh#691 + design §4 yema C 混合: 修前用 window.confirm, 改成应用内 modal.
+  // handleRollback 仅打开确认 modal + 记触发按钮 ref; doRollback 真回滚.
+  //   失败行为 (C 混合): 关 modal + showToast — 跟 ConfirmDeleteModal 模式一致.
+  //   回滚是单按钮零输入操作, 失败关 modal + toast 反馈符合"已点确认等结果"心智.
+  const handleRollback = (
+    toVersion: number,
+    e?: ReactMouseEvent<HTMLButtonElement>,
+  ) => {
     if (!artifact) return;
     if (!isOwner) return; // defense in depth — server enforces too
-    if (!window.confirm(`确认回滚到 v${toVersion}? 旧版本不会删除, 会新建一条 rollback 记录.`)) return;
+    if (e) rollbackTriggerRef.current = e.currentTarget;
+    setErrMsg(null);
+    setPendingRollbackVersion(toVersion);
+  };
+
+  const doRollback = async (toVersion: number) => {
+    if (!artifact) return;
+    setPendingRollbackVersion(null);
     setBusy(true);
     setErrMsg(null);
     try {
@@ -331,13 +411,16 @@ export default function ArtifactPanel({ channelId }: Props) {
       await reload(artifact.id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
+        // 立场 ② 锁冲突 — toast 文案锁 byte-identical (跟 commit 路径同源).
         showToast(CONFLICT_TOAST);
         await reload(artifact.id);
       } else {
-        setErrMsg(err instanceof Error ? err.message : '回滚失败');
+        // C 混合: 非 409 失败也走 toast (modal 已关), 跟 CONFLICT_TOAST 风格一致.
+        showToast(ARTIFACT_ROLLBACK_FAIL_TOAST);
       }
     } finally {
       setBusy(false);
+      restoreFocus(rollbackTriggerRef);
     }
   };
 
@@ -351,6 +434,19 @@ export default function ArtifactPanel({ channelId }: Props) {
           </button>
           {errMsg && <p className="artifact-err">{errMsg}</p>}
         </div>
+        {createDraftTitle !== null && (
+          <CreateArtifactModal
+            initialTitle={createDraftTitle}
+            busy={busy}
+            errMsg={createErrMsg}
+            onCancel={() => {
+              setCreateDraftTitle(null);
+              setCreateErrMsg(null);
+              restoreFocus(createTriggerRef);
+            }}
+            onConfirm={(title) => { void doCreate(title); }}
+          />
+        )}
       </div>
     );
   }
@@ -550,7 +646,7 @@ export default function ArtifactPanel({ channelId }: Props) {
                   <button
                     className="btn btn-sm artifact-rollback-btn"
                     disabled={busy}
-                    onClick={() => handleRollback(v.version)}
+                    onClick={(e) => handleRollback(v.version, e)}
                   >
                     回滚到此版本
                   </button>
@@ -578,6 +674,243 @@ export default function ArtifactPanel({ channelId }: Props) {
           }}
         />
       )}
+
+      {/* gh#691 — 创建 modal (已有 artifact 时也保留, 用户可继续点 button 创建新?
+          v1 一 channel 一 artifact, 当前路径 artifact 已存在则不再渲染 button,
+          所以这里 modal 仅 !artifact 分支挂. 此处主 return 仅挂 rollback. */}
+
+      {/* gh#691 — 回滚确认 modal — 替代 window.confirm. byte-identical 复用
+          原 confirm 文案 "确认回滚到 v${N}? 旧版本不会删除, 会新建一条
+          rollback 记录." */}
+      {pendingRollbackVersion !== null && (
+        <RollbackConfirmModal
+          toVersion={pendingRollbackVersion}
+          busy={busy}
+          onCancel={() => {
+            setPendingRollbackVersion(null);
+            restoreFocus(rollbackTriggerRef);
+          }}
+          onConfirm={() => { void doRollback(pendingRollbackVersion); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * gh#691 helper — 关 modal 时把 focus 回到原触发按钮 (liema a11y #3).
+ * 触发按钮可能因列表重渲染已 unmount, .focus() 在 unmounted DOM 上无效但
+ * 不报错; 兜底落到 .artifact-panel 容器, 让屏幕阅读器有锚.
+ */
+function restoreFocus(ref: RefObject<HTMLElement | null>): void {
+  const trigger = ref.current;
+  if (trigger && document.body.contains(trigger)) {
+    try {
+      trigger.focus();
+      return;
+    } catch {
+      // fall through to fallback
+    }
+  }
+  const panel = document.querySelector<HTMLElement>('.artifact-panel');
+  panel?.focus?.();
+}
+
+/**
+ * gh#691 — 应用内 modal 组件, 替代 window.prompt / window.confirm 浏览器
+ * 原生对话框. 视觉风格跟 CreateGroupModal / ConfirmDeleteModal 一致
+ * (modal-overlay + modal-content + modal-header + modal-body, 见 index.css).
+ *
+ * 设计选择 (跟 design 691-canvas-modal-replace-system-dialog.md 对齐):
+ *  - 不引入新依赖, 复用项目现有 modal 类名 (跟 §5 方案 A).
+ *  - <form onSubmit> 自带 IME composition 守卫 (浏览器在 IME 选词阶段
+ *    阻止 form submit). input onKeyDown 显式 isComposing 检查双层防护.
+ *  - busy 时禁用关闭路径, 防关 modal 后异步请求继续跑造成的状态错乱.
+ *  - 文案保留原 prompt / confirm 字面 byte-identical (反 acceptance 文案锁误判).
+ *  - a11y (liema #3): role="dialog" + aria-modal + aria-labelledby + autoFocus
+ *    到 input.
+ *  - 失败行为 (yema C 混合): 创建失败 errMsg prop 在 modal 内显, 输入保留,
+ *    按钮重新 enable. 父组件不关 modal, 用户可改 title 重试.
+ *  - 反 client sanitize (heima Security): title 透传给 server, server 端
+ *    字段验证 + 渲染时 marked + DOMPurify 双层防护. client modal 不重复 sanitize.
+ */
+function CreateArtifactModal({
+  initialTitle,
+  busy,
+  errMsg,
+  onCancel,
+  onConfirm,
+}: {
+  initialTitle: string;
+  busy: boolean;
+  errMsg: string | null;
+  onCancel: () => void;
+  onConfirm: (title: string) => void;
+}) {
+  const [title, setTitle] = useState(initialTitle);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel, busy]);
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || busy) return;
+    onConfirm(title);
+  };
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={busy ? undefined : onCancel}
+    >
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={ARTIFACT_CREATE_MODAL_TITLE_ID}
+        data-testid="artifact-create-modal"
+      >
+        <div className="modal-header">
+          <h3 id={ARTIFACT_CREATE_MODAL_TITLE_ID}>{ARTIFACT_CREATE_MODAL_TITLE}</h3>
+          {!busy && (
+            <button className="icon-btn" onClick={onCancel} aria-label="关闭">
+              ✕
+            </button>
+          )}
+        </div>
+        <form className="modal-body" onSubmit={handleSubmit}>
+          <label style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>
+            {ARTIFACT_CREATE_INPUT_LABEL}
+          </label>
+          <input
+            type="text"
+            className="input-field"
+            style={{ width: '100%', marginBottom: 12 }}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              // gh#691 liema #2: IME composition Enter 双层防护 (form
+              // onSubmit 已自带, 这里再兜一层).
+              if (e.key === 'Enter' && e.nativeEvent.isComposing) {
+                e.preventDefault();
+              }
+            }}
+            autoFocus
+            disabled={busy}
+            data-testid="artifact-create-modal-input"
+          />
+          {errMsg && (
+            <p
+              className="artifact-err"
+              role="alert"
+              data-testid="artifact-create-modal-err"
+              style={{ marginBottom: 12 }}
+            >
+              {errMsg}
+            </p>
+          )}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={onCancel}
+              disabled={busy}
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              disabled={busy || !title.trim()}
+            >
+              {busy ? '创建中…' : '创建'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * gh#691 RollbackConfirmModal — 替代 window.confirm.
+ *
+ * a11y (liema #3 + feima 实施提醒 #2):
+ *   - DOM 顺序: 取消左 / 确认回滚右 (危险操作, 跟 macOS / Material 一致)
+ *   - autoFocus 走 cancelBtnRef + useEffect, 不靠 DOM 顺序 (反误锚 confirm)
+ *   - role="dialog" + aria-modal + aria-labelledby
+ */
+function RollbackConfirmModal({
+  toVersion,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  toVersion: number;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    // a11y: 危险操作默认 focus "取消" 按钮, 防按 Enter 误回滚.
+    cancelBtnRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel, busy]);
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={busy ? undefined : onCancel}
+    >
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={ARTIFACT_ROLLBACK_MODAL_TITLE_ID}
+        data-testid="artifact-rollback-confirm-modal"
+      >
+        <div className="modal-header">
+          <h3 id={ARTIFACT_ROLLBACK_MODAL_TITLE_ID}>回滚版本</h3>
+        </div>
+        <div className="modal-body">
+          <p>{rollbackConfirmText(toVersion)}</p>
+          <div className="form-actions">
+            <button
+              ref={cancelBtnRef}
+              type="button"
+              className="btn btn-sm"
+              onClick={onCancel}
+              disabled={busy}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-danger"
+              onClick={onConfirm}
+              disabled={busy}
+            >
+              {busy ? '回滚中…' : '确认回滚'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
