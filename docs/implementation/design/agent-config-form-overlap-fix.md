@@ -93,7 +93,7 @@ label-input 关联用 implicit / 嵌套关系 (`<label>名称<input/></label>`),
 - 实际代码 `AgentConfigPanel.tsx`: `<section data-agent-config="root" data-schema-version=...>` + 标题 `"Agent 配置"`
 - `al-2a-content-lock.test.ts` 实际锁的是 `data-agent-config="root"` 跟代码一致 (line 62-65), 跟 doc ① 不一致
 
-这层 drift 是历史就有, 不是 #698 修引入. 此 design doc 措辞 "文案 / 字段 不变" / "无文案改动" 仅指相对当前代码状态不变 — 跟 al-2a-content-lock.md ① 写的"理论文案"已经 drift 但我们不动. 真正的 al-2a content lock vs 代码对齐留独立 followup issue (要决定: 改 doc 跟代码对齐, 还是改代码跟 doc 对齐 — 要 brainstorm 拍).
+这层 drift 是历史就有, 不是 #698 修引入. 此 design doc 措辞 "文案 / 字段 不变" / "无文案改动" 仅指相对当前代码状态不变 — 跟 al-2a-content-lock.md ① 写的"理论文案"已经 drift 但我们不动. 真正的 al-2a content lock vs 代码对齐留 followup issue **gh#701** (al-2a 三方 drift: md ↔ test ↔ code 不一致, 要 brainstorm 拍方向 — 改 doc 跟代码对齐, 还是改代码跟 doc 对齐).
 
 ## §4 边界条件
 
@@ -172,8 +172,16 @@ team-lead 在 SendMessage 里建议 "倾向修法 B (复用 `.form-group / .form
 **真原因**:
 1. 项目没 `.form-group / .form-field` 既有类, 写新 CSS 类 = 方案 B, 不是 "复用既有"
 2. issue p2-normal, 不该引入大改动 (方案 B 多 1 文件 + ~12 行 + 命名空间扩展)
-3. 跟 CreateAgentModal **真正的既有 form 实现** 一致 (内联 style block label) — 这才是真的"复用既有模式"
+3. 跟 CreateAgentModal **真正的既有 form 实现** 一致 (内联 style block label / Permissions 块 inline checkbox) — 这才是真的"复用既有模式"
 4. 方案 A 改动 ≤ 8 行, 单文件, 最小 scope, 一气呵成
+
+**checkbox "启用" field 例外** (yema review #1 拍 b inline 同行):
+6 个 label 里 5 个 text/textarea 走 `display: 'block'` (跟 CreateAgentModal Agent ID label 一致), 但第 6 个 checkbox "启用" label 走 `display: 'flex', alignItems: 'center', gap: 8` (跟 CreateAgentModal AgentManager.tsx L430 KNOWN_PERMISSIONS 块 inline checkbox 同款). 真原因:
+- HTML/UX 通用规矩: checkbox + label 同行 inline 是标准 (Slack/Discord/GitHub 全这个), stack 反而反规矩
+- "启用 ☐" / "启用 ☑" 状态一眼能看, 视觉信息密度高
+- 跟 CreateAgentModal Permissions 块 inline checkbox 真"复用既有模式"
+
+文本节点位置: text 在 `<input type="checkbox" />` **后面** (符合 inline 视觉顺序: 先 checkbox 后 label 文字).
 
 **反约束**: 此 design 不引入新 CSS class. 后续若多个 form (≥ 3 个) 都需要相同排版, 再开独立 issue 抽 `.form-stack` / `.field-block` 类 (按功能命名), 不在此 PR 做.
 
@@ -183,7 +191,7 @@ team-lead 在 SendMessage 里建议 "倾向修法 B (复用 `.form-group / .form
 
 | Grep | 命中 | 处理 |
 |---|---|---|
-| `<label>` 在 AgentConfigPanel.tsx | 6 处 (line 118 / 128 / 138 / 147 / 157 / 167) | 全部加 `style={{ display: 'block', marginTop: 8 }}` |
+| `<label>` 在 AgentConfigPanel.tsx | 6 处 (line 118 / 128 / 138 / 147 / 157 / 167) | **5 个 text/textarea label** (118 名称 / 128 头像 URL / 138 Prompt / 147 模型 / 157 memory_ref) 加 `style={{ display: 'block', marginTop: 8 }}`. **1 个 checkbox label** (167 启用) 加 `style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}` + 把 text 节点 "启用" 移到 `<input type="checkbox" />` 后面 (yema 拍 b inline) |
 | `<label style=` 在 AgentManager.tsx CreateAgentModal | 已有 (line 414, 模式参考) | 不动, 仅参考 |
 | `data-agent-config-field` | 6 处 | 不动 (e2e + REG-AL2A 锚) |
 | `data-agent-config-action="save"` | 1 处 | 不动 |
@@ -241,6 +249,14 @@ team-lead 在 SendMessage 里建议 "倾向修法 B (复用 `.form-group / .form
 - PR #694 已合到 main df9425f, 是这个 bug 暴露的源头. 此 PR 不动 PR #694 已合的 `.agent-page` 修.
 - PR #695 / #696 / #699 (#682 / #689 / #691) 互不冲突.
 - 此 PR 跟 #697 (现有 modal a11y backlog) 无冲突 — #697 是 modal a11y 重构, 此 PR 是 page-level form 排版.
+
+## §11 留账 (followup, 不在本 PR)
+
+| Followup | Issue | 依赖 / 关联 |
+|---|---|---|
+| al-2a content lock 三方 drift (md ↔ test ↔ code 不一致, form 元素 + 标题字面) | gh#701 | yema review 提, 历史 drift 不是 #698 引入. 要 brainstorm 拍方向 (改 doc 跟代码对齐 / 改代码跟 doc 对齐). |
+| AgentConfigPanel dirty guard | (待开, p3-low) | 依赖 PR #695 `useUnsavedChangesGuard` hook 先合到 main; 跟 AgentManager 编辑 / WorkspaceManager / NodeManager 三个 form 一起做 (yema 在 PR #695 review 已留账"4 form 都该接"). 此 PR 不带飞 (yema 拍 ii 不加 + heima 也同意 UX 决定留 PM). 注: PR #695 实际加的是 **CreateAgentModal** 的 unsaved guard, 不是 channel description (yema 反向校正). |
+| AgentConfigPanel UX 友好化 (memory_ref / model / enabled 文案) | (待开, p3-low) | yema review 提的产品方向, 不在 #698 排版 bug 修范围. |
 
 ---
 
