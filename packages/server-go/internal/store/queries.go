@@ -859,6 +859,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 				(SELECT COUNT(*) FROM channel_members cm2 WHERE cm2.channel_id = c.id) AS member_count,
 				(SELECT COUNT(*) FROM messages m
 					WHERE m.channel_id = c.id AND m.deleted_at IS NULL
+					AND m.sender_id != ?
 					AND m.created_at > COALESCE((SELECT cm3.last_read_at FROM channel_members cm3 WHERE cm3.channel_id = c.id AND cm3.user_id = ?), 0)
 				) AS unread_count,
 				(SELECT MAX(m2.created_at) FROM messages m2 WHERE m2.channel_id = c.id AND m2.deleted_at IS NULL) AS last_message_at,
@@ -872,7 +873,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 					OR (c.visibility = 'public' AND c.org_id = u.org_id AND c.archived_at IS NULL)
 				)
 			ORDER BY c.position ASC, c.created_at ASC
-		`, userID, userID, userID).Scan(&results).Error
+		`, userID, userID, userID, userID).Scan(&results).Error
 		return results, err
 	}
 	// CHN-13 立场 ②: q != "" 加 LIKE 子句 (COLLATE NOCASE 大小写不敏感).
@@ -881,6 +882,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 			(SELECT COUNT(*) FROM channel_members cm2 WHERE cm2.channel_id = c.id) AS member_count,
 			(SELECT COUNT(*) FROM messages m
 				WHERE m.channel_id = c.id AND m.deleted_at IS NULL
+				AND m.sender_id != ?
 				AND m.created_at > COALESCE((SELECT cm3.last_read_at FROM channel_members cm3 WHERE cm3.channel_id = c.id AND cm3.user_id = ?), 0)
 			) AS unread_count,
 			(SELECT MAX(m2.created_at) FROM messages m2 WHERE m2.channel_id = c.id AND m2.deleted_at IS NULL) AS last_message_at,
@@ -895,7 +897,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 				OR (c.visibility = 'public' AND c.org_id = u.org_id AND c.archived_at IS NULL)
 			)
 		ORDER BY c.position ASC, c.created_at ASC
-	`, userID, userID, userID, q).Scan(&results).Error
+	`, userID, userID, userID, userID, q).Scan(&results).Error
 	return results, err
 }
 
@@ -1112,6 +1114,7 @@ func (s *Store) ListAllChannelsForAdmin(userID string) ([]ChannelWithCounts, err
 			(SELECT COUNT(*) FROM channel_members cm2 WHERE cm2.channel_id = c.id) AS member_count,
 			(SELECT COUNT(*) FROM messages m
 				WHERE m.channel_id = c.id AND m.deleted_at IS NULL
+				AND m.sender_id != ?
 				AND m.created_at > COALESCE((SELECT cm3.last_read_at FROM channel_members cm3 WHERE cm3.channel_id = c.id AND cm3.user_id = ?), 0)
 			) AS unread_count,
 			(SELECT MAX(m2.created_at) FROM messages m2 WHERE m2.channel_id = c.id AND m2.deleted_at IS NULL) AS last_message_at,
@@ -1121,7 +1124,7 @@ func (s *Store) ListAllChannelsForAdmin(userID string) ([]ChannelWithCounts, err
 		WHERE c.deleted_at IS NULL
 			AND (c.type = 'channel' OR (c.type = 'system' AND cm.user_id IS NOT NULL))
 		ORDER BY c.position ASC, c.created_at ASC
-	`, userID, userID).Scan(&results).Error
+	`, userID, userID, userID).Scan(&results).Error
 	return results, err
 }
 
@@ -1132,6 +1135,7 @@ func (s *Store) GetChannelWithCounts(channelID, userID string) (*ChannelWithCoun
 			(SELECT COUNT(*) FROM channel_members cm2 WHERE cm2.channel_id = c.id) AS member_count,
 			(SELECT COUNT(*) FROM messages m
 				WHERE m.channel_id = c.id AND m.deleted_at IS NULL
+				AND m.sender_id != ?
 				AND m.created_at > COALESCE((SELECT cm3.last_read_at FROM channel_members cm3 WHERE cm3.channel_id = c.id AND cm3.user_id = ?), 0)
 			) AS unread_count,
 			(SELECT MAX(m2.created_at) FROM messages m2 WHERE m2.channel_id = c.id AND m2.deleted_at IS NULL) AS last_message_at,
@@ -1139,7 +1143,7 @@ func (s *Store) GetChannelWithCounts(channelID, userID string) (*ChannelWithCoun
 		FROM channels c
 		LEFT JOIN channel_members cm ON cm.channel_id = c.id AND cm.user_id = ?
 		WHERE c.id = ? AND c.deleted_at IS NULL
-	`, userID, userID, channelID).Scan(&result).Error
+	`, userID, userID, userID, channelID).Scan(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1574,6 +1578,7 @@ func (s *Store) ListDmChannelsForUser(userID string) ([]DmChannelInfo, error) {
 			peer.id AS peer_id, peer.display_name AS peer_name, peer.avatar_url AS peer_avatar, peer.role AS peer_role,
 			(SELECT COUNT(*) FROM messages m
 				WHERE m.channel_id = c.id AND m.deleted_at IS NULL
+				AND m.sender_id != ?
 				AND m.created_at > COALESCE(cm.last_read_at, 0)
 			) AS unread_count,
 			lm.content AS last_msg_content, lm.created_at AS last_msg_at, lm.sender_id AS last_msg_sender
@@ -1586,7 +1591,7 @@ func (s *Store) ListDmChannelsForUser(userID string) ([]DmChannelInfo, error) {
 		)
 		WHERE c.type = 'dm' AND c.deleted_at IS NULL
 		ORDER BY COALESCE(lm.created_at, c.created_at) DESC
-	`, userID, userID).Scan(&rows).Error
+	`, userID, userID, userID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}

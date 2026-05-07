@@ -299,6 +299,17 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// #687 Layer 1 — sender 发完消息顺手 mark-read 自己 channel 的 last_read_at,
+	// 反 "自己发的消息对自己显未读" 的 UX bug. best-effort: 失败仅 log 不阻断
+	// 主流程 (反约束: unread 是 UX, 不能让 5xx 把发消息挡住; Layer 2 SQL
+	// `m.sender_id != ?` 兜底 + Layer 3 client reducer 拦 own message).
+	// sender 一定是 channel member (上面 IsChannelMember gate 过), MarkChannelRead
+	// 在 channel_members.last_read_at = now 上做等值更新.
+	if mrErr := h.Store.MarkChannelRead(channelID, user.ID); mrErr != nil {
+		h.Logger.Error("failed to update sender last_read_at after message create",
+			"error", mrErr, "channel_id", channelID, "user_id", user.ID)
+	}
+
 	// DM-2.2 persist + dispatch — non-blocking on errors (log + continue).
 	// PersistMentions writes #361 message_mentions rows; Dispatch fans
 	// online targets via PushMentionPushed and offline agents via owner
