@@ -118,7 +118,21 @@ export default function ChannelList({ channels, currentChannelId, onSelectChanne
   const sortedUngrouped = useMemo(() => sortChannels(ungroupedChannels), [ungroupedChannels, isPinned, state.currentUser]);
 
   const sortedGroups = useMemo(() => {
-    return [...channelGroups].sort((a, b) => a.position.localeCompare(b.position));
+    // 防御 (#678): 任何 group 没 position 时, 直接
+    // a.position.localeCompare(b.position) 炸 TypeError, 整个 SPA 白屏.
+    // 服务器代码 (channels.go::handleCreateGroup + models.go ChannelGroup
+    // schema not null) 不会发 undefined, 但旧版本 localStorage / IndexedDB
+    // 缓存 / 测试数据 / 手工加的行可能漏 position — 客户端兜底防止
+    // single bad row 拖死全部. 跟同文件 sortChannels (L104-116) +
+    // ChannelGroupComponent.tsx L44-46 同模式: 两边都有 position 才用
+    // localeCompare, 单边或两边都缺时用稳定退路 (有 position 的排前面 /
+    // 都没就保持原顺序).
+    return [...channelGroups].sort((a, b) => {
+      if (a.position && b.position) return a.position.localeCompare(b.position);
+      if (a.position && !b.position) return -1;
+      if (!a.position && b.position) return 1;
+      return 0;
+    });
   }, [channelGroups]);
 
   const sortedPreviewChannels = useMemo(() => {
@@ -136,7 +150,10 @@ export default function ChannelList({ channels, currentChannelId, onSelectChanne
   );
 
   const groupSortableIds = useMemo(
-    () => sortedGroups.map(g => `group:${g.id}`),
+    // 防御 (#678): 同 sortedGroups, partial state 时 g.id 也可能 undefined,
+    // SortableContext items 收 "group:undefined" 字面会让 dnd-kit 内部
+    // 算 unique key 出意外. 过滤掉再 push.
+    () => sortedGroups.filter(g => g.id).map(g => `group:${g.id}`),
     [sortedGroups],
   );
 
