@@ -15,6 +15,9 @@ import BannerImpersonate from './components/Settings/BannerImpersonate';
 import { getMyImpersonateGrant, revokeMyImpersonateGrant } from './lib/api';
 import { useWebSocket } from './hooks/useWebSocket';
 import { fetchMe, ApiError } from './lib/api';
+import { runUnsavedGuards } from './hooks/useUnsavedChangesGuard';
+import type { MainView } from './lib/mainView';
+import { MAIN_VIEW_DEFAULT } from './lib/mainView';
 import './index.css';
 import 'highlight.js/styles/github.css';
 
@@ -44,11 +47,10 @@ function AppInner() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [showAgents, setShowAgents] = useState(false);
-  const [showInvitations, setShowInvitations] = useState(false);
-  const [showWorkspaces, setShowWorkspaces] = useState(false);
-  const [showRemoteNodes, setShowRemoteNodes] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  // #682 修: 5 个独立 boolean (showAgents/showInvitations/showWorkspaces/
+  // showRemoteNodes/showSettings) 合并成 1 个 mainView 字符串. 只有一个视
+  // 图能 active, 切换 = 替换值, 自动关掉前一个. 反堆栈 bug.
+  const [mainView, setMainView] = useState<MainView>(MAIN_VIEW_DEFAULT);
 
   // Wire sendWsMessage into context
   useEffect(() => {
@@ -126,7 +128,7 @@ function AppInner() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ action?: string }>).detail;
       if (detail?.action === 'open_agent_manager') {
-        setShowAgents(true);
+        setMainView('agents');
       }
     };
     window.addEventListener('borgee:quick-action', handler);
@@ -152,12 +154,16 @@ function AppInner() {
   }, []);
 
   const closeAllViews = useCallback(() => {
-    setShowAgents(false);
-    setShowInvitations(false);
-    setShowWorkspaces(false);
-    setShowRemoteNodes(false);
-    setShowSettings(false);
+    setMainView('channel');
   }, []);
+
+  // #682 修: requestMainView 是 sidebar 按钮唯一调用的入口. 切换前跑一遍未
+  // 保存改动守卫 (useUnsavedChangesGuard 注册的), 用户取消就不切, 不丢改动.
+  const requestMainView = useCallback((target: MainView) => {
+    if (target === mainView) return;
+    if (!runUnsavedGuards()) return;
+    setMainView(target);
+  }, [mainView]);
 
   const handleLogin = useCallback(async () => {
     await waitForAuthReady();
@@ -211,26 +217,26 @@ function AppInner() {
         <div className="sidebar-overlay" onClick={closeSidebar} />
       )}
       <div className={`sidebar-wrapper ${isMobile ? (sidebarOpen ? 'sidebar-open' : 'sidebar-closed') : ''}`}>
-        <Sidebar onClose={isMobile ? closeSidebar : undefined} onChannelSelect={closeAllViews} onLogout={handleLogout} onAgentsOpen={() => setShowAgents(true)} onInvitationsOpen={() => setShowInvitations(true)} onWorkspacesOpen={() => setShowWorkspaces(true)} onRemoteNodesOpen={() => setShowRemoteNodes(true)} onSettingsOpen={() => setShowSettings(true)} />
+        <Sidebar onClose={isMobile ? closeSidebar : undefined} onChannelSelect={closeAllViews} onLogout={handleLogout} onAgentsOpen={() => requestMainView('agents')} onInvitationsOpen={() => requestMainView('invitations')} onWorkspacesOpen={() => requestMainView('workspaces')} onRemoteNodesOpen={() => requestMainView('remote-nodes')} onSettingsOpen={() => requestMainView('settings')} />
       </div>
 
       <div className="main-content">
-        {showAgents ? (
-          <AgentManager onBack={() => setShowAgents(false)} />
-        ) : showInvitations ? (
+        {mainView === 'agents' ? (
+          <AgentManager onBack={() => setMainView('channel')} />
+        ) : mainView === 'invitations' ? (
           <InvitationsInbox
-            onBack={() => setShowInvitations(false)}
+            onBack={() => setMainView('channel')}
             onJumpToChannel={(channelId) => {
               actions.selectChannel(channelId);
-              closeAllViews();
+              setMainView('channel');
             }}
           />
-        ) : showWorkspaces ? (
-          <WorkspaceManager onBack={() => setShowWorkspaces(false)} />
-        ) : showRemoteNodes ? (
-          <NodeManager onBack={() => setShowRemoteNodes(false)} />
-        ) : showSettings ? (
-          <SettingsPage onBack={() => setShowSettings(false)} />
+        ) : mainView === 'workspaces' ? (
+          <WorkspaceManager onBack={() => setMainView('channel')} />
+        ) : mainView === 'remote-nodes' ? (
+          <NodeManager onBack={() => setMainView('channel')} />
+        ) : mainView === 'settings' ? (
+          <SettingsPage onBack={() => setMainView('channel')} />
         ) : state.currentChannelId ? (
           <ChannelView channelId={state.currentChannelId} />
         ) : (

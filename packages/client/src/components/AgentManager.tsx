@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 import {
   fetchAgents,
   fetchAgent,
@@ -353,6 +354,14 @@ function CreateAgentModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [error, setError] = useState('');
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
+
+  // #682: 注册未保存改动守卫. 用户在表单里填了东西但还没提交时,
+  // 切换到别的 sidepane 会先弹 confirmation. 已提交 (createdKey 有值) 后
+  // 不再算 dirty — 那时表单是结果展示, 不是待保存改动.
+  useUnsavedChangesGuard(
+    () => createdKey === null && (displayName.trim() !== '' || agentId.trim() !== ''),
+    'Create Agent 表单有填写但还没提交, 离开会丢失. 确认离开吗?',
+  );
 
   const togglePerm = (perm: string) => {
     setSelectedPerms(prev => {
