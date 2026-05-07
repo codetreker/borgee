@@ -21,7 +21,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile --filter @codetreker/borgee-openclaw-plugin
       - run: pnpm --filter @codetreker/borgee-openclaw-plugin build
