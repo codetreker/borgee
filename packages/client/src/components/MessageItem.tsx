@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { renderMarkdown } from '../lib/markdown';
 import { parseFileLinks } from '../lib/file-links';
 import ReactionBar from './ReactionBar';
+import ReactionAddButton from './ReactionAddButton';
 import EditEditor from './EditEditor';
 import FileLink from './FileLink';
 import * as api from '../lib/api';
@@ -114,9 +115,19 @@ export default function MessageItem({ message, userMap, members, memberMap, curr
 
   const canEdit = isOwn && !isDeleted && !message._pending && !message._failed;
   const canDelete = (isOwn || isAdmin) && !isDeleted && !message._pending && !message._failed;
+  // gh#686 §4 #4 #5: 只有当消息没 reaction 时, 才把 + 加到 .message-actions
+  // 工具栏 (跟 edit/delete 一组). 已经有 reaction 时, ReactionBar 自带 +
+  // 在那一行不重复出现. 这样无 reaction 状态消息容器不撑高.
+  const hasReactions = (message.reactions?.length ?? 0) > 0;
+  const canAddReaction =
+    !isDeleted &&
+    !message._pending &&
+    !message._failed &&
+    !hasReactions &&
+    !!currentUserId;
 
   const longPressHandlers = useLongPress(() => {
-    if (canEdit || canDelete) setMobileActionsOpen(true);
+    if (canEdit || canDelete || canAddReaction) setMobileActionsOpen(true);
   });
 
   if (isSystem) {
@@ -194,29 +205,25 @@ export default function MessageItem({ message, userMap, members, memberMap, curr
           )}
         </div>
         {!isDeleted && !editing && (
-          <>
-            {message.reactions && message.reactions.length > 0 ? (
-              <ReactionBar
-                reactions={message.reactions}
-                messageId={message.id}
-                currentUserId={currentUserId}
-                userMap={userMap}
-              />
-            ) : (
-              !message._pending && !message._failed && (
-                <ReactionBar
-                  reactions={[]}
-                  messageId={message.id}
-                  currentUserId={currentUserId}
-                  userMap={userMap}
-                />
-              )
-            )}
-          </>
+          <ReactionBar
+            reactions={message.reactions ?? []}
+            channelId={message.channel_id}
+            messageId={message.id}
+            currentUserId={currentUserId}
+            userMap={userMap}
+          />
         )}
       </div>
-      {!isDeleted && !editing && (canEdit || canDelete) && (
+      {!isDeleted && !editing && (canEdit || canDelete || canAddReaction) && (
         <div className="message-actions">
+          {canAddReaction && currentUserId && (
+            <ReactionAddButton
+              channelId={message.channel_id}
+              messageId={message.id}
+              currentUserId={currentUserId}
+              variant="toolbar-btn"
+            />
+          )}
           {canEdit && (
             <button className="message-action-btn" onClick={startEdit} title="编辑">
               ✏️

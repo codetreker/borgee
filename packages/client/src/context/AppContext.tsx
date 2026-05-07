@@ -23,7 +23,9 @@ interface AppState {
   initialized: boolean;
 }
 
-const initialState: AppState = {
+// gh#686 §6: 这两个导出供 reducer-race 单测构造 race 路径用.
+export type { AppState };
+export const initialState: AppState = {
   channels: [],
   groups: [],
   dmChannels: [],
@@ -73,6 +75,8 @@ type Action =
   | { type: 'SET_TYPING'; channelId: string; userId: string; displayName: string }
   | { type: 'CLEAR_EXPIRED_TYPING' }
   | { type: 'UPDATE_REACTIONS'; messageId: string; channelId: string; reactions: { emoji: string; count: number; user_ids: string[] }[] }
+  | { type: 'ADD_REACTION_OPTIMISTIC'; channelId: string; messageId: string; emoji: string; userId: string }
+  | { type: 'REMOVE_REACTION_OPTIMISTIC'; channelId: string; messageId: string; emoji: string; userId: string }
   | { type: 'ADD_PENDING_MESSAGE'; message: PendingMessage }
   | { type: 'ACK_PENDING_MESSAGE'; clientMessageId: string; channelId: string; serverMessage: Message }
   | { type: 'FAIL_PENDING_MESSAGE'; clientMessageId: string; channelId: string }
@@ -83,7 +87,8 @@ type Action =
   | { type: 'EDIT_MESSAGE'; channelId: string; messageId: string; content: string; editedAt: number }
   | { type: 'DELETE_MESSAGE'; channelId: string; messageId: string; deletedAt: number };
 
-function reducer(state: AppState, action: Action): AppState {
+// gh#686 §6: reducer 导出供 reducer-race 单测直接 dispatch 不必包 Provider.
+export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_CHANNELS':
       return { ...state, channels: action.channels };
@@ -311,6 +316,87 @@ function reducer(state: AppState, action: Action): AppState {
       const updated = channelMsgs.map(m =>
         m.id === action.messageId ? { ...m, reactions: action.reactions } : m
       );
+      msgs.set(action.channelId, updated);
+      return { ...state, messages: msgs };
+    }
+
+    // gh#686 §4 #11/#11a/#11b — 乐观渲染 reaction. WS 推到走
+    // UPDATE_REACTIONS 整体替换 (上面那个 case), 这里加的是用户点 ➕ 选 emoji
+    // 的瞬间立刻在 UI 显 pill 用的. 这两个 action 跟 UPDATE_REACTIONS 共存
+    // 不冲突: 用户点 → ADD_REACTION_OPTIMISTIC 立刻显; 服务器 ack 后 WS 推
+    // → UPDATE_REACTIONS 整列替换为服务器版完整 reactions (服务器端按 user_id
+    // + emoji dedupe), client 不会出 count=2 重复.
+    //
+    // ADD: 找到 emoji 那条; 没就新建 {emoji, count: 1, user_ids: [userId]};
+    // 有但 user_ids 不含 userId 就 push + count++; 已含 userId 则不动 (幂等).
+    case 'ADD_REACTION_OPTIMISTIC': {
+      const msgs = new Map(state.messages);
+      const channelMsgs = msgs.get(action.channelId);
+      if (!channelMsgs) return state;
+      const updated = channelMsgs.map(m => {
+        if (m.id !== action.messageId) return m;
+        const reactions = m.reactions ?? [];
+        const idx = reactions.findIndex(r => r.emoji === action.emoji);
+        if (idx === -1) {
+          // 新加一条 emoji
+          return {
+            ...m,
+            reactions: [
+              ...reactions,
+              { emoji: action.emoji, count: 1, user_ids: [action.userId] },
+            ],
+          };
+        }
+        const existing = reactions[idx]!;
+        if (existing.user_ids.includes(action.userId)) {
+          // 幂等: 已含当前用户, 不重复加
+          return m;
+        }
+        const next = reactions.slice();
+        next[idx] = {
+          emoji: existing.emoji,
+          count: existing.count + 1,
+          user_ids: [...existing.user_ids, action.userId],
+        };
+        return { ...m, reactions: next };
+      });
+      msgs.set(action.channelId, updated);
+      return { ...state, messages: msgs };
+    }
+
+    // REMOVE 关键 (按 feima R2 §4 #11b): race 中 WS 已经把 reactions 整列
+    // 替换为服务器版含别人 reaction 时, 不能"按 emoji 删整条"会误删别人.
+    // 必须按 user_id 移除当前用户: 找到 emoji 那条, 从 user_ids 移除 userId,
+    // count - 1, count == 0 删整条. 跟既有 ReactionBar.handleToggle 走
+    // removeReaction API 的 server 端语义同源.
+    case 'REMOVE_REACTION_OPTIMISTIC': {
+      const msgs = new Map(state.messages);
+      const channelMsgs = msgs.get(action.channelId);
+      if (!channelMsgs) return state;
+      const updated = channelMsgs.map(m => {
+        if (m.id !== action.messageId) return m;
+        const reactions = m.reactions ?? [];
+        const idx = reactions.findIndex(r => r.emoji === action.emoji);
+        if (idx === -1) return m; // emoji 已不在 (e.g. WS 已收掉), 不动
+        const existing = reactions[idx]!;
+        if (!existing.user_ids.includes(action.userId)) {
+          // 当前用户不在那条 user_ids 里, 不动 (race 中可能 WS 已经清掉)
+          return m;
+        }
+        const remainingUserIds = existing.user_ids.filter(id => id !== action.userId);
+        if (remainingUserIds.length === 0) {
+          // 只剩当前用户, 删整条
+          return { ...m, reactions: reactions.filter((_, i) => i !== idx) };
+        }
+        // 还有别人, 只移除当前用户保留别人 reaction
+        const next = reactions.slice();
+        next[idx] = {
+          emoji: existing.emoji,
+          count: Math.max(0, existing.count - 1),
+          user_ids: remainingUserIds,
+        };
+        return { ...m, reactions: next };
+      });
       msgs.set(action.channelId, updated);
       return { ...state, messages: msgs };
     }

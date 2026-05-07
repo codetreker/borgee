@@ -152,6 +152,10 @@
 - `channel-sort.test.ts` — position 字符串 lex 排序 + `last_message_at` fallback。
 - `channel-groups-ui.test.ts` — 分组展示逻辑。
 - `GroupHeader.test.tsx` — 分组头排版锁: 折叠时三角字符 ▶ (朝右) / 展开 ▼ (朝下) 不再用 CSS 旋转; drag-handle 跟 ⋯ 按钮统一 20px 方块 (`group-header-drag-handle` / `group-header-menu-btn`), 不再混 `.icon-btn` 32x32 撑高 header. 修 issue #689.
+- `ReactionAddButton.test.tsx` — gh#686 加表情按钮: 两种 variant (inline-pill / toolbar-btn) className + ➕ + title + 点击开关 picker; 失败时调 showToast byte-identical "添加 reaction 失败, 请重试" + 撤回乐观 pill; busy 期间防双击; aria-label / aria-haspopup / aria-expanded 字面.
+- `ReactionBar.test.tsx` — gh#686 没 reaction 时 ReactionBar 直接 return null 不渲染容器 (反 .reaction-bar-empty 占位撑容器 ~40px 这条 bug); 反向断言 .reaction-bar-empty / .reaction-add-hidden 0 出现.
+- `MessageItem-reaction-toggle.test.tsx` — gh#686 集成测覆盖组合点: reactions=[] 时工具栏 ➕ 出 ReactionBar 不渲染 / reactions=[一条] 时工具栏 ➕ 不出 ReactionBar 渲染 + 末尾 ➕; 消息已删除/发送中不出 ➕.
+- `reaction-reducer-race.test.ts` — gh#686 §4 #11b race 锁: ADD_REACTION_OPTIMISTIC → UPDATE_REACTIONS (WS 推, 含别人 reaction) → REMOVE_REACTION_OPTIMISTIC (API fail) → 期望按 user_id 撤回不误删别人 thumbs-up.
 - `agent-invitations.test.ts` — CM-4.2 client：`createAgentInvitation` / `listAgentInvitations(role)` / `fetchAgentInvitation` / `decideAgentInvitation` 的请求形状、`{invitation}` / `{invitations}` 解包、409 → `ApiError`、`stateToLabel` 4 状态中文映射。
 - `agent-state.test.ts` (AL-1a) — `describeAgentState` 三态文案锁 + 6 reason code 表覆盖, 防退化。
 - `presence.test.ts` (AL-3.3) — `markPresence` cache + 5s 节流单测：跨窗口立即通知 / 窗口内 burst trailing flush / 多 agent anchor 独立 / 空 agentID 防御 / `PRESENCE_THROTTLE_MS===5000` 字面锁。fake clock 走 `__resetPresenceStoreForTest(()=>nowMs)` 注入。

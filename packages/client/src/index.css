@@ -959,6 +959,19 @@ body {
   line-height: 1;
 }
 
+/* gh#686 §4 #13 触摸命中区: 视觉 11px 字号不变, padding 撑命中区到 ≥24px
+   桌面够 (鼠标点); 触摸设备走既有 useLongPress + .mobile-action-sheet
+   (按钮 ≥44px 已合规). 反约束: 不为凑 44px 把视觉撑大破 #686 排版紧凑修法. */
+.message-action-btn.message-action-react {
+  font-size: 11px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @media (hover: hover) {
   .message-action-btn:hover {
     background: var(--bg-secondary);
@@ -2767,18 +2780,10 @@ body {
   }
 }
 
-.reaction-add-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-}
-
-@media (hover: hover) {
-  .message-item:hover .reaction-add-hidden {
-    opacity: 0.6;
-    pointer-events: auto;
-  }
-}
+/* gh#686 §6: .reaction-add-hidden + .reaction-bar-empty 已删 — 没 reaction
+   时 ReactionBar 直接 return null 不渲染容器, 添加表情的 + 按钮改放
+   .message-actions 浮起工具栏 (.message-action-react), 跟 edit/delete 一组.
+   这避免空 bar 占位撑容器 ~40px (#686 报的空间浪费). */
 
 .reaction-picker-popover {
   position: absolute;
@@ -2786,6 +2791,10 @@ body {
   left: 0;
   z-index: 50;
   margin-bottom: 4px;
+  /* gh#686 §4 #14 picker 溢出 viewport: 永远向上展开 (bottom: 100%) +
+     短屏 mobile 用 max-height: min(360px, 50vh) 兜底, picker 内部 emoji-mart
+     自带滚动. 反约束: 不引 floating-ui / popper.js (本次只是 bug fix). */
+  max-height: min(360px, 50vh);
 }
 
 /* ─── Delivery Status ─────────────────────────────────── */
