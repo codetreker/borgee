@@ -103,10 +103,27 @@ async function createAgent(
 /**
  * Open AgentConfigPanel by going to /agents → expand first agent's Manage.
  * AgentConfigPanel 在 Manage 展开后渲染.
+ *
+ * gh#698 e2e CI fail 修: 480px mobile viewport 下 sidebar 默认折叠 (App.tsx
+ * isMobile = innerWidth < 768, sidebar-wrapper sidebar-closed), [data-testid=
+ * "sidebar-nav-agents"] 在 closed sidebar 里不可点. 加 hamburger 守卫: 如果
+ * mobile 路径 .hamburger-btn 可见, 先点开 sidebar 再点 agents nav. desktop
+ * (≥768px) hamburger-btn 不渲染 (App.tsx L204 {isMobile && ...}), 直接点 nav.
+ * (跟 PR #699 cv-1-3-canvas-modal-a11y.spec.ts mobile case 同款修法.)
  */
 async function openAgentConfigPanel(page: Page) {
   await page.goto('/');
-  await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
+  // mobile: 等 hamburger 出来 (mobile 必有); desktop: 等 sidebar-title
+  // (desktop 必有). 用 first() 避 strict mode .or() 双命中坑 (PR #699 踩过).
+  await expect(
+    page.locator('.hamburger-btn, .sidebar-title').first(),
+  ).toBeVisible({ timeout: 10_000 });
+  // mobile 路径: hamburger 可见 → 点开 sidebar (desktop 路径 hamburger DOM
+  // 不渲染, count == 0, isVisible() == false, 跳过).
+  const hamburger = page.locator('.hamburger-btn');
+  if (await hamburger.count() > 0 && await hamburger.isVisible()) {
+    await hamburger.click();
+  }
   await page.locator('[data-testid="sidebar-nav-agents"]').click();
   await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
   // Manage 展开 (展开后才会 mount AgentConfigPanel — design §1 路径).
