@@ -115,7 +115,15 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         </span>
       </header>
 
-      <label>
+      {/* gh#698: 6 个 label 加内联 style 防 800px 父容器下排版重叠.
+          5 个 text/textarea label 用 display:block (跟 CreateAgentModal
+          AgentManager.tsx L414 Agent ID label 同款), 1 个 checkbox label
+          用 display:flex inline (跟 AgentManager.tsx L430 KNOWN_PERMISSIONS
+          块 inline checkbox 同款, yema review 拍 b inline). 反约束: 不引入
+          新 CSS class (反 pre-mature 抽象), 跟项目"按需重构"原则一致;
+          后续 ≥3 form 同模式时再抽 .form-stack/.field-block 公共类
+          (留 followup issue, p3-low). */}
+      <label style={{ display: 'block', marginTop: 8 }}>
         名称
         <input
           type="text"
@@ -125,7 +133,7 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         />
       </label>
 
-      <label>
+      <label style={{ display: 'block', marginTop: 8 }}>
         头像 URL
         <input
           type="text"
@@ -135,7 +143,7 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         />
       </label>
 
-      <label>
+      <label style={{ display: 'block', marginTop: 8 }}>
         Prompt
         <textarea
           data-agent-config-field="prompt"
@@ -144,7 +152,7 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         />
       </label>
 
-      <label>
+      <label style={{ display: 'block', marginTop: 8 }}>
         模型
         <input
           type="text"
@@ -154,7 +162,7 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         />
       </label>
 
-      <label>
+      <label style={{ display: 'block', marginTop: 8 }}>
         memory_ref
         <input
           type="text"
@@ -164,14 +172,17 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         />
       </label>
 
-      <label>
-        启用
+      {/* checkbox 例外行 (yema review #1 拍 b inline): text 节点放在
+          input 后面 (inline 视觉顺序: 先 ☐ 后 "启用"), 跟 CreateAgentModal
+          Permissions 块同款. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
         <input
           type="checkbox"
           data-agent-config-field="enabled"
           checked={draft.enabled ?? false}
           onChange={e => setDraft({ ...draft, enabled: e.target.checked })}
         />
+        启用
       </label>
 
       <button
