@@ -71,21 +71,23 @@ describe('NO-HARDCODED-DOMAIN — REG-NHD reverse-grep + env injection', () => {
     expect(src).toMatch(/ENV VITE_AGENT_WS_SERVER=\$\{VITE_AGENT_WS_SERVER\}/);
   });
 
-  test('REG-NHD-005 — deploy workflows pass --build-arg per env + CORS_ORIGIN inline override', () => {
+  test('REG-NHD-005 — deploy workflows pass --build-arg VITE_AGENT_WS_SERVER per env (build-time inject)', () => {
+    // 锁 yaml 里真该锁的: VITE_AGENT_WS_SERVER build-arg. 这个值在 build 时
+    // 烧进 client bundle, 一旦丢就跨环境拼错 ws URL — yaml 是 SSOT.
+    //
+    // CORS_ORIGIN / 服务器 env 不在这里锁: 它们由 /opt/dockers/<env>/.env 人工
+    // 管, yaml 不再注入 (PR #668 删了 inline compose / override.yml heredoc,
+    // 三环境统一回 .env 模式). yaml 只触发 deploy, 不管运维配置.
+
     // testing → testing-borgee.codetrek.cn
     const test = read('.github/workflows/deploy-test.yml');
     expect(test).toMatch(/--build-arg VITE_AGENT_WS_SERVER=wss:\/\/testing-borgee\.codetrek\.cn/);
-    // testing CORS_ORIGIN env 真挂 inline compose
-    expect(test).toMatch(/CORS_ORIGIN=https:\/\/testing-borgee\.codetrek\.cn/);
-    // staging+prod → borgee.codetrek.cn (staging 是 smoke-test prod artifact, 共用 build)
+
+    // staging + prod 共用同一 build (deploy-prod 通过 Harbor API re-tag
+    // build_tag → prod), build-arg 用 prod URL — staging 是 smoke-test prod
+    // artifact 的环境.
     const prod = read('.github/workflows/deploy.yml');
     expect(prod).toMatch(/--build-arg VITE_AGENT_WS_SERVER=wss:\/\/borgee\.codetrek\.cn/);
-    // staging+prod CORS_ORIGIN inline override 真挂 (反靠 host compose 不可控)
-    expect(prod).toMatch(/CORS_ORIGIN=https:\/\/staging-borgee\.codetrek\.cn/);
-    expect(prod).toMatch(/CORS_ORIGIN=https:\/\/borgee\.codetrek\.cn/);
-    // 反向锁: 2 inline override 真生效 (反 silent host compose dep)
-    const overrideHits = (prod.match(/docker-compose\.override\.yml/g) || []).length;
-    expect(overrideHits).toBeGreaterThanOrEqual(2);
   });
 
   test('REG-NHD-006 — production source 0 hit codetrek.cn (cross-package reverse-grep, code only)', () => {

@@ -45,41 +45,16 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
-            mkdir -p /opt/dockers/collab-test
-            cat > /opt/dockers/collab-test/docker-compose.yml << 'COMPEOF'
-            services:
-              borgee-test:
-                image: cr.codetrek.work/default/borgee:test
-                container_name: borgee-test
-                restart: unless-stopped
-                user: "0:0"
-                ports:
-                  - "4902:4900"
-                volumes:
-                  - borgee-test-data:/app/data
-                environment:
-                  - HOST=0.0.0.0
-                  - PORT=4900
-                  - NODE_ENV=production
-                  - DATABASE_PATH=/app/data/collab.db
-                  - UPLOAD_DIR=/app/data/uploads
-                  - WORKSPACE_DIR=/app/data/workspaces
-                  - CLIENT_DIST=/app/client/dist
-                  - JWT_SECRET=test-env-jwt-secret-b07b08
-                  - CORS_ORIGIN=https://testing-borgee.codetrek.cn
-                  # admin bootstrap (auth.go::BootstrapWith 必填,
-                  # 缺则启动时 panic). 密码走 secret 不入仓库.
-                  - BORGEE_ADMIN_LOGIN=admin
-                  - BORGEE_ADMIN_PASSWORD=${{ secrets.BORGEE_ADMIN_PASSWORD_TEST }}
-            volumes:
-              borgee-test-data:
-            COMPEOF
-            cd /opt/dockers/collab-test
-            # 兜底清孤儿 container (#660 follow-up): --force-recreate 只对
-            # compose track 的 service container 生效, 现有 testing 上的
-            # 孤儿 container (project name 不匹配 / labels 丢) 撞名时
-            # compose 走 "Creating" 路径直接 fail. 双层兜底:
-            # 1) compose down: 清 compose 自己 track 的 + 顺手 --remove-orphans
+            cd /opt/dockers/borgee-test
+            # 服务器上 docker-compose.yml + .env 由人工管, yaml 不再写 inline
+            # compose / 不再注入 environment (跟 staging/prod 一致). 环境变量
+            # 读 /opt/dockers/borgee-test/.env.
+            #
+            # 兜底清孤儿 container (#660 + #661): --force-recreate 只对 compose
+            # track 的 service container 生效, 服务器上偶有孤儿 container
+            # (project name 不匹配 / labels 丢) 撞名时 compose 走 "Creating"
+            # 路径直接 fail. 双层兜底:
+            # 1) compose down: 清 compose 自己 track 的 + --remove-orphans
             # 2) docker rm -f: 兜 compose 不认的同名 container (孤儿)
             # `|| true` 让 set -e 不在 "无容器" 正常情况炸; 真 docker daemon
             # 挂的 fail 会在后面 pull / up 阶段被 set -e 抓.
@@ -88,20 +63,16 @@ jobs:
             docker compose pull || (echo "❌ docker compose pull failed (network / harbor)" && exit 1)
             docker compose up -d --force-recreate --remove-orphans
             sleep 5
-            # Fail-loud image SHA 比对: 验 container 真用新 image, 反 docker
-            # conflict 假绿. 烈马 #658 e2e 抓到 testing-borgee 5 天 stale 真因 —
-            # `up -d` 不带 --force-recreate 时撞 container name conflict 不
-            # recreate, 旧容器 /health 仍 ✅, step 假绿. 跟 deploy.yml
-            # staging/prod L85+L129 --force-recreate 同模式, 加 SHA 比对兜底
-            # 防 force-recreate 因 pull 失败而 silently skip 仍跑旧镜像.
+            # Fail-loud image SHA 比对 (#660): 验 container 真用新 image, 防
+            # `up -d` 因任何原因 silently 跑了旧镜像 (烈马 #658 抓到 testing 5
+            # 天 stale 那批假绿).
             RUNNING_SHA=$(docker inspect borgee-test --format='{{.Image}}' 2>/dev/null) || (echo "❌ docker inspect borgee-test failed" && exit 1)
             PULLED_SHA=$(docker inspect --type=image cr.codetrek.work/default/borgee:test --format='{{.Id}}' 2>/dev/null) || (echo "❌ docker inspect image failed" && exit 1)
             if [ "$RUNNING_SHA" != "$PULLED_SHA" ]; then
               echo "❌ container running stale image: $RUNNING_SHA != $PULLED_SHA"
               exit 1
             fi
-            # 跟 deploy.yml staging/prod L88-90 + L132-134 同模式: log StartedAt
-            # 让审计可见 container 真新.
+            # 跟 deploy.yml staging/prod 同模式: log StartedAt 让审计看见 container 真新.
             UPTIME=$(docker inspect --format '{{.State.StartedAt}}' borgee-test 2>/dev/null || echo "")
             if [ -n "$UPTIME" ]; then echo "Container started at: $UPTIME"; fi
             curl -sf http://localhost:4902/health > /dev/null && echo "✅ Test healthy ($RUNNING_SHA)" || (echo "❌ Test unhealthy" && exit 1)
