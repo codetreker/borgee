@@ -99,3 +99,45 @@ DOM 字面锁 byte-identical 跟 spec §1 AL-5.2 (改 = 改两处: al-5-spec.md 
 **反约束 (AL-5 spec §0 同义词反向 grep)**: 5 词禁出现在 button label — 重启 / reset / restart / 重新启动 / 重置 (替 "重连"). 单测 `SystemMessageBubble.al5.test.tsx::reverse — no synonym buttons` 守.
 
 `isAL5RecoverPayload` type guard 区分 shape, BPP-3.2 + AL-5 共用 SystemMessageBubble — 两 payload 都给时按 BPP-3.2 优先 (al5 ∧ ¬bpp32 才渲 重连按钮). CM-onboarding 单按钮 fallback 在两者都无时渲.
+
+---
+
+## 5. 消息间距 + Reaction 布局 (gh#686 / PR #705)
+
+### 5.1 消息间距
+
+消息气泡之间 `margin-block: 8px` (反默认 0 间距挤在一起) — `packages/client/src/index.css` `.message-item` 选择器. 同 sender 连续消息之间 `margin-block: 4px` (紧凑视觉分组).
+
+### 5.2 ReactionAddButton (新组件)
+
+```
+┌──┐  Username                      2:30 PM
+│AV│  Message text...
+└──┘                                        [➕]   ← hover 才显示, 点开 emoji picker
+      👍 3   🎉 1                     ← Reactions chip 在消息下方独立行
+```
+
+之前 reaction chip + add 按钮挤在 hover toolbar 里 (跟 ✏️/🗑 编辑/删除按钮同行), 视觉拥挤. PR #705 拆出 `ReactionAddButton.tsx` 独立组件 + reaction chip 移到消息下方独立行.
+
+DOM 锚:
+- `<button data-testid="reaction-add-button" aria-label="添加 reaction">` — hover 才显示
+- `<div className="reaction-chips">` — chip 容器, 在 `.message-item` 下方独立行
+
+点击 → 打开 emoji picker → 选 emoji → POST `/api/v1/messages/:id/reactions` → reducer 派发.
+
+### 5.3 三态共存 reducer (#705)
+
+`packages/client/src/context/AppContext.tsx` reducer 同时支持三态 action:
+- `ADD_REACTION_OPTIMISTIC` — 用户点选 emoji 立刻乐观渲染 (反 ws push 来之前 UI 空)
+- `REMOVE_REACTION_OPTIMISTIC` — 用户取消 reaction 立刻乐观移除 (反 ws push 来之前 chip 还在)
+- `UPDATE_REACTIONS` — ws push 真值整体替换 (server 端聚合后下发, 反多设备并发竞态)
+
+REMOVE 走 user_id 移除 (不是 emoji-wide 删除) — 反 N 用户给同 emoji 时, 一个用户取消把别人 reaction 也清掉.
+
+竞态修复:
+- 乐观 ADD 后 ws push 来时 UPDATE_REACTIONS 整体替换, 不双计
+- 跨设备 (设备 A 加 reaction, 设备 B 收 ws push) → UPDATE_REACTIONS 同步, last-writer-wins
+- HTTP 失败 → reducer rollback (走 REMOVE_REACTION_OPTIMISTIC) 反留乐观状态
+
+详见 design `docs/implementation/design/686-message-spacing-reaction-position.md`.
+
