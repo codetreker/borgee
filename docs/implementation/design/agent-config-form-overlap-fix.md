@@ -255,8 +255,8 @@ team-lead 在 SendMessage 里建议 "倾向修法 B (复用 `.form-group / .form
 | Followup | Issue | 依赖 / 关联 |
 |---|---|---|
 | al-2a content lock 三方 drift (md ↔ test ↔ code 不一致, form 元素 + 标题字面) | gh#701 | yema review 提, 历史 drift 不是 #698 引入. 要 brainstorm 拍方向 (改 doc 跟代码对齐 / 改代码跟 doc 对齐). |
-| AgentConfigPanel dirty guard | (待开, p3-low) | 依赖 PR #695 `useUnsavedChangesGuard` hook 先合到 main; 跟 AgentManager 编辑 / WorkspaceManager / NodeManager 三个 form 一起做 (yema 在 PR #695 review 已留账"4 form 都该接"). 此 PR 不带飞 (yema 拍 ii 不加 + heima 也同意 UX 决定留 PM). 注: PR #695 实际加的是 **CreateAgentModal** 的 unsaved guard, 不是 channel description (yema 反向校正). |
-| AgentConfigPanel UX 友好化 (memory_ref / model / enabled 文案) | (待开, p3-low) | yema review 提的产品方向, 不在 #698 排版 bug 修范围. |
+| AgentConfigPanel UX 友好化 (memory_ref / model / enabled 文案) | gh#702 | yema review 提的产品方向, 不在 #698 排版 bug 修范围. |
+| useUnsavedChangesGuard 4 form 推广 (含 AgentConfigPanel dirty guard) | gh#703 | 依赖 PR #695 `useUnsavedChangesGuard` hook 先合到 main; 跟 AgentManager 编辑 / WorkspaceManager / NodeManager 三个 form 一起做 (yema 在 PR #695 review 已留账"4 form 都该接"). 此 PR 不带飞 (yema 拍 ii 不加 + heima 也同意 UX 决定留 PM). 注: PR #695 实际加的是 **CreateAgentModal** 的 unsaved guard, 不是 channel description (yema 反向校正). |
 
 ---
 
