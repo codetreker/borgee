@@ -185,12 +185,9 @@ test.describe('gh#691 Canvas modal a11y + IME + mobile + 失败处理', () => {
     // .channel-name 不可点直到 hamburger 打开. 不用 gotoCanvasTab helper —
     // helper 是按 desktop 路径写的, mobile 要先 click hamburger.
     await page.goto(clientURL());
-    await expect(page.locator('.sidebar-title').or(page.locator('.hamburger-btn'))).toBeVisible({ timeout: 10_000 });
-    // mobile: 点 hamburger 打开 sidebar.
-    const hamburger = page.locator('.hamburger-btn');
-    if (await hamburger.isVisible()) {
-      await hamburger.click();
-    }
+    // mobile: 等 .hamburger-btn 可见 (mobile 路径必出此 button, App.tsx L204).
+    await expect(page.locator('.hamburger-btn')).toBeVisible({ timeout: 10_000 });
+    await page.locator('.hamburger-btn').click();
     await page.locator('.channel-name', { hasText: channelName }).first().click();
     await page.locator('.channel-view-tab', { hasText: 'Canvas' }).click();
     await expect(page.locator('.artifact-panel')).toBeVisible();
