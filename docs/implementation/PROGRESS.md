@@ -28,7 +28,7 @@
 
 ## In-flight 当前状态 (≤10 行)
 
-- DOCS-CURRENT-CATCHUP (5 候选 docs/current sync · 战马 §1.1 HB-2 / 战马C §1.3+§1.5 CS-1+DM-12 / 战马D §1.2+§1.4 HB-1B+DM-11)
+- 12 PR wave (#694-#712) 全合 main, 0 候选 in-flight; cluster C/D/E/F + #681 等用户拍 (cluster brainstorm 由 yema PM 起)
 - (history — Phase 4+ ✅ closure, post-closure follow-up wave merged; detail → phase-4.md)
 
 ---

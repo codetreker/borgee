@@ -85,7 +85,7 @@ UI 层 + server 层双层 fail-closed:
 
 ## 8. 测试
 
-`packages/client/src/__tests__/al-2a-content-lock.test.ts` 8 cases:
+`packages/client/src/__tests__/al-2a-content-lock.test.ts` 9 cases:
 - ① toast 字面 byte-identical
 - ② allowedConfigKeys 7 字段
 - ③ data-agent-config-field 二态锁
@@ -94,3 +94,28 @@ UI 层 + server 层双层 fail-closed:
 - 反约束 runtime-only 4 字段不渲染
 - 反约束 不订阅 push frame
 - 反约束 toast 同义词漂移 0 hit
+- 反向锚 (gh#701 drift 修): packages/ + docs/qa/ 全树 `data-form="agent-config"` 字面 0 hit (容器是 section, 不是 form)
+
+## 9. 排版守卫 (gh#698 / PR #706)
+
+6 label inline `style="display: block"` 防 form 排版重叠 — 反 mobile viewport 下 label/input 行折叠到同行造成视觉重叠. 反 CSS class (`.form-group` / `.form-field` 项目里不存在), inline style 跟代码同 commit byte-identical. checkbox label 例外用 `style="display: flex; align-items: center; gap: 8px"` 让 ☐ 跟 "启用" 同行 (yema 拍 b 选项).
+
+`<label htmlFor>` 隐式关联走 `<label> {input}` 嵌套 (不显式 htmlFor 配 input id) — 跟 borgee 既有 form 一致.
+
+PR #706 加 inline style 后 1280/480/1024 真验过 0 重叠. 详见 design `docs/implementation/design/698-agent-config-form-overlap.md`.
+
+## 10. 形状守卫 (gh#684 / PR #710)
+
+textarea (prompt 字段) 默认 `rows={8}` + `style={{ resize: 'vertical', width: '100%', boxSizing: 'border-box' }}` — 反默认 1 行太小. 详见 [`agent-manager.md §5`](agent-manager.md#5-prompt-textarea-gh684-22).
+
+## 11. form 状态保护 (gh#703 / PR #708)
+
+接入 `useUnsavedChangesGuard` (跟 #695 sidepane 切换 + #709 hook beforeunload 联动) — sidepane 切换 / 关 tab / 刷新前如有未保存改动弹 confirmation.
+
+isDirty 推算 (编辑 form 模式):
+```ts
+() => !loading && !saving && config !== null
+   && JSON.stringify(draft) !== JSON.stringify(config.blob)
+```
+
+详见 [`../hooks/useUnsavedChangesGuard.md`](../hooks/useUnsavedChangesGuard.md).
