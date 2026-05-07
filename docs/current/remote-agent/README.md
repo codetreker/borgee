@@ -168,3 +168,10 @@ remote_bindings:
 
 ## npm 发布
 包名 `@codetreker/borgee-remote-agent`，repository `codetreker/borgee`。
+
+## 发布流程
+
+1. Dev 开 PR bump `packages/remote-agent/package.json` 版本号 → CI 通过 → 合并
+2. 在 GitHub Actions 手动触发 `Publish Remote Agent` workflow
+3. Workflow 自动检查版本是否已发布，未发布则 `npm publish --provenance`
+4. npm registry 兜底：同版本不允许覆盖
