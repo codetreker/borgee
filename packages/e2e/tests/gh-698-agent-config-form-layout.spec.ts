@@ -133,10 +133,15 @@ async function openAgentConfigPanel(page: Page) {
   // 关 sidebar 才能 click .agent-card 内 Manage button. (跟 PR #699 mobile
   // case 不撞这条因为它在 .artifact-empty button — Canvas tab 切换时 sidebar
   // 走 closeAllViews 自动关, gh#698 sidebar-nav-agents 不走 closeAllViews.)
+  //
+  // gh#698 e2e v4: overlay.click() 没 force 时被 .channel-list 拦 pointer
+  // event (即便 overlay 在 DOM 上 visible). 加 { force: true } 跳 hit-testing
+  // 直接派 click 到 overlay 元素本身. 用户真路径也是点 overlay 区域
+  // (overlay 整 .main-content 几乎全屏), force 模拟没失真.
   if (isMobile) {
     const overlay = page.locator('.sidebar-overlay');
-    if (await overlay.count() > 0 && await overlay.isVisible()) {
-      await overlay.click();
+    if (await overlay.count() > 0) {
+      await overlay.click({ force: true });
       await expect(overlay).toHaveCount(0);
     }
   }
