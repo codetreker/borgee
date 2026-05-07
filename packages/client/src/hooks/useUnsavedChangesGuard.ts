@@ -108,4 +108,23 @@ export function useUnsavedChangesGuard(isDirty: () => boolean, message?: string)
     const unregister = registerUnsavedGuard(() => isDirtyRef.current(), message);
     return unregister;
   }, [message]);
+
+  // gh#703 PR-2/2 — beforeunload 监听: 浏览器 ctrl+W / 关 tab / refresh 时
+  // 如果当前 dirty, 让浏览器弹原生提示 ("您输入的内容可能不会被保存"). 跨
+  // 5 处 form (AgentManager / AgentConfigPanel / DescriptionEditor /
+  // NodeManager 双 form) 自动获益, 不需要每处自己写. 反约束: 不挂自定义
+  // modal (跟 CV-10 ArtifactCommentDraftInput 立场 ② 一致); 现代浏览器忽略
+  // message, 设 returnValue 触发原生提示就行.
+  //
+  // 空 deps OK — isDirtyRef 是 ref, handler 关到 ref 没 staleness 问题
+  // (跟上面的 unregister 同理).
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirtyRef.current()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 }

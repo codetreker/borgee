@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 import {
   fetchRemoteNodes,
   createRemoteNode,
@@ -119,8 +120,18 @@ export default function NodeManager({ onBack }: Props) {
   );
 }
 
-function CreateNodeForm({ onSubmit, onCancel }: { onSubmit: (name: string) => void; onCancel: () => void }) {
+// gh#703 PR-2/2 — export 给单测直接渲染 (反 NodeManager 拉全 AppContext +
+// fetchRemoteNodes mock 重壳测试).
+export function CreateNodeForm({ onSubmit, onCancel }: { onSubmit: (name: string) => void; onCancel: () => void }) {
   const [name, setName] = useState('');
+
+  // gh#703 PR-2/2 — sidepane 切换 + beforeunload 守卫 (创建 form 模式).
+  // 字段非空 (trim 后) 算 dirty, 反 JSON.stringify byte 比对 (创建 form 没
+  // original baseline 不需要顺序敏感 deep equal).
+  useUnsavedChangesGuard(
+    () => name.trim() !== '',
+    'Create Node 表单有填写但还没提交, 离开会丢失. 确认离开吗?',
+  );
 
   return (
     <div className="node-create-form">
@@ -138,7 +149,9 @@ function CreateNodeForm({ onSubmit, onCancel }: { onSubmit: (name: string) => vo
   );
 }
 
-function NodeDetail({ node, online, channels, onDelete }: {
+// gh#703 PR-2/2 — export 给单测直接渲染 (反 NodeManager 拉全 AppContext +
+// fetchRemoteNodes mock 重壳测试).
+export function NodeDetail({ node, online, channels, onDelete }: {
   node: RemoteNode;
   online: boolean;
   channels: { id: string; name: string }[];
@@ -151,6 +164,18 @@ function NodeDetail({ node, online, channels, onDelete }: {
   const [bindChannelId, setBindChannelId] = useState('');
   const [bindPath, setBindPath] = useState('');
   const [bindLabel, setBindLabel] = useState('');
+
+  // gh#703 PR-2/2 — sidepane 切换 + beforeunload 守卫 (创建 form 模式).
+  // showAddBinding 开 + 任一字段非空才算 dirty (form 没显时不算, 反 form
+  // 关闭后旧字段值还残留误触发). bindChannelId 是 select value, 不需要 trim.
+  useUnsavedChangesGuard(
+    () =>
+      showAddBinding &&
+      (bindChannelId !== '' ||
+        bindPath.trim() !== '' ||
+        bindLabel.trim() !== ''),
+    '目录绑定表单有填写但还没提交, 离开会丢失. 确认离开吗?',
+  );
 
   const loadBindings = useCallback(async () => {
     try {
