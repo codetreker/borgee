@@ -311,4 +311,34 @@
 
 ---
 
+## 6. GroupHeader 排版守卫 (gh#689 / PR #696)
+
+### 6.1 三条排版 bug 修
+
+| bug | 修法 |
+|---|---|
+| drag-handle (≡) 跟菜单按钮 (⋯) 跟标题 baseline 错位 | 改用 `.group-header-drag-handle` / `.group-header-menu-btn` 同高 20x20 方块 (反通用 `.icon-btn` 32x32) |
+| 折叠态三角方向不对 (default `▶` 朝右合理但折叠态被误转 90° 朝下) | 用 `transform: rotate(...)` 锚定折叠 = 0deg / 展开 = 90deg, 反 hardcoded 字面 |
+| 行高过高 vertical 拥挤 | 24px line-height + 4px padding, 反默认 baseline 32px 撑大 |
+
+### 6.2 DOM 锚
+
+- `<div className="group-header">` 行容器
+- `<button className="group-header-drag-handle">` ≡ 拖动手柄 (owner-only DOM gate)
+- `<button className="group-header-menu-btn">` ⋯ 菜单按钮
+- `<span className={cn('group-header-arrow', { collapsed })}>` 三角图标 (默认 ▶ + collapsed 类加 90° rotate)
+
+### 6.3 反向 grep 锚
+
+- `.icon-btn` 在 GroupHeader 命中 0 (反通用 class 撑大行高)
+- `transform: rotate` 在 group-header CSS 命中 ≥1 (折叠态走 transform 不走字面)
+
+### 6.4 测试
+
+- `packages/client/src/__tests__/GroupHeader.test.tsx` (≥4 case): 默认折叠状态 / 展开状态 / drag-handle 点击 / hover 显示 menu
+
+详见 PR #696 Summary.
+
+---
+
 > 本文档由野马（PM）创建，配合 [B26/B27 PRD](../../../tasks/COL-B26/prd.md) 使用。
