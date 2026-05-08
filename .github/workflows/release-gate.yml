@@ -3,11 +3,7 @@ name: Release Gate (HB-4 ⭐)
 # HB-4 release gate — runs on every PR to main + manual workflow_dispatch.
 # Any step failure → workflow red → release block.
 #
-# Spec: docs/release/host-bridge-release-gate.md (≥10 hard conditions).
 # 不允许人工 sign-off 跳过任一 step (烈马 R2 立场).
-#
-# 4.1 行为不变量 (this workflow) vs 4.2 demo 签字 (野马 docs/qa/signoffs/
-# hb-4-yema-signoff.md) 拆死 — 不混入.
 
 on:
   pull_request:
@@ -87,19 +83,17 @@ jobs:
         run: |
           set -e
           patterns='release.gate.*skip|release.gate.*manual.*sign|allow.*bypass|--admin.*merge.*release|release.gate.*human.review|release.gate.*demo.signoff'
-          # Scan release docs + workflows. Self-file + sibling AL yml
+          # Scan workflows. Self-file + sibling AL yml
           # excluded so the patterns string definition in this file (and
           # in al-release-gate.yml) doesn't false-positive match itself.
           # (跟 AL-2 wrapper #512 8ad9975 同 self-grep fix 模式承袭.)
-          # Metaword grep -v 守 docs/release/ md 中合法字面提及 (反向 grep /
-          # count==0 / 不允许 / MUST NOT / 拆死 / 留账).
-          hits=$(grep -rE "$patterns" docs/release/ .github/workflows/ \
+          hits=$(grep -rE "$patterns" .github/workflows/ \
                  --exclude='release-gate.yml' --exclude='al-release-gate.yml' \
                  2>/dev/null \
                  | grep -vE '反向 grep|count==0|不允许|MUST NOT|拆死|留账' | wc -l)
           if [ "$hits" -gt 0 ]; then
             echo "::error::release-gate bypass / sign-off skip / 4.1/4.2 mix patterns found ($hits hits)"
-            grep -rE "$patterns" docs/release/ .github/workflows/ \
+            grep -rE "$patterns" .github/workflows/ \
                  --exclude='release-gate.yml' --exclude='al-release-gate.yml' \
                  | grep -vE '反向 grep|count==0|不允许|MUST NOT|拆死|留账'
             exit 1

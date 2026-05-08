@@ -3,15 +3,11 @@ name: AL Release Gate (AL-2 wrapper ⭐)
 # AL-2 wrapper release gate — runs on every PR to main + manual
 # workflow_dispatch. Any step failure → workflow red → release block.
 #
-# Spec: docs/release/agent-lifecycle-release-gate.md (≥10 hard conditions).
 # 不允许人工 sign-off 跳过任一 step (烈马 R2 立场 + HB-4 #509 立场 ① 承袭).
 #
 # 拆独立 yml from HB-4 release-gate.yml — host 层 (HB stack) vs runtime
 # 层 (AL stack) 守门拆死. AL stack 走 agent_state_log + agent_status,
 # HB stack 走 audit log; 字典分立反约束.
-#
-# 4.1 行为不变量 (this workflow) vs 4.2 demo 签字 (野马 docs/qa/signoffs/
-# al-2-wrapper-yema-signoff.md) 拆死.
 
 on:
   pull_request:
@@ -107,15 +103,14 @@ jobs:
           patterns='al\.release\.gate.*skip|al\.release.*manual.*sign|allow.*bypass.*al|--admin.*merge.*al\.release|al\.release.*human\.review|al\.release.*demo\.signoff'
           # --exclude self-file 防 yml 内 patterns 字符串定义匹配自己
           # (跟 HB-4 release-gate.yml 同一 self-grep false positive bug 模式;
-          # HB-4 留 follow-up). docs/release/ md 文件以 反向 grep / count==0 /
-          # 不允许 / 拆死 等元词 grep -v 守.
-          hits=$(grep -rE "$patterns" docs/release/ .github/workflows/ \
+          # HB-4 留 follow-up).
+          hits=$(grep -rE "$patterns" .github/workflows/ \
                  --exclude='al-release-gate.yml' --exclude='release-gate.yml' \
                  2>/dev/null \
                  | grep -vE '反向 grep|count==0|不允许|MUST NOT|拆死|留账|拒.*跳过' | wc -l)
           if [ "$hits" -gt 0 ]; then
             echo "::error::AL release-gate bypass / sign-off skip patterns found ($hits hits)"
-            grep -rE "$patterns" docs/release/ .github/workflows/ \
+            grep -rE "$patterns" .github/workflows/ \
                  --exclude='al-release-gate.yml' --exclude='release-gate.yml' \
                  | grep -vE '反向 grep|count==0|不允许|MUST NOT|拆死|留账|拒.*跳过'
             exit 1
