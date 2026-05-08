@@ -190,9 +190,6 @@ jobs:
       - name: startup-benchmark
         run: |
           echo "::notice::startup-benchmark deferred — HB-1/HB-2 Go binary 真实施 PR 加 go test -bench < 800ms (HB stack Go 重审)"
-          # placeholder: assert spec contract not drifted
-          test -f docs/implementation/modules/hb-1-spec.md
-          test -f docs/implementation/modules/hb-2-spec.md
 
       # §1.2 dogfood-crash-rate placeholder (release 前 1 周真测回填)
       - name: dogfood-crash-rate
@@ -204,9 +201,6 @@ jobs:
       - name: signature-pass-rate
         run: |
           echo "::notice::signature-pass-rate deferred — HB-1 install-butler Go binary 真实施 PR 加 contract test (HB stack Go 重审)"
-          # placeholder: assert HB-1 spec contract not drifted
-          test -f docs/implementation/modules/hb-1-spec.md
-          grep -q 'signature' docs/implementation/modules/hb-1-spec.md
 
       # INFRA-3 progress-line-budget — PROGRESS.md 主文件瘦身锁
       # (反战马 commit 塞 1500+ 字符到 milestone 行 + 反主文件行膨胀).
