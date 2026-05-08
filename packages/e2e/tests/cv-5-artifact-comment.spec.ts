@@ -2,7 +2,7 @@
 // AL-2b / AL-1b pattern). UI smoke-test 由 vitest ArtifactComments.test.tsx
 // 覆盖; 此 spec 守服务端 5 立场.
 //
-// Acceptance: docs/qa/acceptance-templates/cv-5.md §3.
+// Acceptance: docs/_archive/qa/acceptance-templates/cv-5.md §3.
 // Stance: docs/qa/cv-5-stance-checklist.md §1-§4.
 //
 // 5 case (跟 spec §1 拆段 CV-5.3 字面):

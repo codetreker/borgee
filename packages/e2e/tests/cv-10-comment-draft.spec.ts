@@ -1,7 +1,7 @@
 // tests/cv-10-comment-draft.spec.ts — CV-10.2 e2e (Playwright, localStorage
 // + page-leave warning).
 //
-// Acceptance: docs/qa/acceptance-templates/cv-10.md §2.
+// Acceptance: docs/_archive/qa/acceptance-templates/cv-10.md §2.
 // Stance: docs/qa/cv-10-stance-checklist.md §1+§2+§4.
 //
 // CV-10 是 client-only feature (0 server code). 此 spec 通过 localStorage

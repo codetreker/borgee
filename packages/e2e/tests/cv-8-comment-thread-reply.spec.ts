@@ -1,7 +1,7 @@
 // tests/cv-8-comment-thread-reply.spec.ts — CV-8.3 e2e (REST-driven, mirrors
 // CV-5 / CV-7 e2e pattern).
 //
-// Acceptance: docs/qa/acceptance-templates/cv-8.md §3.
+// Acceptance: docs/_archive/qa/acceptance-templates/cv-8.md §3.
 // Stance: docs/qa/cv-8-stance-checklist.md §1-§5.
 // Spec: docs/implementation/modules/cv-8-spec.md.
 //

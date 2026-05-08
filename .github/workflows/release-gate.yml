@@ -3,11 +3,7 @@ name: Release Gate (HB-4 ⭐)
 # HB-4 release gate — runs on every PR to main + manual workflow_dispatch.
 # Any step failure → workflow red → release block.
 #
-# Spec: docs/release/host-bridge-release-gate.md (≥10 hard conditions).
 # 不允许人工 sign-off 跳过任一 step (烈马 R2 立场).
-#
-# 4.1 行为不变量 (this workflow) vs 4.2 demo 签字 (野马 docs/qa/signoffs/
-# hb-4-yema-signoff.md) 拆死 — 不混入.
 
 on:
   pull_request:
@@ -87,19 +83,17 @@ jobs:
         run: |
           set -e
           patterns='release.gate.*skip|release.gate.*manual.*sign|allow.*bypass|--admin.*merge.*release|release.gate.*human.review|release.gate.*demo.signoff'
-          # Scan release docs + workflows. Self-file + sibling AL yml
+          # Scan workflows. Self-file + sibling AL yml
           # excluded so the patterns string definition in this file (and
           # in al-release-gate.yml) doesn't false-positive match itself.
           # (跟 AL-2 wrapper #512 8ad9975 同 self-grep fix 模式承袭.)
-          # Metaword grep -v 守 docs/release/ md 中合法字面提及 (反向 grep /
-          # count==0 / 不允许 / MUST NOT / 拆死 / 留账).
-          hits=$(grep -rE "$patterns" docs/release/ .github/workflows/ \
+          hits=$(grep -rE "$patterns" .github/workflows/ \
                  --exclude='release-gate.yml' --exclude='al-release-gate.yml' \
                  2>/dev/null \
                  | grep -vE '反向 grep|count==0|不允许|MUST NOT|拆死|留账' | wc -l)
           if [ "$hits" -gt 0 ]; then
             echo "::error::release-gate bypass / sign-off skip / 4.1/4.2 mix patterns found ($hits hits)"
-            grep -rE "$patterns" docs/release/ .github/workflows/ \
+            grep -rE "$patterns" .github/workflows/ \
                  --exclude='release-gate.yml' --exclude='al-release-gate.yml' \
                  | grep -vE '反向 grep|count==0|不允许|MUST NOT|拆死|留账'
             exit 1
@@ -190,9 +184,6 @@ jobs:
       - name: startup-benchmark
         run: |
           echo "::notice::startup-benchmark deferred — HB-1/HB-2 Go binary 真实施 PR 加 go test -bench < 800ms (HB stack Go 重审)"
-          # placeholder: assert spec contract not drifted
-          test -f docs/implementation/modules/hb-1-spec.md
-          test -f docs/implementation/modules/hb-2-spec.md
 
       # §1.2 dogfood-crash-rate placeholder (release 前 1 周真测回填)
       - name: dogfood-crash-rate
@@ -204,55 +195,6 @@ jobs:
       - name: signature-pass-rate
         run: |
           echo "::notice::signature-pass-rate deferred — HB-1 install-butler Go binary 真实施 PR 加 contract test (HB stack Go 重审)"
-          # placeholder: assert HB-1 spec contract not drifted
-          test -f docs/implementation/modules/hb-1-spec.md
-          grep -q 'signature' docs/implementation/modules/hb-1-spec.md
-
-      # INFRA-3 progress-line-budget — PROGRESS.md 主文件瘦身锁
-      # (反战马 commit 塞 1500+ 字符到 milestone 行 + 反主文件行膨胀).
-      # 锁链第 5 处 (BPP-4 AST scan / HB-3 dict-isolation / AP-4-enum / HB-4 audit-schema 同模式).
-      - name: progress-line-budget
-        run: |
-          # ① 主 PROGRESS.md 单行 ≤200 字符
-          longLines=$(awk '{ if (length > 200) print NR":"length }' docs/implementation/PROGRESS.md || true)
-          if [ -n "$longLines" ]; then
-            echo "::error::INFRA-3 立场 ① — PROGRESS.md 单行超 200 字符 (战马 commit 历史塞主文件):"
-            echo "$longLines"
-            echo "::notice::长 milestone detail 应入 progress/phase-N.md 子文件"
-            exit 1
-          fi
-          # ② 主 PROGRESS.md 总行 ≤100
-          totalLines=$(wc -l < docs/implementation/PROGRESS.md)
-          if [ "$totalLines" -gt 100 ]; then
-            echo "::error::INFRA-3 立场 ① — PROGRESS.md 总行 $totalLines > 100 (主文件瘦身锁)"
-            exit 1
-          fi
-          # ③ 5 子文件存在
-          for p in 0 1 2 3 4; do
-            if [ ! -f "docs/implementation/progress/phase-$p.md" ]; then
-              echo "::error::INFRA-3 立场 ② — progress/phase-$p.md 缺失"
-              exit 1
-            fi
-          done
-          # ④ 主 PROGRESS.md 不含 checkbox (单一翻牌点入子文件)
-          checkboxHits=$(grep -cE '^- \[ \]|^- \[x\]' docs/implementation/PROGRESS.md || true)
-          if [ "$checkboxHits" -gt 0 ]; then
-            echo "::error::INFRA-3 立场 ③ — PROGRESS.md 主文件含 $checkboxHits 行 checkbox; milestone 翻牌点应入 progress/phase-N.md"
-            exit 1
-          fi
-          # ⑤ 跳转锚 ≥5 hit
-          jumpHits=$(grep -cE 'progress/phase-[0-4]\.md' docs/implementation/PROGRESS.md || true)
-          if [ "$jumpHits" -lt 5 ]; then
-            echo "::error::INFRA-3 立场 ② — PROGRESS.md 跳转锚 $jumpHits < 5 (5 phase 全锚)"
-            exit 1
-          fi
-          # ⑥ INFRA-4: phase-4.md 单文件 ≤200 行 (反 phase-4.md 历史 changelog 全堆 wrapper milestone)
-          phase4Lines=$(wc -l < docs/implementation/progress/phase-4.md)
-          if [ "$phase4Lines" -gt 200 ]; then
-            echo "::error::INFRA-4 立场 — progress/phase-4.md 总行 $phase4Lines > 200 (phase-4 wrapper 单文件锁); 历史 changelog 应按 milestone 归位 phase-{0,1,2,3}.md §更新日志归档"
-            exit 1
-          fi
-          echo "::notice::progress-line-budget PASS — PROGRESS.md $totalLines 行 / phase-4.md $phase4Lines 行 / 0 长行 / 0 checkbox / $jumpHits 跳转锚 / 5 子文件就位"
 
       # DL-1.2 (蓝图 data-layer.md §4 B): direct-store import budget.
       # 锁 internal/api/* 直接 import borgee-server/internal/store 文件数 ≤

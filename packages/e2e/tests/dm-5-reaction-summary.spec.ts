@@ -1,7 +1,7 @@
 // tests/dm-5-reaction-summary.spec.ts — DM-5.3 e2e (REST-driven, 跟
 // CV-9..CV-12 client-only 同模式).
 //
-// Acceptance: docs/qa/acceptance-templates/dm-5.md §3.
+// Acceptance: docs/_archive/qa/acceptance-templates/dm-5.md §3.
 // Stance: docs/qa/dm-5-stance-checklist.md §1+§4.
 // Spec: docs/implementation/modules/dm-5-spec.md.
 //

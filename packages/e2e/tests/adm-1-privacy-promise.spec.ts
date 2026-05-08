@@ -1,6 +1,6 @@
 // tests/adm-1-privacy-promise.spec.ts — ADM-1 e2e + G4.1 demo 双截屏.
 //
-// 闭环 docs/qa/acceptance-templates/adm-1.md:
+// 闭环 docs/_archive/qa/acceptance-templates/adm-1.md:
 //   §1 三承诺字面 1:1 + §2 八行 ✅/❌ 表格 byte-identical + §3 三色锁
 //   §2 反约束 — privacy section 默认展开不可折叠 (反 details-element 包裹)
 //   §4 闸 4 demo 双截屏: g4.1-adm1-{privacy-promise,privacy-table}.png
