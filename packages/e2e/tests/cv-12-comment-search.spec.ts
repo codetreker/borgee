@@ -1,7 +1,7 @@
 // tests/cv-12-comment-search.spec.ts — CV-12.3 e2e (REST-driven, mirrors
 // CV-9 / CV-11 client-only e2e pattern).
 //
-// Acceptance: docs/qa/acceptance-templates/cv-12.md §3.
+// Acceptance: docs/_archive/qa/acceptance-templates/cv-12.md §3.
 // Stance: docs/qa/cv-12-stance-checklist.md §1+§4.
 // Spec: docs/implementation/modules/cv-12-spec.md.
 //

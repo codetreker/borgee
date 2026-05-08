@@ -1,7 +1,7 @@
 // tests/cv-7-comment-edit-delete.spec.ts — CV-7.3 e2e (REST-driven, mirrors
 // CV-5 #530 e2e pattern).
 //
-// Acceptance: docs/qa/acceptance-templates/cv-7.md §3.
+// Acceptance: docs/_archive/qa/acceptance-templates/cv-7.md §3.
 // Stance: docs/qa/cv-7-stance-checklist.md §1-§5.
 // Spec: docs/implementation/modules/cv-7-spec.md.
 //

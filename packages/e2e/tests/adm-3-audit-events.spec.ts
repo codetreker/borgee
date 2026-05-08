@@ -1,6 +1,6 @@
 // tests/adm-3-audit-events.spec.ts — ADM-3 v1 multi-source audit Playwright e2e (acceptance §3.3).
 //
-// 闭环 docs/qa/acceptance-templates/adm-3-v1-e2e.md §1+§2+§3:
+// 闭环 docs/_archive/qa/acceptance-templates/adm-3-v1-e2e.md §1+§2+§3:
 //   case-1 admin /admin/audit-multi-source 渲染 (page DOM + 4 source filter dropdown 真显)
 //   case-2 4 source filter dropdown — 选 plugin → 表只显 plugin source 行 (反向断 server/host_bridge/agent 行 0 hit)
 //   case-3 admin god-mode 路径独立 (user-rail 走 /api/v1/audit/multi-source 反向断 404/403 + page-level reverse-grep)

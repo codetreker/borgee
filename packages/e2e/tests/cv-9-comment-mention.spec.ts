@@ -2,7 +2,7 @@
 // fan-out validation). 0 server production code path — CV-9 rides DM-2.2
 // MentionDispatcher既有 path; e2e pins the cross-link.
 //
-// Acceptance: docs/qa/acceptance-templates/cv-9.md §3.
+// Acceptance: docs/_archive/qa/acceptance-templates/cv-9.md §3.
 // Stance: docs/qa/cv-9-stance-checklist.md §1-§5.
 // Spec: docs/implementation/modules/cv-9-spec.md.
 //

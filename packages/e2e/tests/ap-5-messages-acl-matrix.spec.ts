@@ -2,7 +2,7 @@
 // matrix for messages PUT/DELETE/PATCH (post-removal fail-closed gap
 // 闭合, 跟 AP-4 reactions ACL 同模式 + DM-5 #549 §3.3 反向断同源).
 //
-// Acceptance: docs/qa/acceptance-templates/ap-5.md §2.
+// Acceptance: docs/_archive/qa/acceptance-templates/ap-5.md §2.
 // Spec: docs/implementation/modules/ap-5-spec.md §1 AP-5.2.
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';

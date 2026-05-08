@@ -1,7 +1,7 @@
 // tests/adm-2-followup.spec.ts — ADM-2-FOLLOWUP acceptance §1+§2 e2e + G4.2
 // 双截屏 (`g4.2-adm2-audit-list.png` + `g4.2-adm2-red-banner.png`).
 //
-// 闭环 docs/qa/acceptance-templates/adm-2-followup.md:
+// 闭环 docs/_archive/qa/acceptance-templates/adm-2-followup.md:
 //   §1.1 admin audit list UI 真渲染 (AdminAuditList_RealRender)
 //   §1.2 红 banner 真渲染 (AdminGodModeRedBanner_Real)
 //   §2.1 g4.2-adm2-audit-list.png ≥3000 bytes
