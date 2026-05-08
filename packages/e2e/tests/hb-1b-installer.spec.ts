@@ -14,26 +14,9 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SCREENSHOT_DIR = path.resolve(HERE, '../../../docs/qa/screenshots');
-const MIN_BYTES = 3000;
-
-const SCREENSHOTS = [
-  'g4.x-hb-1b-daemon-startup.png',
-  'g4.x-hb-1b-fetch-manifest.png',
-  'g4.x-hb-1b-verify-sig.png',
-  'g4.x-hb-1b-install-plugin.png',
-  'g4.x-hb-1b-failure-recovery.png',
-];
 
 test.describe('HB-1B-INSTALLER — REG-HB1B-005 5 截屏 demo + Playwright 真测', () => {
-  test('§3.1 — 5 截屏 demo ≥3000 bytes 各 (G4.x signoff)', () => {
-    for (const name of SCREENSHOTS) {
-      const p = path.join(SCREENSHOT_DIR, name);
-      expect(fs.existsSync(p), `${name} 必存在`).toBe(true);
-      const size = fs.statSync(p).size;
-      expect(size, `${name} ≥ ${MIN_BYTES} bytes`).toBeGreaterThanOrEqual(MIN_BYTES);
-    }
-  });
+  // §3.1 5 截屏 fs.existsSync 假 e2e 删 (#716 P0 — 真 e2e 必走 UI, 不查 git fixture).
 
   test('§3.2.1 daemon startup — install/README.md systemd + launchd 锚反查', () => {
     const readme = fs.readFileSync(

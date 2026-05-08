@@ -15,3 +15,4 @@ coverage/
 # (not a coverage output dir). Exempt from the coverage/ wildcard above.
 !packages/server-go/scripts/lib/coverage/
 node_modules
+.playwright-mcp/
