@@ -1,15 +1,15 @@
-# Phase 2 立场 ↔ 实施 对照矩阵
+# Phase 2 原则 ↔ 实施 对照矩阵
 
 > **状态**: v0 (飞马, 2026-04-28)
-> **目的**: Phase 2 R3 锁的 8 条蓝图立场, 1:1 锁到落地 PR + 代码点 + 验证证据。
-> **用法**: Phase 3 R4 review 当 anchor — 任何"立场漂移"提议必须在此矩阵反查; 想动立场 → 先动这表。
-> **不重复**: 决议进度看板见 `r3-decisions.md`; 本表只锁 "立场原文 ↔ 代码 ground truth"。
+> **目的**: Phase 2 R3 锁的 8 条蓝图原则, 1:1 锁到落地 PR + 代码点 + 验证证据。
+> **用法**: Phase 3 R4 review 当 anchor — 任何"原则漂移"提议必须在此矩阵反查; 想动原则 → 先动这表。
+> **不重复**: 决议进度看板见 `r3-decisions.md`; 本表只锁 "原则原文 ↔ 代码 ground truth"。
 
 ---
 
-## 1. 8 条立场 ↔ 实施矩阵
+## 1. 8 条原则 ↔ 实施矩阵
 
-| # | 蓝图立场 (来源 §) | 立场一句 | 实施 PR | 落地代码点 | 验证证据 |
+| # | 蓝图原则 (来源 §) | 原则一句 | 实施 PR | 落地代码点 | 验证证据 |
 |---|------|----------|--------|----------|---------|
 | **S1** | concept §1.1 + §6 | 组织永久隐藏 (UI 永不暴露 org), 1 person = 1 org, 数据层一等公民 | CM-1.1 (#... v=2) + CM-1.2 (注册 auto-org) | `internal/migrations/0002_cm_1_1.go` (`organizations` 表) + `internal/auth/register.go` (auto INSERT) + `client/` 全 UI 0 处 `org_id` 字段 | grep client/src `org_id` = 0 出现; `organizations` 表 + `users.org_id` non-null |
 | **S2** | concept §1.2 + §1.3 | Agent = 同事不是工具, owner_id 1:N 独占归属, 跨 org 协作走邀请态机 | CM-4.0 (#... v=3) + CM-4.1 + RT-0 (#237) | `internal/migrations/0003_cm_4_0.go` (`agent_invitations`) + `internal/api/agent_invitations.go` (POST/PATCH/GET 状态机) + `internal/ws/hub.go::PushAgentInvitationPending` | 状态机单测 `pending → approved/rejected/expired`; #237 typed Push + 双推 (POST→owner, PATCH→requester+owner) |
@@ -22,15 +22,15 @@
 
 ---
 
-## 2. 立场漂移红线
+## 2. 原则漂移红线
 
-- 任何 PR 想改 S1-S8 之一 → **必须先动本表 + r3-decisions.md**, 不准代码偷跑改立场。
-- S3/S4/S6 是 G2.0/G2.6 不变量, regression suite §3.A-§3.G + CI lint 三层守护, 改立场必同步改 acceptance template + regression registry。
+- 任何 PR 想改 S1-S8 之一 → **必须先动本表 + r3-decisions.md**, 不准代码偷跑改原则。
+- S3/S4/S6 是 G2.0/G2.6 不变量, regression suite §3.A-§3.G + CI lint 三层守护, 改原则必同步改 acceptance template + regression registry。
 - S5 backfill (v=8) 是单向闸 — owner 后续可去 `message.read`, 不可整批回收 (会破 R3-1 决议)。
 
 ---
 
-## 3. 锚点
+## 3. 相关参考
 
 - R3 决议看板: `docs/blueprint/_meta/r3-decisions.md` (8 条决议 status)
 - Phase 2 闸进度: `docs/qa/phase-2-gate-status.md` (G2.0-G2.audit)
