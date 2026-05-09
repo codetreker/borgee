@@ -12,7 +12,7 @@
 //   DELETE /api/v1/channels/{channelId}/messages/{messageId}/pin
 //   GET    /api/v1/channels/{channelId}/messages/pinned
 //
-// 立场 (跟 spec §0):
+// 设计 (跟 spec §0):
 //   ① ALTER TABLE messages ADD pinned_at INTEGER NULL — schema 单源
 //      (跟 DM-7.1 edit_history / AL-7.1 archived_at 跨九 milestone
 //      ALTER ADD COLUMN nullable 同模式).
@@ -22,7 +22,7 @@
 //      messages 同 helper Store.IsChannelMember + Store.CanAccessChannel).
 //   ④ POST 立 pinned_at = now() / DELETE 立 pinned_at = NULL / GET list
 //      pinned_at IS NOT NULL ORDER BY pinned_at DESC.
-//   ⑤ admin god-mode 不挂 — 反向 grep `admin.*pin.*messages` 0 hit
+//   ⑤ admin god-mode 不挂 — grep 检查 `admin.*pin.*messages` 0 hit
 //      (ADM-0 §1.3 红线, 跟 DM-4/CV-7/AP-4/AP-5 owner-only 锁链承袭).
 //
 // 反约束:
@@ -52,7 +52,7 @@ type MessagePinHandler struct {
 }
 
 // RegisterRoutes wires DM-10 endpoints behind authMw.
-// user-rail only; admin god-mode 不挂 (立场 ⑤ ADM-0 §1.3 红线).
+// user-rail only; admin god-mode 不挂 (设计 ⑤ ADM-0 §1.3 红线).
 func (h *MessagePinHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/channels/{channelId}/messages/{messageId}/pin",
 		authMw(http.HandlerFunc(h.handlePin)))
@@ -87,12 +87,12 @@ func (h *MessagePinHandler) gateDM(w http.ResponseWriter, r *http.Request) (chan
 		return "", nil, false
 	}
 	if ch.Type != "dm" {
-		// 立场 ② DM-only path — non-DM channel reject.
+		// 设计 ② DM-only path — non-DM channel reject.
 		writeJSONErrorCode(w, http.StatusBadRequest, "pin.dm_only_path",
 			"Pin 仅 DM 路径")
 		return "", nil, false
 	}
-	// 立场 ③ channel-member ACL gate (跟 AP-4 #551 + AP-5 #555 同 helper).
+	// 设计 ③ channel-member ACL gate (跟 AP-4 #551 + AP-5 #555 同 helper).
 	if !h.Store.IsChannelMember(channelID, user.ID) ||
 		!h.Store.CanAccessChannel(channelID, user.ID) {
 		writeJSONError(w, http.StatusNotFound, "Channel not found")

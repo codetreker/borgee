@@ -11,10 +11,10 @@
 //   - (h *MessageEditHistoryHandler) RegisterAdminRoutes(mux, adminMw)
 //
 // 反约束 (dm-7-spec.md §0):
-//   - 立场 ③ owner-only sender — user-rail GET 反向断言 sender ==
+//   - 设计 ③ owner-only sender — user-rail GET 反向断言 sender ==
 //     current user (别 user 403); admin readonly admin-rail GET (admin
 //     god-mode 不挂 PATCH/DELETE — ADM-0 §1.3 红线).
-//   - 立场 ⑥ AST 锁链延伸第 16 处 forbidden 3 token 0 hit.
+//   - 设计 ⑥ AST 锁链延伸第 16 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -34,7 +34,7 @@ type MessageEditHistoryHandler struct {
 }
 
 // RegisterUserRoutes wires GET /api/v1/channels/{channelId}/messages/
-// {messageId}/edit-history behind authMw. user-rail sender-only (立场 ③
+// {messageId}/edit-history behind authMw. user-rail sender-only (设计 ③
 // owner-only ACL 锁链第 19 处).
 func (h *MessageEditHistoryHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/channels/{channelId}/messages/{messageId}/edit-history",
@@ -51,7 +51,7 @@ func (h *MessageEditHistoryHandler) RegisterAdminRoutes(mux *http.ServeMux, admi
 
 // handleUserGet — GET /api/v1/channels/{channelId}/messages/{messageId}/edit-history.
 //
-// 立场 ③: sender ≠ current user → 403. 历史空时返 `[]`. HappyPath
+// 设计 ③: sender ≠ current user → 403. 历史空时返 `[]`. HappyPath
 // 返 JSON array (server-side store layer pre-normalized).
 func (h *MessageEditHistoryHandler) handleUserGet(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
@@ -64,7 +64,7 @@ func (h *MessageEditHistoryHandler) handleUserGet(w http.ResponseWriter, r *http
 		writeJSONError(w, http.StatusNotFound, "Message not found")
 		return
 	}
-	// 立场 ③: sender-only — 反向断言 sender == current user.
+	// 设计 ③: sender-only — 反向断言 sender == current user.
 	if msg.SenderID != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
@@ -76,7 +76,7 @@ func (h *MessageEditHistoryHandler) handleUserGet(w http.ResponseWriter, r *http
 
 // handleAdminGet — GET /admin-api/v1/messages/{messageId}/edit-history.
 //
-// admin readonly. 立场 ③ 反约束: 不挂 PATCH/DELETE (反向 grep 守门).
+// admin readonly. 设计 ③ 反约束: 不挂 PATCH/DELETE (grep 守门).
 func (h *MessageEditHistoryHandler) handleAdminGet(w http.ResponseWriter, r *http.Request) {
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {

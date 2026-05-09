@@ -8,7 +8,7 @@
 //   - acceptance §1.4 — image_link MUST carry metadata.kind ∈ ('image',
 //     'link') + URL 必 https; 反约束 javascript:/data:/data:image/http:/
 //     file: 全 reject (XSS 红线第一道, #370 §1 ④).
-//   - 反约束 — CV-1.2 立场 ④ 旧 400 文案 'type must be markdown (v1)'
+//   - 反约束 — CV-1.2 设计 ④ 旧 400 文案 'type must be markdown (v1)'
 //     已删 (spec #397 drift 3 字面).
 package api
 
@@ -50,7 +50,7 @@ func TestIsValidCodeLanguage_11WhitelistPlusText(t *testing.T) {
 
 // TestIsValidCodeLanguage_RejectsFullNameSynonyms pins #370 §1 ② 反约束
 // — 短码唯一: 不接 'golang' / 'typescript' / 'python' / 'shell' /
-// 'bash' / 'plaintext' 全名同义词 (跟 acceptance §4.4 反向 grep 同源).
+// 'bash' / 'plaintext' 全名同义词 (跟 acceptance §4.4 grep 检查 同源).
 func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{
@@ -58,7 +58,7 @@ func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 		"golang", "typescript", "python", "shell", "bash", "plaintext",
 		// 大小写漂移 — 短码 ASCII case-sensitive.
 		"GO", "TS", "Py", "MD",
-		// spec 外语言 — 白名单收窄 (跟 spec §3 反向 grep 同精神).
+		// spec 外语言 — 白名单收窄 (跟 spec §3 grep 检查 同精神).
 		"rust", "c", "cpp", "java", "kotlin", "swift", "ruby", "php",
 		"yml", // 'yaml' 已收, 'yml' 不接 (短码唯一)
 		// 空字串.
@@ -89,7 +89,7 @@ func TestValidateImageLinkURL_AcceptsHttpsAbsolute(t *testing.T) {
 
 // TestValidateImageLinkURL_RejectsNonHttpsSchemes pins #370 §1 ④ XSS 红线
 // 第一道 — javascript: / data: / data:image / http: / file: / chrome: 全
-// reject (跟 spec §3 反向 grep + acceptance §4.2 同源).
+// reject (跟 spec §3 grep 检查 + acceptance §4.2 同源).
 func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{

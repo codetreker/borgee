@@ -7,7 +7,7 @@
 //   - ③ agent + 5-pattern body even with mention → still reject (mention
 //     不豁免 thinking guard; 第 7 处链 byte-identical CV-5/CV-7/CV-8).
 //
-// 反向 grep 锚: cv9.*fanout|cv9.*dispatch|comment_mentions.*PRIMARY 0 hit
+// grep 检查项: cv9.*fanout|cv9.*dispatch|comment_mentions.*PRIMARY 0 hit
 // 在 internal/api/.
 
 package api
@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-// TestCV_ArtifactComment_TriggersMentionDispatch pins 立场 ①: artifact_comment-typed
+// TestCV_ArtifactComment_TriggersMentionDispatch pins 设计 ①: artifact_comment-typed
 // message dispatch path is byte-identical to text-typed — same MentionDispatcher
 // fixture proves the dispatcher itself does not branch on content_type, which
 // is exactly the "0 server production code" stance: the text-path coverage
@@ -53,7 +53,7 @@ func TestCV_ArtifactComment_TriggersMentionDispatch(t *testing.T) {
 	}
 }
 
-// TestCV_AgentMentionThinking_StillReject pins 立场 ③: agent body 同时
+// TestCV_AgentMentionThinking_StillReject pins 设计 ③: agent body 同时
 // 含 mention + 5-pattern thinking sentinel 时, server 仍然 reject 400 —
 // mention 在 body 内不豁免 thinking guard. 5-pattern 第 7 处链 byte-identical.
 //

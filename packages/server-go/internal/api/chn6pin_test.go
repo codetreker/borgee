@@ -33,7 +33,7 @@ func TestChn6pin_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-6 立场 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-6 设计 ① broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -46,7 +46,7 @@ func TestChn6pin_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-6 立场 ① broken — pinned column ALTER in %s", p)
+			t.Errorf("CHN-6 设计 ① broken — pinned column ALTER in %s", p)
 		}
 		return nil
 	})
@@ -177,7 +177,7 @@ func TestCHN_NoAdminPinPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-6 立场 ② broken — admin pin path in %s: %q",
+				t.Errorf("CHN-6 设计 ② broken — admin pin path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -196,7 +196,7 @@ func TestCHN_NoAdminPinPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-6 立场 ② broken — admin pin handler in %s: %q",
+				t.Errorf("CHN-6 设计 ② broken — admin pin handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil

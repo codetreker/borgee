@@ -23,7 +23,7 @@ import (
 )
 
 // REG-CHN5-001 — 0 schema 改 反向断言: migrations/ 不出现新 chn_5_*
-// migration file (跟 chn-5-spec.md §1 立场 ① 字面单源). channels.archived_at
+// migration file (跟 chn-5-spec.md §1 设计 ① 字面单源). channels.archived_at
 // 列由 CHN-1.1 #267 既有 (chn_1_1_channels_org_scoped.go) — 此 test 仅守
 // 新增 chn_5_* 文件 0 hit (复用既有列).
 func TestChn5archived_NoSchemaChange(t *testing.T) {
@@ -36,7 +36,7 @@ func TestChn5archived_NoSchemaChange(t *testing.T) {
 		}
 		base := filepath.Base(p)
 		if pat.MatchString(base) {
-			t.Errorf("CHN-5 立场 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-5 设计 ① broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -172,14 +172,14 @@ func TestCHN_UnarchiveFanoutsSystemMessage(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("CHN-5 立场 ③: unarchive fanout DM not found (text-lock prefix=%q infix=%q) in %v",
+		t.Errorf("CHN-5 设计 ③: unarchive fanout DM not found (text-lock prefix=%q infix=%q) in %v",
 			wantPrefix, wantInfix, list)
 	}
 }
 
 // REG-CHN5-005 — admin god-mode 不挂 PATCH path 反向断言.
 //
-// 反向 grep `mux\.Handle\("(PATCH|PUT|DELETE).*admin-api/v1/channels/archived`
+// grep 检查 `mux\.Handle\("(PATCH|PUT|DELETE).*admin-api/v1/channels/archived`
 // 在 internal/api/+server/ 0 hit (admin god-mode ADM-0 §1.3 红线 — admin
 // 看不能改).
 func TestCHN_NoAdminPatchPath(t *testing.T) {
@@ -196,7 +196,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 立场 ② broken — admin PATCH/PUT/DELETE path in %s: %q",
+				t.Errorf("CHN-5 设计 ② broken — admin PATCH/PUT/DELETE path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -211,7 +211,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 立场 ② broken — admin archive-channel symbol in %s: %q",
+				t.Errorf("CHN-5 设计 ② broken — admin archive-channel symbol in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil

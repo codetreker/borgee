@@ -88,7 +88,7 @@ func (h *ChannelHandler) handleListChannels(w http.ResponseWriter, r *http.Reque
 
 	// ADM-0.3: user-rail lists membership-scoped channels only.
 	// Cross-user enumeration is admin-rail (/admin-api/v1/channels).
-	// CHN-13 立场 ②: optional ?q= 子串 filter (空 q 走既有 path
+	// CHN-13 设计 ②: optional ?q= 子串 filter (空 q 走既有 path
 	// byte-identical; q!="" 加 LIKE COLLATE NOCASE).
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	channels, err := h.Store.ListChannelsWithUnread(user.ID, q)
@@ -139,7 +139,7 @@ func (h *ChannelHandler) handleCreateChannel(w http.ResponseWriter, r *http.Requ
 	if body.Visibility == "" {
 		body.Visibility = "public"
 	}
-	// CHN-9 立场 ① + ④: visibility 三态校验 byte-identical 跟 IsValidVisibility
+	// CHN-9 设计 ① + ④: visibility 三态校验 byte-identical 跟 IsValidVisibility
 	// 谓词单源 (原 'public'/'private' 二态扩到三态加 'creator_only').
 	if !IsValidVisibility(body.Visibility) {
 		writeJSONError(w, http.StatusBadRequest, VisibilityRejectMessage)
@@ -172,7 +172,7 @@ func (h *ChannelHandler) handleCreateChannel(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// CHN-1.2 立场 ②: creator-only default member. POST /channels 后
+	// CHN-1.2 设计 ②: creator-only default member. POST /channels 后
 	// channel_members count == 1 (只 creator). Public channels are
 	// discoverable via GET (org-scoped) — no auto-fan-out join.
 	h.Store.AddChannelMember(&store.ChannelMember{ChannelID: ch.ID, UserID: user.ID})
@@ -218,7 +218,7 @@ func (h *ChannelHandler) handleGetChannel(w http.ResponseWriter, r *http.Request
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
-	// AP-1 立场 ①: 严格 403 — 非 member 也 403 (不再 404 隐藏存在性).
+	// AP-1 设计 ①: 严格 403 — 非 member 也 403 (不再 404 隐藏存在性).
 	// 跟 GitHub repo 私有路径同模式: "暴露存在但拒访问". 触发
 	// REG-CHN1-007 ⏸️→🟢 flip (CHN-1 #286 既有 404 路径承袭, 改一处
 	// status code, e2e 反向断言改 `status === 403`).
@@ -298,7 +298,7 @@ func (h *ChannelHandler) handleUpdateChannel(w http.ResponseWriter, r *http.Requ
 		Name       *string `json:"name"`
 		Topic      *string `json:"topic"`
 		Visibility *string `json:"visibility"`
-		// Archive flag (CHN-1.2 立场 ⑤): clients PATCH `archived: true` to soft
+		// Archive flag (CHN-1.2 设计 ⑤): clients PATCH `archived: true` to soft
 		// 退役 a channel. Setting to false un-archives. The actual archived_at
 		// timestamp is server-stamped — clients cannot inject arbitrary times.
 		Archived *bool `json:"archived"`
@@ -346,7 +346,7 @@ func (h *ChannelHandler) handleUpdateChannel(w http.ResponseWriter, r *http.Requ
 		updates["topic"] = *body.Topic
 	}
 	if body.Visibility != nil {
-		// CHN-9 立场 ④: visibility 三态校验 byte-identical 跟 create handler 同源.
+		// CHN-9 设计 ④: visibility 三态校验 byte-identical 跟 create handler 同源.
 		if !IsValidVisibility(*body.Visibility) {
 			writeJSONError(w, http.StatusBadRequest, VisibilityRejectMessage)
 			return
@@ -354,10 +354,10 @@ func (h *ChannelHandler) handleUpdateChannel(w http.ResponseWriter, r *http.Requ
 		updates["visibility"] = *body.Visibility
 	}
 
-	// CHN-1.2 立场 ⑤: archive flip — server stamps timestamp; emits per-member
+	// CHN-1.2 设计 ⑤: archive flip — server stamps timestamp; emits per-member
 	// system DM fanout reusing the ADM-0 §1.4 红线 ③ shape. Skipped if no
 	// transition (already archived → ignored; un-archive nullifies).
-	// CHN-5.2 立场 ③: unarchive 加互补 fanoutUnarchiveSystemMessage (跟 archive
+	// CHN-5.2 设计 ③: unarchive 加互补 fanoutUnarchiveSystemMessage (跟 archive
 	// 互补二式 byte-identical 跟 chn-5-content-lock.md §1).
 	archiveTriggered := false
 	unarchiveTriggered := false
@@ -573,7 +573,7 @@ func (h *ChannelHandler) handleAddMember(w http.ResponseWriter, r *http.Request)
 
 	h.Store.AddChannelMember(&store.ChannelMember{ChannelID: channelID, UserID: body.UserID})
 
-	// CHN-1.2 立场 ③: agent join 触发 system message 文案锁
+	// CHN-1.2 设计 ③: agent join 触发 system message 文案锁
 	// `"{agent_name} joined"` — sender_id='system', kind=system. Human joins
 	// continue to broadcast `user_joined` event only (no system message).
 	if target.Role == "agent" {
@@ -1037,7 +1037,7 @@ func (h *ChannelHandler) hasChannelPermission(user *store.User, permission, chan
 func nowMillis() int64 { return time.Now().UnixMilli() }
 
 // emitAgentJoinSystemMessage inserts the agent-join system message
-// (CHN-1.2 立场 ③, #265 acceptance #6). Format MUST be exactly
+// (CHN-1.2 设计 ③, #265 acceptance #6). Format MUST be exactly
 // `"{agent_name} joined"` — the suite greps it by string match. The message
 // is sender_id='system' and content_type='text'; no quick_action attached.
 //
@@ -1071,7 +1071,7 @@ func (h *ChannelHandler) emitAgentJoinSystemMessage(channelID, agentName string)
 }
 
 // fanoutArchiveSystemMessage delivers a system DM to every member of the
-// archived channel — CHN-1.2 立场 ⑤ (#265 acceptance #7). Content format:
+// archived channel — CHN-1.2 设计 ⑤ (#265 acceptance #7). Content format:
 //
 //	"channel #{name} 已被 {owner_name} 关闭于 {ts}"
 //

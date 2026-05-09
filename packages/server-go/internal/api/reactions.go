@@ -21,7 +21,7 @@ func (h *ReactionHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Ha
 	mux.Handle("GET /api/v1/messages/{messageId}/reactions", wrap(h.handleGetReactions))
 }
 
-// AP-4 立场 ①+③ — channel-member ACL gate (CV-7 #535 既存 gap 闭合).
+// AP-4 设计 ①+③ — channel-member ACL gate (CV-7 #535 既存 gap 闭合).
 // Reuses Store.IsChannelMember + Store.CanAccessChannel (跟 messages.go
 // 既有 ACL 同源). Returns true iff caller may operate on reactions of
 // `messageID`. On false, caller MUST emit 404 "Channel not found"

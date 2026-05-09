@@ -59,7 +59,7 @@ func TestAL_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat.Find(body) != nil {
-			t.Errorf("AL-8 立场 ① broken — schema drift in %s", p)
+			t.Errorf("AL-8 设计 ① broken — schema drift in %s", p)
 		}
 		return nil
 	})
@@ -67,7 +67,7 @@ func TestAL_NoSchemaChange(t *testing.T) {
 
 // REG-AL8-002 — 0 新 endpoint 反向断言: internal/api/ 除 ADM-2.2 既有
 // /admin-api/v1/audit-log 单源外, 不出现新 audit-log path. ADM-3 multi-source
-// audit query (`/admin-api/v1/audit/multi-source`) 是 spec §0 立场 ② 授权
+// audit query (`/admin-api/v1/audit/multi-source`) 是 spec §0 设计 ② 授权
 // 端点 (蓝图 admin-model.md §1.4 来源透明), 单一允许例外.
 func TestAL_NoNewEndpoint(t *testing.T) {
 	t.Parallel()
@@ -90,7 +90,7 @@ func TestAL_NoNewEndpoint(t *testing.T) {
 			if allow.Match(body) && !regexp.MustCompile(`audit-log/(?:query|search)`).Match(body) {
 				return nil
 			}
-			t.Errorf("AL-8 立场 ① broken — new audit-log endpoint in %s: %q",
+			t.Errorf("AL-8 设计 ① broken — new audit-log endpoint in %s: %q",
 				p, body[loc[0]:loc[1]])
 		}
 		return nil
@@ -112,7 +112,7 @@ func TestAL_NoUserRailAuditLog(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if loc := pat.FindIndex(body); loc != nil {
-			t.Errorf("AL-8 立场 ② broken — user-rail audit-log in %s: %q",
+			t.Errorf("AL-8 设计 ② broken — user-rail audit-log in %s: %q",
 				p, body[loc[0]:loc[1]])
 		}
 		return nil

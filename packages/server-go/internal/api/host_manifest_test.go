@@ -1,5 +1,5 @@
 // Package api_test — hb_1_plugin_manifest_test.go: HB-1 install-butler
-// server-side endpoint unit tests + 反向 grep守门 (REG-HB1-001..006).
+// server-side endpoint unit tests + grep 检查守门 (REG-HB1-001..006).
 //
 // Pins:
 //   REG-HB1-001 TestHB_PluginManifest_Returns200_WithShape +
@@ -9,7 +9,7 @@
 //   REG-HB1-004 TestHB_ManifestSignatureVerify
 //   REG-HB1-005 TestHB_NoAdminPluginManifestPath
 //   REG-HB1-006 TestHB_NoPluginManifestQueue (AST 锁链延伸第 23 处)
-//                + TestHB_PluginManifest_Returns200 (DL-4 反向锚 → 正向)
+//                + TestHB_PluginManifest_Returns200 (DL-4 grep 检查 → 正向)
 package api_test
 
 import (
@@ -75,7 +75,7 @@ func TestHB_PluginManifest_Unauthorized_NoToken_401(t *testing.T) {
 func TestHB_PluginEntriesConstNonEmpty(t *testing.T) {
 	t.Parallel()
 	if len(api.PluginManifestEntries) == 0 {
-		t.Fatal("PluginManifestEntries const slice is empty (立场 ②)")
+		t.Fatal("PluginManifestEntries const slice is empty (设计 ②)")
 	}
 	first := api.PluginManifestEntries[0]
 	if first.ID == "" {
@@ -92,7 +92,7 @@ func TestHB_PluginEntriesConstNonEmpty(t *testing.T) {
 	}
 }
 
-// REG-HB1-002b — 0 schema 改 (反向 grep migrations/hb_1_*).
+// REG-HB1-002b — 0 schema 改 (grep 检查 migrations/hb_1_*).
 func TestHostManifest_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -102,7 +102,7 @@ func TestHostManifest_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "hb_1_") {
-			t.Errorf("HB-1 立场 ② broken — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
+			t.Errorf("HB-1 设计 ② broken — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
 		}
 	}
 }
@@ -128,7 +128,7 @@ func TestHB_ReasonsByteIdentical(t *testing.T) {
 			t.Errorf("HB1AllReasons[%d]: got %q, want %q (字面 drift)", i, api.HB1AllReasons[i], w)
 		}
 	}
-	// 单 const 字面也守 (drift 反向 grep).
+	// 单 const 字面也守 (drift grep 检查).
 	if api.HB1ReasonOK != "ok" {
 		t.Errorf("HB1ReasonOK drift: %q", api.HB1ReasonOK)
 	}
@@ -150,7 +150,7 @@ func TestHB_ManifestSignatureVerify(t *testing.T) {
 	}
 	sig, _ := body["signature"].(string)
 	if sig == "" {
-		t.Error("signature must be non-empty (立场 ④)")
+		t.Error("signature must be non-empty (设计 ④)")
 	}
 	// Verify base64 decodable.
 	if _, err := base64.StdEncoding.DecodeString(sig); err != nil {
@@ -240,7 +240,7 @@ func TestHB_NoPluginManifestQueue(t *testing.T) {
 }
 
 // REG-HB1-006 supplement — DL-4 命名拆死锚转正向: HB-1 endpoint 真返 200
-// (反向锚 pwa_manifest_test.go::TestDL44_PWAManifest_NameNotPluginManifest
+// (grep 检查 pwa_manifest_test.go::TestDL44_PWAManifest_NameNotPluginManifest
 // 既有不破; 本 test 是 HB-1 v0 上线的正向证据).
 func TestHB_PluginManifest_Returns200(t *testing.T) {
 	t.Parallel()
@@ -256,7 +256,7 @@ func TestHB_PluginManifest_Returns200(t *testing.T) {
 }
 
 // REG-HB1-005 supplement — AL-1a reason 字典分立 (HB-1 7-dict 跟 runtime
-// AL-1a 6-dict 反向 grep 拆死).
+// AL-1a 6-dict grep 检查 拆死).
 func TestHB_NoAL1aDriftIntoHB1(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "..", "internal", "agent", "reasons")

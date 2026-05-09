@@ -161,7 +161,7 @@ func TestBPP_LifecycleList_NonPluginActionsExcluded(t *testing.T) {
 	}
 }
 
-// TestBPP_NoAdminLifecyclePath — acceptance §3.2 立场 ⑦ ADM-0 §1.3 红线.
+// TestBPP_NoAdminLifecyclePath — acceptance §3.2 设计 ⑦ ADM-0 §1.3 红线.
 func TestBPP_NoAdminLifecyclePath(t *testing.T) {
 	t.Parallel()
 	dir := "../api"
@@ -200,6 +200,6 @@ func TestBPP_NoAdminLifecyclePath(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-8 立场 ⑦ broken — admin god-mode references plugin lifecycle (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("BPP-8 设计 ⑦ broken — admin god-mode references plugin lifecycle (ADM-0 §1.3 红线): %v", hits)
 	}
 }

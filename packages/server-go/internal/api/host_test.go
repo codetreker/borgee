@@ -25,7 +25,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-HB6-001 — 0 schema 改 (反向 grep migrations/hb_6_).
+// REG-HB6-001 — 0 schema 改 (grep 检查 migrations/hb_6_).
 func TestHost_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -36,7 +36,7 @@ func TestHost_NoSchemaChange(t *testing.T) {
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, "hb_6_") {
-			t.Errorf("HB-6 立场 ① broken — found schema migration file %q (must be 0 schema)", name)
+			t.Errorf("HB-6 设计 ① broken — found schema migration file %q (must be 0 schema)", name)
 		}
 	}
 }
@@ -47,7 +47,7 @@ func TestHB_WindowSecondsByteIdentical(t *testing.T) {
 	if api.WindowSeconds != 30 {
 		t.Errorf("WindowSeconds: got %d, want 30 (跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS 同源)", api.WindowSeconds)
 	}
-	// 反向 grep BPP-4 watchdog source — 锁 30 字面.
+	// grep 检查 BPP-4 watchdog source — 锁 30 字面.
 	body, err := os.ReadFile(filepath.Join("..", "bpp", "heartbeat_watchdog.go"))
 	if err != nil {
 		t.Fatalf("read bpp watchdog: %v", err)
@@ -263,7 +263,7 @@ func TestHB_NoAdminWritePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("HB-6 立场 ③ broken — admin write on heartbeat-lag in %s: %q",
+				t.Errorf("HB-6 设计 ③ broken — admin write on heartbeat-lag in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -297,7 +297,7 @@ func TestHB_NoLagSampleQueue(t *testing.T) {
 	})
 }
 
-// REG-HB6-006c — 0 client UI v1 (反向 grep client/src/).
+// REG-HB6-006c — 0 client UI v1 (grep 检查 client/src/).
 func TestHB_NoClientUIv1(t *testing.T) {
 	t.Parallel()
 	clientDir := filepath.Join("..", "..", "..", "client", "src")
@@ -315,7 +315,7 @@ func TestHB_NoClientUIv1(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("HB-6 立场 ⑥ broken — client UI v1 token %q in %s", tok, p)
+				t.Errorf("HB-6 设计 ⑥ broken — client UI v1 token %q in %s", tok, p)
 			}
 		}
 		return nil

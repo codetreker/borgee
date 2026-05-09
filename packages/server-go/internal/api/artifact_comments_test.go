@@ -32,7 +32,7 @@ func cv5Setup(t *testing.T) (string, string, *store.Store, string, string) {
 	return ts.URL, ownerTok, s, chID, art["id"].(string)
 }
 
-// TestArtifactComments_HumanCreate_OK pins 立场 ①: human owner POSTs
+// TestArtifactComments_HumanCreate_OK pins 设计 ①: human owner POSTs
 // comment → 201, response carries comment id + sender_role='human' +
 // channel_id under `artifact:` namespace.
 func TestArtifactComments_HumanCreate_OK(t *testing.T) {
@@ -54,14 +54,14 @@ func TestArtifactComments_HumanCreate_OK(t *testing.T) {
 	if id, _ := data["id"].(string); id == "" {
 		t.Error("id missing in response")
 	}
-	// 立场 ① — message row landed in messages table with content_type 'artifact_comment'.
+	// 设计 ① — message row landed in messages table with content_type 'artifact_comment'.
 	chID, _ := data["channel_id"].(string)
 	var count int64
 	s.DB().Raw(`SELECT COUNT(*) FROM messages WHERE channel_id = ? AND content_type = 'artifact_comment'`, chID).Scan(&count)
 	if count != 1 {
 		t.Errorf("expected 1 message row in artifact: namespace channel, got %d", count)
 	}
-	// channel name must be `artifact:<artID>` (立场 ① 反向 grep 锚).
+	// channel name must be `artifact:<artID>` (设计 ① grep 检查项).
 	var name string
 	s.DB().Raw(`SELECT name FROM channels WHERE id = ?`, chID).Scan(&name)
 	if want := "artifact:" + artID; name != want {
@@ -69,7 +69,7 @@ func TestArtifactComments_HumanCreate_OK(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_AgentThinkingSubject_Reject pins 立场 ③ 5-pattern
+// TestArtifactComments_AgentThinkingSubject_Reject pins 设计 ③ 5-pattern
 // reverse-grep 第 4 处链. Each sub-case body matches exactly one pattern;
 // server rejects with 400 + code byte-identical.
 func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
@@ -102,7 +102,7 @@ func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_AgentValidSubject_OK pins 立场 ③ 反向: agent body
+// TestArtifactComments_AgentValidSubject_OK pins 设计 ③ 反向: agent body
 // 带具体 subject (无 5-pattern hit) → 201 success.
 func TestArtifactComments_AgentValidSubject_OK(t *testing.T) {
 	t.Parallel()
@@ -120,7 +120,7 @@ func TestArtifactComments_AgentValidSubject_OK(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_CrossChannelReject pins 立场 ④ + REG-INV-002:
+// TestArtifactComments_CrossChannelReject pins 设计 ④ + REG-INV-002:
 // non-member of host channel → 403 `comment.cross_channel_reject`.
 func TestArtifactComments_CrossChannelReject(t *testing.T) {
 	t.Parallel()
@@ -163,7 +163,7 @@ func TestArtifactComments_TargetNotFound(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_BodyPreviewCap80Rune pins 立场 ② 隐私 §13 cap —
+// TestArtifactComments_BodyPreviewCap80Rune pins 设计 ② 隐私 §13 cap —
 // 长 body 创建 OK, 服务端截断 body_preview 在推送路径; round-trip body
 // 仍完整保留 (full body 走授权 channel-member 拉路径).
 func TestArtifactComments_BodyPreviewCap80Rune(t *testing.T) {
@@ -181,7 +181,7 @@ func TestArtifactComments_BodyPreviewCap80Rune(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_ListRoundTrip pins 立场 ① + GET endpoint.
+// TestArtifactComments_ListRoundTrip pins 设计 ① + GET endpoint.
 func TestArtifactComments_ListRoundTrip(t *testing.T) {
 	t.Parallel()
 	url, tok, _, _, artID := cv5Setup(t)

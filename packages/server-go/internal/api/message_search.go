@@ -10,16 +10,16 @@
 // Endpoints:
 //   GET /api/v1/dm/search?q=<query>&limit=<N>
 //
-// 立场 (跟 spec §0):
+// 设计 (跟 spec §0):
 //   ① 0 schema 改 — 复用 messages.content + LIKE (跟 messages search
 //      #467 既有同模式; FTS5 不走避免跨表 join 复杂度留 v2).
 //   ② DM-only scope — store helper SearchDMMessages 强制 channels.type='dm'
 //      JOIN, 反 cross-channel leak (跟 DM-10 #597 DM-only path 同精神).
 //   ③ channel-member ACL — store helper JOIN channel_members ON cm.user_id
-//      = caller (反 cross-user DM leak; 复用 AP-4 #551 + AP-5 #555 立场承袭).
+//      = caller (反 cross-user DM leak; 复用 AP-4 #551 + AP-5 #555 设计沿用).
 //   ④ 文案 byte-identical — 错码 `dm_search.q_required` / `dm_search.q_too_short`
 //      字面锁; query trim + min 2 char + max 200 char (反 DoS).
-//   ⑤ admin god-mode 不挂 — 反向 grep `admin.*dm.*search\|/admin-api/.*dm/search`
+//   ⑤ admin god-mode 不挂 — grep 检查 `admin.*dm.*search\|/admin-api/.*dm/search`
 //      在 admin*.go 0 hit (ADM-0 §1.3 红线).
 //
 // 反约束:
@@ -52,7 +52,7 @@ type MessageSearchHandler struct {
 }
 
 // RegisterRoutes wires GET /api/v1/dm/search behind authMw.
-// user-rail only; admin god-mode 不挂 (立场 ⑤ ADM-0 §1.3).
+// user-rail only; admin god-mode 不挂 (设计 ⑤ ADM-0 §1.3).
 func (h *MessageSearchHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/dm/search", authMw(http.HandlerFunc(h.handleSearch)))
 }

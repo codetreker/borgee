@@ -16,13 +16,13 @@
 //   - bit 4 (=16) = readonly 频道 (CHN-15 新增, channel-wide 走 creator 单行)
 //
 // 反约束 (chn-15-spec.md §0):
-//   - 立场 ① 0 schema — bit 4 in collapsed; 不另起 channels.readonly /
+//   - 设计 ① 0 schema — bit 4 in collapsed; 不另起 channels.readonly /
 //     channel_readonly_states 列/表.
-//   - 立场 ② owner-only — PUT/DELETE 仅 channel.CreatedBy == user.ID;
+//   - 设计 ② owner-only — PUT/DELETE 仅 channel.CreatedBy == user.ID;
 //     admin god-mode 不挂 (ADM-0 §1.3 红线). owner-only ACL 锁链第 21 处.
-//   - 立场 ③ readonly 时 non-creator POST messages → 403
+//   - 设计 ③ readonly 时 non-creator POST messages → 403
 //     `channel.readonly_no_send` 字面 byte-identical 跟 content-lock §3.
-//   - 立场 ⑤ IsReadonly + GetChannelReadonly + SetChannelReadonly 单源.
+//   - 设计 ⑤ IsReadonly + GetChannelReadonly + SetChannelReadonly 单源.
 package api
 
 import (
@@ -44,7 +44,7 @@ const ChannelErrCodeReadonlyNoSend = "channel.readonly_no_send"
 
 // IsReadonly reports whether a user_channel_layout.collapsed bitmap
 // value represents a readonly channel. Single-source predicate; 调用方
-// 禁止 inline 重写 (反向 grep `collapsed\s*&\s*16` 在 production 仅
+// 禁止 inline 重写 (grep 检查 `collapsed\s*&\s*16` 在 production 仅
 // 命中此函数).
 func IsReadonly(collapsed int64) bool {
 	return collapsed&int64(ReadonlyBit) != 0
@@ -52,7 +52,7 @@ func IsReadonly(collapsed int64) bool {
 
 // RegisterCHN15Routes wires PUT + DELETE /api/v1/channels/{channelId}/readonly
 // behind authMw. user-rail only (admin god-mode 不挂 ADM-0 §1.3 红线).
-// 立场 ②.
+// 设计 ②.
 func (h *ChannelHandler) RegisterCHN15Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("PUT /api/v1/channels/{channelId}/readonly",
 		authMw(http.HandlerFunc(h.handleSetReadonly)))
@@ -63,7 +63,7 @@ func (h *ChannelHandler) RegisterCHN15Routes(mux *http.ServeMux, authMw func(htt
 // handleSetReadonly — PUT /api/v1/channels/{channelId}/readonly.
 //
 // Sets bit 4 on channel.CreatedBy's user_channel_layout.collapsed row.
-// 立场 ② owner-only — 仅 channel.CreatedBy == user.ID.
+// 设计 ② owner-only — 仅 channel.CreatedBy == user.ID.
 func (h *ChannelHandler) handleSetReadonly(w http.ResponseWriter, r *http.Request) {
 	h.handleReadonlyToggle(w, r, true)
 }

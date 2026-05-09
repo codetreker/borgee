@@ -18,7 +18,7 @@
 //     prompt 用), HTTPS + 公开无 auth.
 //   - HB-1 endpoint: install-butler 消费 binary plugin manifest (双签
 //     必需, 蓝图 host-bridge §1.2 + §4.5 "未签 100% reject").
-//   - 反向 grep `manifest/plugins|plugin-manifest` 在本文件 count==0.
+//   - grep 检查 `manifest/plugins|plugin-manifest` 在本文件 count==0.
 //
 // 反约束 (DL-4 spec §0):
 //   - **公开 endpoint** — 不走 authMw (浏览器 install prompt 在 login

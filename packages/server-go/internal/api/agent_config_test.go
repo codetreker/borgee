@@ -2,7 +2,7 @@
 // agent_configs REST acceptance tests (acceptance #264 §4.1.a-d).
 //
 // Stance pins exercised:
-//   - 蓝图 §1.4 SSOT 立场 — blob 仅 Borgee 管字段 (name/avatar/prompt/model/
+//   - 蓝图 §1.4 SSOT 设计 — blob 仅 Borgee 管字段 (name/avatar/prompt/model/
 //     capabilities/enabled/memory_ref); runtime-only 字段 (api_key/temperature/
 //     token_limit/retry_policy) fail-closed reject.
 //   - 蓝图 §1.5 BPP frame 反约束 — AL-2a 不挂 push frame, agent 端轮询
@@ -103,7 +103,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 	if v, _ := body3["schema_version"].(float64); v != 2 {
 		t.Errorf("expected schema_version=2 after second PATCH, got %v", body3["schema_version"])
 	}
-	// Blob is REPLACED not merged (SSOT 立场 — model 字段消失).
+	// Blob is REPLACED not merged (SSOT 设计 — model 字段消失).
 	resp4, body4 := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", token, nil)
 	if resp4.StatusCode != http.StatusOK {
 		t.Fatalf("GET2 expected 200, got %d", resp4.StatusCode)
@@ -240,7 +240,7 @@ func TestAL_AdminAPINotMounted(t *testing.T) {
 }
 
 // TestAL_AgentNotFound covers GET/PATCH 404 path — bogus agent_id
-// 返 404 Not Found (uncovered branch, coverage follow-up).
+// 返 404 Not Found (uncovered branch, coverage 后续).
 func TestAL_AgentNotFound(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -259,7 +259,7 @@ func TestAL_AgentNotFound(t *testing.T) {
 }
 
 // TestAL_UnauthorizedNoToken covers GET/PATCH 401 path — no auth token
-// 返 401 (uncovered auth branch, coverage follow-up).
+// 返 401 (uncovered auth branch, coverage 后续).
 func TestAL_UnauthorizedNoToken(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

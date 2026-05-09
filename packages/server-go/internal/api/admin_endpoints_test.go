@@ -6,7 +6,7 @@
 //   - §行为不变量 4.1.d — admin 之间互可见; user cookie 调 admin-api 401
 //   - §impersonate 红横幅 4.2.a — GET / POST / DELETE /me/impersonation-grant
 //     语义 + 24h cooldown reject duplicate
-//   - 立场 ⑤ forward-only — audit 不可改写 (CI grep 锁; 测试不直接打 SQL)
+//   - 设计 ⑤ forward-only — audit 不可改写 (CI grep 锁; 测试不直接打 SQL)
 package api_test
 
 import (
@@ -124,7 +124,7 @@ func TestADM_GetAdminAuditLog_FullVisibility(t *testing.T) {
 }
 
 // TestADM_GetAdminAuditLog_FilterByActor pins ?actor_id=foo filter
-// (admin SPA UI 收敛, 不影响立场 ③ 互可见默认).
+// (admin SPA UI 收敛, 不影响设计 ③ 互可见默认).
 func TestADM_GetAdminAuditLog_FilterByActor(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -145,7 +145,7 @@ func TestADM_GetAdminAuditLog_FilterByActor(t *testing.T) {
 }
 
 // TestADM_AdminAuditLog_UserCookieRejected pins REG-ADM0-002 共享底线 +
-// 立场 ⑥ admin/user 二轨拆死: user cookie 调 /admin-api/v1/audit-log → 401.
+// 设计 ⑥ admin/user 二轨拆死: user cookie 调 /admin-api/v1/audit-log → 401.
 func TestADM_AdminAuditLog_UserCookieRejected(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -197,7 +197,7 @@ func TestADM_PostImpersonateGrant_24hExpiry(t *testing.T) {
 	}
 }
 
-// TestADM_PostImpersonateGrant_RejectsActiveDuplicate pins 立场 ⑦ 业主
+// TestADM_PostImpersonateGrant_RejectsActiveDuplicate pins 设计 ⑦ 业主
 // cooldown — 24h 期内 grant 已存在 → 409 grant_already_active.
 func TestADM_PostImpersonateGrant_RejectsActiveDuplicate(t *testing.T) {
 	t.Parallel()

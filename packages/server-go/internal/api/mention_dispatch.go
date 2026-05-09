@@ -4,7 +4,7 @@
 // Blueprint锚: docs/blueprint/current/concept-model.md §4 (agent 代表自己 —
 // mention 只 ping target, 不抄送 owner) + §4.1 (离线 fallback owner
 // system DM + 节流 5min/(agent,channel) + 不转发原 body) + §13 隐私.
-// Spec brief: docs/implementation/modules/dm-2-spec.md §0 立场 ①②③ +
+// Spec brief: docs/implementation/modules/dm-2-spec.md §0 设计 ①②③ +
 // §1 拆段 DM-2.2 (#312, merged 7de76f9). Acceptance template:
 // docs/qa/acceptance-templates/dm-2.md §1.1-§2.4 (#293, merged).
 // Content lock: docs/qa/dm-2-content-lock.md §1 ③ (#314, merged) —
@@ -14,10 +14,10 @@
 // Three responsibilities locked at this seam (单 PR):
 //   1. ParseMentionTargets: regex `@([0-9a-f-]{36})` 抓 token, 跟 §1 ①
 //      字面对齐 (UUID v4 lowercase hex). 不复用 store.parseMentionIDs
-//      ('<@id>' 旧 token, AP-1 历史路径 — 立场 ⑥ 同语义但 grammar 不同,
+//      ('<@id>' 旧 token, AP-1 历史路径 — 设计 ⑥ 同语义但 grammar 不同,
 //      混用会让反查 grep 路径覆盖不全).
 //   2. PersistMentions: 写 message_mentions(message_id, target_user_id);
-//      UNIQUE 由 schema 兜 dedup, 立场 ⑥ user / agent 同表同语义.
+//      UNIQUE 由 schema 兜 dedup, 设计 ⑥ user / agent 同表同语义.
 //      Cross-channel reject 在 dispatcher 入口前置 (api 层 400) 而非这里.
 //   3. Dispatch: per-target — IsOnline true → PushMentionPushed (target-only
 //      WS, 反约束: 不抄送 owner); IsOnline false → enqueueOwnerSystemDM
@@ -62,7 +62,7 @@ import (
 // upper-alnum chars) for ULID-MIGRATION post-#WIRE-1 wave. Word boundary
 // kept by `@` literal prefix; downstream resolver tolerates either.
 //
-// 立场 ⑥ user / agent 同语义: regex 不区分 role, downstream 走
+// 设计 ⑥ user / agent 同语义: regex 不区分 role, downstream 走
 // users.role / users.owner_id 决定 fallback. ULID-MIGRATION forward-compat:
 // 既有 UUID + 新 ULID 共存 (db column TEXT, 不限长度).
 var MentionTokenRegex = regexp.MustCompile(`@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9A-HJKMNP-TV-Z]{26})`)
@@ -95,7 +95,7 @@ type MentionFrameBroadcaster interface {
 // 模式). Implemented by *push.Gateway in production; tests inject a
 // recording fake to assert call invocation.
 //
-// 反约束 (DL-4 spec §0 立场 ②): push fire-and-forget — Notify 返回
+// 反约束 (DL-4 spec §0 设计 ②): push fire-and-forget — Notify 返回
 // attempts count 仅 observability, 不 error 语义.
 type MentionPushNotifier interface {
 	NotifyMention(targetUserID, senderID, channelName, bodyPreview string, createdAt int64) int

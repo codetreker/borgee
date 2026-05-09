@@ -1,11 +1,11 @@
 // Package api_test — CV-4 v2 server tests: limit query clamp + 反向断言
 // (no schema change / admin god-mode not mounted / no history-event table).
 //
-// 立场反查 (跟 cv-4-v2-stance-checklist.md §1+§4):
+// 设计反查 (跟 cv-4-v2-stance-checklist.md §1+§4):
 //   ① iteration history 复用 v1 endpoint, 仅加 ?limit query (default 50,
 //      max 200, 0/negative → 50)
-//   ④ 0 schema 改 — 反向 grep `ALTER TABLE artifact_iterations` 等 0 hit
-//   ⑦ admin god-mode 不挂 — 反向 grep admin*.go 反向断言
+//   ④ 0 schema 改 — grep 检查 `ALTER TABLE artifact_iterations` 等 0 hit
+//   ⑦ admin god-mode 不挂 — grep 检查 admin*.go 反向断言
 
 package api_test
 
@@ -18,7 +18,7 @@ import (
 	"borgee-server/internal/api"
 )
 
-// TestCV_ListIterations_LimitClamp — acceptance §1.1 立场 ①
+// TestCV_ListIterations_LimitClamp — acceptance §1.1 设计 ①
 // limit query default/clamp matrix: 0 / -1 / 999 / 100 / "" → 50/50/200/100/50.
 func TestCV_ListIterations_LimitClamp(t *testing.T) {
 	t.Parallel()
@@ -46,7 +46,7 @@ func TestCV_ListIterations_LimitClamp(t *testing.T) {
 	}
 }
 
-// TestCv4v2Iterations_NoSchemaChange — acceptance §1.2 立场 ④ 0 schema 改.
+// TestCv4v2Iterations_NoSchemaChange — acceptance §1.2 设计 ④ 0 schema 改.
 // Reverse-grep production migrations + bpp/api packages for forbidden
 // CV-4 v2 history table / event sequence literals.
 func TestCv4v2Iterations_NoSchemaChange(t *testing.T) {
@@ -95,7 +95,7 @@ func TestCv4v2Iterations_NoSchemaChange(t *testing.T) {
 	}
 }
 
-// TestCV_AdminGodModeNotMounted — acceptance §1.3 立场 ③+§4 ADM-0
+// TestCV_AdminGodModeNotMounted — acceptance §1.3 设计 ③+§4 ADM-0
 // red-line. admin*.go must not reference iteration list endpoint.
 func TestCV_AdminGodModeNotMounted(t *testing.T) {
 	t.Parallel()

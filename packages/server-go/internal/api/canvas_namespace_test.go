@@ -2,7 +2,7 @@
 // the existing message-search endpoint works on artifact: namespace channels
 // (CV-5 #530 namespace 单源 + messages.go::handleSearchMessages 既有 ACL).
 //
-// Stance pin (cv-12-spec.md §0 立场 ①):
+// Stance pin (cv-12-spec.md §0 设计 ①):
 //   - 0 server production code change
 //   - existing GET /api/v1/channels/{channelId}/messages/search?q= covers
 //     artifact-comment search byte-identical because comments are messages
@@ -18,7 +18,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestCV_SearchInArtifactNamespace pins 立场 ①: seed 3 messages with
+// TestCV_SearchInArtifactNamespace pins 设计 ①: seed 3 messages with
 // content_type='artifact_comment' in a private channel (acting as the
 // artifact: namespace channel), search for a unique substring, expect
 // the existing search endpoint to return the matching row — proves
@@ -29,7 +29,7 @@ func TestCV_SearchInArtifactNamespace(t *testing.T) {
 	tok := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 
 	// Create a private channel that simulates the artifact: namespace
-	// channel (CV-5 立场 ①: name `artifact:<id>`, type 'artifact', private).
+	// channel (CV-5 设计 ①: name `artifact:<id>`, type 'artifact', private).
 	owner, _ := s.GetUserByEmail("owner@test.com")
 	ch := &store.Channel{
 		Name:       "artifact:cv12-test-art",

@@ -3,7 +3,7 @@
 // uncovered branches拉满 84% threshold).
 //
 // Stance pins (跟 spec §0):
-//   ① uncovered error paths 也是立场组成部分 — fail-closed branches 必测
+//   ① uncovered error paths 也是设计组成部分 — fail-closed branches 必测
 //   ② 0 production code 改 — 仅加 test, 真测既有分支
 //   ③ 复用既有 cv5Setup helper, 不另起 fixture
 

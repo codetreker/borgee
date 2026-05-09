@@ -48,7 +48,7 @@ func TestP0ChannelLifecycle(t *testing.T) {
 
 	resp, data := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+channelID, memberToken, nil)
 	requireStatus(t, resp, http.StatusOK, data)
-	// CHN-1.2 立场 ②: creator-only default member. After POST /channels the
+	// CHN-1.2 设计 ②: creator-only default member. After POST /channels the
 	// member set is exactly {creator}; org peers see the channel via GET (org-
 	// scoped public discovery) but are NOT auto-joined.
 	if members := data["members"].([]any); len(members) != 1 {

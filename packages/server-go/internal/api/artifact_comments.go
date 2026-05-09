@@ -6,14 +6,14 @@
 // router 同精神 (comment / message 同表同语义不裂) + RT-3 #488 cursor 共序锚
 // + thinking subject 5-pattern 反约束链 (RT-3 / BPP-2.2 / AL-1b / CV-5 第 4
 // 处). Spec brief: docs/implementation/modules/cv-5-spec.md (战马E v0
-// 857170d, 3 立场 + 3 拆段).
+// 857170d, 3 条原则 + 3 拆段).
 //
 // Endpoints (cv-5-spec.md §1 字面):
 //
 //	POST /api/v1/artifacts/{artifactId}/comments  create comment (channel-scoped)
 //	GET  /api/v1/artifacts/{artifactId}/comments  list comments
 //
-// 立场反查 (cv-5-spec.md §0):
+// 设计反查 (cv-5-spec.md §0):
 //
 //   - ① comment 走 messages 表单源 — 不另起 artifact_comments 表; comment
 //     row 落 messages 表 + channel_id 走虚拟 `artifact:<artifact_id>` namespace
@@ -44,17 +44,17 @@ import (
 	"borgee-server/internal/store"
 )
 
-// CV-5 立场 ② frame type discriminator (源 ws.FrameTypeArtifactCommentAdded).
+// CV-5 设计 ② frame type discriminator (源 ws.FrameTypeArtifactCommentAdded).
 const FrameTypeArtifactCommentAdded = "artifact_comment_added"
 
-// CV-5 立场 ① channel name namespace prefix (跟 DM-2 dm: 同模式).
-// 反向 grep `channel.*name.*"artifact:"` ≥ 1 hit 在此处.
+// CV-5 设计 ① channel name namespace prefix (跟 DM-2 dm: 同模式).
+// grep 检查 `channel.*name.*"artifact:"` ≥ 1 hit 在此处.
 const ArtifactCommentChannelNamePrefix = "artifact:"
 
-// CV-5 立场 ② BodyPreview cap (跟 DM-2.2 MentionPushed 80 rune 同 cap, 隐私 §13).
+// CV-5 设计 ② BodyPreview cap (跟 DM-2.2 MentionPushed 80 rune 同 cap, 隐私 §13).
 const ArtifactCommentBodyPreviewMaxRunes = 80
 
-// CV-5 立场 ③ error code constants (跟 DM-2.2 mention.target_not_in_channel 同模式).
+// CV-5 设计 ③ error code constants (跟 DM-2.2 mention.target_not_in_channel 同模式).
 const (
 	ArtifactCommentErrThinkingSubjectRequired = "comment.thinking_subject_required"
 	ArtifactCommentErrTargetNotFound          = "comment.target_artifact_not_found"
@@ -78,7 +78,7 @@ var thinkingSubjectSentinels = []*regexp.Regexp{
 	regexp.MustCompile(`AI is thinking`),
 }
 
-// validateAgentCommentSubject — CV-5 立场 ③: returns true (== violation) when
+// validateAgentCommentSubject — CV-5 设计 ③: returns true (== violation) when
 // agent body fails the 5-pattern guard. Pattern 5 (subject="") is the
 // empty-body case handled separately so the caller can return a clearer message.
 func violatesThinkingSubject(body string) bool {
@@ -157,7 +157,7 @@ func (h *ArtifactCommentsHandler) loadArtifact(id string) (*artifactCommentArtif
 	return &rows[0], nil
 }
 
-// ensureArtifactChannel — CV-5 立场 ①: get-or-create the virtual `artifact:`
+// ensureArtifactChannel — CV-5 设计 ①: get-or-create the virtual `artifact:`
 // namespace channel (跟 DM-2 dm: 同模式: 真 channel row, name 走 namespace
 // prefix, id 仍是 UUID). On first call:
 //   - INSERT channels row name="artifact:<artifactId>" type="artifact" visibility="private" created_by=hostChannel.CreatedBy
@@ -194,7 +194,7 @@ func (h *ArtifactCommentsHandler) ensureArtifactChannel(artifactID, hostChannelI
 		return nil, err
 	}
 	// Copy host channel members so artifact comment ACL byte-identical to
-	// host channel ACL (立场 ④ ACL 继承).
+	// host channel ACL (设计 ④ ACL 继承).
 	members, err := h.Store.ListChannelMembers(hostChannelID)
 	if err == nil {
 		for _, m := range members {
@@ -260,7 +260,7 @@ func (h *ArtifactCommentsHandler) handleCreateComment(w http.ResponseWriter, r *
 		writeJSONErrorCode(w, http.StatusNotFound, ArtifactCommentErrTargetNotFound, "artifact not found")
 		return
 	}
-	// 立场 ④ cross-channel reject — caller must be member of the host channel.
+	// 设计 ④ cross-channel reject — caller must be member of the host channel.
 	if !h.Store.CanAccessChannel(art.ChannelID, user.ID) {
 		writeJSONErrorCode(w, http.StatusForbidden, ArtifactCommentErrCrossChannelReject, "not a member of artifact's channel")
 		return
@@ -273,7 +273,7 @@ func (h *ArtifactCommentsHandler) handleCreateComment(w http.ResponseWriter, r *
 	}
 
 	senderRole := h.senderRoleFor(user)
-	// 立场 ③ thinking subject 反约束 (5-pattern 第 4 处链).
+	// 设计 ③ thinking subject 反约束 (5-pattern 第 4 处链).
 	if senderRole == "agent" && violatesThinkingSubject(req.Body) {
 		writeJSONErrorCode(w, http.StatusBadRequest, ArtifactCommentErrThinkingSubjectRequired,
 			"agent comment must carry a concrete subject (thinking-only body rejected)")
@@ -284,7 +284,7 @@ func (h *ArtifactCommentsHandler) handleCreateComment(w http.ResponseWriter, r *
 		return
 	}
 
-	// 立场 ① ensure virtual artifact: namespace channel.
+	// 设计 ① ensure virtual artifact: namespace channel.
 	ch, err := h.ensureArtifactChannel(art.ID, art.ChannelID)
 	if err != nil {
 		if h.Logger != nil {

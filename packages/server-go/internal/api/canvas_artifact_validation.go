@@ -10,10 +10,10 @@ import (
 // Blueprint锚: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合:
 // Markdown / 代码片段带语言标注 / 设计稿图片或链接 / 看板 v2+) + §2
 // v1 不做清单. Spec: docs/implementation/modules/cv-3-spec.md (飞马
-// #363 v0 → #397 v1 follow-up) §0 立场 ①②③ + §1 拆段 CV-3.2 +
+// #363 v0 → #397 v1 后续) §0 设计 ①②③ + §1 拆段 CV-3.2 +
 // acceptance docs/qa/acceptance-templates/cv-3.md (烈马 #376) §1.3 / §1.4.
 // Content lock: docs/qa/cv-3-content-lock.md (野马 #370) §1 ②④⑤ +
-// §2 反向 grep (XSS 红线两道闸).
+// §2 grep 检查 (XSS 红线两道闸).
 //
 // Three validation seams locked here:
 //
@@ -24,13 +24,13 @@ import (
 //     合法). 短码唯一 (#370 §1 ② 反约束 — 不接 'golang' / 'typescript' /
 //     'python' / 'shell' / 'bash' / 'plaintext' 全名同义词).
 //  3. Image/link metadata.kind ∈ ('image','link') + URL **必 https**
-//     (XSS 红线第一道, #370 §1 ④ + spec §3 反向 grep 锚 javascript: /
+//     (XSS 红线第一道, #370 §1 ④ + spec §3 grep 检查项 javascript: /
 //     data:image / http: 全 reject).
 //
 // 反约束:
 //   - 不引入 schema 改 (本 PR 仅 server validation; metadata 持久化
-//     由 CV-3.2 schema follow-up PR 决定 — 加 metadata TEXT NULL 列
-//     vs body 头部 JSON embedding, 等飞马 spec follow-up 拍). 此 PR
+//     由 CV-3.2 schema 后续 PR 决定 — 加 metadata TEXT NULL 列
+//     vs body 头部 JSON embedding, 等飞马 spec 后续 拍). 此 PR
 //     下: metadata 走请求-时验, 不持久化, 由客户端 reload 后按 kind
 //     默认 (code 默认 'text', image_link 默认无 metadata 因 body 即 URL).
 //     PR body Acceptance 段已明示此留账.
@@ -40,7 +40,7 @@ import (
 
 // ArtifactKindMarkdown / ArtifactKindCode / ArtifactKindImageLink — CV-3
 // 三态 enum, byte-identical 跟 cv_3_1_artifact_kinds.go schema CHECK
-// + cv-3-content-lock.md §1 ① + spec §0 立场 ①.
+// + cv-3-content-lock.md §1 ① + spec §0 设计 ①.
 // ArtifactKindVideoLink / ArtifactKindPDFLink — CV-2 v2 #cv-2-v2 扩 5 项,
 // byte-identical 跟 cv_2_v2_media_preview.go schema CHECK 同源.
 const (
@@ -79,7 +79,7 @@ func IsValidArtifactKind(k string) bool {
 // ValidCodeLanguages is the 11 项 code-language whitelist + 'text'
 // fallback (12 项), byte-identical 跟 cv-3-content-lock.md §1 ② 同源.
 // 短码唯一 — 反约束: 不接 'golang' / 'typescript' / 'python' / 'shell' /
-// 'bash' / 'plaintext' 全名同义词 (#370 §1 ② 字面禁 + spec §3 反向 grep
+// 'bash' / 'plaintext' 全名同义词 (#370 §1 ② 字面禁 + spec §3 grep 检查
 // 锚 4.4).
 var ValidCodeLanguages = []string{
 	"go", "ts", "js", "py", "md", "sh",
@@ -121,7 +121,7 @@ func IsValidImageLinkKind(k string) bool {
 
 // ValidateImageLinkURL parses rawURL and returns nil iff it's a syntactically
 // valid absolute https URL. 反约束 (XSS 红线第一道, #370 §1 ④ +
-// content-lock §2 反向 grep + spec §3 锚): javascript: / data: / data:image /
+// content-lock §2 grep 检查 + spec §3 锚): javascript: / data: / data:image /
 // http: / file: / chrome: / 任何非 https scheme 全 reject. Also rejects
 // non-absolute / empty / scheme-relative URLs (`//host/path`) which would
 // inherit the page's scheme and bypass the gate.
@@ -156,7 +156,7 @@ func ValidateImageLinkURL(rawURL string) error {
 
 // errInvalidImageLinkURL wraps a reason in a stable error type so
 // callers (handleCreate) can map all to HTTP 400 with the same error
-// code `artifact.invalid_url` (acceptance §1.4 + spec §0 立场 ③ XSS
+// code `artifact.invalid_url` (acceptance §1.4 + spec §0 设计 ③ XSS
 // 红线一致 4xx code).
 type errInvalidImageLinkURL string
 
@@ -166,8 +166,8 @@ func (e errInvalidImageLinkURL) Error() string {
 
 // ArtifactMetadata is the request-time validation shape — NOT a
 // persisted struct. Per CV-3.2 server-only PR scope: validate then
-// discard (留账 metadata persistence by schema follow-up — column
-// add vs body JSON header embedding, 飞马 spec follow-up 拍).
+// discard (留账 metadata persistence by schema 后续 — column
+// add vs body JSON header embedding, 飞马 spec 后续 拍).
 //
 // Layout matches spec §0 ① 字面: code 头部 JSON `{language}` /
 // image_link 头部 JSON `{kind, url}` + (optional) `{thumbnail_url}`.
@@ -204,7 +204,7 @@ func ValidateArtifactMetadata(kind string, m ArtifactMetadata) error {
 		return nil
 
 	case ArtifactKindCode:
-		// 立场 ① + acceptance §1.3 — code MUST carry language.
+		// 设计 ① + acceptance §1.3 — code MUST carry language.
 		if m.Language == "" {
 			return errInvalidLanguage("metadata.language is required for kind='code'")
 		}
@@ -216,7 +216,7 @@ func ValidateArtifactMetadata(kind string, m ArtifactMetadata) error {
 		return nil
 
 	case ArtifactKindImageLink:
-		// 立场 ① + acceptance §1.4 — image_link MUST carry kind + url.
+		// 设计 ① + acceptance §1.4 — image_link MUST carry kind + url.
 		if m.Kind == "" {
 			return errInvalidImageLinkKind("metadata.kind is required for kind='image_link'")
 		}
@@ -236,7 +236,7 @@ func ValidateArtifactMetadata(kind string, m ArtifactMetadata) error {
 		return nil
 
 	case ArtifactKindVideoLink, ArtifactKindPDFLink:
-		// CV-2 v2 立场 ① + ② — body=URL (跟 image_link 同精神, body 即 URL),
+		// CV-2 v2 设计 ① + ② — body=URL (跟 image_link 同精神, body 即 URL),
 		// preview_url generated lazily by POST /artifacts/:id/preview owner-only.
 		// metadata 当前无 per-kind contract (留账 v3+ 加 'duration'/'pages' 等);
 		// URL 合法性 validated at preview generation time (https-only 红线

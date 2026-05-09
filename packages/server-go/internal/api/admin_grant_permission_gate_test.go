@@ -1,7 +1,7 @@
 // admin_grant_permission_gate_test.go — ADMIN-SPA-SHAPE-FIX REG-ASF-D6
 // admin-rail handleGrantPermission IsValidCapability gate 真测.
 //
-// 立场: spec §0.3 + content-lock §1 — admin cURL 塞任意 capability 字面 →
+// 设计: spec §0.3 + content-lock §1 — admin cURL 塞任意 capability 字面 →
 // 反向 reject 400 "invalid_capability". 4 case 守门:
 //   1. valid dot-notation (channel.read 等 14 capability 之一) → 200 grant 真挂
 //   2. legacy snake_case (read_channel) → 400 invalid_capability (reject)

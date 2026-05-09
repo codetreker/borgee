@@ -1,5 +1,5 @@
 // Package api_test — dm_6_thread_test.go: DM-6 server-side reverse
-// assertions ONLY. **0 server production code added** (反向 grep 守门).
+// assertions ONLY. **0 server production code added** (grep 守门).
 //
 // Pins:
 //   REG-DM6-001 TestDM_NoSchemaChange
@@ -31,7 +31,7 @@ func TestDM_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("DM-6 立场 ① broken — new schema migration file %s", p)
+			t.Errorf("DM-6 设计 ① broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -42,7 +42,7 @@ func TestDM_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("DM-6 立场 ① broken — messages reply ALTER in %s", p)
+			t.Errorf("DM-6 设计 ① broken — messages reply ALTER in %s", p)
 		}
 		return nil
 	})
@@ -66,7 +66,7 @@ func TestDM_NoServerProductionCode(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("DM-6 立场 ① broken — dm_6 production reference in %s: %q",
+				t.Errorf("DM-6 设计 ① broken — dm_6 production reference in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			_ = base
@@ -99,7 +99,7 @@ func TestDM_ReplyToIDColumnExists(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("DM-6 立场 ① broken — messages.reply_to_id column missing (CHN-1 既有 schema 漂移)")
+		t.Error("DM-6 设计 ① broken — messages.reply_to_id column missing (CHN-1 既有 schema 漂移)")
 	}
 }
 
@@ -144,7 +144,7 @@ func TestDM_DMThreadReply_HappyPath(t *testing.T) {
 	}
 }
 
-// REG-DM6-005 — thinking 5-pattern 锁链第 9 处 — 反向 grep 在 dm_6
+// REG-DM6-005 — thinking 5-pattern 锁链第 9 处 — grep 检查 在 dm_6
 // production 0 hit (DM-5 第 8 处 + DM-4 第 7 处 + DM-3 第 6 处 + RT-3
 // 第 5 处承袭).
 func TestDM_NoThinkingPatternInProduction(t *testing.T) {
@@ -167,7 +167,7 @@ func TestDM_NoThinkingPatternInProduction(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("DM-6 立场 ③ broken — thinking pattern in %s: %q",
+				t.Errorf("DM-6 设计 ③ broken — thinking pattern in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil

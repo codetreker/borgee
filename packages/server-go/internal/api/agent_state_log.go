@@ -5,7 +5,7 @@
 // 同模式 (sanitize + scope + 反 inject), 蓝图 §2.3 "故障可解释" 兑现:
 // owner 看 agent state 历史轨迹查 病因 + 修复入口.
 //
-// 立场 ① owner-only: server-side 走 OwnerID check (跟 AL-2a /agents/:id/config
+// 设计 ① owner-only: server-side 走 OwnerID check (跟 AL-2a /agents/:id/config
 // 同模式); admin god-mode 不挂 (ADM-0 §1.3 god-mode 仅元数据, agent state
 // 历史不算 channel content 但 owner 隐私边界, owner 自助看不开 admin path).
 package api
@@ -30,8 +30,8 @@ func (h *AgentStateLogHandler) RegisterRoutes(mux *http.ServeMux, authMw func(ht
 
 // handleListStateLog — GET /api/v1/agents/:id/state-log.
 //
-// 立场 ① owner-only: agent.OwnerID == current_user.ID; non-owner → 403.
-// 立场 ② sanitizer: 反向不返 raw FK (跟 ADM-2 sanitizeAdminAction 同模式 —
+// 设计 ① owner-only: agent.OwnerID == current_user.ID; non-owner → 403.
+// 设计 ② sanitizer: 反向不返 raw FK (跟 ADM-2 sanitizeAdminAction 同模式 —
 // agent_id 已是 path param caller 知道, 不重复返).
 func (h *AgentStateLogHandler) handleListStateLog(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)

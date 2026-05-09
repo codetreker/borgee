@@ -4,7 +4,7 @@
 // Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合) +
 // §1.6 (锚点对话 = owner review agent 产物的工具).
 // Spec brief: docs/implementation/modules/cv-2-spec.md (飞马 v0/v1/v2,
-// 3 立场 + 3 拆段). Schema源: migration v=14 cv_2_1_anchor_comments
+// 3 条原则 + 3 拆段). Schema源: migration v=14 cv_2_1_anchor_comments
 // (#359 stacked, artifact_anchors + anchor_comments tables).
 //
 // Endpoints (cv-2-spec.md §1 字面):
@@ -14,7 +14,7 @@
 //	POST /api/v1/anchors/{anchorId}/comments             reply on a thread
 //	POST /api/v1/anchors/{anchorId}/resolve              mark resolved (owner / creator)
 //
-// 立场反查 (cv-2-spec.md §0):
+// 设计反查 (cv-2-spec.md §0):
 //
 //   - ① 锚点 = 人审 agent 产物 (人机界面, 非 agent 间通信). server kind=='agent'
 //     POST 锚 → 403 错码 `anchor.create_owner_only`. 反约束: 不开 agent → agent
@@ -54,7 +54,7 @@ const (
 
 // AnchorErrCodeCreateOwnerOnly is the byte-identical error code returned
 // by the server when a role='agent' user POSTs to /anchors or /comments.
-// Pinned by cv-2-spec.md §3 反查锚 + 野马 #355 文案锁立场 ⑤. Client UI 反断
+// Pinned by cv-2-spec.md §3 反查锚 + 野马 #355 文案锁设计 ⑤. Client UI 反断
 // 0 hit on agent path (CV-2.3).
 const AnchorErrCodeCreateOwnerOnly = "anchor.create_owner_only"
 
@@ -129,7 +129,7 @@ type anchorCommentRow struct {
 }
 
 // loadAnchor fetches the anchor row + parent artifact row in one shot
-// so 立场 ⑦ channel-scope check + 立场 ② version pin can be applied.
+// so 设计 ⑦ channel-scope check + 设计 ② version pin can be applied.
 func (h *AnchorHandler) loadAnchor(id string) (*anchorRow, *artifactRow, error) {
 	var rows []anchorRow
 	if err := h.Store.DB().Raw(`SELECT
@@ -184,7 +184,7 @@ func (h *AnchorHandler) authorKindForUser(u *store.User) string {
 	return AnchorAuthorKindHuman
 }
 
-// canAccessChannel — 立场 ⑦ channel-scope ACL (CHN-1 双轴隔离同).
+// canAccessChannel — 设计 ⑦ channel-scope ACL (CHN-1 双轴隔离同).
 func (h *AnchorHandler) canAccessChannel(channelID, userID string) bool {
 	if !h.Store.IsChannelMember(channelID, userID) {
 		return h.Store.CanAccessChannel(channelID, userID)
@@ -193,7 +193,7 @@ func (h *AnchorHandler) canAccessChannel(channelID, userID string) bool {
 }
 
 // versionExists confirms (artifact_id, version) tuple is real before we
-// pin an anchor to it (立场 ② immutability — pin to a version that exists,
+// pin an anchor to it (设计 ② immutability — pin to a version that exists,
 // not arbitrary numbers).
 func (h *AnchorHandler) lookupVersionPK(artifactID string, version int64) (int64, error) {
 	var row struct {
@@ -211,7 +211,7 @@ WHERE artifact_id = ? AND version = ?`, artifactID, version).Scan(&row)
 }
 
 // threadHasHumanAuthor returns true iff any comment in the anchor thread
-// has author_kind='human'. 立场 ① 反约束: agent reply 必须落在已含 human
+// has author_kind='human'. 设计 ① 反约束: agent reply 必须落在已含 human
 // 的 thread, 不允许 agent 自循环新建 / 在 agent-only thread 接龙.
 //
 // The anchor itself was created by a human (server enforces 创锚 owner-only)
@@ -251,7 +251,7 @@ func (h *AnchorHandler) handleCreateAnchor(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	// 立场 ① owner-only: agent role 创锚 → 403 anchor.create_owner_only.
+	// 设计 ① owner-only: agent role 创锚 → 403 anchor.create_owner_only.
 	if user.Role == "agent" {
 		writeJSONErrorCode(w, http.StatusForbidden, AnchorErrCodeCreateOwnerOnly, "anchor creation restricted to human reviewers")
 		return
@@ -263,7 +263,7 @@ func (h *AnchorHandler) handleCreateAnchor(w http.ResponseWriter, r *http.Reques
 		writeJSONError(w, http.StatusNotFound, "Artifact not found")
 		return
 	}
-	// 立场 ⑦ channel-scope.
+	// 设计 ⑦ channel-scope.
 	if !h.canAccessChannel(art.ChannelID, user.ID) {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
@@ -278,7 +278,7 @@ func (h *AnchorHandler) handleCreateAnchor(w http.ResponseWriter, r *http.Reques
 		writeJSONError(w, http.StatusBadRequest, "end_offset must be >= start_offset and start_offset >= 0")
 		return
 	}
-	// Default to current head version (立场 ② anchor pinned to a real version).
+	// Default to current head version (设计 ② anchor pinned to a real version).
 	v := req.Version
 	if v == 0 {
 		v = art.CurrentVersion
@@ -372,7 +372,7 @@ func (h *AnchorHandler) handleAddComment(w http.ResponseWriter, r *http.Request)
 		writeJSONError(w, http.StatusNotFound, "Anchor not found")
 		return
 	}
-	// 立场 ⑦ channel-scope.
+	// 设计 ⑦ channel-scope.
 	if !h.canAccessChannel(art.ChannelID, user.ID) {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
@@ -384,7 +384,7 @@ func (h *AnchorHandler) handleAddComment(w http.ResponseWriter, r *http.Request)
 
 	authorKind := h.authorKindForUser(user)
 
-	// 立场 ① 反约束: agent reply 只允许在 thread 已含 human author_kind 的情况下
+	// 设计 ① 反约束: agent reply 只允许在 thread 已含 human author_kind 的情况下
 	// (防 AI 自循环). human reply 始终允许.
 	if authorKind == AnchorAuthorKindAgent {
 		hasHuman, err := h.threadHasHumanAuthor(anchor.ID, anchor.CreatedBy)
@@ -435,7 +435,7 @@ func (h *AnchorHandler) handleAddComment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Push WS frame (立场 ③ envelope cursor 单调发号 byte-identical 跟
+	// Push WS frame (设计 ③ envelope cursor 单调发号 byte-identical 跟
 	// ArtifactUpdated 同 hub.cursors).
 	if h.Pusher != nil {
 		h.Pusher.PushAnchorCommentAdded(
@@ -458,7 +458,7 @@ func (h *AnchorHandler) handleAddComment(w http.ResponseWriter, r *http.Request)
 // ----- GET /api/v1/anchors/{anchorId}/comments -----
 //
 // CV-2.3 client SPA pull path: after the anchor_comment_added WS frame
-// lands (signal-only, 立场 ③), AnchorThreadPanel calls this endpoint to
+// lands (signal-only, 设计 ③), AnchorThreadPanel calls this endpoint to
 // hydrate the thread body. channel-scoped ACL same as create/list anchors.
 
 func (h *AnchorHandler) handleListComments(w http.ResponseWriter, r *http.Request) {
@@ -575,7 +575,7 @@ func (h *AnchorHandler) serializeAnchor(a *anchorRow) map[string]any {
 }
 
 // writeJSONErrorCode emits {"error": msg, "code": code} so client UI can
-// switch on a stable error code (vs string match on message). 立场 ①
+// switch on a stable error code (vs string match on message). 设计 ①
 // reverse-grep target: `anchor.create_owner_only`.
 func writeJSONErrorCode(w http.ResponseWriter, status int, code, msg string) {
 	w.Header().Set("Content-Type", "application/json")

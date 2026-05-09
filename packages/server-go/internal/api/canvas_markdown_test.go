@@ -1,7 +1,7 @@
 // Package api_test — cv_11_no_markdown_test.go: CV-11.1 unit verifying the
 // server stores comment body as raw markdown source (NOT pre-rendered HTML).
 //
-// Stance pin (cv-11-spec.md §0 立场 ① + §1 CV-11.1):
+// Stance pin (cv-11-spec.md §0 设计 ① + §1 CV-11.1):
 //   - server 0 production code change for CV-11
 //   - markdown rendering is client-side only (反约束: server never imports
 //     marked or DOMPurify; client lib/markdown owns the path)
@@ -18,7 +18,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestCV_ServerStoresRawMarkdown pins 立场 ①: comment POST stores body
+// TestCV_ServerStoresRawMarkdown pins 设计 ①: comment POST stores body
 // raw, GET round-trip returns exact same bytes. Server never renders.
 func TestCV_ServerStoresRawMarkdown(t *testing.T) {
 	t.Parallel()

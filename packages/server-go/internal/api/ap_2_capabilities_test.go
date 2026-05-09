@@ -1,10 +1,10 @@
 // AP-2 server — capability 透明 UI response shape unit tests.
 //
-// 立场承袭 (ap-2-spec.md §0):
-//   - 立场 ② response 加 `capabilities` 数组 (14 const SSOT 单源)
-//   - 立场 ② 反向断言 response 不暴露 RBAC role 字面 admin/editor/viewer/owner
+// 设计沿用 (ap-2-spec.md §0):
+//   - 设计 ② response 加 `capabilities` 数组 (14 const SSOT 单源)
+//   - 设计 ② 反向断言 response 不暴露 RBAC role 字面 admin/editor/viewer/owner
 //     (反 role bleed); `role` 字段仅 legacy caller 兼容, UI 不显
-//   - 立场 ① AP-1 14 const + AP-4-enum reflect-lint byte-identical 不破
+//   - 设计 ① AP-1 14 const + AP-4-enum reflect-lint byte-identical 不破
 
 package api
 
@@ -71,7 +71,7 @@ func TestAP2_DeriveCapabilities_OnlyKnownTokens(t *testing.T) {
 		lower := strings.ToLower(tok)
 		for _, role := range []string{"admin", "editor", "viewer", "owner"} {
 			if lower == role {
-				t.Errorf("立场 ② 反 role bleed — token %q 命中 RBAC role 字面", tok)
+				t.Errorf("设计 ② 反 role bleed — token %q 命中 RBAC role 字面", tok)
 			}
 		}
 	}
@@ -102,13 +102,13 @@ func TestAP2_NoRoleNamesInResponseShape_MemberPath(t *testing.T) {
 		`"role":"owner"`,
 	} {
 		if strings.Contains(body, bad) {
-			t.Errorf("立场 ② 反 RBAC role bleed — response 含 %q (UI 不应显此值)", bad)
+			t.Errorf("设计 ② 反 RBAC role bleed — response 含 %q (UI 不应显此值)", bad)
 		}
 	}
 
 	// `capabilities` 字段必存在 (AP-2 SSOT 单源).
 	if !strings.Contains(body, `"capabilities"`) {
-		t.Error("AP-2 立场 ② — response 缺 `capabilities` 字段")
+		t.Error("AP-2 设计 ② — response 缺 `capabilities` 字段")
 	}
 
 	// JSON parse round-trip — capabilities 是数组.

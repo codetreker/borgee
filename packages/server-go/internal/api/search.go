@@ -5,7 +5,7 @@
 // 不是浏览器内全量解码"). Spec brief:
 // docs/implementation/modules/cv-6-spec.md (战马C v0, d2fe1f0).
 //
-// 立场反查 (3 立场 + 6 边界):
+// 设计反查 (3 条原则 + 6 边界):
 //   - ① 复用 SQLite FTS5 (不另起 elasticsearch / opensearch / typesense /
 //     meilisearch / sonic / bleve search service); contentless virtual
 //     table 跟 artifacts 单源 SSOT.
@@ -23,9 +23,9 @@
 // 反约束 (cv-6-spec.md §3 反约束 grep):
 //   - 不另起 search 表 (FTS5 contentless 跟 artifacts 单源).
 //   - 不引入 elasticsearch / opensearch / typesense / meilisearch / sonic
-//     / bleve / blevesearch (反向 grep go.mod count==0 by 7 keyword).
+//     / bleve / blevesearch (grep 检查 go.mod count==0 by 7 keyword).
 //   - 不暴露其他 owner artifact (search.cross_owner / search.all_artifacts
-//     反向 grep count==0).
+//     grep 检查 count==0).
 //   - 错码字面单源 (跟 AP-1/AP-2/AP-3/CV-2 v2/CV-3 v2 const 同模式).
 package api
 
@@ -37,7 +37,7 @@ import (
 	"borgee-server/internal/auth"
 )
 
-// SearchErrCode constants — byte-identical 跟 cv-6-spec.md §0 立场 ④
+// SearchErrCode constants — byte-identical 跟 cv-6-spec.md §0 设计 ④
 // + content-lock §1 + cv-6-content-lock.md §4 同源 (改 = 改三处: const +
 // client toast map + content-lock).
 const (
@@ -69,14 +69,14 @@ type searchResult struct {
 
 // handleArtifactSearch implements GET /api/v1/artifacts/search.
 //
-// 反约束守 (立场 ①②③④⑤⑥):
+// 反约束守 (设计 ①②③④⑤⑥):
 //   - admin (no auth user) → 401 (admin god-mode 不入业务路径).
 //   - q empty → 400 + search.query_empty.
 //   - q > 256 chars → 400 + search.query_too_long.
 //   - channel_id provided + non-member → 403 + search.channel_not_member.
 //   - cross-org user (走 AP-3 HasCapability 自动 enforce) → 403 (AP-3
-//     立场 ① 同源, search 路径自动经).
-//   - archived_at IS NOT NULL 不出现 (立场 ⑥).
+//     设计 ① 同源, search 路径自动经).
+//   - archived_at IS NOT NULL 不出现 (设计 ⑥).
 //   - server-side snippet `<mark>...</mark>` 字面 byte-identical (跟
 //     content-lock §3 ResultList row 同精神).
 func (h *ArtifactHandler) handleArtifactSearch(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +106,7 @@ func (h *ArtifactHandler) handleArtifactSearch(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	// 立场 ② channel-scoped — channel_id 必填 (v0 不开 cross-channel global
+	// 设计 ② channel-scoped — channel_id 必填 (v0 不开 cross-channel global
 	// search, 留 v2+; cv-6-spec.md §4 不在范围). 反约束: 不暴露其他 owner
 	// artifact.
 	if channelID == "" {
@@ -114,13 +114,13 @@ func (h *ArtifactHandler) handleArtifactSearch(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 立场 ② channel membership gate (跟 CV-1.2 既有 path).
+	// 设计 ② channel membership gate (跟 CV-1.2 既有 path).
 	if !h.canAccessChannel(channelID, user.ID) {
 		writeJSONError(w, http.StatusForbidden, SearchErrCodeChannelNotMember+": not a channel member")
 		return
 	}
 
-	// 立场 ⑤ AP-3 cross-org gate 走 HasCapability 单源 (auto-enforce 当 AP-3
+	// 设计 ⑤ AP-3 cross-org gate 走 HasCapability 单源 (auto-enforce 当 AP-3
 	// merged; 在此先走 channel ACL gate 保护 — HasCapability 失败统一映射
 	// search.cross_org_denied 错码字面 byte-identical 跟 content-lock §1).
 	if !auth.HasCapability(r.Context(), h.Store, auth.ReadArtifact, auth.ChannelScopeStr(channelID)) {
@@ -129,7 +129,7 @@ func (h *ArtifactHandler) handleArtifactSearch(w http.ResponseWriter, r *http.Re
 	}
 
 	// FTS5 query: snippet() args 5 byte-identical (跟 content-lock §1 +
-	// stance 立场 ⑧): col=1 (body), prefix='<mark>', suffix='</mark>',
+	// stance 设计 ⑧): col=1 (body), prefix='<mark>', suffix='</mark>',
 	// ellipsis='...', tokens=32.
 	type row struct {
 		ID             string  `gorm:"column:id"`
@@ -142,7 +142,7 @@ func (h *ArtifactHandler) handleArtifactSearch(w http.ResponseWriter, r *http.Re
 	}
 	var rows []row
 	// JOIN artifacts via rowid (FTS5 contentless content_rowid).
-	// WHERE channel_id = ? AND archived_at IS NULL — 立场 ②⑥.
+	// WHERE channel_id = ? AND archived_at IS NULL — 设计 ②⑥.
 	if err := h.Store.DB().Raw(`
 		SELECT a.id, a.title,
 		       snippet(artifacts_fts, 1, '<mark>', '</mark>', '...', 32) AS snippet,

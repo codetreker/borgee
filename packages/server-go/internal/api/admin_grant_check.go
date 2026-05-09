@@ -2,13 +2,13 @@
 // 守门 helper. admin 写动作前 must hold active ImpersonationGrant; 否则
 // 返回 403 + reason="impersonate.no_grant" (跟 ADM-2 既有 5 模板字面承袭).
 //
-// 立场 (adm-2-followup-stance §1):
+// 设计 (adm-2-followup-stance §1):
 //   - 5/5 admin 写动作 (force_delete_channel / patch disabled / patch password
 //     / patch role / start_impersonation) 全 wire grant 校验.
 //   - 失败字面 byte-identical `impersonate.no_grant` 跟 ADM-2 既有承袭.
 //   - admin god-mode 独立路径 (ADM-0 §1.3 红线), 不挂 user-rail.
 //
-// 反向 grep `RequireImpersonationGrant` 在 5/5 admin write handler 全挂.
+// grep 检查 `RequireImpersonationGrant` 在 5/5 admin write handler 全挂.
 package api
 
 import (

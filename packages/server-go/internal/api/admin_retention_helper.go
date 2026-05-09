@@ -1,7 +1,7 @@
 // Package api — admin_retention_helper.go: REFACTOR-1 helper-3 SSOT
 // admin retention override skeleton shared between AL-7 / HB-5.
 //
-// 立场 ① + ② (refactor-1-spec.md §0):
+// 设计 ① + ② (refactor-1-spec.md §0):
 //   - 行为不变量 byte-identical pre/post refactor: status / error / clamp
 //     boundary / SystemActorID 默认 / Logger 行为 / InsertAdminAction 调
 //     用 byte-identical 跟 al_7 + hb_5 既有 45 行 × 2 skeleton.
@@ -10,9 +10,9 @@
 //
 // Caller list 锁:
 //   - al_7_audit_retention_override.go (action=ActionAuditRetentionOverride,
-//     extraMeta=nil — al-7-spec.md §0 立场 ②③)
+//     extraMeta=nil — al-7-spec.md §0 设计 ②③)
 //   - hb_5_heartbeat_retention_override.go (复用 ActionAuditRetentionOverride,
-//     extraMeta={"target": auth.HeartbeatTargetLabel} — hb-5-spec.md §0 立场 ②)
+//     extraMeta={"target": auth.HeartbeatTargetLabel} — hb-5-spec.md §0 设计 ②)
 //
 // Reverse-grep 锚 (refactor-1-spec.md §2 反约束 #6):
 //   - func writeRetentionOverride ==1 hit (此文件)
@@ -43,12 +43,12 @@ type retentionOverrideRequest struct {
 // and writes the response. Returns false if any path failed (caller
 // MUST early-return without writing).
 //
-// 立场 ⑥ clamp 1..365 (auth.RetentionMin/MaxDays 单源, 跟 AL-7 #533 + HB-5
+// 设计 ⑥ clamp 1..365 (auth.RetentionMin/MaxDays 单源, 跟 AL-7 #533 + HB-5
 // 同源). target 默认 auth.SystemActorID. extraMeta 字段 merge 入 metadata
 // JSON (hb_5 用之注入 target='heartbeat' 字面区分).
 //
 // action / responseExtra 留 caller 决定 — al_7 + hb_5 共享 const
-// auth.ActionAuditRetentionOverride (HB-5 立场 ② 复用 不挂第 13 enum).
+// auth.ActionAuditRetentionOverride (HB-5 设计 ② 复用 不挂第 13 enum).
 func writeRetentionOverride(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -69,7 +69,7 @@ func writeRetentionOverride(
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
 		return false
 	}
-	// 立场 ⑥ clamp 1..365 — 反 0 / 负 / 非数 / >365 reject. 0 = ZeroValue
+	// 设计 ⑥ clamp 1..365 — 反 0 / 负 / 非数 / >365 reject. 0 = ZeroValue
 	// → reject (Go decoder defaults missing field to 0 — admin 必显式填).
 	if req.RetentionDays < auth.RetentionMinDays || req.RetentionDays > auth.RetentionMaxDays {
 		writeJSONError(w, http.StatusBadRequest, "retention_days must be in [1, 365]")

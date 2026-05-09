@@ -2,11 +2,11 @@
 // REST endpoint tests for web_push_subscriptions.
 //
 // Stance pins exercised (蓝图 client-shape.md L22 + dl-4-spec §0):
-//   - 立场 ① POST upsert: 同 endpoint 重注册 → 不再插新 row, p256dh/auth
+//   - 设计 ① POST upsert: 同 endpoint 重注册 → 不再插新 row, p256dh/auth
 //     原地更新 (UNIQUE 严闭 + ON CONFLICT DO UPDATE).
-//   - 立场 ① 反约束: secret 字段在 server env, 不接受 client 传 (此测试
+//   - 设计 ① 反约束: secret 字段在 server env, 不接受 client 传 (此测试
 //     不 inject secret, 验证 4 字面字段路径).
-//   - 立场 ③ 退订单源: DELETE row 不开 PATCH enabled=false 双源.
+//   - 设计 ③ 退订单源: DELETE row 不开 PATCH enabled=false 双源.
 //   - cross-user reject: REG-INV-002 fail-closed.
 //   - idempotent unsubscribe: 不存在 endpoint DELETE 仍返 204 (跟 layout
 //     DELETE 同模式).

@@ -5,7 +5,7 @@
 //   REG-RT4-001 TestRT_NoSchemaChange
 //   REG-RT4-002 TestRT_GetPresence_MemberHappyPath + _NonMemberRejected
 //                + _Unauthorized401
-//   REG-RT4-003 TestRT_TypingPathByteIdentical (反向 grep rt_4 在
+//   REG-RT4-003 TestRT_TypingPathByteIdentical (grep 检查 rt_4 在
 //               ws/client.go::handleTyping block 0 hit)
 //   REG-RT4-004 TestRT_NoAdminPresencePath
 //   REG-RT4-005 TestRT_NoPresenceQueue
@@ -33,7 +33,7 @@ func TestRT_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "rt_4_") {
-			t.Errorf("RT-4 立场 ① broken — found schema migration %q (must be 0 schema)", e.Name())
+			t.Errorf("RT-4 设计 ① broken — found schema migration %q (must be 0 schema)", e.Name())
 		}
 	}
 }
@@ -158,7 +158,7 @@ func TestRT_NoAdminPresencePath(t *testing.T) {
 			}
 			fb, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("RT-4 立场 ③ broken — admin-rail presence path in %s: %q",
+				t.Errorf("RT-4 设计 ③ broken — admin-rail presence path in %s: %q",
 					p, fb[loc[0]:loc[1]])
 			}
 			return nil
@@ -192,7 +192,7 @@ func TestRT_NoPresenceQueue(t *testing.T) {
 	})
 }
 
-// REG-RT4-005b — 0 新 WS frame (反向 grep `presence_changed | presenceChanged
+// REG-RT4-005b — 0 新 WS frame (grep 检查 `presence_changed | presenceChanged
 // | user_online_pushed` 在 internal/ws + internal/api 0 hit).
 func TestRT_NoNewPresenceFrame(t *testing.T) {
 	t.Parallel()
@@ -213,7 +213,7 @@ func TestRT_NoNewPresenceFrame(t *testing.T) {
 			fb, _ := os.ReadFile(p)
 			for _, tok := range forbidden {
 				if strings.Contains(string(fb), tok) {
-					t.Errorf("RT-4 立场 ② broken — token %q in %s (no new WS frame allowed)", tok, p)
+					t.Errorf("RT-4 设计 ② broken — token %q in %s (no new WS frame allowed)", tok, p)
 				}
 			}
 			return nil

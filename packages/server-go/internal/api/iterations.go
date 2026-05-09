@@ -7,7 +7,7 @@
 // Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 自带版本
 // 历史: agent 每次修改产生一个版本) + §1.5 (agent 写内容默认允许).
 // Spec brief: docs/implementation/modules/cv-4-spec.md (飞马 #365 v0,
-// merged 9720a66) §0 立场 ① 域隔离 + ② commit 单源 + ③ client 算 diff +
+// merged 9720a66) §0 设计 ① 域隔离 + ② commit 单源 + ③ client 算 diff +
 // §1 拆段 CV-4.2.
 // Stance: docs/qa/cv-4-stance-checklist.md (野马 #385).
 // Acceptance: docs/qa/acceptance-templates/cv-4.md (#384) §2.1-§2.7 + §4.
@@ -23,19 +23,19 @@
 //	GET  /api/v1/artifacts/{artifactId}/iterations      list history (ORDER BY created_at DESC)
 //	(commit single-source: POST /api/v1/artifacts/{id}/commits?iteration_id=<id> — handleCommit in artifacts.go)
 //
-// 立场反查 (cv-4-spec.md §0 + acceptance §2 + §4):
+// 设计反查 (cv-4-spec.md §0 + acceptance §2 + §4):
 //
 //   - ① 域隔离: messages 表无 iteration 反指列, artifact_versions schema
-//     不动 (acceptance §1.5 + §4.2 字面). 反向 grep 0 hit.
+//     不动 (acceptance §1.5 + §4.2 字面). grep 检查 0 hit.
 //   - ② CV-1 commit 单源: 不开旁路 endpoint — commit 走
-//     ?iteration_id= query atomic UPDATE (acceptance §2.2 + §4.1, 反向 grep
+//     ?iteration_id= query atomic UPDATE (acceptance §2.2 + §4.1, grep 检查
 //     `POST.*\\/iterations\\/.*\\/commit` count==0).
-//   - ③ server 不算 diff: 不下沉 jsdiff (acceptance §2.6 + §4.4, 反向 grep
+//   - ③ server 不算 diff: 不下沉 jsdiff (acceptance §2.6 + §4.4, grep 检查
 //     server-side diff 模式 count==0).
 //   - ④ state machine: 4 态合法转移 (pending→running / pending→failed /
 //     running→completed / running→failed); 反断 completed→running /
 //     completed→pending / failed→pending 等回退 (acceptance §2.3 + §4.3
-//     反向 grep 0 hit).
+//     grep 检查 0 hit).
 //   - ⑤ AL-4 stub fail-closed: agent_runtimes.status != 'running' →
 //     state='failed' + error_reason='runtime_not_registered' byte-identical
 //     跟 AL-1a #249 6 reason 同源 (acceptance §2.5).
@@ -76,7 +76,7 @@ const (
 const IterationErrorReasonRuntimeNotRegistered = "runtime_not_registered"
 
 // IterationErrCodeTargetNotInChannel — target_agent_id 不是 channel
-// member 时返回 (acceptance §2.1 字面). 反向 grep target.
+// member 时返回 (acceptance §2.1 字面). grep 检查 target.
 const IterationErrCodeTargetNotInChannel = "iteration.target_not_in_channel"
 
 // IterationStatePusher is the seam between the api package and ws.Hub
@@ -171,7 +171,7 @@ func (h *IterationHandler) channelOwnerID(channelID string) (string, error) {
 }
 
 // agentRuntimeRunning returns true iff agent_runtimes row exists for
-// agentID with status='running'. AL-4 stub fail-closed 立场 ⑤: 任何其它
+// agentID with status='running'. AL-4 stub fail-closed 设计 ⑤: 任何其它
 // 状态 (registered / stopped / error) 或行不存在 → 不可派 → state='failed'
 // + reason='runtime_not_registered'. AL-4 落地后切真路径不破此函数语义 —
 // runtime 跑着 = status='running' 是 AL-4.1 字面.
@@ -204,7 +204,7 @@ func (h *IterationHandler) handleIterate(w http.ResponseWriter, r *http.Request)
 		writeJSONError(w, http.StatusNotFound, "Artifact not found")
 		return
 	}
-	// 立场 ⑦ channel-scope (跟 anchors / artifacts 同).
+	// 设计 ⑦ channel-scope (跟 anchors / artifacts 同).
 	if !h.canAccessChannel(art.ChannelID, user.ID) {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
@@ -343,7 +343,7 @@ func (h *IterationHandler) handleListIterations(w http.ResponseWriter, r *http.R
 	}
 
 	// CV-4 v2 — clamp ?limit query (default 50, max 200, 0/negative → default).
-	// 立场 ① — endpoint shape unchanged from v1; only the optional limit
+	// 设计 ① — endpoint shape unchanged from v1; only the optional limit
 	// query is new. cursor reuse goes via existing events sequence.
 	limit := cv4v2ClampLimit(r.URL.Query().Get("limit"))
 
@@ -363,7 +363,7 @@ ORDER BY created_at DESC LIMIT ?`, art.ID, limit).Scan(&rows).Error; err != nil 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"iterations": out})
 }
 
-// cv4v2ClampLimit parses the ?limit query string per CV-4 v2 立场 ①
+// cv4v2ClampLimit parses the ?limit query string per CV-4 v2 设计 ①
 // (default 50, max 200, 0/negative/empty → 50). Exposed for unit tests
 // that want to cover the clamp matrix without booting an HTTP server.
 func cv4v2ClampLimit(raw string) int {
@@ -394,7 +394,7 @@ func ClampCV4V2LimitForTest(raw string) int { return cv4v2ClampLimit(raw) }
 // admin god-mode (ADM-0 §1.3) does not enter this rail — admin path lives
 // at /admin-api/* and is the responsibility of admin.go to never read
 // artifact_iterations.intent_text into its response (acceptance §2.7
-// 反断). 反向 grep `admin.*intent_text|intent_text.*admin` count==0 in
+// 反断). grep 检查 `admin.*intent_text|intent_text.*admin` count==0 in
 // internal/api/admin*.go enforced at PR review.
 func (h *IterationHandler) serializeIteration(it *iterationRow) map[string]any {
 	out := map[string]any{
@@ -433,9 +433,9 @@ var errIterationStateMachineReject = errors.New("iteration state machine reject"
 
 // CompleteIterationOnCommit is invoked by ArtifactHandler.handleCommit when
 // the request carries `?iteration_id=<uuid>`. It performs a single atomic
-// UPDATE that is the 立场 ② "CV-1 commit 单源" — there is no
+// UPDATE that is the 设计 ② "CV-1 commit 单源" — there is no
 // POST bypass endpoint (acceptance §2.2 + §4.1
-// 反向 grep `POST.*\/iterations\/.*\/commit` count==0).
+// grep 检查 `POST.*\/iterations\/.*\/commit` count==0).
 //
 // State machine: only `running` → `completed` is legal here. Any other
 // source state (pending / completed / failed) returns

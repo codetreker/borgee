@@ -3,12 +3,12 @@
 //
 // Stance pins exercised (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁
 // #380):
-//   - ① 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 反向 grep, repo-
+//   - ① 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
 //     level CI lint, 非 unit).
 //   - ② CV-1 commit 单源 — POST /commits?iteration_id= atomic UPDATE
 //     running→completed; 反约束 不开 /iterations/:id/commit 旁路
 //     (acceptance §2.2 + §4.1).
-//   - ③ server 不算 diff — 反向 grep CI (acceptance §2.6 + §4.4).
+//   - ③ server 不算 diff — grep 检查 CI (acceptance §2.6 + §4.4).
 //   - ④ state machine 4 态前向锁 — 反 completed→running / failed→pending
 //     等回退 reject (acceptance §2.3 + §4.3).
 //   - ⑤ AL-4 stub fail-closed — agent_runtimes.status != 'running' →
@@ -110,7 +110,7 @@ func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 // agent_runtimes row exists with status='running', AL-4 stub treats this
 // as "live" and persists state='running' (real plugin dispatch lands
 // when AL-4 runtime hub plugin path is wired — out of scope CV-4.2,
-// the seam is here so AL-4 follow-up does NOT need to re-thread the
+// the seam is here so AL-4 后续 does NOT need to re-thread the
 // switch).
 func TestCV_AL4Live_StateRunning(t *testing.T) {
 	t.Parallel()
@@ -396,7 +396,7 @@ func TestCV_ListIterations_NotFoundOrCrossChannel(t *testing.T) {
 	}
 }
 
-// TestCV_Iterate_NonOwner_403 — 立场 ⑥ owner-only (acceptance §2.1) — a
+// TestCV_Iterate_NonOwner_403 — 设计 ⑥ owner-only (acceptance §2.1) — a
 // channel member who is not the owner gets 403 (handler runs after
 // canAccessChannel passes). Different from TestCV_IterateOwnerOnly which
 // covers the *non-owner channel-member* 403 path; this extra case exercises
@@ -498,7 +498,7 @@ func TestCV_ListAnchorComments_Coverage(t *testing.T) {
 
 // TestCV42_HandleListIterations_PathValueEmpty covers the canAccessChannel
 // false branch of handleListIterations — outsider with no channel access
-// gets 404 (404 not 403 to not leak existence per立场 ⑦ defense). This
+// gets 404 (404 not 403 to not leak existence per设计 ⑦ defense). This
 // exercises a branch the happy-path test in TestCV_ListIterationsHistory
 // doesn't reach.
 func TestCV_HandleListIterations_NonMember404(t *testing.T) {

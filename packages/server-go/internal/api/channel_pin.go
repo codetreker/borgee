@@ -14,13 +14,13 @@
 //   - (h *ChannelHandler) RegisterCHN6Routes(mux, authMw)
 //
 // 反约束 (chn-6-spec.md §0 + refactor-1-spec.md §0):
-//   - 立场 ② owner-only — POST/DELETE /api/v1/channels/{channelId}/pin
-//     user-rail authMw 必经; admin god-mode 不挂 (反向 grep
+//   - 设计 ② owner-only — POST/DELETE /api/v1/channels/{channelId}/pin
+//     user-rail authMw 必经; admin god-mode 不挂 (grep 检查
 //     `admin.*pin\|/admin-api/.*pin` 在 admin*.go 0 hit) — owner-only ACL
 //     锁链第 14 处.
-//   - 立场 ③ pin 状态双源 — server PinThreshold=0 const + client
+//   - 设计 ③ pin 状态双源 — server PinThreshold=0 const + client
 //     POSITION_PIN_THRESHOLD=0 byte-identical 双向锁.
-//   - 立场 ⑥ AST 锁链延伸第 11 处 forbidden 3 token 0 hit.
+//   - 设计 ⑥ AST 锁链延伸第 11 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -34,19 +34,19 @@ import (
 // ASC ordering naturally surfaces them at the top of the sidebar).
 //
 // 双向锁: 跟 packages/client/src/lib/pin.ts::POSITION_PIN_THRESHOLD
-// byte-identical = 0. 改一处 = 改两处. 立场 ③ + content-lock §4.
+// byte-identical = 0. 改一处 = 改两处. 设计 ③ + content-lock §4.
 const PinThreshold = 0.0
 
 // IsPinned reports whether a user_channel_layout.position represents a
 // pinned channel. Single-source predicate; 调用方禁止 inline 重写
-// (反向 grep `position\s*<\s*0` 在 production 仅命中此函数 + filter).
+// (grep 检查 `position\s*<\s*0` 在 production 仅命中此函数 + filter).
 func IsPinned(position float64) bool {
 	return position < PinThreshold
 }
 
 // RegisterCHN6Routes wires POST + DELETE /api/v1/channels/{channelId}/pin
 // behind authMw. user-rail only (no admin god-mode 路径; ADM-0 §1.3 红
-// 线 + CHN-3.2 立场承袭). 立场 ②.
+// 线 + CHN-3.2 设计沿用). 设计 ②.
 func (h *ChannelHandler) RegisterCHN6Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/channels/{channelId}/pin",
 		authMw(http.HandlerFunc(h.handlePinChannel)))
@@ -67,7 +67,7 @@ func (h *ChannelHandler) handleUnpinChannel(w http.ResponseWriter, r *http.Reque
 // handlePinToggle — pin/unpin 单 handler, 跟 chn_7 handleMuteToggle /
 // chn_15 handleReadonlyToggle 同模式承袭 (REFACTOR-1 R1.1).
 //
-// 立场 ② owner-only: 走 requireChannelMember helper-1 (RejectDM=true +
+// 设计 ② owner-only: 走 requireChannelMember helper-1 (RejectDM=true +
 // member-only) — DM-gate 字面 byte-identical 跟 CHN-3.2 / CHN-7 / CHN-8
 // 同源.
 func (h *ChannelHandler) handlePinToggle(w http.ResponseWriter, r *http.Request, pin bool) {

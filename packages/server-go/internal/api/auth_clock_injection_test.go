@@ -91,7 +91,7 @@ func TestAuthHandler_FakeClock_NoRealSleep(t *testing.T) {
 	}
 }
 
-// TestAuthHandler_StructFieldExposed — 立场: AuthHandler.Clock 字段是
+// TestAuthHandler_StructFieldExposed — 设计: AuthHandler.Clock 字段是
 // public API seam, 测试可直接构造并注入 fake.
 func TestAuthHandler_StructFieldExposed(t *testing.T) {
 	t.Parallel()

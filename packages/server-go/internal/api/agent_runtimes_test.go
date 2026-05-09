@@ -100,7 +100,7 @@ func TestAL_RegisterRejectsInvalidProcessKind(t *testing.T) {
 	}
 }
 
-// TestAL_RegisterDuplicateRejected pins UNIQUE(agent_id) — 立场 ①
+// TestAL_RegisterDuplicateRejected pins UNIQUE(agent_id) — 设计 ①
 // v1 不优化多 runtime 并行 (蓝图 §2.2 字面). Second register on same
 // agent → 409.
 func TestAL_RegisterDuplicateRejected(t *testing.T) {
@@ -202,7 +202,7 @@ func TestAL_StopIdempotent(t *testing.T) {
 	}
 }
 
-// TestAL_HeartbeatUpdatesRuntimeNotPresence pins acceptance §2.4: 立场
+// TestAL_HeartbeatUpdatesRuntimeNotPresence pins acceptance §2.4: 设计
 // ③ heartbeat 写 agent_runtimes.last_heartbeat_at, 不写
 // presence_sessions.last_heartbeat_at (那是 AL-3 hub WS lifecycle).
 func TestAL_HeartbeatUpdatesRuntimeNotPresence(t *testing.T) {
@@ -229,11 +229,11 @@ func TestAL_HeartbeatUpdatesRuntimeNotPresence(t *testing.T) {
 	if rt.LastHeartbeatAt == nil || *rt.LastHeartbeatAt == 0 {
 		t.Error("agent_runtimes.last_heartbeat_at not updated")
 	}
-	// Reverse-assert: presence_sessions row count unchanged (反约束 立场 ③).
+	// Reverse-assert: presence_sessions row count unchanged (反约束 设计 ③).
 	var presAfter int64
 	_ = s.DB().Raw(`SELECT COUNT(*) FROM presence_sessions WHERE user_id = ?`, agentID).Scan(&presAfter).Error
 	if presAfter != presBefore {
-		t.Errorf("heartbeat polluted presence_sessions (立场 ③ 反约束): before=%d after=%d", presBefore, presAfter)
+		t.Errorf("heartbeat polluted presence_sessions (设计 ③ 反约束): before=%d after=%d", presBefore, presAfter)
 	}
 }
 
@@ -301,7 +301,7 @@ func TestAL_ErrorEmitsSystemDMByteIdentical(t *testing.T) {
 
 // TestAL_AdminGodModeOmitsErrorReason pins acceptance §2.6 + §4.3:
 // admin god-mode read endpoint white-list 不返 last_error_reason raw
-// 文本 (隐私 立场 ⑦ ADM-0 §1.3 红线). 跟 REG-ADM0-003 同模式.
+// 文本 (隐私 设计 ⑦ ADM-0 §1.3 红线). 跟 REG-ADM0-003 同模式.
 func TestAL_AdminGodModeOmitsErrorReason(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, _, agentID := al42Setup(t)
@@ -322,7 +322,7 @@ func TestAL_AdminGodModeOmitsErrorReason(t *testing.T) {
 	for _, r := range rows {
 		entry := r.(map[string]any)
 		if _, has := entry["last_error_reason"]; has {
-			t.Errorf("admin god-mode leaked last_error_reason raw (隐私 立场 ⑦ ADM-0 §1.3): %v", entry["last_error_reason"])
+			t.Errorf("admin god-mode leaked last_error_reason raw (隐私 设计 ⑦ ADM-0 §1.3): %v", entry["last_error_reason"])
 		}
 		// Whitelist sanity: required fields present.
 		for _, must := range []string{"id", "agent_id", "endpoint_url", "process_kind", "status"} {
@@ -334,7 +334,7 @@ func TestAL_AdminGodModeOmitsErrorReason(t *testing.T) {
 }
 
 // TestAL_AdminCannotStartStop pins acceptance §4.3: admin god-mode rail
-// has no start/stop endpoint — 反向断言 admin path 仅 GET. 反向 grep
+// has no start/stop endpoint — 反向断言 admin path 仅 GET. grep 检查
 // `admin.*runtime.*start|admin.*runtime.*stop` count==0 是 CI 闸位 (#4.3).
 // 此 test 反向断言: admin POST /admin-api/v1/runtimes/start → 404 (route
 // 未注册).

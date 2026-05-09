@@ -1,5 +1,5 @@
 // Package api_test — chn_13_search_test.go: CHN-13 server search filter
-// + 反向 grep守门 (CHN-13 仅 server LIKE filter + client SPA; 0 schema 改).
+// + grep 检查守门 (CHN-13 仅 server LIKE filter + client SPA; 0 schema 改).
 //
 // Pins:
 //   REG-CHN13-001 TestChn13search_NoSchemaChange (filepath.Walk migrations/)
@@ -23,7 +23,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-CHN13-001 — 0 schema 改 (反向 grep migrations/chn_13_*).
+// REG-CHN13-001 — 0 schema 改 (grep 检查 migrations/chn_13_*).
 func TestChn13search_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -33,7 +33,7 @@ func TestChn13search_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "chn_13_") {
-			t.Errorf("CHN-13 立场 ① broken — found schema migration %q (must be 0 schema, 复用 channels 既有表)", e.Name())
+			t.Errorf("CHN-13 设计 ① broken — found schema migration %q (must be 0 schema, 复用 channels 既有表)", e.Name())
 		}
 	}
 }

@@ -25,7 +25,7 @@ func TestChn7mute_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-7 立场 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-7 设计 ① broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -36,7 +36,7 @@ func TestChn7mute_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-7 立场 ① broken — muted column ALTER in %s", p)
+			t.Errorf("CHN-7 设计 ① broken — muted column ALTER in %s", p)
 		}
 		return nil
 	})
@@ -201,7 +201,7 @@ func TestCHN_NoAdminMutePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 立场 ② broken — admin mute path in %s: %q",
+				t.Errorf("CHN-7 设计 ② broken — admin mute path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -220,7 +220,7 @@ func TestCHN_NoAdminMutePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 立场 ② broken — admin mute handler in %s: %q",
+				t.Errorf("CHN-7 设计 ② broken — admin mute handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -230,8 +230,8 @@ func TestCHN_NoAdminMutePath(t *testing.T) {
 
 // REG-CHN7-006a — mute 不 drop messages 反向断言 + AST 锁链延伸第 12 处.
 //
-// 立场 ③: mute 仅 DL-4 push notifier skip — CreateMessage / RT-3 fan-out
-// / WS frame 全 byte-identical. 反向 grep `mute.*skip.*broadcast\|
+// 设计 ③: mute 仅 DL-4 push notifier skip — CreateMessage / RT-3 fan-out
+// / WS frame 全 byte-identical. grep 检查 `mute.*skip.*broadcast\|
 // mute.*drop.*message\|mute.*hub.*skip` 0 hit.
 func TestCHN_MuteDoesNotDropMessages(t *testing.T) {
 	t.Parallel()
@@ -244,7 +244,7 @@ func TestCHN_MuteDoesNotDropMessages(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 立场 ③ broken — mute drops messages in %s: %q",
+				t.Errorf("CHN-7 设计 ③ broken — mute drops messages in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil

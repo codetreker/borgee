@@ -3,7 +3,7 @@
 // (CV-7 既有) work byte-identical on DM-typed channels (type='dm') —
 // proving the DM-5 0-server-code stance.
 //
-// Stance pin (dm-5-spec.md §0 立场 ①):
+// Stance pin (dm-5-spec.md §0 设计 ①):
 //   - 0 server production code change for DM-5
 //   - GET /api/v1/messages/{id}/reactions returns AggregatedReaction
 //     (store/queries_phase2b.go::AggregatedReaction shape) which CV-7 已
@@ -20,7 +20,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestDM_ReactionSummaryInDMChannel pins 立场 ①: PUT reaction on a DM
+// TestDM_ReactionSummaryInDMChannel pins 设计 ①: PUT reaction on a DM
 // message → GET aggregated returns 1 chip with count=1, user_ids=[owner].
 // Then a second member (added to DM) PUTs the same emoji → count=2.
 // Same user re-PUT idempotent (count stays 2). DELETE → count drops.

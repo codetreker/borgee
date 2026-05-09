@@ -15,7 +15,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestCV_AgentEditArtifactComment_ThinkingReject pins 立场 ③ integration:
+// TestCV_AgentEditArtifactComment_ThinkingReject pins 设计 ③ integration:
 // agent (role=='agent') edits a message with content_type=='artifact_comment'
 // to a 5-pattern body → 400 `comment.thinking_subject_required` byte-identical
 // (跟 CV-5 #530 同字符串).
@@ -93,7 +93,7 @@ func TestCV_AgentEditArtifactComment_ThinkingReject(t *testing.T) {
 	}
 }
 
-// TestCV_HumanEditArtifactComment_AnyBodyOK pins 立场 ② sanity: human-sender
+// TestCV_HumanEditArtifactComment_AnyBodyOK pins 设计 ② sanity: human-sender
 // comment edit is NOT subject to validator (any body OK).
 func TestCV_HumanEditArtifactComment_AnyBodyOK(t *testing.T) {
 	t.Parallel()

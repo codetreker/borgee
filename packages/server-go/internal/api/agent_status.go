@@ -27,10 +27,10 @@ import (
 //       "state_updated_at": 1700000000000          // 任意态都填 (跟 AL-1a 同模式)
 //     }
 //
-//   PATCH /api/v1/agents/:id/status — **拒绝 405**. 立场 ② BPP 单源 反人工
+//   PATCH /api/v1/agents/:id/status — **拒绝 405**. 设计 ② BPP 单源 反人工
 //     伪造 (acceptance §2.5): admin god-mode 也不允许直接改 busy/idle, 必须
 //     走 BPP frame. 返回 `{"error": "AL-1b: status is BPP-driven, no manual
-//     override; see al-1b-spec.md §0 立场 ②"}`.
+//     override; see al-1b-spec.md §0 设计 ②"}`.
 //
 // 5-state 合并优先级 (acceptance §2.1):
 //
@@ -46,12 +46,12 @@ import (
 //   - offline: 上面全无.
 //
 // 反约束:
-//   - 不暴露 PATCH /status (立场 ② BPP 单源, admin 也不能改 — 跟 AL-4.2
+//   - 不暴露 PATCH /status (设计 ② BPP 单源, admin 也不能改 — 跟 AL-4.2
 //     admin god-mode 反约束同源, ADM-0 ⑦ red-line).
 //   - 不返 raw `last_error_reason` 字段 (admin god-mode 不返 reason raw 文本,
 //     AL-4.1 schema NoLLMOrPresenceColumns 同源 — 仅返 reason 短码).
 //   - 不混 AL-3 presence_sessions row count / AL-4 agent_runtimes status —
-//     立场 ① 拆三路径, 5-state 合并仅在 API 层(本 handler), schema 三表独立.
+//     设计 ① 拆三路径, 5-state 合并仅在 API 层(本 handler), schema 三表独立.
 
 // handleGetAgentStatus implements GET /api/v1/agents/:id/status.
 //
@@ -75,7 +75,7 @@ func (h *AgentHandler) handleGetAgentStatus(w http.ResponseWriter, r *http.Reque
 }
 
 // handleRejectStatusPatch implements PATCH /api/v1/agents/:id/status — always
-// rejects with 405 Method Not Allowed. 立场 ② BPP 单源 反人工伪造.
+// rejects with 405 Method Not Allowed. 设计 ② BPP 单源 反人工伪造.
 //
 // Why 405 not 403: 405 communicates "this resource doesn't accept PATCH in
 // any role" (semantic accuracy), not "you lack permission" (which would
@@ -88,7 +88,7 @@ func (h *AgentHandler) handleRejectStatusPatch(w http.ResponseWriter, r *http.Re
 	}
 	w.Header().Set("Allow", "GET")
 	writeJSONError(w, http.StatusMethodNotAllowed,
-		"AL-1b: status is BPP-driven, no manual override; see al-1b-spec.md §0 立场 ②")
+		"AL-1b: status is BPP-driven, no manual override; see al-1b-spec.md §0 设计 ②")
 }
 
 // resolveStatus5State merges AL-1a Tracker (error) + AL-1b agent_status

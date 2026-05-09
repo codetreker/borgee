@@ -8,7 +8,7 @@
 // (落点 `internal/api/agent_config_ack_handler.go`).
 // Acceptance: docs/qa/acceptance-templates/al-2b.md §2.5 + §3.2.
 //
-// Why this file exists (BPP-3 follow-up to AL-2b #481):
+// Why this file exists (BPP-3 后续 to AL-2b #481):
 //
 //   - AL-2b #481 shipped the *outbound* AgentConfigUpdateFrame
 //     (server→plugin) + the bpp.AckDispatcher seam, but deferred the
@@ -37,7 +37,7 @@
 //   - admin god-mode 不入此路径 — handler 用 OwnerResolver 走 owner-only
 //     ACL (跟 ADM-0 §1.3 红线 + REG-INV-002 fail-closed 同模式).
 //   - 不写 events 表 — ack 是 plugin → server 回执 audit, 不是 channel
-//     broadcast (RT-1 立场反约束: 不另起 plugin-only 推送通道).
+//     broadcast (RT-1 条原则反约束: 不另起 plugin-only 推送通道).
 //   - bpp 包零 internal/api 依赖 — handler 通过 bpp.AgentConfigAckHandler
 //     interface seam 注入 (跟 BPP-2.1 ActionHandler / cv-4.2
 //     IterationStatePusher 同模式).

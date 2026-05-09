@@ -1,7 +1,7 @@
 // Package api — auth_helpers.go: REFACTOR-2 helper-1 SSOT for the
 // 100+ "user == nil → 401" boilerplate sprinkled across handlers.
 //
-// 立场 ① + ② (refactor-2-spec.md §0):
+// 设计 ① + ② (refactor-2-spec.md §0):
 //   - 行为不变量 byte-identical pre/post refactor: status code 401 +
 //     reason "Unauthorized" + writeJSONError signature byte-identical
 //     跟既有 100+ inline.

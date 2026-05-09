@@ -43,7 +43,7 @@ func TestDL12_DirectStoreImportBaseline(t *testing.T) {
 		if !strings.HasSuffix(p, ".go") {
 			return nil
 		}
-		// 只锁 production 不锁 test fixture (DL-1.2 §4 B 立场只锁 handler 路径).
+		// 只锁 production 不锁 test fixture (DL-1.2 §4 B 设计只锁 handler 路径).
 		if strings.HasSuffix(p, "_test.go") {
 			return nil
 		}

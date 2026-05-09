@@ -9,12 +9,12 @@
 // MuteBit=2 const 双向锁跟 client lib/mute.ts::MUTE_BIT byte-identical.
 //
 // 反约束 (chn-7-spec.md §0):
-//   - 立场 ① 0 schema — collapsed bitmap, 不另起 muted/muted_until 列.
-//   - 立场 ② owner-only — POST/DELETE per-user; admin god-mode 不挂.
+//   - 设计 ① 0 schema — collapsed bitmap, 不另起 muted/muted_until 列.
+//   - 设计 ② owner-only — POST/DELETE per-user; admin god-mode 不挂.
 //     owner-only ACL 锁链第 15 处 (CHN-6 #14 承袭).
-//   - 立场 ③ mute 不 drop messages — CreateMessage/RT-3 fan-out/WS frame
-//     全 byte-identical 不动. mute 仅 DL-4 push notifier skip (立场 ③).
-//   - 立场 ⑥ AST 锁链延伸第 12 处 forbidden 3 token 0 hit.
+//   - 设计 ③ mute 不 drop messages — CreateMessage/RT-3 fan-out/WS frame
+//     全 byte-identical 不动. mute 仅 DL-4 push notifier skip (设计 ③).
+//   - 设计 ⑥ AST 锁链延伸第 12 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -27,20 +27,20 @@ import (
 // collapsed=0/1 keep their behavior (bit 1 defaults to 0 = unmuted).
 //
 // 双向锁: 跟 packages/client/src/lib/mute.ts::MUTE_BIT byte-identical
-// = 2. 改一处 = 改两处. 立场 ③ + content-lock §4 (跟 CHN-6 PinThreshold
+// = 2. 改一处 = 改两处. 设计 ③ + content-lock §4 (跟 CHN-6 PinThreshold
 // 双向锁模式承袭).
 const MuteBit = 2
 
 // IsMuted reports whether a user_channel_layout.collapsed bitmap value
 // represents a muted channel. Single-source predicate; 调用方禁止 inline
-// 重写 (反向 grep `collapsed\s*&\s*2` 在 production 仅命中此函数).
+// 重写 (grep 检查 `collapsed\s*&\s*2` 在 production 仅命中此函数).
 func IsMuted(collapsed int64) bool {
 	return collapsed&int64(MuteBit) != 0
 }
 
 // RegisterCHN7Routes wires POST + DELETE /api/v1/channels/{channelId}/mute
 // behind authMw. user-rail only (admin god-mode 不挂 ADM-0 §1.3 红线 +
-// CHN-3.2 立场承袭). 立场 ②.
+// CHN-3.2 设计沿用). 设计 ②.
 func (h *ChannelHandler) RegisterCHN7Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/channels/{channelId}/mute",
 		authMw(http.HandlerFunc(h.handleMuteChannel)))
@@ -51,7 +51,7 @@ func (h *ChannelHandler) RegisterCHN7Routes(mux *http.ServeMux, authMw func(http
 // handleMuteChannel — POST /api/v1/channels/{channelId}/mute.
 //
 // Sets bit 1 of user_channel_layout.collapsed for (user, channel)
-// preserving bit 0 (CHN-3 collapsed state). 立场 ② owner-only (cm.user_id
+// preserving bit 0 (CHN-3 collapsed state). 设计 ② owner-only (cm.user_id
 // 走 IsChannelMember + DM reject byte-identical 跟 CHN-3.2 / CHN-6 同源).
 func (h *ChannelHandler) handleMuteChannel(w http.ResponseWriter, r *http.Request) {
 	h.handleMuteToggle(w, r, true)

@@ -10,9 +10,9 @@ package api
 // 走 server.New(ctx) ctor (TEST-FIX-2 既有 ctx-aware), 内置 t.Cleanup(cancel)
 // 兜底 (Go 1.25 t.Context() 自动 cancel + 显式 cleanup 双保险).
 //
-// 立场 (test-fix-3-spec §0 立场 ②):
+// 设计 (test-fix-3-spec §0 设计 ②):
 //   - 单源化: 所有 race-heavy / closed-store 类 fixture 走此文件 helper, 反 inline
-//     boilerplate (反向 grep `s := server.New` in *_test.go 单源化后 ≤ baseline)
+//     boilerplate (grep 检查 `s := server.New` in *_test.go 单源化后 ≤ baseline)
 //   - ctx-aware: 严格 t.Context() + WithCancel + t.Cleanup(cancel), 反 Background()
 //     leak (#608 真因不复发)
 //   - 不引行为: helper 仅 wrap 既有 setupFullTestServer + 加 ctx 兜底, 0 行为改
@@ -32,7 +32,7 @@ import (
 )
 
 // newTestServerWithClosedStore 提供 race-heavy / closed-store 类 sub-test 的
-// 共享 fixture (test-fix-3-spec §0 立场 ②).
+// 共享 fixture (test-fix-3-spec §0 设计 ②).
 //
 // 内部:
 //   - 委托 setupFullTestServer 起完整 mux + 默认 seed (TEST-FIX-2 #608 ctor 路径)

@@ -150,7 +150,7 @@ func TestCV_PreviewURLHttpsOnly(t *testing.T) {
 	}
 }
 
-// REG-CV2V2-005 (立场 ③) — kind ∉ PreviewableKinds → 400
+// REG-CV2V2-005 (设计 ③) — kind ∉ PreviewableKinds → 400
 // preview.kind_not_previewable.
 func TestCV_PreviewKindNotPreviewable(t *testing.T) {
 	t.Parallel()

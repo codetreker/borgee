@@ -8,7 +8,7 @@
 // Spec: docs/implementation/modules/dm-4-spec.md §0+§1 DM-4.1.
 // Acceptance: docs/qa/acceptance-templates/dm-4.md §1.
 //
-// 立场 (跟 stance §1+§2+§3+§4 byte-identical):
+// 设计 (跟 stance §1+§2+§3+§4 byte-identical):
 //   - **DM 编辑同步走 RT-3 既有 fan-out** — PATCH 复用 messages.UpdateMessage
 //     + events INSERT kind="message_edited" (BroadcastEventToChannel 触发
 //     RT-3 fan-out 多端覆盖). 不另起 channel/frame/sequence — spec §0.1.
@@ -16,7 +16,7 @@
 //     #508) 客户端订阅 channel events backfill 自动 derive edit 状态.
 //     spec §0.2.
 //   - **thinking subject 5-pattern 反约束延伸第 3 处** — agent edit 是机械
-//     修订, 不暴露 reasoning. 反向 grep 5-pattern 在 dm_4*.go 0 hit (RT-3
+//     修订, 不暴露 reasoning. grep 检查 5-pattern 在 dm_4*.go 0 hit (RT-3
 //     第 1 + DM-3 第 2 + DM-4 第 3). spec §0.3.
 //   - **DM-only path** — channel.kind != "dm" reject 403 `dm.edit_only_in_dm`.
 //   - **owner-only ACL** — sender == user (跟 PUT /api/v1/messages/{id} 既有
@@ -88,7 +88,7 @@ func (h *MessageEditHandler) handleEdit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if ch.Type != "dm" {
-		// 立场 ④ DM-only path — non-DM channel 走既有 PUT
+		// 设计 ④ DM-only path — non-DM channel 走既有 PUT
 		// /api/v1/messages/{id} 路径, DM-4 不接此 scope.
 		writeJSONError(w, http.StatusForbidden, "dm.edit_only_in_dm")
 		return
@@ -128,7 +128,7 @@ func (h *MessageEditHandler) handleEdit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// AP-5 立场 ① — channel-member ACL gate (跟 AP-4 + messages.go 同模式).
+	// AP-5 设计 ① — channel-member ACL gate (跟 AP-4 + messages.go 同模式).
 	// Closes post-removal gap: sender removed from DM channel cannot
 	// PATCH-edit prior messages there. byte-identical "Channel not found"
 	// 404 fail-closed.
@@ -139,14 +139,14 @@ func (h *MessageEditHandler) handleEdit(w http.ResponseWriter, r *http.Request) 
 
 	// 7. owner-only ACL — sender matches caller.
 	if existing.SenderID != user.ID {
-		// 立场 ⑤ owner-only — 跟 AL-2a/BPP-3.2/AL-1/AL-5 owner-only 5 处
+		// 设计 ⑤ owner-only — 跟 AL-2a/BPP-3.2/AL-1/AL-5 owner-only 5 处
 		// 同模式.
 		writeJSONError(w, http.StatusForbidden, "dm.edit_non_owner_reject")
 		return
 	}
 
 	// 8. Update message via existing store helper (复用 messages.go 同
-	// 路径 — last-write-wins simplification, 立场 ⑥, 不挂 edit history audit).
+	// 路径 — last-write-wins simplification, 设计 ⑥, 不挂 edit history audit).
 	msg, err := h.Store.UpdateMessage(messageID, content)
 	if err != nil {
 		h.Logger.Error("dm_4 update message failed",

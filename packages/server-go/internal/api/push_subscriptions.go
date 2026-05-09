@@ -11,13 +11,13 @@
 //   - DELETE /api/v1/push/subscribe       remove by endpoint query param
 //     (?endpoint=...)
 //
-// Stance reverse-grep targets (蓝图 L22 + spec §0 立场 ①②③):
-//   - 立场 ①: secret 在 server env (BORGEE_VAPID_PRIVATE_KEY), 不入此
+// Stance reverse-grep targets (蓝图 L22 + spec §0 设计 ①②③):
+//   - 设计 ①: secret 在 server env (BORGEE_VAPID_PRIVATE_KEY), 不入此
 //     handler request body (反约束: 不接受 client 传 vapid_secret /
 //     api_key / token 字段, 服务端只读 endpoint+p256dh+auth 三键).
-//   - 立场 ②: subscription 不挂 cursor (push 是 fire-and-forget, 不走
+//   - 设计 ②: subscription 不挂 cursor (push 是 fire-and-forget, 不走
 //     hub.cursors RT-1/CV-2/DM-2/CV-4/AL-2b/RT-3 6 frame 共序 sequence).
-//   - 立场 ③: 退订单源 = DELETE row, 不开 PATCH enabled=false 双源.
+//   - 设计 ③: 退订单源 = DELETE row, 不开 PATCH enabled=false 双源.
 //   - cross-user reject: subscription 归 user, 不允许跨 user owner 操作
 //     (REG-INV-002 fail-closed 同源).
 package api
@@ -60,7 +60,7 @@ func (h *PushSubscriptionsHandler) RegisterRoutes(mux *http.ServeMux, authMw fun
 // rejects empty endpoint / p256dh / auth. user_agent optional; server
 // also reads request UA header as fallback (audit hint only).
 //
-// 反约束 (spec §0 立场 ①): 不接受 client 传 secret 字段 — server 只读
+// 反约束 (spec §0 设计 ①): 不接受 client 传 secret 字段 — server 只读
 // 这 4 个字面字段, JSON 解析其他字段忽略 (encoding/json default).
 type pushSubscribeRequest struct {
 	Endpoint  string `json:"endpoint"`

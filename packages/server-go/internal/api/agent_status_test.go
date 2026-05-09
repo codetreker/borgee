@@ -45,7 +45,7 @@ func al1b2Setup(t *testing.T) (url string, ownerTok string, s *store.Store, agen
 
 // TestAL_GetStatus_NoRowFallsBackToOnlineOffline pins acceptance §2.1
 // priority step 3 — 没有 BPP frame 上行过的 agent (agent_status 无 row)
-// 走 AL-1a online/offline 退化 (Snapshot 默认 offline). 立场 ① 拆三路径
+// 走 AL-1a online/offline 退化 (Snapshot 默认 offline). 设计 ① 拆三路径
 // — busy/idle 须显式 row, 不假装.
 func TestAL_GetStatus_NoRowFallsBackToOnlineOffline(t *testing.T) {
 	t.Parallel()
@@ -127,7 +127,7 @@ func TestAL_GetStatus_IdleFromAgentStatusRow(t *testing.T) {
 	}
 }
 
-// TestAL_PatchStatusReturns405 pins acceptance §2.5 + 立场 ② BPP 单源
+// TestAL_PatchStatusReturns405 pins acceptance §2.5 + 设计 ② BPP 单源
 // — PATCH /status 405 reject for owner. Admin god-mode 同样 reject 跟
 // AL-4.2 admin god-mode 反约束同源 (ADM-0 ⑦ red-line).
 func TestAL_PatchStatusReturns405(t *testing.T) {
@@ -160,7 +160,7 @@ func TestAL_PatchStatusAdminAlsoRejected(t *testing.T) {
 		"state": "idle",
 	})
 	if resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("admin PATCH /status: status=%d, want 405 (god-mode also rejected, 立场 ② BPP 单源)", resp.StatusCode)
+		t.Errorf("admin PATCH /status: status=%d, want 405 (god-mode also rejected, 设计 ② BPP 单源)", resp.StatusCode)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestAL_ReapStaleBusyToIdle(t *testing.T) {
 	}
 }
 
-// TestAL_NoDomainBleed_Response pins acceptance §1.5 + spec §0 立场 ①
+// TestAL_NoDomainBleed_Response pins acceptance §1.5 + spec §0 设计 ①
 // 反约束 — 5-state 合并响应不泄漏 schema 内列名 (反断 server 不返
 // is_online / endpoint_url / process_kind / last_error_reason raw 文本).
 // 跟 al_4_2 admin god-mode reason raw 反约束同源.
@@ -244,7 +244,7 @@ func TestAL_NoDomainBleed_Response(t *testing.T) {
 		"source", "set_by",
 	} {
 		if _, has := data[forbidden]; has {
-			t.Errorf("response leaks forbidden field %q (反约束 broken, acceptance §1.5 + spec §0 立场 ①②)", forbidden)
+			t.Errorf("response leaks forbidden field %q (反约束 broken, acceptance §1.5 + spec §0 设计 ①②)", forbidden)
 		}
 	}
 }
