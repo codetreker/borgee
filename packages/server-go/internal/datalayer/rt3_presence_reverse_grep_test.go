@@ -1,8 +1,8 @@
 // RT-3 ⭐ reverse-grep 反向断言 (rt-3-spec.md §2 反约束 #3+#4 + content-lock §3+§4).
 //
-// 立场承袭 (rt-3-spec.md §0):
-//   - 立场 ② PresenceState 4 态 enum SSOT 单源 (count==4)
-//   - 立场 ② thinking subject 反约束 (蓝图 §1.1 ⭐)
+// 设计沿用 (rt-3-spec.md §0):
+//   - 设计 ② PresenceState 4 态 enum SSOT 单源 (count==4)
+//   - 设计 ② thinking subject 反约束 (蓝图 §1.1 ⭐)
 //   - content-lock §3 typing 类同义词 0 hit (反 typing-indicator 漂)
 //   - content-lock §4 thinking 5-pattern 锁链第 N+1 处延伸 (RT-3 路径 0 hit)
 
@@ -35,7 +35,7 @@ func TestRT3_PresenceState_FourEnumSSOT(t *testing.T) {
 		re := regexp.MustCompile(`(?m)^\s*` + name + `\s+PresenceState\s*=\s*"`)
 		hits := len(re.FindAllString(body, -1))
 		if hits != 1 {
-			t.Errorf("立场 ② — %s SSOT const want ==1 hit, got %d (反 5 态漂 / 反复制定义)", name, hits)
+			t.Errorf("设计 ② — %s SSOT const want ==1 hit, got %d (反 5 态漂 / 反复制定义)", name, hits)
 		}
 	}
 	// 反第 5 态: PresenceState{Typing,Composing,Idle,Pending,Loading} 等 0 hit.
@@ -48,7 +48,7 @@ func TestRT3_PresenceState_FourEnumSSOT(t *testing.T) {
 	}
 	for _, name := range forbidden {
 		if strings.Contains(body, name) {
-			t.Errorf("立场 ② 反 5 态漂 — %s 不应存在 (4 态封闭 enum, 反 typing-indicator 漂入)", name)
+			t.Errorf("设计 ② 反 5 态漂 — %s 不应存在 (4 态封闭 enum, 反 typing-indicator 漂入)", name)
 		}
 	}
 }

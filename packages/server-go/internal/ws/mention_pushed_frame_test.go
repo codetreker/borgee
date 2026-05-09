@@ -1,7 +1,7 @@
 // Package ws_test — mention_pushed_frame_test.go: DM-2.2 envelope
 // byte-identity lock + push smoke + body_preview rune-safe truncation.
 //
-// The 8-field order is the contract per dm-2-spec.md §0 立场 ② + #362
+// The 8-field order is the contract per dm-2-spec.md §0 设计 ② + #362
 // spec brief envelope. Any reorder caught here pre-merge — paired with
 // BPP-1 #304 envelope CI lint.
 package ws_test
@@ -40,7 +40,7 @@ func TestMentionPushedFrameFieldOrder(t *testing.T) {
 }
 
 // TestMentionPushedFrame_NoOwnerField — 反约束 acceptance §1.0.e + spec
-// §0 立场 ③: marshalled frame MUST NOT contain owner_id / target_owner /
+// §0 设计 ③: marshalled frame MUST NOT contain owner_id / target_owner /
 // fanout_to_owner — mention 永不抄送 owner via this frame (offline owner
 // fallback uses system DM, not this envelope).
 func TestMentionPushedFrame_NoOwnerField(t *testing.T) {
@@ -63,7 +63,7 @@ func TestMentionPushedFrame_NoOwnerField(t *testing.T) {
 		"cc_owner",
 	} {
 		if strings.Contains(got, forbidden) {
-			t.Errorf("MentionPushed envelope contains forbidden field %q — 反约束 broken (立场 ③ 不抄送 owner): %s", forbidden, got)
+			t.Errorf("MentionPushed envelope contains forbidden field %q — 反约束 broken (设计 ③ 不抄送 owner): %s", forbidden, got)
 		}
 	}
 }

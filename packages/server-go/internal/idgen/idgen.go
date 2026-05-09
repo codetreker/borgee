@@ -1,11 +1,11 @@
 // Package idgen — ID generator SSOT (蓝图 §4.A.1 ULID lock-in 兑现).
 //
-// Spec: docs/implementation/modules/ulid-migration-spec.md §0 立场 ① +
+// Spec: docs/implementation/modules/ulid-migration-spec.md §0 设计 ① +
 // §1 UM.1 + 蓝图 data-layer.md §4.A.1 字面 "ID 方案 = ULID 所有业务表
 // 主键, 禁 INTEGER PK / Snowflake / KSUID / UUIDv7".
 //
-// 立场 SSOT: 一处生成 (NewID), 反 inline `ulid.Make()` / `uuid.NewString()`
-// 散落 (post-ULID-MIGRATION 反向 grep guard 0 hit).
+// 设计 SSOT: 一处生成 (NewID), 反 inline `ulid.Make()` / `uuid.NewString()`
+// 散落 (post-ULID-MIGRATION grep 检查 guard 0 hit).
 //
 // Forward-compat: NewID 返 26-char canonical ULID (Crockford base32, lex
 // sortable by time). 既有 UUID-36 行不动 (db column TEXT 不限长度);

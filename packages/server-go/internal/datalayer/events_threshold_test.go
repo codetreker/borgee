@@ -3,7 +3,7 @@
 //
 // Spec: docs/implementation/modules/dl-3-spec.md §1 DL3.1.
 //
-// 立场承袭:
+// 设计沿用:
 //   - 4 metric × OK/WARN/CRITICAL classify byte-identical 跟蓝图 §5
 //   - ctx-aware Start(ctx) deterministic shutdown (sync.WaitGroup + Done() chan)
 //   - SQLite collector roundtrip (db_size_mb / wal_pending_pages / row_count)
@@ -20,7 +20,7 @@ import (
 )
 
 // TestDefaultThresholds_ByteIdentical pins 4 metric thresholds byte-identical
-// 跟蓝图 §5 / spec §0 立场 ② (db_size 5000/10000 / wal 1000/5000 / lock 100/1000
+// 跟蓝图 §5 / spec §0 设计 ② (db_size 5000/10000 / wal 1000/5000 / lock 100/1000
 // / rows 1M/10M).
 func TestDefaultThresholds_ByteIdentical(t *testing.T) {
 	t.Parallel()

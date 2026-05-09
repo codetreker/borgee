@@ -248,7 +248,7 @@ func (s *Store) ConsumeInviteCode(code string, userID string) error {
 
 func (s *Store) ListUserPermissions(userID string) ([]UserPermission, error) {
 	var perms []UserPermission
-	// AP-2 #ap-2 立场 ⑥: revoked_at IS NOT NULL 行被排除 (sweeper 软删
+	// AP-2 #ap-2 设计 ⑥: revoked_at IS NOT NULL 行被排除 (sweeper 软删
 	// 路径; AP-1 SSOT 同精神, 改 = 改此处一处, HasCapability 路径自动
 	// 返 false 对 revoked 行). NULL = active (跟 expires_at NULL = 永久
 	// + org_id NULL = legacy 同精神).
@@ -363,7 +363,7 @@ func (s *Store) AddUserToPublicChannels(userID string) error {
 	// Route through AddChannelMember so the agent-default silent stamp
 	// (concept-model §1.4) is applied uniformly. CHN-1.3 e2e regression:
 	// raw db.FirstOrCreate bypassed the silent fan-out and broke the
-	// "agent silent default = true" 立场 in PR #288.
+	// "agent silent default = true" 设计 in PR #288.
 	for _, ch := range channels {
 		_ = s.AddChannelMember(&ChannelMember{ChannelID: ch.ID, UserID: userID})
 	}
@@ -612,7 +612,7 @@ func (s *Store) CreateMessageFull(channelID, senderID, content, contentType stri
 // UpdateMessage updates a message's content and sets edited_at.
 func (s *Store) UpdateMessage(messageID, content string) (*MessageWithSender, error) {
 	now := time.Now().UnixMilli()
-	// DM-7.2 立场 ②: SELECT old content + edit_history FIRST so we can
+	// DM-7.2 设计 ②: SELECT old content + edit_history FIRST so we can
 	// append a new history entry. UpdateMessage SSOT — DM-4 #553 既有
 	// PATCH path 调用方 byte-identical 不动. AL-1a reason 锁链第 18 处
 	// (复用 reasons.Unknown byte-identical 跟 AL-7 SweeperReason / HB-5
@@ -627,7 +627,7 @@ func (s *Store) UpdateMessage(messageID, content string) (*MessageWithSender, er
 		"edited_at": now,
 	}
 	// Skip history append when content is byte-identical (idempotent
-	// PATCH — 立场 ② "重复 PATCH 同 content 不重复入 history").
+	// PATCH — 设计 ② "重复 PATCH 同 content 不重复入 history").
 	if existing.Content != content {
 		entry := map[string]any{
 			"old_content": existing.Content,
@@ -847,12 +847,12 @@ func (s *Store) ListChannelsPublic() ([]ChannelWithCounts, error) {
 // out unless the user is still a member, so a creator who archives a
 // channel can still see it but org peers stop seeing it.
 //
-// CHN-13 立场 ②: optional `q` filter — 空 q 走原 SQL byte-identical;
+// CHN-13 设计 ②: optional `q` filter — 空 q 走原 SQL byte-identical;
 // q != "" 加 `AND c.name LIKE '%' || ? || '%' COLLATE NOCASE` 子串
 // 大小写不敏感. 既有 ordering (position ASC, created_at ASC) 不变.
 func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, error) {
 	var results []ChannelWithCounts
-	// CHN-13 立场 ④: 空 q 路径 byte-identical 跟既有 SQL 同源.
+	// CHN-13 设计 ④: 空 q 路径 byte-identical 跟既有 SQL 同源.
 	if q == "" {
 		err := s.db.Raw(`
 			SELECT c.*,
@@ -876,7 +876,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 		`, userID, userID, userID, userID).Scan(&results).Error
 		return results, err
 	}
-	// CHN-13 立场 ②: q != "" 加 LIKE 子句 (COLLATE NOCASE 大小写不敏感).
+	// CHN-13 设计 ②: q != "" 加 LIKE 子句 (COLLATE NOCASE 大小写不敏感).
 	err := s.db.Raw(`
 		SELECT c.*,
 			(SELECT COUNT(*) FROM channel_members cm2 WHERE cm2.channel_id = c.id) AS member_count,
@@ -903,7 +903,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 
 // SetMuteBit toggles a single bit in user_channel_layout.collapsed for
 // (user, channel) without disturbing other bits. Returns the new
-// collapsed value so handlers can echo it. CHN-7 立场 ① (0 schema 改).
+// collapsed value so handlers can echo it. CHN-7 设计 ① (0 schema 改).
 //
 // bitMask is normally CHN-7 api.MuteBit (=2); other bits (CHN-3 collapse
 // state at bit 0) are preserved. Caller validates membership/DM in
@@ -944,7 +944,7 @@ func (s *Store) SetMuteBit(userID, channelID string, bitMask int64, set bool) (i
 // SetNotifPrefBits writes the notification preference for (user, channel)
 // into user_channel_layout.collapsed bits at the given shift/mask, while
 // preserving every other bit. Returns the new collapsed value so handlers
-// can echo it. CHN-8 立场 ① + ③.
+// can echo it. CHN-8 设计 ① + ③.
 //
 // Caller validates membership/DM in the handler layer.
 func (s *Store) SetNotifPrefBits(userID, channelID string, shift, mask, pref int64) (int64, error) {
@@ -977,7 +977,7 @@ func (s *Store) SetNotifPrefBits(userID, channelID string, shift, mask, pref int
 
 // IsMutedForUser reports whether (user, channel) has the CHN-7 mute bit
 // set. Used by DL-4 push notifier (best-effort skip) — not by RT-3
-// fan-out / WS frame / messages 表 (立场 ③ mute 不 drop messages).
+// fan-out / WS frame / messages 表 (设计 ③ mute 不 drop messages).
 //
 // MuteBit is sourced from internal/api package to avoid a cycle; caller
 // must pass the const literal value (= 2 byte-identical 跟 client).
@@ -996,8 +996,8 @@ func (s *Store) IsMutedForUser(userID, channelID string, muteBit int64) (bool, e
 
 // ListArchivedChannelsForUser returns the user's archived channels —
 // only channels where the user is a member AND archived_at IS NOT NULL.
-// CHN-5 立场 ② owner-only (cm.user_id = ? 跟 ListChannelsWithUnread 同精
-// 神 + 跨 org 不可见 立场承袭 CM-3 #208). 无 admin god-mode 路径.
+// CHN-5 设计 ② owner-only (cm.user_id = ? 跟 ListChannelsWithUnread 同精
+// 神 + 跨 org 不可见 设计沿用 CM-3 #208). 无 admin god-mode 路径.
 func (s *Store) ListArchivedChannelsForUser(userID string) ([]ChannelWithCounts, error) {
 	var results []ChannelWithCounts
 	err := s.db.Raw(`
@@ -1017,7 +1017,7 @@ func (s *Store) ListArchivedChannelsForUser(userID string) ([]ChannelWithCounts,
 }
 
 // ListAllArchivedChannelsForAdmin returns every archived channel across
-// all orgs — admin-rail readonly 视图 (CHN-5 立场 ④). No PATCH/PUT/DELETE
+// all orgs — admin-rail readonly 视图 (CHN-5 设计 ④). No PATCH/PUT/DELETE
 // path on admin handler — admin god-mode 不挂直接改 (ADM-0 §1.3 红线).
 func (s *Store) ListAllArchivedChannelsForAdmin() ([]ChannelWithCounts, error) {
 	var results []ChannelWithCounts
@@ -1037,10 +1037,10 @@ func (s *Store) ListAllArchivedChannelsForAdmin() ([]ChannelWithCounts, error) {
 }
 
 // PinChannelLayout upserts user_channel_layout with the supplied
-// pinned position (CHN-6 立场 ③: caller stamps `-(nowMs)` for ASC-asc
+// pinned position (CHN-6 设计 ③: caller stamps `-(nowMs)` for ASC-asc
 // sort). 跟 CHN-3.2 PUT /me/layout upsert 同模式 byte-identical.
 //
-// 反约束 (chn-6-spec.md §0 立场 ②): user_id 必传 (per-user pin); caller
+// 反约束 (chn-6-spec.md §0 设计 ②): user_id 必传 (per-user pin); caller
 // 在 handler 层走 IsChannelMember + DM reject 红线; 此函数仅写入.
 func (s *Store) PinChannelLayout(userID, channelID string, position float64, nowMs int64) error {
 	return s.db.Exec(`INSERT INTO user_channel_layout
@@ -1078,7 +1078,7 @@ func (s *Store) UnpinChannelLayout(userID, channelID string, nowMs int64) (float
 }
 
 // GetNotifPrefForUser returns the current notification preference for
-// (user, channel) as a int (0/1/2). Used by DL-4 push notifier (立场 ③
+// (user, channel) as a int (0/1/2). Used by DL-4 push notifier (设计 ③
 // best-effort skip). No row → returns 0 (NotifPrefAll = 现网行为零变).
 func (s *Store) GetNotifPrefForUser(userID, channelID string, shift, mask int64) (int64, error) {
 	var collapsed int64
@@ -1223,8 +1223,8 @@ func (s *Store) UpdateChannel(id string, updates map[string]any) error {
 // go::handlePut) 调用此包装代替泛通用 UpdateChannel; 同 owner-only ACL +
 // length cap 500 路径 byte-identical 不变.
 //
-// 立场 (chn-14-spec.md §0):
-//   - ② SSOT: SELECT old → JSON append → UPDATE 单源 (反向 grep inline
+// 设计 (chn-14-spec.md §0):
+//   - ② SSOT: SELECT old → JSON append → UPDATE 单源 (grep 检查 inline
 //     UPDATE channels.*topic 在 chn_10/chn_14 之外 production 0 hit).
 //   - ⑤ AL-1a reason 锁链停在 HB-6 #19 — reason='unknown' 字面 byte-identical
 //     跟 DM-7 #558 / AL-7 SweeperReason / HB-5 HeartbeatSweeperReason 同源.
@@ -1238,7 +1238,7 @@ func (s *Store) UpdateChannelDescription(channelID, newDescription string) error
 	}
 	updates := map[string]any{"topic": newDescription}
 	// Skip history append when description is byte-identical (idempotent
-	// PUT — 立场 ② "重复 PUT 同 description 不重复入 history").
+	// PUT — 设计 ② "重复 PUT 同 description 不重复入 history").
 	if existing.Topic != newDescription {
 		entry := map[string]any{
 			"old_content": existing.Topic,

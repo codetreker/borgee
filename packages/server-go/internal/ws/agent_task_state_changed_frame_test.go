@@ -3,7 +3,7 @@
 //
 // Pins:
 //   - 蓝图 realtime.md §1.1 ⭐ "thinking 必须带 subject" — busy 态 subject
-//     必带非空 + 反向 grep `subject\s*=\s*""|defaultSubject|fallbackSubject`
+//     必带非空 + grep 检查 `subject\s*=\s*""|defaultSubject|fallbackSubject`
 //     count==0 (excluding _test.go).
 //   - state 2-enum {busy, idle} fail-closed (跟 BPP-2.2 outcome enum 同模式).
 //   - SharedSequence — 跟 ArtifactUpdated / AnchorCommentAdded /
@@ -161,7 +161,7 @@ func TestRT_PushAgentTaskStateChanged_NoCursorAllocator(t *testing.T) {
 // MUST NOT emit AgentTaskStateChangedFrame with a fallback / default /
 // empty subject in busy state. Reverse grep guard mirrors BPP-2.2
 // task_lifecycle.go ValidateTaskStarted subject 必带非空 + dispatcher.go
-// 反向 grep 同模式.
+// grep 检查 同模式.
 //
 // 蓝图字面: "BPP `progress` frame **强制带 `subject` 字段**——plugin 必须
 // 告诉 Borgee 'agent 在做什么', 否则不展示" + "沉默胜于假 loading".
@@ -170,7 +170,7 @@ func TestRT_ReverseGrep_NoSubjectFallback(t *testing.T) {
 
 	// Walk the ws package source files (not _test.go) for forbidden
 	// fallback patterns that would silently hide the "subject required"
-	// 立场 ① rule.
+	// 设计 ① rule.
 	patterns := []string{
 		`\bsubject\s*=\s*""`,            // explicit empty default
 		`defaultSubject\b`,              // default-named symbol

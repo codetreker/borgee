@@ -1,12 +1,12 @@
 // Package datalayer — must_persist_kinds.go: DL-2 §3 必落 kind enum SSOT.
 //
-// Spec: docs/implementation/modules/dl-2-spec.md §0 立场 ② + 蓝图 §3.4
+// Spec: docs/implementation/modules/dl-2-spec.md §0 设计 ② + 蓝图 §3.4
 // 隐私契约必落 4 类.
 //
-// 立场:
+// 设计:
 //   - 4 类必落 kind (perm.grant / perm.revoke / impersonate.* / agent.state /
 //     admin.force_*) 永不 retention sweeper 删 (隐私契约 = 永久审计).
-//   - SSOT 单源, 反 inline 字面漂 (反向 grep `mustPersistKinds`/`MustPersistKind`
+//   - SSOT 单源, 反 inline 字面漂 (grep 检查 `mustPersistKinds`/`MustPersistKind`
 //     count==1 hit, 跟 reasons.IsValid #496 / AP-4-enum #591 同精神承袭).
 
 package datalayer
@@ -40,7 +40,7 @@ func IsMustPersistKind(kind string) bool {
 }
 
 // DefaultRetentionDays for events not in MustPersistKindPrefixes and without
-// an explicit retention_days override. Per spec §0 立场 ②:
+// an explicit retention_days override. Per spec §0 设计 ②:
 //   - default: 90 days
 //   - per-channel events (channel.*, message.*): 30 days
 //   - agent_task / artifact: 60 days

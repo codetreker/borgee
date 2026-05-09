@@ -259,7 +259,7 @@ func (s *Server) SetupRoutes() {
 
 	// BPP-3.2.2 owner DM 一键 grant — POST /api/v1/me/grants
 	// (蓝图 auth-permissions.md §1.3 主入口字面 + bpp-3.2-spec.md §1
-	// 立场 ②). owner-only ACL + capability ∈ AP-1 14 项 const + scope ∈
+	// 设计 ②). owner-only ACL + capability ∈ AP-1 14 项 const + scope ∈
 	// v1 三层. action ∈ {grant, reject, snooze}; reject/snooze v1 仅 audit.
 	meGrantsHandler := &api.MeGrantsHandler{Store: s.store, Logger: s.logger}
 	meGrantsHandler.RegisterRoutes(s.mux, authMw)
@@ -327,9 +327,9 @@ func (s *Server) SetupRoutes() {
 	pwaManifestHandler.RegisterRoutes(s.mux)
 
 	// HB-1 install-butler server-side `GET /api/v1/plugin-manifest` (v0 [A]
-	// scope). Bearer api-key 鉴权 (authMw 已守 立场 ①); admin god-mode 不挂.
-	// manifest data 走 const slice (PluginManifestEntries 0 schema 立场 ②);
-	// ed25519 detached signature non-empty (立场 ④, sequoia/openpgp 双签
+	// scope). Bearer api-key 鉴权 (authMw 已守 设计 ①); admin god-mode 不挂.
+	// manifest data 走 const slice (PluginManifestEntries 0 schema 设计 ②);
+	// ed25519 detached signature non-empty (设计 ④, sequoia/openpgp 双签
 	// 留 HB-1b Rust client). SigningKey 留 nil 走 test placeholder, production
 	// 接 env 私钥 inject (留 HB-1b 接).
 	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger}
@@ -414,12 +414,12 @@ func (s *Server) SetupRoutes() {
 	chn14HistoryHandler.RegisterAdminRoutes(s.mux, adminMw)
 	// AL-4.2 admin god-mode metadata read for agent_runtimes (acceptance
 	// §2.6 — read-only white-list, last_error_reason omitted; ADM-0 §1.3
-	// rail isolation + 立场 ⑦ same source).
+	// rail isolation + 设计 ⑦ same source).
 	adminRuntimeHandler := &api.AdminRuntimeHandler{Store: s.store, Logger: s.logger}
 	adminRuntimeHandler.RegisterRoutes(s.mux, adminMw)
 	// ADM-2.2 audit log + impersonate grant — wires user-rail (走 authMw,
 	// /api/v1/me/admin-actions + /api/v1/me/impersonation-grant CRUD) +
-	// admin-rail (/admin-api/v1/audit-log) endpoints. 立场 ③+④+⑦.
+	// admin-rail (/admin-api/v1/audit-log) endpoints. 设计 ③+④+⑦.
 	adm2Handler := &api.AdminEndpointsHandler{Store: s.store, Logger: s.logger}
 	adm2Handler.RegisterUserRoutes(s.mux, authMw)
 	adm2Handler.RegisterAdminRoutes(s.mux, adminMw)
@@ -440,7 +440,7 @@ func (s *Server) SetupRoutes() {
 	cv15CommentEditHistoryHandler.RegisterUserRoutes(s.mux, authMw)
 	cv15CommentEditHistoryHandler.RegisterAdminRoutes(s.mux, adminMw)
 	// AL-7.2 admin-rail audit retention override (admin-model.md §3 retention
-	// + ADM-0 §1.3 红线 admin 操作必走 audit row). admin-rail only — 反向 grep
+	// + ADM-0 §1.3 红线 admin 操作必走 audit row). admin-rail only — grep 检查
 	// `audit_retention_override` 在 user-rail handler 0 hit.
 	al7RetentionHandler := &api.AgentRetentionOverrideHandler{Store: s.store, Logger: s.logger}
 	al7RetentionHandler.RegisterAdminRoutes(s.mux, adminMw)
@@ -453,11 +453,11 @@ func (s *Server) SetupRoutes() {
 	hb6LagHandler.RegisterAdminRoutes(s.mux, adminMw)
 	// AL-7.2 retention sweeper goroutine (1h ticker, ctx-aware shutdown). Same
 	// pattern as AP-2 ExpiresSweeper #525. Forward-only soft-archive via
-	// admin_actions.archived_at column (立场 ① 不真删 / 不裂表).
+	// admin_actions.archived_at column (设计 ① 不真删 / 不裂表).
 	(&auth.RetentionSweeper{Store: s.store, Logger: s.logger}).Start(s.ctx)
 	// HB-5.2 heartbeat retention sweeper + admin override (复用 AL-7 既有
 	// audit retention override action; metadata target='heartbeat' 字面区分,
-	// 立场 ② 不挂 admin_actions CHECK 第 13 项 enum).
+	// 设计 ② 不挂 admin_actions CHECK 第 13 项 enum).
 	hb5HeartbeatRetentionHandler := &api.HostRetentionOverrideHandler{Store: s.store, Logger: s.logger}
 	hb5HeartbeatRetentionHandler.RegisterAdminRoutes(s.mux, adminMw)
 	(&auth.HeartbeatRetentionSweeper{Store: s.store, Logger: s.logger}).Start(s.ctx)
@@ -531,7 +531,7 @@ func (s *Server) SetupRoutes() {
 	// CV-1.2 artifacts (canvas-vision §0; channel-scoped artifact CRUD +
 	// commit + rollback + WS push). Pusher routes to ws.Hub which owns
 	// the RT-1.1 ArtifactUpdated frame envelope (#290 byte-identical).
-	// IterationPusher (CV-4.2 立场 ② commit 单源) routes the
+	// IterationPusher (CV-4.2 设计 ② commit 单源) routes the
 	// running→completed transition push when commit carries
 	// `?iteration_id=` query.
 	artifactHandler := &api.ArtifactHandler{
@@ -556,7 +556,7 @@ func (s *Server) SetupRoutes() {
 
 	// CV-5 artifact comments (canvas-vision §0 L24 字面 "Linear issue +
 	// comment"). Comment row falls into messages table + virtual
-	// `artifact:<id>` namespace channel (跟 DM-2 dm: 同模式 — 立场 ①
+	// `artifact:<id>` namespace channel (跟 DM-2 dm: 同模式 — 设计 ①
 	// 单源不裂表). Pusher routes to ws.Hub which owns the
 	// ArtifactCommentAdded frame envelope (9 字段, RT-3 cursor 共序).
 	artifactCommentsHandler := &api.ArtifactCommentsHandler{
@@ -764,7 +764,7 @@ func (a *hubArtifactCommentAdapter) PushArtifactCommentAdded(
 
 // hubIterationAdapter exposes ws.Hub.PushIterationStateChanged through the
 // api.IterationStatePusher interface so internal/api stays free of the
-// internal/ws import (mirrors hubAnchorAdapter pattern). CV-4.2 立场 ②
+// internal/ws import (mirrors hubAnchorAdapter pattern). CV-4.2 设计 ②
 // commit 单源 — same hub instance routes commit → completed push.
 type hubIterationAdapter struct {
 	hub *ws.Hub

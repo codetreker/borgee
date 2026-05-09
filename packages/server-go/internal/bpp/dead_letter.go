@@ -1,5 +1,5 @@
 // Package bpp — dead_letter.go: BPP-4.2 server→plugin push 失败 audit
-// log (best-effort 立场: log warn, **不入持久队列**, RT-1.3 cursor
+// log (best-effort 设计: log warn, **不入持久队列**, RT-1.3 cursor
 // replay 兜底).
 //
 // Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (runtime 不缓存)
@@ -7,8 +7,8 @@
 // Spec brief: docs/implementation/modules/bpp-4-spec.md §0.3 + §1
 // BPP-4.2. Acceptance: docs/qa/acceptance-templates/bpp-4.md §2.
 //
-// 立场 (跟 stance §3 byte-identical):
-//   - **ack best-effort 不重发** (蓝图 §1.5 立场承袭). server→plugin push
+// 设计 (跟 stance §3 byte-identical):
+//   - **ack best-effort 不重发** (蓝图 §1.5 设计沿用). server→plugin push
 //     失败 (sent=false, plugin offline) → log warn + audit hint, **不入
 //     队列**. plugin 重连后走 RT-1.3 cursor replay 主动拉, server 端不
 //     主动重发.
@@ -17,9 +17,9 @@
 //     (跟 HB-4 §1.5 release gate 第 4 行 "审计日志格式锁定" 守门同源).
 //
 // 反约束 (acceptance §4.3):
-//   - 反向 grep `pendingAcks\|retryQueue\|deadLetterQueue\|ackTimeout.*resend`
+//   - grep 检查 `pendingAcks\|retryQueue\|deadLetterQueue\|ackTimeout.*resend`
 //     0 hit (CI lint 守门, 防偷偷下沉 v2 retry 路径).
-//   - 反向 grep `time.*Ticker.*resend\|retry.*frame.*backoff` 0 hit (本
+//   - grep 检查 `time.*Ticker.*resend\|retry.*frame.*backoff` 0 hit (本
 //     dead_letter.go 文件里 0 ticker, 0 retry; 仅 log + return).
 
 package bpp

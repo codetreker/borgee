@@ -1,7 +1,7 @@
 // Package ws_test — anchor_comment_frame_test.go: CV-2.2 envelope
 // byte-identity lock + push smoke for AnchorCommentAddedFrame.
 //
-// The 10-field order is the contract per cv-2-spec.md §0 立场 ③ + 飞马
+// The 10-field order is the contract per cv-2-spec.md §0 设计 ③ + 飞马
 // v2 changelog (字段名 `author_kind` 不复用 CV-1 `committer_kind`). Any
 // reorder caught here pre-merge — paired with BPP-1 #304 envelope CI lint.
 package ws_test

@@ -6,9 +6,9 @@
 // docs/implementation/modules/bpp-4-spec.md §0.2. Acceptance:
 // docs/qa/acceptance-templates/bpp-4.md §1.
 //
-// 立场 (跟 stance §1+§2 byte-identical):
+// 设计 (跟 stance §1+§2 byte-identical):
 //   - **Borgee 不取消 in-flight 任务** (蓝图 §1.6 字面). watchdog 仅触发
-//     状态翻转, 不下发 cancel/abort/kill frame. 反向 grep `cancel.*task\|
+//     状态翻转, 不下发 cancel/abort/kill frame. grep 检查 `cancel.*task\|
 //     abort.*inflight\|server.*kill.*runtime` 0 hit 守门.
 //   - **30s 单源阈值锁** (跟蓝图 BPP-4 module acceptance "kill plugin →
 //     30s 内 agent 显示 error" byte-identical). 改 = 改三处单测锁
@@ -44,12 +44,12 @@ import (
 //   2. docs/implementation/modules/bpp-4-spec.md §0.2
 //   3. docs/qa/bpp-4-content-lock.md §1.①
 //
-// 反向 grep CI lint 守: `bpp.*heartbeat.*60|heartbeat.*timeout.*[5-9][0-9]+s`
+// grep 检查 CI lint 守: `bpp.*heartbeat.*60|heartbeat.*timeout.*[5-9][0-9]+s`
 // count==0 (防隐式调高).
 const BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
 
 // BPP_HEARTBEAT_TICKER_INTERVAL — watchdog 扫描周期, 必须 ≤ 阈值/3 防错
-// 过窗口. 跟蓝图 §1.6 "缺心跳按未知" 立场承袭 (检测延迟 ≤ 阈值的容差).
+// 过窗口. 跟蓝图 §1.6 "缺心跳按未知" 设计沿用 (检测延迟 ≤ 阈值的容差).
 const BPP_HEARTBEAT_TICKER_INTERVAL = 10 * time.Second
 
 // PluginLivenessSource — interface seam, hub.go 实现, watchdog 消费.
@@ -119,7 +119,7 @@ func NewHeartbeatWatchdog(source PluginLivenessSource, sink AgentErrorSink, logg
 // lastSeenAt snapshot and flips stale agents to error.
 //
 // 反约束: Run 仅触发 SetError; **不**调任何 cancel/abort/kill 路径
-// (蓝图 §1.6 立场 ① — server 不取消 in-flight 任务).
+// (蓝图 §1.6 设计 ① — server 不取消 in-flight 任务).
 func (w *HeartbeatWatchdog) Run(ctx context.Context) {
 	ticker := time.NewTicker(BPP_HEARTBEAT_TICKER_INTERVAL)
 	defer ticker.Stop()

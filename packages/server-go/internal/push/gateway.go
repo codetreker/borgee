@@ -17,10 +17,10 @@
 //      派生) doesn't await; failures don't propagate (跟 DM-2.2 #372
 //      mention dispatch 同模式).
 //
-// 反约束 (蓝图 L22 + spec §0 立场 ①②③):
+// 反约束 (蓝图 L22 + spec §0 设计 ①②③):
 //   - VAPID 私钥仅 server env 读, 不入表 / 不入 request body / 不入 log.
 //   - Push 不走 hub.cursors sequence (fire-and-forget).
-//   - 不开 admin god-mode 主动 push 给特定用户路径 (反向 grep
+//   - 不开 admin god-mode 主动 push 给特定用户路径 (grep 检查
 //     `admin.*push\.Gateway|admin.*PushSubscribe` count==0).
 //   - subscription 410 Gone → DELETE row (单源退订, 不开 enabled=false).
 package push

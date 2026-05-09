@@ -1,6 +1,6 @@
 // Package bpp_test — task_lifecycle_test.go: BPP-2.2 acceptance tests.
 //
-// Stance pins exercised (bpp-2-spec.md §0 立场 ② + acceptance §2 +
+// Stance pins exercised (bpp-2-spec.md §0 设计 ② + acceptance §2 +
 // content-lock §1 ③④⑤):
 //   - subject 必带非空 (反默认值 fallback)
 //   - outcome 3 态严闭 ('partial' / 'paused' / 'pending' / 'starting'

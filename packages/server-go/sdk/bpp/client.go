@@ -5,7 +5,7 @@
 // are shared by-import — no separate go.mod, no go.work overhead, byte-
 // identical frame definitions guaranteed at compile time.
 //
-// 立场 (跟 spec brief docs/implementation/modules/bpp-7-spec.md §0 +
+// 设计 (跟 spec brief docs/implementation/modules/bpp-7-spec.md §0 +
 // stance docs/qa/bpp-7-stance-checklist.md §1+§2+§3 byte-identical):
 //
 //   - ① **frame schema 跟 server byte-identical** — SDK 不重定义任何
@@ -42,8 +42,8 @@ import (
 )
 
 // HeartbeatInterval — BPP-4 #499 watchdog 周期 byte-identical (server
-// side stale threshold = 30s, SDK 主动发送周期匹配, 立场 ⑥). 改 = 改
-// server watchdog + 立场 ⑥ stance + 此 SDK const 同步.
+// side stale threshold = 30s, SDK 主动发送周期匹配, 设计 ⑥). 改 = 改
+// server watchdog + 设计 ⑥ stance + 此 SDK const 同步.
 const HeartbeatInterval = 30 * time.Second
 
 // Client is the BPP-7 plugin SDK client. One Client per (plugin
@@ -69,7 +69,7 @@ type Client struct {
 	// lastKnownCursor advances as the SDK receives data-plane frames
 	// from the server. On Reconnect the SDK sends this in a
 	// ReconnectHandshakeFrame so the server can resume via RT-1.3
-	// ResolveResume (BPP-5 立场 ② 复用 RT-1.3, 不另起 sequence).
+	// ResolveResume (BPP-5 设计 ② 复用 RT-1.3, 不另起 sequence).
 	lastKnownCursor int64
 }
 
@@ -143,7 +143,7 @@ func (c *Client) LastKnownCursor() int64 {
 // AdvanceCursor monotonically advances the SDK's last-known cursor.
 // Callers invoke this when a data-plane frame with a cursor field
 // arrives. Reverse-monotonic input is silently dropped (RT-1.3 单调
-// 立场承袭).
+// 设计沿用).
 func (c *Client) AdvanceCursor(cursor int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

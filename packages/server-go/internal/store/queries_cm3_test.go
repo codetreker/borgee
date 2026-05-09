@@ -4,7 +4,7 @@ import "testing"
 
 // TestCM_OrgIDQueries covers MessageOrgID / WorkspaceFileOrgID /
 // RemoteNodeOrgID — CM-3 cross-org backfill query helpers (uncovered
-// 0% → tested smoke; coverage follow-up to cross 85% threshold).
+// 0% → tested smoke; coverage 后续 to cross 85% threshold).
 func TestCM_OrgIDQueries(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)

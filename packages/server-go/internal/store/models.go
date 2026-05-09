@@ -85,11 +85,11 @@ type Message struct {
 	OrgID string `gorm:"column:org_id;not null;default:'';size:36;index" json:"-"`
 	// EditHistory is a JSON array of edit-history entries appended by
 	// UpdateMessage when the content changes. NULL = no edits (DM-7
-	// 立场 ①). Format: [{old_content, ts, reason}].
+	// 设计 ①). Format: [{old_content, ts, reason}].
 	EditHistory *string `gorm:"column:edit_history" json:"edit_history,omitempty"`
 	// PinnedAt is Unix ms when the message was pinned (DM-10.1). NULL =
 	// unpinned. DM scope only — server REJECTS pin on non-DM channels
-	// (跟 chn_7_mute DM-only mirror, 立场 ②). Sparse partial idx
+	// (跟 chn_7_mute DM-only mirror, 设计 ②). Sparse partial idx
 	// `idx_messages_pinned_at WHERE pinned_at IS NOT NULL` (跟 AL-7.1
 	// archived_at + HB-5.1 archived_at sparse 同模式).
 	PinnedAt *int64 `gorm:"column:pinned_at;index:,where:pinned_at IS NOT NULL" json:"pinned_at,omitempty"`

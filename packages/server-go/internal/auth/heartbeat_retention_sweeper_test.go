@@ -165,13 +165,13 @@ func TestHB_SweeperReason_ByteIdentical(t *testing.T) {
 	if HeartbeatTargetLabel != "heartbeat" {
 		t.Errorf("HeartbeatTargetLabel drift: got %q", HeartbeatTargetLabel)
 	}
-	// 立场 ② — 复用 AL-7 既有 ActionAuditRetentionOverride const, 不另起.
+	// 设计 ② — 复用 AL-7 既有 ActionAuditRetentionOverride const, 不另起.
 	if ActionAuditRetentionOverride != "audit_retention_override" {
 		t.Errorf("ActionAuditRetentionOverride drift: got %q", ActionAuditRetentionOverride)
 	}
 }
 
-// REG-HB5-006b — 立场 ④ + 立场 ⑤ 反向 grep: cron framework + retention
+// REG-HB5-006b — 设计 ④ + 设计 ⑤ grep 检查: cron framework + retention
 // queue tokens 0 hit in this file.
 func TestHB_NoCronFrameworkImport(t *testing.T) {
 	body, err := os.ReadFile("heartbeat_retention_sweeper.go")
@@ -185,7 +185,7 @@ func TestHB_NoCronFrameworkImport(t *testing.T) {
 	}
 }
 
-// REG-HB5-006c — 立场 ⑤ AST 锁链延伸第 9 处 forbidden-token 0 hit.
+// REG-HB5-006c — 设计 ⑤ AST 锁链延伸第 9 处 forbidden-token 0 hit.
 //
 // Scans internal/auth + internal/api production *.go (excluding tests)
 // for heartbeat retention queue / dead-letter tokens (跟 AL-7 锁链延伸

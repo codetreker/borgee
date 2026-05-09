@@ -4,7 +4,7 @@
 //
 // Blueprint锚: docs/blueprint/current/canvas-vision.md §1.6 (锚点对话 = owner
 // review agent 产物的工具). Spec brief: docs/implementation/modules/cv-2-spec.md
-// §0 立场 ① + ③ + §1 拆段 CV-2.2 + spec v2 字面 envelope (10 字段, 字段名
+// §0 设计 ① + ③ + §1 拆段 CV-2.2 + spec v2 字面 envelope (10 字段, 字段名
 // `author_kind` 不复用 CV-1 `committer_kind`).
 //
 // Behaviour contract — byte-identical 跟 RT-1.1 ArtifactUpdatedFrame
@@ -14,7 +14,7 @@
 //      共一根 sequence (RT-1 spec §1.1, 反约束: 不另起 channel).
 //   2. 字段顺序锁: type/cursor/anchor_id/comment_id/artifact_id/
 //      artifact_version_id/channel_id/author_id/author_kind/created_at
-//      (cv-2-spec.md §0 立场 ③ + 飞马 v2 changelog 字面 — 第 9 字段
+//      (cv-2-spec.md §0 设计 ③ + 飞马 v2 changelog 字面 — 第 9 字段
 //      `author_kind` 不是 `kind`, 跟 anchor_comments.author_kind 列名
 //      一致, anchor 是评论作者非 commit 提交者).
 //   3. JSON tag 跟客户端 ws-frames.ts 字段名严格一致 (BPP-1 #304 envelope
@@ -30,7 +30,7 @@ package ws
 const FrameTypeAnchorCommentAdded = "anchor_comment_added"
 
 // AnchorCommentAddedFrame — server → client push fired after a comment
-// lands on an active anchor thread. 10 字段, 严守 cv-2-spec.md §0 立场 ③
+// lands on an active anchor thread. 10 字段, 严守 cv-2-spec.md §0 设计 ③
 // + 飞马 v2 changelog 字面.
 //
 // Field order is the contract. Do NOT reorder without updating

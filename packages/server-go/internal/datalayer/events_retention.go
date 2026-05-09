@@ -2,7 +2,7 @@
 //
 // Spec: docs/implementation/modules/dl-2-spec.md §1 DL2.2.
 //
-// 立场 (跟 AL-7 / HB-5 audit retention sweeper 同精神承袭):
+// 设计 (跟 AL-7 / HB-5 audit retention sweeper 同精神承袭):
 //   - per-kind retention 阈值: RetentionDaysForKind (must-persist=-1 永不删 /
 //     channel/message=30 / agent_task/artifact=60 / 其他=90).
 //   - row-level retention_days 列覆盖 default (NULL = use kind default).

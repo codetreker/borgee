@@ -1,6 +1,6 @@
 // Package datalayer — DL-2 events store + retention sweeper unit tests.
 //
-// Spec: docs/implementation/modules/dl-2-spec.md §0 立场 + §1 DL2.2.
+// Spec: docs/implementation/modules/dl-2-spec.md §0 设计 + §1 DL2.2.
 //
 // Pins:
 //   - hot stream byte-identical (DL-1 #609 Subscribe/Publish 不破)
@@ -62,7 +62,7 @@ func TestIsMustPersistKind(t *testing.T) {
 	}
 }
 
-// TestRetentionDaysForKind pins per-kind defaults (sweeper §0 立场 ②).
+// TestRetentionDaysForKind pins per-kind defaults (sweeper §0 设计 ②).
 func TestRetentionDaysForKind(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -264,7 +264,7 @@ func TestEventsRetentionSweeper_RunOnce_ReapsExpired(t *testing.T) {
 }
 
 // TestEventsRetentionSweeper_StartStop covers the ctx-aware lifecycle.
-// 反 goroutine leak (#608 立场承袭).
+// 反 goroutine leak (#608 设计沿用).
 func TestEventsRetentionSweeper_StartStop(t *testing.T) {
 	t.Parallel()
 	db := openTestDB(t)

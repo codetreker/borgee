@@ -3,14 +3,14 @@
 //
 // Blueprint锚: docs/blueprint/current/auth-permissions.md §1.3 主入口字面承袭
 // + plugin-protocol.md §1.6 失联与故障状态. Spec: bpp-3.2-spec.md §1
-// 立场 ③ + bpp-3.2-stance §3 + content-lock §4 错码字面锁.
+// 设计 ③ + bpp-3.2-stance §3 + content-lock §4 错码字面锁.
 //
 // Behaviour contract (反约束 spec §3 #3 + content-lock §4):
 //
 //   1. TTL 5 min — entries expire on read (lazy GC); 防 cache 膨胀.
-//   2. ≤3 次重试 (MaxPermissionRetries const, 反向 grep MaxPermissionRetries.*[4-9]
+//   2. ≤3 次重试 (MaxPermissionRetries const, grep 检查 MaxPermissionRetries.*[4-9]
 //      在 packages/plugin-sdk/ count==0).
-//   3. 30s 固定退避 (RetryBackoff const, 反向 grep `expBackoff|exponential.*retry`
+//   3. 30s 固定退避 (RetryBackoff const, grep 检查 `expBackoff|exponential.*retry`
 //      count==0 — 蓝图 §1.6 字面 server-side timing 单源, plugin 端不
 //      增添新 timing 信号).
 //   4. 上限超 → `bpp.retry_exhausted` 错码 byte-identical 跟 content-lock §4
@@ -22,7 +22,7 @@
 // 反约束注意:
 //   - Cache state lives in plugin SDK process memory; server stateless.
 //   - retry trigger: 仅 `agent_config_update` frame (BPP-2.3) → cache 扫
-//     (跟立场 ②⑧ 复用既有 frame, 不另起 capability_granted).
+//     (跟设计 ②⑧ 复用既有 frame, 不另起 capability_granted).
 //   - admin god-mode 不入此路径 (admin 不通过 plugin SDK upload semantic
 //     action).
 
@@ -35,17 +35,17 @@ import (
 )
 
 // MaxPermissionRetries is the upper bound on retry attempts per request_id
-// (content-lock §4 + bpp-3.2-spec.md §1 立场 ③). After this count is
+// (content-lock §4 + bpp-3.2-spec.md §1 设计 ③). After this count is
 // reached, the next ShouldRetry call returns ErrRetryExhausted.
 //
-// 反向 grep CI lint: `MaxPermissionRetries.*[4-9]` count==0 (锁 ≤3).
+// grep 检查 CI lint: `MaxPermissionRetries.*[4-9]` count==0 (锁 ≤3).
 const MaxPermissionRetries = 3
 
 // RetryBackoff is the FIXED retry interval (content-lock §4 + spec §1
-// 立场 ③). Not exponential — 蓝图 plugin-protocol.md §1.6 字面
+// 设计 ③). Not exponential — 蓝图 plugin-protocol.md §1.6 字面
 // server-side timing 单源, plugin 端不增添新 timing 信号.
 //
-// 反向 grep CI lint: `expBackoff|exponential.*retry` count==0.
+// grep 检查 CI lint: `expBackoff|exponential.*retry` count==0.
 const RetryBackoff = 30 * time.Second
 
 // RequestRetryCacheTTL is the cache entry TTL — entries older than 5 min

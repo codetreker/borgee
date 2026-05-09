@@ -2,7 +2,7 @@
 // PushPermissionDenied 5 unit pins.
 //
 // 锚: docs/qa/acceptance-templates/bpp-3.1.md + spec
-// docs/implementation/modules/bpp-3.1-spec.md §1 三立场.
+// docs/implementation/modules/bpp-3.1-spec.md §1 三条原则.
 package ws_test
 
 import (
@@ -102,7 +102,7 @@ func TestBPP_PushPermissionDenied_PluginOffline(t *testing.T) {
 }
 
 // REG-BPP31-004 — cursor 共序: BPP-3.1 push 跟 RT-1 PushArtifactUpdated +
-// AL-2b PushAgentConfigUpdate 共一根 sequence (反约束 §1 立场 ① 不另起
+// AL-2b PushAgentConfigUpdate 共一根 sequence (反约束 §1 设计 ① 不另起
 // plugin-only 通道).
 func TestBPP_PushPermissionDenied_SharedSequence(t *testing.T) {
 	t.Parallel()
@@ -162,7 +162,7 @@ func TestBPP_PushPermissionDenied_FieldByteIdentity(t *testing.T) {
 }
 
 // REG-BPP31-006 — interface seam: PermissionDeniedPusher 可由 *Hub 实现
-// (api 包将通过此接口注入, AP-1 #493 follow-up wiring).
+// (api 包将通过此接口注入, AP-1 #493 后续 wiring).
 func TestBPP_HubImplementsPermissionDeniedPusher(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)

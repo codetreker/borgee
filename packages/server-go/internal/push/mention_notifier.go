@@ -12,10 +12,10 @@
 //   2. Invoke Gateway.Send(targetUserID, payload) — best-effort, returns
 //      attempt count for observability.
 //
-// 反约束 (DL-4 spec §0 立场 ②③):
+// 反约束 (DL-4 spec §0 设计 ②③):
 //   - fire-and-forget: 不返 error, 仅返 attempts count.
 //   - payload 不带 secret / token (跟 蓝图 §1.4 隐私 + AL-2a #447 SSOT
-//     立场承袭, push payload 是 metadata only).
+//     设计沿用, push payload 是 metadata only).
 package push
 
 import "context"
@@ -66,7 +66,7 @@ func (n *MentionNotifier) NotifyMention(targetUserID, senderID, channelName, bod
 
 // AgentTaskNotifier is the RT-3 agent_task_state_changed → push adapter.
 // Fired when an agent transitions busy↔idle (蓝图 client-shape.md L37
-// "agent 完成长任务"). Invoked from server-derive hook (RT-3.2 follow-up
+// "agent 完成长任务"). Invoked from server-derive hook (RT-3.2 后续
 // commit) for each channel member's user_id.
 //
 // Multi-recipient fan-out: caller iterates channel members + invokes
@@ -97,7 +97,7 @@ func NewAgentTaskNotifier(g Gateway) *AgentTaskNotifier {
 //	  "ts": <changed_at>
 //	}
 //
-// 反约束: 跟 RT-3 frame 同立场 — busy 态 subject 必带非空 (蓝图 §1.1
+// 反约束: 跟 RT-3 frame 同设计 — busy 态 subject 必带非空 (蓝图 §1.1
 // 字面 "沉默胜于假 loading"); 调用方有责任传非空 subject (validator
 // 在 RT-3.2 派生 hook 已守, 此 notifier 只 forward).
 func (n *AgentTaskNotifier) NotifyAgentTask(targetUserID, agentID, state, subject, reason string, changedAt int64) int {

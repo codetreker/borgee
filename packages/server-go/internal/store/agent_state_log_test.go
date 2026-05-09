@@ -42,7 +42,7 @@ func TestValidateTransition_ValidEdges(t *testing.T) {
 	}
 }
 
-// TestValidateTransition_RejectsSameState pins reject no-op (立场 ②).
+// TestValidateTransition_RejectsSameState pins reject no-op (设计 ②).
 func TestValidateTransition_RejectsSameState(t *testing.T) {
 	t.Parallel()
 	for _, s := range []AgentState{
@@ -84,7 +84,7 @@ func TestValidateTransition_RejectsInvalidEdges(t *testing.T) {
 	}
 }
 
-// TestValidateTransition_ErrorRequiresReason pins 立场 ④ — error 转移 reason
+// TestValidateTransition_ErrorRequiresReason pins 设计 ④ — error 转移 reason
 // 必带 + ∈ AL-1a 6 字面 byte-identical.
 func TestValidateTransition_ErrorRequiresReason(t *testing.T) {
 	t.Parallel()
@@ -98,7 +98,7 @@ func TestValidateTransition_ErrorRequiresReason(t *testing.T) {
 		"NETWORK_DOWN", "panic",
 	} {
 		if err := ValidateTransition(AgentStateOnline, AgentStateError, bad); err == nil {
-			t.Errorf("invalid reason %q should reject (立场 ④ AL-1a 6 字面锁)", bad)
+			t.Errorf("invalid reason %q should reject (设计 ④ AL-1a 6 字面锁)", bad)
 		}
 	}
 	// All 6 valid reasons accept.
@@ -156,7 +156,7 @@ func TestAppendAgentStateTransition_HappyPath(t *testing.T) {
 	}
 }
 
-// TestAppendAgentStateTransition_RejectsInvalidViaValidator pins 立场 ②.
+// TestAppendAgentStateTransition_RejectsInvalidViaValidator pins 设计 ②.
 func TestAppendAgentStateTransition_RejectsInvalidViaValidator(t *testing.T) {
 	t.Parallel()
 	s := runStoreWithMigrations(t)
@@ -183,7 +183,7 @@ func TestAppendAgentStateTransition_RejectsInvalidViaValidator(t *testing.T) {
 
 	// Error with invalid reason rejected.
 	if _, err := s.AppendAgentStateTransition("a1", AgentStateOnline, AgentStateError, "out_of_memory", ""); err == nil {
-		t.Error("error with invalid reason should reject (立场 ④)")
+		t.Error("error with invalid reason should reject (设计 ④)")
 	}
 }
 

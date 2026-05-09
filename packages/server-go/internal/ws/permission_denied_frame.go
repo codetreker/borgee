@@ -41,7 +41,7 @@ import (
 // for the BPP-3.1 permission_denied frame (mirrors AgentConfigPusher
 // pattern in api/agent_config.go so the api package doesn't import
 // internal/ws). AP-1 (#493) abac.go::HasCapability false path will wire
-// this via 1-line follow-up after AP-1 + BPP-3.1 both merge.
+// this via 1-line 后续 after AP-1 + BPP-3.1 both merge.
 //
 // Implemented by *ws.Hub.PushPermissionDenied; injected as nil-safe
 // optional field on relevant handlers.
@@ -66,12 +66,12 @@ type PermissionDeniedPusher interface {
 //     no allocator / channel buffer full).
 //
 // Frame field assignment is byte-identical with bpp.PermissionDeniedFrame
-// (spec §1 立场 ① 8 字段); reordering arguments here without updating the
+// (spec §1 设计 ① 8 字段); reordering arguments here without updating the
 // frame struct is a CI red caught by frame_schemas_test.go reflect lint.
 //
 // Caller responsibilities:
 //   - requestID: AP-1 调用方生成的 trace UUID, plugin 端按此 key 关联
-//     owner DM 推审批通知 + retry (BPP-3.2 follow-up).
+//     owner DM 推审批通知 + retry (BPP-3.2 后续).
 //   - attemptedAction: ∈ BPP-2.1 7 op 白名单 (`bpp.SemanticOp*` const)
 //     或 REST endpoint 名; 反约束: v2+ 枚举外值不入此路径.
 //   - requiredCapability / currentScope: byte-identical 跟 AP-1 abac.go

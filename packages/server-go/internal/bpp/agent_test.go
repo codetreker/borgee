@@ -264,7 +264,7 @@ func TestAL_AgentConfigAck7Fields(t *testing.T) {
 	}
 }
 
-// TestAL_NoBlobRuntimeOnlyFields pins acceptance §3.2 — SSOT 立场承袭.
+// TestAL_NoBlobRuntimeOnlyFields pins acceptance §3.2 — SSOT 设计沿用.
 // frame `Blob` 是 opaque JSON wire payload (server 端 marshal SSOT 字段);
 // 此 test 反向断言 Blob 不是结构体直嵌 runtime-only 字段 (api_key /
 // temperature / token_limit / retry_policy). 真实校验在 AL-2b.2 server
@@ -283,7 +283,7 @@ func TestAL_NoBlobRuntimeOnlyFields(t *testing.T) {
 			blobField.Type.Kind())
 	}
 
-	// 反向: frame 不直接暴露 runtime-only 字段名 (AL-2a #447 SSOT 立场
+	// 反向: frame 不直接暴露 runtime-only 字段名 (AL-2a #447 SSOT 设计
 	// 反约束 — api_key/temperature 是 plugin 内部事, 不进 server SSOT).
 	for _, forbidden := range []string{
 		"APIKey", "ApiKey", "Temperature", "TokenLimit", "RetryPolicy",

@@ -4,8 +4,8 @@
 // Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.3 (Plugin 调 Borgee
 // 抽象语义层 C, 不直对 REST + 协议红线 "不允许 plugin 下穿语义层直调
 // REST" + 7 v1 必须语义动作字面). Spec brief: docs/implementation/modules/
-// bpp-2-spec.md (战马E #460 v0) §0 立场 ① + §1 拆段 BPP-2.1.
-// Stance: docs/qa/bpp-2-stance-checklist.md §1 立场 ① 8 反约束 checkbox.
+// bpp-2-spec.md (战马E #460 v0) §0 设计 ① + §1 拆段 BPP-2.1.
+// Stance: docs/qa/bpp-2-stance-checklist.md §1 设计 ① 8 反约束 checkbox.
 // Content lock: docs/qa/bpp-2-content-lock.md §1 ① 7 op 白名单字面.
 //
 // What this dispatcher does:
@@ -26,8 +26,8 @@
 //      / `http.Post`, 不拼 URL 调 REST endpoint (蓝图 §1.3 协议红线
 //      字面 "不允许 plugin 下穿语义层直调 REST").
 //
-// 反约束 (bpp-2-spec.md §0 立场 ① + acceptance §4.1 反向 grep):
-//   - Dispatcher 不开 raw HTTP / REST 旁路 — 反向 grep
+// 反约束 (bpp-2-spec.md §0 设计 ① + acceptance §4.1 grep 检查):
+//   - Dispatcher 不开 raw HTTP / REST 旁路 — grep 检查
 //     reverse grep CI lint count==0 — see acceptance §4.1.
 //     across this package (excluding _test.go).
 //   - 7 op 白名单严闭, 'list_users' / 'delete_org' 等枚举外值 reject +
@@ -48,7 +48,7 @@ import (
 // breaks reverse grep `bpp-2-content-lock.md §1 ①` byte-identical 锁.
 //
 // 改 = 改三处: 蓝图 plugin-protocol.md §1.3 + spec bpp-2-spec.md §0
-// 立场 ① + this enum (实施代码 source-of-truth).
+// 设计 ① + this enum (实施代码 source-of-truth).
 const (
 	SemanticOpCreateArtifact     = "create_artifact"
 	SemanticOpUpdateArtifact     = "update_artifact"
@@ -74,8 +74,8 @@ const (
 // 反约束: do NOT add v2+ ops here without first updating the blueprint;
 // CI grep 反向断言 count==0 for v2+ literals (acceptance §4 反约束).
 //
-// BPP-3.2.1 (#494 follow-up): 7→8 加 request_capability_grant; 蓝图
-// §1.3 字面承袭 + bpp-3.2-spec.md §1 立场 ① + bpp-3.2-stance §1.
+// BPP-3.2.1 (#494 后续): 7→8 加 request_capability_grant; 蓝图
+// §1.3 字面承袭 + bpp-3.2-spec.md §1 设计 ① + bpp-3.2-stance §1.
 var ValidSemanticOps = map[string]bool{
 	SemanticOpCreateArtifact:         true,
 	SemanticOpUpdateArtifact:         true,
@@ -99,7 +99,7 @@ const DispatchErrCodeOpUnknown = "bpp.semantic_op_unknown"
 // the BPP socket). v0 implementation does not currently emit this code
 // — the protocol envelope itself enforces frame-only ingress (BPP-1
 // #304 envelope whitelist). The constant is reserved as a defense-in-
-// depth witness for acceptance §4.1 反向 grep + future runtime patches.
+// depth witness for acceptance §4.1 grep 检查 + future runtime patches.
 const DispatchErrCodeNoRawREST = "bpp.plugin_no_raw_rest"
 
 // errSemanticOpUnknown is the sentinel returned by Dispatch when the

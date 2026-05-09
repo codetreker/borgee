@@ -9,8 +9,8 @@
 // plugin-protocol.md §1.6.
 //
 // Spec brief: docs/implementation/modules/rt-3-spec.md (本 PR 同 commit
-// 落) §0 立场 ① + §1 拆段 RT-3.1.
-// Stance: docs/qa/rt-3-stance-checklist.md §1 立场 ① 反约束.
+// 落) §0 设计 ① + §1 拆段 RT-3.1.
+// Stance: docs/qa/rt-3-stance-checklist.md §1 设计 ① 反约束.
 //
 // Behaviour contract — byte-identical 跟 RT-1.1 ArtifactUpdated /
 // CV-2.2 AnchorCommentAdded / DM-2.2 MentionPushed / CV-4.2
@@ -28,12 +28,12 @@
 //      user 多 ws session 全收 (跟 P1MultiDeviceWebSocket #197 同源 +
 //      Hub.onlineUsers map[userID]map[*Client]bool 数据结构).
 //
-// 反约束 (rt-3-spec §0 立场 ① + 蓝图 §1.1 ⭐ 关键纪律):
+// 反约束 (rt-3-spec §0 设计 ① + 蓝图 §1.1 ⭐ 关键纪律):
 //   - state ∈ 2-enum {'busy', 'idle'}; 中间态 reject (跟 BPP-2.2 outcome
 //     enum 同模式 fail-closed).
 //   - busy 态 subject 必带非空 (蓝图 §1.1 字面 "BPP progress frame 强制带
 //     subject 字段, plugin 必须告诉 Borgee 'agent 在做什么', 否则不展示").
-//     反向 grep CI lint guards: empty subject default symbol /
+//     grep 检查 CI lint guards: empty subject default symbol /
 //     fallback-named symbol / hard-coded vague strings — count==0 across
 //     this file (excluding _test.go); 字面禁默认值 fallback (跟 BPP-2.2
 //     task_lifecycle.go ValidateTaskStarted subject 必带非空 同源).

@@ -14,13 +14,13 @@
 //   - ListAdminActionsForAdmin(filters, limit) — admin 侧 GET
 //     /admin-api/v1/audit-log 走此 (无 WHERE 默认全可见)
 //
-// 立场反查 (stance §1 7 立场):
-//   ① 每写必留痕 — 此 helper 是写动作 wrap 后的唯一 audit 入口, 反向 grep
+// 设计反查 (stance §1 7 条原则):
+//   ① 每写必留痕 — 此 helper 是写动作 wrap 后的唯一 audit 入口, grep 检查
 //      `skip_audit\|noAudit\|bypassAudit` count==0
 //   ② 受影响者必感知 — EmitAdminActionSystemDM 强制下发, body 含 actorLogin
 //      (admin.Login, admins 表) 非 raw UUID
 //   ⑤ forward-only — InsertAdminAction 不返 row.ID for update; UPDATE/DELETE
-//      路径不存在 (反向 grep `UPDATE admin_actions\|DELETE FROM admin_actions`
+//      路径不存在 (grep 检查 `UPDATE admin_actions\|DELETE FROM admin_actions`
 //      count==0 除 migration)
 //   ⑥ admin ∉ 业务路径 — actorID 是 admins.id (独立表, 跟 ADM-0 红线对齐)
 package store
@@ -62,7 +62,7 @@ func (AdminAction) TableName() string { return "admin_actions" }
 // "all" = 无 WHERE on archived_at); Actions 多值 (IN slice, 跟 单值 Action
 // 二选一 — 调用方先 collect Actions slice 再单字段 backward-compat).
 //
-// 反约束 (al-8-spec.md §0 立场 ①): 既有 3 字段顺序不动 (ActorID/Action/
+// 反约束 (al-8-spec.md §0 设计 ①): 既有 3 字段顺序不动 (ActorID/Action/
 // TargetUserID), AL-8 新字段顺位 append.
 type AdminActionListFilters struct {
 	ActorID      string
@@ -79,7 +79,7 @@ type AdminActionListFilters struct {
 // whitelist (delete_channel / suspend_user / change_role / reset_password /
 // start_impersonation) — schema CHECK enforces; this is just the insert.
 //
-// 立场 ⑤ forward-only: returns no update handle. Errors only on db.
+// 设计 ⑤ forward-only: returns no update handle. Errors only on db.
 func (s *Store) InsertAdminAction(actorID, targetUserID, action, metadata string) (string, error) {
 	if actorID == "" || targetUserID == "" || action == "" {
 		return "", errors.New("actor_id, target_user_id, action all required (蓝图 §1.4 红线 1 受影响者必有)")
@@ -100,7 +100,7 @@ func (s *Store) InsertAdminAction(actorID, targetUserID, action, metadata string
 
 // ListAdminActionsForTargetUser returns the most recent admin_actions rows
 // where target_user_id = userID. Used by GET /api/v1/me/admin-actions
-// (user cookie). 立场 ④ user 只见自己.
+// (user cookie). 设计 ④ user 只见自己.
 //
 // 反约束: this is the ONLY query path for user-side audit; ?target_user_id
 // inject 防线在 handler 层忽略 (走 current user_id 不接受参数覆写).
@@ -121,9 +121,9 @@ func (s *Store) ListAdminActionsForTargetUser(userID string, limit int) ([]Admin
 
 // ListAdminActionsForAdmin returns the most recent admin_actions rows,
 // optionally filtered. Used by GET /admin-api/v1/audit-log (admin cookie).
-// 立场 ③ admin 之间互可见: 默认无 WHERE 全可见, filter 只是 UI 收敛.
+// 设计 ③ admin 之间互可见: 默认无 WHERE 全可见, filter 只是 UI 收敛.
 //
-// AL-8 additive filter (al-8-spec.md §0 立场 ③④⑤): Since/Until int64 ms
+// AL-8 additive filter (al-8-spec.md §0 设计 ③④⑤): Since/Until int64 ms
 // epoch BETWEEN; ArchivedView 三态 ("" or "active" = archived_at IS NULL
 // 默认 / "archived" 走 AL-7.1 sparse idx / "all" 无 WHERE on archived_at);
 // Actions 多值 IN slice — 跟单值 Action 二选一 (Actions 优先, 反向 reject
@@ -150,7 +150,7 @@ func (s *Store) ListAdminActionsForAdmin(f AdminActionListFilters, limit int) ([
 	if f.Until != nil {
 		q = q.Where("created_at <= ?", *f.Until)
 	}
-	// 立场 ③ archived 三态 — 默认 active (跟 AL-7.1 sparse idx 反向同源).
+	// 设计 ③ archived 三态 — 默认 active (跟 AL-7.1 sparse idx 反向同源).
 	switch f.ArchivedView {
 	case "", "active":
 		q = q.Where("archived_at IS NULL")
@@ -179,7 +179,7 @@ type AdminActionDMContext struct {
 //
 // 反约束 (stance §2 ADM2-NEG-001 + ADM2-NEG-009):
 //   - actorLogin 必须是 admins.Login (具体名), 调用方传; 此函数不接受 admin
-//     UUID, 反向 grep `\{admin_id\}|\{actor_id\}` 在 body literal count==0
+//     UUID, grep 检查 `\{admin_id\}|\{actor_id\}` 在 body literal count==0
 //   - ts 走 time.Format("2006-01-02 15:04") 本地化; 不渲染 epoch ms 字面
 func RenderAdminActionDMBody(actorLogin, action string, ts time.Time, ctx AdminActionDMContext) string {
 	tsStr := ts.Format("2006-01-02 15:04")
@@ -208,7 +208,7 @@ func RenderAdminActionDMBody(actorLogin, action string, ts time.Time, ctx AdminA
 // ImpersonationGrant is one row of impersonation_grants table (ADM-2.2).
 //
 // Schema (本 PR 同期落, 跟 ADM-2.1 admin_actions 共享 ADM-2 milestone — 新协议
-// 一 milestone 一 PR):
+// 一个 milestone 一个 PR):
 //   id           TEXT PK (UUID)
 //   user_id      TEXT NOT NULL (FK users.id 业主自己 grant)
 //   granted_at   INTEGER NOT NULL (Unix ms)
@@ -227,9 +227,9 @@ func (ImpersonationGrant) TableName() string { return "impersonation_grants" }
 // GrantImpersonation creates a 24h grant. Returns 409-style error if a non-
 // expired non-revoked grant already exists (业主 cooldown 防重复 grant).
 //
-// 立场 ⑦ impersonate 显眼: grant 期 24h 固定 (反约束: 不接受 client 传期限);
+// 设计 ⑦ impersonate 显眼: grant 期 24h 固定 (反约束: 不接受 client 传期限);
 // 业主撤销走 RevokeImpersonation (UPDATE revoked_at 唯一允许的写, 不删行
-// — 留 audit 痕跡, 跟立场 ⑤ forward-only 同精神).
+// — 留 audit 痕跡, 跟设计 ⑤ forward-only 同精神).
 func (s *Store) GrantImpersonation(userID string) (*ImpersonationGrant, error) {
 	if userID == "" {
 		return nil, errors.New("user_id required")
@@ -267,7 +267,7 @@ func (s *Store) RevokeImpersonation(userID string) error {
 }
 
 // ActiveImpersonationGrant returns the user's currently-active grant or nil.
-// 立场 ⑦ admin 写动作前 server 校验 grant 存在: server-side gate, plug 入
+// 设计 ⑦ admin 写动作前 server 校验 grant 存在: server-side gate, plug 入
 // admin handler.
 func (s *Store) ActiveImpersonationGrant(userID string) (*ImpersonationGrant, error) {
 	if userID == "" {
@@ -285,7 +285,7 @@ func (s *Store) ActiveImpersonationGrant(userID string) (*ImpersonationGrant, er
 
 // EmitAdminActionSystemDM writes the system-DM into the target user's
 // existing #welcome channel (CM-onboarding type='system' channel; created
-// at registration). Body byte-identical 跟 content-lock §1 5 模板; 立场 ②
+// at registration). Body byte-identical 跟 content-lock §1 5 模板; 设计 ②
 // "受影响者必感知 + admin_username 非 raw UUID".
 //
 // Returns nil even when target user has no system channel — system DM is
@@ -318,8 +318,8 @@ func (s *Store) EmitAdminActionSystemDM(actorLogin, targetUserID, action string,
 }
 
 // EmitAdminActionAudit is the joint helper: write audit row + emit system DM.
-// Wraps the two store calls; admin handler audit hook 走 single 调用. 立场
-// ① 每写必留痕 + 立场 ② 受影响者必感知 同时兑现.
+// Wraps the two store calls; admin handler audit hook 走 single 调用. 设计
+// ① 每写必留痕 + 设计 ② 受影响者必感知 同时兑现.
 func (s *Store) EmitAdminActionAudit(actorID, actorLogin, targetUserID, action, metadata string, ctx AdminActionDMContext) (string, error) {
 	id, err := s.InsertAdminAction(actorID, targetUserID, action, metadata)
 	if err != nil {

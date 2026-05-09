@@ -1,6 +1,6 @@
 // DL-1 — DataLayer factory (蓝图 §4 B SSOT seam).
 //
-// 立场 ② (DL-1 spec §0): factory pattern + DI seam 单源. handler / server.go
+// 设计 ② (DL-1 spec §0): factory pattern + DI seam 单源. handler / server.go
 // 拿 *DataLayer 不直 import store, 跟 BPP-3 PluginFrameDispatcher /
 // reasons.IsValid SSOT 同精神.
 //
@@ -31,9 +31,9 @@ type DataLayer struct {
 // NewDataLayer assembles the v1 (SQLite + in-memory) bundle. Caller owns
 // store.Store + presence.PresenceTracker lifecycles (close on shutdown).
 //
-// WIRE-1 (post-Phase 4 closure follow-up): EventBus 真接 DL-2 cold consumer
+// WIRE-1 (post-Phase 4 closure 后续): EventBus 真接 DL-2 cold consumer
 // 通过 NewInProcessEventBusWithStore — production Publish 真落 channel_events
-// / global_events 表 (反 hot-only stale, 跟 spec wire-1 立场 ① 字面). logger
+// / global_events 表 (反 hot-only stale, 跟 spec wire-1 设计 ① 字面). logger
 // 可 nil (NewSQLiteEventStore nil-safe).
 func NewDataLayer(s *store.Store, pt presence.PresenceTracker, logger *slog.Logger) *DataLayer {
 	eventStore := NewSQLiteEventStore(s.DB(), logger)

@@ -7,7 +7,7 @@
 //   - hubAgentTaskPusherAdapter.PushAgentTaskStateChanged (server.go:815, was 0%)
 //   - channelScopeAdapter.ChannelIDsForOwner (跨 milestone 同模式)
 //
-// 立场: 跟 bpp_3_router_adapter_test.go / bpp_5_reconnect_adapter_test.go 同
+// 设计: 跟 bpp_3_router_adapter_test.go / bpp_5_reconnect_adapter_test.go 同
 // idiom (跨包桥代码典型 cold path, unit 测真补 cov 不靠 race scheduler).
 package server
 

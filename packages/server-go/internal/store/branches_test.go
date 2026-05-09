@@ -2,7 +2,7 @@ package store
 
 // TEST-FIX-3-COV: store-level deterministic cov 真补 (≥85% ratchet 恢复).
 //
-// 立场:
+// 设计:
 //   - 真补 (不绕): 走 migratedStore + createUser + createChannel 全实例化路径
 //   - 0 race-detector 依赖: 全部 unit test 不 spin goroutine
 //   - 0 production 行为改 (test-only)

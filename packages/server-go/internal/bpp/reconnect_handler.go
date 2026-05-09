@@ -8,7 +8,7 @@
 // Spec: docs/implementation/modules/bpp-5-spec.md §0+§1 BPP-5.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-5.md §2.
 //
-// 立场 (跟 stance §2+§3+§4 byte-identical):
+// 设计 (跟 stance §2+§3+§4 byte-identical):
 //   - **cursor resume 复用 RT-1.3** — 调 ResolveResume(SessionResumeRequest{
 //     Mode: ResumeModeIncremental, Since: LastKnownCursor}, …). 不另起
 //     sequence, 不另起 dictionary.
@@ -19,7 +19,7 @@
 //   - **不另起第 7 reason** — connecting 中间态 reason-less; AL-1a 6-dict
 //     第 10 处单测锁链承袭 (BPP-2.2 #485 第 7 + AL-2b #481 第 8 + BPP-4
 //     #499 第 9 + BPP-5 第 10).
-//   - **best-effort 不重发** (跟 BPP-4 §0.3 立场承袭) — server 端不挂
+//   - **best-effort 不重发** (跟 BPP-4 §0.3 设计沿用) — server 端不挂
 //     reconnect retry queue. AST scan 反向断言 forbidden tokens 0 hit.
 //
 // 反约束 (acceptance §4):
@@ -125,7 +125,7 @@ const ReconnectErrCodeCrossOwnerReject = "bpp.reconnect_cross_owner_reject"
 //
 // Returns nil on success; wrapped sentinel errors on failure
 // (callers errors.Is to map to wire-level codes). 反向 dispatch (此
-// handler 永不写持久 retry state — best-effort 立场承袭 BPP-4).
+// handler 永不写持久 retry state — best-effort 设计沿用 BPP-4).
 func (h *ReconnectHandler) Dispatch(raw json.RawMessage, sess PluginSessionContext) error {
 	var frame ReconnectHandshakeFrame
 	if err := json.Unmarshal(raw, &frame); err != nil {
@@ -171,7 +171,7 @@ func (h *ReconnectHandler) Dispatch(raw json.RawMessage, sess PluginSessionConte
 	}
 
 	// 5. Replay via RT-1.3 ResolveResume (incremental mode, byte-identical
-	// 立场承袭 spec §0.2).
+	// 设计沿用 spec §0.2).
 	if _, _, err := ResolveResume(h.events, SessionResumeRequest{
 		Type:  FrameTypeSessionResume,
 		Mode:  ResumeModeIncremental,

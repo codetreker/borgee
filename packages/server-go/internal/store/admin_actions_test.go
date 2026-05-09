@@ -36,7 +36,7 @@ func TestInsertAdminAction_HappyPath(t *testing.T) {
 	}
 }
 
-// TestInsertAdminAction_RejectsEmptyRequiredFields pins 立场 — actor_id /
+// TestInsertAdminAction_RejectsEmptyRequiredFields pins 设计 — actor_id /
 // target_user_id / action 三必填, server-side gate (跟 schema NOT NULL 双锁).
 func TestInsertAdminAction_RejectsEmptyRequiredFields(t *testing.T) {
 	t.Parallel()
@@ -224,7 +224,7 @@ func TestGrantImpersonation_24hExpiry(t *testing.T) {
 	}
 }
 
-// TestGrantImpersonation_RejectsActiveDuplicate pins 立场 ⑦ — 业主 cooldown
+// TestGrantImpersonation_RejectsActiveDuplicate pins 设计 ⑦ — 业主 cooldown
 // 防重复 grant (24h 期内 grant 已存在 → 409).
 func TestGrantImpersonation_RejectsActiveDuplicate(t *testing.T) {
 	t.Parallel()
@@ -271,7 +271,7 @@ func TestRevokeImpersonation_ClearsActiveGrant(t *testing.T) {
 }
 
 // TestActiveImpersonationGrant_ReturnsNilWhenNone pins ActiveImpersonationGrant
-// 立场 — 无 grant 返 (nil, nil), 不返 sql.ErrNoRows.
+// 设计 — 无 grant 返 (nil, nil), 不返 sql.ErrNoRows.
 func TestActiveImpersonationGrant_ReturnsNilWhenNone(t *testing.T) {
 	t.Parallel()
 	s := runStoreWithMigrations(t)

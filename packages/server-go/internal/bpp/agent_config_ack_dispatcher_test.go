@@ -1,5 +1,5 @@
 // Package bpp_test — agent_config_ack_dispatcher_test.go: AL-2b ack
-// dispatcher 验证锁 (4 test 跟派活字面对应).
+// dispatcher 验证锁 (4 test 跟任务字面对应).
 //
 // 锚: docs/qa/acceptance-templates/al-2b.md §1.2 (status enum 3 态) +
 // §2.5 (cross-owner reject) + §3.2 (reason 字典承袭 AL-1a 6 项).

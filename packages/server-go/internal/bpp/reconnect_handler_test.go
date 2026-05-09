@@ -303,7 +303,7 @@ func TestBPP_NoReconnectQueueInBPPPackage(t *testing.T) {
 	sort.Strings(hits)
 	if len(hits) > 0 {
 		t.Errorf("BPP-5 stance §4 反约束: forbidden reconnect-queue identifiers "+
-			"found in internal/bpp/ source (best-effort 立场代码层守门, 跟 "+
+			"found in internal/bpp/ source (best-effort 设计代码层守门, 跟 "+
 			"BPP-4 dead_letter_test::TestBPP4_NoRetryQueueInBPPPackage 锁链延伸): %v", hits)
 	}
 }

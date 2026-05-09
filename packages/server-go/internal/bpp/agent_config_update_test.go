@@ -1,7 +1,7 @@
 // Package bpp_test — agent_config_update_test.go: BPP-2.3 acceptance
 // tests.
 //
-// Stance pins exercised (bpp-2-spec.md §0 立场 ③ + acceptance §3 +
+// Stance pins exercised (bpp-2-spec.md §0 设计 ③ + acceptance §3 +
 // content-lock §1 ②):
 //   - 6 fields 白名单 byte-identical 跟蓝图 §1.4 表字面
 //   - runtime 调优字段 (api_key/temperature) reject
@@ -71,7 +71,7 @@ func TestBPP_ValidatePayload_AcceptsWhitelistedFields(t *testing.T) {
 
 // TestBPP_ValidatePayload_RejectsRuntimeFields pins acceptance §3.2
 // 反断 + content-lock §2 ⑤ — runtime 调优字段 (蓝图 §1.4 右列) MUST
-// reject (Borgee 不带 runtime 立场 ① 字面).
+// reject (Borgee 不带 runtime 设计 ① 字面).
 func TestBPP_ValidatePayload_RejectsRuntimeFields(t *testing.T) {
 	t.Parallel()
 	for _, payload := range []string{

@@ -7,7 +7,7 @@
 // the same single row to determine the channel's readonly state; only
 // the creator can mutate it (handler-layer ACL).
 //
-// 反约束 (chn-15-spec.md §0 立场 ①+⑤):
+// 反约束 (chn-15-spec.md §0 设计 ①+⑤):
 //   - 改 = 改此一处 — handler / api 层不直接 SQL touch bit 4.
 //   - GetChannelReadonly 走 channel.CreatedBy → user_channel_layout 单行查
 //     (反向断言: 不读 non-creator 行).
@@ -26,7 +26,7 @@ const readonlyBitInternal = 16
 
 // GetChannelReadonly reports whether channelID is currently flagged as
 // readonly. Reads the **creator's** user_channel_layout.collapsed row
-// (channel-wide state via creator-single-row SSOT, 立场 ⑤).
+// (channel-wide state via creator-single-row SSOT, 设计 ⑤).
 //
 // Returns (false, nil) when the channel exists but the creator has no
 // layout row yet (NULL = no bits set = not readonly).
@@ -55,7 +55,7 @@ func (s *Store) GetChannelReadonly(channelID string) (bool, error) {
 // for the bitmask write — preserves bits 0/1/2-3.
 //
 // Caller MUST validate that the requesting user is channel.CreatedBy
-// before calling (handler-layer ACL, 立场 ②).
+// before calling (handler-layer ACL, 设计 ②).
 func (s *Store) SetChannelReadonly(channelID string, readonly bool) (int64, error) {
 	if channelID == "" {
 		return 0, errors.New("channelID required")

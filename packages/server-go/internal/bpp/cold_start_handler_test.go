@@ -158,7 +158,7 @@ func TestBPP_DirectionLock(t *testing.T) {
 }
 
 // TestBPP_FrameSet_NoReconnectFields — acceptance §1.3 字段集与
-// ReconnectHandshakeFrame 互斥反断 (spec §0.1 立场守门).
+// ReconnectHandshakeFrame 互斥反断 (spec §0.1 设计守门).
 func TestBPP_FrameSet_NoReconnectFields(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{"LastKnownCursor", "DisconnectAt", "ReconnectAt"}
@@ -287,7 +287,7 @@ func TestBPP_Handler_NilSafeCtor(t *testing.T) {
 
 // ---- §3 restart count derive + AST 兜底 (3 项) ----
 
-// TestBPP_RestartCount_DerivedFromStateLog — acceptance §3.1 立场 ③
+// TestBPP_RestartCount_DerivedFromStateLog — acceptance §3.1 设计 ③
 // restart 计数走 state-log COUNT(WHERE to_state='online' AND
 // reason='runtime_crashed') 反向 derive (不另开 plugin_restart_count 列).
 func TestBPP_RestartCount_DerivedFromStateLog(t *testing.T) {
@@ -321,9 +321,9 @@ func TestBPP_RestartCount_DerivedFromStateLog(t *testing.T) {
 	}
 }
 
-// TestBPP_Handler_DoesNotInvokeResolveResume — acceptance §2.3 立场 ②
+// TestBPP_Handler_DoesNotInvokeResolveResume — acceptance §2.3 设计 ②
 // 不重放历史 — handler 源 AST identifier scan 不 reference ResolveResume /
-// SessionResumeRequest (注释里说明立场承袭 OK, 实际 ident 调用必 0 hit).
+// SessionResumeRequest (注释里说明设计沿用 OK, 实际 ident 调用必 0 hit).
 func TestBPP_Handler_DoesNotInvokeResolveResume(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -351,12 +351,12 @@ func TestBPP_Handler_DoesNotInvokeResolveResume(t *testing.T) {
 		return true
 	})
 	if len(hits) > 0 {
-		t.Errorf("cold_start_handler.go references %v — BPP-6 spec §0.2 立场: "+
+		t.Errorf("cold_start_handler.go references %v — BPP-6 spec §0.2 设计: "+
 			"cold-start 是 fresh start, 不重放历史 (反向 BPP-5)", hits)
 	}
 }
 
-// TestBPP_NoColdStartQueueInBPPPackage — acceptance §3.3 立场 ⑥
+// TestBPP_NoColdStartQueueInBPPPackage — acceptance §3.3 设计 ⑥
 // best-effort 锁链延伸第 3 处 (BPP-4 dead_letter_test +
 // BPP-5 reconnect_handler_test 同模式).
 func TestBPP_NoColdStartQueueInBPPPackage(t *testing.T) {
@@ -404,7 +404,7 @@ func TestBPP_NoColdStartQueueInBPPPackage(t *testing.T) {
 	sort.Strings(hits)
 	if len(hits) > 0 {
 		t.Errorf("BPP-6 stance §4 反约束: forbidden cold-start-queue / restart-count "+
-			"identifiers in internal/bpp/ source (best-effort 立场 + count 反向 derive 立场, "+
+			"identifiers in internal/bpp/ source (best-effort 设计 + count 反向 derive 设计, "+
 			"跟 BPP-4/BPP-5 锁链延伸第 3 处): %v", hits)
 	}
 }

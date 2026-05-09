@@ -67,7 +67,7 @@ func TestAll_ReturnsCopy(t *testing.T) {
 	}
 }
 
-// TestConstants_ExportedNames — const 字面 byte-identical (反向 grep
+// TestConstants_ExportedNames — const 字面 byte-identical (grep 检查
 // 反字面漂移 在 import-site 上反向断言).
 func TestConstants_ExportedNames(t *testing.T) {
 	cases := []struct{ name, val, want string }{

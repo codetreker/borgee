@@ -5,11 +5,11 @@
 // 分类生效 + "plugin 必须支持幂等 reload, runtime 不缓存 agent 定义 —
 // 每次 inference 前读最新 config") + §1.4 表字面 (Borgee 管: name/avatar/
 // prompt/model/capabilities/enabled / Runtime 管: API key / 温度参数
-// / token 上限 / 限速 / retry — 立场 ① "Borgee 不带 runtime").
+// / token 上限 / 限速 / retry — 设计 ① "Borgee 不带 runtime").
 //
 // Spec brief: docs/implementation/modules/bpp-2-spec.md (战马E #460 v0)
-// §0 立场 ③ + §1 拆段 BPP-2.3.
-// Stance: docs/qa/bpp-2-stance-checklist.md §3 立场 ③ 反约束 checkbox.
+// §0 设计 ③ + §1 拆段 BPP-2.3.
+// Stance: docs/qa/bpp-2-stance-checklist.md §3 设计 ③ 反约束 checkbox.
 // Content lock: docs/qa/bpp-2-content-lock.md §1 ② 6 fields 白名单字面.
 //
 // What this file does:
@@ -22,9 +22,9 @@
 //      (agent_id, config_rev) pushed twice is a no-op (蓝图 §1.5 字面).
 //
 // 反约束 (acceptance §3 + content-lock §2):
-//   - runtime 调优字段不入 frame payload — 反向 grep CI lint count==0
+//   - runtime 调优字段不入 frame payload — grep 检查 CI lint count==0
 //     (acceptance §4.5).
-//   - config 单源 server→plugin (plugin 不上行 config) — 反向 grep
+//   - config 单源 server→plugin (plugin 不上行 config) — grep 检查
 //     CI lint count==0 (acceptance §4.3).
 //   - fields 白名单严闭 — 字典外值 reject + log warn
 //     `bpp.config_field_disallowed`.
@@ -38,7 +38,7 @@ import (
 
 // ConfigField enum — content-lock §1 ② byte-identical 跟蓝图 §1.4 表
 // 左列字面 "归 Borgee 管 (用户选择项)" 完整列表. 改 = 改三处: 蓝图 §1.4
-// + spec §0 立场 ③ + this enum.
+// + spec §0 设计 ③ + this enum.
 const (
 	ConfigFieldName         = "name"
 	ConfigFieldAvatar       = "avatar"
@@ -92,7 +92,7 @@ func IsConfigPayloadMalformed(err error) bool {
 //   - any key ∉ ValidConfigFields → errConfigFieldDisallowed (carries
 //     the offending key for log warn).
 //
-// 反约束: runtime 调优字段 (蓝图 §1.4 右列字面) reject —立场 ③ guard
+// 反约束: runtime 调优字段 (蓝图 §1.4 右列字面) reject —设计 ③ guard
 // at the BPP-2.3 frame ingress.
 func ValidateConfigPayload(frame AgentConfigUpdateFrame) (map[string]any, error) {
 	var parsed map[string]any
@@ -123,7 +123,7 @@ func ValidateConfigPayload(frame AgentConfigUpdateFrame) (map[string]any, error)
 // reader per WS), which is the Borgee BPP-1 invariant — concurrent
 // agent_config_update for the same agent_id from different plugin
 // connections is itself a protocol violation (one runtime per agent,
-// AL-4.1 #398 schema UNIQUE(agent_id) 立场 ① 字面承袭).
+// AL-4.1 #398 schema UNIQUE(agent_id) 设计 ① 字面承袭).
 type ConfigRevTracker struct {
 	last map[string]int64
 }

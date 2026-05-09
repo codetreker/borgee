@@ -4,14 +4,14 @@
 // Spec brief: docs/implementation/modules/hb-3-v2-spec.md §0.1 + §1
 // HB-3 v2.1.
 //
-// 立场 (跟 stance §1+§4 byte-identical):
+// 设计 (跟 stance §1+§4 byte-identical):
 //
 //   - **0 schema 改** — DecayState 从 last_heartbeat_at 反向 derive,
-//     不裂表 / 不另起 sequence (反向 grep 守 production 不引入新表).
+//     不裂表 / 不另起 sequence (grep 检查 守 production 不引入新表).
 //   - **threshold byte-identical 跟 BPP-4** — StaleThreshold = 30 *
 //     time.Second (跟 srvbpp/BPP-7 SDK HeartbeatInterval 同源).
 //   - **enum 字面单源** — DecayState const 字面锁 (`fresh / stale /
-//     dead`); 反向 grep hardcode 在 hb_3_v2*.go 外 0 hit.
+//     dead`); grep 检查 hardcode 在 hb_3_v2*.go 外 0 hit.
 //
 // 反约束:
 //   - nil-safe — DeriveDecayState(now, 0) 返 dead (永久不活); 负
@@ -48,7 +48,7 @@ const DeadThreshold = 60 * time.Second
 // milliseconds. Negative or zero lastHeartbeatAt counts as "no heartbeat
 // ever" → dead.
 //
-// 立场 ① — 反向 derive 不查表 / 不挂 store / 不挂 IO. Reverse-monotonic
+// 设计 ① — 反向 derive 不查表 / 不挂 store / 不挂 IO. Reverse-monotonic
 // safe (now < lastHeartbeatAt → fresh, since the future-dated heartbeat
 // is treated as healthy by virtue of < StaleThreshold).
 func DeriveDecayState(now, lastHeartbeatAt int64) DecayState {
@@ -74,7 +74,7 @@ func DeriveDecayState(now, lastHeartbeatAt int64) DecayState {
 // IsCrossBucketTransition returns true iff the two states are in
 // different decay buckets — used by the watchdog wire (HB-3 v2.2) to
 // decide whether to fire BPP-8 RecordHeartbeatTimeout audit. Same-bucket
-// transitions are silently no-op (立场 ⑦ — 同档不重复触, 防止 audit
+// transitions are silently no-op (设计 ⑦ — 同档不重复触, 防止 audit
 // log 被 high-frequency noise 淹没).
 func IsCrossBucketTransition(from, to DecayState) bool {
 	return from != to

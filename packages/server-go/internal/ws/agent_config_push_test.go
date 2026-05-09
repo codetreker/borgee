@@ -111,7 +111,7 @@ func TestAL_PushAgentConfigUpdate_CursorMonotonic(t *testing.T) {
 }
 
 // TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1 pins acceptance
-// §2.1 立场 ① cursor 共序 — AL-2b push 跟 RT-1.1 PushArtifactUpdated
+// §2.1 设计 ① cursor 共序 — AL-2b push 跟 RT-1.1 PushArtifactUpdated
 // 共一根 sequence (跟 anchor_comment_frame_test / iteration_state_changed_
 // frame_test 同模式 — 反约束: 不另起 channel).
 func TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1(t *testing.T) {

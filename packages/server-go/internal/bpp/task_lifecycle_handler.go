@@ -4,7 +4,7 @@
 //
 // Blueprint锚: docs/blueprint/current/realtime.md §1.1 ⭐ (活物感 / thinking 必带
 // subject) + agent-lifecycle.md §2.3 (busy/idle source = plugin 上行 frame).
-// Spec: docs/implementation/modules/rt-3-spec.md §0 立场 ②+③ + §1 RT-3.2.
+// Spec: docs/implementation/modules/rt-3-spec.md §0 设计 ②+③ + §1 RT-3.2.
 //
 // Wire (跟 BPP-3 #489 + AL-2b #481 AckFrameAdapter + BPP-5/6 同模式):
 //
@@ -15,7 +15,7 @@
 //     pfd.Register(bpp.FrameTypeBPPTaskStarted,  handler.StartedAdapter())
 //     pfd.Register(bpp.FrameTypeBPPTaskFinished, handler.FinishedAdapter())
 //
-// 立场 (跟 spec §0):
+// 设计 (跟 spec §0):
 //   ① BroadcastToChannel multi-device fanout (Hub.PushAgentTaskStateChanged
 //     internal — user-id 路由经 channel member subscription, 反 device-id
 //     拆分; P1MultiDeviceWebSocket #197 模式).
@@ -31,7 +31,7 @@
 //   - 不另起 device-only push channel — 复用 hub.cursors 共序 + channel
 //     member subscription 自动 multi-device fanout.
 //   - admin god-mode 不下发 — handler 仅由 plugin upstream frame 触发,
-//     反向 grep `admin.*PushAgentTaskStateChanged` 0 hit (CI 守门).
+//     grep 检查 `admin.*PushAgentTaskStateChanged` 0 hit (CI 守门).
 //   - 不挂 schema/migration — RT-3 是 0 schema (跟 RT-4 / DM-9 同精神).
 
 package bpp
@@ -71,7 +71,7 @@ type ChannelMemberFetcher interface {
 // AgentTaskPushNotifier is the test seam for push.AgentTaskNotifier.
 // Wraps NotifyAgentTask call (returns attempts count, observability only).
 //
-// 立场 ② thinking subject 必带非空 (busy 态), reason 透传 (idle+failed
+// 设计 ② thinking subject 必带非空 (busy 态), reason 透传 (idle+failed
 // 时 AL-1a 6-dict, 反字典污染).
 type AgentTaskPushNotifier interface {
 	NotifyAgentTask(targetUserID, agentID, state, subject, reason string, changedAt int64) int
@@ -129,7 +129,7 @@ func (h *TaskLifecycleHandler) FinishedAdapter() FrameDispatcher {
 // frame.Subject, reason: ''} via pusher.
 func (h *TaskLifecycleHandler) HandleStarted(frame TaskStartedFrame) error {
 	if err := ValidateTaskStarted(frame); err != nil {
-		// 立场 ② thinking subject 必带非空 — fail-closed, 反 fallback push.
+		// 设计 ② thinking subject 必带非空 — fail-closed, 反 fallback push.
 		// Caller (FrameDispatcher) logs warn via the dispatcher boundary.
 		return err
 	}
@@ -175,7 +175,7 @@ func (h *TaskLifecycleHandler) HandleFinished(frame TaskFinishedFrame) error {
 // background push (DL-4 #485 push gateway). nil-safe: members 或 notifier
 // 任一 nil → 跳 (反 leak / 反 boot panic).
 //
-// 立场: hub.PushAgentTaskStateChanged 走 ws live conn (前台 client),
+// 设计: hub.PushAgentTaskStateChanged 走 ws live conn (前台 client),
 // notifier 走 service worker push (后台 mobile / closed tab). 双轨 fanout
 // 跟 DL-4.6 mention 同模式承袭.
 func (h *TaskLifecycleHandler) fanoutPush(agentID, channelID, state, subject, reason string, ts int64) {

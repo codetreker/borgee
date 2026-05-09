@@ -11,7 +11,7 @@ package ws
 //   ② StartHeartbeat 仅留 ctx + ticker.C 两路 select, ctx-cancel-exit 路径走
 //      短 lived ticker 真测 (NewTicker(time.Microsecond) 让 select 真触发 case)
 //
-// 立场:
+// 设计:
 //   - 0 行为改 (heartbeatTick body byte-identical 跟原 inline)
 //   - 0 race scheduler 依赖 (deterministic cov)
 //   - 不 skip / 不 mask (真补)
@@ -112,7 +112,7 @@ func TestHubHeartbeatTick_DeadAsyncClose(t *testing.T) {
 // TestHubHeartbeatTick_MixedAliveDead 混合场景: 多 client 一些 alive 一些
 // dead, heartbeatTick 单次扫描全员 (alive 收 ping, dead async Close).
 //
-// 验收 cov: 同时跑 alive + dead 两 branch, 反向 grep race scheduler
+// 验收 cov: 同时跑 alive + dead 两 branch, grep 检查 race scheduler
 // 抖动 (本测 0 race-detector 依赖, 走 sync 等 done chan).
 func TestHubHeartbeatTick_MixedAliveDead(t *testing.T) {
 	t.Parallel()

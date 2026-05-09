@@ -1,12 +1,12 @@
 // Package ws — mention_pushed_frame.go: DM-2.2 source-of-truth for the
 // `mention_pushed` push frame. Server fans this out to a mention target
-// (user OR agent — 立场 ⑥ 同表同语义) when the target is online; offline
+// (user OR agent — 设计 ⑥ 同表同语义) when the target is online; offline
 // targets go through the owner system DM fallback path (DM-2.2
 // mention_dispatch.go), which does NOT use this frame.
 //
 // Blueprint锚: docs/blueprint/current/concept-model.md §4 (agent 代表自己 —
 // mention 只 ping target, 不抄送 owner) + §13 隐私默认.
-// Spec brief: docs/implementation/modules/dm-2-spec.md §0 立场 ② + §1
+// Spec brief: docs/implementation/modules/dm-2-spec.md §0 设计 ② + §1
 // 拆段 DM-2.2 (#312, merged) + #362 spec brief 8 字段 envelope.
 // Schema (DM-2.1): #361 message_mentions table (merged 2d2ac4e).
 //
@@ -22,11 +22,11 @@
 //   3. JSON tag 跟客户端 ws-frames.ts 字段名严格一致 (BPP-1 #304 envelope
 //      CI lint 自动闸位 + DM-2.3 client 接).
 //
-// 反约束 (dm-2-spec.md §0 + §3 + #362 §0 立场 ③):
+// 反约束 (dm-2-spec.md §0 + §3 + #362 §0 设计 ③):
 //   - 此 frame 仅 push 给 target_id (BroadcastToUser), 不抄送 owner —
 //     owner 路径走 mention_dispatch.go 的 enqueueOwnerSystemDM 系统 DM,
 //     文案锁 byte-identical (#314 §1 ③) 不复用 body_preview 字符串.
-//   - 不存在 mention_target_owner_id 字段 (立场 ③ 蓝图 §4).
+//   - 不存在 mention_target_owner_id 字段 (设计 ③ 蓝图 §4).
 //   - body_preview 80 字符截断而非 raw body — 防完整内容借 frame 泄露;
 //     完整 body 仍走 new_message event (channel 成员授权路径).
 //
@@ -42,13 +42,13 @@ import "unicode/utf8"
 const FrameTypeMentionPushed = "mention_pushed"
 
 // MentionPushedBodyPreviewMaxRunes is the rune-count cap for body_preview.
-// 80 字符按 #362 spec §0 立场 ② 锁; 防 raw body 完整泄露给 mention target
+// 80 字符按 #362 spec §0 设计 ② 锁; 防 raw body 完整泄露给 mention target
 // (隐私 §13 — completion goes through new_message event 授权路径).
 const MentionPushedBodyPreviewMaxRunes = 80
 
 // MentionPushedFrame — server → client push fired when a message body
 // `@<target_user_id>` token resolves to an online target. 8 字段, 严守
-// dm-2-spec.md §0 立场 ② + #362 spec brief envelope 字面.
+// dm-2-spec.md §0 设计 ② + #362 spec brief envelope 字面.
 //
 // Field order is the contract. Do NOT reorder without updating
 // packages/client/src/types/ws-frames.ts in the same PR.

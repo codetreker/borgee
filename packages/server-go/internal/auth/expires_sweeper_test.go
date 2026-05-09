@@ -234,7 +234,7 @@ func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T
 	mustGrant(t, s, "u-full", "channel.write", "channel:c-A", expiredAt)
 
 	// Pre-sweep: HasCapability is true (legacy AP-1 path — expires_at not
-	// yet consumed by HasCapability per AP-1.1 立场 "schema 保留 UI 不做").
+	// yet consumed by HasCapability per AP-1.1 设计 "schema 保留 UI 不做").
 	ctx := context.WithValue(context.Background(), userContextKey, user)
 	if !HasCapability(ctx, s, "channel.write", "channel:c-A") {
 		t.Fatal("pre-sweep HasCapability should be true (AP-1 path active)")
@@ -262,7 +262,7 @@ func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T
 	}
 }
 
-// REG-AP2-003b (acceptance §3.2 + 立场 ③) — reverse grep 5 pattern in
+// REG-AP2-003b (acceptance §3.2 + 设计 ③) — reverse grep 5 pattern in
 // internal/auth/+internal/api/+internal/migrations/ all count==0 (except
 // for sweeper file itself for the UPDATE pattern).
 func TestAP_ReverseGrep_5Patterns_AllZeroHit(t *testing.T) {

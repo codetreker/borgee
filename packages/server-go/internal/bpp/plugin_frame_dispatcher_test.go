@@ -11,7 +11,7 @@
 //   - AckFrameAdapter raw → typed decoding (delegates to AckDispatcher)
 //   - Direction lock enforcement (server→plugin frame Register panics)
 //
-// 立场守: BPP-3 wire-routing only — no schema, no business logic, just
+// 设计守: BPP-3 wire-routing only — no schema, no business logic, just
 // boundary. Tests assert this by checking AllBPPEnvelopes() interaction.
 
 package bpp_test

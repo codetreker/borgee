@@ -28,7 +28,7 @@
 //
 // 反约束:
 //   - admin god-mode 不调此方法 (ADM-0 §1.3 红线 — admin 不入业务路径).
-//     调用方 (AL-2a PATCH /config handler 或 follow-up) 必须先做 owner-only
+//     调用方 (AL-2a PATCH /config handler 或 后续) 必须先做 owner-only
 //     ACL gate. 此方法不做 ACL — 跟 PushArtifactUpdated 同模式 (broadcast
 //     由调用方决定权限).
 //   - 不返 sent=true 当 plugin 离线 — 这是 AL-2b 跟 RT-1 不同的语义:
@@ -104,7 +104,7 @@ func (h *Hub) PushAgentConfigUpdate(
 		// with 5-field schema byte-identical 跟 HB-1/HB-2 audit (acceptance
 		// §2.2 + content-lock §1.③). 反约束: **不**入持久队列, 不挂 timer
 		// 重发 — RT-1.3 #296 cursor replay 兜底 (plugin 重连后主动拉缺失
-		// frame). Acceptance §4.3 反向 grep `pendingAcks|retryQueue|
+		// frame). Acceptance §4.3 grep 检查 `pendingAcks|retryQueue|
 		// deadLetterQueue` 0 hit 守门.
 		bpp.LogFrameDroppedPluginOffline(h.logger, bpp.DeadLetterAuditEntry{
 			Actor:  "server",

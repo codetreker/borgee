@@ -4,14 +4,14 @@
 // Spec: docs/implementation/modules/dl-3-spec.md §1 DL3.2.
 // Blueprint: data-layer.md §5 阈值哨 + cold archive offload.
 //
-// 立场 (跟 DL-2 #615 EventStore + retention sweeper 同精神承袭):
+// 设计 (跟 DL-2 #615 EventStore + retention sweeper 同精神承袭):
 //   - 当 channel_events 行数超 offload threshold → 走 SQLite ATTACH 旁库
 //     INSERT SELECT 把 created_at < cutoff 的 row 搬到 archive_<yyyy-mm>.db,
 //     源表 DELETE 同事务 — v1 单机磁盘, v2+ 切 Storage interface (蓝图 §4.B.8).
 //   - audit log "events.archive_offload" 走 DL-2 EventBus.Publish 必落 kind
 //     (跟 must_persist_kinds.go admin.force_* 同精神承袭, EventBus 不挂
 //     admin god-mode endpoint, ADM-0 §1.3 红线).
-//   - ctx-aware RunOnce(ctx), 反 goroutine leak (DL-2 retention sweeper 立场
+//   - ctx-aware RunOnce(ctx), 反 goroutine leak (DL-2 retention sweeper 设计
 //     承袭).
 
 package datalayer
@@ -198,7 +198,7 @@ func (o *EventsArchiveOffloader) RunOnce(ctx context.Context) (OffloadResult, er
 	}
 
 	// Audit via DL-2 EventBus (must-persist kind admin.force_* 邻域;
-	// kind = "events.archive_offload" 跟 spec §0 立场 ② 字面 byte-identical).
+	// kind = "events.archive_offload" 跟 spec §0 设计 ② 字面 byte-identical).
 	if o.bus != nil {
 		payload := []byte(fmt.Sprintf(
 			`{"archive_path":%q,"rows_archived":%d,"rows_deleted":%d,"cutoff_ms":%d}`,

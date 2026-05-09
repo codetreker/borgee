@@ -4,7 +4,7 @@
 // These are the runtime methods that actually exercise BPP-3.2 / BPP-4 /
 // BPP-5 / BPP-6 protocols from the plugin side.
 //
-// 立场 (跟 stance §3 + spec §0.3):
+// 设计 (跟 stance §3 + spec §0.3):
 //
 //   - Reconnect (BPP-5 #503) — socket dropped, plugin process alive,
 //     SDK still holds last_known_cursor. Sends ReconnectHandshakeFrame
@@ -12,7 +12,7 @@
 //   - ColdStart (BPP-6 #522) — process restarted, no cursor, no resume.
 //     Sends ColdStartHandshakeFrame; reason is `reasons.RuntimeCrashed`
 //     byte-identical (AL-1a 6-dict 锁链第 12 处, reasons SSOT #496).
-//     字段集与 ReconnectHandshakeFrame 互斥反断 (BPP-6 spec §0.1 立场).
+//     字段集与 ReconnectHandshakeFrame 互斥反断 (BPP-6 spec §0.1 设计).
 //   - HeartbeatLoop — 30s ticker per HeartbeatInterval const (跟 BPP-4
 //     watchdog 周期 byte-identical).
 //   - GrantRetry (BPP-3.2.3) — same MaxPermissionRetries = 3 + RetryBackoff
@@ -85,7 +85,7 @@ func (c *Client) Reconnect(ctx context.Context, url string) error {
 }
 
 // ColdStart dials a fresh ws.Conn and sends a ColdStartHandshakeFrame.
-// 立场 ② cold-start ≠ reconnect — frame 字段集互斥反断 (no cursor).
+// 设计 ② cold-start ≠ reconnect — frame 字段集互斥反断 (no cursor).
 // reason is `reasons.RuntimeCrashed` byte-identical 跟 server BPP-6
 // handler 同源 (AL-1a 锁链第 12 处). Resets SDK lastKnownCursor to 0
 // since process restart drops in-memory state.
@@ -110,7 +110,7 @@ func (c *Client) ColdStart(ctx context.Context, url string) error {
 		_ = c.conn.Close(websocket.StatusNormalClosure, "")
 	}
 	c.conn = conn
-	c.lastKnownCursor = 0 // fresh start, BPP-6 spec §0.2 立场承袭
+	c.lastKnownCursor = 0 // fresh start, BPP-6 spec §0.2 设计沿用
 	c.mu.Unlock()
 	c.logger.Info("sdk.bpp.cold_start_sent",
 		"plugin_id", c.PluginID, "agent_id", c.AgentID,
@@ -120,7 +120,7 @@ func (c *Client) ColdStart(ctx context.Context, url string) error {
 
 // HeartbeatLoop ticks every HeartbeatInterval and SendHeartbeat. Returns
 // when ctx is canceled. Errors during a single tick are logged and the
-// loop continues (best-effort 立场承袭 BPP-4 §0.3).
+// loop continues (best-effort 设计沿用 BPP-4 §0.3).
 func (c *Client) HeartbeatLoop(ctx context.Context) {
 	tick := time.NewTicker(HeartbeatInterval)
 	defer tick.Stop()
@@ -143,7 +143,7 @@ func (c *Client) HeartbeatLoop(ctx context.Context) {
 // times with RetryBackoff between attempts; returns nil on success or
 // `ErrSDKGrantRetryExhausted` after the third failure.
 //
-// Best-effort 立场: no persistent queue, no exponential backoff, no
+// Best-effort 设计: no persistent queue, no exponential backoff, no
 // dead-letter table — single in-memory counter. AST scan守门 forbidden
 // `pendingSDKReconnect/sdkRetryQueue/deadLetterSDK` 0 hit.
 func (c *Client) GrantRetry(ctx context.Context, op func(context.Context) error) error {

@@ -20,8 +20,8 @@ const userContextKey contextKey = "auth_user"
 // CookieName="borgee_admin_session"`. Keep the literal value here; refactor
 // callsites to use this const so any future rename touches one line.
 //
-// 立场: 改 cookie 字面值 = 全用户 session 失效 — 0 字面值改 (本 milestone
-// 仅引用 SSOT, 不改值). 反向 grep `"borgee_token"` in production .go (除本
+// 设计: 改 cookie 字面值 = 全用户 session 失效 — 0 字面值改 (本 milestone
+// 仅引用 SSOT, 不改值). grep 检查 `"borgee_token"` in production .go (除本
 // const) ==0 hit (post-cleanup).
 const CookieName = "borgee_token"
 

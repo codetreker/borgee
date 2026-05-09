@@ -7,7 +7,7 @@
 // validTaskReasons / validAL1aReasons / validReasons in agent_state_log) 而
 // 非 SSOT import — 第 9/10 处 fork 风险高 (字面漂移 = 8 处单测同时挂).
 //
-// 立场:
+// 设计:
 //   ① SSOT — 6 const + IsValid() + All() 单包暴露, 字面只改这一处;
 //   ② 不增字典语义 — 仅 dedupe, 8 源行为 byte-identical (test 全 PASS);
 //   ③ 锚点 — `ALL` 切片字面顺序 byte-identical 跟 AL-1a #249 原序锁;
@@ -59,7 +59,7 @@ var validSet = func() map[string]bool {
 // `validTaskReasons[s]` / `validAL1aReasons[s]` map lookup.
 //
 // 反约束: 严格 byte-identical match — 大小写漂移 / trim 漂移 全 reject
-// (acceptance §状态机 立场 ④ 跨 milestone 同源).
+// (acceptance §状态机 设计 ④ 跨 milestone 同源).
 func IsValid(s string) bool {
 	return validSet[s]
 }

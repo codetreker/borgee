@@ -5,7 +5,7 @@
 //
 // Blueprint锚: docs/blueprint/current/canvas-vision.md L24 + RT-3 #488 hub.cursors
 // 共序锚 + DM-2.2 #372 MentionPushedFrame 同模式 (8 字段).
-// Spec brief: docs/implementation/modules/cv-5-spec.md §0 立场 ② + §1.
+// Spec brief: docs/implementation/modules/cv-5-spec.md §0 设计 ② + §1.
 //
 // Behaviour contract — byte-identical 跟 RT-1.1 ArtifactUpdatedFrame /
 // CV-2.2 AnchorCommentAddedFrame / DM-2.2 MentionPushedFrame:
@@ -17,7 +17,7 @@
 //      80 rune 截断 — 跟 DM-2.2 隐私 §13 同 cap).
 //   3. JSON tag 跟客户端 ws-frames.ts 字段名严格一致.
 //
-// 反约束 (cv-5-spec.md §0 立场 ②):
+// 反约束 (cv-5-spec.md §0 设计 ②):
 //   - frame 仅 fan-out 给 artifact: namespace channel 成员 (BroadcastToChannel),
 //     不挂 admin god-mode 抄送 (ADM-0 §1.3 红线).
 //   - body_preview 80 rune 截断 (隐私 §13).
@@ -33,7 +33,7 @@ const FrameTypeArtifactCommentAdded = "artifact_comment_added"
 const ArtifactCommentBodyPreviewMaxRunes = 80
 
 // ArtifactCommentAddedFrame — server → client push fired after a comment
-// lands on an artifact. 9 字段, 严守 cv-5-spec.md §0 立场 ② 字面.
+// lands on an artifact. 9 字段, 严守 cv-5-spec.md §0 设计 ② 字面.
 //
 // Field order is the contract. Do NOT reorder without updating
 // packages/client/src/types/ws-frames.ts in the same PR.

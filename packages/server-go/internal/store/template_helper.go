@@ -7,7 +7,7 @@ package store
 // >50%. 本 helper 把 Migrate 一次性跑到 file-backed template.db, 之后每
 // test 只 io.Copy template.db → fresh.db (1.24ms / 461 allocs, ~20x 加速).
 //
-// 立场:
+// 设计:
 //   - 0 production code 改 (本文件 _test.go scoped, 仅 test path 用)
 //   - byte-identical schema (template 跑同 Migrate, 0 schema drift)
 //   - 每 test 独立 DB (clone file, sqlite 单进程 file backed, 互不干扰)

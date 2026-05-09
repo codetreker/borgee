@@ -126,7 +126,7 @@ func HandlePlugin(hub *Hub) http.HandlerFunc {
 				// Plugin→Server BPP frames (BPP-2 task lifecycle, etc.)
 				// land here.
 				//
-				// 立场: RPC envelope above ({type, id, data}) is request-
+// 设计: RPC envelope above ({type, id, data}) is request-
 				// reply; BPP envelope here is fire-and-forget event
 				// stream — different shapes, different lifecycle, hence
 				// the dispatch boundary split.

@@ -43,7 +43,7 @@ func (f *fakeHandler) HandleAction(frame bpp.SemanticActionFrame, sess bpp.Sessi
 // 跟蓝图 plugin-protocol.md §1.3 字面. Order matters — content-lock
 // §1 ① bytes the op list directly.
 //
-// BPP-3.2.1 (#494 follow-up) extends 7→8 with `request_capability_grant`
+// BPP-3.2.1 (#494 后续) extends 7→8 with `request_capability_grant`
 // (蓝图 auth-permissions.md §1.3 主入口字面承袭).
 func TestBPP_OpWhitelist(t *testing.T) {
 	t.Parallel()
@@ -280,7 +280,7 @@ func TestBPP_DispatchErrorCodeLiteral(t *testing.T) {
 		t.Errorf("DispatchErrCodeOpUnknown literal drift: got %q, want %q",
 			bpp.DispatchErrCodeOpUnknown, "bpp.semantic_op_unknown")
 	}
-	// Reserved for §4.1 反向 grep — defense-in-depth witness.
+	// Reserved for §4.1 grep 检查 — defense-in-depth witness.
 	if bpp.DispatchErrCodeNoRawREST != "bpp.plugin_no_raw_rest" {
 		t.Errorf("DispatchErrCodeNoRawREST literal drift: got %q, want %q",
 			bpp.DispatchErrCodeNoRawREST, "bpp.plugin_no_raw_rest")

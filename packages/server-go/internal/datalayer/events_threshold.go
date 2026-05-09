@@ -3,10 +3,10 @@
 // Spec: docs/implementation/modules/dl-3-spec.md §1 DL3.1.
 // Blueprint: data-layer.md §5 阈值哨 (db_size / wal_pending / write_lock / row_count).
 //
-// 立场 (跟 DL-2 #615 retention sweeper 同精神承袭):
+// 设计 (跟 DL-2 #615 retention sweeper 同精神承袭):
 //   - 4 阈值常量字面 byte-identical 跟蓝图 §5
 //   - level 双档 enum (WARN / CRITICAL), 反 inline 字面漂
-//   - ctx-aware Start(ctx), 反 goroutine leak (#608 / #614 / #615 立场承袭)
+//   - ctx-aware Start(ctx), 反 goroutine leak (#608 / #614 / #615 设计沿用)
 //   - slog Logger.Warn/Error 输出, 反 admin god-mode endpoint (ADM-0 §1.3 红线)
 
 package datalayer
@@ -46,7 +46,7 @@ func (l ThresholdLevel) String() string {
 
 // DBThreshold is the canonical 4-metric SSOT for v1 single-machine阈值哨.
 //
-// v1 估算值 (蓝图 §5 byte-identical), 上线后可调 follow-up tune:
+// v1 估算值 (蓝图 §5 byte-identical), 上线后可调 后续 tune:
 //   - db_size_mb         WARN=5000  CRITICAL=10000
 //   - wal_pending_pages  WARN=1000  CRITICAL=5000
 //   - write_lock_wait_ms WARN=100   CRITICAL=1000
@@ -58,7 +58,7 @@ type DBThreshold struct {
 }
 
 // DefaultThresholds returns the 4 canonical metrics with v1 estimates.
-// 立场: 单源 const 不散落, 反 inline literal drift.
+// 设计: 单源 const 不散落, 反 inline literal drift.
 func DefaultThresholds() []DBThreshold {
 	return []DBThreshold{
 		{Name: "db_size_mb", Warn: 5000, Critical: 10000},

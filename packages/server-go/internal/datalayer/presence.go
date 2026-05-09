@@ -1,12 +1,12 @@
 // DL-1 — PresenceStore interface (蓝图 §4 B 第 2 条).
 //
-// 立场 ① (DL-1 spec §0): IsOnline / Sessions byte-identical 跟蓝图.
+// 设计 ① (DL-1 spec §0): IsOnline / Sessions byte-identical 跟蓝图.
 // v1 实现 InMemoryPresence 走 AL-3 #324 既有 presence.PresenceTracker
 // (内部 in-memory map) byte-identical 不破 — 跟 G2.5 contract 锁同源.
 //
-// RT-3 ⭐ 立场 ② (rt-3-spec.md §0.2): PresenceState 4 态 enum SSOT —
+// RT-3 ⭐ 设计 ② (rt-3-spec.md §0.2): PresenceState 4 态 enum SSOT —
 // online / away / offline / thinking (蓝图 §1.4 活物感 4 态). 单源 const
-// 反向 grep count==4 hit (反 5 态漂 / 反 false-loading indicator 漂入).
+// grep 检查 count==4 hit (反 5 态漂 / 反 false-loading indicator 漂入).
 //
 // 切换路径 (留 v3+):
 //   - InMemoryPresence (v1) → presence.PresenceTracker
@@ -21,7 +21,7 @@ import "context"
 // 反约束 (rt-3-spec.md §0.2 + content-lock §3):
 //   - 4 态封闭枚举, 不另起第 5 态 (反 type-T-indicator 漂入: t-y-p-i-n-g
 //     / c-o-m-p-o-s-i-n-g / 输 入 中 等同义词跨 enum 漂)
-//   - 反向 grep `PresenceStateOnline|PresenceStateAway|PresenceStateOffline|
+//   - grep 检查 `PresenceStateOnline|PresenceStateAway|PresenceStateOffline|
 //     PresenceStateThinking` count==4 hit (单源)
 //   - thinking 态必带 subject (走 bpp.ValidateTaskStarted SSOT, 反空字符串 reject)
 type PresenceState string

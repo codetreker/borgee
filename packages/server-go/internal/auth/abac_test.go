@@ -1,11 +1,11 @@
-// Package auth — abac_test.go: AP-1 立场 ②③ ABAC 单 SSOT + capability
+// Package auth — abac_test.go: AP-1 设计 ②③ ABAC 单 SSOT + capability
 // const 白名单单测.
 //
 // Pins:
 //   REG-AP1-001 — capability const 白名单 byte-identical (≤30, spec §1 ③)
 //   REG-AP1-002 — HasCapability agent 严格 (蓝图 §1.4 不享 wildcard)
 //   REG-AP1-003 — HasCapability cross-scope 403
-//   REG-AP1-004 — HasCapability human 享 wildcard 短路 (立场 ④)
+//   REG-AP1-004 — HasCapability human 享 wildcard 短路 (设计 ④)
 //   REG-AP1-005 — HasCapability nil user → false
 //   REG-AP1-006 — ArtifactScope resolver `artifact:{id}` (跟 channelScope 同模式)
 //   REG-AP1-007 — ArtifactScopeStr / ChannelScopeStr 单源 builder
@@ -24,7 +24,7 @@ import (
 	"borgee-server/internal/store"
 )
 
-// TestCapabilities_WhitelistByteIdentical pins spec §1 立场 ③ — 字面
+// TestCapabilities_WhitelistByteIdentical pins spec §1 设计 ③ — 字面
 // 白名单 ≤30, 跟 spec §1 ③ + 蓝图 §1 byte-identical (改一处 = 改三处+:
 // spec + 蓝图 + acceptance + 此 const).
 func TestCapabilities_WhitelistByteIdentical(t *testing.T) {
@@ -75,7 +75,7 @@ func TestHasCapability_AgentExplicitScope_Pass(t *testing.T) {
 }
 
 // TestHasCapability_AgentNoWildcardShortcut — agent 即使有 (*,*) 行
-// 也 false (蓝图 §1.4 立场 字面承袭). REG-AP1-002 + spec §2 反约束精神.
+// 也 false (蓝图 §1.4 设计 字面沿用). REG-AP1-002 + spec §2 反约束精神.
 func TestHasCapability_AgentNoWildcardShortcut(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
@@ -107,7 +107,7 @@ func TestHasCapability_AgentCrossScope_False(t *testing.T) {
 }
 
 // TestHasCapability_HumanWildcard_Pass — human owner 享 (*,*) 短路
-// (立场 ④ 区分 agent/human).
+// (设计 ④ 区分 agent/human).
 func TestHasCapability_HumanWildcard_Pass(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
@@ -118,7 +118,7 @@ func TestHasCapability_HumanWildcard_Pass(t *testing.T) {
 	})
 	ctx := context.WithValue(context.Background(), userContextKey, human)
 	if !HasCapability(ctx, s, CommitArtifact, "artifact:art-1") {
-		t.Error("human (*,*) wildcard 应短路 — 立场 ④ 区分 agent/human")
+		t.Error("human (*,*) wildcard 应短路 — 设计 ④ 区分 agent/human")
 	}
 }
 

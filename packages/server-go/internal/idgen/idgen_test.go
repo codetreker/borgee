@@ -1,6 +1,6 @@
 // Package idgen — idgen_test.go: ULID-MIGRATION SSOT helper tests.
 //
-// Spec: docs/implementation/modules/ulid-migration-spec.md §0 立场 ① + 必修-3
+// Spec: docs/implementation/modules/ulid-migration-spec.md §0 设计 ① + 必修-3
 // (ULID monotonic 真测).
 
 package idgen
@@ -37,7 +37,7 @@ func TestNewID_Unique(t *testing.T) {
 }
 
 // TestNewID_Monotonic_SerialCalls pins lex-sortable monotonic order over
-// serial calls (蓝图 §4.A.1 字面 ULID lock-in monotonic 立场).
+// serial calls (蓝图 §4.A.1 字面 ULID lock-in monotonic 设计).
 func TestNewID_Monotonic_SerialCalls(t *testing.T) {
 	t.Parallel()
 	const N = 200

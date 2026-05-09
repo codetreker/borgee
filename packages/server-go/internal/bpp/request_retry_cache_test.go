@@ -105,7 +105,7 @@ func TestBPP_RetryCache_30sFixedBackoffEnforced(t *testing.T) {
 	clock := func() time.Time { return now }
 	c := bpp.NewRequestRetryCacheWithClock(clock)
 
-	// Const literal lock — 反向 grep `RetryBackoff.*=.*60\|RetryBackoff.*=.*15`
+	// Const literal lock — grep 检查 `RetryBackoff.*=.*60\|RetryBackoff.*=.*15`
 	// 等漂值 0 hit (content-lock §4 字面 30s).
 	if bpp.RetryBackoff != 30*time.Second {
 		t.Fatalf("RetryBackoff const drift: got %v, want 30s (content-lock §4)", bpp.RetryBackoff)
@@ -137,7 +137,7 @@ func TestBPP_RetryCache_30sFixedBackoffEnforced(t *testing.T) {
 	}
 }
 
-// REG-BPP32-204 (acceptance §3.2 + spec §1 立场 ③ + content-lock §4) —
+// REG-BPP32-204 (acceptance §3.2 + spec §1 设计 ③ + content-lock §4) —
 // IsRetryExhausted sentinel matcher + Remove (post-success cleanup).
 func TestBPP_RetryCache_RemoveAfterSuccess(t *testing.T) {
 	t.Parallel()

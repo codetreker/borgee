@@ -78,7 +78,7 @@ func TestAL_RunOnceArchivesExpired(t *testing.T) {
 }
 
 // REG-AL7-002 — soft-archive: row stays in table, archived_at set;
-// not real DELETE. 立场 ①.
+// not real DELETE. 设计 ①.
 func TestAL_RunOnceSoftArchiveNotRealDelete(t *testing.T) {
 	t.Parallel()
 	s := al7TestStore(t)
@@ -174,7 +174,7 @@ func TestAL_SweeperReason_ByteIdentical(t *testing.T) {
 	}
 }
 
-// REG-AL7-007 — 立场 ④ + 立场 ⑤ 反向 grep: cron framework + retention
+// REG-AL7-007 — 设计 ④ + 设计 ⑤ grep 检查: cron framework + retention
 // queue tokens 0 hit in this file.
 func TestAL_NoCronFrameworkImport(t *testing.T) {
 	t.Parallel()
@@ -193,7 +193,7 @@ func TestAL_NoCronFrameworkImport(t *testing.T) {
 	}
 }
 
-// REG-AL7-008 — 立场 ⑤ AST 锁链延伸第 7 处 forbidden-token 0 hit.
+// REG-AL7-008 — 设计 ⑤ AST 锁链延伸第 7 处 forbidden-token 0 hit.
 //
 // Scans internal/auth + internal/api production *.go (excluding tests)
 // for retention-queue / dead-letter tokens (跟 BPP-4/5/6/7/8 + HB-3 v2

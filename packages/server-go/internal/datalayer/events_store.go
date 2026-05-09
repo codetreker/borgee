@@ -2,7 +2,7 @@
 //
 // Spec: docs/implementation/modules/dl-2-spec.md §1 DL2.2.
 //
-// 立场 ① + ② (dl-2-spec.md §0):
+// 设计 ① + ② (dl-2-spec.md §0):
 //   - hot stream byte-identical 不破 (InProcessEventBus.Publish/Subscribe
 //     既有 in-process map + buffered chan, live fanout 路径不动).
 //   - cold stream 异步 INSERT 到 channel_events / global_events 表; 失败

@@ -7,7 +7,7 @@
 // Spec: docs/implementation/modules/bpp-6-spec.md §0+§1 BPP-6.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-6.md §2.
 //
-// 立场 (跟 stance §2+§3+§4 byte-identical):
+// 设计 (跟 stance §2+§3+§4 byte-identical):
 //   - **cold-start ≠ reconnect** — 字段集与 ReconnectHandshakeFrame 互斥
 //     (不带 cursor / 不 expect resume). spec §0.1.
 //   - **agent state 重新 derive** — server 收 cold_start_handshake →
@@ -19,7 +19,7 @@
 //     byte-identical (反映上次 error → 此次复活语义). reasons SSOT #496
 //     6-dict 不扩第 7. AL-1a reason 锁链 BPP-6 = 第 11 处 (BPP-2.2 第 7
 //     + AL-2b 第 8 + BPP-4 第 9 + BPP-5 第 10 + BPP-6 第 11). spec §0.3.
-//   - **best-effort 不重发** (跟 BPP-4 §0.3 + BPP-5 §0.6 立场承袭) —
+//   - **best-effort 不重发** (跟 BPP-4 §0.3 + BPP-5 §0.6 设计沿用) —
 //     server 端不挂 cold-start retry queue / persistent state. AST scan
 //     反向断言 forbidden tokens (pendingColdStart/coldStartQueue/
 //     deadLetterColdStart) 0 hit (锁链延伸第 3 处).

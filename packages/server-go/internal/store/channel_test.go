@@ -2,7 +2,7 @@ package store
 
 // TEST-FIX-3-COV: deterministic SetChannelReadonly cov 真补 (was 0%).
 //
-// 立场: 真补 deterministic cov 让 baseline 重回 ≥85% — 0 race scheduler 依赖.
+// 设计: 真补 deterministic cov 让 baseline 重回 ≥85% — 0 race scheduler 依赖.
 
 import (
 	"testing"

@@ -26,11 +26,11 @@
 //      ActionHandler / cv-4.2 IterationStatePusher 同模式) — bpp 包
 //      不 import internal/api, api 包注册 AgentConfigAckHandler.
 //
-// 反约束 (acceptance §3.2 + §4 反向 grep, 跟 al-2b-spec §3 byte-identical):
-//   - admin god-mode 不入业务路径 — CI 反向 grep 守 (al-2b-spec §3
+// 反约束 (acceptance §3.2 + §4 grep 检查, 跟 al-2b-spec §3 byte-identical):
+//   - admin god-mode 不入业务路径 — CI grep 检查 守 (al-2b-spec §3
 //     第 3 行) count==0.
-//   - cursor 唯一可信序 — CI 反向 grep 守 (al-2b-spec §3 第 7 行) count==0.
-//   - AL-2a 轮询路径下线 drift 防双轨 — CI 反向 grep 守 (al-2b-spec §3
+//   - cursor 唯一可信序 — CI grep 检查 守 (al-2b-spec §3 第 7 行) count==0.
+//   - AL-2a 轮询路径下线 drift 防双轨 — CI grep 检查 守 (al-2b-spec §3
 //     第 6 行) count==0.
 //   - reason 字典不另起 — 复用 internal/agent/state.go::Reason* SSOT,
 //     drift 则 BPP-2.2 task_finished + AL-2b ack 同破.
@@ -139,7 +139,7 @@ type OwnerResolver interface {
 //
 // 反约束 (acceptance §4):
 //   - admin god-mode 不入此路径 (handler.HandleAck 走 owner-only ACL,
-//     CI 反向 grep 守 al-2b-spec §3 第 3 行).
+//     CI grep 检查 守 al-2b-spec §3 第 3 行).
 //   - 不接 raw HTTP / REST endpoint (interface seam, dispatcher 零
 //     internal/api import — 跟 BPP-2.1 同模式).
 type AckDispatcher struct {

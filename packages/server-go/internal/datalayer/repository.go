@@ -1,12 +1,12 @@
 // DL-1 — Repository interfaces (蓝图 §4 B 第 4 条).
 //
-// 立场 ① (DL-1 spec §0): 4 typed Repository wrap 既有 store.Store 字面.
+// 设计 ① (DL-1 spec §0): 4 typed Repository wrap 既有 store.Store 字面.
 // v1 实现 SQLiteRepository 走 store.Store gorm 直查 byte-identical 不破.
 //
 // Note (战马D): 蓝图 §4 B 列了 4 typed Repo (User / Channel / Message /
 // Artifact); v1 现状只有 User/Channel/Message 在 store 包真有 model + CRUD,
-// Artifact 走 internal/api/artifacts.go 直 gorm. ArtifactRepo 留 v1.5 follow-up
-// 当 store.Artifact model 抽出时再补 (跟 spec §3 "渐进迁移" 立场承袭).
+// Artifact 走 internal/api/artifacts.go 直 gorm. ArtifactRepo 留 v1.5 后续
+// 当 store.Artifact model 抽出时再补 (跟 spec §3 "渐进迁移" 设计沿用).
 //
 // 切换路径 (留 v3+, DL-3 阈值哨触发):
 //   - SQLiteRepository (v1) → store.Store wrap

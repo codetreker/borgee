@@ -1,4 +1,4 @@
-// Package auth — expires_sweeper.go: AP-2 立场 ① expires_at sweeper
+// Package auth — expires_sweeper.go: AP-2 设计 ① expires_at sweeper
 // goroutine + soft-delete revoke + audit log.
 //
 // AP-1.1 #493 schema reserved `user_permissions.expires_at INTEGER NULL`
@@ -10,8 +10,8 @@
 // 不另起 expires_audit 表).
 //
 // Spec: docs/implementation/modules/ap-2-spec.md (战马C v0, cfa3869)
-// §0 立场 ①②③ + §1 拆段 AP-2.1 + AP-2.2.
-// Stance: docs/qa/ap-2-stance-checklist.md (8 立场).
+// §0 设计 ①②③ + §1 拆段 AP-2.1 + AP-2.2.
+// Stance: docs/qa/ap-2-stance-checklist.md (8 条原则).
 // Acceptance: docs/qa/acceptance-templates/ap-2.md §1.1-§3.3.
 //
 // Public surface:
@@ -21,17 +21,17 @@
 //   - (s *ExpiresSweeper) RunOnce(ctx) (count int, err error) — 单次扫
 //     描入口 (testable 同步 path, Start 内部循环走此)
 //
-// 反约束 (ap-2-spec.md §3 + 立场 ①③⑦⑧):
-//   - 不真删 row — UPDATE user_permissions SET revoked_at = ? (反向 grep
+// 反约束 (ap-2-spec.md §3 + 设计 ①③⑦⑧):
+//   - 不真删 row — UPDATE user_permissions SET revoked_at = ? (grep 检查
 //     `DELETE FROM user_permissions` 在 internal/auth/+internal/api/ 除
 //     此文件 count==0)
 //   - 不另起 expires_audit 表 — 复用 admin_actions (ADM-2.1 #484 既有 path)
 //   - 不引入 cron 框架 — 用 time.Ticker (跟 AL-1b agent_status sweeper
-//     同模式; 反向 grep `cron|gocron` count==0)
+//     同模式; grep 检查 `cron|gocron` count==0)
 //   - admin god-mode 不入此 path — actor='system' 字面 (跟 BPP-4 watchdog
 //     actor='system' 跨五 milestone 锁; admin 主动 revoke 走 ADM-3+
 //     单独 path)
-//   - 不 time.Sleep — 用 ticker (反向 grep time.Sleep 在此文件 count==0)
+//   - 不 time.Sleep — 用 ticker (grep 检查 time.Sleep 在此文件 count==0)
 package auth
 
 import (
@@ -61,7 +61,7 @@ const SystemActorID = "system"
 const DefaultSweeperInterval = 1 * time.Hour
 
 // ExpiresSweeper periodically revokes user_permissions rows whose
-// expires_at has passed. 立场 ①: forward-only soft-delete via
+// expires_at has passed. 设计 ①: forward-only soft-delete via
 // revoked_at + audit row.
 //
 // All fields optional (nil-safe — Logger nil = silent; Now nil =
@@ -150,7 +150,7 @@ func (s *ExpiresSweeper) RunOnce(ctx context.Context) (int, error) {
 	}
 
 	// Step 2 — soft-delete: write revoked_at = expires_at (forward-only,
-	// row 不真删). 立场 ①: UPDATE not DELETE.
+	// row 不真删). 设计 ①: UPDATE not DELETE.
 	revoked := 0
 	for _, r := range rows {
 		var revokedAt int64
@@ -167,8 +167,8 @@ func (s *ExpiresSweeper) RunOnce(ctx context.Context) (int, error) {
 			return revoked, err
 		}
 
-		// Step 3 — write audit row (复用 ADM-2.1 InsertAdminAction). 立场 ②:
-		// 不另起 expires_audit 表; actor='system' 字面 (立场 ④); action
+		// Step 3 — write audit row (复用 ADM-2.1 InsertAdminAction). 设计 ②:
+		// 不另起 expires_audit 表; actor='system' 字面 (设计 ④); action
 		// 'permission_expired' const 字面 byte-identical 跟 admin_actions
 		// CHECK 6-tuple 同源.
 		meta, err := json.Marshal(map[string]any{

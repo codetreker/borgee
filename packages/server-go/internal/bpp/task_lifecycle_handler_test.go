@@ -1,5 +1,5 @@
 // Package bpp — task_lifecycle_handler_test.go: RT-3 server派生 hook
-// unit tests. Covers立场 ②+③:
+// unit tests. Covers设计 ②+③:
 //
 //   - HandleStarted: empty subject → errSubjectEmpty (反 fallback push)
 //   - HandleStarted: valid → pusher receives state='busy' + subject 透传
@@ -54,7 +54,7 @@ func TestRT_HandleStarted_EmptySubjectRejected(t *testing.T) {
 		t.Fatalf("expected errSubjectEmpty, got %v", err)
 	}
 	if len(p.calls) != 0 {
-		t.Errorf("立场 ② fail-closed broken — pusher got %d calls on subject empty (expected 0)", len(p.calls))
+		t.Errorf("设计 ② fail-closed broken — pusher got %d calls on subject empty (expected 0)", len(p.calls))
 	}
 }
 
@@ -198,6 +198,6 @@ func TestRT_StartedAdapter_EmptySubject_PreservesSentinelChain(t *testing.T) {
 		t.Errorf("errors.Is sanity")
 	}
 	if !bpp.IsTaskSubjectEmpty(err) {
-		t.Errorf("立场 ② sentinel chain broken: %v", err)
+		t.Errorf("设计 ② sentinel chain broken: %v", err)
 	}
 }

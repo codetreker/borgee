@@ -1,6 +1,6 @@
 // DL-1 — concrete v1 implementations wrapping existing store.Store.
 //
-// 立场 ② (DL-1 spec §0): factory pattern + DI seam 单源, 跟 BPP-3
+// 设计 ② (DL-1 spec §0): factory pattern + DI seam 单源, 跟 BPP-3
 // PluginFrameDispatcher / reasons.IsValid SSOT 同精神.
 //
 // v1 wrap byte-identical 不破: handler 走 Repository interface, 内部
@@ -107,7 +107,7 @@ func (p *inMemoryPresence) Sessions(_ context.Context, userID string) ([]string,
 //
 // v1: artifacts go thru store.Store directly via gorm; this Storage interface
 // is wired but its concrete impl is an opaque-key placeholder pending
-// follow-up DL-1.5 (when artifact body extraction is needed).
+// 后续 DL-1.5 (when artifact body extraction is needed).
 
 type localDBStorage struct{ s *store.Store }
 
@@ -117,7 +117,7 @@ func (l *localDBStorage) GetURL(_ context.Context, key string) (string, error) {
 	if key == "" {
 		return "", ErrStorageKeyNotFound
 	}
-	// v1 占位: artifact body 走 Repository (留 DL-1.5 follow-up). 现 caller
+	// v1 占位: artifact body 走 Repository (留 DL-1.5 后续). 现 caller
 	// 没真消费 Storage.GetURL, 锁 interface 不锁实现.
 	return fmt.Sprintf("db://artifact/%s", key), nil
 }
@@ -147,13 +147,13 @@ type inProcessEventBus struct {
 // WIRE-1 #1: removed NewInProcessEventBus (hot-only constructor) —
 // production factory.go always wires NewInProcessEventBusWithStore (DL-2
 // cold consumer 真接 channel_events / global_events 表). Hot-only path
-// 仅 v0 spec stub, post-WIRE-1 已无 callsite (反 dead code 立场承袭).
+// 仅 v0 spec stub, post-WIRE-1 已无 callsite (反 dead code 设计沿用).
 
 // NewInProcessEventBusWithStore wires a cold-stream EventStore consumer.
 // Publish forks an async INSERT to channel_events / global_events; failures
-// are logging-only and do NOT block the hot stream (蓝图 §4 立场).
+// are logging-only and do NOT block the hot stream (蓝图 §4 设计).
 //
-// DL-2 spec §0 立场 ② — hot stream byte-identical, cold stream is additive.
+// DL-2 spec §0 设计 ② — hot stream byte-identical, cold stream is additive.
 func NewInProcessEventBusWithStore(store EventStore) EventBus {
 	return &inProcessEventBus{
 		subs:  make(map[string][]chan Event),
@@ -168,7 +168,7 @@ func (b *inProcessEventBus) Publish(_ context.Context, topic string, payload []b
 		case ch <- Event{Topic: topic, Payload: payload}:
 		default:
 			// best-effort: subscriber buffer 满则 drop (跟 BPP-4 dead_letter
-			// 立场承袭, RT-1.3 cursor replay 兜底).
+			// 设计沿用, RT-1.3 cursor replay 兜底).
 		}
 	}
 	// cold stream: async persist (DL-2). Failures logging-only, no-op when

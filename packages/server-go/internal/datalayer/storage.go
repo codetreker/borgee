@@ -1,6 +1,6 @@
 // DL-1 — Storage interface (蓝图 §4 B 第 1 条).
 //
-// 立场 ① (cs-spec §0): GetURL / PutBlob / Delete 三方法 byte-identical 跟蓝图.
+// 设计 ① (cs-spec §0): GetURL / PutBlob / Delete 三方法 byte-identical 跟蓝图.
 // v1 实现 LocalDBStorage 走既有 store.Store artifacts blob 路径 (artifacts
 // 当前实际入 DB, 不在 fs; 蓝图 "local fs" 字面是 v0 假设, v1 实际 DB blob).
 //
@@ -27,7 +27,7 @@ type Storage interface {
 	PutBlob(ctx context.Context, key string, data []byte) error
 
 	// Delete removes the blob. v1 走 store soft-delete (forward-only audit
-	// 立场: 不 真删 DB row, 跟 ADM-3 audit-forward-only 同精神).
+// 设计: 不 真删 DB row, 跟 ADM-3 audit-forward-only 同精神).
 	Delete(ctx context.Context, key string) error
 }
 

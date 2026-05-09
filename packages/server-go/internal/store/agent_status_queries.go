@@ -19,7 +19,7 @@ import (
 //                last_task_started_at NULL, last_task_finished_at NULL,
 //                created_at NOT NULL, updated_at NOT NULL)
 //
-// 立场 ② BPP 单源 — these helpers are called only from the BPP frame
+// 设计 ② BPP 单源 — these helpers are called only from the BPP frame
 // dispatcher (BPP-2 待落) + the 5min idle reaper. No public PATCH path
 // (GET-only at /api/v1/agents/:id/status, see api/al_1b_2_status.go).
 
@@ -60,7 +60,7 @@ func IsAgentStatusNotFound(err error) bool {
 
 // SetAgentTaskStarted upserts agent_status to state='busy' with the
 // task_id snapshot. Called by the BPP `task_started` frame dispatcher
-// (BPP-2 待落) — 立场 ② 单 source. now 注入用于测试.
+// (BPP-2 待落) — 设计 ② 单 source. now 注入用于测试.
 func (s *Store) SetAgentTaskStarted(agentID, taskID string, now time.Time) error {
 	if agentID == "" {
 		return errors.New("agent_status: empty agent_id")

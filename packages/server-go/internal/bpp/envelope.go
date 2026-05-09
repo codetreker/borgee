@@ -57,7 +57,7 @@ const (
 	// BPP-2.2 task lifecycle reverse-channel — plugin upstream signals
 	// agent busy/idle (蓝图 §1.6 + agent-lifecycle §2.3 字面: source 必须
 	// plugin 上行 frame, 不准 stub). 跟 AL-1b #482 BPP single source
-	// 立场同源 (蓝图 §2.3 R3). online = session-level 走 WS conn
+	// 设计同源 (蓝图 §2.3 R3). online = session-level 走 WS conn
 	// lifecycle, 跟 task-level (busy) 正交.
 	FrameTypeBPPTaskStarted  = "task_started"
 	FrameTypeBPPTaskFinished = "task_finished"
@@ -162,7 +162,7 @@ func (RuntimeSchemaAdvertiseFrame) FrameDirection() Direction { return Direction
 //   - Type: discriminator 头位, byte-identical 跟 BPP-1 envelope (#280)
 //   - Cursor: hub.cursors atomic int64 单调发号, 跟 RT-1 #290 + CV-2.2
 //     #360 + DM-2.2 #372 + CV-4.2 #416 + AL-2b 5 source frame 共一根
-//     sequence (RT-1 spec §1.1, 反约束: 不另起 plugin-only 通道; 立场
+//     sequence (RT-1 spec §1.1, 反约束: 不另起 plugin-only 通道; 设计
 //     "不另起 channel" 跟 acceptance §2.1 字面同源)
 //   - AgentID: target agent UUID
 //   - SchemaVersion: 单调跟 agent_configs.schema_version (AL-2a v=20 #447)
@@ -223,7 +223,7 @@ func (InboundMessageFrame) FrameDirection() Direction { return DirectionServerTo
 // HTTP 错误码, 由协议层路由到 owner DM" + §4.1 row 字面 frame 字段:
 // `attempted_action`, `required_capability`, `current_scope`, `reason`).
 //
-// 8 字段 byte-identical 跟 spec bpp-3.1 §1 立场 ③:
+// 8 字段 byte-identical 跟 spec bpp-3.1 §1 设计 ③:
 //
 //   {Type, Cursor, AgentID, RequestID, AttemptedAction, RequiredCapability, CurrentScope, DeniedAt}
 //
@@ -233,7 +233,7 @@ func (InboundMessageFrame) FrameDirection() Direction { return DirectionServerTo
 //     sequence (反约束: 不另起 plugin-only 推送通道)
 //   - AgentID: target agent UUID (deny 路径 plugin 端按 agent 分流)
 //   - RequestID: AP-1 调用方生成的 trace UUID, plugin 按此 key 关联
-//     owner DM 推审批通知 + retry 流 (BPP-3.2 follow-up)
+//     owner DM 推审批通知 + retry 流 (BPP-3.2 后续)
 //   - AttemptedAction: ∈ BPP-2.1 7 op 白名单 (`SemanticOp*` const) 或
 //     REST endpoint 名 (e.g. "POST /artifacts/:id/commits"); 反约束:
 //     'list_users' 等 v2+ 枚举外值 reject
@@ -344,7 +344,7 @@ func (ErrorReportFrame) FrameDirection() Direction { return DirectionPluginToSer
 //
 // 反约束 (acceptance §3.2 + §4.2):
 //   - 不挂 cursor 之外的排序字段 — sort.AgentConfigAck.time / timestamp
-//     反向 grep 0 hit (跟 RT-1 立场反约束同源, cursor 唯一可信序)
+//     grep 检查 0 hit (跟 RT-1 设计反约束同源, cursor 唯一可信序)
 //   - 不下发 admin god-mode (admin 不入业务路径, ADM-0 §1.3 红线 + 反向
 //     grep `admin.*AgentConfig.*ack` 0 hit)
 type AgentConfigAckFrame struct {
@@ -373,7 +373,7 @@ const (
 // 上行 frame, stub 一旦上 v1 拆掉 = 白写). The `Subject` field is the
 // human-readable description ("agent 在做什么") — server REJECTS empty
 // or whitespace-only Subject + log warn `bpp.task_subject_empty`
-// (野马 §11 文案守 + spec §0 立场 ② 字面禁默认值 fallback).
+// (野马 §11 文案守 + spec §0 设计 ② 字面禁默认值 fallback).
 type TaskStartedFrame struct {
 	Type      string `json:"type"`
 	TaskID    string `json:"task_id"`
@@ -418,7 +418,7 @@ func (TaskFinishedFrame) FrameDirection() Direction { return DirectionPluginToSe
 // 6 字段 byte-identical 跟 spec brief §1 BPP-5.1:
 //   {Type, PluginID, AgentID, LastKnownCursor, DisconnectAt, ReconnectAt}
 //
-// 反约束 (跟 spec §0 + stance §1 立场承袭):
+// 反约束 (跟 spec §0 + stance §1 设计沿用):
 //   - **不复用 ConnectFrame** — connect 携 Token + Capabilities (首次身份);
 //     reconnect 携 last_known_cursor (恢复). 字段集不交.
 //   - **不另开 channel/sub_protocol** — 单 BPP envelope frame, 跟 BPP-3
@@ -457,16 +457,16 @@ func (ReconnectHandshakeFrame) FrameDirection() Direction { return DirectionPlug
 // 5 字段 byte-identical 跟 spec brief §1 BPP-6.1:
 //   {Type, PluginID, AgentID, RestartAt, RestartReason}
 //
-// 反约束 (跟 spec §0 + stance §1 立场承袭):
+// 反约束 (跟 spec §0 + stance §1 设计沿用):
 //   - **字段集与 ReconnectHandshakeFrame 互斥** — 不含 LastKnownCursor /
-//     DisconnectAt / ReconnectAt 字段. spec §0.1 立场守门.
+//     DisconnectAt / ReconnectAt 字段. spec §0.1 设计守门.
 //   - **不另开 channel/sub_protocol** — 单 BPP envelope frame, 跟 BPP-3
 //     dispatcher 复用 (PluginFrameDispatcher 注册).
 //   - **不重放历史 frame** — handler 不调 ResolveResume, 不携 cursor.
-//     spec §0.2 立场守门 (AST scan 守).
+//     spec §0.2 设计守门 (AST scan 守).
 //   - **不另开 plugin_restart_count 列** — restart 计数走 state-log
 //     COUNT(WHERE to_state='online' AND reason='runtime_crashed') 反向
-//     derive. spec §0.3 立场守门.
+//     derive. spec §0.3 设计守门.
 //   - reason 复用 `runtime_crashed` 6-dict byte-identical (反映上次
 //     error → 此次复活语义). reasons SSOT #496 不扩第 7 字面.
 //   - 字段顺序锁: type/plugin_id/agent_id/restart_at/restart_reason.

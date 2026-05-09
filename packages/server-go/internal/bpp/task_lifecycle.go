@@ -3,9 +3,9 @@
 // AL-1b busy/idle state-machine source.
 //
 // busy 状态由 task_started/finished frame 单源驱动, 不开 PATCH
-// /api/v1/agents/:id/state — 跟 AL-1b #482 BPP single source 立场同源
+// /api/v1/agents/:id/state — 跟 AL-1b #482 BPP single source 设计同源
 // (蓝图 §2.3 R3). online = session-level 走 WS conn lifecycle, 跟
-// task-level (busy) 正交 — 反向 grep `presence_sessions.*busy|
+// task-level (busy) 正交 — grep 检查 `presence_sessions.*busy|
 // presence.*task_id` count==0 (acceptance §4.2).
 //
 // AL-1b client busy/idle UI: 服务端派生 (option a) — server 在收到
@@ -23,8 +23,8 @@
 // 条件 不准用模糊文案糊弄).
 //
 // Spec brief: docs/implementation/modules/bpp-2-spec.md (战马E #460 v0)
-// §0 立场 ② + §1 拆段 BPP-2.2.
-// Stance: docs/qa/bpp-2-stance-checklist.md §2 立场 ② 反约束 checkbox.
+// §0 设计 ② + §1 拆段 BPP-2.2.
+// Stance: docs/qa/bpp-2-stance-checklist.md §2 设计 ② 反约束 checkbox.
 // Content lock: docs/qa/bpp-2-content-lock.md §1 ③ 3 outcome enum + §1 ④
 // 6 reason 字典字面承袭 AL-1a #249 + §1 ⑤ subject 文案锁.
 //
@@ -38,9 +38,9 @@
 //      side-effecting AL-1b state.
 //
 // 反约束 (acceptance §2 + content-lock §2):
-//   - subject 必带非空 + reject 默认值 fallback — 反向 grep CI lint
+//   - subject 必带非空 + reject 默认值 fallback — grep 检查 CI lint
 //     count==0 (acceptance §4.4).
-//   - outcome 字典外值 (中间态) reject — 反向 grep CI lint count==0
+//   - outcome 字典外值 (中间态) reject — grep 检查 CI lint count==0
 //     (acceptance §4.8).
 //   - reason 字典字面承袭 AL-1a #249 6 项, 不另起 (改 = 改四处:
 //     #249 + AL-3 #305 + AL-4 #321 + #427 + BPP-2.2 = 第四+).
@@ -55,7 +55,7 @@ import (
 )
 
 // TaskOutcome enum — content-lock §1 ③ byte-identical 跟蓝图 §1.6
-// 失联与故障状态 outcome 字面承袭. 改 = 改三处: spec §0 立场 ② +
+// 失联与故障状态 outcome 字面承袭. 改 = 改三处: spec §0 设计 ② +
 // acceptance §2.2 + this enum.
 const (
 	TaskOutcomeCompleted = "completed"
@@ -119,12 +119,12 @@ func IsTaskFinishedNoReason(err error) bool {
 	return errors.Is(err, errFinishedNoReason)
 }
 
-// ValidateTaskStarted enforces立场 ② subject 必带非空反约束 (蓝图 §11
+// ValidateTaskStarted enforces设计 ② subject 必带非空反约束 (蓝图 §11
 // 文案守 + content-lock §1 ⑤). Empty / whitespace-only Subject returns
 // errSubjectEmpty wrapped with the offending agent_id for log warn.
 //
 // Reverse grep CI lint guards the反约束 — this validator is the only
-// sanctioned path; any fallback elsewhere violates spec §0 立场 ②.
+// sanctioned path; any fallback elsewhere violates spec §0 设计 ②.
 func ValidateTaskStarted(frame TaskStartedFrame) error {
 	if strings.TrimSpace(frame.Subject) == "" {
 		return fmt.Errorf("%w: agent_id=%q task_id=%q",
@@ -133,7 +133,7 @@ func ValidateTaskStarted(frame TaskStartedFrame) error {
 	return nil
 }
 
-// ValidateTaskFinished enforces立场 ② outcome 3-态 + reason 字典承袭
+// ValidateTaskFinished enforces设计 ② outcome 3-态 + reason 字典承袭
 // AL-1a 6 项 (content-lock §1 ③④). Validation order:
 //   1. outcome ∈ {completed, failed, cancelled} else errOutcomeUnknown.
 //   2. when outcome=='failed': reason non-empty AND in AL-1a 6 dict.

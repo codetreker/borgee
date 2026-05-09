@@ -56,7 +56,7 @@ func TestBPP_ConnectFrame_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestBPP_FrameSchemaByteIdentical — acceptance §1.2 立场 ① 反断.
+// TestBPP_FrameSchemaByteIdentical — acceptance §1.2 设计 ① 反断.
 //
 // Reflect over server's bpp.AllBPPEnvelopes(); each frame must have a
 // non-empty Type field of kind string with json:"type" tag at field 0.
@@ -78,7 +78,7 @@ func TestBPP_FrameSchemaByteIdentical(t *testing.T) {
 	}
 }
 
-// TestBPP_NoFrameRedefinition — acceptance §1.2 立场 ① AST scan.
+// TestBPP_NoFrameRedefinition — acceptance §1.2 设计 ① AST scan.
 //
 // SDK package sdk/bpp/ must NOT declare its own *Frame structs — all
 // envelope types must come from server's internal/bpp via import.
@@ -118,11 +118,11 @@ func TestBPP_NoFrameRedefinition(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ① broken: SDK redefines frame structs (must reuse server envelope): %v", hits)
+		t.Errorf("BPP-7 设计 ① broken: SDK redefines frame structs (must reuse server envelope): %v", hits)
 	}
 }
 
-// TestBPP_NoForeignWSLib — acceptance §1.3 立场 ② ws library reverse grep.
+// TestBPP_NoForeignWSLib — acceptance §1.3 设计 ② ws library reverse grep.
 //
 // SDK must use github.com/coder/websocket (same as server). Reject
 // gorilla/websocket, gobwas/ws, nhooyr.io/websocket imports.
@@ -158,11 +158,11 @@ func TestBPP_NoForeignWSLib(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ② broken: SDK imports foreign ws lib: %v", hits)
+		t.Errorf("BPP-7 设计 ② broken: SDK imports foreign ws lib: %v", hits)
 	}
 }
 
-// TestBPP_NoClientDispatcher — acceptance §1.3 立场 ⑤ AST scan.
+// TestBPP_NoClientDispatcher — acceptance §1.3 设计 ⑤ AST scan.
 // Reject SDKDispatcher / ClientFrameDispatcher identifiers in production.
 func TestBPP_NoClientDispatcher(t *testing.T) {
 	forbidden := []string{
@@ -202,11 +202,11 @@ func TestBPP_NoClientDispatcher(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ⑤ broken: SDK introduces client-side dispatcher: %v", hits)
+		t.Errorf("BPP-7 设计 ⑤ broken: SDK introduces client-side dispatcher: %v", hits)
 	}
 }
 
-// TestBPP_AdminGodModeNotMounted — acceptance §1.4 立场 ⑦ ADM-0 §1.3.
+// TestBPP_AdminGodModeNotMounted — acceptance §1.4 设计 ⑦ ADM-0 §1.3.
 // admin*.go in internal/api/ must not reference SDK / BPP-7 paths.
 func TestBPP_AdminGodModeNotMounted(t *testing.T) {
 	dir := "../../internal/api"
@@ -242,7 +242,7 @@ func TestBPP_AdminGodModeNotMounted(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ⑦ broken: admin god-mode references SDK (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("BPP-7 设计 ⑦ broken: admin god-mode references SDK (ADM-0 §1.3 红线): %v", hits)
 	}
 }
 

@@ -169,7 +169,7 @@ func TestBPP_NoSDKQueueOrCustomReason(t *testing.T) {
 	}
 }
 
-// TestBPP_AdvanceCursor_Monotonic — RT-1.3 cursor monotonic 立场承袭.
+// TestBPP_AdvanceCursor_Monotonic — RT-1.3 cursor monotonic 设计沿用.
 func TestBPP_AdvanceCursor_Monotonic(t *testing.T) {
 	c := sdkbpp.NewClient("plugin-1", "agent-1", nil)
 	c.AdvanceCursor(100)

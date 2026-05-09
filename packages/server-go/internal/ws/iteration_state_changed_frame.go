@@ -5,7 +5,7 @@
 //
 // Blueprint锚: docs/blueprint/current/canvas-vision.md §1.4 (artifact 自带版本
 // 历史: agent 每次修改产生一个版本) + §1.5 (agent 写内容默认允许).
-// Spec brief: docs/implementation/modules/cv-4-spec.md §0 立场 ② CV-1
+// Spec brief: docs/implementation/modules/cv-4-spec.md §0 设计 ② CV-1
 // commit 单源 + §1 拆段 CV-4.2 + 飞马 #365 envelope 9 字段字面.
 // Content lock: docs/qa/cv-4-content-lock.md (野马 #380) state 4 态
 // byte-identical + reason 三处单测锁.

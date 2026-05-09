@@ -26,7 +26,7 @@
 //     per-frame dispatcher (currently AL-2b ack only; future: BPP-2
 //     task lifecycle frames will register here).
 //
-// Boundary立场 (BPP-1 envelope contract 守):
+// Boundary 设计 (BPP-1 envelope contract 守):
 //
 //   - This file does NOT touch `{type, id, data}` RPC frames — those
 //     stay in plugin.go (api_request / api_response / ping / pong /
@@ -84,7 +84,7 @@ type FrameDispatcher interface {
 // (跟 AckSessionContext shape byte-identical — same field, broader
 // scope).
 //
-// 立场 (Auth): OwnerUserID is set ONCE at connection accept (plugin.go
+// 设计 (Auth): OwnerUserID is set ONCE at connection accept (plugin.go
 // hub.RegisterPlugin time, after API key auth) and never mutates. A
 // dispatcher receiving sess with empty OwnerUserID is a server boot
 // bug (panics defensively in Dispatch).
@@ -234,7 +234,7 @@ func isPluginToServerFrame(frameType string) bool {
 // dispatcher, defined in agent_config_ack_dispatcher.go) into the
 // FrameDispatcher interface so it can register on PluginFrameDispatcher.
 //
-// 立场: keep the AckDispatcher API surface focused on the validated
+// 设计: keep the AckDispatcher API surface focused on the validated
 // frame struct (typed AgentConfigAckFrame) and let this adapter handle
 // the raw → typed decoding boundary. Same pattern: BPP-2.1 ActionHandler
 // wraps server-go business logic, this wraps the typed dispatcher into

@@ -1,6 +1,6 @@
 // DL-1 — EventBus interface (蓝图 §4 B 第 3 条).
 //
-// 立场 ① (DL-1 spec §0): Publish / Subscribe byte-identical 跟蓝图.
+// 设计 ① (DL-1 spec §0): Publish / Subscribe byte-identical 跟蓝图.
 // v1 实现 InProcessEventBus 走 in-process map + buffered chan (跟 ws hub
 // 同精神 in-process pub-sub) byte-identical 不破.
 //
@@ -22,7 +22,7 @@ type Event struct {
 // EventBus is the SSOT interface for in-process pub-sub.
 type EventBus interface {
 	// Publish a single event under topic. Buffered (best-effort, RT-1.3 cursor
-	// replay 兜底, 跟 BPP-4 dead_letter 立场承袭).
+	// replay 兜底, 跟 BPP-4 dead_letter 设计沿用).
 	Publish(ctx context.Context, topic string, payload []byte) error
 
 	// Subscribe returns a buffered channel for events on topic. ctx cancel

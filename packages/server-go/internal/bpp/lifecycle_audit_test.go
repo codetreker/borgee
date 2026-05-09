@@ -89,7 +89,7 @@ func TestBPP_RecordReconnect(t *testing.T) {
 }
 
 // TestBPP_RecordColdStart_ReasonRuntimeCrashed — acceptance §2.1
-// 立场 ② AL-1a 锁链第 13 处.
+// 设计 ② AL-1a 锁链第 13 处.
 //
 // reason 字面必须 byte-identical=reasons.RuntimeCrashed (跟 BPP-6 +
 // BPP-7 SDK ColdStart 同源). 反向断言 hardcode "runtime_crashed" 字符串
@@ -141,7 +141,7 @@ func TestBPP_NilSafeCtor(t *testing.T) {
 	NewAdminActionsLifecycleAuditor(nil, nil)
 }
 
-// TestBPP_BestEffort_FireAndForget — acceptance §3.1 立场 ⑥.
+// TestBPP_BestEffort_FireAndForget — acceptance §3.1 设计 ⑥.
 //
 // On InsertAdminAction error, RecordX must log warn but NOT panic /
 // return error (handler must continue).
@@ -161,9 +161,9 @@ func TestBPP_BestEffort_FireAndForget(t *testing.T) {
 	}
 }
 
-// TestBPP_LifecycleAuditor_SingleGate — acceptance §2.2 立场 ④.
+// TestBPP_LifecycleAuditor_SingleGate — acceptance §2.2 设计 ④.
 //
-// 反向 grep `"plugin_*"` 字面 在 production *.go 路径 — single-gate
+// grep 检查 `"plugin_*"` 字面 在 production *.go 路径 — single-gate
 // 排除 lifecycle_audit.go (write path) + bpp_8_lifecycle_list.go (read-only
 // filter switch, 5 字面同源跟 migration v=31 CHECK + auditor const).
 func TestBPP_LifecycleAuditor_SingleGate(t *testing.T) {
@@ -206,11 +206,11 @@ func TestBPP_LifecycleAuditor_SingleGate(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-8 立场 ④ broken: plugin_* action literals outside whitelisted files (single-gate violation): %v", hits)
+		t.Errorf("BPP-8 设计 ④ broken: plugin_* action literals outside whitelisted files (single-gate violation): %v", hits)
 	}
 }
 
-// TestBPP_NoLifecycleQueueOrAuditTable — acceptance §3.1 立场 ⑥
+// TestBPP_NoLifecycleQueueOrAuditTable — acceptance §3.1 设计 ⑥
 // best-effort 锁链延伸第 5 处.
 func TestBPP_NoLifecycleQueueOrAuditTable(t *testing.T) {
 	t.Parallel()
@@ -252,12 +252,12 @@ func TestBPP_NoLifecycleQueueOrAuditTable(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-8 立场 ⑥ broken: forbidden lifecycle-queue identifiers in internal/bpp/ "+
+		t.Errorf("BPP-8 设计 ⑥ broken: forbidden lifecycle-queue identifiers in internal/bpp/ "+
 			"(best-effort 锁链延伸第 5 处, 跟 BPP-4/5/6/7 同模式): %v", hits)
 	}
 }
 
-// TestBPP_LifecycleSystemActor_ByteIdentical — acceptance §3.2 立场 ⑦.
+// TestBPP_LifecycleSystemActor_ByteIdentical — acceptance §3.2 设计 ⑦.
 func TestBPP_LifecycleSystemActor_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if LifecycleSystemActor != "system" {
@@ -266,7 +266,7 @@ func TestBPP_LifecycleSystemActor_ByteIdentical(t *testing.T) {
 	}
 }
 
-// TestBPP_AdminGodModeNotMounted — acceptance §3.2 立场 ⑦ ADM-0 §1.3.
+// TestBPP_AdminGodModeNotMounted — acceptance §3.2 设计 ⑦ ADM-0 §1.3.
 func TestBPP_AdminGodModeNotMounted(t *testing.T) {
 	t.Parallel()
 	dir := "../api"
@@ -302,7 +302,7 @@ func TestBPP_AdminGodModeNotMounted(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-8 立场 ⑦ broken: admin god-mode references plugin lifecycle (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("BPP-8 设计 ⑦ broken: admin god-mode references plugin lifecycle (ADM-0 §1.3 红线): %v", hits)
 	}
 }
 
