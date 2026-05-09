@@ -19,7 +19,7 @@ minisearch / fuzzysort / flexsearch).
 
 ## Stance (cv-6-spec.md §0 + content-lock)
 
-- **server-side SSOT** (FTS5). No client-side fuzzy lib (反向 grep
+- **server-side SSOT** (FTS5). No client-side fuzzy lib (grep 检查
   package.json count==0 by 5 keyword).
 - **debounce 300ms** — 反每键发 HTTP, useEffect cleanup pattern.
 - **kbd shortcut**: `/` focuses input (不在编辑态时); `Escape` clears
@@ -101,8 +101,8 @@ future drift.
   const byte-identical.
 - DOM `data-testid` + `data-artifact-kind` byte-identical 跟 server
   endpoint spec docs/current/server/api/artifact-search.md.
-- 不引入 client-side fuzzy lib — 跟 CV-2 v2 / CV-3 v2 立场 "不引入重 lib"
-  同精神 (反向 grep package.json count==0 on `fuse\|minisearch\|fuzzysort
+- 不引入 client-side fuzzy lib — 跟 CV-2 v2 / CV-3 v2 设计 "不引入重 lib"
+  同精神 (grep 检查 package.json count==0 on `fuse\|minisearch\|fuzzysort
   \|flexsearch`).
 
 ## 不在范围
@@ -110,5 +110,5 @@ future drift.
 - 客户端高亮 (server-side `<mark>` 已带, client 不另起 highlight lib).
 - 跨 channel global search (server v0 不开, 留 v2+).
 - search 历史 / saved query (留 v2+ 走 user_settings).
-- ChannelView sidebar 集成 (留 follow-up PR — v0 把 SearchBox 当独立
+- ChannelView sidebar 集成 (留后续 PR — v0 把 SearchBox 当独立
   component, 调用方按需嵌入).

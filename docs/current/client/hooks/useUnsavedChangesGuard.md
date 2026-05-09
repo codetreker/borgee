@@ -3,12 +3,12 @@
 > gh#682 (PR #695) sidepane mainView 状态机切换时 + gh#703 (PR #708 + #709) 推广到 5 form + beforeunload listener.
 > 蓝图: `client-shape.md` § form 状态保护 (反"切换就静默丢"的 UX bug).
 
-## 1. 立场
+## 1. 设计
 
 切换 sidepane 或刷 / 关 tab 时, 当前视图如有未保存的表单改动, 弹一次 confirmation 让用户决定要不要丢. 是产品方向 (反"切换就静默丢"). 单 hook 5 form 自动获益.
 
 反约束:
-- ① 不挂自定义 modal — sidepane 切换走 `window.confirm`, beforeunload 走浏览器原生提示 (跟 CV-10 ArtifactCommentDraftInput 既有 beforeunload 立场 ② 一致)
+- ① 不挂自定义 modal — sidepane 切换走 `window.confirm`, beforeunload 走浏览器原生提示 (跟 CV-10 ArtifactCommentDraftInput 既有 beforeunload 设计 ② 一致)
 - ② 反 React 闭包 staleness — `useRef` 包 isDirty (PR #695 feima review 抓的 bug, 反 module-level Set 存 mount 那一刻闭包永远拿空 state)
 - ③ 反复制 hook 行为漂移 — 5 form 不各自写 beforeunload, hook 内统一加 (反 5 个 form 各写一份 listener 行为漂)
 - ④ 多守卫合并消息一次弹 — 同时 N form dirty 不弹 N 次, 拼一条消息
@@ -60,7 +60,7 @@ useUnsavedChangesGuard(
 
 ## 5. 5 form 真量 + dirty 推算两模式
 
-`packages/client/src/components/` 反向 grep `useUnsavedChangesGuard` = 5 处:
+`packages/client/src/components/` grep 检查 `useUnsavedChangesGuard` = 5 处:
 
 | Form | dirty 推算 | 模式 |
 |---|---|---|
@@ -93,8 +93,8 @@ useEffect(() => {
 ## 7. 反约束 (硬性)
 
 源码层:
-- `packages/client/src/components/` 反向 grep `beforeunload` 命中 1 处 (CV-10 ArtifactCommentDraftInput) — 5 form 自己不写 (复用 hook), 反复制行为漂移
-- `packages/client/src/hooks/useUnsavedChangesGuard.ts` 反向 grep `beforeunload` 命中 1 处 (统一 listener)
+- `packages/client/src/components/` grep 检查 `beforeunload` 命中 1 处 (CV-10 ArtifactCommentDraftInput) — 5 form 自己不写 (复用 hook), 反复制行为漂移
+- `packages/client/src/hooks/useUnsavedChangesGuard.ts` grep 检查 `beforeunload` 命中 1 处 (统一 listener)
 - 不引第三方 modal 库 (react-modal / sweetalert) — 走 `window.confirm` 原生 + 浏览器 beforeunload 原生
 
 ## 8. 测试

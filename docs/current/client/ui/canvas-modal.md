@@ -3,12 +3,12 @@
 > gh#691 (PR #699) — 替换 canvas 路径上的 `window.confirm` / `window.prompt` 系统弹窗.
 > 蓝图: `canvas-vision.md` §1.1 (canvas 是 artifact 工作面) + §1.6 (canvas modal a11y).
 
-## 1. 立场
+## 1. 设计
 
 canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window.confirm` / `window.prompt` 浏览器原生弹窗 (UX 跟 borgee 整体设计风格不一致, 移动端 web view 弹窗样式难看, 不可定制). 改成应用内 `InlineConfirmModal`.
 
 反约束:
-- ① canvas 路径反向 grep `window.confirm` / `window.prompt` 命中 0 (反系统弹窗回潮)
+- ① canvas 路径grep 检查 `window.confirm` / `window.prompt` 命中 0 (反系统弹窗回潮)
 - ② 不引第三方 modal 库 (react-modal / radix-ui) — 走自家 InlineConfirmModal 跟 borgee 整体视觉一致
 - ③ a11y 完整 (role=dialog + aria-modal + aria-labelledby + autoFocus + focus return)
 - ④ mobile / IME 守卫 (form onSubmit + onKeyDown isComposing 反中文输入法 Enter 误触)
@@ -73,7 +73,7 @@ mobile 路径 (`<480px viewport`):
 | `const name = window.prompt('新名字'); if (name) { ... }` | `<InlineInputModal .../>` |
 | `alert('保存失败')` | `showToast('保存失败')` (跟 #710 / #708 复用 Toast 同 stack) |
 
-反向 grep:
+grep 检查:
 - canvas 路径 `window.confirm` / `window.prompt` 命中 0
 - canvas 路径 `alert(` 命中 0 (走 Toast)
 - `<InlineConfirmModal` / `<InlineInputModal` 命中 ≥1 (替换真有)

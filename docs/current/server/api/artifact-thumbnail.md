@@ -22,7 +22,7 @@ render → 256x256 PNG) integration deferred to v1+.
 - **① server CDN thumbnail 不 inline** — handler accepts pre-computed
   URL from worker (跟 CV-2 v2 preview.go 同 thin recording shim 模式).
 - **② thumbnail_url MUST be https** — 复用 `auth.ValidateImageLinkURL`
-  XSS 红线第一道 (跟 CV-2 v2 立场 ② + CV-3 #400 同 helper).
+  XSS 红线第一道 (跟 CV-2 v2 设计 ② + CV-3 #400 同 helper).
 - **③ thumbnail_url 跟 preview_url 字段拆 (二闸互斥)** —
   `ThumbnailableKinds = [markdown, code]` slice 跟 `PreviewableKinds =
   [image_link, video_link, pdf_link]` 互斥; `artifacts.thumbnail_url`
@@ -58,7 +58,7 @@ ACL (反约束 ① owner-only):
 - No auth user → **401 Unauthorized** (admin god-mode 不入此 path, ADM-0
   §1.3 红线).
 - Authenticated non-owner (channel.created_by != user.ID) →
-  **403 `thumbnail.not_owner`** (跟 CV-1.2 rollback + CV-2 v2 立场 ⑦
+  **403 `thumbnail.not_owner`** (跟 CV-1.2 rollback + CV-2 v2 设计 ⑦
   同 path).
 - Channel access defense-in-depth (`canAccessChannel`) →
   **403 `thumbnail.not_owner`**.
@@ -68,7 +68,7 @@ Validation gates:
 
 - Artifact kind ∉ `{markdown, code}` (= `ThumbnailableKinds` slice) →
   **400 `thumbnail.kind_not_thumbnailable`**. image_link/video_link/
-  pdf_link 走 CV-2 v2 `/preview` 既有路径 (二闸互斥, 立场 ③).
+  pdf_link 走 CV-2 v2 `/preview` 既有路径 (二闸互斥, 设计 ③).
 - `thumbnail_url` empty / unparseable / scheme ∉ {`https`} →
   **400 `thumbnail.url_must_be_https`** (scheme mismatch) or
   **400 `thumbnail.url_invalid`** (其他错). 复用

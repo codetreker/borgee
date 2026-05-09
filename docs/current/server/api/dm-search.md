@@ -31,10 +31,10 @@ permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
   DM-10 #597 + dm_4_message_edit.go #549 DM-only path 同精神).
 - **channel-member ACL 复用 AP-4 + AP-5 模式** — store helper JOIN
   `channel_members ON cm.user_id = caller` (反 cross-user DM leak,
-  AP-4 #551 reactions ACL + AP-5 #555 messages ACL 立场承袭).
+  AP-4 #551 reactions ACL + AP-5 #555 messages ACL 设计沿用).
 - **q query param 反 DoS** — q trim + min 2 char + max 200 char;
   3 字面错码守门; limit clamp default 30 / max 50.
-- **admin god-mode 永久不挂** — 反向 grep
+- **admin god-mode 永久不挂** — grep 检查
   `admin.*dm.*search|/admin-api/.*dm/search` in `admin*.go` 0 hit
   (ADM-0 §1.3 红线; cross-user DM search 永久不挂 admin, 跟 DM-10 +
   DM-7 edit history admin god-mode 红线锁链承袭).
@@ -117,5 +117,5 @@ Regression rows: `REG-DM11-001..006` in
 - ❌ Search history persistence — 留 v3.
 - ❌ Per-DM channel filter (`?channel_id=`) — 留 v2 (现版跨所有 user's
   DM).
-- ❌ Client UI (DM search bar / dropdown) — 留 follow-up PR (server
+- ❌ Client UI (DM search bar / dropdown) — 留后续 PR (server
   contract 先固化, content-lock §4 列建议字面).
