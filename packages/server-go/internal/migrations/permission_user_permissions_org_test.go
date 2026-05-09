@@ -7,7 +7,7 @@ import (
 )
 
 // runAP31 runs migration v=29 (AP-3.1) on a memory DB. Requires the
-// user_permissions table; create it inline (matching legacy store schema)
+// user_permissions table; create it inline (matching 历史 store schema)
 // so tests don't depend on store init.
 func runAP31(t *testing.T, db *gorm.DB) {
 	t.Helper()
@@ -30,7 +30,7 @@ func runAP31(t *testing.T, db *gorm.DB) {
 }
 
 // REG-AP3-001 (acceptance §1.1) — schema adds nullable org_id column
-// (NULL = legacy / inheritance, 跟 ap_1_1 expires_at 同模式).
+// (NULL = 历史 / inheritance, 跟 ap_1_1 expires_at 同模式).
 func TestAP_AddsOrgIDColumn(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -42,7 +42,7 @@ func TestAP_AddsOrgIDColumn(t *testing.T) {
 		t.Fatalf("user_permissions missing org_id column (have %v)", keys(cols))
 	}
 	if c.notNull {
-		t.Errorf("user_permissions.org_id must be nullable (NULL = legacy, 设计 ② + ⑥)")
+		t.Errorf("user_permissions.org_id must be nullable (NULL = 历史, 设计 ② + ⑥)")
 	}
 }
 
@@ -64,7 +64,7 @@ func TestAP_HasOrgIDIndex(t *testing.T) {
 	}
 }
 
-// REG-AP3-001c (acceptance §1.1 + 设计 ⑥) — legacy rows preserve NULL
+// REG-AP3-001c (acceptance §1.1 + 设计 ⑥) — 历史 rows preserve NULL
 // org_id (AP-1 现网行为零变).
 func TestAP_LegacyRowsNullPreserved(t *testing.T) {
 	t.Parallel()
@@ -81,7 +81,7 @@ func TestAP_LegacyRowsNullPreserved(t *testing.T) {
 		t.Fatalf("query: %v", err)
 	}
 	if n != 1 {
-		t.Errorf("expected 1 NULL-org_id legacy row, got %d", n)
+		t.Errorf("expected 1 NULL-org_id 历史 row, got %d", n)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestAP_AcceptsExplicitOrgID(t *testing.T) {
 	}
 }
 
-// REG-AP3-001e (spec §3 反约束 + 设计 ②) — schema does NOT install a FK
+// REG-AP3-001e (spec §3 反向约束 + 设计 ②) — schema does NOT install a FK
 // to organizations (跟 user.org_id 同精神, 业务校验 server 层做). 反向
 // grep `user_permissions.*FOREIGN KEY.*organizations` count==0.
 func TestAP_NoFKToOrganizations(t *testing.T) {
@@ -119,17 +119,17 @@ func TestAP_NoFKToOrganizations(t *testing.T) {
 		t.Fatalf("query schema: %v", err)
 	}
 	if containsCI(sql, "FOREIGN KEY") && containsCI(sql, "organizations") {
-		t.Errorf("user_permissions must NOT FK organizations(id) — 反约束 设计 ②; got: %s", sql)
+		t.Errorf("user_permissions must NOT FK organizations(id) — 反向约束 设计 ②; got: %s", sql)
 	}
 }
 
-// REG-AP3-001f — registry.go 字面锁 v=29 sequencing.
+// REG-AP3-001f — registry.go 字面锁定 v=29 sequencing.
 func TestAP_RegistryHasV29(t *testing.T) {
 	t.Parallel()
 	for _, m := range All {
 		if m.Version == 29 {
 			if m.Name != "ap_3_1_user_permissions_org" {
-				t.Errorf("v=29 name drift: got %q, want %q", m.Name, "ap_3_1_user_permissions_org")
+				t.Errorf("v=29 name 脱节: got %q, want %q", m.Name, "ap_3_1_user_permissions_org")
 			}
 			return
 		}

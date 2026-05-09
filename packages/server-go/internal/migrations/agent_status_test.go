@@ -77,12 +77,12 @@ func TestAL_CreatesAgentStatusTable(t *testing.T) {
 	}
 }
 
-// TestAgentStatus_NoDomainBleed pins acceptance §1.5 — 设计 ① "拆三路径".
+// TestAgentStatus_NoDomainBleed pins acceptance §1.5 — 设计 ① "真分清三路径".
 // 反向断言列名: AL-3 presence 列 (is_online / presence) 全无 + AL-4
 // runtime 列 (last_error_reason / endpoint_url / process_kind) 全无 +
-// 设计 ② "BPP 单源" 反人工伪造列 (source / set_by) 全无 + RT-1 envelope
-// cursor 拆死. 跟 al_4_1 TestAL41_NoLLMOrPresenceColumns + cv_3_1
-// TestCV31_NoCascadeDelete 同模式 反约束防御.
+// 设计 ② "BPP 单一来源" 反人工伪造列 (source / set_by) 全无 + RT-1 envelope
+// cursor 真分清. 跟 al_4_1 TestAL41_NoLLMOrPresenceColumns + cv_3_1
+// TestCV31_NoCascadeDelete 同模式 反向约束防御.
 func TestAgentStatus_NoDomainBleed(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -100,20 +100,20 @@ func TestAgentStatus_NoDomainBleed(t *testing.T) {
 		// 设计 ② 反人工伪造 — busy/idle state machine 单 source = BPP frame.
 		"source",
 		"set_by",
-		// RT-1 envelope cursor 拆死 (跟 al_3_1 / al_4_1 / cv_*_1 / dm_2_1 同模式).
+		// RT-1 envelope cursor 真分清 (跟 al_3_1 / al_4_1 / cv_*_1 / dm_2_1 同模式).
 		"cursor",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("agent_status.%s exists — 反约束 broken (acceptance §1.5 + spec §0 设计 ①②)", forbidden)
+			t.Errorf("agent_status.%s exists — 反向约束 broken (acceptance §1.5 + spec §0 设计 ①②)", forbidden)
 		}
 	}
 }
 
 // TestAL_AcceptsBusyIdleEnum pins acceptance §1.2 — state CHECK
 // ('busy','idle') 2 态. 设计 ③ 文案三态: schema 仅 2 态, client UI 合并
-// AL-1a 三态 (online/offline/error) + AL-3 presence 显示 5-state. 反约束:
+// AL-1a 三态 (online/offline/error) + AL-3 presence 显示 5-state. 反向约束:
 // 'online' / 'offline' / 'error' / 'running' / 'active' / '' 等枚举外值
-// reject (跟 AL-1a 三态拆死, 跟 AL-4 process-level 4 态拆死).
+// reject (跟 AL-1a 三态真分清, 跟 AL-4 process-level 4 态真分清).
 func TestAL_AcceptsBusyIdleEnum(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -131,11 +131,11 @@ func TestAL_AcceptsBusyIdleEnum(t *testing.T) {
 			t.Errorf("state=%q rejected — CHECK should accept: %v", ok, err)
 		}
 	}
-	// 枚举外值 reject — AL-1a 三态 + AL-4 4 态 + 同义词漂.
+	// 枚举外值 reject — AL-1a 三态 + AL-4 4 态 + 同义词脱节.
 	for _, bad := range []string{
-		"online", "offline", "error", // AL-1a 三态拆死
-		"running", "stopped", "registered", // AL-4 process-level 拆死
-		"active", "working", "idling", "", // 同义词漂 + 空
+		"online", "offline", "error", // AL-1a 三态真分清
+		"running", "stopped", "registered", // AL-4 process-level 真分清
+		"active", "working", "idling", "", // 同义词脱节 + 空
 	} {
 		if err := insert("agent-bad-"+bad, bad); err == nil {
 			t.Errorf("state=%q accepted — CHECK ('busy','idle') missing or wrong", bad)
@@ -161,7 +161,7 @@ func TestAL_HasStateIndex(t *testing.T) {
 }
 
 // TestAL_NoCascadeDelete pins acceptance §1.5 — 蓝图 §2.3 字面 "保留
-// 状态历史". agent 删后 agent_status row 留账 (admin 审计路径). 反向断言:
+// 状态历史". agent 删后 agent_status row 留作 admin 审计路径. 反向断言:
 // CREATE TABLE 字面不含 ON DELETE CASCADE / ON DELETE SET NULL — 跟
 // al_3_1 / al_4_1 / cv_2_1 / dm_2_1 同模式逻辑 FK (SQLite FK 默认禁用,
 // 此处 schema 字面双闸).
@@ -178,10 +178,10 @@ func TestAL_NoCascadeDelete(t *testing.T) {
 	for _, forbidden := range []string{
 		"ON DELETE CASCADE",
 		"ON DELETE SET NULL",
-		"REFERENCES agents", // 反向硬 FK — 蓝图 §2.3 留账保留语义
+		"REFERENCES agents", // 反向硬 FK — 蓝图 §2.3 保留状态历史语义
 	} {
 		if containsCI(sql, forbidden) {
-			t.Errorf("agent_status schema contains %q — 反约束 broken (蓝图 §2.3 保留状态历史 + 跟 al_3_1/al_4_1 同逻辑 FK 模式)", forbidden)
+			t.Errorf("agent_status schema contains %q — 反向约束 broken (蓝图 §2.3 保留状态历史 + 跟 al_3_1/al_4_1 同逻辑 FK 模式)", forbidden)
 		}
 	}
 }
