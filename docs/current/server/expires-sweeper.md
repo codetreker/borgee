@@ -40,7 +40,7 @@
 
 `packages/server-go/internal/migrations/ap_2_1_user_permissions_revoked.go` 加 `revoked_at INTEGER NULL` 字段 + 扩 admin_actions CHECK 加入 `'permission_expired'` 6-tuple. Migration registry 顺序锁定, `revoked_at` 跟 `expires_at` 同 INTEGER ms 时间戳.
 
-## 5. 反约束 grep (PR lint + release-gate 守)
+## 5. 反约束 grep (PR lint 守)
 
 - `DELETE FROM user_permissions` 在 `internal/auth/`+`internal/api/` 除本文件 count==0
 - `cron|gocron` 在 `internal/auth/expires_sweeper.go` count==0

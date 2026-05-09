@@ -1,11 +1,14 @@
-// AP-4-enum.2 reverse-grep tests — handler 路径 helper 单源 + CI workflow
-// step 字面锚 (spec §0 立场 ② + ③).
+// AP-4-enum.2 reverse-grep tests — handler 路径 helper 单源 + Capabilities
+// 字面禁 (spec §0 立场 ② + ③).
 //
-// 4 unit (跟 acceptance template 立场 ②2.1-2.4 + 立场 ③3.3-3.4 同源):
+// 3 unit (跟 acceptance template 立场 ②2.1-2.3 + 立场 ③3.3 同源):
 //   - TestAP_HandlerHelperOnly (3.3) — auth.Capabilities[ packages/server-go/internal/api/ count==0
 //   - TestAP_ReverseGrep_HardcodeCapability (2.2) — HasCapability("...") in api count==0
 //   - TestAP_ReverseGrep_DirectMapAccess (3.4) — Capabilities["..."] = packages/server-go/internal/auth/ 仅 init() 1 hit
-//   - TestAP_CIWorkflowStepExists (2.4) — release-gate.yml 有 ap4enum-no-hardcode-capability step
+//
+// 历史 TestAP_CIWorkflowStepExists 锚 release-gate.yml 字面 step name 的
+// case 已删 (#717 — release-gate.yml 整文件随同删除, 字符串 grep 锁文本
+// 替为本文件 3 个真 AST grep 行为 test).
 package api
 
 import (
@@ -116,19 +119,4 @@ func TestAP_ReverseGrep_DirectMapAccess(t *testing.T) {
 		}
 	}
 	_ = hits
-}
-
-// TestAP_CIWorkflowStepExists — release-gate.yml 有 step
-// `ap4enum-no-hardcode-capability` (字面锚, 立场 ② + content-lock §3).
-func TestAP_CIWorkflowStepExists(t *testing.T) {
-	t.Parallel()
-	root := repoRoot(t)
-	yml := filepath.Join(root, ".github", "workflows", "release-gate.yml")
-	b, err := os.ReadFile(yml)
-	if err != nil {
-		t.Fatalf("read %s: %v", yml, err)
-	}
-	if !strings.Contains(string(b), "ap4enum-no-hardcode-capability") {
-		t.Errorf("release-gate.yml missing step name `ap4enum-no-hardcode-capability` (AP-4-enum 立场 ② + content-lock §3)")
-	}
 }

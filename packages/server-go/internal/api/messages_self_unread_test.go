@@ -200,10 +200,10 @@ func TestMarkReadFailureLayer2Fallback(t *testing.T) {
 
 	// 模拟 Layer 1 没起作用 — 把 last_read_at 强制退回 0. 走 raw SQL Exec
 	// 而不是 GORM Model().Update(): GORM Model 那条要 import internal/store
-	// 拿 ChannelMember{} 类型, 撞 release-gate DL-1.2 sentinel (反 internal/api
-	// 直 import internal/store, 历史 baseline 锁 115 文件; 加 internal/store
-	// import 升 1 直接 fail). raw SQL 用 testutil 暴露的 *gorm.DB, 不引入
-	// store 类型依赖 — 跟 agent_config_ack_handler_test.go::s.DB().Exec(...)
+	// 拿 ChannelMember{} 类型, 撞 DL-1.2 baseline (反 internal/api 直 import
+	// internal/store, 历史 baseline 锁 115 文件; 加 internal/store import 升
+	// 1 会让 TestDL12_DirectStoreImportBaseline fail). raw SQL 用 testutil
+	// 暴露的 *gorm.DB, 不引入 store 类型依赖 — 跟 agent_config_ack_handler_test.go::s.DB().Exec(...)
 	// 一样的模式.
 	if err := s.DB().Exec(
 		"UPDATE channel_members SET last_read_at = 0 WHERE channel_id = ? AND user_id = ?",
