@@ -1,4 +1,4 @@
-# R4 Review Trigger — Phase 2 退出 + Phase 3 启动锁立场
+# R4 Review Trigger — Phase 2 退出 + Phase 3 启动锁原则
 
 > ⚠️ **历史绕过声明** (2026-05-06 audit): 此 trigger 在 Phase 2 退出 (#284, 2026-04-28) 时即满足, 但 R4 决议从未启动. Phase 4+ 已全 closure (PR #621), 此 trigger 锁定对象失效. 留作 R5+ 模板参考.
 
@@ -14,21 +14,21 @@
 
 | 人 | 主审视角 |
 |---|---|
-| 飞马 | 立场冲突 + byte-identical 锁 + 蓝图 vs 实施漂移 |
+| 飞马 | 原则冲突 + byte-identical 锁 + 蓝图 vs 实施漂移 |
 | 烈马 | 闸条件性/严格性 + REG-CHECK 红线 |
 | 野马 | 文案锁 + 故障可解释 + 隐私承诺 |
-| 建军 | 节奏 + 派活 + 终签 |
+| 建军 | 节奏 + 任务分配 + 终签 |
 
 ## 3. 输出锁 (24h 内交付, 类似 R3 #188+#189)
 
-- **R4-1** `docs/blueprint/r4-decisions.md`: 立场冲突 + 4 人决议 + 锁注 (R3 #188 schema)
+- **R4-1** `docs/blueprint/r4-decisions.md`: 原则冲突 + 4 人决议 + 锁注 (R3 #188 schema)
 - **R4-2** `docs/implementation/PROGRESS.md` 重排 (R3 #189): Phase 3 解封顺序 + 工期 + 后置区
-- **R4-3** 受影响蓝图 follow-up PR ≤ 4 个 (R3 落 concept-model/agent-lifecycle/canvas-vision/realtime)
+- **R4-3** 受影响蓝图 后续 PR ≤ 4 个 (R3 落 concept-model/agent-lifecycle/canvas-vision/realtime)
 - **R4-4** Phase 4+ milestone 调整 (BPP cutover / Hermes 多 runtime / Windows)
 
 ## 4. R3 经验 (锚)
 
-#188 6 条立场冲突 → 4 蓝图文件 24h merge; #189 Phase 2 解封顺序 ADM-0 + AP-0-bis + INFRA-2 + RT-0 + CM-onboarding → CM-4.3b/4.4 → 闸 4, 工期净增 +8-10 天.
+#188 6 条原则冲突 → 4 蓝图文件 24h merge; #189 Phase 2 解封顺序 ADM-0 + AP-0-bis + INFRA-2 + RT-0 + CM-onboarding → CM-4.3b/4.4 → 闸 4, 工期净增 +8-10 天.
 **红线**: R4 触发 → 24h 内 4 人 LGTM → 4 件输出全 merge 才解冻 BPP-1.
 
 ## 5. 不在范围

@@ -1,4 +1,4 @@
-# Phase 3 / Phase 4 立场 vision (草稿)
+# Phase 3 / Phase 4 原则 vision (草稿)
 
 > **状态**: v0 草稿 (野马, 2026-04-28) — R4 review anchor, 不是详细计划; Phase 3 启动时再细化为 milestone 级 execution-plan
 > **配套**: `r3-decisions.md` (#216, R3-4 / R3-5 / R3-7 三条 Phase 4 同期) + `../../implementation/00-foundation/phase-2-exit-summary.md` (#225) §5 placeholder 实化 + `g2.4-unblock-path.md` (#232) §2 里程碑表延伸
@@ -53,7 +53,7 @@
 |-------------|---------------|---------|
 | 业主感知 ⑤ 邀请 ≤ 3s | Phase 3 BPP / 早期 RT-0 server | PR #225 §2 ⑤ 锁 + G2.4 #3+#4 解 → 4/6 截屏 → Phase 2 退出 gate 联签条件达成 |
 | G2.4 #2 sidebar 团队感知 | Phase 4 AL-1b | G2.4 5/6 → 6/6 全签 |
-| G2.4 #6 ADM-0 立场 demo | Phase 4 ADM-1 | G2.4 → 6/6 全签 + ADM-1 闸 4 demo signoff |
+| G2.4 #6 ADM-0 原则 demo | Phase 4 ADM-1 | G2.4 → 6/6 全签 + ADM-1 闸 4 demo signoff |
 | busy/idle 三态 | Phase 4 AL-1b | sidebar 业主感知 ⑦ 达成 |
 
 ---
