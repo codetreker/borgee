@@ -2,8 +2,8 @@
 // mock. 走 read-only sqlite3 driver 真接 HB-3 #520 host_grants 表.
 //
 // hb-2-v0d-spec.md §0.2: 撤销 <100ms 真守 — 每次 IPC call 重查 (反 cache),
-// HB-3 spec §1.4 "daemon 不缓存; revoked_at IS NULL 谓词单源". grep 检查
-// `grantsCache|cachedGrants` 0 hit (反约束 §1.3).
+// HB-3 spec §1.4 "daemon 不缓存; revoked_at IS NULL 谓词单一来源". grep 检查
+// `grantsCache|cachedGrants` 0 hit (反向约束 §1.3).
 //
 // 读: SELECT id, scope, expires_at, revoked_at FROM host_grants
 //      WHERE agent_id = ? AND scope = ? AND revoked_at IS NULL
@@ -64,7 +64,7 @@ func (c *SQLiteConsumer) Close() error {
 
 // Lookup — Consumer interface 实现.
 //
-// 反约束 §1.3 不缓存: 每次 call SELECT 真走 SQL (撤销 <100ms 真守, 由
+// 反向约束 §1.3 不缓存: 每次 call SELECT 真走 SQL (撤销 <100ms 真守, 由
 // internal/api/host_grants_test.go::TestHB_DELETE_RevokeStampsRevokedAt
 // 行为 test 守门).
 func (c *SQLiteConsumer) Lookup(ctx context.Context, agentID, scope string) (Grant, bool, error) {

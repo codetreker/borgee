@@ -47,7 +47,7 @@ func run(socket, auditLogPath, grantsDSN, readPaths string) error {
 	}
 	auditLogger := audit.New(logFile)
 
-	// v0(D) Grants consumer: SQLite real-接, production 路径强制 (反约束 §1.5
+	// v0(D) Grants consumer: SQLite real-接, production 路径强制 (反向约束 §1.5
 	// "grep 检查 MemoryConsumer 在 production 路径 0 hit"). dev 测试走
 	// MemoryConsumer 在 _test.go 内部, 不在 main 路径.
 	if grantsDSN == "" {

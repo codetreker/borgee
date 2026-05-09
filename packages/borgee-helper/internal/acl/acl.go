@@ -1,7 +1,7 @@
 // Package acl — HB-2 IPC request gate (path normalization +
 // cross-agent ACL + grants 校验). 所有 IPC call 入口必经.
 //
-// hb-2-spec.md §4 反约束 #2 (路径越界 100% reject) + #4 (cross-agent
+// hb-2-spec.md §4 反向约束 #2 (路径越界 100% reject) + #4 (cross-agent
 // ACL) + #7 (写类 IPC 100% reject).
 package acl
 
@@ -23,14 +23,14 @@ const (
 	ActionNetworkEgress  Action = "network_egress"
 )
 
-// readOnlyActions = 反约束 #7 白名单 (所有非此 set 的 action 全 reject).
+// readOnlyActions = 反向约束 #7 白名单 (所有非此 set 的 action 全 reject).
 var readOnlyActions = map[Action]bool{
 	ActionListFiles:     true,
 	ActionReadFile:      true,
 	ActionNetworkEgress: true,
 }
 
-// IsReadOnly 反向枚举锚 — 单测覆盖每种写法 (write_file / delete_file /
+// IsReadOnly 反向枚举出处 — 单测覆盖每种写法 (write_file / delete_file /
 // chmod / chown / mkdir / rmdir / mv / cp ...) 全 reject.
 func IsReadOnly(a Action) bool {
 	return readOnlyActions[a]
@@ -57,17 +57,17 @@ type Decision struct {
 //
 // handshakeAgentID = IPC 连接握手注册的 agent_id (daemon 持有);
 // requestAgentID = 当前 request payload 携带的 agent_id;
-// 二者不一致 → cross_agent_reject (反约束 #4).
+// 二者不一致 → cross_agent_reject (反向约束 #4).
 func (g *Gate) Decide(ctx context.Context, handshakeAgentID, requestAgentID string, action Action, target string) Decision {
-	// ① 写类 100% reject (反约束 #7) — 单测反向枚举守.
+	// ① 写类 100% reject (反向约束 #7) — 单测反向枚举守.
 	if !IsReadOnly(action) {
 		return Decision{Allow: false, Reason: reasons.IOFailed}
 	}
-	// ② cross-agent ACL (反约束 #4).
+	// ② cross-agent ACL (反向约束 #4).
 	if handshakeAgentID == "" || requestAgentID == "" || handshakeAgentID != requestAgentID {
 		return Decision{Allow: false, Reason: reasons.CrossAgentReject}
 	}
-	// ③ 路径 normalization + traversal reject (反约束 #2; 仅文件类 action).
+	// ③ 路径 normalization + traversal reject (反向约束 #2; 仅文件类 action).
 	scope := target
 	if action == ActionListFiles || action == ActionReadFile {
 		clean, ok := normalizePath(target)
@@ -79,7 +79,7 @@ func (g *Gate) Decide(ctx context.Context, handshakeAgentID, requestAgentID stri
 		// network_egress: scope = "egress:<host>"; caller 已 normalize URL.
 		scope = "egress:" + target
 	}
-	// ④ grants lookup (read-only consumer; 反约束 #3 不缓存).
+	// ④ grants lookup (read-only consumer; 反向约束 #3 不缓存).
 	mc, ok := g.Grants.(interface {
 		LookupRaw(context.Context, string, string) (grants.Grant, bool, bool, error)
 	})

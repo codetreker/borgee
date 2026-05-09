@@ -1,6 +1,6 @@
 // Package audit — HB-2 audit log writer (JSON line; schema byte-identical
-// 跟 HB-1 audit log 跨 milestone 5-field SSOT: actor / action / target /
-// when / scope. 改 = 改两处单测锁, hb-2-spec.md §4 反约束 #5).
+// 跟 HB-1 audit log 跨 milestone 5-field 单一来源: actor / action / target /
+// when / scope. 改 = 改两处单测锁定, hb-2-spec.md §4 反向约束 #5).
 package audit
 
 import (
@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// Event 是 HB-2 IPC call 的审计行 (含 reject); 5 字段 SSOT.
+// Event 是 HB-2 IPC call 的审计行 (含 reject); 5 字段单一来源.
 type Event struct {
-	Actor  string `json:"actor"`  // agent_id (cross-agent ACL 锚)
+	Actor  string `json:"actor"`  // agent_id (cross-agent ACL 出处)
 	Action string `json:"action"` // list_files / read_file / network_egress (含 reject 时)
 	Target string `json:"target"` // path / url / scope
 	When   int64  `json:"when"`   // unix millis
