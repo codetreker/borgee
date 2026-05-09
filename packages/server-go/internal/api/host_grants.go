@@ -1,10 +1,10 @@
-// Package api — host_grants.go: HB-3.1 host_grants SSOT REST endpoints
+// Package api — host_grants.go: HB-3.1 host_grants 单一来源 REST endpoints
 // (情境化授权 4 类). Owner-only ACL gate (anchor #360 同模式).
 //
 // Spec: docs/implementation/modules/hb-3-spec.md §1 HB-3.1.
 // Acceptance: docs/qa/acceptance-templates/hb-3.md §1.
-// Stance: docs/qa/hb-3-stance-checklist.md §1+§2+§3.
-// Blueprint锚: docs/blueprint/current/host-bridge.md §1.3 (4 类: install/exec/
+// 原则: docs/qa/hb-3-stance-checklist.md §1+§2+§3.
+// Blueprint出处: docs/blueprint/current/host-bridge.md §1.3 (4 类: install/exec/
 // filesystem/network) + §1.5 release gate 第 5 行 (撤销 < 100ms) + §2
 // 信任五支柱第 3 条 (可审计日志).
 //
@@ -13,18 +13,18 @@
 //   - GET    /api/v1/host-grants              list active grants for caller
 //   - DELETE /api/v1/host-grants/{id}         revoke (stamp revoked_at,
 //                                              forward-only — 不真删行,
-//                                              留账 audit; HB-4 §1.5
+//                                              留作 audit; HB-4 §1.5
 //                                              release gate 第 5 行
 //                                              撤销 < 100ms 真测)
 //
-// Stance pins (跟 stance §0+§1+§2+§3 byte-identical):
-//   - 设计 ① schema SSOT — server-go 唯一 INSERT/UPDATE/DELETE 路径; HB-2
+// 原则 pins (跟 原则 §0+§1+§2+§3 byte-identical):
+//   - 设计 ① schema 单一来源 — server-go 唯一 INSERT/UPDATE/DELETE 路径; HB-2
 //     daemon (Rust crate) read-only.
 //   - 设计 ② 字典分立 — 不复用 user_permissions schema (host vs runtime);
 //     grep 检查 `host_grants.*JOIN.*user_permissions` 0 hit.
 //   - 设计 ⑤ ttl_kind 2-enum byte-identical 跟弹窗 UX 字面 (one_shot/always
 //     ↔ data-action="grant_one_shot"/"grant_always"); content-lock §1.②
-//     双向锁.
+//     双向锁定.
 //   - 设计 ⑦ admin god-mode 不入 — 用户主权 (蓝图 §1.3 + ADM-0 §1.3 红线);
 //     grep 检查 `admin.*host_grant` 0 hit.
 
@@ -44,7 +44,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// HostGrantsHandler handles host_grants SSOT endpoints (HB-3.1).
+// HostGrantsHandler handles host_grants 单一来源 endpoints (HB-3.1).
 type HostGrantsHandler struct {
 	Store  *store.Store
 	Logger *slog.Logger
@@ -81,7 +81,7 @@ type hostGrantRow struct {
 func (hostGrantRow) TableName() string { return "host_grants" }
 
 // hostGrantTypeWhitelist — 4-enum byte-identical 跟蓝图 §1.3 字面
-// + DB CHECK constraint + content-lock §1.① 三处单测锁.
+// + DB CHECK constraint + content-lock §1.① 三处单测锁定.
 //
 // **改 = 改三处**: 此 map + migration CHECK + content-lock §1.①.
 var hostGrantTypeWhitelist = map[string]bool{
@@ -92,7 +92,7 @@ var hostGrantTypeWhitelist = map[string]bool{
 }
 
 // hostGrantTtlWhitelist — 2-enum byte-identical 跟弹窗 UX 字面 (跟
-// content-lock §1.② data-action 双向锁: one_shot ↔ grant_one_shot,
+// content-lock §1.② data-action 双向锁定: one_shot ↔ grant_one_shot,
 // always ↔ grant_always).
 var hostGrantTtlWhitelist = map[string]bool{
 	"one_shot": true, // "仅这一次" — expires_at = now + 1h
@@ -163,7 +163,7 @@ func (h *HostGrantsHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	if h.Logger != nil {
 		// HB-3 audit log: 5 字段 byte-identical 跟 HB-1 / HB-2 / BPP-4
-		// dead-letter 同源 (改 = 改四处单测锁链).
+		// dead-letter 同源 (改 = 改四处单测守护链).
 		h.Logger.Info("host_grants.granted",
 			"actor", user.ID,
 			"action", "grant",
@@ -197,7 +197,7 @@ func (h *HostGrantsHandler) handleList(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDelete — DELETE /api/v1/host-grants/{id}. Forward-only revoke
-// (stamp revoked_at, 不真删行 — 留账 audit). owner-only (cross-user 403
+// (stamp revoked_at, 不真删行 — 留作 audit). owner-only (cross-user 403
 // — 设计 ⑦).
 //
 // HB-4 §1.5 release gate 第 5 行: 撤销 → daemon 立即拒绝 < 100ms. v1

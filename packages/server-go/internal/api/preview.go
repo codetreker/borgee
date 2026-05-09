@@ -4,8 +4,8 @@
 // Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合: Markdown
 // / 代码片段 / image_link / video_link / pdf_link; preview 是首屏快读).
 // Spec brief: docs/implementation/modules/cv-2-v2-media-preview-spec.md
-// (战马D v0). Stance: 3 条原则 (① server CDN thumbnail 不 inline / ② HTML5
-// native player 不引入 video.js / ③ kind enum 跟 CV-3 #396 共 schema 单源).
+// (战马D v0). 原则: 3 条 (① server CDN thumbnail 不 inline / ② HTML5
+// native player 不引入 video.js / ③ kind enum 跟 CV-3 #396 共 schema 单一来源).
 //
 // Endpoint:
 //
@@ -14,17 +14,17 @@
 // 设计反查:
 //   - ① owner-only ACL — channel.created_by gate (跟 CV-1.2 rollback 设计 ⑦
 //     同 path; admin god-mode → 401, non-owner → 403).
-//   - ② preview_url MUST be https — 反约束 javascript: / data: / http: /
+//   - ② preview_url MUST be https — 反向约束 javascript: / data: / http: /
 //     file: / 任何非 https scheme 全 reject (跟 ValidateImageLinkURL XSS
 //     红线一致, content-lock §1).
 //   - ③ kind enum 闸 — 仅 image_link / video_link / pdf_link 才能 generate
 //     preview (markdown / code 走 CV-1 既有 head body 渲染, 不需 preview_url);
 //     其他 kind 调此 endpoint → 400.
 //
-// v0 stance: 此 handler 是 thin recording shim — accepts client-supplied
+// v0 原则: 此 handler 是 thin recording shim — accepts client-supplied
 // preview_url (e.g. server-side ffmpeg/ImageMagick/pdf2image worker has run
 // out-of-band and posts the resulting CDN URL back). Real CDN integration
-// (ffmpeg first-frame / pdf2image first-page) 留 v1+ — 本 PR 锁 ACL +
+// (ffmpeg first-frame / pdf2image first-page) 留 v1+ — 本 PR 锁定 ACL +
 // https 红线 + kind 闸的 server invariants.
 package api
 
@@ -67,27 +67,27 @@ func IsPreviewableKind(k string) bool {
 }
 
 // previewRequest is the POST body shape — server accepts a pre-computed
-// thumbnail / media URL (see file header v0 stance — real CDN worker
-// integration is留账 v1+).
+// thumbnail / media URL (see file header v0 原则 — real CDN worker
+// integration is留作后续 v1+).
 type previewRequest struct {
 	PreviewURL string `json:"preview_url"`
 }
 
 // handlePreview implements POST /api/v1/artifacts/{artifactId}/preview.
 //
-// 反约束守 (设计 ①②③):
+// 反向约束守 (设计 ①②③):
 //   - admin (no auth user) → 401 (admin god-mode 不入业务路径).
 //   - non-owner authenticated user → 403 + preview.not_owner.
 //   - artifact kind ∉ PreviewableKinds → 400 + preview.kind_not_previewable.
 //   - preview_url empty / unparseable → 400 + preview.url_invalid.
 //   - preview_url scheme ≠ https → 400 + preview.url_must_be_https (XSS
-//     红线第一道, 跟 ValidateImageLinkURL 字面承袭).
+//     红线第一道, 跟 ValidateImageLinkURL 字面一致).
 //   - artifact not found → 404 + preview.artifact_not_found.
 //
 // Side-effect: UPDATE artifacts SET preview_url = ? WHERE id = ?.
-// 反约束: 不发 system message (preview 是 owner action, 不污染 fanout —
+// 反向约束: 不发 system message (preview 是 owner action, 不污染 fanout —
 // 跟 CV-1.2 rollback 设计 ⑦ "system message 不发" 同精神).
-// 反约束: 不 push WS frame (preview_url 静态 CDN, client 下次 GET
+// 反向约束: 不 push WS frame (preview_url 静态 CDN, client 下次 GET
 // /artifacts/:id pull 就拿到 — spec §3 不在范围 "实时刷新").
 func (h *ArtifactHandler) handlePreview(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
@@ -166,7 +166,7 @@ func (h *ArtifactHandler) handlePreview(w http.ResponseWriter, r *http.Request) 
 
 // containsHTTPSDirective scans an err.Error() for the literal "https"
 // directive substring our validator emits ("url scheme must be https").
-// 反约束: 不引入 strings 多 import — handler 局部 helper.
+// 反向约束: 不引入 strings 多 import — handler 局部 helper.
 func containsHTTPSDirective(s string) bool {
 	const needle = "must be https"
 	if len(s) < len(needle) {

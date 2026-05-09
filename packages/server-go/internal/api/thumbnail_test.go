@@ -1,10 +1,10 @@
 // Package api_test — thumbnail_test.go: CV-3 v2 acceptance tests for the
 // POST /api/v1/artifacts/:id/thumbnail endpoint (Phase 5+, #cv-3-v2).
 //
-// Stance pins exercised:
+// 原则 pins exercised:
 //   - ① owner-only ACL (admin → 401, non-owner → 403).
 //   - ② thumbnail_url MUST be https — XSS 红线第一道.
-//   - ③ kind 闸 — 仅 markdown / code (二闸互斥跟 PreviewableKinds).
+//   - ③ kind 闸 — 仅 markdown / code (二端互斥跟 PreviewableKinds).
 package api_test
 
 import (
@@ -150,7 +150,7 @@ func TestCV_URLHttpsOnly(t *testing.T) {
 }
 
 // REG-CV3V2-005 — kind 闸: image_link → 400 thumbnail.kind_not_thumbnailable
-// (二闸互斥跟 PreviewableKinds).
+// (二端互斥跟 PreviewableKinds).
 func TestCV_KindNotThumbnailable_ImageLink(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -199,7 +199,7 @@ func TestCV_KindNotThumbnailable_VideoAndPDF(t *testing.T) {
 }
 
 // REG-CV3V2-005c — ThumbnailableKinds vs PreviewableKinds mutually exclusive
-// (single source of truth byte-identical 锁).
+// (single source of truth byte-identical 锁定).
 func TestCV_ThumbnailableVsPreviewableMutuallyExclusive(t *testing.T) {
 	t.Parallel()
 	for _, k := range api.ThumbnailableKinds {

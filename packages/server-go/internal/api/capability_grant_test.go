@@ -6,7 +6,7 @@
 //   1.2 handler 调 既有 system DM path (DM-2 message + quick_action)
 //   1.3 quick_action JSON shape byte-identical 跟 content-lock §2
 //   1.4 capability 走 AP-1 auth.Capabilities const, hardcode 0 hit
-//   1.5 反约束 grep — DM 不开新 channel 类型 / capability 不 hardcode
+//   1.5 反向约束 grep — DM 不开新 channel 类型 / capability 不 hardcode
 package api_test
 
 import (
@@ -35,13 +35,13 @@ func TestBPP_ValidSemanticOps_8Ops(t *testing.T) {
 		t.Errorf("ValidSemanticOps missing %q (BPP-3.2.1)", bpp.SemanticOpRequestCapabilityGrant)
 	}
 	if bpp.SemanticOpRequestCapabilityGrant != "request_capability_grant" {
-		t.Errorf("SemanticOpRequestCapabilityGrant const drift: got %q, want %q",
+		t.Errorf("SemanticOpRequestCapabilityGrant const 脱节: got %q, want %q",
 			bpp.SemanticOpRequestCapabilityGrant, "request_capability_grant")
 	}
 }
 
 // REG-BPP32-002 (acceptance §1.2 + §1.3) — handler emits system DM with
-// byte-identical body literal + quick_action JSON shape锁.
+// byte-identical body literal + quick_action JSON shape锁定.
 func TestBPP_RequestGrant_WritesSystemDM(t *testing.T) {
 	_, s, _ := testutil.NewTestServer(t)
 
@@ -137,7 +137,7 @@ func TestBPP_RequestGrant_CapabilityWhitelistGuard(t *testing.T) {
 
 	h := &api.CapabilityGrantHandler{Store: s}
 	for _, bad := range []string{
-		"artifact.edit_content", // AP-1 rework drift trap (旧字面 = 已删)
+		"artifact.edit_content", // AP-1 rework 脱节 trap (旧字面 = 已删)
 		"workspace.create",      // 蓝图举例字面 — 不在 14 项 const
 		"foo_bar",               // 任意外值
 		"",                      // 空
@@ -174,12 +174,12 @@ func TestBPP_RequestGrant_CapabilityWhitelistGuard(t *testing.T) {
 	}
 }
 
-// REG-BPP32-004 (acceptance §1.5 反约束 #2) — DM 不开新 channel 类型,
+// REG-BPP32-004 (acceptance §1.5 反向约束 #2) — DM 不开新 channel 类型,
 // 走既有 type='system' channel (CM-onboarding #203). Reverse grep guard.
 func TestBPP_ReverseGrep_NoNewChannelType(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
-	// 反约束 grep: 不出现新 channel type literal (e.g. "permission_dm" /
+	// 反向约束 grep: 不出现新 channel type literal (e.g. "permission_dm" /
 	// "capability_request").
 	bad := regexp.MustCompile(`"capability_request"|"permission_denied_dm"|system_message_kind\s*=\s*"permission`)
 	hits := []string{}
@@ -200,13 +200,13 @@ func TestBPP_ReverseGrep_NoNewChannelType(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 stance §1 broken — DM 不应另起 channel 类型, hit: %v", hits)
+		t.Errorf("反向约束 原则 §1 broken — DM 不应另起 channel 类型, hit: %v", hits)
 	}
 }
 
-// REG-BPP32-005 (acceptance §1.5 反约束 #1 + spec §3 反约束 #1) —
+// REG-BPP32-005 (acceptance §1.5 反向约束 #1 + spec §3 反向约束 #1) —
 // hardcode capability 字面 hardcode 0 hit (走 auth.<Const>).
-// Equivalent to AP-1 反约束 #1 same source.
+// Equivalent to AP-1 反向约束 #1 same source.
 func TestBPP_ReverseGrep_NoHardcodedGrantCapability(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
@@ -229,7 +229,7 @@ func TestBPP_ReverseGrep_NoHardcodedGrantCapability(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 spec §3 #1 broken — GrantPermission Permission: \"<literal>\" hit at: %v (走 auth.<Capability> const)", hits)
+		t.Errorf("反向约束 spec §3 #1 broken — GrantPermission Permission: \"<literal>\" hit at: %v (走 auth.<Capability> const)", hits)
 	}
 }
 

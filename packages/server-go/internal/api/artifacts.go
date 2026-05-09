@@ -137,7 +137,7 @@ func (h *ArtifactHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Ha
 	// CV-2 v2 (#cv-2-v2): owner-only preview thumbnail generation.
 	mux.Handle("POST /api/v1/artifacts/{artifactId}/preview", wrap(h.handlePreview))
 	// CV-3 v2 (#cv-3-v2): owner-only code/markdown thumbnail generation
-	// (二闸互斥 跟 /preview — markdown/code 走此, image/video/pdf 走 /preview).
+	// (二端互斥 跟 /preview — markdown/code 走此, image/video/pdf 走 /preview).
 	mux.Handle("POST /api/v1/artifacts/{artifactId}/thumbnail", wrap(h.handleThumbnail))
 	// CV-6 (#cv-6): owner-only artifact full-text search via SQLite FTS5.
 	mux.Handle("GET /api/v1/artifacts/search", wrap(h.handleArtifactSearch))
@@ -161,7 +161,7 @@ type artifactRow struct {
 	PreviewURL        *string `gorm:"column:preview_url"`
 	// CV-3 v2 (#cv-3-v2) — server-recorded code/markdown thumbnail URL
 	// (https only). 跟 PreviewURL 字段拆: PreviewURL 给 image/video/pdf
-	// media kind, ThumbnailURL 给 markdown/code text kind (二闸互斥).
+	// media kind, ThumbnailURL 给 markdown/code text kind (二端互斥).
 	ThumbnailURL      *string `gorm:"column:thumbnail_url"`
 }
 
