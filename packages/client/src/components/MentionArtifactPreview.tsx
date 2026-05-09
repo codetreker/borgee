@@ -1,6 +1,6 @@
 // MentionArtifactPreview — CV-3.3 mention 引用 preview kind 三模式.
 //
-// Spec: docs/implementation/modules/cv-3-spec.md §0 立场 ③ +
+// Spec: docs/implementation/modules/cv-3-spec.md §0 设计 ③ +
 //   §1 CV-3.2; 文案锁: docs/qa/cv-3-content-lock.md §1 ⑥;
 //   acceptance: docs/qa/acceptance-templates/cv-3.md §2.6.
 //

@@ -6,10 +6,10 @@
 // + cv_3_v2_artifact_thumbnail migration v=31 (artifacts.thumbnail_url
 // TEXT NULL).
 //
-// 立场反查 (跟 CV-2 v2 #517 MediaPreview 同模式):
+// 设计反查 (跟 CV-2 v2 #517 MediaPreview 同模式):
 //   - ① server CDN thumbnail 不 inline — `<img loading="lazy">`, 不引入
 //     html2canvas / dom-to-image / puppeteer-client / shiki client-side
-//     renderer (反向 grep package.json count==0).
+//     renderer (grep 检查 package.json count==0).
 //   - ② src 必 https (复用 ImageLinkRenderer.isHttpsURL XSS 红线 #1,
 //     byte-identical 跟 server ValidateImageLinkURL 同源).
 //   - ③ kind 闸 — markdown / code 分发, 其他 kind 走 CV-2 v2 MediaPreview
@@ -51,7 +51,7 @@ interface Props {
 }
 
 /**
- * ArtifactThumbnail — 立场 ③ kind 闸 + 立场 ① server thumbnail-first.
+ * ArtifactThumbnail — 设计 ③ kind 闸 + 设计 ① server thumbnail-first.
  *
  * 渲染规则:
  *   - kind ∈ THUMBNAILABLE_KINDS + safe https thumbnailUrl → `<img loading="lazy"

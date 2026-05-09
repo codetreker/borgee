@@ -4,7 +4,7 @@
 // Stance: docs/qa/cv-13-stance-checklist.md §1-§5.
 // Content-lock: docs/qa/cv-13-content-lock.md §1+§2 (文案 + DOM SSOT).
 //
-// 立场反查 (cv-13-spec.md §0):
+// 设计反查 (cv-13-spec.md §0):
 //   ① 0 server production code — quote 视觉纯客户端, 父 props quotedMessage
 //      由 ArtifactCommentItem 父组件从既有 messages list 内存 cache lookup
 //      (复用 messages.reply_to_id CV-8 #441 既有列 + 既有 fetchMessages list).

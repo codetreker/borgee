@@ -25,7 +25,7 @@ import { usePresence } from '../hooks/usePresence';
 // #684 — Mask helper for API keys.
 //
 // 渲染 `bgr_...{last4}` 形式 (前缀 + ... + 末 4), 反 OpenAI `sk-` 误抄
-// (yema brief v3 §3 文案锁; heima Sec 立场 1 末 4 位露够认人不够暴破解).
+// (yema brief v3 §3 文案锁; heima Sec 设计 1 末 4 位露够认人不够暴破解).
 //
 // 反约束: 完整明文 key 不进 DOM (Sec by-construction); 这个 helper **只**
 // 接末 4 位字符串 (caller 只在 fetch 后 `key.slice(-4)`, 立刻丢完整 key),
@@ -37,7 +37,7 @@ function formatMaskedApiKey(last4: string): string {
   return `bgr_...${last4}`;
 }
 
-// #684 — Auto-clear delay 60 秒 (heima Sec 立场 3 + 1Password / Bitwarden 行业值).
+// #684 — Auto-clear delay 60 秒 (heima Sec 设计 3 + 1Password / Bitwarden 行业值).
 const API_KEY_AUTO_CLEAR_MS = 60_000;
 
 const KNOWN_PERMISSIONS = [
@@ -137,7 +137,7 @@ function AgentCard({
   const [loadingPerms, setLoadingPerms] = useState(false);
   // #684 — API Key 显示策略. 反约束: 完整 plaintext key 永不进 React state /
   // ref, 只在 fetch closure 临时持有, 走 `key.slice(-4)` 拿 last4 后立即丢
-  // (heima Sec 立场 by-construction + yema brief v3 §2.3).
+  // (heima Sec 设计 by-construction + yema brief v3 §2.3).
   //
   // 之前的 visibleKey / newKey state 删掉 — 那俩存完整 plaintext, by-construction
   // 反约束.
@@ -151,7 +151,7 @@ function AgentCard({
   const [joinChannelId, setJoinChannelId] = useState('');
 
   // AL-4.3 (#379 §1 拆段): runtime 卡片状态. fetchAgentRuntime 返回
-  // null 表示该 agent 还没注册 runtime (graceful degrade — 立场 ①
+  // null 表示该 agent 还没注册 runtime (graceful degrade — 设计 ①
   // "Borgee 不带 runtime", 不假装有). expanded 时按需拉, 不在 list
   // 视图浪费 N 次请求.
   const { state: appState } = useAppContext();
@@ -212,7 +212,7 @@ function AgentCard({
 
   // #684 — Cleanup auto-clear timer on unmount. 反 dirty timer 在 component
   // 卸载后还触发 (用户切走 sidepane / 刷新页面). cleanup 不主动 writeText
-  // 那次 — 用户 unmount 之后剪贴板状态由用户掌控, 不擅自动手, 跟 Sec 立场 3
+  // 那次 — 用户 unmount 之后剪贴板状态由用户掌控, 不擅自动手, 跟 Sec 设计 3
   // "auto-clear 是 ux 安全提升, 不是强制权限" 一致.
   useEffect(() => {
     return () => {
@@ -261,7 +261,7 @@ function AgentCard({
       }, API_KEY_AUTO_CLEAR_MS);
     } catch (err) {
       // 浏览器不支持 clipboard / 非 https 走 fallback. document.execCommand
-      // 已 deprecated 但仍是 fallback 唯一选项, 反第三方库 (heima Sec 立场 4).
+      // 已 deprecated 但仍是 fallback 唯一选项, 反第三方库 (heima Sec 设计 4).
       try {
         const data = await fetchAgent(agent.id);
         const key = data.api_key ?? '';
@@ -403,7 +403,7 @@ function AgentCard({
           </section>
 
           {/* #684 — Runtime 卡 (第 3 卡). AL-4.3 (#379 §1 拆段) — fetchAgentRuntime
-              null → graceful degrade omit (立场 ① "Borgee 不带 runtime");
+              null → graceful degrade omit (设计 ① "Borgee 不带 runtime");
               非 owner → owner-only DOM gate 走 RuntimeCard 内部 isOwner 判断
               (反约束: 非 owner 看到 status badge 但看不到 start/stop btn,
               跟 #321 §2 同源). */}
@@ -421,7 +421,7 @@ function AgentCard({
           {/* #684 — Config 卡 (第 4 卡). AL-2a.3 (#447 + #480 mount) — agent
               config SSOT editor (name / avatar / prompt / model / capabilities
               / enabled / memory_ref). 蓝图 §1.4 SSOT 字段划界, server-side
-              allowedConfigKeys whitelist fail-closed; 反约束 立场 ⑤ runtime-only
+              allowedConfigKeys whitelist fail-closed; 反约束 设计 ⑤ runtime-only
               字段 (api_key / temperature / token_limit / retry_policy) 此 form
               不渲染. AgentConfigPanel 内部已有 "Agent 配置" 标题, 删外层冗余. */}
           <section className="agent-detail-card agent-detail-card-config">

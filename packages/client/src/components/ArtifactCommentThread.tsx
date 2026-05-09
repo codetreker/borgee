@@ -5,7 +5,7 @@
 // Stance: docs/qa/cv-8-stance-checklist.md §4 (DOM 锁 + 文案 byte-identical).
 // Content-lock: docs/qa/cv-8-content-lock.md §1 + §2.
 //
-// 立场反查:
+// 设计反查:
 //   - ① 走 messages 表既有 endpoint — POST /api/v1/channels/{id}/messages
 //     with content_type='artifact_comment' + reply_to_id (既有 sendMessage api).
 //   - ④ thread depth 1 层 — replies 内不渲染 reply button (反向断 nested
@@ -62,7 +62,7 @@ export default function ArtifactCommentThread({
     } catch (err) {
       if (err instanceof ApiError) {
         const m = err.message || '';
-        // CV-8 立场 ③ + ④ — server byte-identical errcodes.
+        // CV-8 设计 ③ + ④ — server byte-identical errcodes.
         const known = [
           'comment.thinking_subject_required',
           'comment.thread_depth_exceeded',
@@ -99,7 +99,7 @@ export default function ArtifactCommentThread({
                 {r.sender_role === 'agent' ? '🤖' : '👤'} {r.sender_id}
               </span>
               <span className="cv8-thread-reply-body">{r.content}</span>
-              {/* 立场 ④ depth 1 层 — nested reply 内不渲染 reply button */}
+              {/* 设计 ④ depth 1 层 — nested reply 内不渲染 reply button */}
             </div>
           ))}
         </div>

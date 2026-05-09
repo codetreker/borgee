@@ -6,7 +6,7 @@
 // Stance: docs/qa/dm-12-stance-checklist.md §1-§5.
 // Content-lock: docs/qa/dm-12-content-lock.md §1+§2 (DM-only path lock).
 //
-// 立场反查 (dm-12-spec.md §0):
+// 设计反查 (dm-12-spec.md §0):
 //   ① 0 server production code — 复用 CV-7 #535 PUT /api/v1/messages/{id}/reactions
 //      + AP-4 #551 ACL gate. 跟 DM-9 #585 + DM-5 #549 同 endpoint 单源.
 //   ② DM-only mounting path — 父组件 (MessageItem.tsx for DM channels) 决定
@@ -14,7 +14,7 @@
 //   ③ 复用 DM-9 EmojiPickerPopover (add 新 emoji) + DM-5 ReactionSummary
 //      (display 既有 + toggle); 不另起组件复制功能.
 //   ④ thinking 5-pattern 锁链第 12 处 (DM-9 第 11 后续) — composite 不暴露
-//      reasoning, 反向 grep 5 字面 0 hit.
+//      reasoning, grep 检查 5 字面 0 hit.
 //   ⑤ DOM data-attr 锁: data-dm12-reaction-picker (root) + delegate to
 //      DM-9 data-dm9-* + DM-5 data-dm5-* 锚 (反向不重复 attr).
 //

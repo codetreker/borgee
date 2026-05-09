@@ -4,9 +4,9 @@
 // Content lock: docs/qa/cv-6-content-lock.md §2 (DOM 字面锁) + §4 (5 错码
 // 文案 byte-identical 跟 server const + SEARCH_ERR_TOAST map 同源).
 //
-// 立场反查:
+// 设计反查:
 //   - ① server-side SSOT (复用 SQLite FTS5) — 不引入 fuse.js / minisearch
-//     / fuzzysort / flexsearch (反向 grep package.json count==0).
+//     / fuzzysort / flexsearch (grep 检查 package.json count==0).
 //   - ⑨ debounce 300ms — 反每键发 HTTP, useEffect cleanup 模式.
 //   - kbd `/` focus + `Esc` clear — UX 标尺 (跟既有 mention `@` 同精神).
 //
@@ -67,7 +67,7 @@ export default function SearchBox({ channelId, onResults, onError }: Props) {
           onResults(r.results);
         } catch (e) {
           const code = e instanceof Error ? e.message : 'unknown';
-          // 立场 ④ 错码 → toast 文案 byte-identical 跟 SEARCH_ERR_TOAST.
+          // 设计 ④ 错码 → toast 文案 byte-identical 跟 SEARCH_ERR_TOAST.
           const matchKey = Object.keys(SEARCH_ERR_TOAST).find(k => code.includes(k));
           const toast = matchKey ? SEARCH_ERR_TOAST[matchKey] : '搜索请求失败, 请重试';
           onError?.(toast);

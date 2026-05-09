@@ -7,7 +7,7 @@
 // Stance: docs/qa/cv-9-stance-checklist.md §4.
 // Content-lock: docs/qa/cv-9-content-lock.md §1 + §2.
 //
-// 立场反查:
+// 设计反查:
 //   - ① 0 server production code — 客户端纯订阅 DM-2.2 既有 mention frame.
 //   - ④ 复用 useMentionPushed 既有 hook (反向断不另起 state — `useCV9MentionState`
 //     在源码 0 hit). 文案 "你被 @ 在 N 条评论中" byte-identical.
@@ -32,7 +32,7 @@ export default function ArtifactCommentsMentionBadge({
 }: ArtifactCommentsMentionBadgeProps) {
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 立场 ④ — reuse useMentionPushed hook (DM-2.2 既有). Increment counter
+  // 设计 ④ — reuse useMentionPushed hook (DM-2.2 既有). Increment counter
   // when frame.mention_target_id == currentUserId. Do NOT use frame.body_preview
   // for rendering (反约束: 隐私 §13, 80-rune cap is preview-only).
   useMentionPushed(

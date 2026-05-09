@@ -2,11 +2,11 @@
 //
 // Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合) +
 // §1.6 (锚点对话 = owner review agent 产物的工具). Spec brief:
-// docs/implementation/modules/cv-2-spec.md §0 (3 立场) + §1 段 CV-2.3.
+// docs/implementation/modules/cv-2-spec.md §0 (3 条原则) + §1 段 CV-2.3.
 // Acceptance: docs/qa/acceptance-templates/cv-2.md §3. Content-lock:
 // docs/qa/cv-2-content-lock.md (7 文案锁, byte-identical).
 //
-// 立场反查 (cv-2-spec.md §0):
+// 设计反查 (cv-2-spec.md §0):
 //   - ① 锚点 = 人审 agent 产物 — UI 入口仅 owner / human (DOM 反约束:
 //     agent 视角 createAnchor 入口不渲染, 服务端兜底 403
 //     `anchor.create_owner_only`).
@@ -46,7 +46,7 @@ interface Props {
    */
   anchorVersion: number;
   headVersion: number;
-  /** 立场 ⑦ resolve = creator OR channel owner; non-eligible DOM omits btn. */
+  /** 设计 ⑦ resolve = creator OR channel owner; non-eligible DOM omits btn. */
   canResolve: boolean;
   /** Caller controls open/close — the entry trigger lives in ArtifactPanel. */
   onClose: () => void;
@@ -98,7 +98,7 @@ export default function AnchorThreadPanel({
     void reload(anchor.id);
   }, [anchor.id, reload]);
 
-  // 立场 ③: WS frame is signal-only — body comes from REST GET above.
+  // 设计 ③: WS frame is signal-only — body comes from REST GET above.
   const onFrame = useCallback(
     (frame: { anchor_id: string }) => {
       if (frame.anchor_id !== anchor.id) return;

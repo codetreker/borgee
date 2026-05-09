@@ -4,10 +4,10 @@
 // + §1.1-§1.6 (D-lite + workspace per channel + Markdown ONLY v1).
 // Spec: docs/implementation/modules/cv-1-spec.md §3 (CV-1.3 段).
 // Acceptance: docs/qa/acceptance-templates/cv-1.md §3.1-§3.3.
-// Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 立场) +
+// Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 条原则) +
 // docs/qa/cv-1-stance-v1-supplement.md (②③⑤⑦ v1 字段).
 //
-// 立场反查:
+// 设计反查:
 //   - ① 归属 = channel — 列表只显示当前 channel 的 artifacts; 没有 author owner.
 //   - ② 单文档锁 30s TTL — 编辑提交收 409 → toast 字面 "内容已更新, 请刷新查看".
 //   - ③ 版本线性 — sidebar 列表升序 version, 不删中间版本; rollback 也是新增 row.
@@ -64,7 +64,7 @@ const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 
 // gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
-// byte-identical, 改这些 = 改 design + 反向 grep 检查 e2e 真验报告).
+// byte-identical, 改这些 = 改 design + grep 检查 e2e 真验报告).
 //   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
 //   ARTIFACT_CREATE_FAIL_PREFIX — 创建失败 modal 内文案前缀 (yema C 混合)
 //   ARTIFACT_CREATE_NETWORK_ERR — 网络错时模糊兜底
@@ -88,10 +88,10 @@ export default function ArtifactPanel({ channelId }: Props) {
   const { showToast } = useToast();
   const currentUser = state.currentUser;
   const channel = state.channels.find((c) => c.id === channelId);
-  // 立场 ⑦ rollback owner = channel.created_by (channel-model §1.4).
-  // 立场 ① CV-2 anchor entry: 仅 human (role !== 'agent') 看到 💬 入口.
+  // 设计 ⑦ rollback owner = channel.created_by (channel-model §1.4).
+  // 设计 ① CV-2 anchor entry: 仅 human (role !== 'agent') 看到 💬 入口.
   // (反约束: agent 视角 DOM 不渲染 ① hover 入口, byte-identical 跟
-  // CV-1 立场 ⑦ rollback owner-only DOM omit 同模式 — 服务端 403
+  // CV-1 设计 ⑦ rollback owner-only DOM omit 同模式 — 服务端 403
   // anchor.create_owner_only 兜底.)
   const isOwner = !!currentUser && channel?.created_by === currentUser.id;
   const isHuman = !!currentUser && currentUser.role !== 'agent';
@@ -124,9 +124,9 @@ export default function ArtifactPanel({ channelId }: Props) {
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
 
   // CV-4.3 diff view state — "对比" tab + URL `?diff=v3..v2` deep-link
-  // (content-lock §1 ⑤ + spec #365 §0 立场 ③).
+  // (content-lock §1 ⑤ + spec #365 §0 设计 ③).
   // diffPair 是当前活跃的 N..M 对比; null = 不在 diff 模式.
-  // 立场 ③ — client jsdiff, 不裂 server diff.
+  // 设计 ③ — client jsdiff, 不裂 server diff.
   const [diffPair, setDiffPair] = useState<{ newV: number; oldV: number } | null>(() => {
     if (typeof window === 'undefined') return null;
     const raw = new URLSearchParams(window.location.search).get('diff');
@@ -145,14 +145,14 @@ export default function ArtifactPanel({ channelId }: Props) {
     window.history.replaceState(null, '', url.toString());
   }, []);
 
-  // 立场 ③ deep-link: 当用户进入 panel 时若 URL `?diff=` 已存在, 取其
+  // 设计 ③ deep-link: 当用户进入 panel 时若 URL `?diff=` 已存在, 取其
   // pair 渲染 diff view. 切换 channel 时清掉 diffPair (相当于 reset).
   useEffect(() => {
     setDiffPair(null);
   }, [channelId]);
 
   // diffBodies — diff 模式下解出 (newBody, oldBody) 从 versions 列表.
-  // versions 已按 version asc 排序 (CV-1 立场 ③), 找用户号 v=N 的 row.
+  // versions 已按 version asc 排序 (CV-1 设计 ③), 找用户号 v=N 的 row.
   // hooks-rules — useMemo 必须永远调用 (即使 diffPair 为 null, 列表位置稳定).
   const diffBodies = useMemo(() => {
     if (!diffPair) return null;
@@ -174,7 +174,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   }, [syncDiffURL]);
 
   // Reload artifact + version list. Triggered by initial mount,
-  // channel switch, and WS artifact_updated push (立场 ⑤ pull-after-signal).
+  // channel switch, and WS artifact_updated push (设计 ⑤ pull-after-signal).
   const reload = useCallback(
     async (artifactId: string) => {
       try {
@@ -195,7 +195,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   );
 
   // CV-2.3 reload anchors after WS push or local create. List endpoint
-  // is channel-member ACL'd (立场 ⑦); on 403 we silently empty (agent
+  // is channel-member ACL'd (设计 ⑦); on 403 we silently empty (agent
   // view 反约束 DOM 不渲染入口, list 路径仍可读 thread).
   const reloadAnchors = useCallback(
     async (artifactId: string) => {
@@ -238,7 +238,7 @@ export default function ArtifactPanel({ channelId }: Props) {
     }
   }, [artifact?.id, reloadAnchors]);
 
-  // 立场 ⑤ — WS push: re-fetch on signal frame for our artifact.
+  // 设计 ⑤ — WS push: re-fetch on signal frame for our artifact.
   // The handler closes over the latest artifact.id via useCallback +
   // a stable identity check inside.
   const onArtifactUpdated = useCallback(
@@ -251,7 +251,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   );
   useArtifactUpdated(onArtifactUpdated);
 
-  // CV-2.3 立场 ③: anchor_comment_added envelope is signal-only; on
+  // CV-2.3 设计 ③: anchor_comment_added envelope is signal-only; on
   // any landing comment for this artifact, refresh the anchor list so
   // resolved/added counts stay live across tabs.
   const onAnchorCommentAdded = useCallback(
@@ -267,7 +267,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   // markdown surface. We map DOM selection back to body offsets via
   // textContent of `.artifact-rendered` (the rendered DOM has identical
   // visible text to artifact.body absent inline images, which CV-1
-  // markdown-only 立场 ④ guarantees).
+  // markdown-only 设计 ④ guarantees).
   const handleSelection = useCallback(() => {
     if (!artifact || editing) return;
     const sel = window.getSelection();
@@ -282,7 +282,7 @@ export default function ArtifactPanel({ channelId }: Props) {
     const text = sel.toString();
     if (!text) return;
     // Locate the substring in artifact.body. Falls back to first occurrence;
-    // 立场 ② anchor pin is by start/end + version, so first-occurrence in
+    // 设计 ② anchor pin is by start/end + version, so first-occurrence in
     // current body is OK — the version_id pin freezes review context.
     const start = artifact.body.indexOf(text);
     if (start < 0) return;
@@ -336,9 +336,9 @@ export default function ArtifactPanel({ channelId }: Props) {
     setErrMsg(null);
   };
 
-  // CV-2.3 立场 ① human-only entry: server enforces 403 too. Click
+  // CV-2.3 设计 ① human-only entry: server enforces 403 too. Click
   // commits the current selection as an anchor anchored to the head
-  // version (立场 ② version pin = head at create time).
+  // version (设计 ② version pin = head at create time).
   const handleCreateAnchor = async () => {
     if (!artifact || !selection || !isHuman) return;
     setBusy(true);
@@ -374,7 +374,7 @@ export default function ArtifactPanel({ channelId }: Props) {
       setEditing(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        // 立场 ② lock conflict / version mismatch — toast 文案锁.
+        // 设计 ② lock conflict / version mismatch — toast 文案锁.
         showToast(CONFLICT_TOAST);
         // Re-fetch so the editor's expected_version moves forward.
         await reload(artifact.id);
@@ -411,7 +411,7 @@ export default function ArtifactPanel({ channelId }: Props) {
       await reload(artifact.id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        // 立场 ② 锁冲突 — toast 文案锁 byte-identical (跟 commit 路径同源).
+        // 设计 ② 锁冲突 — toast 文案锁 byte-identical (跟 commit 路径同源).
         showToast(CONFLICT_TOAST);
         await reload(artifact.id);
       } else {
@@ -517,7 +517,7 @@ export default function ArtifactPanel({ channelId }: Props) {
             {errMsg && <p className="artifact-err">{errMsg}</p>}
           </div>
         ) : diffPair && diffBodies ? (
-          // CV-4.3 立场 ③ — client jsdiff 行级 (反 server diff). v0 仅
+          // CV-4.3 设计 ③ — client jsdiff 行级 (反 server diff). v0 仅
           // markdown kind 走 diffLines; image_link 走前后缩略图 fallback;
           // code v0 也走 diffLines (CV-3 spec §0 ① 字面: code 是 markdown
           // kind 同源 textual body, jsdiff 适用).
@@ -533,14 +533,14 @@ export default function ArtifactPanel({ channelId }: Props) {
           // 三分支都在外层 div 上落 className "artifact-rendered" (anchor
           // selection 依赖该 selector 定位 markdown body), 选区 handler
           // 包在外层 wrapper 上 — 仅 markdown 分支会触发有意义选区
-          // (立场 ④ markdown 才走 dangerouslySetInnerHTML, code/image
+          // (设计 ④ markdown 才走 dangerouslySetInnerHTML, code/image
           // 是 React 节点, sel.toString() 仍可工作但 anchor 入口语义
           // 主要服务于 markdown 文档协作).
           <div onMouseUp={handleSelection} onKeyUp={handleSelection}>
             <ArtifactBody artifact={artifact} />
           </div>
         )}
-        {/* CV-2.3 立场 ① 选区 → 锚点 entry: 仅 human 看到 💬 入口
+        {/* CV-2.3 设计 ① 选区 → 锚点 entry: 仅 human 看到 💬 入口
             (DOM 反约束 — agent 视角 isHuman=false count==0). 文案锁
             byte-identical 跟 cv-2-content-lock.md ① 字面表 (icon 💬 +
             tooltip "评论此段"). */}
@@ -604,7 +604,7 @@ export default function ArtifactPanel({ channelId }: Props) {
             (v) => v.created_at <= active.created_at && v.version <= artifact.current_version,
           );
           const anchorVersionInt = av?.version ?? artifact.current_version;
-          // 立场 ⑦: resolve = anchor creator OR channel owner. Server
+          // 设计 ⑦: resolve = anchor creator OR channel owner. Server
           // enforces; we just gate the UI button.
           const canResolve =
             !!currentUser &&
@@ -633,7 +633,7 @@ export default function ArtifactPanel({ channelId }: Props) {
                 ? `v${v.version} (rollback from v${v.rolled_back_from_version})`
                 : `v${v.version}`;
             const kindBadge = v.committer_kind === 'agent' ? '🤖' : '👤';
-            // 立场 ⑦ owner-only rollback button: 非 owner DOM 不渲染.
+            // 设计 ⑦ owner-only rollback button: 非 owner DOM 不渲染.
             // 当前 head 不需要回滚按钮 (回滚到自己).
             const showRollbackBtn = isOwner && !isHead && !editing;
             return (
@@ -658,7 +658,7 @@ export default function ArtifactPanel({ channelId }: Props) {
       </aside>
 
       {/* CV-4.3 — iterate UI (#409 server / #405 schema).
-          立场 ⑥ owner-only DOM omit (defense-in-depth, 跟 line ~441
+          设计 ⑥ owner-only DOM omit (defense-in-depth, 跟 line ~441
           showRollbackBtn 同模式). non-markdown artifact 不渲染 — iterate
           UI 仅在 markdown kind 上 (CV-2 §4 反约束承袭, code/image_link
           iterate v0 走 spec brief #365 §2 协调待 CV-3 协同). */}
@@ -952,7 +952,7 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
         <div
           data-artifact-kind="markdown"
           className="artifact-rendered markdown-content"
-          // 立场 ④ Markdown ONLY — renderMarkdown() 走 marked + DOMPurify,
+          // 设计 ④ Markdown ONLY — renderMarkdown() 走 marked + DOMPurify,
           // 不接受 HTML 直插. 仅 markdown 分支保留 dangerouslySetInnerHTML.
           dangerouslySetInnerHTML={{ __html: renderMarkdown(artifact.body) }}
         />
@@ -975,7 +975,7 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
         </div>
       );
     case 'video_link':
-      // CV-2 v2 立场 ② HTML5 native — preview_url 当 poster.
+      // CV-2 v2 设计 ② HTML5 native — preview_url 当 poster.
       return (
         <div data-artifact-kind="video_link" className="artifact-rendered">
           <MediaPreview
@@ -987,14 +987,14 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
         </div>
       );
     case 'pdf_link':
-      // CV-2 v2 立场 ② <embed type="application/pdf"> 浏览器内嵌.
+      // CV-2 v2 设计 ② <embed type="application/pdf"> 浏览器内嵌.
       return (
         <div data-artifact-kind="pdf_link" className="artifact-rendered">
           <MediaPreview kind="pdf_link" body={artifact.body} title={artifact.title} />
         </div>
       );
     default:
-      // 立场 ⑦ — 兜底文案 (content-lock §1 ⑦ byte-identical).
+      // 设计 ⑦ — 兜底文案 (content-lock §1 ⑦ byte-identical).
       // 不 throw, 不 fallback markdown — 优雅降级展示原 kind 字串.
       return (
         <div className="artifact-kind-unsupported">

@@ -1,13 +1,13 @@
 // IteratePanel — CV-4.3 client iterate UI (#409 server / #405 schema).
 //
-// Spec: docs/implementation/modules/cv-4-spec.md §0 立场 ②
+// Spec: docs/implementation/modules/cv-4-spec.md §0 设计 ②
 //   (owner triggers iterate / agent commit goes through CV-1 single source)
 //   + §1 CV-4.3.
 // 文案锁: docs/qa/cv-4-content-lock.md §1 ①②③⑥⑦.
 // Stance: docs/qa/cv-4-stance-checklist.md §1 ②④⑤⑥.
 // Acceptance: docs/qa/acceptance-templates/cv-4.md §3 (client) + §4 (e2e).
 //
-// 立场反查:
+// 设计反查:
 //   - ② intent textarea 协作语境 placeholder 锁 (蓝图 §1.5 "agent 是
 //     同事"); agent picker 候选仅 channel member.kind='agent' 行 (反 admin /
 //     人 行).
@@ -27,9 +27,9 @@
 //
 // 反约束 (本组件强制 grep 锚, content-lock §2 一致):
 //   - 反同义词漂移 (按钮锁定为 🔄, 文案锁中文 byte-identical;
-//     英文/全名/同义词全部反向 grep 0 hit)
+//     英文/全名/同义词全部grep 检查 0 hit)
 //   - state 4 态文案锁中文 byte-identical (反英文 4 态 + 模糊同义词)
-//   - failed UI 不渲染重试按钮 (失败状态机锁死, 立场 ⑦)
+//   - failed UI 不渲染重试按钮 (失败状态机锁死, 设计 ⑦)
 //   - 不接 autoRetry / setTimeout POST iterate failed 隐式重试
 //   - failed reason MUST 走 REASON_LABELS 三处单测锁 (#249 + AL-3 #305 + 此组件)
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -146,14 +146,14 @@ export default function IteratePanel({
   }, [channelId, reload]);
 
   // WS push hook — IterationStateChangedFrame 9 字段 byte-identical
-  // 跟 server #409 envelope. envelope 仅信号, 不带 intent_text (立场 ⑦
+  // 跟 server #409 envelope. envelope 仅信号, 不带 intent_text (设计 ⑦
   // 字段白名单反断), client 收到后必须 GET /iterations/:id 拉.
   const onFrame = useCallback(
     (frame: { artifact_id: string; iteration_id: string; state: IterationState }) => {
       if (frame.artifact_id !== artifactId) return;
       void reload().then(() => {
         if (frame.state === 'completed' && onIterationCompleted) {
-          // 立场 ② commit 走 CV-1 既有路径 — ArtifactUpdated frame 同步
+          // 设计 ② commit 走 CV-1 既有路径 — ArtifactUpdated frame 同步
           // 触发 ArtifactPanel reload, 父组件回调让其跳新版本 view.
           // listIterations 返回的 row 含 created_artifact_version_id.
           listIterations(artifactId).then((list) => {
@@ -186,7 +186,7 @@ export default function IteratePanel({
     }
   }, [artifactId, intent, targetAgentId, isOwner, reload]);
 
-  // 立场 ⑥ — 父组件已 omit non-owner; 此处再保险一层不渲染表单.
+  // 设计 ⑥ — 父组件已 omit non-owner; 此处再保险一层不渲染表单.
   if (!isOwner) return null;
 
   const headForRender = activeIteration;
@@ -257,7 +257,7 @@ export default function IteratePanel({
               reason: headForRender.error_reason,
             })}
           </span>
-          {/* 立场 ⑦ — failed 路径下不渲染重试按钮 同义词全无.
+          {/* 设计 ⑦ — failed 路径下不渲染重试按钮 同义词全无.
               owner 重新触发走 ① iterate 触发路径 (新 iteration_id, 不复用). */}
         </div>
       )}

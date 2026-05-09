@@ -8,7 +8,7 @@
 // Behavior:
 //   - controlled input — value/onChange 走 props
 //   - debounce 200ms — query 变化后 200ms 静默期才触发 onSearch
-//   - 空 q 也触发 onSearch("") — 立即恢复全列表 (反向 grep 锚)
+//   - 空 q 也触发 onSearch("") — 立即恢复全列表 (grep 检查项)
 
 import React, { useEffect, useState } from 'react';
 

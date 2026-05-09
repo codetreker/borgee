@@ -1,22 +1,22 @@
 // ImageLinkRenderer — CV-3.3 client (kind='image_link') renderer.
 //
-// Spec: docs/implementation/modules/cv-3-spec.md §0 立场 ① +
+// Spec: docs/implementation/modules/cv-3-spec.md §0 设计 ① +
 //   §1 CV-3.2 client; 文案锁: docs/qa/cv-3-content-lock.md §1 ④⑤;
 //   acceptance: docs/qa/acceptance-templates/cv-3.md §2.4 §2.5.
 // Server 锚: cv_3_2_artifact_validation.go::ValidImageLinkKinds +
 //   ValidateImageLinkURL (#400, https-only XSS 红线第一道).
 //
-// 立场反查:
+// 设计反查:
 //   - ④ image 分支 — `<img loading="lazy">` byte-identical (移动端
 //     流量保护, 反向 eager 流量防御); src 必 https (XSS 红线 #1).
 //   - ⑤ link 分支 — rel 三联锁 byte-identical
 //     (XSS 红线 #2 reverse-tab 防御); target 二元锁 byte-identical
 //     (vitest strictly assert rel 字串原样, 漏 = leak).
 //
-// 反约束 (本文件路径反向 grep 干净):
+// 反约束 (本文件路径grep 检查 干净):
 //   - 不接 javascript:|data:image|http: src URL (XSS + 混合内容)
-//   - lazy 锁 (流量防御反向 grep 0 hit)
-//   - blank 锁 (SPA 上下文跳走反向 grep 0 hit)
+//   - lazy 锁 (流量防御grep 检查 0 hit)
+//   - blank 锁 (SPA 上下文跳走grep 检查 0 hit)
 //   - 不在 link 分支渲染 <img> / image 分支渲染 <a> (kind 二元拆死)
 //
 // body 协议 (跟 server validation §0 ①): body 字段直接是 https URL.
@@ -66,7 +66,7 @@ export default function ImageLinkRenderer({ body, title, subKind = 'image' }: Pr
   }
 
   if (subKind === 'link') {
-    // 立场 ⑤ link 分支 — rel 三联锁 (vitest strictly assert
+    // 设计 ⑤ link 分支 — rel 三联锁 (vitest strictly assert
     // `expect(rel).toBe("noopener noreferrer")` 字串原样).
     return (
       <a
@@ -80,7 +80,7 @@ export default function ImageLinkRenderer({ body, title, subKind = 'image' }: Pr
     );
   }
 
-  // 立场 ④ image 分支 — loading="lazy" + class artifact-image.
+  // 设计 ④ image 分支 — loading="lazy" + class artifact-image.
   return (
     <img
       src={url}

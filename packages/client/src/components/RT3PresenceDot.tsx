@@ -1,6 +1,6 @@
 // RT-3 ⭐ presence dot — 4 态 UI 组件 (蓝图 §1.4 活物感).
 //
-// 立场承袭 (rt-3-spec.md §0 + content-lock §1+§2):
+// 设计沿用 (rt-3-spec.md §0 + content-lock §1+§2):
 //   - 4 态字面 byte-identical: `在线` / `离线` / `刚刚活跃` / `最近活跃 ${N} 分钟前`
 //   - DOM data-attr SSOT: data-rt3-presence-dot ∈ {online, offline, recently-active}
 //     + data-rt3-last-seen=unix-ms + data-rt3-cursor-user=user-id

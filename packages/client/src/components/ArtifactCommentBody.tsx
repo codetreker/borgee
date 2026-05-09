@@ -7,7 +7,7 @@
 // Stance: docs/qa/cv-11-stance-checklist.md §1+§4.
 // Content-lock: docs/qa/cv-11-content-lock.md §1+§2.
 //
-// 立场反查:
+// 设计反查:
 //   - ① renderMarkdown 单源 — only import is from '../lib/markdown'.
 //   - ④ DOM `data-cv11-comment-body` 锚 + dangerouslySetInnerHTML 仅在
 //     DOMPurify 后注入 (合法路径; vitest 反向断 sanitize 真跑).

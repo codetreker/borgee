@@ -5,11 +5,11 @@
 // Content-lock: docs/qa/cv-7-content-lock.md §1 + §2 (DOM data-attr +
 // 文案 byte-identical).
 //
-// 立场反查 (cv-7-spec.md §0):
+// 设计反查 (cv-7-spec.md §0):
 //   - ① 走 messages 表既有 endpoint — editMessage/deleteMessage/addReaction
 //     既有 client api 函数, CV-7 不开新 client api.
 //   - ② owner-only — edit/delete 按钮仅 sender==current user 渲染
-//     (反向 grep `data-cv7-edit-btn` count≥1, 仅在 own comment 行渲染).
+//     (grep 检查 `data-cv7-edit-btn` count≥1, 仅在 own comment 行渲染).
 //   - ③ thinking 5-pattern 错误 server reject → client 显错码
 //     `comment.thinking_subject_required` byte-identical (跟 CV-5 同字符).
 //   - ④ delete confirm 文案 byte-identical "确认删除这条评论?".
@@ -74,7 +74,7 @@ export default function ArtifactCommentItem({
       setEditing(false);
       onChanged?.();
     } catch (err) {
-      // CV-7 立场 ③: server 5-pattern reject 返回 errcode byte-identical CV-5.
+      // CV-7 设计 ③: server 5-pattern reject 返回 errcode byte-identical CV-5.
       if (err instanceof ApiError) {
         // ApiError carries message; we surface a known code on the rejection
         // text so the e2e + vitest can byte-identical lock the literal.

@@ -8,7 +8,7 @@
 //   <ul data-cs2-failure-center-list>...</ul>
 //
 // 反约束: admin god-mode 不挂 (ADM-0 §1.3 红线 — admin 看 audit 不看实时
-// 故障 UX); 反向 grep `admin.*failure-ux|admin.*FailureCenter` count==0.
+// 故障 UX); grep 检查 `admin.*failure-ux|admin.*FailureCenter` count==0.
 import React, { useState } from 'react';
 import type { AgentRuntimeReason } from '../lib/api';
 import { formatFailureLabel } from '../lib/cs2-failure-labels';

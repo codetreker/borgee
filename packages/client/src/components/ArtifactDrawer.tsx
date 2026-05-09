@@ -1,6 +1,6 @@
 // ArtifactDrawer — CS-1.2 right-column drawer container (380px slide-in).
 //
-// 立场 (spec §0):
+// 设计 (spec §0):
 //   ② drawer → split 升级走 onPromoteToSplit (drag handle OR explicit btn);
 //      反向: closed → split 直接 reject (走 useArtifactPanel.promoteToSplit guard)
 //   ③ 复用 ArtifactPanel byte-identical (仅加 mode prop wrap, 不改内部渲染)

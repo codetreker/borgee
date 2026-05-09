@@ -12,7 +12,7 @@
 // AL-5.2 锚: docs/implementation/modules/al-5-spec.md §1 AL-5.2 —
 //   <button data-al5-button="recover" data-action="recover">重连</button>
 //
-// 反约束: 12 同义词禁词反向 grep (批准/授予/同意/许可 / 驳回/拒接/否决/
+// 反约束: 12 同义词禁词grep 检查 (批准/授予/同意/许可 / 驳回/拒接/否决/
 // 不允许 / 稍候/延后/推迟/暂缓/过会儿 + AL-5: 重启/reset/restart/
 // 重新启动) — 守 future drift.
 

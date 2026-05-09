@@ -1,11 +1,11 @@
 // AP-2 client — BundleSelector component (acceptance §3.1).
 //
-// 立场承袭 (ap-2-spec.md + acceptance §3.1 + content-lock):
+// 设计沿用 (ap-2-spec.md + acceptance §3.1 + content-lock):
 //   - bundle 展开 capability checkbox (用户主权, 反偷默认勾全部)
-//   - 用户必显式 confirm (反自动 submit; 跟 DM-9 user 主权立场承袭)
+//   - 用户必显式 confirm (反自动 submit; 跟 DM-9 user 主权设计沿用)
 //   - DOM `data-bundle-name` 锚 + capabilityLabel SSOT 复用
 //   - 复用 AP-1 既有 PUT /api/v1/permissions endpoint (反开旁路 endpoint)
-//   - 反 RBAC role name (反向 grep)
+//   - 反 RBAC role name (grep 检查)
 import { useState } from 'react';
 import {
   BUNDLE_IDS,
@@ -28,7 +28,7 @@ export interface BundleSelectorProps {
  *
  * Flow:
  *   1. user clicks a bundle → expand its capability checkboxes (default all
- *      checked, but user can uncheck — 反偷默认全勾立场)
+ *      checked, but user can uncheck — 反偷默认全勾的设计)
  *   2. confirm button → onConfirm(selected list); caller dispatches N x
  *      AP-1 PUT /api/v1/permissions (无 bundle endpoint, 蓝图 §1.1 字面)
  */
