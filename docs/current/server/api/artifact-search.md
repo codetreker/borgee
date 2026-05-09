@@ -1,6 +1,6 @@
 # CV-6 — artifact full-text search endpoint contract (server 单一来源)
 
-> **Source-of-truth pointer.** Schema in
+> **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/cv_6_1_artifacts_fts.go`
 > (v=34). Handler in `packages/server-go/internal/api/search.go`.
 > Wire-up via existing `ArtifactHandler.RegisterRoutes`.

@@ -1,6 +1,6 @@
 # CV-2 v2 — artifact preview endpoint contract
 
-> **Source-of-truth pointer.** Schema in
+> **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/cv_2_v2_media_preview.go` (v=28).
 > Handler in `packages/server-go/internal/api/preview.go`.
 > Kind enum const + validation in
@@ -122,7 +122,7 @@ test-time via `preview_test.go` substring asserts (`preview.url_` 前缀 +
   schema CHECK + `ValidArtifactKinds` slice + client `ArtifactKind`
   three-source.
 - `PreviewableKinds` (3-tuple `[image_link, video_link, pdf_link]`)
-  byte-identical 跟 client `PREVIEWABLE_KINDS` (vitest 双向锁).
+  byte-identical 跟 client `PREVIEWABLE_KINDS` (vitest 双向锁定).
 - https-only XSS 红线第一道 byte-identical 跟 CV-3.2 #400
   `ValidateImageLinkURL` 同源.
 - Owner-only ACL byte-identical 跟 CV-1.2 #342 rollback 设计 ⑦
