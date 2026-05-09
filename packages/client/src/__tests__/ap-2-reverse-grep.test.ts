@@ -97,7 +97,7 @@ describe('AP-2 ⭐ reverse-grep — content-lock §1+§3 anti-constraints', () =
     expect(hits).toEqual([]);
   });
 
-  it('§5 admin god-mode UI 独立路径 — capabilityLabel 不在 admin/* 路径出现 (除本反向 grep 锚)', () => {
+  it('§5 admin god-mode UI 独立路径 — capabilityLabel 不在 admin/* 路径出现 (除本grep 检查项)', () => {
     const adminRoot = nodePath.join(SRC_ROOT, 'components', 'admin');
     if (!fs.existsSync(adminRoot)) {
       // admin 路径未建独立目录 — pass.

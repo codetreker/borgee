@@ -1,4 +1,4 @@
-// CS-2.2 — useFailureRepair stub hook (cs-2-stance-checklist 立场 ② 2.5).
+// CS-2.2 — useFailureRepair stub hook (cs-2-stance-checklist 设计 ② 2.5).
 import { describe, it, expect } from 'vitest';
 import { useFailureRepair, type FailureRepairAction } from '../lib/use_failure_repair';
 

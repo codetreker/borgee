@@ -1,7 +1,7 @@
 // PrivacyPromise.test.tsx — ADM-1 acceptance §1 + §2 vitest 锁.
 //
 // 锚: docs/qa/adm-1-implementation-spec.md §4 反向断言 5 项 + acceptance §1/§2.
-// 立场: admin-model.md §4.1 文案 1:1 锁 (drift test 双声明).
+// 设计: admin-model.md §4.1 文案 1:1 锁 (drift test 双声明).
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';

@@ -1,14 +1,14 @@
 // RuntimeCard.test.tsx — AL-4.3 (#379 §3 + #321 §2) DOM 字面锁单测.
 //
-// 闭环 acceptance §3.1-§3.4 + content-lock §2 反向 grep:
-//   §3.1 立场 ② 4 态 data-runtime-status DOM lock — 'registered' /
+// 闭环 acceptance §3.1-§3.4 + content-lock §2 grep 检查:
+//   §3.1 设计 ② 4 态 data-runtime-status DOM lock — 'registered' /
 //        'running' / 'stopped' / 'error' 严闭 (反约束: 不准
 //        'starting' / 'stopping' / 'restarting' 中间态 v0)
-//   §3.2 立场 ② owner-only btn DOM omit 反向断言 — 非 owner 视图无
+//   §3.2 设计 ② owner-only btn DOM omit 反向断言 — 非 owner 视图无
 //        start/stop btn (不仅 disabled, 直接 omit; 反约束:
 //        disabled.*owner_id 0 hit)
 //   §3.3 error 态 reason badge byte-identical 跟 lib/agent-state.ts
-//        REASON_LABELS 同源 (改 = 改三处, AL-1a #249 立场 ④)
+//        REASON_LABELS 同源 (改 = 改三处, AL-1a #249 设计 ④)
 //   §3.4 反约束 — 不显示 endpoint_url / last_heartbeat_at 原始时间戳
 //        (#321 §2 反约束 — 沉默胜于假精确)
 
@@ -163,7 +163,7 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
     expect(container!.querySelector('[data-runtime-action="stop"]')).toBeNull();
   });
 
-  it('§3.3 error 态 reason badge byte-identical 跟 REASON_LABELS 同源 (#249 立场 ④)', () => {
+  it('§3.3 error 态 reason badge byte-identical 跟 REASON_LABELS 同源 (#249 设计 ④)', () => {
     for (const reason of Object.keys(REASON_LABELS) as Array<keyof typeof REASON_LABELS>) {
       render({
         agent,
@@ -195,7 +195,7 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
     expect(text).not.toContain('1700000099999');
   });
 
-  it('runtime null → graceful degrade omit (立场 ① "Borgee 不带 runtime")', () => {
+  it('runtime null → graceful degrade omit (设计 ① "Borgee 不带 runtime")', () => {
     render({
       agent,
       runtime: null,

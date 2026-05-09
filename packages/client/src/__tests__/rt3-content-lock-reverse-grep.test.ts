@@ -1,6 +1,6 @@
-// RT-3 ⭐ presence — content-lock §3+§4 反向 grep tests.
+// RT-3 ⭐ presence — content-lock §3+§4 grep 检查 tests.
 //
-// 立场承袭 (rt-3-spec.md §0 + content-lock):
+// 设计沿用 (rt-3-spec.md §0 + content-lock):
 //   - §3 typing 类同义词 0 hit in RT-3 client paths (反 type-T-indicator 漂)
 //   - §4 thought-process 5-pattern 在 RT3PresenceDot.tsx + useRT3Presence.ts
 //     0 hit (跟 BPP-3 + CV-* + DM-* 既有锁链承袭)
@@ -28,7 +28,7 @@ function read(p: string): string {
   return fs.readFileSync(p, 'utf-8');
 }
 
-describe('RT-3 ⭐ content-lock §3+§4 反向 grep', () => {
+describe('RT-3 ⭐ content-lock §3+§4 grep 检查', () => {
   it('§3 typing 类同义词 0 hit in RT-3 paths (英 5 + 中 4)', () => {
     const patterns = [
       /\b(typing|composing|isTyping|userTyping|composingIndicator)\b/,

@@ -5,7 +5,7 @@
 // Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 (admin/user 路径分叉,
 // ADM-0 §1.3 同模式).
 //
-// 跨端字面拆死立场 (ADM-2 NEG-010):
+// 跨端字面拆死的设计 (ADM-2 NEG-010):
 //   - admin SPA AdminAuditLogPage 走英文 enum action 字面 (delete_channel /
 //     suspend_user / change_role / reset_password / start_impersonation)
 //   - 用户 SPA Settings/AdminActionsList 走中文动词字面 (ACTION_VERBS map
@@ -91,10 +91,10 @@ describe('ADM-2.2 跨端字面拆死 (admin SPA vs user SPA)', () => {
     }
   });
 
-  it('user SPA 不渲染 actor_id raw 字段 (立场 ④ user 只见自己, actor 走 admin lookup)', () => {
+  it('user SPA 不渲染 actor_id raw 字段 (设计 ④ user 只见自己, actor 走 admin lookup)', () => {
     // 反约束: user SPA AdminActionsList 不读 actor_id 字段 (server sanitize
     // adminView=false 不返此字段, client 也不应假设它存在).
-    // 反向 grep `actor_id` literal 在 user page 0 hit (除注释里说 actor_id
+    // grep 检查 `actor_id` literal 在 user page 0 hit (除注释里说 actor_id
     // 被 server 故意省去).
     // 我们用更严格的检查: AdminActionRow type 不含 actor_id 属性访问.
     expect(userPage).not.toContain('row.actor_id');
@@ -102,7 +102,7 @@ describe('ADM-2.2 跨端字面拆死 (admin SPA vs user SPA)', () => {
     expect(userPage).not.toContain('"actor_id"');
   });
 
-  it('admin SPA 渲染 actor_id (立场 ③ admin 互可见)', () => {
+  it('admin SPA 渲染 actor_id (设计 ③ admin 互可见)', () => {
     // admin SPA 显式读 actor_id (UUID 字符串, 走 <code> 渲染).
     expect(adminPage).toContain('row.actor_id');
   });

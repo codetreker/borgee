@@ -1,7 +1,7 @@
 // ImageLinkRenderer.test.tsx — CV-3.3 acceptance §2.4 §2.5 vitest 锁.
 //
 // 锚: docs/qa/cv-3-content-lock.md §1 ④⑤ + acceptance §2.4 §2.5 +
-//     spec §0 立场 ① + ④ XSS 红线第一道 (https only) + ⑤ 第二道
+//     spec §0 设计 ① + ④ XSS 红线第一道 (https only) + ⑤ 第二道
 //     (rel="noopener noreferrer" strictly assert byte-identical).
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -53,7 +53,7 @@ describe('isHttpsURL — XSS 红线第一道 (反约束 §2.4)', () => {
   });
 });
 
-describe('ImageLinkRenderer image branch (立场 ④)', () => {
+describe('ImageLinkRenderer image branch (设计 ④)', () => {
   it('renders <img loading="lazy" class="artifact-image" src=https>', () => {
     render(<ImageLinkRenderer body="https://example.com/a.png" title="Hi" subKind="image" />);
     const img = container!.querySelector('img.artifact-image') as HTMLImageElement;
@@ -77,7 +77,7 @@ describe('ImageLinkRenderer image branch (立场 ④)', () => {
   });
 });
 
-describe('ImageLinkRenderer link branch (立场 ⑤ — XSS 红线第二道)', () => {
+describe('ImageLinkRenderer link branch (设计 ⑤ — XSS 红线第二道)', () => {
   it('STRICTLY ASSERTS rel="noopener noreferrer" 字串原样 byte-identical', () => {
     render(<ImageLinkRenderer body="https://example.com/" title="Click me" subKind="link" />);
     const a = container!.querySelector('a.artifact-link') as HTMLAnchorElement;

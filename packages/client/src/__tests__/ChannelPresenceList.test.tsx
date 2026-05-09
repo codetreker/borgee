@@ -6,7 +6,7 @@
 //   ③ 空 onlineUserIds → return null (整个 list 不渲染)
 //   ④ data-presence-user-id 行级锚 byte-identical
 //   ⑤ 同义词反向 reject — source grep user-visible Chinese 0 hit (className/
-//      data-testid 例外); 既有 RT-2 typing path byte-identical (反向 grep
+//      data-testid 例外); 既有 RT-2 typing path byte-identical (grep 检查
 //      `rt_4|rt4|RT4` 在 TypingIndicator.tsx 0 hit).
 
 import React from 'react';

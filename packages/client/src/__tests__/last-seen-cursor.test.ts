@@ -1,6 +1,6 @@
 // last-seen-cursor.test.ts — RT-1.2 (#290 follow) acceptance pin.
 //
-// 立场 (RT-1 spec §1.2):
+// 设计 (RT-1 spec §1.2):
 //   ① sessionStorage round-trip — write N → read = N
 //   ② monotonic — smaller writes are no-ops, do not roll back
 //   ③ page reload survival — sessionStorage persists across reload

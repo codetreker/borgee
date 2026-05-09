@@ -1,5 +1,5 @@
 // SystemMessageBubble.bpp32.test.tsx — BPP-3.2.2 三按钮 DOM 字面锁
-// + content-lock §3 同义词反向 grep + data-action enum 锁.
+// + content-lock §3 同义词grep 检查 + data-action enum 锁.
 //
 // 锚: docs/qa/bpp-3.2-content-lock.md §3 byte-identical:
 //   <button data-bpp32-button="primary" data-action="grant">授权</button>

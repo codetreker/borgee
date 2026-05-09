@@ -4,7 +4,7 @@
 //   1. bundle click 展开 capability checkbox + DOM `data-bundle-name`
 //   2. 反向不自动 submit (用户主权, 跟 DM-9 同精神)
 //   3. 用户必显式 confirm (onConfirm called only on click)
-//   4. content-lock 反 RBAC role name in component body (反向 grep)
+//   4. content-lock 反 RBAC role name in component body (grep 检查)
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';

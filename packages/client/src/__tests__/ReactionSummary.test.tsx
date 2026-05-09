@@ -48,7 +48,7 @@ async function render(node: React.ReactElement) {
 }
 
 describe('ReactionSummary — DM-5.2 client', () => {
-  it('立场 ④ chip DOM `data-dm5-reaction-chip` 锚', async () => {
+  it('设计 ④ chip DOM `data-dm5-reaction-chip` 锚', async () => {
     const reactions: AggregatedReaction[] = [
       { emoji: '👍', count: 3, user_ids: ['u-1', 'u-2', 'u-3'] },
       { emoji: '🔥', count: 1, user_ids: ['u-2'] },
@@ -60,7 +60,7 @@ describe('ReactionSummary — DM-5.2 client', () => {
     expect(chips[1].getAttribute('data-dm5-reaction-chip')).toBe('🔥');
   });
 
-  it('立场 ④ count anchor + 文案 byte-identical `{emoji} {count}`', async () => {
+  it('设计 ④ count anchor + 文案 byte-identical `{emoji} {count}`', async () => {
     const reactions: AggregatedReaction[] = [
       { emoji: '👍', count: 5, user_ids: ['u-1'] },
     ];
@@ -70,7 +70,7 @@ describe('ReactionSummary — DM-5.2 client', () => {
     expect(chip.textContent).toBe('👍 5');
   });
 
-  it('立场 ④ current user reacted → `data-dm5-reaction-mine` highlight', async () => {
+  it('设计 ④ current user reacted → `data-dm5-reaction-mine` highlight', async () => {
     const reactions: AggregatedReaction[] = [
       { emoji: '👍', count: 2, user_ids: ['u-1', 'u-2'] },
       { emoji: '🔥', count: 1, user_ids: ['u-2'] },
@@ -85,7 +85,7 @@ describe('ReactionSummary — DM-5.2 client', () => {
     expect(fireChip.hasAttribute('data-dm5-reaction-mine')).toBe(false);
   });
 
-  it('立场 ④ click toggle — mine: DELETE; not-mine: PUT', async () => {
+  it('设计 ④ click toggle — mine: DELETE; not-mine: PUT', async () => {
     const reactions: AggregatedReaction[] = [
       { emoji: '👍', count: 2, user_ids: ['u-1', 'u-2'] },
       { emoji: '🔥', count: 1, user_ids: ['u-2'] },
@@ -116,7 +116,7 @@ describe('ReactionSummary — DM-5.2 client', () => {
     expect(api.addReaction).toHaveBeenCalledWith('m-4', '🔥');
   });
 
-  it('立场 ④ empty reactions — 0 chip 渲染 (返 null)', async () => {
+  it('设计 ④ empty reactions — 0 chip 渲染 (返 null)', async () => {
     await render(<ReactionSummary messageId="m-5" reactions={[]} currentUserId="u-1" />);
     expect(container!.querySelector('[data-testid="dm5-reaction-summary"]')).toBeNull();
     expect(container!.querySelectorAll('[data-dm5-reaction-chip]').length).toBe(0);

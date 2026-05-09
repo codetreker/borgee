@@ -5,7 +5,7 @@
 //   - READONLY_BIT === 16 (跟 server api.ReadonlyBit byte-identical)
 //   - READONLY_LABEL 3 文案 byte-identical 跟 content-lock §1 同源
 //   - CHANNEL_READONLY_TOAST 1 字面 byte-identical 跟 server const
-//   - 同义词反向 grep — 8 字面 user-visible 0 hit (排除 "readonly" 单词
+//   - 同义词grep 检查 — 8 字面 user-visible 0 hit (排除 "readonly" 单词
 //     在 const/type 名内出现, 仅扫文案字符串字面)
 
 import { describe, it, expect } from 'vitest';

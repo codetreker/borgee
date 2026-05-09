@@ -48,20 +48,20 @@ afterEach(() => {
 });
 
 describe('useArtifactCommentDraft — CV-10.1 hook', () => {
-  it('立场 ① empty initial state — no localStorage entry → draft="" + restored=false', async () => {
+  it('设计 ① empty initial state — no localStorage entry → draft="" + restored=false', async () => {
     await mount('art-1');
     expect(captured!.draft).toBe('');
     expect(captured!.restored).toBe(false);
   });
 
-  it('立场 ① save → reload restore — pre-seed localStorage, mount → draft populated + restored=true', async () => {
+  it('设计 ① save → reload restore — pre-seed localStorage, mount → draft populated + restored=true', async () => {
     localStorage.setItem(KEY_PREFIX + 'art-2', 'pending review note');
     await mount('art-2');
     expect(captured!.draft).toBe('pending review note');
     expect(captured!.restored).toBe(true);
   });
 
-  it('立场 ② clear() — submit 后 localStorage.removeItem → 后续 getItem returns null', async () => {
+  it('设计 ② clear() — submit 后 localStorage.removeItem → 后续 getItem returns null', async () => {
     localStorage.setItem(KEY_PREFIX + 'art-3', 'will be cleared');
     await mount('art-3');
     expect(captured!.draft).toBe('will be cleared');
@@ -72,7 +72,7 @@ describe('useArtifactCommentDraft — CV-10.1 hook', () => {
     expect(localStorage.getItem(KEY_PREFIX + 'art-3')).toBeNull();
   });
 
-  it('立场 ② debounced save — setDraft writes localStorage only after 500ms idle', async () => {
+  it('设计 ② debounced save — setDraft writes localStorage only after 500ms idle', async () => {
     await mount('art-4');
     await act(async () => {
       captured!.setDraft('first keystroke');

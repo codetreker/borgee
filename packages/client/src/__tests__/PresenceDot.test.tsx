@@ -141,7 +141,7 @@ describe('PresenceDot — AL-1b (#R3 Phase 4) busy/idle DOM 字面锁', () => {
     }
   });
 
-  // 立场 ① 拆三路径 — busy/idle compact mode 同样套 title 文案锁.
+  // 设计 ① 拆三路径 — busy/idle compact mode 同样套 title 文案锁.
   it('busy compact mode → title="在工作" + sr-only text', () => {
     const c = render(<PresenceDot state="busy" reason={undefined} compact />);
     const wrap = c.querySelector('[data-presence]')! as HTMLElement;

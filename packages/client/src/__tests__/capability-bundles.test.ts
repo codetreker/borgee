@@ -1,6 +1,6 @@
 // AP-2 client — capability-bundles content-lock + reverse-grep tests.
 //
-// 立场承袭 (acceptance §1.1+§2.2 + content-lock):
+// 设计沿用 (acceptance §1.1+§2.2 + content-lock):
 //   §1.1 CAPABILITY_BUNDLES 内 capability token 必 ∈ AP-1 14 const 跨层锁
 //   §2.2 反 hardcode bundle 漂 ('Workspace'|'Reader'|'Mention' 在
 //        components/ body 0 hit, 走 const 单源)

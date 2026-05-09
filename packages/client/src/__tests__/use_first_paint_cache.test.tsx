@@ -1,4 +1,4 @@
-// CS-4.2 — useFirstPaintCache hook 单测 (cs-4-stance-checklist 立场 ②).
+// CS-4.2 — useFirstPaintCache hook 单测 (cs-4-stance-checklist 设计 ②).
 import 'fake-indexeddb/auto';
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

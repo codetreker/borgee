@@ -1,6 +1,6 @@
 // ArtifactThumbnail.test.tsx — CV-3 v2 acceptance vitest 锁 (#cv-3-v2).
 //
-// 锚: docs/implementation/modules/cv-3-v2-spec.md §0 立场 ① 服务端 thumbnail
+// 锚: docs/implementation/modules/cv-3-v2-spec.md §0 设计 ① 服务端 thumbnail
 // 不 inline + ② https only + ③ 二闸互斥 跟 PreviewableKinds.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -33,7 +33,7 @@ function render(node: React.ReactElement) {
   return root;
 }
 
-describe('THUMBNAILABLE_KINDS — 立场 ③ (server byte-identical)', () => {
+describe('THUMBNAILABLE_KINDS — 设计 ③ (server byte-identical)', () => {
   it('THUMBNAILABLE_KINDS is the 2-tuple [markdown, code]', () => {
     expect([...THUMBNAILABLE_KINDS]).toEqual(['markdown', 'code']);
   });
@@ -50,7 +50,7 @@ describe('THUMBNAILABLE_KINDS — 立场 ③ (server byte-identical)', () => {
   );
 });
 
-describe('ArtifactThumbnail — img 渲染 (立场 ①)', () => {
+describe('ArtifactThumbnail — img 渲染 (设计 ①)', () => {
   it('renders <img loading="lazy"> 256x256 with thumbnailUrl src for markdown', () => {
     render(
       <ArtifactThumbnail
@@ -82,7 +82,7 @@ describe('ArtifactThumbnail — img 渲染 (立场 ①)', () => {
   });
 });
 
-describe('ArtifactThumbnail — fallback div (立场 ① no thumbnailUrl)', () => {
+describe('ArtifactThumbnail — fallback div (设计 ① no thumbnailUrl)', () => {
   it('renders fallback div with markdown icon when thumbnailUrl absent', () => {
     render(<ArtifactThumbnail kind="markdown" title="No thumb" />);
     const fb = container!.querySelector('.artifact-thumbnail-fallback') as HTMLDivElement;
@@ -101,7 +101,7 @@ describe('ArtifactThumbnail — fallback div (立场 ① no thumbnailUrl)', () =
   });
 });
 
-describe('ArtifactThumbnail XSS 红线 #1 — https only (立场 ② 反约束)', () => {
+describe('ArtifactThumbnail XSS 红线 #1 — https only (设计 ② 反约束)', () => {
   it.each([
     'http://cdn.example/x.png',
     'javascript:alert(1)',
@@ -116,7 +116,7 @@ describe('ArtifactThumbnail XSS 红线 #1 — https only (立场 ② 反约束)'
   });
 });
 
-describe('ArtifactThumbnail kind 闸 — 其它 kind null (立场 ③)', () => {
+describe('ArtifactThumbnail kind 闸 — 其它 kind null (设计 ③)', () => {
   it.each(['image_link', 'video_link', 'pdf_link', 'unknown', ''])(
     'returns null for kind=%s (走 MediaPreview)',
     (k) => {

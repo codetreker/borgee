@@ -1,5 +1,5 @@
 // cv-15-content-lock.test.ts — CV-15 byte-identical 跨 server/client/
-// content-lock 同源验证 + 同义词反向 grep.
+// content-lock 同源验证 + 同义词grep 检查.
 
 import { describe, it, expect } from 'vitest';
 import {

@@ -1,5 +1,5 @@
 // ArchivedChannelsPanel.test.tsx — CHN-5.3 archived panel DOM byte-
-// identical + 文案 + 同义词反向 grep + onRestore callback.
+// identical + 文案 + 同义词grep 检查 + onRestore callback.
 //
 // Pins:
 //   - <details> + <summary>已归档频道</summary> + data-testid="archived-channels-panel"

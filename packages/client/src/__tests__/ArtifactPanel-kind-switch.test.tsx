@@ -1,6 +1,6 @@
 // ArtifactPanel-kind-switch.test.tsx — CV-3.3 acceptance §2.1 §2.7 vitest 锁.
 //
-// 锚: docs/qa/cv-3-content-lock.md §1 ① ⑦ + acceptance §2.1 §2.7 + spec §0 立场 ①.
+// 锚: docs/qa/cv-3-content-lock.md §1 ① ⑦ + acceptance §2.1 §2.7 + spec §0 设计 ①.
 //
 // 反约束: data-artifact-kind 三 enum byte-identical (markdown / code /
 // image_link), 反 camelCase imageLink + 同义词 pdf/kanban/mindmap.
@@ -14,7 +14,7 @@ import { normalizeKind } from '../components/ArtifactPanel';
 // @ts-ignore vite ?raw import lacks built-in TS module decl
 import panelSrc from '../components/ArtifactPanel.tsx?raw';
 
-describe('normalizeKind — 三 enum 收口 (立场 ①)', () => {
+describe('normalizeKind — 三 enum 收口 (设计 ①)', () => {
   it('passes through markdown / code / image_link', () => {
     expect(normalizeKind('markdown')).toBe('markdown');
     expect(normalizeKind('code')).toBe('code');

@@ -80,8 +80,8 @@ describe('useArtifactPanel — CS-1.1 4-state machine', () => {
     expect(ref.current!.state.mode).toBe('split');
   });
 
-  // ⭐ 立场 ② 反向断言: closed → split 直接 reject
-  it('promoteToSplit: closed → no-op returns false (反向 spec §0 立场 ②)', () => {
+  // ⭐ 设计 ② 反向断言: closed → split 直接 reject
+  it('promoteToSplit: closed → no-op returns false (反向 spec §0 设计 ②)', () => {
     const ref = mountHook('closed');
     let promoted = false;
     act(() => {

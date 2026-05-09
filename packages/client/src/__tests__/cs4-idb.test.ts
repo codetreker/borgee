@@ -1,4 +1,4 @@
-// CS-4.1 — IndexedDB wrapper SSOT 单测 (cs-4-stance-checklist 立场 ① + content-lock §3).
+// CS-4.1 — IndexedDB wrapper SSOT 单测 (cs-4-stance-checklist 设计 ① + content-lock §3).
 //
 // fake-indexeddb 注入: 顶部 import 'fake-indexeddb/auto' 真补 jsdom 缺的 IDB.
 import 'fake-indexeddb/auto';

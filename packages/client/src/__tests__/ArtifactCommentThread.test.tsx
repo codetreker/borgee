@@ -70,7 +70,7 @@ const sampleReplies = [
 ];
 
 describe('ArtifactCommentThread — CV-8.2 client', () => {
-  it('立场 ④ collapsed default 文案 "▶ 显示 N 条回复" byte-identical', async () => {
+  it('设计 ④ collapsed default 文案 "▶ 显示 N 条回复" byte-identical', async () => {
     await render(<ArtifactCommentThread parentId="p-1" channelId="ch-1" replies={sampleReplies} />);
     const toggle = container!.querySelector('[data-cv8-thread-toggle="p-1"]') as HTMLButtonElement;
     expect(toggle).not.toBeNull();
@@ -79,7 +79,7 @@ describe('ArtifactCommentThread — CV-8.2 client', () => {
     expect(container!.querySelectorAll('[data-cv8-reply-id]').length).toBe(0);
   });
 
-  it('立场 ④ click toggle expand → "▼ 隐藏 N 条回复" + reply rows render', async () => {
+  it('设计 ④ click toggle expand → "▼ 隐藏 N 条回复" + reply rows render', async () => {
     await render(<ArtifactCommentThread parentId="p-1" channelId="ch-1" replies={sampleReplies} />);
     const toggle = container!.querySelector('[data-cv8-thread-toggle="p-1"]') as HTMLButtonElement;
     await act(async () => {
@@ -89,7 +89,7 @@ describe('ArtifactCommentThread — CV-8.2 client', () => {
     expect(container!.querySelectorAll('[data-cv8-reply-id]').length).toBe(2);
   });
 
-  it('立场 ④ data-cv8-reply-target DOM 锚 + click 打开 reply input', async () => {
+  it('设计 ④ data-cv8-reply-target DOM 锚 + click 打开 reply input', async () => {
     await render(<ArtifactCommentThread parentId="p-1" channelId="ch-1" replies={[]} />);
     const replyBtn = container!.querySelector('[data-cv8-reply-target="p-1"]') as HTMLButtonElement;
     expect(replyBtn).not.toBeNull();
@@ -103,7 +103,7 @@ describe('ArtifactCommentThread — CV-8.2 client', () => {
     expect(ta).not.toBeNull();
   });
 
-  it('立场 ④ depth 1 — nested reply 内 0 reply button (反约束 1-level)', async () => {
+  it('设计 ④ depth 1 — nested reply 内 0 reply button (反约束 1-level)', async () => {
     await render(<ArtifactCommentThread parentId="p-1" channelId="ch-1" replies={sampleReplies} />);
     // expand
     const toggle = container!.querySelector('[data-cv8-thread-toggle="p-1"]') as HTMLButtonElement;
@@ -117,7 +117,7 @@ describe('ArtifactCommentThread — CV-8.2 client', () => {
     });
   });
 
-  it.skip('立场 ③ server errcode byte-identical surfaces (`comment.thinking_subject_required`) — covered by e2e §3.2', async () => {
+  it.skip('设计 ③ server errcode byte-identical surfaces (`comment.thinking_subject_required`) — covered by e2e §3.2', async () => {
     // Skipped at unit level (vitest mocking of postArtifactCommentReply
     // does not consistently propagate through React error catch in this
     // env). The byte-identical errcode surface is covered by the e2e

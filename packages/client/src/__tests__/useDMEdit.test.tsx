@@ -1,4 +1,4 @@
-// useDMEdit.test.ts — 4 vitest cases pin DM-4.2 立场 ①+②+③.
+// useDMEdit.test.ts — 4 vitest cases pin DM-4.2 设计 ①+②+③.
 //
 // Cases:
 //   ① HappyPath — editMessage 调 patchDMMessage 真返回
@@ -98,7 +98,7 @@ describe('useDMEdit hook (DM-4.2)', () => {
     await act(async () => {
       await cap.editMessage!('msg-1', 'x');
     });
-    // 立场 ② 反向断言: useDMEdit must not persist its own cursor.
+    // 设计 ② 反向断言: useDMEdit must not persist its own cursor.
     if (typeof window !== 'undefined' && window.sessionStorage) {
       for (let i = 0; i < window.sessionStorage.length; i++) {
         const key = window.sessionStorage.key(i);

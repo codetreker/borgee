@@ -99,15 +99,15 @@ describe('dispatchAnchorCommentAdded', () => {
     expect(kinds).toEqual(['human', 'agent']);
   });
 
-  it('反约束: frame envelope must NOT leak comment body or anchor offsets (立场 ③ signal-only)', () => {
-    // Push is signal-only per cv-2-spec.md §0 立场 ③: body comes from
+  it('反约束: frame envelope must NOT leak comment body or anchor offsets (设计 ③ signal-only)', () => {
+    // Push is signal-only per cv-2-spec.md §0 设计 ③: body comes from
     // GET /api/v1/anchors/:id/comments. If a future frame schema slips
     // body / start_offset / end_offset in, this catches it.
     const keys = Object.keys(humanFrame);
     expect(keys).not.toContain('body');
     expect(keys).not.toContain('start_offset');
     expect(keys).not.toContain('end_offset');
-    // 立场 ③ env naming lock: column is `author_kind`, NOT `committer_kind`
+    // 设计 ③ env naming lock: column is `author_kind`, NOT `committer_kind`
     // (anchor 是评论作者非 commit 提交者; 飞马 v2 changelog 字面).
     expect(keys).toContain('author_kind');
     expect(keys).not.toContain('committer_kind');

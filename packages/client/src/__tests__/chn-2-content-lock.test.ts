@@ -1,7 +1,7 @@
 // chn-2-content-lock.test.ts — CHN-2.2 client SPA 文案 + DOM attr lock.
 //
 // Pins the 5 byte-identical literals from docs/qa/chn-2-content-lock.md
-// + 立场 ③/⑤ DOM attrs (data-kind="dm" / "channel" + data-channel-type)
+// + 设计 ③/⑤ DOM attrs (data-kind="dm" / "channel" + data-channel-type)
 // so drift in Sidebar.tsx / ChannelList.tsx / ChannelView.tsx is caught
 // pre-merge instead of post-merge by reverse grep.
 //
@@ -52,7 +52,7 @@ describe('CHN-2 content-lock literals + DOM attrs', () => {
     expect(slashBuiltins).toContain('打开与用户的私信');
   });
 
-  it('立场 ⑤ ChannelView data-channel-type attr — DM 跟 channel 拆死视觉', () => {
+  it('设计 ⑤ ChannelView data-channel-type attr — DM 跟 channel 拆死视觉', () => {
     expect(channelView).toMatch(/data-channel-type=\{[^}]*'dm'[^}]*'channel'[^}]*\}/);
   });
 
@@ -70,7 +70,7 @@ describe('CHN-2 content-lock literals + DOM attrs', () => {
   });
 
   it('④ DM 视图 workspace tab 渲染条件锁 — 必须 !isDm 守门', () => {
-    // 既有实施: tabs 渲染受 !isDm 守 (CHN-2 立场 ② 兜底).
+    // 既有实施: tabs 渲染受 !isDm 守 (CHN-2 设计 ② 兜底).
     expect(channelView).toMatch(/!isDm[\s\S]{0,200}channel-view-tabs/);
   });
 });

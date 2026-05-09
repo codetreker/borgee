@@ -73,7 +73,7 @@ describe('SEARCH_ERR_TOAST byte-identical (content-lock §4 — 5 错码)', () =
   });
 });
 
-describe('SearchBox debounce constant (立场 ⑨ DEBOUNCE_MS=300)', () => {
+describe('SearchBox debounce constant (设计 ⑨ DEBOUNCE_MS=300)', () => {
   it('component renders without immediate fetch on mount (no query)', () => {
     // Smoke: empty query → no fetch (debounce only fires on non-empty query).
     let fetchCalled = false;

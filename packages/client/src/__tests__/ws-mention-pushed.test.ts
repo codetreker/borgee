@@ -75,7 +75,7 @@ describe('dispatchMentionPushed', () => {
   });
 
   it('反约束: frame schema has no owner_id / target_owner / fanout fields', () => {
-    // 立场 ③ (蓝图 §4): mention 永不抄送 owner — frame surface 不
+    // 设计 ③ (蓝图 §4): mention 永不抄送 owner — frame surface 不
     // 暴露 owner 路由信息. offline owner-fallback 走独立 system DM,
     // 不复用此 envelope.
     const keys = Object.keys(onlineFrame);
