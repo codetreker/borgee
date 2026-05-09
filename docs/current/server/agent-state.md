@@ -25,6 +25,6 @@ state_updated_at   : Unix ms (仅 error)
 ```
 disabled agent 永远 offline (蓝图 §2.4 禁用 = 停接消息).
 
-**文案锁** (野马 #190 §11 + onboarding-journey.md §11): "在线" / "已离线" / "故障 (API key 失效)" 等. 改 reason 字符串 = 改 server `Reason*` 常量 + client `REASON_LABELS` + 单测断言, 三处同 PR.
+**文案锁定** (野马 #190 §11 + onboarding-journey.md §11): "在线" / "已离线" / "故障 (API key 失效)" 等. 改 reason 字符串 = 改 server `Reason*` 常量 + client `REASON_LABELS` + 单测断言, 三处同 PR.
 
 **故障旁路触发点** — `handleGetAgentFiles` 调 plugin proxy 失败时, classifier 非空 reason → `setter.SetAgentError(id, reason)`. owner 下次 GET 立即看到红条 + 修复入口. AL-1b (Phase 4 BPP) 加专属 push frame.
