@@ -8,7 +8,7 @@
 
 agent 详情页 ("Manage" 展开区) 重组成 6 卡 section, 视觉分层"读"vs"写"清晰 + Credentials 卡 by-construction 反完整 plaintext API key 进 DOM.
 
-反约束:
+反向约束:
 - ① agents page 容器 width:100% (反 flex cross-axis 缩造成默认 334px / Manage 撑大闪跳 800px) — gh#683 PR #694
 - ② Credentials 卡完整 plaintext key 永不进 React state / ref / DOM (走 closure GC, 仅末 4 位进 last4 state) — gh#684 by-construction
 - ③ 不引第三方 clipboard 库 (走 navigator.clipboard 原生 + execCommand fallback)
@@ -48,7 +48,7 @@ agent 详情页 ("Manage" 展开区) 重组成 6 卡 section, 视觉分层"读"v
 +──────────────────────────────────────────────────+
 ```
 
-DOM 锚:
+DOM 出处:
 - `<section className="agent-detail-card agent-detail-card-identity">` (Header)
 - `<section className="agent-detail-card agent-detail-card-credentials">`
 - `<section className="agent-detail-card agent-detail-card-runtime">`
@@ -56,7 +56,7 @@ DOM 锚:
 - `<section className="agent-detail-card agent-detail-card-permissions">`
 - `<section className="agent-detail-card agent-detail-card-channels">`
 
-state hoist 全在 `AgentCard` 顶层 (反 prop drilling): `last4` / `loadingKey` / `copying` / `autoClearTimerRef` / `permissions` / `runtime` / `joinChannelId`. 子卡片只 React `<section>` wrapper + class CSS, 0 跨段共享 state 漂.
+state hoist 全在 `AgentCard` 顶层 (反 prop drilling): `last4` / `loadingKey` / `copying` / `autoClearTimerRef` / `permissions` / `runtime` / `joinChannelId`. 子卡片只 React `<section>` wrapper + class CSS, 0 跨段共享 state 脱节.
 
 ## 4. Credentials 卡 mask + 复制 + auto-clear (gh#684)
 
@@ -64,7 +64,7 @@ state hoist 全在 `AgentCard` 顶层 (反 prop drilling): `last4` / `loadingKey
 
 `bgr_...{last4}` (前 4 char `bgr_` + `...` + 末 4 char). 例: `bgr_...abc1`.
 
-前缀 `bgr_` 跟 server `GenerateAPIKey()` (`packages/server-go/internal/store/queries_phase2b.go:440`) 真值 byte-identical 锁 — 反 OpenAI `sk-` 误抄 (yema brief v3 §2.3 + §3 文案锁).
+前缀 `bgr_` 跟 server `GenerateAPIKey()` (`packages/server-go/internal/store/queries_phase2b.go:440`) 真值 byte-identical 锁定 — 反 OpenAI `sk-` 误抄 (yema brief v3 §2.3 + §3 文案锁定).
 
 末 4 位露够认人不够暴破解, 思路跟 GitHub PAT / Stripe / OpenAI 行业一致.
 
@@ -95,9 +95,9 @@ const ok = document.execCommand('copy');
 
 `execCommand` 已 deprecated 但仍是 fallback 唯一选项 (反第三方 clipboard 库, heima Sec 设计 4).
 
-### 4.4 grep 检查 7 锚 (heima Sec 必扫清单)
+### 4.4 grep 检查 7 出处 (heima Sec 必扫清单)
 
-| 锚 | 预期 | 真量 |
+| 出处 | 预期 | 真量 |
 |---|---|---|
 | `'Show'` / `reveal.*key` 在 AgentManager.tsx | 0 | 0 |
 | innerText/innerHTML.*api_key | 0 | 0 |
@@ -112,9 +112,9 @@ const ok = document.execCommand('copy');
 `AgentConfigPanel.tsx` 内部 prompt textarea:
 - `rows={8}` (默认 8 行高, 反默认 1 行太小)
 - `style={{ resize: 'vertical', width: '100%', boxSizing: 'border-box' }}` (用户拖拽扩到合适高度)
-- 反约束: 不强制 monospace (prompt 是自然语言指令, 不是代码)
+- 反向约束: 不强制 monospace (prompt 是自然语言指令, 不是代码)
 
-## 6. 文案锁 (byte-identical)
+## 6. 文案锁定 (byte-identical)
 
 | 位置 | 文案 byte-identical |
 |---|---|
@@ -127,7 +127,7 @@ const ok = document.execCommand('copy');
 | Rotate API Key 按钮 | `Rotate API Key` |
 | 加载中占位 | `加载中...` |
 
-## 7. 留账 followup (cluster, design §6 + §7 已留账)
+## 7. 后续 followup (cluster, design §6 + §7 已记录)
 
 不在 #684 范围, 等独立 cluster brainstorm:
 - **server-side mask + reveal endpoint**: `sanitizeAgent` 默认返 mask, 加 `POST /agents/:id/reveal_api_key` 显式 endpoint
@@ -140,8 +140,8 @@ const ok = document.execCommand('copy');
 - `packages/client/src/__tests__/AgentManager-detail.test.tsx` 8 case (mask 字面 / aria-label / Show 反向断言 / toast 文案 / sk- 反向 / closure GC / writeText / readText 比对)
 - `packages/e2e/tests/gh-684-agent-detail-credentials.spec.ts` 6 case (1280 / login / Manage 展开 / mask 显 / 复制 toast + clipboard / 480 mobile / 反向 DOM)
 
-## 9. 锚
+## 9. 出处
 
 - 蓝图: `client-shape.md` § agent-manage / agent-detail
-- design: `docs/implementation/design/agent-manager-detail.md` (211 行 SSOT, gh#684 PR #710 一锅入)
+- design: `docs/implementation/design/agent-manager-detail.md` (211 行单一来源, gh#684 PR #710 一锅入)
 - PR: #694 (gh#683 width:100% + pnpm@10) + #710 (gh#684 6 卡 + Credentials)
