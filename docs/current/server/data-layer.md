@@ -1,10 +1,10 @@
 # Data Layer (DL-1) — 4 接口抽象当前状态 (≤80 行)
 
 > 落地: PR feat/dl-1 · DL-1.1 4 interface + factory + 12 unit + DL-1.2 server.go wire + 5 sample handler 注入 + CI dl1-no-direct-store
-> 蓝图锚: [`data-layer.md`](../../blueprint/current/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)"
+> 蓝图出处: [`data-layer.md`](../../blueprint/current/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)"
 > 设计沿用: [`dl-1-spec.md`](../../implementation/modules/dl-1-spec.md) §0 ① 4 interface byte-identical + ② factory + DI seam + ③ 0 schema/0 endpoint
 
-## 1. interface 4 条 SSOT (`internal/datalayer/`)
+## 1. interface 4 条单一来源 (`internal/datalayer/`)
 
 | Interface | 方法 | v1 实现 | v3+ 切换路径 |
 |---|---|---|---|
@@ -18,7 +18,7 @@
 ## 2. factory + DI seam (`factory.go`)
 
 ```go
-// SSOT bundle — 6 字段, server.go boot 单源 wire
+// 单一来源 bundle — 6 字段, server.go boot 单一来源 wire
 func NewDataLayer(s *store.Store, pt presence.PresenceTracker) *DataLayer {
     return &DataLayer{
         Storage: NewLocalDBStorage(s), Presence: NewInMemoryPresence(pt),
@@ -28,7 +28,7 @@ func NewDataLayer(s *store.Store, pt presence.PresenceTracker) *DataLayer {
 }
 ```
 
-server.go `New()` 单源调用 `datalayer.NewDataLayer(s, presenceTracker)`; handler 拿 `*DataLayer` 字段 (DI), 不直 import `internal/store`. v3+ 切实现仅改 factory, handler 0 改.
+server.go `New()` 单一来源调用 `datalayer.NewDataLayer(s, presenceTracker)`; handler 拿 `*DataLayer` 字段 (DI), 不直 import `internal/store`. v3+ 切实现仅改 factory, handler 0 改.
 
 ## 3. 5 sample handler 迁移现状 (DL-1.2)
 
@@ -48,14 +48,14 @@ server.go `New()` 单源调用 `datalayer.NewDataLayer(s, presenceTracker)`; han
 // packages/server-go/internal/api/dl12_direct_store_baseline_test.go
 const baseline = 50
 // walk internal/api/*.go (跳 _test.go), 在代码里搜 `"borgee-server/internal/store"` import 字面;
-// count > baseline → fail (反 commit drift handler 直 store 突击).
+// count > baseline → fail (反 commit 时 handler 直 store 突击).
 ```
 
 历史 release-gate.yml::dl1-no-direct-store yaml grep step 已随 #717 整治删除;
 真行为 test 替临时字符串 grep, 走 `go test ./...` 默认 coverage. 计数应单调
 下降 (新增 handler 必走 DataLayer.Repo seam).
 
-## 5. 反约束 / 不在范围
+## 5. 反向约束 / 不在范围
 
 - ❌ DL-2 events 双流 + retention (留 DL-2 单 milestone)
 - ❌ DL-3 阈值哨 (WAL checkpoint / write lock wait / DB 大小, 蓝图 §5)
