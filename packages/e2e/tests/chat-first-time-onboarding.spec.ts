@@ -1,25 +1,20 @@
-// tests/cm-onboarding.spec.ts — CM-onboarding (#42) e2e.
+// tests/chat-first-time-onboarding.spec.ts — 新用户首次登录的 onboarding 流 (#welcome 频道 + 快捷动作).
 //
-// Acceptance § "5 happy E2E" / cm-onboarding §5: a freshly registered user
-// must land on a non-empty channel containing the locked welcome copy and a
-// quick-action button.
+// 测试范围:
+//   - 通过 admin invite 注册新用户后, server 自动创 user / org / #welcome 频道 + 系统消息
+//   - 浏览器加载 / 后 DOM 含锁定欢迎正文 "欢迎来到 Borgee"
+//   - 快捷动作按钮 "创建 agent" 渲染, 点击后 AgentManager 标题可见
+//   - 反向断: 空状态 "👈 选择一个频道开始聊天" 不出现 (有 #welcome 频道时不应显示空态)
 //
-// Flow:
-//   1. As admin (BORGEE_ADMIN_LOGIN / BORGEE_ADMIN_PASSWORD_HASH set in
-//      playwright.config.ts), POST /admin-api/auth/login to get the admin
-//      session cookie, then POST /admin-api/v1/invites to mint an invite.
-//   2. POST /api/v1/auth/register with that invite → server-go creates the
-//      user, the org, and the #welcome channel + system message.
-//   3. Inject the resulting borgee_token cookie into the browser context and
-//      load `/`. Assert:
-//        - DOM contains the locked welcome body fragment ("欢迎来到 Borgee").
-//        - The quick-action button "创建 agent" renders.
-//        - Clicking it opens the AgentManager (heading visible).
+// 关联文档:
+//   - 验收: cm-onboarding §5 (PR #42 happy path 5 case)
+//   - 反向: §11 空状态 guard
 //
-// 反约束 §11 guard: the empty-state copy "👈 选择一个频道开始聊天" MUST NOT
-// appear. The replacement is "正在准备你的工作区, 稍候刷新…" but for the
-// happy path we shouldn't see that either — we should see the welcome
-// channel directly.
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + page.click + DOM 断)
+//   - seed 用 REST: admin login → mint invite → register
+//   - cookie 注入 BrowserContext 后访问 /
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 import { test, expect, request as apiRequest } from '@playwright/test';
 
 const ADMIN_LOGIN = 'e2e-admin';

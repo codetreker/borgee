@@ -1,26 +1,23 @@
-// tests/cv-4-unfixme-followup.spec.ts — CV-4.3 follow-up: 真态 screenshot
-// 评估 + unfixme (server #409 未 merge 时可触的部分).
+// tests/artifact-iterate-followup.spec.ts — IteratePanel 表单填充态 + 触发错误态 + 反向断 owner 门禁.
 //
-// 评估: 大部分 fixme test 真依赖 server CV-4.2 #409 (POST /iterate +
-// IterationStateChangedFrame + listIterations endpoint). 当前 main 无
-// /iterate endpoint, listIterations 404 静默, IteratePanel inline state
-// badge 不渲染 (`data-iteration-state` DOM 不出).
+// 测试范围:
+//   - pre-trigger 富状态: intent textarea 填好 + agent picker 已选 (替之前的空 form baseline)
+//   - post-trigger 错误态: server /iterate 404 时, errMsg 真渲染 (走真服务返回, 不 mock)
+//   - 反向断: iterate 进度仅显示在 inline panel, 不污染 messages 流
+//   - 反向断: 非 owner 视图 iterate 触发 DOM omit (前后端双层防越权)
 //
-// 但 IteratePanel 表单填充状态 (intent textarea + agent picker) 是 client
-// 状态, 不依赖 server. 所以可触的真态:
-//   ✅ pre-trigger 富状态: intent 填好 + picker 已选 (前 baseline 是空 form)
-//   ✅ post-trigger 错误态: POST /iterate 404 → errMsg 渲染 (CV-4 runtime
-//      stub: direct owner commit (not server mock) — server 真起, endpoint
-//      真返 404, client 走真错误处理路径, 不 mock)
-//   ❌ pending/running/completed/failed inline state DOM: 依赖 server 真
-//      返 listIterations row, 留 fixme 不动.
+// 待办 (依赖 server CV-4.2 listIterations endpoint 落地):
+//   - pending / running / completed / failed inline state badge (data-iteration-state)
 //
-// 立场反查 (cv-4-stance-checklist.md):
-//   ② CV-1 commit 单源 — 不 mock server, runtime stub via direct owner commit
-//   ⑤ iterate 进度仅 inline panel, 不污染 messages 流 (本 e2e 反向断言)
-//   ⑥ iterate 触发 owner-only DOM omit (defense-in-depth 跟 #347 同模式)
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-4.md §3
+//   - 上游: PR #347 (owner-only 同模式), PR #409 (server iterate endpoint 待 merge)
 //
-// 不 mock server (acceptance §4.7 + #378 立场 ③ byte-identical):
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真填表 + 真按钮 + DOM 断)
+//   - 不 mock server: CV-4 runtime stub 走 owner direct commit (注释保留, review 反向 grep 引用)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+
 // CV-4 runtime stub: direct owner commit (not server mock)
 import {
   test,

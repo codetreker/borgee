@@ -1,27 +1,22 @@
-// tests/cv-3-3-renderers.spec.ts — CV-3.3 client kind renderers e2e.
+// tests/artifact-renderer-types.spec.ts — artifact 三种 kind 渲染 + XSS 防御 + G3.4 demo 截屏.
 //
-// 闭环 cv-3.md acceptance §3.1-§3.4:
-//   §3.1 code artifact (Go) → prism syntax highlight class hit
-//   §3.2 image_link artifact (https URL) → <img loading="lazy"> + URL
-//        协议反向 reject (javascript: / data: / http:)
-//   §3.3 mention preview kind 三模式 (留 stub)
-//   §3.4 G3.4 demo 截屏归档 (撑章程 Phase 3 退出公告)
+// 测试范围:
+//   - code artifact (Go) 渲染 prism 语法高亮 class
+//   - image_link artifact 走 https URL 时渲染 <img loading="lazy">
+//   - URL 协议反向拒绝: javascript: / data: / http:
+//   - mention preview kind 三模式 (留 stub, 等 list endpoint 后扩)
+//   - G3.4 demo 截屏归档 (markdown 路径 baseline, code/image_link 等 list endpoint 后切)
 //
-// 立场反查 (cv-3-content-lock.md):
-//   ① 三 enum DOM data-artifact-kind byte-identical
-//   ④ image src https only (XSS 红线第一道)
-//   ⑤ link rel="noopener noreferrer" 三联锁 (XSS 红线第二道)
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-3.md §3.1-§3.4
+//   - 反向: image src https only / link rel="noopener noreferrer" 三联锁 (XSS 红线)
 //
-// 实现说明: ArtifactPanel v1 没有 list endpoint (CV-1.3 #346 spec §3 字面),
-// 只显示 user 当 session 创的 artifact. UI 路径仅创 markdown (handleCreate
-// 默认 type='markdown'), code/image_link kind 走 REST 直接创但 panel 不渲染.
-//   - 渲染层正确性: 走 vitest 146/146 全闭 (CodeRenderer / ImageLinkRenderer /
-//     MentionArtifactPreview / ArtifactPanel-kind-switch DOM 字面锁)
-//   - server 协议反向断言: 走 REST 直发 javascript:/data:/http: → 400
-//     (XSS 红线第一道 server 端守, CV-3.2 #400 ValidateImageLinkURL 已闸)
-//   - G3.4 demo 截屏: 走 markdown UI 创建路径 — markdown panel 渲染 byte-identical
-//     代表 CV-3 三态收口的 baseline; code/image_link 截屏待 list endpoint
-//     (CV-5+ 留账) 后切真路径.
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真创 artifact + DOM 断)
+//   - markdown UI 创建 (panel 默认 type=markdown), code/image_link 走 REST 直发但 panel v1 不渲染
+//   - 渲染层正确性走 vitest (CodeRenderer / ImageLinkRenderer / MentionArtifactPreview / ArtifactPanel-kind-switch)
+//   - server 协议拒绝走 REST 直发 javascript:/data:/http: → 400 (CV-3.2 ValidateImageLinkURL)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 import {
   test,
   expect,

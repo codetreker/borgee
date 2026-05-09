@@ -1,22 +1,20 @@
-// tests/cv-1-3-canvas.spec.ts — CV-1.3 client SPA Canvas e2e (#346 follow).
+// tests/canvas-modal-open-close.spec.ts — Canvas tab + 版本列表 rollback + WS 实时刷新.
 //
-// 闭环 cv-1.md §3 acceptance items (§3.1-§3.3):
-//   §3.1 Canvas tab 跟 chat 平级 + markdown ONLY 渲染 (立场 ④)
-//   §3.2 版本列表线性 + rollback owner-only — 非 owner DOM 不渲染按钮
-//        (立场 ③ + ⑦, byte-identical label "v{N+1} (rollback from v{M})")
-//   §3.3 WS ArtifactUpdated 实时刷新 (立场 ⑤, ≤3s) + 409 toast 文案
-//        byte-identical: `内容已更新, 请刷新查看`
+// 测试范围:
+//   - Canvas tab 跟 chat 平级渲染, markdown 内容渲染 (其它 kind 走 vitest)
+//   - 版本列表线性展示, rollback 按钮仅在 owner 视图渲染 (非 owner DOM 不出现)
+//   - rollback label 文案 "v{N+1} (rollback from v{M})"
+//   - WS ArtifactUpdated 推送后, 视图 ≤3s 内自动刷新
+//   - commit 冲突 409 时显示 toast "内容已更新, 请刷新查看"
 //
-// 立场反查 (cv-1-stance-checklist.md):
-//   ① 归属=channel — channel-scoped artifact, 不跨频道穿透
-//   ② 单文档锁 30s TTL — commit 冲突走 409 toast
-//   ⑤ frame 仅信号 — push 后必须 GET pull
-//   ⑦ rollback owner-only — 非 owner DOM 不渲染按钮
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-1.md §3.1-§3.3
+//   - 上游: PR #346 (CV-1.3 client follow)
 //
-// 实现说明: ArtifactPanel v1 没有 list endpoint, panel 进 channel 后
-// 默认显示 "create" 按钮; 因此 e2e 必须通过 owner UI 创建 artifact (拿到
-// artifact id 走 response intercept 复用), 然后 REST 端模拟其他端 commit
-// 触发 WS push.
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真按钮 + 真 textarea + DOM 断)
+//   - artifact 通过 owner UI 创, response intercept 拿到 id 后走 REST seed 第二端 commit 触发 WS
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,

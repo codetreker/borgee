@@ -1,23 +1,21 @@
-// tests/cv-2-3-anchor-client.spec.ts — CV-2.3 client SPA anchor e2e (#360 follow).
+// tests/comment-anchor-scroll.spec.ts — artifact 段落选区评论 + 评论侧栏 + 反向断 agent 视角无入口.
 //
-// 闭环 cv-2.md §3 acceptance items (§3.1-§3.6) + cv-2-content-lock.md
-// 7 文案锁 byte-identical:
-//   §3.1 选区 → 锚点 entry button + tooltip "评论此段" byte-identical
-//   §3.2 anchor side panel — header "段落讨论" byte-identical + placeholder
-//        "针对此段写下你的 review…" byte-identical
-//   §3.3 thread 渲染 — agent comment 加 🤖 badge byte-identical
-//   §3.5 WS push 实时 — ≤3s budget (跟 RT-1 + CV-1.3 #348 一致)
-//   §3.6 反约束: agent 视角 DOM 无 ① 入口 (count==0)
+// 测试范围:
+//   - 选中文本后渲染入口按钮 + tooltip "评论此段"
+//   - anchor side panel 标题 "段落讨论" + placeholder "针对此段写下你的 review…"
+//   - thread 渲染时 agent comment 加 🤖 badge
+//   - WS push 实时刷新, ≤3s budget (跟 RT-1 + CV-1.3 一致)
+//   - 反向断: agent 视角 DOM 无评论入口 (count==0); server 端返 403 anchor.create_owner_only
+//   - 跨 channel 访问 anchor 同样走 403 (canAccessChannel 兜底)
 //
-// 立场反查 (cv-2-spec.md §0):
-//   ① 锚点 = 人审 — agent 视角 DOM 无入口 + server 403 anchor.create_owner_only
-//   ② version pin — anchor 创时 artifact_version_id 钉死
-//   ③ envelope 仅信号 — push 后必须 GET pull
-//   ⑦ canAccessChannel — 跨 channel 访问 anchor 同 403 路径
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-2.md §3.1-§3.6
+//   - 上游: PR #360 (CV-2.3 client follow)
 //
-// 实施说明: ArtifactPanel v1 没有 list endpoint, panel 进 channel 后
-// 默认显示 "create" 按钮; e2e 必须通过 owner UI 创建 artifact + commit
-// 两版后再选区创锚.
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真选区 + 真按钮 + DOM 断)
+//   - 通过 owner UI 创 artifact + commit 两版后再选区创 anchor
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,

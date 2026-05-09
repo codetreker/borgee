@@ -1,18 +1,21 @@
-// tests/cv-1-3-canvas-modal-a11y.spec.ts — gh#691 a11y + IME + mobile e2e.
+// tests/canvas-modal-accessibility.spec.ts — Canvas modal a11y / IME / mobile e2e (gh#691).
 //
-// 验 design 691-canvas-modal-replace-system-dialog.md §7 a11y e2e 三条
-// (autoFocus / focus return / mobile viewport) + IME composition 守卫
-// + 创建失败 modal 留 (yema C 混合).
+// 测试范围:
+//   - 应用内 modal 替代浏览器原生 prompt / confirm
+//   - autoFocus 默认值: CreateArtifactModal 落 input, RollbackConfirmModal 落"取消"按钮 (危险操作 QA 拍)
+//   - Focus return: modal 关闭后焦点回到原触发按钮; 触发按钮 unmount 时 fallback 到 .artifact-panel
+//   - aria-modal + aria-labelledby 标记齐全
+//   - mobile viewport (375x812) 下 max-width 90vw, 不溢出
+//   - 创建失败时 modal 不关 + errMsg 内显 + 输入保留
+//   - IME 中文输入 composition 守卫
 //
-// 立场反查 (cv-1-stance-checklist.md + design §4 边界):
-//   ① 应用内 modal 替代浏览器原生 prompt/confirm (issue #691)
-//   ② autoFocus 安全默认: CreateArtifactModal → input;
-//      RollbackConfirmModal → 取消按钮 (危险操作, liema 拍)
-//   ③ Focus return: modal 关后回原触发按钮; 触发按钮 unmount fallback
-//      落 .artifact-panel
-//   ④ aria-modal + aria-labelledby (liema #3)
-//   ⑤ mobile viewport (375x812) max-width 90vw 不溢出 (liema #4)
-//   ⑥ 创建失败 modal 不关 + errMsg 内显 + 输入保留 (yema C 混合)
+// 关联文档:
+//   - 设计: docs/tasks/691-canvas-modal-replace-system-dialog/design.md §7
+//   - 验收: cv-1-stance-checklist.md + design §4 边界
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真键盘 + 真 viewport 切换 + DOM 断)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,
