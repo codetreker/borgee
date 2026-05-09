@@ -1,7 +1,7 @@
 # WIRE-1 — wire-up 死代码 3 处真接 (≤80 行)
 
 > 落地: PR feat/wire-1 · W1.1 DL-2 cold consumer + W1.2 DL-3 offloader + wire-3 RT-3 AgentTaskNotifier + W1.3 closure
-> Spec 锚: [`wire-1-spec.md`](../../implementation/modules/wire-1-spec.md) §0 ① 3 处 wire-up 真接 + ② 0 schema/endpoint 改 + ③ ctx-aware 反 leak
+> Spec 出处: [`wire-1-spec.md`](../../implementation/modules/wire-1-spec.md) §0 ① 3 处 wire-up 真接 + ② 0 schema/endpoint 改 + ③ ctx-aware 反 leak
 > Trigger: G4.audit independent dev audit (zhanma-c) P0 — closure docs 字面"已 wire"但 production 0 callsite
 
 ## 1. 文件清单
@@ -34,9 +34,9 @@
 - nil-safe: members 或 notifier 任一 nil → 跳 (反 panic, 反 leak); 反 self-push agent 自身 + 空 user_id
 - server.go: 加 channelMemberFetcherAdapter 桥 store.ListChannelMembers → bpp.ChannelMemberFetcher
 
-## 3. 行为不变量 byte-identical 锚
+## 3. 行为不变量 byte-identical 反查
 
-| 字面 | baseline | 当前 | 锚 |
+| 字面 | baseline | 当前 | 反查 |
 |---|---|---|---|
 | DL-1+DL-2+DL-3+DL-4 interface signature | byte-identical | byte-identical ✅ | 仅 NewEventsArchiveOffloader 加 interval 参数, NewDataLayer 加 logger 参数 (callsite 跟随) |
 | 0 endpoint URL 改 | byte-identical | byte-identical ✅ | server.go 仅 +Start / +SetPushFanout, 0 HandleFunc |
@@ -44,14 +44,14 @@
 | admin god-mode 不挂 wire 路径 (ADM-0 §1.3) | 0 hit | 0 hit ✅ | grep 检查 `admin.*EventsArchiveOffloader\|admin.*AgentTaskNotifier\|/admin-api/.*offload` 0 hit |
 | ctx-aware 反 leak | byte-identical | ✅ | Start(s.ctx) 跨 RetentionSweeper / ThresholdMonitor / EventsArchiveOffloader 3 处 + sync.Once + Done() chan |
 
-## 4. 跨 milestone byte-identical 锁链
+## 4. 跨 milestone byte-identical 守护链
 
 - DL-2 #615 EventStore + EventsRetentionSweeper byte-identical 不破
 - DL-3 #618 ThresholdMonitor / EventsArchiveOffloader 字面 byte-identical (仅加 Start/Done/runOnceLog ctx-aware)
 - DL-4 #485 AgentTaskNotifier nil-safe 同模式
 - RT-3 #616 TaskLifecycleHandler 字面 byte-identical (SetPushFanout 是 setter 加, BPP-3 既有 wire 模式不破)
 - TEST-FIX-2 #608 ctx-aware shutdown 同模式 (反 goroutine leak)
-- ADM-0 §1.3 admin god-mode 红线 (反 user-rail 漂)
+- ADM-0 §1.3 admin god-mode 红线 (反 user-rail 脱节)
 - post-#621 haystack gate Func=50/Pkg=70/Total=85 (跟 TEST-FIX-3-COV 一致)
 
 ## 5. Tests + verify
@@ -60,7 +60,7 @@
 - `go test -tags sqlite_fts5 -timeout=300s ./...` 25+ packages 全 PASS ✅
 - haystack gate TOTAL 85.7% / datalayer 91.4% / bpp 93.7% / 0 func<50% / exit 0 ✅
 
-## 6. grep 守门 (spec §2 6 锚)
+## 6. grep 守门 (spec §2 6 反查)
 
 - DL-2 cold consumer: `grep -cE 'NewInProcessEventBusWithStore' factory.go` ==1 + `func NewInProcessEventBus()` 0 hit (已删)
 - DL-3 offloader 真启: `grep -cE 'EventsArchiveOffloader.*Start\(' server.go` ==1
@@ -69,7 +69,7 @@
 - 0 schema: `git diff -- migrations/` 0 行 + `grep -cE '^\+\s*Version:'` 0 hit
 - ctx-aware: `grep -cE 'Start\(s\.ctx\)' server.go` ≥3 hit (Retention + Threshold + Offloader)
 
-## 7. 留账 (透明)
+## 7. 遗留 (透明)
 
 - events 接 RT-3 fanout 上游 hook (DL-2 cold → RT-3 hub.PushFrame 桥) 留 v1.x 后续
 - HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/internal/grants/sqlite_consumer.go`); 阈值哨 wire 留 v1.x
