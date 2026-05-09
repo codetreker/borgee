@@ -24,7 +24,7 @@ name / avatar / prompt / model / capabilities / enabled
 
 线程模型: `ConfigRevTracker` **不** goroutine-safe. BPP 单 plugin 连接是 single-reader 串行化 (BPP-1 不变量), 跟 AL-4.1 #398 schema `UNIQUE(agent_id)` "one runtime per agent" 设计一致 — 跨 plugin 连接同 agent 上行本身已是协议违反.
 
-## 4. 反约束 (反向 grep CI lint count==0)
+## 4. 反约束 (grep 守门 CI lint count==0)
 
 - runtime 调优字段不入 frame payload — 字段白名单严闭.
 - config 单源 server→plugin (plugin 不上行 config) — direction 锁 `server_to_plugin`.

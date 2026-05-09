@@ -42,7 +42,7 @@
 - **撤销 < 100ms** (蓝图 host-bridge §1.5 第 5 行 + HB-4 §1.5 release gate 第 5 行) — 不缓存 grant 状态, 每次 file action 真查 SQLite (e2e `sandbox_apply_test.go` 验)
 - **审计 5 字段同源** (HB-4 §1.5 release gate 第 4 行) — `internal/audit/audit.go` JSON schema 跟 HB-1 install audit + BPP-4 dead-letter audit + HB-3 host-IPC audit 字段 byte-identical, 改 = 改四处单测锁链
 
-## 5. 反向 grep 守门 (CI lint)
+## 5. grep 守门 (CI lint)
 
 | 检查项 | 期望值 | 含义 |
 |---|---|---|

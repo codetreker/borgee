@@ -1,6 +1,6 @@
 # Admin SPA — UserDetailPage (admin-spa-ui-coverage 第一波)
 
-> 2026-05-02 · admin-spa-ui-coverage milestone (战马C). 一 milestone 一 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤300 行 接 既有 server endpoint UI.
+> 2026-05-02 · admin-spa-ui-coverage milestone (战马C). 一个 milestone 一个 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤300 行 接 既有 server endpoint UI.
 
 ## 0. 设计沿用
 
@@ -35,7 +35,7 @@
 | DELETE | `/admin-api/v1/users/{id}/permissions` | `handleRevokePermission` (admin.go:41) | 撤销 capability |
 | PATCH | `/admin-api/v1/users/{id}` | `handleUpdateUser` (admin.go:205-211) | 改 display_name/password/role/require_mention/disabled (5 字段 body) |
 
-## 5. 反向 grep 锚 (REG-ASUC-001..007)
+## 5. grep 检查项 (REG-ASUC-001..007)
 
 ```bash
 # REG-ASUC-006 — 反 hardcode 14 const 字面 (CAPABILITY-DOT SSOT)

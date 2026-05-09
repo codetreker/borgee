@@ -38,7 +38,7 @@ owner-driven manual recovery — agent state 由 BPP-4 watchdog (或手动) 翻 
 
 ## 5. 反约束
 
-- 不另起 recovery 状态字典 (反向 grep `recovering|reconnecting|recovery_in_progress|auto_recover` 0 hit)
+- 不另起 recovery 状态字典 (grep 检查 `recovering|reconnecting|recovery_in_progress|auto_recover` 0 hit)
 - 不在 5-state graph 加新态 (走 AL-1 ValidateTransition 既有 error→online edge)
 - reason 不新增字面 (复用 last transition reason, REFACTOR-REASONS SSOT)
 - admin-api 不挂此路径 (TestAL5_Recover_AdminAPINotMounted 守)

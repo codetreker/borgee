@@ -1,6 +1,6 @@
 # Admin SPA — Wave 2 4 page (admin-spa-ui-coverage-wave2)
 
-> 2026-05-02 · admin-spa-ui-coverage-wave2 milestone (战马C). 一 milestone 一 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤350 行 接 既有 server endpoint UI.
+> 2026-05-02 · admin-spa-ui-coverage-wave2 milestone (战马C). 一个 milestone 一个 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤350 行 接 既有 server endpoint UI.
 
 ## 0. 设计沿用
 
@@ -41,7 +41,7 @@
 - `data-asuc2-archived-list / -archived-row / -archived-refresh / -history-link` (4)
 - `data-asuc2-history-list / -history-row` (2)
 
-## 5. 反向 grep 锚 (REG-ASUC2-001..007)
+## 5. grep 检查项 (REG-ASUC2-001..007)
 
 ```bash
 # REG-ASUC2-005 — admin god-mode 路径独立 (ADM-0 §1.3 红线)

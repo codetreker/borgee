@@ -27,7 +27,7 @@ DM body 字面锁: `"{agent_name} 想 {attempted_action} 但缺权限 {required_
 
 quick_action JSON shape (content-lock §2): `{action, agent_id, capability, scope, request_id}` (action ∈ {grant, reject, snooze}; client UI 渲染三按钮 "授权/拒绝/稍后").
 
-Capability 必走 AP-1 `auth.Capabilities` 14 项 const 白名单; 字典外值 reject + 错误码 `bpp.grant_capability_disallowed`. 反向 grep `GrantPermission.*Permission:.*"<literal>"` 在 `internal/api/` count==0 (跟 AP-1 反约束 #1 同源).
+Capability 必走 AP-1 `auth.Capabilities` 14 项 const 白名单; 字典外值 reject + 错误码 `bpp.grant_capability_disallowed`. grep 检查 `GrantPermission.*Permission:.*"<literal>"` 在 `internal/api/` count==0 (跟 AP-1 反约束 #1 同源).
 
 ## 3. ActionHandler interface seam
 
@@ -35,7 +35,7 @@ Capability 必走 AP-1 `auth.Capabilities` 14 项 const 白名单; 字典外值 
 
 `SessionContext` 携带 BPP-1 connect 时已认证的 `AgentUserID` + `PluginID`; AP-0 RequirePermission 由 handler 自行调闸 — dispatcher 只路由不绕权限.
 
-## 4. 反约束 (反向 grep CI lint count==0)
+## 4. 反约束 (grep 守门 CI lint count==0)
 
 - Dispatcher 不接 raw HTTP / `http.Client.Do` / REST URL 拼接 — 蓝图 §1.3 协议红线字面.
 - v2+ ops (蓝图 §1.3 v2+ 协作意图列表) 不在 v1 白名单, 字面禁 v1 进.

@@ -34,19 +34,19 @@
 
 DL-2 #615 events lex_id ULID (newULID hex monotonic) → idgen.NewID 走 canonical Base32 (跟 RT-1.3 cursor 同精神) · ADM-3 #586 RENAME forward-compat (既有数据不动) · reasons.IsValid #496 / NAMING-1 #614 / DL-1 SSOT helper 模式 (跟 BPP-3 PluginFrameDispatcher 同精神 — idgen.NewID 单源, 反 inline 散落) · 蓝图 §4.A.1 ULID lock-in 字面 byte-identical · post-#621 haystack gate 三轨守门
 
-## 4. acceptance audit-反转
+## 4. acceptance 校准回退
 
-acceptance v0 草稿超 spec scope (proposed schema migration v=N+1 + view alias + backfill cron) → 跟 spec brief §0 ① 字面 forward-compat 对齐, audit-反转跟 RT-3 #616 / DL-3 #618 / AP-2 #620 / WIRE-1 audit-反转 同模式. 这一条沉淀为 "一次做干净不留尾" 而不是 "超 scope acceptance 走过场" 的做法.
+acceptance v0 草稿超 spec scope (proposed schema migration v=N+1 + view alias + backfill cron) → 跟 spec brief §0 ① 字面 forward-compat 对齐, 校准回退跟 RT-3 #616 / DL-3 #618 / AP-2 #620 / WIRE-1 同模式. 这一条沉淀为 "一次做干净不留尾" 而不是 "超 scope acceptance 走过场" 的做法.
 
 ## 5. Tests + verify
 
 - `go build -tags sqlite_fts5 ./...` ✅
 - `go test -tags sqlite_fts5 -timeout=300s ./...` 25+ packages 全 PASS ✅
 - haystack gate TOTAL 85.6% / 0 func<50% / exit 0 ✅
-- 反向 grep `uuid\.NewString\(\)` production 0 hit ✅
-- 反向 grep `idgen\.NewID\(\)` production ≥42 hit ✅
+- grep 检查 `uuid\.NewString\(\)` production 0 hit ✅
+- grep 检查 `idgen\.NewID\(\)` production ≥42 hit ✅
 
-## 6. 反向 grep 守门 (spec §2 15 锚 关键)
+## 6. grep 守门 (spec §2 15 检查项)
 
 - ID 生成器单源 (反 inline 散落): `grep -cE '^func NewID' idgen.go` ==1
 - ULID 库引入: `grep -nE 'github.com/oklog/ulid/v2' go.mod` ≥1

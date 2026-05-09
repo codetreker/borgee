@@ -26,7 +26,7 @@
 - `[data-source-row]` 每行 (值=4 source 之一)
 - `.audit-source-badge.audit-source-{server,plugin,host-bridge,agent}` badge class
 
-## 4. 字面锁
+## 4. 跟蓝图字面一致 (改一处=改两处)
 
 - admin god-mode 路径独立 — 仅 `/admin-api/v1/audit/multi-source` (不接 user-rail 漂, 跟 ADM-0 §1.3 红线一致)
 - 4 source filter dropdown (default = "All sources")
