@@ -1,9 +1,9 @@
 # CS-4 IndexedDB 乐观缓存 (client)
 
-> 锚: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque) + `docs/implementation/modules/cs-4-spec.md` v0
+> 出处: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque) + `docs/implementation/modules/cs-4-spec.md` v0
 > 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
-## IDB wrapper SSOT (lib/cs4-idb.ts)
+## IDB wrapper 单一来源 (lib/cs4-idb.ts)
 
 ```ts
 const DB_NAME = 'borgee-cs4';
@@ -14,7 +14,7 @@ export const STORE_LAST_READ_AT = 'last_read_at'; // keyPath=channel_id
 export const STORE_AGENT_STATE = 'agent_state';   // keyPath=agent_id
 ```
 
-3 store byte-identical 跟蓝图 §1.4 表. **typing / presence-realtime 必从 server 实时拉, 不入 IDB** (蓝图字面拆死). artifact 内容 / DM body / 草稿走 CV-10 localStorage 既有 (拆死).
+3 store byte-identical 跟蓝图 §1.4 表. **typing / presence-realtime 必从 server 实时拉, 不入 IDB** (蓝图字面真分清). artifact 内容 / DM body / 草稿走 CV-10 localStorage 既有 (真分清).
 
 API: `openCS4DB()` / `cs4Get` / `cs4Put` / `cs4Delete` / `clearStaleEntries(maxAgeMs)`.
 
@@ -58,21 +58,21 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 - syncing ≤3s → `return null` (沉默胜于假 loading 跟 RT-1 §1.1 一致)
 - syncing ≥3s → 显示 `同步中…`
 
-## 反约束守门
+## 反向约束守门
 
 - typing/presence-realtime 不入 IDB: `idb.*put.*typing|idb.*put.*presence_realtime` 0 hit
 - artifact / DM body 不入 IDB: `idb.*put.*artifact_content|idb.*put.*dm_body` 0 hit
 - 不复用 RT-1 之外 cursor helper: `cs4.*newCursor|CS4CursorHelper` 0 hit
-- 同义词漂禁: `本地缓存|离线缓存|已加载|加载完成|准备中` 0 hit
+- 同义词脱节禁: `本地缓存|离线缓存|已加载|加载完成|准备中` 0 hit
 - admin god-mode 不挂 (ADM-0 §1.3): `admin.*idb|admin.*indexedDB` 0 hit
 - 0 server prod: `git diff origin/main -- packages/server-go/` 0 行
 - 0 schema 改: `migrations/cs_4|cs4.*api|cs4.*server` 0 hit
 
-## 跨 milestone byte-identical 锁
+## 跨 milestone byte-identical 锁定
 
 - RT-1 #290 cursor opaque (CS-4 IDB.put cursor key 跟 server `?cursor=` 同源)
 - DM-3 useDMSync 既有 client cursor 同步同模式
-- CV-10 草稿 localStorage 拆死 (CS-4 不入草稿域)
+- CV-10 草稿 localStorage 真分清 (CS-4 不入草稿域)
 - CS-2 #595 故障三态联动 (failed 时 IDB cache hit + offline label graceful fallback)
 - ADM-0 §1.3 admin god-mode 不挂
 

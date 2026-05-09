@@ -1,6 +1,6 @@
 # CS-2 故障 UX 分层呈现 (client)
 
-> 锚: `docs/blueprint/current/client-shape.md` §1.3 + `docs/implementation/modules/cs-2-spec.md` v0
+> 出处: `docs/blueprint/current/client-shape.md` §1.3 + `docs/implementation/modules/cs-2-spec.md` v0
 > 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
 ## 故障三态枚举 (lib/cs2-failure-state.ts)
@@ -9,10 +9,10 @@
 export const FAILURE_TRI_STATE = ['online', 'error', 'offline'] as const;
 ```
 
-byte-identical 跟既有 `<PresenceDot data-presence>` enum + AL-3 锁链. AL-1b
-busy/idle 拆死锁 (BPP progress frame 真实施时 v2 才加第 4 态).
+byte-identical 跟既有 `<PresenceDot data-presence>` enum + AL-3 守护链. AL-1b
+busy/idle 真分清锁定 (BPP progress frame 真实施时 v2 才加第 4 态).
 
-`IsFailureState(s)` helper 跟 reasons.IsValid #496 SSOT 包同模式.
+`IsFailureState(s)` helper 跟 reasons.IsValid #496 单一来源包同模式.
 
 ## plain language 6-dict (lib/cs2-failure-labels.ts)
 
@@ -31,7 +31,7 @@ cs2-failure-labels.ts + content-lock §1).
 
 ## 4 层 UX 呈现 (蓝图 §1.3 表 byte-identical)
 
-| 层 | 组件 | DOM 锚 | 触发 |
+| 层 | 组件 | DOM 出处 | 触发 |
 |---|---|---|---|
 | 头像角标 | `PresenceDot` (扩 `data-failure-badge="true"`) | `data-presence="error"` + `data-failure-badge="true"` | `state==='error'` 自动 |
 | 浮层 | `FailurePopover.tsx` | `data-cs2-failure-popover="open"` + `role="dialog"` | hover/click PresenceDot (caller 控制 `open` prop) |
@@ -52,22 +52,22 @@ export type FailureRepairAction = 'reconnect' | 'refill_api_key' | 'view_logs';
 蓝图字面 "inline 修复, 不跳设置页" — grep 检查 `navigate.*\/settings` 在
 `components/Failure*.tsx` count==0.
 
-## 反约束守门
+## 反向约束守门
 
-- 三态拆死: `'busy'|'idle'|'standby'` 在 `cs-2-*` 0 hit
-- 4 层不漂第 5 层: `toast.*failure|FailureModal|FailureInlineError` 0 hit
-- 同义词漂禁: `故障了|挂了|不可用|服务异常|崩了|掉线` 0 hit
+- 三态真分清: `'busy'|'idle'|'standby'` 在 `cs-2-*` 0 hit
+- 4 层不脱节第 5 层: `toast.*failure|FailureModal|FailureInlineError` 0 hit
+- 同义词脱节禁: `故障了|挂了|不可用|服务异常|崩了|掉线` 0 hit
 - raw error code 不暴: `401 Unauthorized|connection refused|invalid_token|openclaw://` 0 hit
 - admin god-mode 不挂 (ADM-0 §1.3 红线): `admin.*failure-ux|admin.*FailureCenter` 0 hit
 - 0 server prod: `git diff origin/main -- packages/server-go/` 0 行
 - 0 schema 改: `migrations/cs_2|cs2.*api|cs2.*server` 0 hit
 
-## 跨 milestone byte-identical 锁
+## 跨 milestone byte-identical 锁定
 
 - AL-3 PresenceDot data-presence enum (CS-2 三态 byte-identical)
-- AL-1b 5-state 拆分 (CS-2 三态拆死 vs AL-1b 5-state, BPP progress 真实施时 v2 合)
-- reasons.IsValid #496 SSOT 6-dict (改 = 改三处)
-- AL-4 #321 system DM 文案锁 (reason text byte-identical)
+- AL-1b 5-state 拆分 (CS-2 三态真分清 vs AL-1b 5-state, BPP progress 真实施时 v2 合)
+- reasons.IsValid #496 单一来源 6-dict (改 = 改三处)
+- AL-4 #321 system DM 文案锁定 (reason text byte-identical)
 - 蓝图 client-shape.md §1.3 plain language 字面对账
 - ADM-0 §1.3 admin god-mode 不挂
 

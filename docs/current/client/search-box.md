@@ -1,6 +1,6 @@
 # SearchBox + SearchResultList — artifact 全文搜索 client contract
 
-> **Source-of-truth pointer.** Components in
+> **单一来源 pointer.** Components in
 > `packages/client/src/components/SearchBox.tsx` +
 > `SearchResultList.tsx`. API client in
 > `packages/client/src/lib/api.ts::searchArtifacts` +
@@ -17,15 +17,15 @@ SearchResultList renders title + server-side `<mark>...</mark>`
 highlighted snippet. HTML5 native; no fuzzy-search libs (fuse.js /
 minisearch / fuzzysort / flexsearch).
 
-## Stance (cv-6-spec.md §0 + content-lock)
+## 原则 (cv-6-spec.md §0 + content-lock)
 
-- **server-side SSOT** (FTS5). No client-side fuzzy lib (grep 检查
+- **server-side 单一来源** (FTS5). No client-side fuzzy lib (grep 检查
   package.json count==0 by 5 keyword).
 - **debounce 300ms** — 反每键发 HTTP, useEffect cleanup pattern.
 - **kbd shortcut**: `/` focuses input (不在编辑态时); `Escape` clears
   query (跟既有 mention `@` 同精神).
 - **5 错码 → toast** byte-identical (`SEARCH_ERR_TOAST` map; 跟 server
-  const + content-lock §4 三处单源).
+  const + content-lock §4 三处单一来源).
 
 ## DOM contract (content-lock §2 + §3)
 
@@ -42,12 +42,12 @@ minisearch / fuzzysort / flexsearch).
 />
 ```
 
-字面锁:
+字面锁定:
 
 - `type="search"` (HTML5 native, 反 type="text").
 - `placeholder` byte-identical "搜索 artifact (按 / 聚焦)".
 - `maxlength="256"` 跟 server `SearchQueryMaxLen` byte-identical.
-- `data-testid="artifact-search-input"` (e2e 锚).
+- `data-testid="artifact-search-input"` (e2e 出处).
 - `aria-label="搜索 artifact"` (a11y 反向断言).
 
 ### SearchResultList row
@@ -73,7 +73,7 @@ image_link / video_link / pdf_link).
 
 server-side `snippet()` 返回 `<mark>...</mark>` 字面已嵌入. client 走
 `dangerouslySetInnerHTML` 直渲 — server-side validated by FTS5 (token
-boundaries + literal `<mark>`/`</mark>` 字符串 server SSOT 加注), 不
+boundaries + literal `<mark>`/`</mark>` 字符串 server 单一来源加注), 不
 再 client-side sanitize (跟既有 markdown 同精神 — markdown 路径也走
 server-side trusted output).
 
@@ -91,9 +91,9 @@ export const SEARCH_ERR_TOAST: Record<string, string> = {
 
 **改 = 改三处** (server const + 此 map + content-lock §4); CI lint
 等价单测 (`SearchBox.test.tsx::SEARCH_ERR_TOAST byte-identical`) 守
-future drift.
+future 脱节.
 
-## 跨 milestone byte-identical 锁
+## 跨 milestone byte-identical 锁定
 
 - `SearchResult.kind` 5 enum 跟 server `cv_3_2_artifact_validation.go::
   ValidArtifactKinds` byte-identical (CV-3 + CV-2 v2 同源).
