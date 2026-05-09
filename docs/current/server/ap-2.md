@@ -8,10 +8,10 @@
 ```json
 {
   "user_id": "...",
-  "role": "member",          // legacy caller 兼容 — UI 不显此字段
+  "role": "member",          // 历史 caller 兼容 — UI 不显此字段
   "permissions": ["*"],
   "details": [...],
-  "capabilities": [           // AP-2 SSOT (走 14 const byte-identical 跟 auth.ALL; CAPABILITY-DOT 后 dot-notation)
+  "capabilities": [           // AP-2 单一来源 (走 14 const byte-identical 跟 auth.ALL; CAPABILITY-DOT 后 dot-notation)
     "channel.read", "channel.write", "channel.delete",
     "artifact.read", "artifact.write", "artifact.commit",
     "artifact.iterate", "artifact.rollback",
@@ -23,14 +23,14 @@
 
 ## 1.bis CAPABILITY-DOT (post-rename)
 
-CAPABILITY-DOT (migration v=48) — 14 capability const 字符串值改 snake_case → dot-notation 兑现蓝图 auth-permissions.md `<domain>.<verb>` 字面. Go const 名保留 (`auth.ReadChannel` / `auth.CommitArtifact` / etc Go 命名规范不漂); 仅字符串值改. DB backfill 14 行 per-token UPDATE (反 REPLACE 机械, verb_noun 顺序对调) + idempotent (hasColumns guard 反复跑不破). 0 schema column rename / 0 endpoint URL 改 / 0 routes.go 改 — `user_permissions.capability` TEXT 字段名不动, 仅值改.
+CAPABILITY-DOT (migration v=48) — 14 capability const 字符串值改 snake_case → dot-notation 兑现蓝图 auth-permissions.md `<domain>.<verb>` 字面. Go const 名保留 (`auth.ReadChannel` / `auth.CommitArtifact` / etc Go 命名规范不脱节); 仅字符串值改. DB backfill 14 行 per-token UPDATE (反 REPLACE 机械, verb_noun 顺序对调) + idempotent (hasColumns guard 反复跑不破). 0 schema column rename / 0 endpoint URL 改 / 0 routes.go 改 — `user_permissions.capability` TEXT 字段名不动, 仅值改.
 
 ## 2. helper — `deriveAP2Capabilities(role, permissions)`
 
 - member + `["*"]` → 全 14 const (AP-0 default)
 - agent / bundle-narrowed → permissions[] prefix 解析 + auth.IsValidCapability 反向断言 + dedupe + unknown forward-compat drop
 
-## 3. 反约束
+## 3. 反向约束
 
 - ❌ response 不暴露 RBAC role:value (admin/editor/viewer/owner) 字面 (反 role bleed)
 - ❌ admin god-mode UI 永久独立 (`/admin-api/users/*` 不走本 helper)

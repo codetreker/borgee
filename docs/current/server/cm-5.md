@@ -1,9 +1,9 @@
 # CM-5 — agent↔agent 协作 (X2 冲突裁决路径)
 
 > 蓝图: `concept-model.md §1.3` (§185 "未来你会看到 agent 互相协作") + `agent-lifecycle.md §1` (Borgee 是协作平台, 不是 agent 平台 — agent 之间协作走 Borgee 平台机制 + plugin runtime)
-> Spec: `docs/implementation/modules/cm-5-spec.md` (战马A v0, 5 设计原则 + 3 拆段 + 4 行黑名单 grep)
-> Acceptance: `docs/qa/acceptance-templates/cm-5.md` (§1 schema 反向约束 + §2 server 路径验证 + §3 client UI + §4 grep)
-> Implementation entry (CM-5.1): `packages/server-go/internal/api/cm5stance/cm_5_1_anti_constraints_test.go` — 5 反向约束 grep test (PR #469-stub)
+> Spec: `docs/_archive/implementation/modules/cm-5-spec.md` (战马A v0, 5 设计原则 + 3 拆段 + 4 行黑名单 grep)
+> Acceptance: `docs/_archive/qa/acceptance-templates/cm-5.md` (§1 schema 反向约束 + §2 server 路径验证 + §3 client UI + §4 grep)
+> Implementation entry (CM-5.1): **stub 待落** — 计划包路径 `packages/server-go/internal/api/cm5stance/cm_5_1_anti_constraints_test.go` (5 反向约束 grep test, 跟 PR #469 stub 同精神, 真包等 CM-5.1 实施 PR 落地)
 
 ## 1. 设计原则总览 (5 条 byte-identical 锁定)
 
