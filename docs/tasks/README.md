@@ -23,8 +23,7 @@
 ## 当前在做的
 
 - [716-e2e-real-ui-audit](716-e2e-real-ui-audit/) — 全量审计 e2e case 删假 grep 充数 (P0, in-flight)
-- [717-release-gate-cleanup](717-release-gate-cleanup/) — 删 release-gate / al-release-gate workflow + 真行为 test 替临时字符串 grep (P1, PR #722 in-flight)
-- gh#718 — 全 repo 黑话整治 (P2, batch 7a/7b/7c/7d1 已合, 后续 batch 进行中, 无独立 tasks/ 目录)
+- gh#718 — 全 repo 黑话整治 (P2, in-flight). sed 时代 12 PR (#721/#723/#725/#726/#727/#728/#729/#730/#731/#732/#733/#734) 已合, 用户拍方法学违反 issue 原文重做; v13+ 按语境读真做 (PR #738/#739/#740 已合, 累计 3 PR / 21 文件 / 余 ~519 文件 / 估 60-70 PR), 无独立 tasks/ 目录
 - gh#724 — zhanma-c follow-up (待 triage, 24h 窗口内)
 
 **v2 brainstorm 输入 (不是 current-iteration)**:
@@ -36,3 +35,4 @@
 进 `_archive/`. 以下已合 milestone:
 
 - [_archive/698-agent-config-form-overlap/](../_archive/698-agent-config-form-overlap/) — Manage 展开后 form label/input 重叠 (PR #706 已合, gh#698 closed)
+- [_archive/717-release-gate-cleanup/](../_archive/717-release-gate-cleanup/) — 删 release-gate / al-release-gate workflow + 真行为 test 替临时字符串 grep (PR #722 已合, gh#717 closed)
