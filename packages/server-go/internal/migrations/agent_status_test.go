@@ -41,7 +41,7 @@ func TestAL_CreatesAgentStatusTable(t *testing.T) {
 		t.Fatalf("agent_status missing agent_id (have %v)", keys(cols))
 	}
 	if !idCol.pk {
-		t.Error("agent_status.agent_id must be PRIMARY KEY (1 row per agent, 立场 ① 拆三路径)")
+		t.Error("agent_status.agent_id must be PRIMARY KEY (1 row per agent, 设计 ① 拆三路径)")
 	}
 
 	for _, name := range []string{
@@ -77,10 +77,10 @@ func TestAL_CreatesAgentStatusTable(t *testing.T) {
 	}
 }
 
-// TestAgentStatus_NoDomainBleed pins acceptance §1.5 — 立场 ① "拆三路径".
+// TestAgentStatus_NoDomainBleed pins acceptance §1.5 — 设计 ① "拆三路径".
 // 反向断言列名: AL-3 presence 列 (is_online / presence) 全无 + AL-4
 // runtime 列 (last_error_reason / endpoint_url / process_kind) 全无 +
-// 立场 ② "BPP 单源" 反人工伪造列 (source / set_by) 全无 + RT-1 envelope
+// 设计 ② "BPP 单源" 反人工伪造列 (source / set_by) 全无 + RT-1 envelope
 // cursor 拆死. 跟 al_4_1 TestAL41_NoLLMOrPresenceColumns + cv_3_1
 // TestCV31_NoCascadeDelete 同模式 反约束防御.
 func TestAgentStatus_NoDomainBleed(t *testing.T) {
@@ -90,27 +90,27 @@ func TestAgentStatus_NoDomainBleed(t *testing.T) {
 
 	cols := pragmaColumns(t, db, "agent_status")
 	for _, forbidden := range []string{
-		// 立场 ① 反 AL-3 — busy/idle ≠ presence, 不替代两表两路径.
+		// 设计 ① 反 AL-3 — busy/idle ≠ presence, 不替代两表两路径.
 		"is_online",
 		"presence",
-		// 立场 ① 反 AL-4 — busy/idle 是 task-level, 不混 process-level.
+		// 设计 ① 反 AL-4 — busy/idle 是 task-level, 不混 process-level.
 		"last_error_reason",
 		"endpoint_url",
 		"process_kind",
-		// 立场 ② 反人工伪造 — busy/idle state machine 单 source = BPP frame.
+		// 设计 ② 反人工伪造 — busy/idle state machine 单 source = BPP frame.
 		"source",
 		"set_by",
 		// RT-1 envelope cursor 拆死 (跟 al_3_1 / al_4_1 / cv_*_1 / dm_2_1 同模式).
 		"cursor",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("agent_status.%s exists — 反约束 broken (acceptance §1.5 + spec §0 立场 ①②)", forbidden)
+			t.Errorf("agent_status.%s exists — 反约束 broken (acceptance §1.5 + spec §0 设计 ①②)", forbidden)
 		}
 	}
 }
 
 // TestAL_AcceptsBusyIdleEnum pins acceptance §1.2 — state CHECK
-// ('busy','idle') 2 态. 立场 ③ 文案三态: schema 仅 2 态, client UI 合并
+// ('busy','idle') 2 态. 设计 ③ 文案三态: schema 仅 2 态, client UI 合并
 // AL-1a 三态 (online/offline/error) + AL-3 presence 显示 5-state. 反约束:
 // 'online' / 'offline' / 'error' / 'running' / 'active' / '' 等枚举外值
 // reject (跟 AL-1a 三态拆死, 跟 AL-4 process-level 4 态拆死).

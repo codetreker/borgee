@@ -22,7 +22,7 @@ func runCV21(t *testing.T, db *gorm.DB) {
 
 // TestCV_CreatesArtifactAnchorsTable pins acceptance §1 (cv-2.md §1.1):
 // artifact_anchors has the contract columns with the right NOT NULL / nullable
-// shape + the end_offset CHECK. Drift here breaks 立场 ② (锚钉死 version) or
+// shape + the end_offset CHECK. Drift here breaks 设计 ② (锚钉死 version) or
 // the range invariant.
 func TestCV_CreatesArtifactAnchorsTable(t *testing.T) {
 	t.Parallel()
@@ -70,12 +70,12 @@ func TestCV_CreatesArtifactAnchorsTable(t *testing.T) {
 
 	// 反约束: anchor_kind / author_kind MUST NOT exist on artifact_anchors —
 	// 锚是定位 + 元数据, kind 在 anchor_comments (评论作者) 才有意义; 防止
-	// 蓝图 §1.6 锚点 = 人审工具的语义被 schema 拆错列 (立场 ① owner / 成员
+	// 蓝图 §1.6 锚点 = 人审工具的语义被 schema 拆错列 (设计 ① owner / 成员
 	// 创锚, agent 不创锚 — kind 列若挂 anchors 会把 review tool 错位成
 	// "agent 也能创锚" 的口子).
 	for _, forbidden := range []string{"anchor_kind", "author_kind", "kind"} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("artifact_anchors.%s exists — 反约束 broken (kind 仅在 anchor_comments, 立场 ①)", forbidden)
+			t.Errorf("artifact_anchors.%s exists — 反约束 broken (kind 仅在 anchor_comments, 设计 ①)", forbidden)
 		}
 	}
 	// 反约束: cursor 不挂 schema (跟 RT-1 envelope cursor 拆死, 同 cv_1_1).
@@ -85,7 +85,7 @@ func TestCV_CreatesArtifactAnchorsTable(t *testing.T) {
 }
 
 // TestCV_RejectsInvalidEndOffsetRange pins range CHECK — end_offset >=
-// start_offset. start>end → reject. spec §0 立场 ② anchor_range 字符索引,
+// start_offset. start>end → reject. spec §0 设计 ② anchor_range 字符索引,
 // invalid 范围让 review 跑偏.
 func TestCV_RejectsInvalidEndOffsetRange(t *testing.T) {
 	t.Parallel()
@@ -160,7 +160,7 @@ func TestCV_CreatesAnchorCommentsTable(t *testing.T) {
 }
 
 // TestCV_RejectsInvalidAuthorKind pins anchor_comments.author_kind CHECK
-// in ('agent','human'). 立场 ① 反 agent→agent thread 由 server 校验 (至少
+// in ('agent','human'). 设计 ① 反 agent→agent thread 由 server 校验 (至少
 // 一 'human'), 但 schema 层先把 kind enum 锁死, drift 上去 server 也兜不住.
 func TestCV_RejectsInvalidAuthorKind(t *testing.T) {
 	t.Parallel()
@@ -256,7 +256,7 @@ func TestCanvasAnchorComments_HasIndexes(t *testing.T) {
 	}
 }
 
-// TestCV_AnchorsAcrossVersionsCoexist pins 立场 ② 锚钉死 version (immutable
+// TestCV_AnchorsAcrossVersionsCoexist pins 设计 ② 锚钉死 version (immutable
 // across artifact 滚动). 同 artifact 不同 version 各自挂锚 row, 互不干扰
 // (artifact_version_id FK 严格不同). 反向断言: 单 anchor 不会被 version 滚动
 // "携带" — schema 层完全分行, 没有任何 update_to_next_version 字段.

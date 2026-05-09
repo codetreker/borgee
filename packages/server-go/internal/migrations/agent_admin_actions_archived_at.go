@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 // adminActionsArchivedAt is migration v=33 — Phase 6 / AL-7.1.
 //
 // Blueprint锚: `admin-model.md` §3 retention + ADM-2.1 #484 forward-only
-// audit. Spec brief: docs/implementation/modules/al-7-spec.md §0 立场 ①
+// audit. Spec brief: docs/implementation/modules/al-7-spec.md §0 设计 ①
 // + §1 拆段 AL-7.1.
 //
 // What this migration does (two changes in one migration — both required
@@ -15,7 +15,7 @@ import "gorm.io/gorm"
 //      (跟 ap_2_1 revoked_at + ap_1_1 expires_at + ap_3_1 org_id
 //      ALTER ADD COLUMN NULL 跨四 milestone 同模式). NULL = active 行
 //      (retention sweeper 未 archive); sweeper UPDATE archived_at = now
-//      → 软 archive (forward-only 立场承袭 ADM-2.1 + AP-2).
+//      → 软 archive (forward-only 设计沿用 ADM-2.1 + AP-2).
 //   2. CREATE INDEX idx_admin_actions_archived_at ON admin_actions(
 //      archived_at) WHERE archived_at IS NOT NULL — sparse index 仅扫
 //      已 archive 行 (跟 ap_2_1 revoked_at + ap_1_1 expires_at +
@@ -32,7 +32,7 @@ import "gorm.io/gorm"
 //   - INDEX WHERE archived_at IS NOT NULL — partial index, 现网零开销.
 //   - admin_actions enum 加 1 项 (11 → 12) — 反向 reject spec 外值
 //     (TestAL71_RejectsUnknownAction 守).
-//   - 不裂表 — 反向 grep `audit_archive_table\|audit_history_log\|
+//   - 不裂表 — grep 检查 `audit_archive_table\|audit_history_log\|
 //     al7_archive_log` 0 hit (TestAL71_NoSeparateArchiveTable 守).
 //
 // v=33 sequencing: BPP-8.1 v=31 (#532 merged) → CV-6.1 v=32 (#531 待

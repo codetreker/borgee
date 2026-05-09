@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 // messagesEditHistory is migration v=34 — Phase 6 / DM-7.1.
 //
 // Blueprint锚: dm-model.md §3 audit forward-only history. Spec brief:
-// docs/implementation/modules/dm-7-spec.md §0 立场 ① + §1 拆段 DM-7.1.
+// docs/implementation/modules/dm-7-spec.md §0 设计 ① + §1 拆段 DM-7.1.
 //
 // What this migration does (跟 AL-7.1 admin_actions ADD archived_at +
 // HB-5.1 agent_state_log ADD archived_at + AP-1.1+AP-3.1+AP-2.1 跨七
@@ -18,13 +18,13 @@ import "gorm.io/gorm"
 // 不漂). NULL = no edits / 老消息行 byte-identical 不动 / 现网行为
 // 零变.
 //
-// 反约束 (dm-7-spec.md §0 立场 ①+④):
+// 反约束 (dm-7-spec.md §0 设计 ①+④):
 //   - 不挂 NOT NULL — edit_history NULL = 无历史 (跟 AL-7.1 archived_at
 //     NULL = active 同精神).
 //   - 不挂 default 值 — NULL 是合法终态.
 //   - 不另起 message_edit_history 表 — JSON array on messages 列单源
-//     (反向 grep `message_edit_history\|message_history_log\|dm7_history`
-//     0 hit, 立场 ① 守).
+//     (grep 检查 `message_edit_history\|message_history_log\|dm7_history`
+//     0 hit, 设计 ① 守).
 //
 // v=34 sequencing: AL-7.1 v=33 (#536 merged) → DM-7.1 **v=34** (本
 // migration). registry.go 字面锁; 顺位.

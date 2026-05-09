@@ -25,17 +25,17 @@ import (
 //                                                     NULL 表示有效)
 //   2. CREATE INDEX idx_impersonation_grants_user_id_expires
 //      ON impersonation_grants(user_id, expires_at DESC) — ActiveGrant
-//      query 热路径 (admin 写动作前 server 校验, 立场 ⑦).
+//      query 热路径 (admin 写动作前 server 校验, 设计 ⑦).
 //
-// 反约束 (acceptance §4.2 + spec §2.5 + stance §1 立场 ⑦):
+// 反约束 (acceptance §4.2 + spec §2.5 + stance §1 设计 ⑦):
 //   - 蓝图 §3 字面 "由 user 创建": 此表 INSERT 路径仅从 user-rail 进入
 //     (POST /api/v1/me/impersonation-grants 走 user cookie), admin SPA
-//     不开授予自己 impersonate 路径 (反向 grep `force_impersonate\|
+//     不开授予自己 impersonate 路径 (grep 检查 `force_impersonate\|
 //     admin_impersonate_self` count==0)
 //   - 期限固定 24h: server 端 expires_at = granted_at + 24h, schema 不挂
 //     CHECK 但 server 校验; 反约束: client 传 expires_at 字段 server 忽略
-//   - revoked_at 是唯一允许的 UPDATE 路径 (forward-only 立场 ⑤ 例外 — 撤销
-//     是业主主动权, 不是 audit 改写). 跟 admin_actions 立场 ⑤ "audit 不可改写"
+//   - revoked_at 是唯一允许的 UPDATE 路径 (forward-only 设计 ⑤ 例外 — 撤销
+//     是业主主动权, 不是 audit 改写). 跟 admin_actions 设计 ⑤ "audit 不可改写"
 //     精神不冲突 (admin_actions 是历史记录, impersonation_grants 是状态记录)
 //   - 反向列名: 不挂 `actor_id` (admin 不在此表, 蓝图 §3 字面 "admin 仅消费
 //     这条记录"); 不挂 `cursor` (跟 al_3_1 / cv_4_1 / chn_3_1 / al_2a_1 /

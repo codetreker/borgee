@@ -94,7 +94,7 @@ func TestHostAgentStateLogArchivedAt_Idempotent(t *testing.T) {
 	}
 }
 
-// TestHB_NoAdminActionsEnumDrift — acceptance §1.2 + 立场 ② 反断.
+// TestHB_NoAdminActionsEnumDrift — acceptance §1.2 + 设计 ② 反断.
 //
 // HB-5.1 must NOT extend admin_actions CHECK enum (12 项 byte-identical
 // 跟 AL-7.1 不动). Only AL-7.1 'audit_retention_override' is added by
@@ -107,6 +107,6 @@ func TestHB_NoAdminActionsEnumDrift(t *testing.T) {
 	}
 	if strings.Contains(string(body), "'heartbeat_retention_override'") ||
 		strings.Contains(string(body), `"heartbeat_retention_override"`) {
-		t.Error("HB-5 立场 ② broken — must reuse AL-7 'audit_retention_override' action, not extend CHECK enum")
+		t.Error("HB-5 设计 ② broken — must reuse AL-7 'audit_retention_override' action, not extend CHECK enum")
 	}
 }

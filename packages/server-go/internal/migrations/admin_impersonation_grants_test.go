@@ -75,7 +75,7 @@ func TestAdminImpersonationGrants_NoDomainBleed(t *testing.T) {
 		"duration_hours",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("impersonation_grants.%s exists — 反约束 broken (acceptance §4.2 + spec §2.5 + stance §1 立场 ⑦)", forbidden)
+			t.Errorf("impersonation_grants.%s exists — 反约束 broken (acceptance §4.2 + spec §2.5 + stance §1 设计 ⑦)", forbidden)
 		}
 	}
 }
@@ -118,7 +118,7 @@ func TestAdminImpersonationGrants_PKEnforcesUniqueRowPerID(t *testing.T) {
 
 // TestADM_AcceptsRevokedAtNullable pins revoked_at NULL semantic — 默认
 // NULL 表示有效 grant; UPDATE 走 RevokeImpersonation 唯一允许的写路径
-// (forward-only 立场 ⑤ 例外).
+// (forward-only 设计 ⑤ 例外).
 func TestADM_AcceptsRevokedAtNullable(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)

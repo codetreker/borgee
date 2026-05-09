@@ -42,7 +42,7 @@ func TestAP_AddsOrgIDColumn(t *testing.T) {
 		t.Fatalf("user_permissions missing org_id column (have %v)", keys(cols))
 	}
 	if c.notNull {
-		t.Errorf("user_permissions.org_id must be nullable (NULL = legacy, 立场 ② + ⑥)")
+		t.Errorf("user_permissions.org_id must be nullable (NULL = legacy, 设计 ② + ⑥)")
 	}
 }
 
@@ -64,7 +64,7 @@ func TestAP_HasOrgIDIndex(t *testing.T) {
 	}
 }
 
-// REG-AP3-001c (acceptance §1.1 + 立场 ⑥) — legacy rows preserve NULL
+// REG-AP3-001c (acceptance §1.1 + 设计 ⑥) — legacy rows preserve NULL
 // org_id (AP-1 现网行为零变).
 func TestAP_LegacyRowsNullPreserved(t *testing.T) {
 	t.Parallel()
@@ -86,7 +86,7 @@ func TestAP_LegacyRowsNullPreserved(t *testing.T) {
 }
 
 // REG-AP3-001d — schema accepts explicit org_id assignment (cross-org
-// enforce 路径 grant 时显式写, 立场 ②).
+// enforce 路径 grant 时显式写, 设计 ②).
 func TestAP_AcceptsExplicitOrgID(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -106,7 +106,7 @@ func TestAP_AcceptsExplicitOrgID(t *testing.T) {
 	}
 }
 
-// REG-AP3-001e (spec §3 反约束 + 立场 ②) — schema does NOT install a FK
+// REG-AP3-001e (spec §3 反约束 + 设计 ②) — schema does NOT install a FK
 // to organizations (跟 user.org_id 同精神, 业务校验 server 层做). 反向
 // grep `user_permissions.*FOREIGN KEY.*organizations` count==0.
 func TestAP_NoFKToOrganizations(t *testing.T) {
@@ -119,7 +119,7 @@ func TestAP_NoFKToOrganizations(t *testing.T) {
 		t.Fatalf("query schema: %v", err)
 	}
 	if containsCI(sql, "FOREIGN KEY") && containsCI(sql, "organizations") {
-		t.Errorf("user_permissions must NOT FK organizations(id) — 反约束 立场 ②; got: %s", sql)
+		t.Errorf("user_permissions must NOT FK organizations(id) — 反约束 设计 ②; got: %s", sql)
 	}
 }
 

@@ -56,7 +56,7 @@ import (
 //     UPDATE 路径 (server 实施在 ADM-2.2 — 此 schema 不挂 ON DELETE CASCADE,
 //     跟 al_3_1 / cv_4_1 同精神 lazy GC).
 //   - ADM-0 红线 (admin ∉ users 表): actor_id FK admins.id (独立表),
-//     target_user_id FK users.id; 反向 grep `actor_id.*users\b` 在 schema /
+//     target_user_id FK users.id; grep 检查 `actor_id.*users\b` 在 schema /
 //     handler count==0.
 //   - 反约束列名: 不挂 'updated_at' (audit 不可改写, forward-only) /
 //     'org_id' (受影响者 org 通过 users.org_id 派生, 不冗余存) /

@@ -148,7 +148,7 @@ func TestAdminActions_NoDomainBleed(t *testing.T) {
 		"updated_at",
 		"modified_at",
 		// 受影响者 org 通过 users.org_id 派生, 不冗余存 (跟 CHN-3.1
-		// 立场 ⑤ 不下沉派生字段 同精神).
+		// 设计 ⑤ 不下沉派生字段 同精神).
 		"org_id",
 		"target_org_id",
 		// impersonate 走单独 impersonation_grants 表 (蓝图 §3 数据模型片段),
@@ -189,7 +189,7 @@ func TestADM_HasIndexes(t *testing.T) {
 	}
 }
 
-// TestAdminActions_PKEnforcesUniqueRowPerID pins 立场 — duplicate id INSERT must
+// TestAdminActions_PKEnforcesUniqueRowPerID pins 设计 — duplicate id INSERT must
 // reject (UUID 由 server 端生成, 但 schema 层 PK 兜底防 collision).
 func TestAdminActions_PKEnforcesUniqueRowPerID(t *testing.T) {
 	t.Parallel()

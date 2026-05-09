@@ -20,7 +20,7 @@ import (
 //                                                        跟 al_3_1 / al_4_1 /
 //                                                        cv_2_1 / dm_2_1 同模式)
 //        - state                 TEXT    NOT NULL       (CHECK ('busy','idle')
-//                                                        — 立场 ③ 文案三态:
+//                                                        — 设计 ③ 文案三态:
 //                                                        AL-1b schema 仅 2 态,
 //                                                        client UI 合并 AL-1a
 //                                                        三态 + AL-3 presence
@@ -43,14 +43,14 @@ import (
 //      跟 al_3_1 idx_presence_sessions_user_id / al_4_1 idx_agent_runtimes_
 //      agent_id 同模式 — 显式命名让 EXPLAIN QUERY PLAN 可读 + 反查 grep 可断.
 //
-// 反约束 (al-1b-spec.md §0 + §4 + acceptance §1.* + 立场 ① 拆三路径):
-//   - 立场 ① "拆三路径": 表无 `is_online` / `presence` 列 (跟 AL-3
+// 反约束 (al-1b-spec.md §0 + §4 + acceptance §1.* + 设计 ① 拆三路径):
+//   - 设计 ① "拆三路径": 表无 `is_online` / `presence` 列 (跟 AL-3
 //     presence_sessions 拆死 — agent 在 task in-flight 但 hub 心跳超时
 //     是合法态, 不能用一列 is_online 替代两表两路径).
-//   - 立场 ① 反 AL-4: 表无 `last_error_reason` / `endpoint_url` /
+//   - 设计 ① 反 AL-4: 表无 `last_error_reason` / `endpoint_url` /
 //     `process_kind` 列 (那是 AL-4 agent_runtimes process-level — busy/idle
 //     是 task-level, 拆死).
-//   - 立场 ② "BPP 单源": 表无 `source` / `set_by` 列 (反人工伪造 — busy/idle
+//   - 设计 ② "BPP 单源": 表无 `source` / `set_by` 列 (反人工伪造 — busy/idle
 //     state machine 唯一 source = BPP frame, server 端 state machine 守, 不
 //     在 schema 层暴露).
 //   - 不挂 cursor 列 (跟 RT-1 envelope cursor 拆死, 同 al_3_1 / al_4_1 /

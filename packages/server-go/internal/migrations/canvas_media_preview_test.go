@@ -40,7 +40,7 @@ func TestCV_AcceptsAllFiveKinds(t *testing.T) {
 	}
 }
 
-// REG-CV2V2-001b (spec §0 立场 ③ + acceptance §1.5) — CHECK still rejects
+// REG-CV2V2-001b (spec §0 设计 ③ + acceptance §1.5) — CHECK still rejects
 // kanban / mindmap / doc / video / pdf (bare 'pdf' / 'video' 没有 _link
 // 后缀, 跟蓝图 §1.4 命名 "video_link"/"pdf_link" byte-identical).
 func TestCV_RejectsForbiddenKinds(t *testing.T) {
@@ -154,7 +154,7 @@ func TestCanvasMediaPreview_PreservesChannelIDIndex(t *testing.T) {
 	}
 }
 
-// REG-CV2V2-001f (spec §0 立场 ③ + 反约束 不裂表) — no per-kind tables.
+// REG-CV2V2-001f (spec §0 设计 ③ + 反约束 不裂表) — no per-kind tables.
 func TestCanvasMediaPreview_NoSeparateKindTables(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -167,7 +167,7 @@ func TestCanvasMediaPreview_NoSeparateKindTables(t *testing.T) {
 			t.Fatalf("scan %s: %v", forbidden, err)
 		}
 		if n != 0 {
-			t.Errorf("table %q exists — 反约束 broken (立场 ③ enum 扩不裂表)", forbidden)
+			t.Errorf("table %q exists — 反约束 broken (设计 ③ enum 扩不裂表)", forbidden)
 		}
 	}
 }

@@ -6,7 +6,7 @@ import "gorm.io/gorm"
 //
 // Blueprint锚: `auth-permissions.md` §1.2 (Scope 层级 v1 三层) + §5 与现状的差距
 // ("cross-org 强制 — AP-3 后续 milestone"). Spec brief:
-// docs/implementation/modules/ap-3-spec.md (战马C v0, d69b617) §0 立场 ② +
+// docs/implementation/modules/ap-3-spec.md (战马C v0, d69b617) §0 设计 ② +
 // §1 拆段 AP-3.1.
 //
 // What this migration does:
@@ -18,14 +18,14 @@ import "gorm.io/gorm"
 //      WHERE org_id IS NOT NULL — sparse index 仅扫显式 org_id 行
 //      (跟 ap_1_1 expires_at sparse index 同模式, 现网零开销).
 //
-// 反约束 (auth-permissions.md §5 + ap-3-spec.md §0 立场 ②):
+// 反约束 (auth-permissions.md §5 + ap-3-spec.md §0 设计 ②):
 //   - 不挂 NOT NULL — 现网行 org_id 全 NULL = legacy, 跟 AP-1 ABAC
 //     行为零变.
 //   - 不挂 default 值 — NULL 是合法终态 (跟 AP-1.1 expires_at 同精神,
 //     0 / "" 不是合法 org_id 值).
 //   - 不挂 FK org_id REFERENCES organizations(id) — 跟 user.org_id /
 //     channels.org_id / messages.org_id 同精神 (CM-3 #208), 业务校验在
-//     server 层做 (蓝图 §5 字面 "暂不业务化"); 反向 grep `user_permissions
+//     server 层做 (蓝图 §5 字面 "暂不业务化"); grep 检查 `user_permissions
 //     .*FOREIGN KEY.*organizations` count==0 (sparse FK schema 留账).
 //   - INDEX WHERE org_id IS NOT NULL — partial index, 现网零开销
 //     (主键 + idx_user_permissions_lookup + idx_user_permissions_expires

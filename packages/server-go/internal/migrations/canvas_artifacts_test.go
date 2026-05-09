@@ -58,21 +58,21 @@ func TestCV_CreatesArtifactsTable(t *testing.T) {
 		t.Error("artifacts.archived_at must be nullable (软删, 蓝图 §2)")
 	}
 
-	// 立场 ② 单文档锁 30s TTL — lock_holder_user_id + lock_acquired_at 必须
+	// 设计 ② 单文档锁 30s TTL — lock_holder_user_id + lock_acquired_at 必须
 	// 存在且 nullable (NULL = 无人持锁可写; CV-1.2 PATCH conflict 409 路径).
 	for _, name := range []string{"lock_holder_user_id", "lock_acquired_at"} {
 		c, ok := cols[name]
 		if !ok {
-			t.Fatalf("artifacts missing %q (立场 ② 单文档锁) — have %v", name, keys(cols))
+			t.Fatalf("artifacts missing %q (设计 ② 单文档锁) — have %v", name, keys(cols))
 		}
 		if c.notNull {
 			t.Errorf("artifacts.%s must be nullable (NULL = 无人持锁)", name)
 		}
 	}
 
-	// 反约束: owner_id MUST NOT exist (立场 ① 归属=channel, 非 author).
+	// 反约束: owner_id MUST NOT exist (设计 ① 归属=channel, 非 author).
 	if _, has := cols["owner_id"]; has {
-		t.Error("artifacts.owner_id exists — 反约束 broken (立场 ① channel-scoped, no author owner)")
+		t.Error("artifacts.owner_id exists — 反约束 broken (设计 ① channel-scoped, no author owner)")
 	}
 	// 反约束: cursor MUST NOT exist (跟 RT-1 cursor 序列拆死,
 	// ArtifactUpdated frame 走 RT-1.1 cursor 不在 schema 层).
@@ -81,7 +81,7 @@ func TestCV_CreatesArtifactsTable(t *testing.T) {
 	}
 }
 
-// TestCV_RejectsNonMarkdownType pins 立场 ④: type CHECK = 'markdown'
+// TestCV_RejectsNonMarkdownType pins 设计 ④: type CHECK = 'markdown'
 // is the v1 gate — 代码/图片/PDF/看板 留 v2+. Insert with any other type
 // must reject so the v0/v1 split stays enforced at schema layer.
 func TestCV_RejectsNonMarkdownType(t *testing.T) {
@@ -110,7 +110,7 @@ func TestCV_RejectsNonMarkdownType(t *testing.T) {
 
 // TestCV_CreatesArtifactVersionsTable pins acceptance §1.1 second-table
 // contract: artifact_versions captures committer_kind ('agent','human')
-// for 立场 ⑥ system message 路径 + UNIQUE(artifact_id, version) for 立场 ③
+// for 设计 ⑥ system message 路径 + UNIQUE(artifact_id, version) for 设计 ③
 // 版本线性.
 func TestCV_CreatesArtifactVersionsTable(t *testing.T) {
 	t.Parallel()
@@ -131,11 +131,11 @@ func TestCV_CreatesArtifactVersionsTable(t *testing.T) {
 		}
 	}
 
-	// 立场 ⑦ rollback 路径 — rolled_back_from_version 必须存在且 nullable
+	// 设计 ⑦ rollback 路径 — rolled_back_from_version 必须存在且 nullable
 	// (NULL = 普通 commit; 非 NULL = rollback 触发的新 commit 记录原 version).
 	rb, ok := cols["rolled_back_from_version"]
 	if !ok {
-		t.Fatalf("artifact_versions missing rolled_back_from_version (立场 ⑦) — have %v", keys(cols))
+		t.Fatalf("artifact_versions missing rolled_back_from_version (设计 ⑦) — have %v", keys(cols))
 	}
 	if rb.notNull {
 		t.Error("artifact_versions.rolled_back_from_version must be nullable (NULL = 普通 commit)")
@@ -207,7 +207,7 @@ func TestCV_VersionsTablePKMonotonic(t *testing.T) {
 	}
 }
 
-// TestCV_RejectsInvalidCommitterKind pins 立场 ⑥: committer_kind
+// TestCV_RejectsInvalidCommitterKind pins 设计 ⑥: committer_kind
 // CHECK in ('agent','human'). Drift here breaks the agent-commit fanout
 // system message routing.
 func TestCV_RejectsInvalidCommitterKind(t *testing.T) {
@@ -234,7 +234,7 @@ func TestCV_RejectsInvalidCommitterKind(t *testing.T) {
 	}
 }
 
-// TestCV_RejectsDuplicateArtifactVersion pins 立场 ③ 版本线性:
+// TestCV_RejectsDuplicateArtifactVersion pins 设计 ③ 版本线性:
 // UNIQUE(artifact_id, version) enforces strictly increasing version per
 // artifact. CV-1.2 commit 路径必须 transactional bump current_version
 // + insert new artifact_versions row; dup → reject.

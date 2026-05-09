@@ -48,7 +48,7 @@ import (
 //   - 不挂 `org_id` 列 — subscription 归 user, org scope 通过 users.org_id
 //     派生 (跟 al_2a_1 / chn_3_1 / al_1b_1 同模式 SSOT 不冗余).
 //   - 不挂 `device_id` / `device_kind` 列 — UA 是 audit hint, 不是路由键
-//     (跟 AL-3.1 presence_sessions multi-session 立场承袭, multi-session
+//     (跟 AL-3.1 presence_sessions multi-session 设计沿用, multi-session
 //     last-wins 不需 device 维度).
 //   - 不挂 `cursor` 列 — push 是 fire-and-forget, 不走 hub.cursors sequence
 //     (跟 al_3_1 / cv_4_1 / chn_3_1 / al_2a_1 / al_1b_1 / adm_2_1 / adm_2_2

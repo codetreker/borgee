@@ -35,14 +35,14 @@ import (
 //        - updated_at      INTEGER NOT NULL    (Unix ms; PATCH 时 server
 //                                                stamp, schema_version++)
 //        - PRIMARY KEY (agent_id)              (单 agent 单 row, blob 整体
-//                                                替换 — SSOT 立场)
+//                                                替换 — SSOT 设计)
 //   2. CREATE INDEX idx_agent_configs_agent_id
 //        ON agent_configs(agent_id) — 显式命名让 EXPLAIN QUERY PLAN 可读
 //        (跟 AL-4.1 #398 idx_runtime_owner / CHN-3.1 #410
 //        idx_user_channel_layout_user_id 同模式).
 //
-// 反约束 (al-2a-spec.md + acceptance §数据契约 + 蓝图 §1.4 SSOT 立场):
-//   - 蓝图 §1.4 SSOT 立场: blob 仅含 Borgee 管字段 (name / avatar / prompt /
+// 反约束 (al-2a-spec.md + acceptance §数据契约 + 蓝图 §1.4 SSOT 设计):
+//   - 蓝图 §1.4 SSOT 设计: blob 仅含 Borgee 管字段 (name / avatar / prompt /
 //     model / capabilities / enabled / memory_ref). 反向: api_key /
 //     temperature / token_limit / retry_policy 等 runtime-only 字段不入
 //     blob — schema 层无可视化 (blob 是 TEXT JSON, runtime 校验 fail-closed
@@ -57,7 +57,7 @@ import (
 //   - 不级联: 表无 ON DELETE CASCADE (跟 chn_3_1 同模式 — agent 行删 →
 //     config 行 lazy GC 留 v3+ cron, 不阻塞 user delete 路径).
 //   - 单 row per agent: PK (agent_id) 而非 composite — 跟 chn_3_1 复合 PK
-//     (user_id, channel_id) 不同, AL-2a 立场是 SSOT blob 整体替换 (PATCH
+//     (user_id, channel_id) 不同, AL-2a 设计是 SSOT blob 整体替换 (PATCH
 //     语义是 atomic blob swap + version++), 不裂多 row by config_key.
 //
 // v0 stance: forward-only, no Down(). 表本身 v0 新增, IF NOT EXISTS 守

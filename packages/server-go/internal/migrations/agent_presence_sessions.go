@@ -25,7 +25,7 @@ import (
 //                                                  agent 的 user_id 副本
 //                                                  方便 IsOnline(agentID)
 //                                                  快查; #301 spec §0
-//                                                  立场 ③ 多 session per
+//                                                  设计 ③ 多 session per
 //                                                  user 合法)
 //        - connected_at      INTEGER NOT NULL      (Unix ms)
 //        - last_heartbeat_at INTEGER NOT NULL      (Unix ms; #302 §1.1
@@ -41,7 +41,7 @@ import (
 //   - presence_sessions 不挂 cursor 列 (跟 RT-1 cursor 序列拆死;
 //     瞬时态 vs 不可回退序列, 数据特性硬拆).
 //   - 不挂 last_seen_at / busy / idle 字段 (busy/idle 留 BPP-1 #280
-//     同期; last_seen_at 立场争议留 Phase 5+).
+//     同期; last_seen_at 设计争议留 Phase 5+).
 //
 // v0 stance: forward-only, no Down(). 表本身 v0 新增, 无 trimmed-schema
 // 兼容路径需要; 直接 IF NOT EXISTS 守住 idempotency.

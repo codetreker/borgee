@@ -6,8 +6,8 @@ import "gorm.io/gorm"
 //
 // Blueprint锚: `admin-model.md` §3 audit-forward-only 单表 + ADM-2.1
 // #484 admin_actions 表起源 + BPP-8 #532 5 plugin lifecycle 事件 →
-// admin_actions (名实不符 follow-up). Spec: docs/implementation/modules/
-// adm-3-spec.md §0 立场 ①+② + §1 拆段.
+// admin_actions (名实不符 后续). Spec: docs/implementation/modules/
+// adm-3-spec.md §0 设计 ①+② + §1 拆段.
 //
 // What this migration does (RENAME 元数据 + alias view, **0 数据迁移**):
 //
@@ -24,14 +24,14 @@ import "gorm.io/gorm"
 //      admin_actions BEGIN INSERT INTO audit_events ... — 透明写路由.
 //      UPDATE 通过 archive sweeper 走 audit_events 直接, 不 trigger.
 //
-// 立场承袭 (跟 spec §0):
-//   - 立场 ① 表名改 audit_events — RENAME 元数据 0 数据迁移
-//   - 立场 ② alias view backward compat — 战马原代码 0 改
-//   - 立场 ③ ADM-0 §1.3 红线扩展 — 实施 PR 顺手改蓝图
+// 设计沿用 (跟 spec §0):
+//   - 设计 ① 表名改 audit_events — RENAME 元数据 0 数据迁移
+//   - 设计 ② alias view backward compat — 战马原代码 0 改
+//   - 设计 ③ ADM-0 §1.3 红线扩展 — 实施 PR 顺手改蓝图
 //
 // 反约束 (spec §2):
 //   - 不裂表 — RENAME 后 audit_events 是单源, view 是 alias
-//   - 不真删 forward-only — 反向 grep `DELETE FROM audit_events` 0 hit
+//   - 不真删 forward-only — grep 检查 `DELETE FROM audit_events` 0 hit
 //   - alias view INSERT 通过 trigger (SQLite views 不可直接写)
 //
 // v=43 sequencing: 跟 team-lead 占号 v=43 (留位 ADM-3 #570 spec). 顺
@@ -62,7 +62,7 @@ var auditEventsRename = Migration{
 		}
 
 		// Step 2 — alias view admin_actions → audit_events (backward compat
-		// 立场 ②). SELECT 透明.
+		// 设计 ②). SELECT 透明.
 		if err := tx.Exec(`CREATE VIEW IF NOT EXISTS admin_actions AS SELECT * FROM audit_events`).Error; err != nil {
 			return err
 		}

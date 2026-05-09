@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 // messagesPinnedAt is migration v=45 — Phase 5+ / DM-10.1.
 //
 // Blueprint锚: dm-model.md §3 (per-user message layout, future v2 split).
-// Spec: docs/implementation/modules/dm-10-spec.md §0 立场 ① + §1 拆段.
+// Spec: docs/implementation/modules/dm-10-spec.md §0 设计 ① + §1 拆段.
 //
 // What this migration does:
 //
@@ -24,13 +24,13 @@ import "gorm.io/gorm"
 //   - GET /api/v1/channels/{channelId}/messages/pinned
 //     → list pinned_at IS NOT NULL ORDER BY pinned_at DESC
 //
-// 反约束 (dm-10-spec.md §0 立场 ①+④):
+// 反约束 (dm-10-spec.md §0 设计 ①+④):
 //   - 不挂 NOT NULL — NULL = unpinned 是合法终态 (跟 DM-7.1 edit_history /
 //     AL-7.1 archived_at 同精神).
 //   - 不挂 default 值 — NULL 是合法终态, 现网零变.
-//   - 不另起 pinned_messages 表 — pinned_at on messages 列单源 (反向 grep
-//     `pinned_messages\|message_pin_log\|dm10_pin_table` 0 hit, 立场 ① 守).
-//   - 不挂 pinned_by 列 — DM 双方都可 pin (DM-only scope), 立场 ② per-DM
+//   - 不另起 pinned_messages 表 — pinned_at on messages 列单源 (grep 检查
+//     `pinned_messages\|message_pin_log\|dm10_pin_table` 0 hit, 设计 ① 守).
+//   - 不挂 pinned_by 列 — DM 双方都可 pin (DM-only scope), 设计 ② per-DM
 //     pin (反 per-user pin 留 v2 跟 CHN-3.2 user_channel_layout 风格不同源).
 //
 // v=45 sequencing: chn-15 v=44 (待 ship) → DM-10.1 **v=45** (本 migration).

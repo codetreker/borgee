@@ -52,7 +52,7 @@ func TestAL_CreatesAgentConfigsTable(t *testing.T) {
 		}
 	}
 
-	// PK (agent_id) — 单 agent 单 row, blob 整体替换 SSOT 立场.
+	// PK (agent_id) — 单 agent 单 row, blob 整体替换 SSOT 设计.
 	if agentIDCol := cols["agent_id"]; !agentIDCol.pk {
 		t.Error("agent_configs.agent_id must be PRIMARY KEY")
 	}
@@ -70,7 +70,7 @@ func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 
 	cols := pragmaColumns(t, db, "agent_configs")
 	for _, forbidden := range []string{
-		// 蓝图 §1.4 SSOT 立场: runtime-only 字段不在 schema 层 (blob TEXT
+		// 蓝图 §1.4 SSOT 设计: runtime-only 字段不在 schema 层 (blob TEXT
 		// JSON, 4.1.c reflect scan fail-closed). 反向断言 schema 不裂列.
 		"api_key",
 		"temperature",
@@ -83,7 +83,7 @@ func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 		// org 隔离走 server-side ACL (users.org_id 单源 CM-1 #176), schema
 		// 不重复持有 org_id 避免双源.
 		"org_id",
-		// SSOT blob 整体替换立场: 不裂 multi-row by config_key (PK 单
+		// SSOT blob 整体替换设计: 不裂 multi-row by config_key (PK 单
 		// agent_id, 而非 composite (agent_id, config_key)).
 		"config_key",
 		"config_value",
@@ -95,7 +95,7 @@ func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 }
 
 // TestAL_PKEnforcesSingleRowPerAgent pins acceptance §数据契约 row 1 +
-// SSOT 立场 — duplicate agent_id INSERT must reject (single row per agent,
+// SSOT 设计 — duplicate agent_id INSERT must reject (single row per agent,
 // blob 整体替换 PATCH 语义).
 func TestAL_PKEnforcesSingleRowPerAgent(t *testing.T) {
 	t.Parallel()

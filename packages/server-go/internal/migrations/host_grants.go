@@ -50,14 +50,14 @@ import (
 //      NULL` 防 install/exec 类 row 占索引页.
 //
 // 反约束 (hb-3-spec.md §0 + §3 + stance §1+§2+§3):
-//   - 立场 ① schema SSOT — HB-3 持 ownership; HB-2 daemon (Rust crate
-//     `packages/host-bridge/`) read-only consumer (反向 grep
+//   - 设计 ① schema SSOT — HB-3 持 ownership; HB-2 daemon (Rust crate
+//     `packages/host-bridge/`) read-only consumer (grep 检查
 //     `host_grants.*INSERT|host_grants.*UPDATE` 在 Rust crate 0 hit, 待 HB-2
 //     真实施时 CI lint 守).
-//   - 立场 ② 字典分立 — 不复用 AP-1 user_permissions schema (host vs runtime
+//   - 设计 ② 字典分立 — 不复用 AP-1 user_permissions schema (host vs runtime
 //     两层独立); grant_type 4-enum 跟 user_permissions.permission 4 域 字面
-//     集不交; 反向 grep `host_grants.*JOIN.*user_permissions` 0 hit.
-//   - 立场 ③ audit log 5 字段 byte-identical 跟 BPP-4 #499 DeadLetterAuditEntry
+//     集不交; grep 检查 `host_grants.*JOIN.*user_permissions` 0 hit.
+//   - 设计 ③ audit log 5 字段 byte-identical 跟 BPP-4 #499 DeadLetterAuditEntry
 //     (此 schema 不挂 audit 列 — audit 走 BPP-4 LogFrameDroppedPluginOffline
 //     通道延伸 + 跨四 milestone 单测锁: HB-1 install + HB-2 host-IPC + BPP-4
 //     dead-letter + HB-3 grants 改 = 改四处单测锁).
@@ -66,7 +66,7 @@ import (
 //   - 不挂 cursor 列 (跟 RT-1 envelope cursor 拆死, 跟 al_3_1 / al_4_1 / cv_*_1 /
 //     dm_2_1 / al_2a_1 / al_1b_1 同模式).
 //   - 不挂 admin god-mode 列 (admin 不撤销用户 grant — 用户主权, ADM-0 §1.3
-//     红线; 反向 grep `admin.*host_grant` 0 hit).
+//     红线; grep 检查 `admin.*host_grant` 0 hit).
 //
 // v0 stance: forward-only, no Down(). IF NOT EXISTS 守 idempotency. 跟
 // al_3_1 / al_4_1 / cv_2_1 / dm_2_1 / al_2a_1 / al_1b_1 同模式逻辑 FK.

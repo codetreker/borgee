@@ -7,10 +7,10 @@ import "gorm.io/gorm"
 // Blueprint锚: `auth-permissions.md` §5 ("expires_at 列 — 加列 schema 不破,
 // 暂不业务化") — AP-1.1 #493 schema 列已就位, AP-2 接 runtime 业务化 sweeper.
 // Spec brief: docs/implementation/modules/ap-2-spec.md (战马C v0, cfa3869)
-// §0 立场 ① + §1 拆段 AP-2.1.
+// §0 设计 ① + §1 拆段 AP-2.1.
 //
 // What this migration does (two changes in one migration — both required
-// for the sweeper round-trip 跟 AP-3 #521 立场 ② cross-org 同精神 schema +
+// for the sweeper round-trip 跟 AP-3 #521 设计 ② cross-org 同精神 schema +
 // runtime 同步落地):
 //
 //   1. ALTER TABLE user_permissions ADD COLUMN revoked_at INTEGER NULL
@@ -25,7 +25,7 @@ import "gorm.io/gorm"
 //      跟 CV-3.1 / CV-2 v2 12-step table-recreate 同模式; SQLite 不支持
 //      ALTER CHECK).
 //
-// 反约束 (auth-permissions.md §5 + ap-2-spec.md §0 立场 ①②):
+// 反约束 (auth-permissions.md §5 + ap-2-spec.md §0 设计 ①②):
 //   - 不挂 NOT NULL — revoked_at NULL = active, 跟 AP-1 ABAC 行为零变.
 //   - 不挂 default 值 — NULL 是合法终态.
 //   - 不挂 FK — 跟 user.org_id / channels.org_id 同精神 (业务校验 server 层).
