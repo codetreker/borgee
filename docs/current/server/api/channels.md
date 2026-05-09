@@ -1,6 +1,6 @@
 # CHN-10 + CHN-14 — channel description + edit history endpoints contract
 
-> **Source-of-truth pointer.** Schema in
+> **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/chn_14_1_channels_description_edit_history.go` (v=44).
 > Owner-only PUT handler in `packages/server-go/internal/api/chn_10_description.go`.
 > Owner-only + admin readonly history GET handlers in
@@ -81,7 +81,7 @@ ACL:
 Validation:
 - `description.length > 500` → **400** `Description must be 500 characters
   or less` (DescriptionMaxLength const + GORM size:500 + client
-  DESCRIPTION_MAX_LENGTH 三向锁)
+  DESCRIPTION_MAX_LENGTH 三向锁定)
 
 Side-effects on success (200):
 - `Store.UpdateChannelDescription(channelID, newDescription)` 单一来源 包装:

@@ -1,6 +1,6 @@
 # CV-3 v2 — artifact thumbnail endpoint contract (server 单一来源)
 
-> **Source-of-truth pointer.** Schema in
+> **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/cv_3_v2_artifact_thumbnail.go`
 > (v=31). Handler in `packages/server-go/internal/api/thumbnail.go`.
 > Wire-up via existing `ArtifactHandler.RegisterRoutes`. Sister endpoint:
@@ -106,7 +106,7 @@ ThumbnailErrCodeKindNotThumbnailable = "thumbnail.kind_not_thumbnailable"
 ThumbnailErrCodeArtifactNotFound    = "thumbnail.artifact_not_found"
 ```
 
-## 二端互斥 (单测锁)
+## 二端互斥 (单测锁定)
 
 `TestCV3V22_ThumbnailableVsPreviewableMutuallyExclusive`:
 

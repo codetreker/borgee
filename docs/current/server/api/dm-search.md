@@ -1,6 +1,6 @@
 # DM Search — cross-DM message search REST endpoint
 
-> **Source-of-truth pointer.** Code at
+> **单一来源 pointer.** Code at
 > `packages/server-go/internal/api/message_search.go` (handler) +
 > `packages/server-go/internal/store/dm_11_search_queries.go` (store
 > helper). Wire-up at server boot in
@@ -73,7 +73,7 @@ Query params:
 | `dm_search.q_too_short`    | 400  | `len(q) < 2`          | ✅              |
 | `dm_search.q_too_long`     | 400  | `len(q) > 200`        | ✅              |
 
-字面跟 `internal/api/message_search.go` 锁; 改 = 改两处 (handler +
+字面跟 `internal/api/message_search.go` 锁定; 改 = 改两处 (handler +
 content-lock §1).
 
 ## Validation order (handler)
