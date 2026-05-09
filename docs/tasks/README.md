@@ -24,7 +24,7 @@
 
 - [716-e2e-real-ui-audit](716-e2e-real-ui-audit/) — 全量审计 e2e case 删假 grep 充数 (P0)
 - [698-agent-config-form-overlap](698-agent-config-form-overlap/) — Manage 展开后 form label/input 重叠 (P2)
-- [681-remote-agent-openclaw](681-remote-agent-openclaw/) — Remote-Agent 网页配 OpenClaw (P1, heima 已做 prework)
+- [borgee-helper-v1-release/](borgee-helper-v1-release/) — Borgee Helper v1 release wave (gh#681, 8 milestone HB-7~HB-14, P1)
 
 ## 已闭环
 
