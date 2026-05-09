@@ -23,7 +23,7 @@ request_agent_join / read_channel_history / read_artifact
 
 Handler: `internal/api/capability_grant.go::CapabilityGrantHandler`. Payload 5 字段 `{agent_id, attempted_action, required_capability, current_scope, request_id}` byte-identical 跟 BPP-3.1 frame body 同源 (跨 PR 防脱节, 改 = 改五处+).
 
-DM body 字面锁: `"{agent_name} 想 {attempted_action} 但缺权限 {required_capability}"` (见 `docs/qa/bpp-3.2-content-lock.md` §1).
+DM body 字面锁定: `"{agent_name} 想 {attempted_action} 但缺权限 {required_capability}"` (见 `docs/qa/bpp-3.2-content-lock.md` §1).
 
 quick_action JSON shape (content-lock §2): `{action, agent_id, capability, scope, request_id}` (action ∈ {grant, reject, snooze}; client UI 渲染三按钮 "授权/拒绝/稍后").
 

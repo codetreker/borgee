@@ -14,7 +14,7 @@ Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 
 > server **NEVER defaults** caller into `full`. 空字符串 / 未知 / 大小写错 (`FULL`, `Full`) 一律 fallthrough 到 `incremental`. 唯一进 `Full` 分支的输入是字面量 `"full"`.
 
-实现锁:
+实现锁定:
 
 - `ParseResumeMode` (`session_resume.go`) — `default:` 返回 `ResumeModeIncremental`, **不**返回 `ResumeModeFull`.
 - grep 检查 `replay_mode.*=.*"full"|defaultReplayMode|default.*ResumeModeFull` 在 `internal/bpp/` (排除 `_test.go`) 必须为空, 仅 `case ResumeModeFull: return ResumeModeFull` 命中 (字面量解析路径, **不是** default).
@@ -30,7 +30,7 @@ Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 {"type":"session.resume_ack","count":3,"cursor":99}
 ```
 
-字段顺序锁跟 #237 invitation envelope + RT-1.1 `artifact_updated` 一致 (`type` 在前, semantic IDs 紧跟). 加字段必须 client / agent SDK 同 PR 同步, CI lint G2.6 (Phase 4 加) 防脱节.
+字段顺序锁定跟 #237 invitation envelope + RT-1.1 `artifact_updated` 一致 (`type` 在前, semantic IDs 紧跟). 加字段必须 client / agent SDK 同 PR 同步, CI lint G2.6 (Phase 4 加) 防脱节.
 
 ## 4. 实现 surface
 
