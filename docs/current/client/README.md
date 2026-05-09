@@ -41,34 +41,34 @@
 ### `lib/`
 - `api.ts` — 全部 REST 调用集中在这里。`request<T>()` 用 `fetch` + `credentials: 'include'`（cookie auth）；dev 时塞 `X-Dev-User-Id` 头；非 2xx 抛 `ApiError`。`Agent` interface 含 `state` / `reason` / `state_updated_at` (AL-1a Phase 2 三态 online/offline/error + AL-1b #453 Phase 4 解封 busy/idle 两态 = 5-state) + `last_task_id` / `last_task_started_at` / `last_task_finished_at` (AL-1b BPP frame busy/idle 态时 server 填的 task 元数据).
 - `markdown.ts` — CV-1.3 artifact 渲染复用同 `marked + DOMPurify` 管线 (设计 ④ Markdown ONLY); ArtifactPanel 直接 `dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}`, 不接 HTML 直插 / 不接 type 切换。
-- `api.ts` (CV-1.3) — Artifact 5 endpoints: `createArtifact(channelId, {title, body})` / `getArtifact(id)` / `listArtifactVersions(id)` / `commitArtifact(id, {expected_version, body})` / `rollbackArtifact(id, toVersion)`. 类型 `Artifact` / `ArtifactVersion` (含 `committer_kind: 'agent'|'human'`, `rolled_back_from_version?`) / `CommitArtifactResponse` / `RollbackArtifactResponse`. 409 全部抛 `ApiError`, 调用方自决文案 (ArtifactPanel 锁 `'内容已更新, 请刷新查看'`)。
-- `agent-state.ts` (AL-1a + AL-1b) — `describeAgentState(state, reason)` 把 server 下发的 `state` + `reason` 折成 `{text, tone}`；AL-1a 三态 `online`/`offline`/`error` (`REASON_LABELS` 锁 6 reason — api_key_invalid/quota_exceeded/network_unreachable/runtime_crashed/runtime_timeout/unknown); AL-1b (#453, Phase 4 解封) 加 `busy → "在工作"` tone='ok' / `idle → "空闲"` tone='muted' (acceptance al-1b.md §3.1+§3.2 byte-identical, 反约束 §3.4 grep 反 "活跃"/"running"/"Standing by"/"等待中" 模糊词). 详见 `docs/current/server/agent-runtime-state.md` wire schema + `docs/current/server/data-model.md` agent_status v=21 表 + GET /api/v1/agents/:id/status 5-state 合并 (error > busy > idle > online > offline).
+- `api.ts` (CV-1.3) — Artifact 5 endpoints: `createArtifact(channelId, {title, body})` / `getArtifact(id)` / `listArtifactVersions(id)` / `commitArtifact(id, {expected_version, body})` / `rollbackArtifact(id, toVersion)`. 类型 `Artifact` / `ArtifactVersion` (含 `committer_kind: 'agent'|'human'`, `rolled_back_from_version?`) / `CommitArtifactResponse` / `RollbackArtifactResponse`. 409 全部抛 `ApiError`, 调用方自决文案 (ArtifactPanel 锁定 `'内容已更新, 请刷新查看'`)。
+- `agent-state.ts` (AL-1a + AL-1b) — `describeAgentState(state, reason)` 把 server 下发的 `state` + `reason` 折成 `{text, tone}`；AL-1a 三态 `online`/`offline`/`error` (`REASON_LABELS` 锁定 6 reason — api_key_invalid/quota_exceeded/network_unreachable/runtime_crashed/runtime_timeout/unknown); AL-1b (#453, Phase 4 解封) 加 `busy → "在工作"` tone='ok' / `idle → "空闲"` tone='muted' (acceptance al-1b.md §3.1+§3.2 byte-identical, 反向约束 §3.4 grep 反 "活跃"/"running"/"Standing by"/"等待中" 模糊词). 详见 `docs/current/server/agent-runtime-state.md` wire schema + `docs/current/server/data-model.md` agent_status v=21 表 + GET /api/v1/agents/:id/status 5-state 合并 (error > busy > idle > online > offline).
 - `markdown.ts`、`file-links.ts` — `marked + highlight.js + dompurify` 渲染。
 
 ### `hooks/usePresence.ts` (AL-3.3)
-- `markPresence(agentID, state, reason)` — WS `presence.changed` frame 入口；cache 总是写最新值，**通知 (UI 重渲染) 5s 节流**: 距上次 notify ≥ 5s 立即派发，窗口内 burst 安排 trailing flush（同 server §2.4 PresenceChange5sCoalesce 锁）。
-- `usePresence(agentID)` — React hook，订阅指定 agent 的实时 cached state；返回 `undefined` 时 `<PresenceDot/>` 走 `describeAgentState(undefined,...)` 兜底为 `已离线` (野马 §11)。
+- `markPresence(agentID, state, reason)` — WS `presence.changed` frame 入口；cache 总是写最新值，**通知 (UI 重渲染) 5s 节流**: 距上次 notify ≥ 5s 立即派发，窗口内 burst 安排 trailing flush（同 server §2.4 PresenceChange5sCoalesce 锁定）。
+- `usePresence(agentID)` — React hook，订阅指定 agent 的实时 cached state；返回 `undefined` 时 `<PresenceDot/>` 走 `describeAgentState(undefined,...)` 保底为 `已离线` (野马 §11)。
 - `__resetPresenceStoreForTest(now)` / `flushPendingForTest()` — 仅单测用；`presence.test.ts` 注入 fake clock 推进时间线，不依赖 wall time。
-- 反约束: cache 仅 `{state, reason, updatedAt}` 三元组，不存 IP / 心跳 / 连接数（acceptance §2.5 frame 字段白名单）。
+- 反向约束: cache 仅 `{state, reason, updatedAt}` 三元组，不存 IP / 心跳 / 连接数（acceptance §2.5 frame 字段白名单）。
 
 ### `components/PresenceDot.tsx` (AL-3.3 + AL-1b)
-- AL-3 三态 DOM 字面锁（acceptance §3.1）：`data-presence="online"` 绿点 + `在线`、`data-presence="offline"` 灰点 + `已离线`、`data-presence="error"` 红点 + `故障 (REASON_LABEL)`。
+- AL-3 三态 DOM 字面锁定（acceptance §3.1）：`data-presence="online"` 绿点 + `在线`、`data-presence="offline"` 灰点 + `已离线`、`data-presence="error"` 红点 + `故障 (REASON_LABEL)`。
 - AL-1b (#453, Phase 4) 扩 busy/idle 两态 — `data-task-state` 槽位独立 attr (busy/idle 时填字面, 其他态填空 string); `presence-task-busy` / `presence-task-idle` CSS class; busy/idle 时 `data-presence` 仍为 'online' (busy/idle = 连着, 跟 AL-3 hub session 同源 — task-state 是独立维度); 文案 `在工作` / `空闲` (acceptance al-1b.md §3.1+§3.2 byte-identical).
-- 反约束 §5.4：`.presence-dot` 永远跟 sibling 文本（或 compact 模式下 sr-only + title），不出现裸灰点。
-- 反约束 §5.1 (AL-3 Phase 2 旧条) Phase 4 解封 — busy/idle 字面 AL-1b 合法 describeAgentState() 输出 + PresenceDot data-task-state attr 字面; 仅守 server-side enum 名 leak (StateBusy / StateIdle Go 字面) 不漂入 client (presence-reverse-grep.test.ts §5.1 修).
-- 反约束 §3.4 (AL-1b) — agent-state.ts 不出现 "活跃"/"running"/"Standing by"/"等待中" 模糊词 (presence-reverse-grep.test.ts §3.4 反查锚 + PresenceDot.test.tsx 双层闸).
-- 反约束 §3.2：组件不判 role；调用方仅在 agent 行渲染（`Sidebar.tsx` `DmItem` 用 `peer.role === 'agent'` gate；`ChannelMembersModal.tsx` 用 `m.role === 'agent'` gate；row 写 `data-role` 属性供 e2e 反查 `[data-role="user"][data-presence]` count==0）。
+- 反向约束 §5.4：`.presence-dot` 永远跟 sibling 文本（或 compact 模式下 sr-only + title），不出现裸灰点。
+- 反向约束 §5.1 (AL-3 Phase 2 旧条) Phase 4 解封 — busy/idle 字面 AL-1b 合法 describeAgentState() 输出 + PresenceDot data-task-state attr 字面; 仅守 server-side enum 名 leak (StateBusy / StateIdle Go 字面) 不脱节入 client (presence-reverse-grep.test.ts §5.1 修).
+- 反向约束 §3.4 (AL-1b) — agent-state.ts 不出现 "活跃"/"running"/"Standing by"/"等待中" 模糊词 (presence-reverse-grep.test.ts §3.4 反查出处 + PresenceDot.test.tsx 双层闸).
+- 反向约束 §3.2：组件不判 role；调用方仅在 agent 行渲染（`Sidebar.tsx` `DmItem` 用 `peer.role === 'agent'` gate；`ChannelMembersModal.tsx` 用 `m.role === 'agent'` gate；row 写 `data-role` 属性供 e2e 反查 `[data-role="user"][data-presence]` count==0）。
 
 ### `hooks/useWsHubFrames.ts` (RT-0 / CV-1.2-client)
 - `dispatchInvitationPending` / `dispatchInvitationDecided` + `useInvitationFrames({onPending,onDecided})` — RT-0 邀请 push → CustomEvent (`borgee:invitation-pending` / `borgee:invitation-decided`) → InvitationsInbox / Sidebar 铃铛 listener。
-- `dispatchArtifactUpdated(frame)` + `useArtifactUpdated(handler)` (CV-1.3) — `useWebSocket.ts` 的 `case 'artifact_updated'` 调 dispatch, 派发 `borgee:artifact-updated` CustomEvent (字面锁, 见 `__tests__/ws-artifact-updated.test.ts`); ArtifactPanel 用 hook 订阅, handler 自决是否 re-fetch。设计 ⑤: 7-field envelope `{type, cursor, artifact_id, version, channel_id, updated_at, kind}` 仅信号, **不**带 body / committer (反向断言已锁在单测)。
+- `dispatchArtifactUpdated(frame)` + `useArtifactUpdated(handler)` (CV-1.3) — `useWebSocket.ts` 的 `case 'artifact_updated'` 调 dispatch, 派发 `borgee:artifact-updated` CustomEvent (字面锁定, 见 `__tests__/ws-artifact-updated.test.ts`); ArtifactPanel 用 hook 订阅, handler 自决是否 re-fetch。设计 ⑤: 7-field envelope `{type, cursor, artifact_id, version, channel_id, updated_at, kind}` 仅信号, **不**带 body / committer (反向断言已锁定在单测)。
 
 ### `hooks/`
 - `useWebSocket.ts` — 单连接 `/ws`，关键行为：
   - 重连退避 `[1s, 2s, 4s, 8s, 16s, 30s]`。
   - 每 25s `ping`。
   - 重连后重新 `subscribe` 所有频道，并对每个频道用最后已知时间戳调 `fetchMessages({after: lastTs})` 拉漏掉的消息。
-  - **RT-1.2 (#290 follow)** — 重连时还会调 `fetchEventsBackfill(last_seen_cursor)` (`GET /api/v1/events?since=N`) 拉断线期间的 event 缺洞，按 server 单调 cursor 排序透传给 `handleMessage`。`onmessage` 入口先把 frame 上的 `cursor`（RT-1.1 `ArtifactUpdatedFrame` 起始）持久化到 `lib/lastSeenCursor.ts` (sessionStorage `borgee.rt1.last_seen_cursor`)，再 dispatch handler；持久化函数 `persistLastSeenCursor` 单调（小值 / NaN / 负数 / Infinity 全 no-op），page reload 后 `loadLastSeenCursor` 恢复。**反约束**: cold start (`since=0`) 不触发 backfill — 不拉全 history（与 RT-1.3 agent `session.resume{full}` 区别）；事件**不**按 `updated_at` / `created_at` 排序，cursor 即顺序。
+  - **RT-1.2 (#290 follow)** — 重连时还会调 `fetchEventsBackfill(last_seen_cursor)` (`GET /api/v1/events?since=N`) 拉断线期间的 event 缺洞，按 server 单调 cursor 排序透传给 `handleMessage`。`onmessage` 入口先把 frame 上的 `cursor`（RT-1.1 `ArtifactUpdatedFrame` 起始）持久化到 `lib/lastSeenCursor.ts` (sessionStorage `borgee.rt1.last_seen_cursor`)，再 dispatch handler；持久化函数 `persistLastSeenCursor` 单调（小值 / NaN / 负数 / Infinity 全 no-op），page reload 后 `loadLastSeenCursor` 恢复。**反向约束**: cold start (`since=0`) 不触发 backfill — 不拉全 history（与 RT-1.3 agent `session.resume{full}` 区别）；事件**不**按 `updated_at` / `created_at` 排序，cursor 即顺序。
   - 把所有服务端 push 类型 dispatch 到 `AppContext`。
 - `useSlashCommands.ts` — 跟踪 editor 文本，前缀 `/` + 无空格时激活；委托 `commandRegistry.search(prefix)` 出选项；管理键盘导航。
 - `useCommandTracking.ts` — 监听自定义事件 `commands_updated` 重新拉远端命令。
@@ -81,14 +81,14 @@
 - `MessageList.tsx` — 合并 `messages + pendingMessages` 渲染；scroll 到顶触发 `loadOlderMessages`；新消息自动 scroll 到底。
 - `MessageItem.tsx` — 单条消息：avatar、displayName、时间、`marked + dompurify` markdown、edit/delete、`<ReactionBar/>`。`sender_id==='system'` 走简化分支（无头像）；若 `message.quick_action` 为 `{kind:"button",label,action}` JSON，渲染按钮，点击 `window.dispatchEvent(new CustomEvent('borgee:quick-action',{detail:{action}}))`。`App.tsx` 监听该事件：`open_agent_manager` → `setShowAgents(true)`（CM-onboarding）。
 - `MessageInput.tsx` — TipTap 编辑器（`StarterKit + Markdown + MentionExtension`），Enter 发送、Ctrl+Enter 换行、文件拖放、图片粘贴、emoji 选择器、mention 选择器、slash command 选择器。
-- `ArtifactPanel.tsx` (CV-1.3) — channel 维度 Markdown artifact 协作面板 (Canvas tab)。设计反查在文件头注释 (① 归属=channel / ② 单文档锁 30s TTL → 409 toast 文案锁 `'内容已更新, 请刷新查看'` / ③ 版本线性 asc, rollback 也是新增 row / ④ Markdown ONLY 走 `renderMarkdown` / ⑤ frame 仅信号, body 走 GET pull / ⑥ committer_kind 决定 🤖/👤 badge / ⑦ rollback 按钮 owner-only — `channel.created_by===currentUser.id`)。状态机: 空 → `handleCreate` (`window.prompt` 标题) → 拿到 head + version list → 渲染。`handleSubmit` 走 `commitArtifact({expected_version, body})`, 409 → `showToast(CONFLICT_TOAST)` + `reload()` 让 expected_version 前进。`handleRollback(toVersion)` confirm 后调 `rollbackArtifact`, 同样 409 共用 toast 文案。WS push 接入: `useArtifactUpdated((frame)=>{ if(frame.channel_id!==channelId) return; if(frame.artifact_id!==artifact?.id) return; void reload(artifact.id) })` — 设计 ⑤ pull-after-signal, 不消费 frame 的 body/committer (envelope 里也没有)。反约束: 不上 CRDT, 不自造 envelope, 不用 client timestamp 排序。
+- `ArtifactPanel.tsx` (CV-1.3) — channel 维度 Markdown artifact 协作面板 (Canvas tab)。设计反查在文件头注释 (① 归属=channel / ② 单文档锁定 30s TTL → 409 toast 文案锁定 `'内容已更新, 请刷新查看'` / ③ 版本线性 asc, rollback 也是新增 row / ④ Markdown ONLY 走 `renderMarkdown` / ⑤ frame 仅信号, body 走 GET pull / ⑥ committer_kind 决定 🤖/👤 badge / ⑦ rollback 按钮 owner-only — `channel.created_by===currentUser.id`)。状态机: 空 → `handleCreate` (`window.prompt` 标题) → 拿到 head + version list → 渲染。`handleSubmit` 走 `commitArtifact({expected_version, body})`, 409 → `showToast(CONFLICT_TOAST)` + `reload()` 让 expected_version 前进。`handleRollback(toVersion)` confirm 后调 `rollbackArtifact`, 同样 409 共用 toast 文案。WS push 接入: `useArtifactUpdated((frame)=>{ if(frame.channel_id!==channelId) return; if(frame.artifact_id!==artifact?.id) return; void reload(artifact.id) })` — 设计 ⑤ pull-after-signal, 不消费 frame 的 body/committer (envelope 里也没有)。反向约束: 不上 CRDT, 不自造 envelope, 不用 client timestamp 排序。
 - `ReactionBar.tsx`、`SlashCommandPicker.tsx`、`AgentManager.tsx`、`InvitationsInbox.tsx`、`WorkspaceManager.tsx`、`NodeManager.tsx`、`ConnectionStatus.tsx`、`Toast.tsx`、`TypingIndicator.tsx`。
   - `InvitationsInbox.tsx`（CM-4.2）— 业主侧 agent 邀请收件箱：`listAgentInvitations('owner')` 拉列表，pending 行带 同意/拒绝 quick action（PATCH `/api/v1/agent_invitations/{id}` `{state}`），同意成功后 `actions.loadChannels()` 然后 `onJumpToChannel(channel_id)` 切到目标频道；409 → "该邀请已被处理或状态已变更，请刷新"。`Sidebar` 右下 🔔 铃铛每 60s 轮询 owner-role 邀请数（agent 角色跳过），CM-4.3 会替换成 BPP push frame。Bug-029 后渲染 `agent_name` / `channel_name`（前缀 `#`）/ `requester_name`，server-resolved label 缺失则 fallback 到 raw id；raw UUID 始终保留在 `title` hover 上（debug / log 引用）。`AgentInvitation` 类型见 `lib/api.ts`：`agent_name?` / `channel_name?` / `requester_name?` 三字段 optional（向后兼容旧 server）。
 
 ### `components/Settings/`
 - 用户设置页，**v1 仅 "隐私" tab**（ADM-1 起步, Phase 4 启动 milestone）。详见 [`ui/settings.md`](ui/settings.md)。
 - `SettingsPage.tsx` — 1 page 骨架, 顶部嵌 ⚙️ 按钮（Sidebar `data-action="open-settings"` → `App.tsx::requestMainView('settings')`，跟 agents / invitations / workspaces / remote-nodes 共用 `mainView: MainView` 字符串状态切视图，无 react-router；切换前跑 `useUnsavedChangesGuard` 守卫防丢改动）。
-- `PrivacyPromise.tsx` — 三承诺字面 1:1 跟 `admin-model.md §4.1` 同源（drift test CI 拦, vite `?raw` import）+ 八行 ✅/❌ 表格三色锁（allow gray / deny `#d33` 加粗 / impersonate `#d97706` amber）。**默认展开不可折叠**（野马 R3, 反 `<details>` 包裹源码 0 hit）。
+- `PrivacyPromise.tsx` — 三承诺字面 1:1 跟 `admin-model.md §4.1` 同源（脱节 test CI 拦, vite `?raw` import）+ 八行 ✅/❌ 表格三色锁定（allow gray / deny `#d33` 加粗 / impersonate `#d97706` amber）。**默认展开不可折叠**（野马 R3, 反 `<details>` 包裹源码 0 hit）。
 - 路径分叉：跟 `admin/pages/SettingsPage.tsx` 同名共存不混用（ADM-0 红线: cookie 拆 + `/admin-api/*` 独立 route）。
 
 ### `extensions/`
@@ -100,7 +100,7 @@
 
 ### `admin/`
 - 独立 SPA，用 React Router v7。`useAdminAuth()` 处理 `/admin-api/v1/auth/*` 的 cookie session。
-- 页面：`DashboardPage`（统计）、`UsersPage` + `UserDetailPage`（账号、权限、API key）、`ChannelsPage`、`InvitesPage`、`SettingsPage`、**`AdminAuditLogPage`** (ADM-2 PR #484, `GET /admin-api/v1/audit-log` 全 admin 互可见 audit log + ?actor_id/?action/?target_user_id 三 filter; 跟 user-rail 中文动词字面**拆死**, admin SPA 用英文 `action` enum, stance §6 反向 lint 锁)。
+- 页面：`DashboardPage`（统计）、`UsersPage` + `UserDetailPage`（账号、权限、API key）、`ChannelsPage`、`InvitesPage`、`SettingsPage`、**`AdminAuditLogPage`** (ADM-2 PR #484, `GET /admin-api/v1/audit-log` 全 admin 互可见 audit log + ?actor_id/?action/?target_user_id 三 filter; 跟 user-rail 中文动词字面**真分清**, admin SPA 用英文 `action` enum, 原则 §6 反向 lint 锁定)。
 - `admin/api.ts` 镜像 `lib/api.ts`，base URL 为 `/admin-api/v1`。
 
 > ADM-2 client (PR #484) 详见 [`ui/settings.md §7`](ui/settings.md) — user 设置页 ADM-2 三段 (PrivacyPromise + ImpersonateGrantSection + AdminActionsList) + App-level `BannerImpersonate.tsx` 顶部红横幅。
@@ -151,16 +151,16 @@
 - `command-registry.test.ts` — resolve 优先级、ambiguous、search 前缀过滤、`setRemoteCommands` 替换语义。
 - `channel-sort.test.ts` — position 字符串 lex 排序 + `last_message_at` fallback。
 - `channel-groups-ui.test.ts` — 分组展示逻辑。
-- `GroupHeader.test.tsx` — 分组头排版锁: 折叠时三角字符 ▶ (朝右) / 展开 ▼ (朝下) 不再用 CSS 旋转; drag-handle 跟 ⋯ 按钮统一 20px 方块 (`group-header-drag-handle` / `group-header-menu-btn`), 不再混 `.icon-btn` 32x32 撑高 header. 修 issue #689.
+- `GroupHeader.test.tsx` — 分组头排版锁定: 折叠时三角字符 ▶ (朝右) / 展开 ▼ (朝下) 不再用 CSS 旋转; drag-handle 跟 ⋯ 按钮统一 20px 方块 (`group-header-drag-handle` / `group-header-menu-btn`), 不再混 `.icon-btn` 32x32 撑高 header. 修 issue #689.
 - `ReactionAddButton.test.tsx` — gh#686 加表情按钮: 两种 variant (inline-pill / toolbar-btn) className + ➕ + title + 点击开关 picker; 失败时调 showToast byte-identical "添加 reaction 失败, 请重试" + 撤回乐观 pill; busy 期间防双击; aria-label / aria-haspopup / aria-expanded 字面.
 - `ReactionBar.test.tsx` — gh#686 没 reaction 时 ReactionBar 直接 return null 不渲染容器 (反 .reaction-bar-empty 占位撑容器 ~40px 这条 bug); 反向断言 .reaction-bar-empty / .reaction-add-hidden 0 出现.
 - `MessageItem-reaction-toggle.test.tsx` — gh#686 集成测覆盖组合点: reactions=[] 时工具栏 ➕ 出 ReactionBar 不渲染 / reactions=[一条] 时工具栏 ➕ 不出 ReactionBar 渲染 + 末尾 ➕; 消息已删除/发送中不出 ➕.
-- `reaction-reducer-race.test.ts` — gh#686 §4 #11b race 锁: ADD_REACTION_OPTIMISTIC → UPDATE_REACTIONS (WS 推, 含别人 reaction) → REMOVE_REACTION_OPTIMISTIC (API fail) → 期望按 user_id 撤回不误删别人 thumbs-up.
+- `reaction-reducer-race.test.ts` — gh#686 §4 #11b race 锁定: ADD_REACTION_OPTIMISTIC → UPDATE_REACTIONS (WS 推, 含别人 reaction) → REMOVE_REACTION_OPTIMISTIC (API fail) → 期望按 user_id 撤回不误删别人 thumbs-up.
 - `agent-invitations.test.ts` — CM-4.2 client：`createAgentInvitation` / `listAgentInvitations(role)` / `fetchAgentInvitation` / `decideAgentInvitation` 的请求形状、`{invitation}` / `{invitations}` 解包、409 → `ApiError`、`stateToLabel` 4 状态中文映射。
-- `agent-state.test.ts` (AL-1a) — `describeAgentState` 三态文案锁 + 6 reason code 表覆盖, 防退化。
-- `presence.test.ts` (AL-3.3) — `markPresence` cache + 5s 节流单测：跨窗口立即通知 / 窗口内 burst trailing flush / 多 agent anchor 独立 / 空 agentID 防御 / `PRESENCE_THROTTLE_MS===5000` 字面锁。fake clock 走 `__resetPresenceStoreForTest(()=>nowMs)` 注入。
-- `PresenceDot.test.tsx` (AL-3.3) — DOM 字面锁: 三态 `data-presence` 属性 + `.presence-online/.presence-offline/.presence-error` class + 6 reason 文案 byte-identical 跟 `agent-state.ts` 绑定; compact 模式 title fallback; 反约束 — 任意状态文本反查无 busy/idle/忙/空闲。
+- `agent-state.test.ts` (AL-1a) — `describeAgentState` 三态文案锁定 + 6 reason code 表覆盖, 防退化。
+- `presence.test.ts` (AL-3.3) — `markPresence` cache + 5s 节流单测：跨窗口立即通知 / 窗口内 burst trailing flush / 多 agent anchor 独立 / 空 agentID 防御 / `PRESENCE_THROTTLE_MS===5000` 字面锁定。fake clock 走 `__resetPresenceStoreForTest(()=>nowMs)` 注入。
+- `PresenceDot.test.tsx` (AL-3.3) — DOM 字面锁定: 三态 `data-presence` 属性 + `.presence-online/.presence-offline/.presence-error` class + 6 reason 文案 byte-identical 跟 `agent-state.ts` 绑定; compact 模式 title fallback; 反向约束 — 任意状态文本反查无 busy/idle/忙/空闲。
 
-- `ws-artifact-updated.test.ts` (CV-1.3) — `dispatchArtifactUpdated` 派发 `borgee:artifact-updated` CustomEvent + 7-field key 顺序字面锁 (`['type','cursor','artifact_id','version','channel_id','updated_at','kind']`, 跟 server `cursor.go::ArtifactUpdatedFrame` 锁; BPP-1 #304 envelope CI lint 反查 server 侧) + commit/rollback 双 kind round-trip + 反向断言 frame 不漏 `body|committer_id|committer_kind` (设计 ⑤) + event-name 字面锁 `'borgee:artifact-updated'`。
+- `ws-artifact-updated.test.ts` (CV-1.3) — `dispatchArtifactUpdated` 派发 `borgee:artifact-updated` CustomEvent + 7-field key 顺序字面锁定 (`['type','cursor','artifact_id','version','channel_id','updated_at','kind']`, 跟 server `cursor.go::ArtifactUpdatedFrame` 锁定; BPP-1 #304 envelope CI lint 反查 server 侧) + commit/rollback 双 kind round-trip + 反向断言 frame 不漏 `body|committer_id|committer_kind` (设计 ⑤) + event-name 字面锁定 `'borgee:artifact-updated'`。
 
 没有组件级 React Testing Library 测试。
