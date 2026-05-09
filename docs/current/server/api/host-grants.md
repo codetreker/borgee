@@ -1,4 +1,4 @@
-# HB-3 — host_grants schema SSOT + 情境化授权
+# HB-3 — host_grants schema 单一来源 + 情境化授权
 
 > **Source-of-truth pointer.** Schema in
 > `packages/server-go/internal/migrations/hb_3_1_host_grants.go` (v=27).
@@ -11,13 +11,13 @@
 
 Plugin runtime needs OS-level resources (filesystem read, network egress)
 that platform权限 (`user_permissions`) doesn't model. HB-3 ships
-`host_grants` — a separate SSOT for host-level授权 — so daemon
+`host_grants` — a separate 单一来源 for host-level授权 — so daemon
 (install-butler + host-bridge) consumers have a single read-only path
 without polluting the platform-level permission schema.
 
-## Stance (蓝图 host-bridge.md §1.3 + §1.5 + §2 字面)
+## 原则 (蓝图 host-bridge.md §1.3 + §1.5 + §2 原文)
 
-- **schema SSOT.** HB-3 持 ownership; HB-2 daemon (Go module
+- **schema 单一来源.** HB-3 持 ownership; HB-2 daemon (Go module
   `packages/borgee-helper/`, #617 已 merged) + install-butler
   read-only consumer. server-go `internal/api/host_grants.go` 是唯一
   INSERT/UPDATE/DELETE 路径.
@@ -27,20 +27,20 @@ without polluting the platform-level permission schema.
   / `cursor` / `org_id` / `runtime_id` 列.
 - **audit log 5 字段跨四 milestone 同源.** `actor / action / target /
   when / scope` byte-identical 跟 HB-1 install audit + HB-2 host-IPC
-  audit + BPP-4 #499 dead-letter. 改 = 改四处单测锁链 (HB-1 + HB-2 +
-  BPP-4 + HB-3 = 4th lock chain link). 跟 HB-4 §1.5 release gate 第 4
+  audit + BPP-4 #499 dead-letter. 改 = 改四处单测守护链 (HB-1 + HB-2 +
+  BPP-4 + HB-3 = 第 4 道守护链). 跟 HB-4 §1.5 release gate 第 4
   行 "审计日志格式锁定 JSON schema" 守门同源.
 - **撤销 < 100ms** (HB-4 §1.5 release gate 第 5 行) — v1 实现:
   REST DELETE → `revoked_at` NOT NULL + daemon 每次 SELECT 守
   (不缓存; 跟 HB-1 manifest 不缓存 + HB-2 §4.3 同模式).
-- **forward-only revoke.** DELETE 不真删行 — stamp `revoked_at` 留账
+- **forward-only revoke.** DELETE 不真删行 — stamp `revoked_at` 留作
   audit (蓝图 §2 信任五支柱第 3 条).
 - **admin god-mode 不入** — 用户授权是用户主权 (蓝图 §1.3 + ADM-0 §1.3
   红线). grep 检查 `admin.*host_grant` 0 hit.
 - **best-effort, no retry queue** (跟 BPP-4 #499 §0.3 设计沿用). AST
-  scan reverse-grep守门 forbids `pendingGrants` / `grantQueue` /
-  `deadLetterGrants` (锁链延伸第 3 处, 跟 BPP-4 dead_letter_test +
-  BPP-5 reconnect_handler_test 锁链同源).
+  scan reverse-grep 守门 forbids `pendingGrants` / `grantQueue` /
+  `deadLetterGrants` (守护链延伸第 3 处, 跟 BPP-4 dead_letter_test +
+  BPP-5 reconnect_handler_test 守护链同源).
 
 ## Schema (migration v=27)
 
@@ -90,7 +90,7 @@ POST body:
 
 DOM data-action map to enum literal byte-identical: `grant_one_shot` ↔
 `one_shot`, `grant_always` ↔ `always`. 改前端 = 改 schema CHECK = 改
-content-lock §1.①+§1.② (三处单测锁).
+content-lock §1.①+§1.② (三处单测锁定).
 
 ## Audit log keys
 

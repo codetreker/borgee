@@ -17,7 +17,7 @@ loop — `video_link` and `pdf_link` kinds plus a server-recorded
 inline render libraries (no video.js / hls.js / pdf.js). Server keeps
 the https-only XSS gate; client renders with HTML5 native primitives.
 
-## Stance (cv-2-v2-media-preview-spec.md §0 字面)
+## 原则 (cv-2-v2-media-preview-spec.md §0 原文)
 
 - **① server CDN thumbnail 不 inline.** `preview_url` 是 https URL 字段
   (server validation 红线 #1, 复用 ValidateImageLinkURL 同源). client
@@ -26,10 +26,10 @@ the https-only XSS gate; client renders with HTML5 native primitives.
   `<embed type="application/pdf">`. grep 检查
   `video.js|hls.js|dash.js|shaka-player|pdf.js|react-pdf` package.json
   count==0.
-- **③ kind enum 跟 CV-3 共 schema 单源.** v=28 12-step table-recreate
+- **③ kind enum 跟 CV-3 共 schema 单一来源.** v=28 12 步重建表
   扩 `markdown/code/image_link/video_link/pdf_link`, schema CHECK +
   `ValidArtifactKinds` slice + client `ArtifactKind` 三处 byte-identical
-  (改 = 改三处). 反约束: 不裂表 (artifact_video / artifact_pdf 反向
+  (改 = 改三处). 反向约束: 不拆表 (artifact_video / artifact_pdf 反向
   sqlite_master 0 hit).
 
 ## Schema (v=28)
@@ -38,9 +38,9 @@ the https-only XSS gate; client renders with HTML5 native primitives.
 |---|---|---|
 | `id` ... `lock_acquired_at` | (CV-1.1 + CV-3.1 既有) | unchanged |
 | `type` | `TEXT NOT NULL CHECK (type IN ('markdown','code','image_link','video_link','pdf_link'))` | CV-3.1 三项扩五项 |
-| `preview_url` | `TEXT NULL` | server-recorded thumbnail / poster URL (https only); NULL = legacy / 未生成 |
+| `preview_url` | `TEXT NULL` | server-recorded thumbnail / poster URL (https only); NULL = 历史数据 / 未生成 |
 
-Index: `idx_artifacts_channel_id` rebuilt (DROP TABLE 12-step 重建).
+Index: `idx_artifacts_channel_id` rebuilt (DROP TABLE 12 步重建).
 
 Migration is forward-only, idempotent via `schema_migrations`. Existing
 rows preserve verbatim with `preview_url=NULL` (no thumbnail backfill —
@@ -58,7 +58,7 @@ Content-Type: application/json
 }
 ```
 
-ACL (反约束 ① owner-only):
+ACL (反向约束 ① owner-only):
 
 - No auth user → **401 Unauthorized** (admin god-mode 不入此 path, ADM-0
   §1.3 红线; admin 走 `/admin-api/*` 单独 mw).
@@ -75,7 +75,7 @@ Validation gates:
 - `preview_url` empty / unparseable / scheme ∉ {`https`} →
   **400 `preview.url_must_be_https`** (scheme 不匹配) or
   **400 `preview.url_invalid`** (其他错). 复用 `ValidateImageLinkURL`
-  XSS 红线 #1 同源 (反约束 javascript:/data:/data:image/http:/file:/
+  XSS 红线 #1 同源 (反向约束 javascript:/data:/data:image/http:/file:/
   scheme-relative `//host` / 空 全 reject).
 
 Side-effects on success (200):
@@ -102,7 +102,7 @@ Response body:
 字段 (omitempty when NULL); client `MediaPreview` 用作 image
 thumbnail-first src / video poster.
 
-## 错码字面单源 (跟 AP-1 / AP-3 const 同模式)
+## 错码字面单一来源 (跟 AP-1 / AP-3 const 同模式)
 
 ```go
 PreviewErrCodeNotOwner          = "preview.not_owner"
@@ -113,10 +113,10 @@ PreviewErrCodeArtifactNotFound  = "preview.artifact_not_found"
 ```
 
 Drift between these consts and handler hardcoded strings is caught at
-test-time via `preview_test.go` substring asserts (`preview.url_` 锚 +
+test-time via `preview_test.go` substring asserts (`preview.url_` 前缀 +
 `preview.not_owner` / `preview.kind_not_previewable` byte-identical).
 
-## 跨 milestone byte-identical 锁
+## 跨 milestone byte-identical 锁定
 
 - 5 项 enum byte-identical 跟 `cv_2_v2_media_preview` migration v=28
   schema CHECK + `ValidArtifactKinds` slice + client `ArtifactKind`
@@ -131,7 +131,7 @@ test-time via `preview_test.go` substring asserts (`preview.url_` 锚 +
 ## 不在范围
 
 - Server-side CDN 工人 (ffmpeg / ImageMagick / pdf2image) — handler 是
-  thin recording shim 接 client / 工人 post 来的 URL; 真 CDN 集成留 v1+.
+  瘦记录中转 接 client / 工人 post 来的 URL; 真 CDN 集成留 v1+.
 - WS push 实时刷新 preview_url (preview_url 静态 CDN, 不订阅 frame).
-- preview 历史 audit UI (跟 admin god-mode 同精神, 走 ADM-2 既有
+- preview 历史审计 UI (跟 admin god-mode 同精神, 走 ADM-2 既有
   admin_actions 路径).
