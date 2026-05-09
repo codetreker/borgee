@@ -1,17 +1,17 @@
 # useDMSync hook (DM-3.2) — implementation note
 
-> DM-3.2 (#508) · Phase 5 候选 · 蓝图 [`concept-model.md`](../../blueprint/current/concept-model.md) §1.3 + DM-2 #361/#372/#388 (mention dispatch) + RT-1.3 #296 (cursor backfill) + RT-3 #488 (多端推 + thinking 反约束).
+> DM-3.2 (#508) · Phase 5 候选 · 蓝图 [`concept-model.md`](../../blueprint/current/concept-model.md) §1.3 + DM-2 #361/#372/#388 (mention dispatch) + RT-1.3 #296 (cursor backfill) + RT-3 #488 (多端推 + thinking 反向约束).
 
 ## 1. 设计
 
 agent-DM 多端 owner cursor 同步 — 复用 RT-1.3 既有 sequence + sessionStorage 持久化 (跟 `lastSeenCursor.ts` 同模式), 不开 dm-only WS subscription. monotonic-only persistence 防 cursor regression.
 
-反约束:
+反向约束:
 - ① DM cursor 复用 RT-1.3 既有 mechanism (不开 `/api/v1/dm/sync` 旁路 endpoint, dm 走 channel events 同 path)
 - ② 多端走 RT-3 fan-out (不开 dm-only WS subscription / frame)
 - ③ thinking subject 5-pattern 不出现 system DM body (跟 RT-3 #488 byte-identical 沿用)
-- ④ useDMSync 复用 `useArtifactUpdated` / `lastSeenCursor` 模式 — 不裂 hook seam
-- ⑤ server 0 行新增 (DM-3.1 反约束 grep test 守门, 复用 RT-1.3 events backfill)
+- ④ useDMSync 复用 `useArtifactUpdated` / `lastSeenCursor` 模式 — 不拆 hook seam
+- ⑤ server 0 行新增 (DM-3.1 反向约束 grep test 守门, 复用 RT-1.3 events backfill)
 
 ## 2. API surface (`packages/client/src/hooks/useDMSync.ts`)
 
@@ -43,13 +43,13 @@ agent-DM 多端 owner cursor 同步 — 复用 RT-1.3 既有 sequence + sessionS
 
 `__resetDMCursorForTests(id)` — 测试 between cases 清 sessionStorage 单 entry. 反向: 不从 barrel 导出, 不走 production import path. 跟 lastSeenCursor.ts `__resetLastSeenCursorForTests` 同模式.
 
-## 6. 反约束
+## 6. 反向约束
 
 - 不订阅 `borgee:dm-sync` / `dmSubscribe` / dm-only frame (反 grep production 0 hit)
 - 不存 secret / token
 - 不挂 `dm_id` 字段在 cursor (cursor 是单根 sequence, 跟 RT-1 / AL-2b / CV-* / BPP-3.1 共一根)
 
-## 7. 跨 milestone byte-identical 锁
+## 7. 跨 milestone byte-identical 锁定
 
 - cursor 跟 RT-1 #290 + AL-2b #481 + CV-* + BPP-3.1 #494 共 sequence
 - hook seam 跟 CV-1.3 #346 useArtifactUpdated 同模式

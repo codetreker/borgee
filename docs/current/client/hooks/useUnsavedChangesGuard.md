@@ -7,10 +7,10 @@
 
 切换 sidepane 或刷 / 关 tab 时, 当前视图如有未保存的表单改动, 弹一次 confirmation 让用户决定要不要丢. 是产品方向 (反"切换就静默丢"). 单 hook 5 form 自动获益.
 
-反约束:
+反向约束:
 - ① 不挂自定义 modal — sidepane 切换走 `window.confirm`, beforeunload 走浏览器原生提示 (跟 CV-10 ArtifactCommentDraftInput 既有 beforeunload 设计 ② 一致)
 - ② 反 React 闭包 staleness — `useRef` 包 isDirty (PR #695 feima review 抓的 bug, 反 module-level Set 存 mount 那一刻闭包永远拿空 state)
-- ③ 反复制 hook 行为漂移 — 5 form 不各自写 beforeunload, hook 内统一加 (反 5 个 form 各写一份 listener 行为漂)
+- ③ 反复制 hook 行为脱节 — 5 form 不各自写 beforeunload, hook 内统一加 (反 5 个 form 各写一份 listener 行为脱节)
 - ④ 多守卫合并消息一次弹 — 同时 N form dirty 不弹 N 次, 拼一条消息
 
 ## 2. API surface (`packages/client/src/hooks/useUnsavedChangesGuard.ts`)
@@ -65,7 +65,7 @@ useUnsavedChangesGuard(
 | Form | dirty 推算 | 模式 |
 |---|---|---|
 | AgentManager.tsx (CreateAgent) | `createdKey === null && (displayName.trim() !== '' \|\| agentId.trim() !== '')` | 创建 form: 字段非空 |
-| AgentConfigPanel.tsx | `!loading && !saving && config !== null && JSON.stringify(draft) !== JSON.stringify(config.blob)` | 编辑 form: SSOT blob byte 比 |
+| AgentConfigPanel.tsx | `!loading && !saving && config !== null && JSON.stringify(draft) !== JSON.stringify(config.blob)` | 编辑 form: 单一来源 blob byte 比 |
 | DescriptionEditor.tsx | `!busy && value !== initial` | 编辑 form: string === |
 | NodeManager::CreateNodeForm | `name.trim() !== ''` | 创建 form: 1 字段非空 |
 | NodeManager::AddBinding | `showAddBinding && (bindChannelId !== '' \|\| bindPath.trim() !== '' \|\| bindLabel.trim() !== '')` | 创建 form: 3 字段任一非空 (showAddBinding 关时不算) |
@@ -90,10 +90,10 @@ useEffect(() => {
 
 跟 CV-10 ArtifactCommentDraftInput 自己写的 beforeunload 共存 — 都 preventDefault 是幂等, 浏览器只弹一次原生提示. CV-10 迁 hook 留 followup.
 
-## 7. 反约束 (硬性)
+## 7. 反向约束 (硬性)
 
 源码层:
-- `packages/client/src/components/` grep 检查 `beforeunload` 命中 1 处 (CV-10 ArtifactCommentDraftInput) — 5 form 自己不写 (复用 hook), 反复制行为漂移
+- `packages/client/src/components/` grep 检查 `beforeunload` 命中 1 处 (CV-10 ArtifactCommentDraftInput) — 5 form 自己不写 (复用 hook), 反复制行为脱节
 - `packages/client/src/hooks/useUnsavedChangesGuard.ts` grep 检查 `beforeunload` 命中 1 处 (统一 listener)
 - 不引第三方 modal 库 (react-modal / sweetalert) — 走 `window.confirm` 原生 + 浏览器 beforeunload 原生
 
@@ -107,7 +107,7 @@ useEffect(() => {
   - `useUnsavedChangesGuard-beforeunload.test.tsx` 3 case (干净不 preventDefault / dirty 调 preventDefault / unmount 反注册)
 - React 18 受控 input/textarea 测试用 native value setter (反 ta.value=X 不通过 React 属性 setter 不触发 onChange)
 
-## 9. 锚
+## 9. 出处
 
 - 蓝图: `client-shape.md` § form 状态保护
 - spec: 无单独 spec 文件 (gh#682 + gh#703 直接 PR)
