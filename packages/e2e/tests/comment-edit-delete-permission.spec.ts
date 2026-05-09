@@ -1,17 +1,28 @@
-// tests/cv-7-comment-edit-delete.spec.ts — CV-7.3 e2e (REST-driven, mirrors
-// CV-5 #530 e2e pattern).
+// tests/comment-edit-delete-permission.spec.ts — comment 编辑 / 删除 / 反应 + 防越权 (跨 §1+§2).
 //
-// Acceptance: docs/_archive/qa/acceptance-templates/cv-7.md §3.
-// Stance: docs/qa/cv-7-stance-checklist.md §1-§5.
-// Spec: docs/implementation/modules/cv-7-spec.md.
+// 状态: SKIP+followup (gh#716 + gh#724 §1 mount + §2 ACL UX).
 //
-// 6 case (跟 spec §1 拆段 CV-7.3 字面):
-//   §3.1 human owner edit own comment (PUT 200 + GET 见新 body + edited_at 非空)
-//   §3.2 agent edit thinking 5-pattern (4 sub-case 全 reject 400 byte-identical CV-5)
-//   §3.3 delete own (DELETE 200 + GET 不再出现)
-//   §3.4 edit other comment → 403 byte-identical
-//   §3.5 reaction +1 -1 round-trip (PUT/DELETE 200 + count==0/1 真切换)
-//   §3.6 立场 ③ 反约束 sanity — non-comment-typed message 不走 thinking validator
+// 跳过原因 (双段同时撞):
+//   - §1: ArtifactComments 系列 client UI 0 production mount, page.click 走不通
+//   - §2: ACL 越权 forbidden state UX 还没设计完 (gh#724 §2)
+// 现 spec 走 REST 直调后端 = 后端 contract test (反模式 F3), 不算 e2e.
+//
+// 6 case 全保 (heima 拍: ACL 真验各路径不可丢):
+//   - 人 owner 编辑自己的评论 (PUT 200 + GET 看到新 body + edited_at 非空)
+//   - agent 编辑 thinking 触发 5 模式校验, 4 sub-case reject 400
+//   - 人 owner 删除自己的评论 (DELETE 200 + GET 不再出现)
+//   - 编辑别人的评论 → 403 (越权)
+//   - reaction +1 / -1 round-trip (PUT/DELETE 200 + count 真切换)
+//   - 反向: 非 comment 类型消息不走 thinking 校验
+//
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-7.md §3
+//   - 后续: gh#724 §1 (mount) + §2 (forbidden state UX)
+//
+// 实施约束 (unskip 后):
+//   - 真 UI 走浏览器 + cross-user 越权走 page.goto + DOM 反向断 (REWRITE-NAV 模式)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+//   - 6 case 不允许丢任一 ACL case
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
@@ -88,7 +99,7 @@ function serverURL(): string {
   return `http://127.0.0.1:${port}`;
 }
 
-test.describe('CV-7.3 artifact comment edit/delete/reaction REST e2e (acceptance §3)', () => {
+test.describe.skip('comment 编辑/删除/反应 + 防越权 (gh#716 SKIP+followup, 等 v2 mount + ACL UX 后 unskip — gh#724 §1+§2)', () => {
   test('§3.1 human owner edits own message — PUT 200 + GET 见新 body', async () => {
     const adminCtx = await adminLogin(serverURL());
     const inv = await mintInvite(adminCtx, 'cv7-edit');

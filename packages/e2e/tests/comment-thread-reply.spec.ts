@@ -1,17 +1,25 @@
-// tests/cv-8-comment-thread-reply.spec.ts — CV-8.3 e2e (REST-driven, mirrors
-// CV-5 / CV-7 e2e pattern).
+// tests/comment-thread-reply.spec.ts — comment thread 回复 (深度限 + 类型校验 + 跨频道).
 //
-// Acceptance: docs/_archive/qa/acceptance-templates/cv-8.md §3.
-// Stance: docs/qa/cv-8-stance-checklist.md §1-§5.
-// Spec: docs/implementation/modules/cv-8-spec.md.
+// 状态: SKIP+followup (gh#716 + gh#724 §1).
 //
-// 6 case (cv-8.md §3):
-//   §3.1 human reply on artifact_comment-typed parent — POST 200 + reply_to_id 链接
-//   §3.2 agent reply thinking 4-pattern reject (5-pattern 第 6 处链 byte-identical CV-5/CV-7)
-//   §3.3 reply on reply (depth 2) → 400 `comment.thread_depth_exceeded`
-//   §3.4 reply on plain-text message → 400 `comment.reply_target_invalid`
-//   §3.5 cross-channel reject — non-member → 403
-//   §3.6 立场 ④ 反约束 — non-comment-typed message reply 不会创建出 thread (sanity 反向)
+// 跳过原因: ArtifactComments 系列 client UI 0 production mount, 走真 UI
+// 路径不可达. 现 spec 走 REST 直调后端 (反模式 F3), 不算 e2e.
+// v2 ArtifactComments mount 落地后 unskip + 改 page.click + DOM 断.
+//
+// 6 case (v2 unskip 时验):
+//   - 人在 artifact_comment 类型父消息上回复 (POST 200 + reply_to_id 链接)
+//   - agent 回复 thinking 触发 4 模式校验 reject
+//   - 回复回复 (depth=2) → 400 comment.thread_depth_exceeded
+//   - 回复纯文本消息 → 400 comment.reply_target_invalid
+//   - 跨频道非成员回复 → 403
+//   - 反向: 非 comment 类型消息回复不创出 thread
+//
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-8.md §3
+//   - 后续: gh#724 §1 (mount)
+//
+// 实施约束 (unskip 后):
+//   - 真 UI 走浏览器, 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
@@ -95,7 +103,7 @@ function serverURL(): string {
   return `http://127.0.0.1:${port}`;
 }
 
-test.describe('CV-8.3 artifact comment thread reply REST e2e (acceptance §3)', () => {
+test.describe.skip('comment thread 回复 (gh#716 SKIP+followup, 等 v2 mount 后 unskip — gh#724 §1)', () => {
   test('§3.1 human reply on artifact_comment-typed parent — 201 + reply_to_id 链接', async () => {
     const adminCtx = await adminLogin(serverURL());
     const inv = await mintInvite(adminCtx, 'cv8-rt');

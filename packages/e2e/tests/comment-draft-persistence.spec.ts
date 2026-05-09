@@ -1,18 +1,26 @@
-// tests/cv-10-comment-draft.spec.ts — CV-10.2 e2e (Playwright, localStorage
-// + page-leave warning).
+// tests/comment-draft-persistence.spec.ts — comment 草稿 localStorage 持久化 + 离开提醒.
 //
-// Acceptance: docs/_archive/qa/acceptance-templates/cv-10.md §2.
-// Stance: docs/qa/cv-10-stance-checklist.md §1+§2+§4.
+// 状态: SKIP+followup (gh#716 + gh#724 §1).
 //
-// CV-10 是 client-only feature (0 server code). 此 spec 通过 localStorage
-// 直接模拟浏览器层 unsaved-state, 不依赖具体 UI mount 路径 (component
-// 单元测试已锁 DOM/文案 — vitest ArtifactCommentDraftInput.test.tsx).
+// 跳过原因: ArtifactCommentDraftInput 在 client SPA 当前没有 production
+// mount, 走真 UI 路径不可达. 现 spec 走 page.evaluate(localStorage)
+// 模拟浏览器层 unsaved-state, 不是真 UI input/click 路径 (反模式 F2 边界).
+// v2 ArtifactComments mount 落地后 unskip + 改真 textarea input + reload
+// + DOM 断.
 //
-// 3 case (cv-10.md §2):
-//   §2.1 type → reload → draft 仍在 localStorage
-//   §2.2 submit → localStorage cleared (反向 sanity)
-//   §2.3 navigate-away with non-empty draft 不强求 prompt — 跳过 UI prompt
-//        断, 改 sanity 断 key 存在 (浏览器 prompt 是 best-effort)
+// 3 case (v2 unskip 时验):
+//   - 输入 → reload → localStorage 仍持有 draft
+//   - submit → localStorage 清空
+//   - 含未保存草稿离开页面: 单测层覆盖 prompt, e2e 仅断 key 仍存在
+//
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-10.md §2
+//   - 单测: vitest ArtifactCommentDraftInput.test.tsx
+//   - 后续: gh#724 §1 (mount)
+//
+// 实施约束 (unskip 后):
+//   - 真 textarea input + reload + DOM 断
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import { test, expect } from '@playwright/test';
 
@@ -22,7 +30,7 @@ function clientURL(): string {
   return `http://127.0.0.1:${process.env.E2E_CLIENT_PORT ?? '5174'}`;
 }
 
-test.describe('CV-10.2 artifact comment draft persistence (acceptance §2)', () => {
+test.describe.skip('comment 草稿持久化 (gh#716 SKIP+followup, 等 v2 mount 后 unskip — gh#724 §1)', () => {
   test('§2.1 type → reload → localStorage 持有 draft (key namespace byte-identical)', async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();

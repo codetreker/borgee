@@ -1,16 +1,25 @@
-// tests/cv-5-artifact-comment.spec.ts — CV-5.3 e2e (REST-driven, mirrors
-// AL-2b / AL-1b pattern). UI smoke-test 由 vitest ArtifactComments.test.tsx
-// 覆盖; 此 spec 守服务端 5 立场.
+// tests/artifact-comment-thread.spec.ts — artifact comment 主流 (人评论 / agent reject / 跨频道 / cursor / admin god-mode 隔离).
 //
-// Acceptance: docs/_archive/qa/acceptance-templates/cv-5.md §3.
-// Stance: docs/qa/cv-5-stance-checklist.md §1-§4.
+// 状态: SKIP+followup (gh#716 + gh#724 §1).
 //
-// 5 case (跟 spec §1 拆段 CV-5.3 字面):
-//   §3.1 human comment round-trip — POST 后 GET 返回, channel_id under `artifact:` namespace
-//   §3.2 agent thinking subject 必带反断 — 5-pattern 5 sub-case 全 reject 400
-//   §3.3 cross-channel reject — 非 host channel member → 403 byte-identical code
-//   §3.4 cursor 共序锁 — frame cursor monotonic 跟 RT-1.1 ArtifactUpdated 共序 (REST 间接断: cursor 字段单调递增 ≥ 上次)
-//   §3.5 admin god-mode 不消费此 frame — admin /admin-api/* rail 隔离, GET /api/v1/artifacts/:id/comments 不挂 admin (ADM-0 §1.3 红线)
+// 跳过原因: ArtifactComments 系列在 client SPA 当前没有 production mount,
+// 走 page.click + DOM 断的真 UI 路径还跑不通. 现 spec 走 REST 直调后端,
+// 算后端 contract test (反模式 F3), 不算 e2e. 等 v2 ArtifactComments 系列
+// UI 落地后, 这里改 page.click + DOM 断真验, 同时 unskip.
+//
+// 测试范围 (v2 mount 后 unskip 时验):
+//   - 人评论 round-trip (POST 后 GET 返回, channel_id 在 artifact: 命名空间)
+//   - agent thinking subject 必带, 5 模式 reject 400
+//   - 跨频道非成员访问 → 403
+//   - cursor 单调递增 (跟 RT-1.1 ArtifactUpdated 共序)
+//   - admin god-mode 不消费此 frame, GET /api/v1/artifacts/:id/comments 不挂 admin
+//
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-5.md §3
+//   - 后续: gh#724 §1 (ArtifactComments 系列 v2 mount)
+//
+// 实施约束 (unskip 后):
+//   - 真 UI 走浏览器, 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
@@ -82,7 +91,7 @@ function serverURL(): string {
   return `http://127.0.0.1:${port}`;
 }
 
-test.describe('CV-5.3 artifact comments REST e2e (acceptance §3)', () => {
+test.describe.skip('artifact comments 主流 (gh#716 SKIP+followup, 等 v2 mount 后 unskip — gh#724 §1)', () => {
   test('§3.1 human comment round-trip — namespace channel + GET list', async () => {
     const adminCtx = await adminLogin(serverURL());
     const inv = await mintInvite(adminCtx, 'cv5-rt');

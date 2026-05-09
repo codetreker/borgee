@@ -1,25 +1,25 @@
-// tests/cv-9-comment-mention.spec.ts — CV-9.3 e2e (REST-driven, mention
-// fan-out validation). 0 server production code path — CV-9 rides DM-2.2
-// MentionDispatcher既有 path; e2e pins the cross-link.
+// tests/comment-mention-dispatch.spec.ts — comment mention 分发 (写 mention 行 + 跨频道拦 + 非成员 reject).
 //
-// Acceptance: docs/_archive/qa/acceptance-templates/cv-9.md §3.
-// Stance: docs/qa/cv-9-stance-checklist.md §1-§5.
-// Spec: docs/implementation/modules/cv-9-spec.md.
+// 状态: SKIP+followup (gh#716 + gh#724 §1).
 //
-// Note: artifact_comment content_type is added to the messages.go whitelist
-// by CV-7 PR #535 (queued to merge). Until that merges to main, this spec
-// uses 'text' content_type — the dispatcher behavior is content_type-agnostic
-// (see CV-9.1 unit `TestCV9_ArtifactComment_TriggersMentionDispatch`), so
-// the cross-link is validated either way; once #535 lands, an in-place
-// rebase swaps 'text' → 'artifact_comment' without functional change.
+// 跳过原因: ArtifactComments 系列 client UI 0 production mount, 走真 UI
+// 路径不可达. 现 spec 走 REST 直调后端 (反模式 F3), 不算 e2e.
+// v2 ArtifactComments mount 落地后 unskip + 改 page.click + DOM 断.
 //
-// 5 case (cv-9.md §3):
-//   §3.1 human posts message with @<uuid> mention → mention row written
-//   §3.2 mention non-channel-member → 400 mention.target_not_in_channel
-//   §3.3 cross-channel reject (non-member can't post)
-//   §3.4 mention dispatch parity — text-typed and (when CV-7 merged)
-//        artifact_comment-typed both fire the same dispatch path
-//   §3.5 反向 sanity — body 含 mention 但 target 不存在 → 400
+// 5 case (v2 unskip 时验):
+//   - 人发消息含 @<uuid> mention → mentions 表写入一行
+//   - mention 非频道成员 → 400 mention.target_not_in_channel
+//   - 跨频道非成员发消息 → 403
+//   - mention dispatch 跨内容类型一致 (text 和 artifact_comment 走同分发路径)
+//   - 反向: body 含 mention 但 target 不存在 → 400
+//
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/cv-9.md §3
+//   - 单测: TestCV9_ArtifactComment_TriggersMentionDispatch (dispatcher 内容类型无关)
+//   - 后续: gh#724 §1 (mount)
+//
+// 实施约束 (unskip 后):
+//   - 真 UI 走浏览器, 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
@@ -82,7 +82,7 @@ function serverURL(): string {
   return `http://127.0.0.1:${port}`;
 }
 
-test.describe('CV-9.3 artifact comment mention notification REST e2e (acceptance §3)', () => {
+test.describe.skip('comment mention 分发 (gh#716 SKIP+followup, 等 v2 mount 后 unskip — gh#724 §1)', () => {
   test('§3.1 human comment with @user → mention row written + WS frame fired', async () => {
     const adminCtx = await adminLogin(serverURL());
     const ownerInv = await mintInvite(adminCtx, 'cv9-mention-owner');
