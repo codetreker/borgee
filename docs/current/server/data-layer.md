@@ -40,14 +40,14 @@ server.go `New()` 单源调用 `datalayer.NewDataLayer(s, presenceTracker)`; han
 | `AgentHandler` (agents.go) | ✅ nil-safe | `Store.CreateUser(agent)` → `DataLayer.UserRepo.Create(ctx, agent)` (DataLayer 非 nil 时) |
 | `AL5Handler` (al_5_recover.go) | ✅ nil-safe | `Store.GetUserByID(agentID)` → `DataLayer.UserRepo.GetByID(ctx, agentID)` (DataLayer 非 nil 时) |
 
-**渐进迁移**: 反向 grep 行为 test `TestDL12_DirectStoreImportBaseline` (`packages/server-go/internal/api/dl12_direct_store_baseline_test.go`) 锁 `internal/api/` production .go 直 import `internal/store` 文件数 ≤ baseline 50 (production only, 跳 _test.go fixture; DL-1.2 wire-up 时定 108, 后续渐进调整); 后续 milestone PR 顺手补迁移, 不要求一次清零 (反 over-engineer).
+**渐进迁移**: 行为 test `TestDL12_DirectStoreImportBaseline` (`packages/server-go/internal/api/dl12_direct_store_baseline_test.go`) 在代码里搜 `"borgee-server/internal/store"` import 字面, 锁 `internal/api/` production .go 直 import `internal/store` 文件数 ≤ baseline 50 (production only, 跳 _test.go fixture; DL-1.2 wire-up 时定 108, 后续渐进调整); 后续 milestone PR 顺手补迁移, 不要求一次清零 (反 over-engineer).
 
 ## 4. CI 守门 (`TestDL12_DirectStoreImportBaseline` 行为 test)
 
 ```go
 // packages/server-go/internal/api/dl12_direct_store_baseline_test.go
-const baseline = 115
-// walk internal/api/*.go, 反向 grep `"borgee-server/internal/store"` import 字面;
+const baseline = 50
+// walk internal/api/*.go (跳 _test.go), 在代码里搜 `"borgee-server/internal/store"` import 字面;
 // count > baseline → fail (反 commit drift handler 直 store 突击).
 ```
 
