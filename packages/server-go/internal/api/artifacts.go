@@ -4,7 +4,7 @@
 // Blueprint: docs/blueprint/current/canvas-vision.md §0 (channel 围 artifact 协作)
 // + §1.1-§1.6 (D-lite + workspace per channel + Markdown ONLY v1) + §2
 // (v1 做/不做). Spec brief: docs/implementation/modules/cv-1-spec.md
-// (3 条原则 + 3 拆段). Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 条原则)
+// (3 条原则 + 3 拆段). 原则: docs/qa/cv-1-stance-checklist.md (v0, 7 条原则)
 // + docs/qa/cv-1-stance-v1-supplement.md (v1, ②③⑤⑦ 字段 + 边界 + REST + 反断).
 //
 // Schema源: migration v=13 cv_1_1_artifacts (#334 merged) — artifacts +
@@ -23,18 +23,18 @@
 //
 //   - ① 归属 = channel — channel membership 是唯一 ACL, 无 owner_id 主权列;
 //     archive 随 channel.
-//   - ② 单文档锁 30s TTL — commit 路径走 lazy expire 抢锁; 旧 holder 后写收
-//     409 conflict + reload hint. 反约束: 不上 CRDT, 不 range lock.
+//   - ② 单文档锁定 30s TTL — commit 路径走 lazy expire 抢锁定; 旧 holder 后写收
+//     409 conflict + reload hint. 反向约束: 不上 CRDT, 不 range lock.
 //   - ③ 版本线性 — `version` 单调每艺术品自增, UNIQUE(artifact_id, version)
 //     由 schema 保护; 每 commit 写新 row, 旧版本不删.
-//   - ④ Markdown ONLY v1 — type 锁 'markdown' 由 CHECK 约束 (#334 schema 锁).
+//   - ④ Markdown ONLY v1 — type 锁定 'markdown' 由 CHECK 约束 (#334 schema 锁定).
 //   - ⑤ ArtifactUpdated frame 走 RT-1.1 #290 既有 envelope (7 字段:
 //     type/cursor/artifact_id/version/channel_id/updated_at/kind), envelope 内
 //     不带 body, push 仅信号; committer_kind / committer_id 走 GET pull.
-//   - ⑥ committer_kind 'agent'|'human' — schema CHECK 锁; agent commit fanout
-//     system message `"{agent_name} 更新 {artifact_name} v{n}"` 文案锁.
+//   - ⑥ committer_kind 'agent'|'human' — schema CHECK 锁定; agent commit fanout
+//     system message `"{agent_name} 更新 {artifact_name} v{n}"` 文案锁定.
 //   - ⑦ rollback owner-only — POST /rollback {to_version:N} action endpoint
-//     (非 PATCH body 字段); admin → 401, 非 owner → 403, 锁持有 = 别人 → 409;
+//     (非 PATCH body 字段); admin → 401, 非 owner → 403, 锁定持有 = 别人 → 409;
 //     成功 = INSERT 新 row body=旧版本 + rolled_back_from_version=N.
 //
 // admin (god-mode) cookie 不入此 rail (跟 ADM-0 §1.3 红线一致, admin 走
@@ -64,7 +64,7 @@ import (
 const ArtifactLockTTL = 30 * time.Second
 
 // ArtifactType locks the v1 enum (设计 ④, mirrored by the CHECK constraint
-// on artifacts.type in migration v=13). Any drift here is caught by the
+// on artifacts.type in migration v=13). Any 脱节 here is caught by the
 // schema test (TestCV11_RejectsNonMarkdownType).
 const ArtifactType = "markdown"
 
@@ -76,7 +76,7 @@ const (
 
 // FrameKindCommit / FrameKindRollback distinguish the two cursor-bearing
 // push paths on the existing RT-1.1 ArtifactUpdatedFrame. Both reuse the
-// same envelope (反约束: 不另造 envelope) — the `kind` tail field is the
+// same envelope (反向约束: 不另造 envelope) — the `kind` tail field is the
 // only differentiator the client switches on.
 const (
 	FrameKindCommit   = "commit"
@@ -98,9 +98,9 @@ type ArtifactPusher interface {
 // unit tests that don't assert push behaviour; nil-safe at call sites.
 //
 // IterationPusher is the CV-4.2 seam — when a commit carries
-// `?iteration_id=<uuid>` (设计 ② commit 单源) we transition the
+// `?iteration_id=<uuid>` (设计 ② commit 单一来源) we transition the
 // iteration row from running→completed and emit IterationStateChanged.
-// Optional: nil disables the iteration completion path (legacy commit
+// Optional: nil disables the iteration completion path (历史 commit
 // behavior is unchanged, acceptance §2.2 反断).
 type ArtifactHandler struct {
 	Store           *store.Store
@@ -250,15 +250,15 @@ func (h *ArtifactHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// CHN-2.1 设计 ② DM 无 workspace (蓝图 §1.2 字面禁; #353 acceptance §2.3
-	// 同源 — DM channel cross-type 反约束). DM channel 创 artifact → 403
-	// `dm.workspace_not_supported` 兜底, 防 client UI bug 漏检.
+	// 同源 — DM channel cross-type 反向约束). DM channel 创 artifact → 403
+	// `dm.workspace_not_supported` 保底, 防 client UI bug 漏检.
 	// grep 检查项: `dm.workspace_not_supported` count≥1 (本行).
 	if ch.Type == "dm" {
 		writeJSONErrorCode(w, http.StatusForbidden, "dm.workspace_not_supported", "DM 无 workspace, 跟 channel 拆")
 		return
 	}
 	if !h.canAccessChannel(channelID, user.ID) {
-		// 反约束: cross-channel + cross-org → 403 (CHN-1 双轴隔离同).
+		// 反向约束: cross-channel + cross-org → 403 (CHN-1 双轴隔离同).
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
@@ -275,9 +275,9 @@ func (h *ArtifactHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	// CV-3.2 (#363 / #397): kind enum extended to {markdown, code,
 	// image_link} per migration v=17 (cv_3_1_artifact_kinds, #396 merged).
-	// CV-1.2 设计 ④ Markdown ONLY 锁已废 — 旧的 `400 "type must be 'markdown' (v1)"`
+	// CV-1.2 设计 ④ Markdown ONLY 锁定已废 — 旧的 `400 "type must be 'markdown' (v1)"`
 	// 文案此处删 (grep 检查 `type must be 'markdown' \(v1\)` count==0,
-	// spec #397 §3 drift 3 字面). 默认值仍 'markdown' 兼容旧 client (CV-1
+	// spec #397 §3 脱节 3 字面). 默认值仍 'markdown' 兼容旧 client (CV-1
 	// 既有 POST /artifacts 不带 type 字段的路径走 markdown 默认, 不破).
 	if req.Type == "" {
 		req.Type = ArtifactKindMarkdown
@@ -286,17 +286,17 @@ func (h *ArtifactHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "artifact.invalid_kind: type must be one of [markdown code image_link video_link pdf_link]")
 		return
 	}
-	// CV-3.2 metadata gate (acceptance §1.3 / §1.4 + 文案锁 §1 ②④⑤):
+	// CV-3.2 metadata gate (acceptance §1.3 / §1.4 + 文案锁定 §1 ②④⑤):
 	//   - kind='code'       MUST carry metadata.language ∈ 11 项白名单 + 'text'
 	//   - kind='image_link' MUST carry metadata.kind ∈ ('image','link')
 	//                       AND metadata.url 是合法 https URL
-	// 反约束 — javascript: / data: / data:image / http: / file: / 任何
-	// 非 https scheme 全 reject (XSS 红线第一道, #370 §1 ④ + spec §3 锚).
+	// 反向约束 — javascript: / data: / data:image / http: / file: / 任何
+	// 非 https scheme 全 reject (XSS 红线第一道, #370 §1 ④ + spec §3 出处).
 	//
-	// Note: metadata 本 PR **不持久化** (留账 — CV-3.2 schema 后续
+	// Note: metadata 本 PR **不持久化** (留作后续 — CV-3.2 schema 后续
 	// 决定 add metadata column vs body JSON header). 服务端验完后丢弃,
 	// client reload 时按 kind 默认 (code 默认 'text', image_link body
-	// 即 URL). PR body Acceptance 段已明示此留账边界.
+	// 即 URL). PR body Acceptance 段已明示此后续边界.
 	if err := ValidateArtifactMetadata(req.Type, req.Metadata); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -425,9 +425,9 @@ func (h *ArtifactHandler) handleCommit(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
-	// AP-1 设计 ②③: ABAC capability check 单 SSOT — agent 严格 (蓝图
+	// AP-1 设计 ②③: ABAC capability check 单一来源 — agent 严格 (蓝图
 	// §1.4 不享 wildcard); human 享 wildcard 短路. grep 检查 守 const
-	// 字面单源 (spec §2 #1).
+	// 字面单一来源 (spec §2 #1).
 	if !auth.HasCapability(r.Context(), h.Store, auth.CommitArtifact, auth.ArtifactScopeStr(id)) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
@@ -501,11 +501,11 @@ func (h *ArtifactHandler) handleCommit(w http.ResponseWriter, r *http.Request) {
 		h.Pusher.PushArtifactUpdated(id, newVersion, art.ChannelID, nowMs, FrameKindCommit)
 	}
 
-	// CV-4.2 设计 ② commit 单源: when ?iteration_id=<uuid> present, atomic
+	// CV-4.2 设计 ② commit 单一来源: when ?iteration_id=<uuid> present, atomic
 	// UPDATE iteration row running→completed + push IterationStateChanged.
 	// State machine reject (source state not 'running') → 409 conflict
 	// (acceptance §2.3 反断 — completed→running / failed→pending 等回退
-	// 全 reject). 反约束: 不开旁路 commit endpoint
+	// 全 reject). 反向约束: 不开旁路 commit endpoint
 	// (acceptance §4.1 字面). The version row + artifact row are already
 	// committed; iteration UPDATE is a separate atomic stmt — if it
 	// rejects we still surface 409 so client knows the iteration is stale.
@@ -601,7 +601,7 @@ func (h *ArtifactHandler) handleRollback(w http.ResponseWriter, r *http.Request)
 	nowMs := now.UnixMilli()
 	expireBefore := now.Add(-ArtifactLockTTL).UnixMilli()
 
-	// 设计 ⑦ rollback 也走锁路径: 锁持有 = 别人 (未过 30s TTL) → 409.
+	// 设计 ⑦ rollback 也走加锁定路径: 锁定持有 = 别人 (未过 30s TTL) → 409.
 	if art.LockHolderUserID != nil && *art.LockHolderUserID != user.ID {
 		if art.LockAcquiredAt == nil || *art.LockAcquiredAt > expireBefore {
 			writeJSONError(w, http.StatusConflict, "Artifact is locked by another editor")
@@ -657,7 +657,7 @@ FROM artifact_versions WHERE artifact_id = ? AND version = ?`,
 	if h.Pusher != nil {
 		h.Pusher.PushArtifactUpdated(id, newVersion, art.ChannelID, nowMs, FrameKindRollback)
 	}
-	// 设计 ⑦ 反约束: rollback 不发 system message (rollback 是 owner 行为,
+	// 设计 ⑦ 反向约束: rollback 不发 system message (rollback 是 owner 行为,
 	// 不污染 fanout, v1 supplement ⑦ "system message 不发").
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{
