@@ -55,7 +55,7 @@ function setReactInputValue(input: HTMLInputElement, value: string) {
 }
 
 describe('ArtifactCommentSearchBox — CV-12.2 client', () => {
-  it('立场 ④ DOM data-cv12-search-input anchor (artifactId)', async () => {
+  it('设计 ④ DOM data-cv12-search-input anchor (artifactId)', async () => {
     await render(<ArtifactCommentSearchBox artifactId="art-1" artifactChannelId="ch-1" />);
     const input = container!.querySelector('[data-cv12-search-input]') as HTMLInputElement;
     expect(input).not.toBeNull();
@@ -63,7 +63,7 @@ describe('ArtifactCommentSearchBox — CV-12.2 client', () => {
     expect(input.placeholder).toBe('搜索评论...');
   });
 
-  it('立场 ④ 0 result 文案 "未找到匹配评论" byte-identical', async () => {
+  it('设计 ④ 0 result 文案 "未找到匹配评论" byte-identical', async () => {
     (api.searchArtifactComments as ReturnType<typeof vi.fn>).mockResolvedValue({ messages: [] });
     await render(<ArtifactCommentSearchBox artifactId="art-2" artifactChannelId="ch-2" />);
     const input = container!.querySelector('[data-cv12-search-input]') as HTMLInputElement;
@@ -84,7 +84,7 @@ describe('ArtifactCommentSearchBox — CV-12.2 client', () => {
     expect(noResult!.textContent).toBe('未找到匹配评论');
   });
 
-  it('立场 ④ result list — 渲染 data-cv12-search-result-id 锚', async () => {
+  it('设计 ④ result list — 渲染 data-cv12-search-result-id 锚', async () => {
     (api.searchArtifactComments as ReturnType<typeof vi.fn>).mockResolvedValue({
       messages: [
         { id: 'msg-1', content: 'first match', sender_id: 'u-1', created_at: 1700000000000 },
@@ -111,7 +111,7 @@ describe('ArtifactCommentSearchBox — CV-12.2 client', () => {
     expect(rows[1].getAttribute('data-cv12-search-result-id')).toBe('msg-2');
   });
 
-  it('立场 ④ 空 query 不调 API (反向断)', async () => {
+  it('设计 ④ 空 query 不调 API (反向断)', async () => {
     const spy = api.searchArtifactComments as ReturnType<typeof vi.fn>;
     await render(<ArtifactCommentSearchBox artifactId="art-4" artifactChannelId="ch-4" />);
     const submit = container!.querySelector('[data-testid="cv12-search-submit"]') as HTMLButtonElement;

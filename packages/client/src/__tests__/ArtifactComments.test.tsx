@@ -1,6 +1,6 @@
 // ArtifactComments.test.tsx — CV-5.2 vitest acceptance.
 //
-// 锚: docs/qa/cv-5-stance-checklist.md §2 + spec §0 立场 ② (frame 信号
+// 锚: docs/qa/cv-5-stance-checklist.md §2 + spec §0 设计 ② (frame 信号
 // + 增量 append). 反约束: 不用 frame.body_preview 渲染 comment text.
 
 import React from 'react';
@@ -87,7 +87,7 @@ describe('ArtifactComments — CV-5.2 client', () => {
     expect(roles).toEqual(['human', 'agent']);
   });
 
-  it('立场 ② WS frame triggers refetch (incremental append, no body_preview render)', async () => {
+  it('设计 ② WS frame triggers refetch (incremental append, no body_preview render)', async () => {
     const listSpy = vi
       .spyOn(api, 'listArtifactComments')
       .mockResolvedValueOnce({ comments: [sampleHuman] })
@@ -122,7 +122,7 @@ describe('ArtifactComments — CV-5.2 client', () => {
     expect(rows.length).toBe(2);
   });
 
-  it('立场 ② frame for OTHER artifact does not refetch', async () => {
+  it('设计 ② frame for OTHER artifact does not refetch', async () => {
     const listSpy = vi.spyOn(api, 'listArtifactComments').mockResolvedValue({
       comments: [sampleHuman],
     });

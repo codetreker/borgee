@@ -1,6 +1,6 @@
 // DiffView.test.tsx — CV-4.3 acceptance §3.5 vitest 锁.
 //
-// 锚: docs/qa/cv-4-content-lock.md §1 ⑤ + acceptance §3.5 + spec §0 立场 ③.
+// 锚: docs/qa/cv-4-content-lock.md §1 ⑤ + acceptance §3.5 + spec §0 设计 ③.
 //
 // jsdiff 行级 diff 纯函数测 (computeDiffRows) + DOM 字面验
 // (data-diff-line='add|del|context' a11y ARIA + "对比" 文案锁).
@@ -35,7 +35,7 @@ function render(node: React.ReactElement) {
   });
 }
 
-describe('computeDiffRows — jsdiff 行级 (立场 ③ client jsdiff)', () => {
+describe('computeDiffRows — jsdiff 行级 (设计 ③ client jsdiff)', () => {
   it('identical → all context rows', () => {
     const rows = computeDiffRows('a\nb\nc', 'a\nb\nc');
     expect(rows.every((r) => r.kind === 'context')).toBe(true);

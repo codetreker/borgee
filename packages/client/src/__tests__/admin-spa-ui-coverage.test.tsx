@@ -1,6 +1,6 @@
 // admin-spa-ui-coverage.test.tsx — REG-ASUC-001..006 + UserDetailPage UI render
 //
-// 立场: ADM-0 §1.3 admin god-mode 路径独立, CAPABILITY-DOT #628 14 const SSOT
+// 设计: ADM-0 §1.3 admin god-mode 路径独立, CAPABILITY-DOT #628 14 const SSOT
 // byte-identical, 0 server / 0 endpoint 改 (server 已挂 endpoint, 仅 client 接 UI).
 
 import React from 'react';
@@ -52,7 +52,7 @@ describe('ADMIN-SPA-UI-COVERAGE — REG-ASUC content-lock + DOM 锚 + 文案 byt
 
   test('REG-ASUC-004 — UserDetailPage DOM 锚 byte-identical (data-asuc-* SSOT)', () => {
     const src = read('pages/UserDetailPage.tsx');
-    // 9 DOM 锚 (反向 grep 守门, 跟 admin-spa-shape-fix data-* 模式承袭).
+    // 9 DOM 锚 (grep 守门, 跟 admin-spa-shape-fix data-* 模式承袭).
     const anchors = [
       'data-page="admin-user-detail"',
       'data-asuc-action-msg',
@@ -96,7 +96,7 @@ describe('ADMIN-SPA-UI-COVERAGE — REG-ASUC content-lock + DOM 锚 + 文案 byt
 
   test('REG-ASUC-006 — UserDetailPage 走 CAPABILITY-DOT #628 14 const SSOT (反 hardcode)', () => {
     const src = read('pages/UserDetailPage.tsx');
-    // 反向 grep — UserDetailPage 必从 lib/capabilities import, 不内嵌字面.
+    // grep 检查 — UserDetailPage 必从 lib/capabilities import, 不内嵌字面.
     expect(src).toMatch(/import.*CAPABILITY_TOKENS.*capabilityLabel.*isKnownCapability.*from.*lib\/capabilities/);
     // 反向: 反 hardcode 14 dot-notation 字面 in UserDetailPage (CAPABILITY_TOKENS 单源).
     const hardcodedTokens = src.match(/['"]channel\.read['"]|['"]artifact\.commit['"]|['"]user\.mention['"]/g);

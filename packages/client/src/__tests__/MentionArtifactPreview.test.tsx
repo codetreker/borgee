@@ -1,6 +1,6 @@
 // MentionArtifactPreview.test.tsx — CV-3.3 acceptance §2.6 vitest 锁.
 //
-// 锚: docs/qa/cv-3-content-lock.md §1 ⑥ + acceptance §2.6 + spec §0 立场 ③.
+// 锚: docs/qa/cv-3-content-lock.md §1 ⑥ + acceptance §2.6 + spec §0 设计 ③.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';

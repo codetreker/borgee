@@ -1,7 +1,7 @@
 // CodeRenderer.test.tsx — CV-3.3 acceptance §2.2 §2.3 vitest 锁.
 //
 // 锚: docs/qa/cv-3-content-lock.md §1 ②③ + acceptance §2.2 §2.3 +
-//     spec §0 立场 ① 11 项语言白名单字面.
+//     spec §0 设计 ① 11 项语言白名单字面.
 //
 // table-driven 12 项白名单 byte-identical (跟 server ValidCodeLanguages
 // 同源) + 反向 reject 全名同义词 'golang'/'typescript'/'python'/

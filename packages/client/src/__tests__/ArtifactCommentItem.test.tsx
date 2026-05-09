@@ -41,7 +41,7 @@ async function render(node: React.ReactElement) {
 }
 
 describe('ArtifactCommentItem — CV-7.2 client', () => {
-  it('立场 ② own comment renders data-cv7-edit-btn (sender==current user)', async () => {
+  it('设计 ② own comment renders data-cv7-edit-btn (sender==current user)', async () => {
     await render(
       <ArtifactCommentItem
         commentId="msg-1"
@@ -56,7 +56,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(btn!.getAttribute('data-cv7-edit-btn-target')).toBe('msg-1');
   });
 
-  it('立场 ② other comment does NOT render data-cv7-edit-btn (反约束)', async () => {
+  it('设计 ② other comment does NOT render data-cv7-edit-btn (反约束)', async () => {
     await render(
       <ArtifactCommentItem
         commentId="msg-2"
@@ -70,7 +70,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(btn).toBeNull();
   });
 
-  it('立场 ④ delete confirm 文案 byte-identical "确认删除这条评论?"', async () => {
+  it('设计 ④ delete confirm 文案 byte-identical "确认删除这条评论?"', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const delSpy = vi.spyOn(api, 'deleteMessage').mockResolvedValue();
     await render(
@@ -100,7 +100,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(delSpy).toHaveBeenCalledWith('msg-3');
   });
 
-  it('立场 ④ reaction button renders data-cv7-reaction-target + click → addReaction', async () => {
+  it('设计 ④ reaction button renders data-cv7-reaction-target + click → addReaction', async () => {
     const reactSpy = vi.spyOn(api, 'addReaction').mockResolvedValue();
     await render(
       <ArtifactCommentItem
@@ -120,7 +120,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(reactSpy).toHaveBeenCalledWith('msg-4', '👍');
   });
 
-  it('立场 ③ thinking 5-pattern reject — surfaces errcode byte-identical CV-5', async () => {
+  it('设计 ③ thinking 5-pattern reject — surfaces errcode byte-identical CV-5', async () => {
     const ApiErrCtor = api.ApiError;
     vi.spyOn(api, 'editMessage').mockRejectedValue(
       new ApiErrCtor(400, 'comment.thinking_subject_required: thinking-only body rejected'),

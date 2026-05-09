@@ -1,7 +1,7 @@
 // cross_modal_history_lock.test.ts — feima review #2 锚: 跨 DM-7
 // EditHistoryModal + CHN-14 DescriptionHistoryModal 字面 3 处 byte-identical
-// 反向 grep 守门. 文案 SSOT-by-content-lock 模式 — 不是 SSOT-by-component-
-// reuse (字段 key 别 + 空态立场分歧, see chn-14-content-lock.md §1.1).
+// grep 守门. 文案 SSOT-by-content-lock 模式 — 不是 SSOT-by-component-
+// reuse (字段 key 别 + 空态设计分歧, see chn-14-content-lock.md §1.1).
 //
 // 反向断: 任一字面在任一 modal 漂走 → fail (cross-modal drift 守门).
 

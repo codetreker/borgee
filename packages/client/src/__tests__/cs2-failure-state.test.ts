@@ -1,4 +1,4 @@
-// CS-2.1 — 故障三态 SSOT 单测 (cs-2-stance-checklist 立场 ① + content-lock §1).
+// CS-2.1 — 故障三态 SSOT 单测 (cs-2-stance-checklist 设计 ① + content-lock §1).
 import { describe, it, expect } from 'vitest';
 import { FAILURE_TRI_STATE, IsFailureState } from '../lib/cs2-failure-state';
 

@@ -1,11 +1,11 @@
-// IterationTimeline.test.tsx — 4 vitest cases pin CV-4.2 立场 ②+③.
+// IterationTimeline.test.tsx — 4 vitest cases pin CV-4.2 设计 ②+③.
 //
 // Cases:
 //   ① renders 4-state badges (pending/running/completed/failed) + intent_text
-//   ② thumbnail src 复用 versionPreviewMap (立场 ② — 不缓存历史 thumbnail)
+//   ② thumbnail src 复用 versionPreviewMap (设计 ② — 不缓存历史 thumbnail)
 //   ③ empty state + onJump callback fires with versionID
 //   ④ DoesNotWriteOwnCursor — 反向断言 sessionStorage borgee.cv4.cursor:* 0 hit
-//      (立场 ③ — cursor 复用 RT-1.1 不写独立, 跟 DM-4 useDMEdit 同精神)
+//      (设计 ③ — cursor 复用 RT-1.1 不写独立, 跟 DM-4 useDMEdit 同精神)
 
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -73,7 +73,7 @@ describe('IterationTimeline (CV-4 v2)', () => {
     await act(async () => { root.unmount(); });
   });
 
-  it('② thumbnail src 复用 versionPreviewMap (立场 ② thumbnail history 不存)', async () => {
+  it('② thumbnail src 复用 versionPreviewMap (设计 ② thumbnail history 不存)', async () => {
     const rows: ArtifactIteration[] = [makeRow('it-1', 'completed', 'rev1', 7)];
     const versionPreviewMap = { '7': 'https://cdn.example/preview-7.png' };
     const root = createRoot(container!);
@@ -116,7 +116,7 @@ describe('IterationTimeline (CV-4 v2)', () => {
     await act(async () => { root2.unmount(); });
   });
 
-  it('④ DoesNotWriteOwnCursor — 立场 ③ 反向断言 borgee.cv4.cursor:* 未写', async () => {
+  it('④ DoesNotWriteOwnCursor — 设计 ③ 反向断言 borgee.cv4.cursor:* 未写', async () => {
     const rows: ArtifactIteration[] = [makeRow('it-1', 'completed', 'x', 1)];
     const root = createRoot(container!);
     await act(async () => {

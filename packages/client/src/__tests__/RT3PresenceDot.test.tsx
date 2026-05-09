@@ -1,6 +1,6 @@
 // RT-3 ⭐ presence dot tests (vitest, react-dom/client pattern).
 //
-// 立场承袭 (rt-3-spec.md §0 + content-lock §1+§2):
+// 设计沿用 (rt-3-spec.md §0 + content-lock §1+§2):
 //   - 4 态 UI 渲染 byte-identical (online / offline / away / thinking)
 //   - DOM data-attr SSOT (data-rt3-presence-dot/last-seen/cursor-user)
 //   - 字面 byte-identical (`在线` / `离线` / `刚刚活跃` / `最近活跃 N 分钟前`)

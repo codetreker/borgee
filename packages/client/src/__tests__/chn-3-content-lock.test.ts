@@ -59,7 +59,7 @@ describe('CHN-3 content-lock literals + DOM attrs', () => {
   it('③ pin menu literals byte-identical: "置顶" / "取消置顶"', () => {
     expect(contextMenu).toContain("'置顶'");
     expect(contextMenu).toContain("'取消置顶'");
-    // 反向 grep ≥2 — 双菜单项各 1 hit.
+    // grep 检查 ≥2 — 双菜单项各 1 hit.
     const matches = contextMenu.match(/'置顶'|'取消置顶'/g);
     expect(matches).not.toBeNull();
     expect((matches ?? []).length).toBeGreaterThanOrEqual(2);
@@ -98,13 +98,13 @@ describe('CHN-3 content-lock literals + DOM attrs', () => {
     }
   });
 
-  it('反约束: pinned BOOL 列名 0 hit — pin 走 position 单调小数 (#366 立场 ③)', () => {
+  it('反约束: pinned BOOL 列名 0 hit — pin 走 position 单调小数 (#366 设计 ③)', () => {
     // 这道反约束守 schema 反向 — server v=19 不应有 pinned 列, 但 client
     // 也不能引入 pinned 字段. useUserLayout / api 层无 'pinned' 字面.
     expect(useLayout).not.toMatch(/pinned\s*[:=]\s*(true|false)/);
   });
 
-  it('反约束: LayoutChangedFrame push frame 不存在 (立场 ⑥ + 文案锁 ⑥)', () => {
+  it('反约束: LayoutChangedFrame push frame 不存在 (设计 ⑥ + 文案锁 ⑥)', () => {
     expect(useLayout).not.toContain('LayoutChangedFrame');
     expect(useLayout).not.toContain('UserChannelLayoutChanged');
     // useUserLayout 不订阅 ws frame — 仅 GET /me/layout once + PUT debounce.

@@ -7,7 +7,7 @@
 // Sources cross-referenced (byte-identical 多源 同根, 改一处必改全部):
 //   - 失败 toast "agent 配置保存失败, 请重试" — 跟 server-go
 //     internal/api/agent_config.go const agentConfigSaveErrorMsg byte-
-//     identical 同源 (蓝图 §1.4 SSOT 立场, AL-2a content-lock ①).
+//     identical 同源 (蓝图 §1.4 SSOT 设计, AL-2a content-lock ①).
 //   - allowedConfigKeys 白名单 — 跟 server-go internal/api/agent_config.go
 //     allowedConfigKeys map 同源 (name / avatar / prompt / model /
 //     capabilities / enabled / memory_ref).
@@ -74,7 +74,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   });
 
   it('反约束: runtime-only 字段 (api_key/temperature/token_limit/retry_policy) 不在 form', () => {
-    // UI 层 fail-closed — 反向 grep 字段 ID 不出现 (server 层也 fail-closed
+    // UI 层 fail-closed — grep 检查 字段 ID 不出现 (server 层也 fail-closed
     // reject, acceptance §4.1.c reflect scan 同源).
     for (const forbidden of ['api_key', 'temperature', 'token_limit', 'retry_policy']) {
       // form input id 反向断言 (data-agent-config-field 不渲染).
@@ -83,7 +83,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   });
 
   it('反约束: 不订阅 push frame (蓝图 §1.5 BPP frame 留 AL-2b)', () => {
-    // 立场 ⑥ — 走轮询 reload, 不订阅 ws subscription. 反向 grep 字面.
+    // 设计 ⑥ — 走轮询 reload, 不订阅 ws subscription. grep 检查 字面.
     expect(panel).not.toContain('subscribeWS');
     expect(panel).not.toContain('hub.subscribe');
     // BPP frame name 字面只在 doc comment 出现 (说明 AL-2a 不挂); 单引号
@@ -112,7 +112,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   // 实际代码用 `<section data-agent-config="root">`. drift 已修 (md 改对齐
   // code+test). 这条单测扫整个 packages/ + docs/qa/ 树, 守"data-form=
   // 'agent-config'" 不再出现 (反 md 又漂回 form / 代码又漂去 form).
-  it('反向锚 (gh#701): 整个 packages/ + docs/qa/ 树没 data-form="agent-config" 字面 (容器是 section, 不是 form)', () => {
+  it('grep 检查 (gh#701): 整个 packages/ + docs/qa/ 树没 data-form="agent-config" 字面 (容器是 section, 不是 form)', () => {
     // 路径: HERE = packages/client/src/__tests__ → ..*4 = repo root.
     const REPO_ROOT = nodePath.join(HERE, '..', '..', '..', '..');
     const SCAN_DIRS = [
@@ -149,7 +149,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
       for (const file of walk(dir)) {
         // 跳过测试文件自身 (它有 forbidden 字面在反向断言里 — 那是检测用)
         if (file.endsWith('al-2a-content-lock.test.ts')) continue;
-        // 跳过 al-2a-content-lock.md 自身 (它的反向锚段落在文档里 *写出*
+        // 跳过 al-2a-content-lock.md 自身 (它的检查项段落在文档里 *写出*
         // forbidden 字面作为 "❌ 不准用" 的字面引用 — 这是文档功能不是漂移).
         if (file.endsWith('al-2a-content-lock.md')) continue;
         let content: string;

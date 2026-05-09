@@ -1,4 +1,4 @@
-// useDMSync.test.ts — 5 vitest cases pin DM-3.2 立场 ④ (cursor round-trip
+// useDMSync.test.ts — 5 vitest cases pin DM-3.2 设计 ④ (cursor round-trip
 // 跟 lastSeenCursor 同模式).
 //
 // Cases:

@@ -1,4 +1,4 @@
-// CS-3.2 — InstallPromptButton 单测 (cs-3-stance-checklist 立场 ① + content-lock §2).
+// CS-3.2 — InstallPromptButton 单测 (cs-3-stance-checklist 设计 ① + content-lock §2).
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';

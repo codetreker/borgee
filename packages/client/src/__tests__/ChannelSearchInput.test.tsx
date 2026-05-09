@@ -4,7 +4,7 @@
 //   ① ChannelSearchInput placeholder `搜索频道` byte-identical
 //   ② aria-label `搜索频道` byte-identical
 //   ③ debounce 200ms — onChange 不立即触发, 200ms 静默期后才触发 onSearch
-//   ④ 空 q 也触发 onSearch("") — 反向 grep 锚 (清空恢复全列表)
+//   ④ 空 q 也触发 onSearch("") — grep 检查项 (清空恢复全列表)
 //   ⑤ 同义词反向 reject — source grep 0 hit (data-testid + className 例外)
 
 import React from 'react';

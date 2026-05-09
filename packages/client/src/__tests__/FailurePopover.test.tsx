@@ -1,4 +1,4 @@
-// CS-2.2 — FailurePopover 浮层 (cs-2-stance-checklist 立场 ② + content-lock §2).
+// CS-2.2 — FailurePopover 浮层 (cs-2-stance-checklist 设计 ② + content-lock §2).
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';

@@ -55,7 +55,7 @@ describe('dispatchArtifactCommentAdded', () => {
     expect(evt.detail).toEqual(humanFrame);
   });
 
-  it('preserves 9-field byte-identical key order (cv-5-spec.md §0 立场 ② 锁)', () => {
+  it('preserves 9-field byte-identical key order (cv-5-spec.md §0 设计 ② 锁)', () => {
     expect(Object.keys(humanFrame)).toEqual([
       'type',
       'cursor',

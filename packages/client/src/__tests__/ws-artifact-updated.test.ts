@@ -97,7 +97,7 @@ describe('dispatchArtifactUpdated', () => {
     expect(kinds).toEqual(['commit', 'rollback']);
   });
 
-  it('reverse — frame envelope must NOT leak body or committer (立场 ⑤)', () => {
+  it('reverse — frame envelope must NOT leak body or committer (设计 ⑤)', () => {
     // Push is signal-only per cv-1.md §2.5: body + committer come from
     // GET /api/v1/artifacts/:id. If a future frame schema slips body or
     // committer_kind in, this test catches it (frame keys must stay 7).

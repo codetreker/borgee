@@ -1,4 +1,4 @@
-// markdown-mention.test.ts — DM-2.3 (#377) §0 立场 ② lock for the
+// markdown-mention.test.ts — DM-2.3 (#377) §0 设计 ② lock for the
 // mention render path in lib/markdown.ts (CV-1 既有 path 复用).
 //
 // Stance pinned: raw UUID lives in `data-mention-id` attr ONLY; text

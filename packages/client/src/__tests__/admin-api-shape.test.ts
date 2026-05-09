@@ -59,7 +59,7 @@ describe('ADMIN-SPA-SHAPE-FIX — D1..D5 client shape lock', () => {
     expect(read('pages/ChannelsPage.tsx')).not.toMatch(/channel\.member_count/);
   });
 
-  test('REG-ASF-D4 — AdminActionRow.archived_at 真补 (AL-8 §0 立场③ 三态)', () => {
+  test('REG-ASF-D4 — AdminActionRow.archived_at 真补 (AL-8 §0 设计③ 三态)', () => {
     const src = read('api.ts');
     expect(src).toMatch(/archived_at\?:\s*number\s*\|\s*null/);
   });

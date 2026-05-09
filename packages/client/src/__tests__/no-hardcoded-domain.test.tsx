@@ -1,6 +1,6 @@
 // no-hardcoded-domain.test.tsx — REG-NHD-001..006 reverse-grep + env injection check
 //
-// 立场: 0 hardcoded codetrek.cn 字面 in client production source / 0 hardcoded
+// 设计: 0 hardcoded codetrek.cn 字面 in client production source / 0 hardcoded
 // CORS_ORIGIN default in server production source. fork / staging / on-prem
 // deploy 真生效, 反 silent prod default 烧.
 

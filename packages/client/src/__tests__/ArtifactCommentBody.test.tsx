@@ -39,7 +39,7 @@ async function render(node: React.ReactElement) {
 }
 
 describe('ArtifactCommentBody — CV-11.2 client', () => {
-  it('立场 ④ DOM data-cv11-comment-body anchor + renders basic markdown', async () => {
+  it('设计 ④ DOM data-cv11-comment-body anchor + renders basic markdown', async () => {
     await render(<ArtifactCommentBody body="**bold** and *italic* with `code`" />);
     const root = container!.querySelector('[data-cv11-comment-body]');
     expect(root).not.toBeNull();
@@ -48,7 +48,7 @@ describe('ArtifactCommentBody — CV-11.2 client', () => {
     expect(root!.querySelector('code')?.textContent).toBe('code');
   });
 
-  it('立场 ④ sanitize XSS — <script>alert(1)</script> 全删, 文本保留', async () => {
+  it('设计 ④ sanitize XSS — <script>alert(1)</script> 全删, 文本保留', async () => {
     await render(<ArtifactCommentBody body="<script>alert(1)</script>hello world" />);
     const scripts = container!.querySelectorAll('script');
     expect(scripts.length).toBe(0);
@@ -57,7 +57,7 @@ describe('ArtifactCommentBody — CV-11.2 client', () => {
     expect(container!.textContent).toContain('hello world');
   });
 
-  it('立场 ④ sanitize — <iframe> 0 + onerror= 0', async () => {
+  it('设计 ④ sanitize — <iframe> 0 + onerror= 0', async () => {
     await render(<ArtifactCommentBody body='<iframe src="//evil"></iframe><img src=x onerror="alert(1)">' />);
     expect(container!.querySelectorAll('iframe').length).toBe(0);
     // img is sanitized but onerror attribute MUST be removed.
@@ -67,7 +67,7 @@ describe('ArtifactCommentBody — CV-11.2 client', () => {
     });
   });
 
-  it('立场 ① mention 复用 renderMarkdown 既有 path — `<@uuid>` 渲染', async () => {
+  it('设计 ① mention 复用 renderMarkdown 既有 path — `<@uuid>` 渲染', async () => {
     const uuid = '11111111-2222-3333-4444-555555555555';
     const userMap = new Map([[uuid, 'Alice']]);
     await render(
@@ -80,11 +80,11 @@ describe('ArtifactCommentBody — CV-11.2 client', () => {
     // DM-2.3 mention pattern renders a span with data-mention-id.
     const mention = container!.querySelector('[data-mention-id]');
     expect(mention).not.toBeNull();
-    // 立场 ④ root anchor 仍存在.
+    // 设计 ④ root anchor 仍存在.
     expect(container!.querySelector('[data-cv11-comment-body]')).not.toBeNull();
   });
 
-  it('立场 ④ empty body fallback — 渲染 placeholder + data-empty 锚', async () => {
+  it('设计 ④ empty body fallback — 渲染 placeholder + data-empty 锚', async () => {
     await render(<ArtifactCommentBody body="   " />);
     const empty = container!.querySelector('[data-cv11-comment-body][data-empty]');
     expect(empty).not.toBeNull();

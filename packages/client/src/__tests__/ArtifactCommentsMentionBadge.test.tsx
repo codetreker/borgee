@@ -55,7 +55,7 @@ describe('ArtifactCommentsMentionBadge — CV-9.2 client', () => {
     expect(container!.querySelector('[data-cv9-mention-toast]')).toBeNull();
   });
 
-  it('立场 ④ 文案 "你被 @ 在 N 条评论中" byte-identical + DOM data-attr', async () => {
+  it('设计 ④ 文案 "你被 @ 在 N 条评论中" byte-identical + DOM data-attr', async () => {
     await render(<ArtifactCommentsMentionBadge currentUserId="u-1" />);
     await act(async () => {
       dispatchMentionPushed(makeFrame('u-1', 1));
@@ -73,7 +73,7 @@ describe('ArtifactCommentsMentionBadge — CV-9.2 client', () => {
     expect(badge.textContent).toContain('你被 @ 在 2 条评论中');
   });
 
-  it('立场 ④ frame for OTHER user does not increment count (反向)', async () => {
+  it('设计 ④ frame for OTHER user does not increment count (反向)', async () => {
     await render(<ArtifactCommentsMentionBadge currentUserId="u-1" />);
     await act(async () => {
       dispatchMentionPushed(makeFrame('u-2', 1));

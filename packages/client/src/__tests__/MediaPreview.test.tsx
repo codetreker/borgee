@@ -1,6 +1,6 @@
 // MediaPreview.test.tsx — CV-2 v2 acceptance vitest 锁 (#cv-2-v2).
 //
-// 锚: docs/implementation/modules/cv-2-v2-media-preview-spec.md §0 立场
+// 引用: docs/implementation/modules/cv-2-v2-media-preview-spec.md §0 设计
 //   ② HTML5 native + ③ kind enum 跟 CV-3 共 schema 单源 + content-lock
 //   3 kind 分发 byte-identical.
 import React from 'react';
@@ -31,7 +31,7 @@ function render(node: React.ReactElement) {
   return root;
 }
 
-describe('isPreviewableKind / PREVIEWABLE_KINDS — 立场 ③ (server byte-identical)', () => {
+describe('isPreviewableKind / PREVIEWABLE_KINDS — 设计 ③ (server byte-identical)', () => {
   it('PREVIEWABLE_KINDS is the 3-tuple [image_link, video_link, pdf_link]', () => {
     // Byte-identical 跟 server preview.go::PreviewableKinds.
     expect([...PREVIEWABLE_KINDS]).toEqual(['image_link', 'video_link', 'pdf_link']);
@@ -49,7 +49,7 @@ describe('isPreviewableKind / PREVIEWABLE_KINDS — 立场 ③ (server byte-iden
   );
 });
 
-describe('MediaPreview image_link 分支 (立场 ①)', () => {
+describe('MediaPreview image_link 分支 (设计 ①)', () => {
   it('renders <img> with src=preview_url when previewUrl set (thumbnail-first)', () => {
     render(
       <MediaPreview
@@ -74,7 +74,7 @@ describe('MediaPreview image_link 分支 (立场 ①)', () => {
   });
 });
 
-describe('MediaPreview video_link 分支 (立场 ②)', () => {
+describe('MediaPreview video_link 分支 (设计 ②)', () => {
   it('renders <video controls preload="metadata"> with HTML5 native', () => {
     render(<MediaPreview kind="video_link" body="https://cdn.example/clip.mp4" title="Clip" />);
     const video = container!.querySelector('video.media-preview-video') as HTMLVideoElement;
@@ -100,7 +100,7 @@ describe('MediaPreview video_link 分支 (立场 ②)', () => {
   });
 });
 
-describe('MediaPreview pdf_link 分支 (立场 ②)', () => {
+describe('MediaPreview pdf_link 分支 (设计 ②)', () => {
   it('renders <embed type="application/pdf"> 浏览器内嵌', () => {
     render(<MediaPreview kind="pdf_link" body="https://cdn.example/doc.pdf" title="Spec" />);
     const embed = container!.querySelector('embed.media-preview-pdf') as HTMLEmbedElement;
@@ -111,7 +111,7 @@ describe('MediaPreview pdf_link 分支 (立场 ②)', () => {
   });
 });
 
-describe('MediaPreview XSS 红线 #1 — https only (立场 ② 反约束)', () => {
+describe('MediaPreview XSS 红线 #1 — https only (设计 ② 反约束)', () => {
   it.each([
     'http://cdn.example/x.png',
     'javascript:alert(1)',
@@ -143,7 +143,7 @@ describe('MediaPreview XSS 红线 #1 — https only (立场 ② 反约束)', () 
   });
 });
 
-describe('MediaPreview kind 闸 — 其它 kind null (立场 ③)', () => {
+describe('MediaPreview kind 闸 — 其它 kind null (设计 ③)', () => {
   it.each(['markdown', 'code', 'unknown', ''])('returns null for kind=%s', (k) => {
     render(<MediaPreview kind={k} body="https://cdn.example/x" title="X" />);
     expect(container!.children.length === 0 || container!.firstChild === null).toBe(true);

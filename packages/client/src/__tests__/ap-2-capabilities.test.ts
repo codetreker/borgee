@@ -1,4 +1,4 @@
-// AP-2 client — capability label SSOT + 反 role 名 + 反向 grep.
+// AP-2 client — capability label SSOT + 反 role 名 + grep 检查.
 import { describe, it, expect } from 'vitest';
 import {
   CAPABILITY_TOKENS,

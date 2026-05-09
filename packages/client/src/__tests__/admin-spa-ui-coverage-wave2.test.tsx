@@ -1,6 +1,6 @@
 // admin-spa-ui-coverage-wave2.test.tsx — REG-ASUC2-001..007 + 4 page UI render
 //
-// 立场: ADM-0 §1.3 admin god-mode 路径独立, shape SSOT byte-identical 跟
+// 设计: ADM-0 §1.3 admin god-mode 路径独立, shape SSOT byte-identical 跟
 // server (LagSnapshot 9 字段 / runtimeRow 7 字段 / archived 子集 / history
 // entry 3 字段). 0 server / 0 endpoint 改 (server 已挂 endpoint, 仅 client 接 UI).
 
@@ -145,7 +145,7 @@ describe('ADMIN-SPA-UI-COVERAGE-WAVE2 — REG-ASUC2 content-lock + DOM 锚 + sha
     expect(src).toContain("'/admin/channels-archived'");
   });
 
-  test('REG-ASUC2-007 — 立场承袭锁链 (4 page import api 单源)', () => {
+  test('REG-ASUC2-007 — 设计沿用锁链 (4 page import api 单源)', () => {
     // 4 page 全 import 自 '../api' (admin api 单源, 不串 user-rail lib/api).
     for (const page of PAGES) {
       const src = read(page);

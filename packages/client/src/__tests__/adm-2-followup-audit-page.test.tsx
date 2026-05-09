@@ -50,7 +50,7 @@ describe('AdminAuditLogPage — ADM-2-FOLLOWUP REG-011 content lock', () => {
     expect(SRC).toMatch(/data-adm2-actor-kind=/);
   });
 
-  test('REG-011.6 反义词反向 grep — 0 hit forbidden synonyms (反 typing/loading/thinking/processing 漂)', () => {
+  test('REG-011.6 反义词grep 检查 — 0 hit forbidden synonyms (反 typing/loading/thinking/processing 漂)', () => {
     const forbidden = ['typing', 'loading', 'thinking', 'processing', 'composing', 'analyzing', 'planning', 'responding'];
     for (const word of forbidden) {
       // case-insensitive search excluding "Loading..." spinner state which is OK

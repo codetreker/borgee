@@ -207,7 +207,7 @@ describe('ReactionAddButton — gh#686 §6 4 类断言', () => {
   describe('反向断言 — §6.1 文案锁 byte-identical', () => {
     it('showToast 收到的字面 byte-identical 跟 design §6.1 一致', () => {
       // §6.1 文案锁: 改 = 改三处 (design + 这里 + ReactionAddButton.tsx).
-      // 反向 grep 防近义词漂移那一条是 source-file 层面的 grep, 不是 runtime
+      // grep 检查 防近义词漂移那一条是 source-file 层面的 grep, 不是 runtime
       // 字符串 substring (例如 "reaction 失败" 自然是 "添加 reaction 失败,
       // 请重试" 的子串, 不能用 not.toContain). 这里只锁 byte-identical 全等.
       const ALLOWED = '添加 reaction 失败, 请重试';

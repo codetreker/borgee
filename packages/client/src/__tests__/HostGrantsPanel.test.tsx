@@ -1,5 +1,5 @@
 // HostGrantsPanel.test.tsx — HB-3.3 acceptance §3.1 + content-lock §1.①
-// 弹窗三按钮 DOM 字面锁 + §2 同义词反向 grep.
+// 弹窗三按钮 DOM 字面锁 + §2 同义词grep 检查.
 //
 // Pins:
 //   - 三按钮 data-action 字面: {"deny", "grant_one_shot", "grant_always"}

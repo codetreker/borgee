@@ -1,6 +1,6 @@
 // AP-2 client — PermissionsView component vitest.
 //
-// 立场承袭 (ap-2-spec.md §0 + content-lock §2):
+// 设计沿用 (ap-2-spec.md §0 + content-lock §2):
 //   - DOM data-attr SSOT (data-ap2-permissions-view + data-ap2-capability-row +
 //     data-ap2-capability-token + data-ap2-scope + data-ap2-known)
 //   - capability 渲染走 capabilityLabel SSOT (反 inline 字面)

@@ -12,10 +12,10 @@
 //     行 (跟 mention render @{display_name} DM-2.3 #388 同源, hover 显示
 //     "正在协作")
 //   - 反约束: 反向断言 ai_only / agent_only / visibility_scope DOM attr 在
-//     channel/agent UI 0 hit (蓝图 §185 透明协作立场 — owner-first 视角
+//     channel/agent UI 0 hit (蓝图 §185 透明协作设计 — owner-first 视角
 //     看到完整链, 反 owner_visibility_scope 多源)
 //   - 反约束: 不订阅 push frame — `agent_config_update` 单引号代码字面 0
-//     hit (BPP frame 留 AL-2b + BPP-3, CM-5 立场 ① 走人 path 不开新 frame)
+//     hit (BPP frame 留 AL-2b + BPP-3, CM-5 设计 ① 走人 path 不开新 frame)
 //   - X2 toast 错码字面承袭 — 反向断言 CM-5 自起 X2 错码同义词 0 hit
 //     (cm5.x2_conflict / agent_collision / artifact.x2_conflict / x2_lock_held)
 //     强制复用 CV-4 #380 ⑦ 既有路径 (server-side 反约束 grep 守见
@@ -71,7 +71,7 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
   });
 
   it('③ 反约束 ai_only / agent_only DOM attr 不渲染 (channel/agent UI)', () => {
-    // 蓝图 §185 透明协作立场 — 反 owner_visibility scope 多源.
+    // 蓝图 §185 透明协作设计 — 反 owner_visibility scope 多源.
     // membersModal 是 channel/agent UI 真渲染 source — 反向断言 0 hit.
     // (toastLib 只是 lib 定义这些为反约束 const, 出现在反向断言 array 内
     // 是 intentional, 不算 leak.)
@@ -81,7 +81,7 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
   });
 
   it('④ 反约束 不订阅 push frame (BPP frame 留 AL-2b + BPP-3)', () => {
-    // CM-5 立场 ① 走人 path 不开新 frame. 单引号字面 (代码使用形式) 0 hit.
+    // CM-5 设计 ① 走人 path 不开新 frame. 单引号字面 (代码使用形式) 0 hit.
     const FRAME = 'agent_config' + '_update'; // 拼接防 lint 自 trip.
     expect(membersModal).not.toContain(`'${FRAME}'`);
     expect(membersModal).not.toContain(`"${FRAME}"`);
@@ -93,7 +93,7 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
   });
 
   it('⑤ 反约束 X2 错码同义词 0 hit (强制复用 CV-4 #380 ⑦ 既有路径)', () => {
-    // CM-5 立场 ③ 字面: X2 冲突复用 CV-4 既有错码 `artifact.locked_by_
+    // CM-5 设计 ③ 字面: X2 冲突复用 CV-4 既有错码 `artifact.locked_by_
     // another_iteration` byte-identical. 反向 reject CM-5 自起同义词
     // (跟 cm5stance.TestCM51_X2ConflictLiteralReuse server-side 反约束
     // 守同源).
