@@ -64,7 +64,7 @@ const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 
 // gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
-// byte-identical, 改这些 = 改 design + grep 检查 检查 e2e 真验报告).
+// byte-identical, 改这些 = 改 design + grep 检查 e2e 真验报告).
 //   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
 //   ARTIFACT_CREATE_FAIL_PREFIX — 创建失败 modal 内文案前缀 (yema C 混合)
 //   ARTIFACT_CREATE_NETWORK_ERR — 网络错时模糊兜底
