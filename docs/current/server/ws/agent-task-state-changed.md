@@ -56,7 +56,7 @@
 
 **fail-closed 路径** (反 fallback push):
 
-- empty subject → `errSubjectEmpty` reject + pusher 0 calls (TestRT3_HandleStarted_EmptySubjectRejected 锁)
+- empty subject → `errSubjectEmpty` reject + pusher 0 calls (TestRT3_HandleStarted_EmptySubjectRejected 锁定)
 - 中间态 outcome (`partial` / `paused` / `pending` / `starting`) → `errOutcomeUnknown` reject + 0 calls (TestRT3_HandleFinished_InvalidOutcome_Rejected)
 - completed/cancelled + non-empty reason → 字典污染 reject + 0 calls (TestRT3_HandleFinished_CompletedWithReason_RejectedDictPollution)
 

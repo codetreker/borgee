@@ -1,6 +1,6 @@
 # BPP-6 — plugin cold-start handshake + state re-derive
 
-> **Source-of-truth pointer.** Implementation in
+> **单一来源 pointer.** Implementation in
 > `packages/server-go/internal/bpp/cold_start_handler.go` +
 > `packages/server-go/internal/bpp/envelope.go` (ColdStartHandshakeFrame
 > + FrameTypeBPPColdStartHandshake). Wire-up at server boot in

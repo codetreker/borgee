@@ -1,6 +1,6 @@
 # BPP-5 — plugin reconnect handshake + cursor resume 协议化
 
-> **Source-of-truth pointer.** Implementation in
+> **单一来源 pointer.** Implementation in
 > `packages/server-go/internal/bpp/reconnect_handler.go` +
 > `packages/server-go/internal/bpp/envelope.go` (ReconnectHandshakeFrame
 > + FrameTypeBPPReconnectHandshake). Wire-up at server boot in

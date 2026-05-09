@@ -1,6 +1,6 @@
 # Plugin Frame Dispatcher (BPP-3)
 
-> **Source-of-truth pointer.** Implementation in
+> **单一来源 pointer.** Implementation in
 > `packages/server-go/internal/bpp/plugin_frame_dispatcher.go` +
 > `packages/server-go/internal/api/agent_config_ack_handler.go`. Wire-up
 > at server boot in `packages/server-go/internal/server/server.go`.
@@ -55,7 +55,7 @@ emits structured logs per status:
   AL-1a 6-dict (already validated upstream by `bpp.AckDispatcher`)
 
 Cross-owner ACL is gated by `api.AgentOwnerResolver` (走 `store.GetAgent`
-SSOT, byte-identical 跟 anchor #360 / DM-2 #372 / agent_config.go PATCH
+单一来源, byte-identical 跟 anchor #360 / DM-2 #372 / agent_config.go PATCH
 owner gate). Mismatch → `errAckCrossOwnerReject`, frame is dropped, log
 warn `bpp.plugin_frame_dispatch_failed`.
 

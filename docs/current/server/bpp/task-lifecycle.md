@@ -15,7 +15,7 @@ TaskStartedFrame  (6 字段): {type, task_id, agent_id, channel_id, subject, sta
 TaskFinishedFrame (7 字段): {type, task_id, agent_id, channel_id, outcome, reason, finished_at}
 ```
 
-Direction 锁 `plugin_to_server`. `bppEnvelopeWhitelist` 11 frame (control 6 + data 5).
+Direction 锁定 `plugin_to_server`. `bppEnvelopeWhitelist` 11 frame (control 6 + data 5).
 
 ## 3. 校验规则 (`task_lifecycle.go::Validate*`)
 

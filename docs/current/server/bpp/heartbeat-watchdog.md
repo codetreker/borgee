@@ -1,6 +1,6 @@
 # BPP-4 — heartbeat watchdog + dead-letter audit log
 
-> **Source-of-truth pointer.** Implementation in
+> **单一来源 pointer.** Implementation in
 > `packages/server-go/internal/bpp/heartbeat_watchdog.go` +
 > `packages/server-go/internal/bpp/dead_letter.go`. Wire-up at server
 > boot in `packages/server-go/internal/server/server.go` +
