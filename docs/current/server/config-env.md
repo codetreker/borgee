@@ -1,6 +1,6 @@
 # Server config — required env vars (no-hardcoded-domain milestone)
 
-> 2026-05-04 · server config SSOT for env vars. fork-friendly: 0 hardcoded
+> 2026-05-04 · server config 单一来源 for env vars. fork-friendly: 0 hardcoded
 > codetrek.cn in production source. 跟 #635 admin-password 同模式 — 启动时
 > 必填 env 缺就 panic 立失败 (fail-loud), 不留隐式默认.
 
