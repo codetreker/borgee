@@ -1,21 +1,21 @@
-// tests/chn-4-collab-skeleton.spec.ts — CHN-4 协作场骨架 demo + G3.4 退出闸截屏.
+// tests/channel-collab-tabs.spec.ts — channel 协作场双 tab 骨架 + URL deep-link + G3.4 截屏.
 //
-// 闭环 chn-4.md acceptance §1-§6:
-//   §1 双 tab DOM `data-tab="chat|workspace"` byte-identical + 中文文案锁
-//      ("聊天" / "工作区") + URL `?tab=` deep-link
-//   §4 server default_tab="chat" — 客户端无 URL 时落 chat
-//   §5 DM 视图永不含 workspace tab (7 源 byte-identical 锁) — 反向断言
-//   §6 G3.4 退出闸双 tab 截屏归档 `g3.4-chn4-{chat,workspace}.png`
+// 测试范围:
+//   - 双 tab DOM data-tab="chat" / data-tab="workspace", 文案锁中文 "聊天" / "工作区"
+//   - URL ?tab= 参数生效, 无参数时落 server default_tab="chat"
+//   - DM 视图反向断: 永不含 workspace tab (跟 chn-2 视觉拆死同源)
+//   - 双 tab 不交叉: chat tab 不渲染 artifact body
+//   - G3.4 退出门槛截屏归档 g3.4-chn4-chat.png + g3.4-chn4-workspace.png
 //
-// 立场反查 (chn-4-stance-checklist.md):
-//   ② 双 tab 视觉 byte-identical + 不交叉 (chat 不渲染 artifact body)
-//   ④ DM 永不含 workspace tab (7 源 byte-identical, Phase 3 最稳反约束)
-//   ⑦ G3.4 三签 — 战马 (e2e 真过) + 烈马 (acceptance) + 野马 (双截屏文案)
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/chn-4.md §1-§6
+//   - 上游: PR #411 (CHN-4.1+4.3 client wiring + 双 tab 截屏)
 //
-// 实现说明: e2e 走真 server-go(4901) + vite(5174) —
-// CV-4 runtime stub: direct owner commit (not server mock). CV-4 / 完整
-// iterate / anchor / mention 全流走 spec #374 §1 CHN-4.3 拆段, 本 PR 仅
-// 收 demo 双 tab + URL deep-link + DM 反向断言 + 双截屏闸位.
+// 实施约束:
+//   - 真 UI 走浏览器 (真 tab 切换 + URL 验证 + DOM 断)
+//   - 真 server-go(4901) + vite(5174), 不 mock 4901
+//   - CV-4 runtime stub: 走 owner direct commit (不是 server mock)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 import {
   test,
   expect,

@@ -1,27 +1,22 @@
-// tests/chn-3-3-sidebar-reorder.spec.ts — CHN-3.3 sidebar reorder e2e + G3.x demo screenshot.
+// tests/channel-sidebar-reorder.spec.ts — channel sidebar 拖拽排序 + 折叠 + 置顶 + 偏好恢复.
 //
-// 立场锚 (chn-3-spec.md §1 CHN-3.3 + chn-3-content-lock.md §1 ①②③④⑤⑥):
-//   ① 拖拽 handle DOM byte-identical: data-sortable-handle + aria-label
-//      "拖拽调整顺序" + ⋮⋮ icon (#371 + #402 ① 同源)
-//   ② group 折叠 data-collapsed 二态 + aria-label "折叠分组" + ▶/▼ icon
-//      二态切换 (#402 ②)
-//   ③ 右键菜单 "置顶" / "取消置顶" + role="menu" + data-context="channel-pin"
-//      (#402 ③ 字面 ≥2)
-//   ④ 失败 toast "侧栏顺序保存失败, 请重试" byte-identical (5 源:
-//      #371 / #376 §3.5 / #402 ④ / #412 server const / 本 e2e)
-//   ⑤ DM 行反约束 — 无拖拽 handle + 无右键 pin 菜单 (5 源 byte-identical
-//      #366 ④ + #364 + #371 ② + #376 §3.4 + #382 ⑤; DM 走
-//      MergedDmList 独立路径)
-//   ⑥ 偏好恢复 — SPA reload → GET /me/layout pull → 状态恢复 (拖拽顺序
-//      + 折叠状态), 不挂 push frame
+// 测试范围:
+//   - 拖拽 handle DOM: data-sortable-handle + aria-label "拖拽调整顺序" + ⋮⋮ icon
+//   - 分组折叠二态: data-collapsed + aria-label "折叠分组" + ▶/▼ icon
+//   - 右键菜单 "置顶" / "取消置顶" + role="menu" + data-context="channel-pin"
+//   - 保存失败 toast 文案: "侧栏顺序保存失败, 请重试"
+//   - DM 行反向断: 无拖拽 handle + 无右键 pin 菜单 (DM 走独立 MergedDmList 路径)
+//   - SPA reload 后 GET /me/layout 拉, 拖拽顺序 + 折叠状态恢复 (不挂 push frame)
+//   - G3.x demo 截屏归档 g3.x-chn3-sidebar-reorder.png
 //
-// 闭环 acceptance §3.* (CHN-3.3 client) + G3.x demo screenshot 1 张
-// 归档: docs/qa/screenshots/g3.x-chn3-sidebar-reorder.png (跟 #391 §1
-// 截屏路径锁 byte-identical 同源).
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/chn-3.md §3 (CHN-3.3 client)
+//   - 上游: PR #410 (schema), #412 (server REST), #415 (client wiring)
 //
-// 依赖: CHN-3.1 #410 schema v=19 ✅ + CHN-3.2 #412 server REST ✅ + CHN-3.3
-// #415 client ⚠️ (待 merge — 本 spec 以 #415 merge 后跑真路径). CI 现在跑
-// 会 pending 在 ⋮⋮ handle visible 步骤直到 #415 merge.
+// 实施约束:
+//   - 真 UI 走浏览器 (page.dragTo + page.click + DOM 断)
+//   - 失败 toast 文案在 e2e / server const / client / acceptance / 本 spec 五处一致
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import { test, expect, request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
 import path from 'node:path';

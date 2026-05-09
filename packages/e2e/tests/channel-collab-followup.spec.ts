@@ -1,28 +1,23 @@
-// tests/chn-4-followup.spec.ts — CHN-4 follow-up e2e: 反约束兜底 + 跨 org 隔离.
+// tests/channel-collab-followup.spec.ts — channel 协作场反向断言 + 跨 org 隔离边界.
 //
-// 闭环 chn-4.md acceptance §4 反向 grep 反约束 + 跨 org 边界 (CHN-1 双轴
-// 隔离同源):
-//   §4.4 DM 视图永不含 workspace tab + 不挂 channel pin handle (#415 既有)
-//   §4.5 messages 表不反指 artifact_id/iteration_id/anchor_id (4 路径拆死)
-//   §4.7 e2e 反 server mock — 走真 4901 + 5174 (注释字面 byte-identical)
-//   §4.8 不新 WS frame (RT-1 4 frame 已锁)
-//   边界: 跨 org channel 不可见 (CHN-1 双轴隔离, A org user 不见 B org channel)
+// 测试范围:
+//   - DM 视图永不含 workspace tab + 不挂 channel pin handle
+//   - messages 表不反指 artifact_id / iteration_id / anchor_id (四路径数据契约拆开)
+//   - 不新增 WS frame (RT-1 已锁四种 frame, 本 spec 不引入新 frame)
+//   - 跨 org 隔离: A org 用户不可见 B org 的 channel
 //
-// 立场反查 (chn-4-stance-checklist.md §1):
-//   ③ e2e 走真 server-go(4901) + vite(5174), 不 mock — runtime stub via
-//      direct owner commit (实施 e2e 显式注释字面 byte-identical):
-//      // CV-4 runtime stub: direct owner commit (not server mock)
-//   ④ DM 视图永不含 workspace tab (7 源 byte-identical 锁)
-//   ⑤ 4 路径互不污染 (mention/artifact/anchor/iterate 数据契约永久拆死)
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/chn-4.md §4 反向断言段
+//   - 上游: PR #411 (CHN-4 主路径正向 e2e 在 channel-collab-tabs.spec.ts)
 //
-// 实施说明: 本 follow-up 是 #411 (CHN-4.1+4.3 client wiring + 双 tab 截屏)
-// 之外的反约束补全 — #411 主路径 + G3.4 双 tab 截屏归档已落地, 此 follow-up
-// 是边界 + 反向断言. 主 e2e 跟 #411 chn-4-collab-skeleton.spec.ts 共存
-// 不重叠 (那个是主路径正向, 这个是边界反向).
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + DOM 反向断 + 真服务返回)
+//   - 真 server-go(4901) + vite(5174), 不 mock 4901
+//   - CV-4 runtime stub 走 owner direct commit (注释保留, review 反向 grep 引用)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
-// CV-4 runtime stub: direct owner commit (not server mock) — 跟 acceptance
-// §3.2 + #375 §1 + #378 立场 ③ 字面 byte-identical 同源 (review subagent
-// §4.7 反向 grep 锚, 缺这条注释 review 不过).
+// CV-4 runtime stub: direct owner commit (not server mock) — 跟 chn-4 验收 §3.2
+// 一致, 给 review 反向 grep 引用使用.
 import {
   test,
   expect,

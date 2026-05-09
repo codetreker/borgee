@@ -1,22 +1,21 @@
-// tests/chn-2-3-dm-flow.spec.ts — CHN-2.3 e2e DM 主流 + 反约束兜底.
+// tests/direct-message-flow.spec.ts — DM 创建 + 双人锁 + DM 视图反向断言 + G3.x 截屏.
 //
-// 闭环 chn-2.md acceptance §4.d / §4.e + chn-2-content-lock.md §1 ④⑤
-// byte-identical:
-//   §4.d 双窗口 DM 创建 + 加人 attempt → 403 双断 (立场 ② 兜底)
-//   §4.e DM 视图反查 Canvas tab count==0 + topic input count==0 + 添加成员
-//        button count==0 (立场 ②③④ 三反约束兜底)
-//   §1 ④ DM 视图 DOM **不渲染** workspace tab + topic banner + 添加成员 btn
-//   §1 ⑤ DM "升级"提示反约束 — 升级路径不存在 (mention 第 3 人候选空)
+// 测试范围:
+//   - 双窗口创 DM, POST /channels/:id/members 加第三人返回 403 (DM 永远 2 人)
+//   - DM 视图反向断: workspace tab / topic 输入 / 添加成员按钮 count==0
+//   - DM 不渲染 channel topic banner (DOM 形状跟 channel 视觉显著区分)
+//   - mention 候选不含第三人 (DM 升级路径不存在)
+//   - data-channel-type="dm" DOM 标记位
+//   - 文本节点不漏 raw UUID
 //
-// 立场反查 (chn-2.md §0):
-//   ② DM 永远 2 人 — POST /channels/:id/members → 403
-//   ③ DM 没 workspace — DOM 不渲染 .channel-view-tabs (CHN-2.2 #406 + ChannelView.tsx:159)
-//   ④ DM 没 topic — DOM 不渲染 .channel-topic
-//   ⑤ UI 跟 channel 视觉显著不同 — data-channel-type="dm" 反查锚 (#354 §1 ① + #406)
-//   ⑥ raw UUID 不漏文本节点 — 跟 DM-2 §3.1 + ADM-0 #211 同源
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/chn-2.md §4.d / §4.e
+//   - 上游: PR #406 (client 视觉拆), #407 (server reject), #388 (mention 渲染)
 //
-// 上游接力: CHN-2.1 #407 server reject + CHN-2.2 #406 client 视觉拆 +
-// DM-2.3 #388 mention 渲染. 本 spec 闭环 G3.x demo 截屏路径.
+// 实施约束:
+//   - 真 UI 走浏览器 (双 BrowserContext + page.click + DOM 断)
+//   - seed 用 REST: admin invite + 两 user register + 创 DM
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,

@@ -1,28 +1,21 @@
-// tests/cm-4-bug-029-name-display-regression.spec.ts — bug-029 防回归 e2e.
+// tests/chat-name-display-regression.spec.ts — agent invitation 显示名回归 e2e (防 PR #198 修过的 bug-029 重发).
 //
-// Bug-029 (caught in PR #198): the agent_invitation sanitizer shipped raw
-// UUIDs as `agent_id` / `channel_id` / `requested_by` only; the client
-// rendered raw UUIDs in the inbox because the server never resolved
-// display names. Fix: sanitizeAgentInvitation now JOINs users + channels
-// and ships `agent_name`, `channel_name`, `requester_name` alongside the
-// IDs (api/agent_invitations.go::sanitizeAgentInvitation).
+// 测试范围:
+//   - owner GET /api/v1/agent_invitations?role=owner 返回行, agent_name / requester_name / channel_name
+//     字段不为空 (跟用户 display_name / channel slug 一致)
+//   - 每个 *_name 字段必须配对的 *_id 字段同时存在 (schema 稳定, 名称缺失场景被覆盖)
+//   - 收件箱 DOM (Sidebar 铃铛 → InvitationsInbox) 渲染显示名, 不渲染 raw UUID
 //
-// Existing unit guard: api/agent_invitations_test.go covers the
-// resolver branches (hit / miss / nil store). This e2e adds the
-// second layer per the registry contract (REG-CM4-NAMES) — proving
-// the names round-trip through a real cross-user invitation flow.
+// 关联文档:
+//   - 上游修复: PR #198 (sanitizeAgentInvitation JOIN users + channels)
+//   - 单测: api/agent_invitations_test.go (resolver hit / miss / nil store)
+//   - 回归项: REG-CM4-NAMES
 //
-// Three assertions:
-//   1. owner GET /api/v1/agent_invitations?role=owner returns a row
-//      whose agent_name === owner display_name, requester_name ===
-//      requester display_name, channel_name === requester's channel slug.
-//   2. The IDs are still present (schema-stable) but never the only
-//      identifier — for every *_name field, the corresponding *_id is
-//      also there. Empty-string name with a populated id would have
-//      passed before #198; this guards the regression.
-//   3. The inbox DOM (Sidebar bell → InvitationsInbox) renders the
-//      names, not the raw UUIDs. Reuses the cookie-injection
-//      pattern from cm-4-realtime.spec.ts (#239).
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真铃铛点击 + DOM 断显示名)
+//   - seed 用 REST: admin invite + 双 user register + 互发 agent invitation
+//   - 测试主体走 SPA InvitationsInbox 视图
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import { test, expect, request as apiRequest } from '@playwright/test';
 

@@ -1,16 +1,21 @@
-// tests/chn-4-screenshots-followup.spec.ts — G3.4 5 张截屏 follow-up (野马 PM 签字).
+// tests/channel-collab-screenshots.spec.ts — G3.4 协作场 5 张截屏归档 (PM 签字依据).
 //
-// 5 张截屏 (闸 §6 字面验 byte-identical, 跟 #391 §1 + closure-entry.md §2):
-//   1. g3.4-chn4-collab-skeleton-overview.png  — 主路径 demo (野马签字主图, fullPage)
-//   2. g3.4-chn4-dual-tab-chat.png             — "聊天" tab active fullPage
-//   3. g3.4-chn4-dual-tab-workspace.png        — "工作区" tab active fullPage
-//   4. g3.4-chn4-followup-dm-no-handle.png     — 已 landed (#423), git mv g3.x→g3.4
-//   5. g3.4-chn4-followup-cross-org-isolation.png — 已 landed (#423), git mv g3.x→g3.4
+// 测试范围:
+//   - g3.4-chn4-collab-skeleton-overview.png — 主路径全景 (PM 签字主图, fullPage)
+//   - g3.4-chn4-dual-tab-chat.png — "聊天" tab 激活态 fullPage
+//   - g3.4-chn4-dual-tab-workspace.png — "工作区" tab 激活态 fullPage
+//   - g3.4-chn4-followup-dm-no-handle.png — 已落地 (PR #423)
+//   - g3.4-chn4-followup-cross-org-isolation.png — 已落地 (PR #423)
 //
-// 文案锁字面验 byte-identical (chn-4-content-lock.md ① + 立场反查 #378 ②④⑦):
-// "聊天" / "工作区" 中文 + DM 永不含 workspace tab (7 源) + G3.4 三签野马签依据.
-// 跟 G2.4 #275 / G2.5 / G2.6 demo signoff 同模式 — page.screenshot() 入 git
-// 反 PS 修改. 走真 server-go(4901) + vite(5174), 不 mock 4901.
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/chn-4.md §6 (G3.4 截屏依据)
+//   - 文案: "聊天" / "工作区" 中文跟 client/server/锁定文档保持一致
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真 tab 切换 + page.screenshot 入 git)
+//   - 真 server-go(4901) + vite(5174), 不 mock
+//   - 跟 G2.4 / G2.5 / G2.6 demo 截屏同模式
+//   - 不允许 PS 后期修改截屏 / fs.* / page.evaluate(fetch) / 只打 API / noop
 import {
   test,
   expect,
@@ -192,5 +197,4 @@ test.describe('CHN-4 G3.4 5 张截屏 follow-up — 野马 PM 双 tab + 边界�
     });
   });
 
-  // §4 §5 fs.stat git fixture 假 e2e 删 (#716 P0 — 真 e2e 必走 UI, 不查 git 文件存在).
 });
