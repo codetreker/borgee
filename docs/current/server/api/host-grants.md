@@ -1,6 +1,6 @@
 # HB-3 — host_grants schema 单一来源 + 情境化授权
 
-> **Source-of-truth pointer.** Schema in
+> **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/hb_3_1_host_grants.go` (v=27).
 > REST endpoints in `packages/server-go/internal/api/host_grants.go`.
 > Client SPA in `packages/client/src/components/HostGrantsPanel.tsx`.
@@ -80,7 +80,7 @@ POST body:
 }
 ```
 
-## DOM ↔ DB enum 双向锁 (content-lock §1.①)
+## DOM ↔ DB enum 双向锁定 (content-lock §1.①)
 
 | Button label | data-action          | data-hb3-button | DB ttl_kind |
 |--------------|----------------------|-----------------|-------------|
@@ -145,5 +145,5 @@ must be 0 hit. 真包入口 → [`../../borgee-helper.md`](../../borgee-helper.m
 3. Update `hostGrantTypeWhitelist` in `host_grants.go`.
 4. Update `actionLabel` map in `HostGrantsPanel.tsx`.
 5. Update content-lock §1 + spec §1 + acceptance §1.2 byte-identical.
-6. CI lint catches drift via reflect (existing PRAGMA test) +
+6. CI lint catches 脱节 via reflect (existing PRAGMA test) +
    reverse-grep (`TestHB31_GrantTypeEnumReject` enumerates 4-list).

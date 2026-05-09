@@ -7,7 +7,7 @@
 
 canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window.confirm` / `window.prompt` 浏览器原生弹窗 (UX 跟 borgee 整体设计风格不一致, 移动端 web view 弹窗样式难看, 不可定制). 改成应用内 `InlineConfirmModal`.
 
-反约束:
+反向约束:
 - ① canvas 路径grep 检查 `window.confirm` / `window.prompt` 命中 0 (反系统弹窗回潮)
 - ② 不引第三方 modal 库 (react-modal / radix-ui) — 走自家 InlineConfirmModal 跟 borgee 整体视觉一致
 - ③ a11y 完整 (role=dialog + aria-modal + aria-labelledby + autoFocus + focus return)
@@ -28,7 +28,7 @@ canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window
 />
 ```
 
-a11y 锚:
+a11y 出处:
 - `role="dialog"`
 - `aria-modal="true"`
 - `aria-labelledby={titleId}` — 关到 `<h3 id={titleId}>` title 节点
@@ -54,7 +54,7 @@ a11y 锚:
 
 IME 守卫 (中文输入法 Enter 选词时不应触发提交):
 - `<form onSubmit={handleSubmit}>` 包裹 — 反 button onClick 直接调 (Enter 在 input 触发 form submit, 但 IME composition 期间浏览器 swallow Enter, 不传到 submit 路径)
-- `onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit(); }}` 兜底 (反某些浏览器/IME 不 swallow Enter)
+- `onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit(); }}` 保底 (反某些浏览器/IME 不 swallow Enter)
 
 ## 4. Mobile 守卫
 
@@ -100,7 +100,7 @@ cv-1-3-canvas-modal-a11y / cv-2-3-anchor-client / cv-3-3-deferred / cv-4-iterate
 - `packages/client/src/__tests__/InlineInputModal.test.tsx`: + IME composition Enter swallow + onSubmit 调用
 - `packages/e2e/tests/cv-1-3-canvas-modal-a11y.spec.ts`: 真 UI input/click + flag-based dialog listener
 
-## 8. 锚
+## 8. 出处
 
 - 蓝图: `canvas-vision.md` §1.1 (canvas artifact 工作面) + §1.6 (a11y)
 - design: `docs/implementation/design/691-canvas-modal-replace-system-dialogs.md`

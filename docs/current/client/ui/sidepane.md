@@ -7,7 +7,7 @@
 
 5 个 sidepane (settings / agents / invitations / workspaces / remote-nodes) 同时只有一个能 active — 之前用 5 个独立 boolean (showSettings / showAgents / ...), 切换之间状态相互踩 (打开 settings 没关 agents → stacking bug, 显示叠 sidepane). 改成单一字符串 `mainView: MainView` 状态机, 反 stacking + 反落差 state.
 
-反约束:
+反向约束:
 - ① 5 boolean 永不再分开存 — 单 `mainView` 字符串 state
 - ② sidepane 切换前必跑 `runUnsavedGuards()` (跟 useUnsavedChangesGuard 联动)
 - ③ 反 react-router (一份 SPA 跨 sidepane 状态切, 不挂 URL)
@@ -25,7 +25,7 @@ App 顶层:
 const [mainView, setMainView] = useState<MainView>('channel');
 
 function requestMainView(target: MainView) {
-  // 反约束: 切换前跑守卫, 用户决定要不要丢未保存改动
+  // 反向约束: 切换前跑守卫, 用户决定要不要丢未保存改动
   if (!runUnsavedGuards()) return;
   setMainView(target);
 }
