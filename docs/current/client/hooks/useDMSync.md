@@ -2,14 +2,14 @@
 
 > DM-3.2 (#508) · Phase 5 候选 · 蓝图 [`concept-model.md`](../../blueprint/current/concept-model.md) §1.3 + DM-2 #361/#372/#388 (mention dispatch) + RT-1.3 #296 (cursor backfill) + RT-3 #488 (多端推 + thinking 反约束).
 
-## 1. 立场
+## 1. 设计
 
 agent-DM 多端 owner cursor 同步 — 复用 RT-1.3 既有 sequence + sessionStorage 持久化 (跟 `lastSeenCursor.ts` 同模式), 不开 dm-only WS subscription. monotonic-only persistence 防 cursor regression.
 
 反约束:
 - ① DM cursor 复用 RT-1.3 既有 mechanism (不开 `/api/v1/dm/sync` 旁路 endpoint, dm 走 channel events 同 path)
 - ② 多端走 RT-3 fan-out (不开 dm-only WS subscription / frame)
-- ③ thinking subject 5-pattern 不出现 system DM body (RT-3 #488 byte-identical 承袭)
+- ③ thinking subject 5-pattern 不出现 system DM body (跟 RT-3 #488 byte-identical 沿用)
 - ④ useDMSync 复用 `useArtifactUpdated` / `lastSeenCursor` 模式 — 不裂 hook seam
 - ⑤ server 0 行新增 (DM-3.1 反约束 grep test 守门, 复用 RT-1.3 events backfill)
 
@@ -26,7 +26,7 @@ agent-DM 多端 owner cursor 同步 — 复用 RT-1.3 既有 sequence + sessionS
 
 ## 3. sessionStorage 协议
 
-- **Key**: `borgee.dm3.cursor:<dmChannelID>` (per-DM 隔离, 多端独立 — 立场 ④ 多 device 同 channel cursor 独立).
+- **Key**: `borgee.dm3.cursor:<dmChannelID>` (per-DM 隔离, 多端独立 — 设计 ④ 多 device 同 channel cursor 独立).
 - **Value**: 单调递增 int64 (10 进制 ASCII), 跟 RT-1.1 server CursorAllocator 同序.
 - **Why sessionStorage**: per-tab, 跨 tab 不共 cursor (跟 lastSeenCursor.ts 同精神 — 反 localStorage 全局共享, 反 IndexedDB 重量级).
 

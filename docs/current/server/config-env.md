@@ -1,8 +1,8 @@
 # Server config — required env vars (no-hardcoded-domain milestone)
 
 > 2026-05-04 · server config SSOT for env vars. fork-friendly: 0 hardcoded
-> codetrek.cn in production source. Pattern承袭 #635 admin-password
-> panic-on-missing review checklist 1.A bootstrap fail-loud.
+> codetrek.cn in production source. 跟 #635 admin-password
+> panic-on-missing review checklist 1.A bootstrap fail-loud 同模式.
 
 ## Required env vars (production / NODE_ENV != "development")
 
@@ -45,4 +45,4 @@ docker-compose.yml `env_file: .env` 真挂. 反 silent default 烧.
 2. NodeEnv != "development" + CORSOrigin == "" → return err "CORS_ORIGIN env required (...)"
 3. main.go 真 `os.Exit(1)` on config.Load err
 
-Pattern 跟 #635 admin-password 同精神 (review checklist 1.A bootstrap fail-loud + 1.B idempotent).
+跟 #635 admin-password 同精神 (review checklist 1.A bootstrap fail-loud + 1.B idempotent).

@@ -26,14 +26,14 @@
 - `[data-source-row]` 每行 (值=4 source 之一)
 - `.audit-source-badge.audit-source-{server,plugin,host-bridge,agent}` badge class
 
-## 4. 立场 byte-identical
+## 4. 字面锁
 
-- admin god-mode 路径独立 — 仅 `/admin-api/v1/audit/multi-source` (反 user-rail 漂 ADM-0 §1.3 红线)
+- admin god-mode 路径独立 — 仅 `/admin-api/v1/audit/multi-source` (不接 user-rail 漂, 跟 ADM-0 §1.3 红线一致)
 - 4 source filter dropdown (default = "All sources")
 - 表格 ts DESC + actor / action / payload (audit forward-only readonly view)
 
 ## 5. 留账
 
-- HB-1 host_bridge audit 表未落 v1, 该 source row 0 行 (留 HB-1 follow-up 真接)
+- HB-1 host_bridge audit 表未落 v1, 该 source row 0 行 (留 HB-1 后续真接)
 - audit FTS / sort by relevance / pagination cursor 全留 v3+
 - 跨 source 反向追溯链 留 v3+

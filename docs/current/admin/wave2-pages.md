@@ -2,11 +2,11 @@
 
 > 2026-05-02 · admin-spa-ui-coverage-wave2 milestone (战马C). 一 milestone 一 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤350 行 接 既有 server endpoint UI.
 
-## 0. 立场承袭
+## 0. 设计沿用
 
 - **ADM-0 §1.3 admin god-mode 路径独立** — 4 page 仅访问 `/admin-api/*`, 不串 user-rail
 - **shape SSOT byte-identical 跟 server** — TS interface 字段名+类型跟 server JSON struct tag byte-identical (改 = 改两处)
-- **admin-spa-ui-coverage 第一波 #639** — `data-asuc-*` 模式承袭 → `data-asuc2-*`
+- **admin-spa-ui-coverage 第一波 #639** — `data-asuc-*` 模式沿用 → `data-asuc2-*`
 - **readonly admin god-mode** — 4 page 仅 GET, 0 mutation (server 都 readonly)
 
 ## 1. 文件 + 范围

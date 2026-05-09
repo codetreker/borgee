@@ -2,7 +2,7 @@
 
 > DL-4.5 (#490) · Phase 4 · 蓝图 [`client-shape.md`](../../blueprint/current/client-shape.md) L22 (Mobile PWA + Web Push VAPID) + L37 ("没推送 = AI 团队像后台脚本不像同事") + L46 (实现路径).
 
-## 1. 立场
+## 1. 设计
 
 PWA install 三件套客户端实现 — service worker 注册 push handler + browser PushManager 订阅 + POST 到 server。VAPID 公钥 client 持 (server env 持私钥), browser 生成 endpoint+p256dh+auth 三公开字段。退订单源 = PushManager.unsubscribe + server DELETE 双侧同步 (蓝图 L22 字面)。
 
@@ -34,11 +34,11 @@ PWA install 三件套客户端实现 — service worker 注册 push handler + br
 
 POST/DELETE 路径走 raw `fetch` (不依赖 `api.ts request<T>`) — push registration runs early in main.tsx before SPA bootstraps, 自包含独立模块。
 
-## 4. ⚠️ 命名拆死锚 — DL-4 vs HB-1 #491
+## 4. ⚠️ 命名拆死 — DL-4 vs HB-1 #491
 
 DL-4 PWA endpoint `/api/v1/pwa/manifest` (公开 install prompt 用) 跟 HB-1 #491 `/api/v1/plugin-manifest` (双签 binary plugin manifest) 字面拆开. client 端绝不调用 `plugin-manifest` 字面 (HB-1 install-butler host-bridge 范围, 不是 web SPA 范围).
 
-## 5. 锚
+## 5. 相关参考
 
 - 实施: `packages/client/public/sw.js` (push event handler) + `packages/client/src/lib/pushSubscribe.ts` (8 export)
 - 单测: `packages/client/src/__tests__/pushSubscribe.test.ts` 6 vitest (jsdom feature detect + W3C 编码 4 sub-case)

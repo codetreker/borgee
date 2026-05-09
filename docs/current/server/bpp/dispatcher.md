@@ -2,7 +2,7 @@
 
 > BPP-2.1 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/current/plugin-protocol.md) §1.3 (抽象语义层 + 7 v1 必须语义动作) + 协议红线 "不允许 plugin 下穿语义层直调 REST".
 
-## 1. 立场
+## 1. 设计
 
 Plugin 上行 `SemanticActionFrame` (BPP-1 envelope §2.2 已落 #304) → server-side `Dispatcher.Dispatch(frame, sess)` 路由到注册的 `ActionHandler` → 执行既有 REST 同等副作用 (artifact create / message send / ...). Plugin 不直对 REST endpoint, 不绕 AP-0 RequirePermission.
 
@@ -19,7 +19,7 @@ request_agent_join / read_channel_history / read_artifact
 
 ### 2.1 BPP-3.2.1 扩展 — `request_capability_grant` (7→8)
 
-蓝图 `auth-permissions.md` §1.3 主入口字面承袭. plugin SDK 收 BPP-3.1 `permission_denied` frame 后通过此 op 触发 server 给 owner 写 system DM (复用 DM-2 既有 path + CM-onboarding `quick_action` JSON).
+蓝图 `auth-permissions.md` §1.3 主入口字面对接. plugin SDK 收 BPP-3.1 `permission_denied` frame 后通过此 op 触发 server 给 owner 写 system DM (复用 DM-2 既有 path + CM-onboarding `quick_action` JSON).
 
 Handler: `internal/api/capability_grant.go::CapabilityGrantHandler`. Payload 5 字段 `{agent_id, attempted_action, required_capability, current_scope, request_id}` byte-identical 跟 BPP-3.1 frame body 同源 (跨 PR drift 守, 改 = 改五处+).
 
@@ -41,7 +41,7 @@ Capability 必走 AP-1 `auth.Capabilities` 14 项 const 白名单; 字典外值 
 - v2+ ops (蓝图 §1.3 v2+ 协作意图列表) 不在 v1 白名单, 字面禁 v1 进.
 - bpp 包不 import internal/api — 依赖反转 via `ActionHandler` interface.
 
-## 5. 锚
+## 5. 相关参考
 
 - spec brief: [`docs/implementation/modules/bpp-2-spec.md`](../../../implementation/modules/bpp-2-spec.md) §1 BPP-2.1
 - acceptance: [`docs/qa/acceptance-templates/bpp-2.md`](../../../qa/acceptance-templates/bpp-2.md) §1

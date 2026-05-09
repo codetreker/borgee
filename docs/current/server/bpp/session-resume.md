@@ -2,7 +2,7 @@
 
 > RT-1.3 (#293) · Phase 4 BPP-1 子集 · 跟 RT-1.1 (#290) cursor + RT-1.2 (#292) client backfill 同语义, 错段在 wire (BPP runtime ↔ server) 不在 REST.
 
-## 1. 立场
+## 1. 设计
 
 Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 
