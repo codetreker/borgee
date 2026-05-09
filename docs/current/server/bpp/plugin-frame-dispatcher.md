@@ -18,7 +18,7 @@ pointing here.
 BPP-3 ships the unified plugin-upstream BPP frame dispatcher boundary so
 every Plugin → Server frame has a single registration point.
 
-## Boundary stance
+## Boundary 原则
 
 - **Two envelopes, two paths.** RPC envelope (`{type, id, data}`) stays
   in `plugin.go` (request-reply). BPP envelope (`{type, …payload-

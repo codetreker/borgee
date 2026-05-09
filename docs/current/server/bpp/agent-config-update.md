@@ -4,7 +4,7 @@
 
 ## 1. 设计原则
 
-配置热更新单源 server→plugin. `AgentConfigUpdateFrame` payload 携带配置 delta, plugin 必须支持幂等 reload (runtime 不缓存 agent 定义 — 每次 inference 前读最新 config).
+配置热更新单一来源 server→plugin. `AgentConfigUpdateFrame` payload 携带配置 delta, plugin 必须支持幂等 reload (runtime 不缓存 agent 定义 — 每次 inference 前读最新 config).
 
 ## 2. 6 字段白名单
 
@@ -24,11 +24,11 @@ name / avatar / prompt / model / capabilities / enabled
 
 线程模型: `ConfigRevTracker` **不** goroutine-safe. BPP 单 plugin 连接是 single-reader 串行化 (BPP-1 不变量), 跟 AL-4.1 #398 schema `UNIQUE(agent_id)` "one runtime per agent" 设计一致 — 跨 plugin 连接同 agent 上行本身已是协议违反.
 
-## 4. 反约束 (grep 守门 CI lint count==0)
+## 4. 反向约束 (grep 守门 CI lint count==0)
 
 - runtime 调优字段不入 frame payload — 字段白名单严闭.
-- config 单源 server→plugin (plugin 不上行 config) — direction 锁 `server_to_plugin`.
-- 不另起 `bpp_v2` namespace — 复用 BPP-1 envelope 不裂.
+- config 单一来源 server→plugin (plugin 不上行 config) — direction 锁定 `server_to_plugin`.
+- 不另起 `bpp_v2` namespace — 复用 BPP-1 envelope 不拆.
 
 ## 5. 相关参考
 
@@ -36,4 +36,4 @@ name / avatar / prompt / model / capabilities / enabled
 - acceptance: [`docs/qa/acceptance-templates/bpp-2.md`](../../../qa/acceptance-templates/bpp-2.md) §3
 - content lock: [`docs/qa/bpp-2-content-lock.md`](../../../qa/bpp-2-content-lock.md) §1 ② 6 字段白名单
 - 实施: `internal/bpp/agent_config_update.go` + `agent_config_update_test.go` (8 tests)
-- 跟 AL-2b #481 关联: AL-2b 用同 `AgentConfigUpdateFrame` 字段名做 server→plugin push (PATCH /api/v1/agents/:id/config 后 fanout); BPP-2 worktree 跟 AL-2b worktree 当前字段集略有 drift, merge 时由 teamlead 排序处理.
+- 跟 AL-2b #481 关联: AL-2b 用同 `AgentConfigUpdateFrame` 字段名做 server→plugin push (PATCH /api/v1/agents/:id/config 后 fanout); BPP-2 worktree 跟 AL-2b worktree 当前字段集略有偏离, merge 时由 teamlead 排序处理.

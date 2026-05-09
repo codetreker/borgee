@@ -27,7 +27,7 @@
   `cancel.*task|abort.*inflight|server.*kill.*runtime` 0 hit守门).
 - **30s threshold is single-source.** `BPP_HEARTBEAT_TIMEOUT_SECONDS = 30`
   in `heartbeat_watchdog.go` is the only declaration; CI grep prevents
-  drift. Changing it requires touching 3 places (constant +
+  脱节. Changing it requires touching 3 places (constant +
   `bpp-4-spec.md` §0.2 + `bpp-4-content-lock.md` §1.①).
 - **AL-1a 6-dict reason 不扩.** Watchdog uses
   `agent.ReasonNetworkUnreachable` directly; BPP-4 is the **9th lock
