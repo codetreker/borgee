@@ -1,6 +1,6 @@
 # HostGrantsPanel — HB-3.3 弹窗 UX
 
-> **Source-of-truth pointer.** Component
+> **单一来源 pointer.** Component
 > `packages/client/src/components/HostGrantsPanel.tsx` + tests
 > `packages/client/src/__tests__/HostGrantsPanel.test.tsx`. Server side
 > in `docs/current/server/api/host-grants.md`.
@@ -13,7 +13,7 @@ is invoked when an agent needs runtime access to a host resource
 (filesystem read / network egress) and the daemon has no matching
 active grant.
 
-## DOM ↔ DB enum 双向锁 (content-lock §1.①+§1.②)
+## DOM ↔ DB enum 双向锁定 (content-lock §1.①+§1.②)
 
 | Button label | data-action          | data-hb3-button | DB ttl_kind |
 |--------------|----------------------|-----------------|-------------|
@@ -25,7 +25,7 @@ active grant.
 `grant_one_shot` ↔ `one_shot`, `grant_always` ↔ `always`. Changing
 either side requires touching three places (this doc + content-lock
 §1.① + the React component + the DB CHECK constraint = effectively
-**改 = 改三处单测锁**).
+**改 = 改三处单测锁定**).
 
 ## actionLabel 4-enum (蓝图 §1.3 弹窗 UX 模板)
 
@@ -71,7 +71,7 @@ grant_always     → POST /api/v1/host-grants {grant_type, scope, ttl_kind: "alw
 
 POST/GET/DELETE endpoints documented in
 [`docs/current/server/api/host-grants.md`](../server/api/host-grants.md).
-Owner-only ACL (anchor #360 同模式) — caller writes own grants;
+Owner-only ACL (出处 #360 同模式) — caller writes own grants;
 admin god-mode 不入路径 (用户主权, ADM-0 §1.3 红线).
 
 ## Reverse-grep守门 (content-lock §2)
@@ -80,7 +80,7 @@ Forbidden synonyms (≥10 同义词grep 检查 0 hit, CI lint 守):
 
 - 拒绝 同义词: 否决 / 不允许 / reject / deny() / 拒绝授权 → 0 hit
 - 仅这一次 同义词: 单次 / 临时 / once / transient → 0 hit (注: "仅这一次"
-  含 "一次" 子串故 substring grep 仅按 attr 集查 enum 单源)
+  含 "一次" 子串故 substring grep 仅按 attr 集查 enum 单一来源)
 - 始终允许 同义词: 永久 / 长期 / forever / permanent / persistent → 0 hit
 - data-action 仅三值: `deny | grant_one_shot | grant_always`
 - data-hb3-button 仅二值: `danger | primary`
@@ -96,5 +96,5 @@ above + `onDecide` 三值回调 + actionLabel 4-enum byte-identical.
 3. Update content-lock §1 + spec §1 + this doc byte-identical.
 4. Add a vitest case to `HostGrantsPanel.test.tsx::actionLabel 4-enum`
    covering the new enum literal.
-5. CI lint catches drift via reflect (`TestHB31_GrantTypeEnumReject`)
+5. CI lint catches 脱节 via reflect (`TestHB31_GrantTypeEnumReject`)
    + DOM data-action enumeration.

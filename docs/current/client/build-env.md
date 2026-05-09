@@ -1,6 +1,6 @@
 # Client build env — VITE_AGENT_WS_SERVER (no-hardcoded-domain milestone)
 
-> 2026-05-04 · client build-time env SSOT for fork-friendly deploy.
+> 2026-05-04 · client build-time env 单一来源 for fork-friendly deploy.
 > 0 hardcoded codetrek.cn in `packages/client/src/` production source.
 
 ## VITE_AGENT_WS_SERVER

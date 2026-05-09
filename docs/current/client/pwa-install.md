@@ -1,9 +1,9 @@
 # CS-3 PWA install + Web Push UI (client)
 
-> 锚: `docs/blueprint/current/client-shape.md` §1.1 (PWA 主战场) + §1.4 (Web Push) + `docs/implementation/modules/cs-3-spec.md` v0
+> 出处: `docs/blueprint/current/client-shape.md` §1.1 (PWA 主战场) + §1.4 (Web Push) + `docs/implementation/modules/cs-3-spec.md` v0
 > 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
-## PWA install prompt SSOT (lib/cs3-install-prompt.ts)
+## PWA install prompt 单一来源 (lib/cs3-install-prompt.ts)
 
 ```ts
 export type InstallState = 'installable' | 'installed' | 'unavailable';
@@ -37,12 +37,12 @@ byte-identical 跟 DL-4 #485 PushPermissionState 4-enum + 蓝图 §1.1+§1.4 字
 
 ## UI 组件
 
-| 组件 | DOM 锚 | 触发 | 反约束 |
+| 组件 | DOM 出处 | 触发 | 反向约束 |
 |---|---|---|---|
 | `InstallPromptButton.tsx` | `<button data-cs3-install-button data-install-state>{INSTALL_BUTTON_LABEL}</button>` | click → useInstallPrompt.prompt() (user-gesture only) | installed/unavailable 时 return null (不准 disabled style 替代) |
-| `PushSubscribeToggle.tsx` | `<button data-cs3-push-toggle data-push-state aria-pressed>{label}</button>` | click → DL-4 `subscribeToPush()` (default) / `unsubscribeFromPush()` (granted) | unsupported 时 return null; denied 时 disabled (浏览器锁死, click 无效); 不准 mount-time auto requestPermission (走 DL-4 入口) |
+| `PushSubscribeToggle.tsx` | `<button data-cs3-push-toggle data-push-state aria-pressed>{label}</button>` | click → DL-4 `subscribeToPush()` (default) / `unsubscribeFromPush()` (granted) | unsupported 时 return null; denied 时 disabled (浏览器永久拒绝, click 无效); 不准 mount-time auto requestPermission (走 DL-4 入口) |
 
-## 反约束守门 (跟 cs-3-stance-checklist §2 + content-lock §4 同源)
+## 反向约束守门 (跟 cs-3-stance-checklist §2 + content-lock §4 同源)
 
 ```bash
 # ① auto-prompt 反向 (Chrome 红线)
@@ -61,7 +61,7 @@ git diff origin/main -- packages/server-go/ | grep -c '^\+'  # 0
 git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 ```
 
-## 跨 milestone byte-identical 锁
+## 跨 milestone byte-identical 锁定
 
 - DL-4 #485 pushSubscribe.ts byte-identical 不动 (CS-3 仅 import 不改)
 - DL-4 既有 manifest.json + sw.js 不动

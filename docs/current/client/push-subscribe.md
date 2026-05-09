@@ -4,7 +4,7 @@
 
 ## 1. 设计
 
-PWA install 三件套客户端实现 — service worker 注册 push handler + browser PushManager 订阅 + POST 到 server。VAPID 公钥 client 持 (server env 持私钥), browser 生成 endpoint+p256dh+auth 三公开字段。退订单源 = PushManager.unsubscribe + server DELETE 双侧同步 (蓝图 L22 字面)。
+PWA install 三件套客户端实现 — service worker 注册 push handler + browser PushManager 订阅 + POST 到 server。VAPID 公钥 client 持 (server env 持私钥), browser 生成 endpoint+p256dh+auth 三公开字段。退订单一来源 = PushManager.unsubscribe + server DELETE 双侧同步 (蓝图 L22 字面)。
 
 ## 2. service worker (`packages/client/public/sw.js`)
 
@@ -16,7 +16,7 @@ PWA install 三件套客户端实现 — service worker 注册 push handler + br
 | `push` | 解 `e.data.json()` payload → 渲染通知 (`self.registration.showNotification`); 字面 byte-identical 跟 `internal/push/mention_notifier.go` shape — `mention` kind 渲 `${from} mentioned you in #${channel}` + body, `agent_task` kind 渲 busy/idle 状态 (busy 必带 subject 蓝图 §1.1 ⭐). 未知 kind drop silently. |
 | `notificationclick` | 关闭 + focus 既有 SPA tab (clients.matchAll → focus) 或 openWindow('/') 跳 SPA 路由 |
 
-**反约束**: sw.js 不存 secret / token; payload 由 SW 渲染, 主线程不直接处理 push (跟 visibility-based dedup 蓝图 §1.4 隐私同源).
+**反向约束**: sw.js 不存 secret / token; payload 由 SW 渲染, 主线程不直接处理 push (跟 visibility-based dedup 蓝图 §1.4 隐私同源).
 
 ## 3. pushSubscribe.ts helper (`packages/client/src/lib/pushSubscribe.ts`)
 
@@ -34,14 +34,14 @@ PWA install 三件套客户端实现 — service worker 注册 push handler + br
 
 POST/DELETE 路径走 raw `fetch` (不依赖 `api.ts request<T>`) — push registration runs early in main.tsx before SPA bootstraps, 自包含独立模块。
 
-## 4. ⚠️ 命名拆死 — DL-4 vs HB-1 #491
+## 4. ⚠️ 命名真分清 — DL-4 vs HB-1 #491
 
-DL-4 PWA endpoint `/api/v1/pwa/manifest` (公开 install prompt 用) 跟 HB-1 #491 `/api/v1/plugin-manifest` (双签 binary plugin manifest) 字面拆开. client 端绝不调用 `plugin-manifest` 字面 (HB-1 install-butler host-bridge 范围, 不是 web SPA 范围).
+DL-4 PWA endpoint `/api/v1/pwa/manifest` (公开 install prompt 用) 跟 HB-1 #491 `/api/v1/plugin-manifest` (双签 binary plugin manifest) 字面真分清. client 端绝不调用 `plugin-manifest` 字面 (HB-1 install-butler host-bridge 范围, 不是 web SPA 范围).
 
 ## 5. 相关参考
 
 - 实施: `packages/client/public/sw.js` (push event handler) + `packages/client/src/lib/pushSubscribe.ts` (8 export)
 - 单测: `packages/client/src/__tests__/pushSubscribe.test.ts` 6 vitest (jsdom feature detect + W3C 编码 4 sub-case)
-- e2e: `packages/e2e/tests/dl-4-pwa-subscribe.spec.ts` 3 case (manifest W3C real fetch + 命名拆死 + sw.js push handler text-scan)
+- e2e: `packages/e2e/tests/dl-4-pwa-subscribe.spec.ts` 3 case (manifest W3C real fetch + 命名真分清 + sw.js push handler text-scan)
 - spec brief: [`docs/implementation/modules/dl-4-spec.md`](../../implementation/modules/dl-4-spec.md) §1 DL-4.5
 - server 端: [`docs/current/server/push.md`](../server/push.md)
