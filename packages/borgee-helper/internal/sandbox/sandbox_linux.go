@@ -8,7 +8,7 @@
 // hb-2-v0d-spec.md §0.2: kernel ≥5.13 真 landlock; <5.13 fallback no-op
 // + warn (生产 daemon 启动时 main.go 检 sandbox.Apply 错误决是否 abort).
 //
-// 反约束 (grep 检查 0 hit): cgroups, cgroupv2 — landlock 限 path 已足.
+// 反向约束 (grep 检查 0 hit): cgroups, cgroupv2 — landlock 限 path 已足.
 
 package sandbox
 
@@ -37,7 +37,7 @@ const (
 	// LANDLOCK_RULE_PATH_BENEATH = 1 (kernel 5.13).
 	landlockRulePathBeneath = 1
 
-	// 全 read 类访问 (HB-2 v0(D) 仅 read scope, 反约束 §1.1 写类 100% reject).
+	// 全 read 类访问 (HB-2 v0(D) 仅 read scope, 反向约束 §1.1 写类 100% reject).
 	allowedReadAccess = unix.LANDLOCK_ACCESS_FS_READ_FILE |
 		unix.LANDLOCK_ACCESS_FS_READ_DIR
 )
@@ -53,7 +53,7 @@ const (
 // 错误处理: ENOSYS (kernel <5.13) → return nil + 调用方记 warn; 其他 errno → return err.
 func Apply(p Profile) error {
 	if len(p.ReadPaths) == 0 {
-		// 无 grant 时 fail-closed 起 — 反约束 deny-by-default.
+		// 无 grant 时 fail-closed 起 — 反向约束 deny-by-default.
 		return restrictEmptyRuleset()
 	}
 
@@ -153,5 +153,5 @@ type Profile struct {
 	TmpCachePath string   // 临时缓存
 }
 
-// Platform 锚 — 单测断 build tag 选对.
+// Platform 出处 — 单测断 build tag 选对.
 const Platform = "linux"

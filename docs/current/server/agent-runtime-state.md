@@ -56,7 +56,7 @@ state_updated_at   : Unix ms (仅 error 态, error 时刻)
 
 ## 6. AL-4.2 — runtime process descriptor API (PR #414)
 
-> AL-1a 三态是内存瞬时态 (online/offline/error); AL-4.2 落 `agent_runtimes` 表 (`schema_migrations` v=16, PR #398) — plugin process descriptor 持久化, 跟 AL-1a 内存态拆死 (蓝图 `agent-lifecycle.md §2.2`)。
+> AL-1a 三态是内存瞬时态 (online/offline/error); AL-4.2 落 `agent_runtimes` 表 (`schema_migrations` v=16, PR #398) — plugin process descriptor 持久化, 跟 AL-1a 内存态真分清 (蓝图 `agent-lifecycle.md §2.2`)。
 
 文件: `internal/api/runtimes.go` (`RuntimeHandler` user-rail + `AdminRuntimeHandler` admin-rail 双 mux 隔离)。
 

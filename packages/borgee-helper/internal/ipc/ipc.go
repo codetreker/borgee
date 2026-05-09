@@ -2,7 +2,7 @@
 // 多路复用单连接). 平台 transport (UDS / Named Pipe) 由 cmd 层选择;
 // 本包提供 protocol 解析 + 处理器编织, 跨平台 byte-identical.
 //
-// hb-2-spec.md §3.1 IPC contract + §5.5 sandbox build tag 拆死.
+// hb-2-spec.md §3.1 IPC contract + §5.5 sandbox build tag 真分清.
 package ipc
 
 import (
@@ -125,7 +125,7 @@ func (h *Handler) handle(ctx context.Context, handshakeAgentID string, req Reque
 	d := h.Gate.Decide(ctx, handshakeAgentID, req.AgentID, acl.Action(req.Action), target)
 	resp := Response{RequestID: req.RequestID, Reason: string(d.Reason)}
 	if d.Allow {
-		// v0(D) 真 IO 解锁 (替 v0(C) 仅 ACL 决策).
+		// v0(D) 真 IO 启用 (替 v0(C) 仅 ACL 决策).
 		switch acl.Action(req.Action) {
 		case acl.ActionReadFile:
 			maxBytes, _ := req.Params["max_bytes"].(float64)
@@ -155,7 +155,7 @@ func (h *Handler) handle(ctx context.Context, handshakeAgentID string, req Reque
 	} else {
 		resp.Status = "rejected"
 	}
-	// 审计 (含 reject); 5 字段 SSOT.
+	// 审计 (含 reject); 5 字段单一来源.
 	if h.Audit != nil {
 		_ = h.Audit.Write(audit.Event{
 			Actor:  req.AgentID,

@@ -17,7 +17,7 @@ import (
 )
 
 // Apply v0(D) — 检测进程是否已被 sandbox-exec 包裹; daemon main.go 在 sandbox-exec
-// wrapper 内启时 sandbox 已生效, 无需 self-apply. v0(D) 接口锁 — 真 self-restrict
+// wrapper 内启时 sandbox 已生效, 无需 self-apply. v0(D) 接口锁定 — 真 self-restrict
 // 不可能 (sandbox_init private API 不暴露 Go).
 //
 // 调用方 (cmd/borgee-helper/main.go) 应:
@@ -37,7 +37,7 @@ func Apply(_ Profile) error {
 //   (allow file-read* (subpath "/path1") (subpath "/path2"))
 //   (allow file-write* (literal "<audit_log>"))
 //   (allow process-exec* (literal "<self>"))
-//   (allow network-outbound)  ; v1 不挂网络出站 — 反约束 §3 不开
+//   (allow network-outbound)  ; v1 不挂网络出站 — 反向约束 §3 不开
 func GenerateProfile(p Profile) string {
 	var b strings.Builder
 	b.WriteString("(version 1)\n")
@@ -75,5 +75,5 @@ type Profile struct {
 	TmpCachePath string
 }
 
-// Platform 锚 — 单测断 build tag 选对.
+// Platform 出处 — 单测断 build tag 选对.
 const Platform = "darwin"

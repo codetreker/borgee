@@ -1,9 +1,9 @@
 // Package grants — HB-2 read-only consumer interface for HB-3 host_grants
-// SSOT (hb-2-spec.md §3.2). HB-2 不写 grants — 仅查; HB-3 持 schema +
+// 单一来源 (hb-2-spec.md §3.2). HB-2 不写 grants — 仅查; HB-3 持 schema +
 // 弹窗写路径. v0(C) 提供 mock impl, HB-3 落地后真接 SQLite consumer.
 //
-// 反约束 (hb-2-spec.md §4 #3): 不缓存 — 每次 IPC call 重查; grep 检查
-// `grantsCache|cachedGrants` 0 hit (撤销 < 100ms 锁 HB-4 release gate).
+// 反向约束 (hb-2-spec.md §4 #3): 不缓存 — 每次 IPC call 重查; grep 检查
+// `grantsCache|cachedGrants` 0 hit (撤销 < 100ms 锁定 HB-4 release gate).
 package grants
 
 import (
@@ -14,7 +14,7 @@ import (
 
 // Grant 是 HB-3 host_grants 表行 (read-only view).
 type Grant struct {
-	AgentID   string // 持 grant 的 agent (cross-agent ACL 锚)
+	AgentID   string // 持 grant 的 agent (cross-agent ACL 出处)
 	Scope     string // e.g. "fs:/Users/me/projects" 或 "egress:api.example.com"
 	TTLUntil  int64  // unix millis; 0 表无 TTL (永久, v1 不支持)
 	GrantedAt int64  // unix millis

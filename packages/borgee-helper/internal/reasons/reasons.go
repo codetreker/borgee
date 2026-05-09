@@ -1,5 +1,5 @@
 // Package reasons — HB-2 host-bridge 8-dict (跟 HB-1 7-dict + AL-1a 6-dict
-// 字典分立, 不混; 改一处 = 改 spec hb-2-spec.md §3.3 单源).
+// 字典分立, 不混; 改一处 = 改 spec hb-2-spec.md §3.3 单一来源).
 package reasons
 
 // Reason 是 HB-2 IPC response 8-dict 字面 (含 "ok" 成功态).
@@ -17,7 +17,7 @@ const (
 	IOFailed                    Reason = "io_failed"
 )
 
-// All 反向枚举锚 — 单测断言字典不漂.
+// All 反向枚举出处 — 单测断言字典不脱节.
 func All() []Reason {
 	return []Reason{
 		OK, PathOutsideGrants, GrantExpired, GrantNotFound,
