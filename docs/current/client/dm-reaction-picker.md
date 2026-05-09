@@ -14,9 +14,9 @@
 
 **0 server / 0 schema / 0 endpoint** (composite 复用 CV-7 #535 `PUT /api/v1/messages/{id}/reactions` + AP-4 #551 channel-member ACL).
 
-## 立场 (spec §0 byte-identical)
+## 设计原则 (spec §0 byte-identical)
 
-| § | 立场 |
+| § | 设计原则 |
 |---|---|
 | ① | 0 server production code — 复用 CV-7 PUT/DELETE/GET reactions endpoint + AP-4 ACL gate; 跟 DM-9 + DM-5 同 endpoint 单源 |
 | ② | DM-only mounting path — 父组件 (MessageItem.tsx for DM channels) 仅在 `channel.type === 'dm'` 时挂此 composite (反 cross-channel mount) |
@@ -47,8 +47,8 @@
 |---|---|
 | `div[data-dm12-reaction-picker]`               | composite root |
 | `div[data-dm12-loading="true\|false"]`         | mount 期间 fetch 状态 |
-| `div[data-dm9-*]`                              | EmojiPickerPopover 内, 不在此层重复 (立场 ⑤) |
-| `div[data-dm5-*]`                              | ReactionSummary 内, 不在此层重复 (立场 ⑤) |
+| `div[data-dm9-*]`                              | EmojiPickerPopover 内, 不在此层重复 (设计 ⑤) |
+| `div[data-dm5-*]`                              | ReactionSummary 内, 不在此层重复 (设计 ⑤) |
 
 ## 5-emoji preset (DM-9 SSOT byte-identical)
 
@@ -67,11 +67,11 @@ const DM9_EMOJI_PRESET = ['👍', '❤️', '😄', '🎉', '🚀'] as const;
 | 另起 reaction fetch | 0 hit (仅用 `getMessageReactions` from `lib/api`) |
 | `sessionStorage` / `localStorage` 写入 | 0 hit (纯 component state) |
 | 跨 channel mount (`channel.type !== 'dm'`) | 0 hit (父组件 type-guarded) |
-| admin god-mode 旁路 | 0 hit (ADM-0 §1.3 红线承袭) |
+| admin god-mode 旁路 | 0 hit (跟 ADM-0 §1.3 红线一致) |
 
 ## 不在范围 (留尾)
 
 - 自定义 emoji (留 v2; 现 5-emoji 单源)
 - emoji aria-label i18n (现走 emoji 字符直渲, 反 `<img alt="thumbs up">` 复杂化)
 - reaction analytics / 排序 (现按 server 返回顺序; 留 v2 popularity 排序)
-- channel 外其它场景 reaction picker (此 composite **DM-only**, 蓝图 §1.2 立场守: DM 视觉与交互跟 channel **明确不同**)
+- channel 外其它场景 reaction picker (此 composite **DM-only**, 跟蓝图 §1.2 守一致: DM 视觉与交互跟 channel **明确不同**)

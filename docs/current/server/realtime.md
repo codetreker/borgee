@@ -57,7 +57,7 @@ decided : type, invitation_id, state, decided_at
 
 ### 6.1 ArtifactUpdated (RT-1.1 #290 + CV-1.2 #342)
 
-CV-1 commit/rollback handler 写 `artifacts` 行后, `Hub.PushArtifactUpdated` 推 channel 全员 (channel-scoped fanout); 同 `(artifact_id, version)` 重发 → 同 cursor (idempotent dedup), 重启不回退 (cursor MAX seed)。client `wsClient.ts` switch type='artifact_updated' → mutate `/api/v1/artifacts/:id` 拉 body (envelope 仅信号, 立场 ⑤ 反约束 envelope 不带 body)。
+CV-1 commit/rollback handler 写 `artifacts` 行后, `Hub.PushArtifactUpdated` 推 channel 全员 (channel-scoped fanout); 同 `(artifact_id, version)` 重发 → 同 cursor (idempotent dedup), 重启不回退 (cursor MAX seed)。client `wsClient.ts` switch type='artifact_updated' → mutate `/api/v1/artifacts/:id` 拉 body (envelope 仅信号, 设计 ⑤ 反约束 envelope 不带 body)。
 
 ### 6.2 AnchorCommentAdded (CV-2.2 #360)
 
@@ -66,14 +66,14 @@ CV-2.2 anchor comment handler 写 `anchor_comments` 行后, push channel 全员 
 ### 6.3 MentionPushed (DM-2.2 #372)
 
 DM-2.2 mention dispatch handler `parser regex @([0-9a-f-]{36})` 落 `message_mentions` 行后, 走 `IsOnline(target)` 真接 AL-3 #310 SessionsTracker:
-- **在线** → `Hub.PushMentionPushed` `BroadcastToUser(target_id, frame)` 单推 (反约束: target-only fanout, 不抄送 owner — 立场 ③ 蓝图 §4 字面)
+- **在线** → `Hub.PushMentionPushed` `BroadcastToUser(target_id, frame)` 单推 (反约束: target-only fanout, 不抄送 owner — 设计 ③ 蓝图 §4 字面)
 - **离线** → `enqueueOwnerSystemDM` 写 owner ↔ agent 内置 DM 一行 `messages.type='system'` + 5min/(agent, channel) 节流 (clock fixture, 跟 G2.3 节流模式同源); 文案 byte-identical `"{agent_name} 当前离线，#{channel} 中有人 @ 了它，你可能需要处理"` (跟 #314 文案锁 + #293 §2.2 acceptance 同源)
 
 8 字段 envelope `body_preview` 80 rune-safe 截断 (`utf8.RuneCountInString`, 不切 CJK 字符) — 隐私 §13 红线 (完整 body 走 `new_message` event channel ACL 授权路径, 不通过此 frame)。**反约束** (DM-2.2 自查 4 锚 0 hit): `mention.*owner_id` / `cc.*owner` / `notify.*owner_id` / `system.*DM.*body`; `@channel` 0 hit (留 DM-3)。
 
 ### 6.4 IterationStateChanged (CV-4.2 #409)
 
-CV-4.2 iterate handler 写 `artifact_iterations` 行后 + 每次 state machine 转移 (pending → running / pending → failed / running → completed / running → failed) 触发 `Hub.PushIterationStateChanged` 推 channel 全员 (channel-scoped fanout 跟 RT-1.1 / CV-2.2 同模式)。9 字段 envelope: type / cursor / iteration_id / artifact_id / channel_id / state / error_reason / created_artifact_version_id / completed_at — cursor 走 hub.cursors 同 RT-1.1 / CV-2.2 / DM-2.2 单调 sequence (反约束: 不另起 channel)。**反约束**: error_reason / created_artifact_version_id / completed_at 在 pending/running 态时为零值 (string="" / int64=0), 始终序列化, 不挂 omitempty (跟 AnchorComment resolved_at 模式不同); state CHECK 4 态 byte-identical 跟 #380 文案锁 + migration v=18 字面; AL-4 stub fail-closed → state='failed' + error_reason='runtime_not_registered' (跟 AL-1a #249 6 reason 同源, 立场 ⑤)。
+CV-4.2 iterate handler 写 `artifact_iterations` 行后 + 每次 state machine 转移 (pending → running / pending → failed / running → completed / running → failed) 触发 `Hub.PushIterationStateChanged` 推 channel 全员 (channel-scoped fanout 跟 RT-1.1 / CV-2.2 同模式)。9 字段 envelope: type / cursor / iteration_id / artifact_id / channel_id / state / error_reason / created_artifact_version_id / completed_at — cursor 走 hub.cursors 同 RT-1.1 / CV-2.2 / DM-2.2 单调 sequence (反约束: 不另起 channel)。**反约束**: error_reason / created_artifact_version_id / completed_at 在 pending/running 态时为零值 (string="" / int64=0), 始终序列化, 不挂 omitempty (跟 AnchorComment resolved_at 模式不同); state CHECK 4 态 byte-identical 跟 #380 文案锁 + migration v=18 字面; AL-4 stub fail-closed → state='failed' + error_reason='runtime_not_registered' (跟 AL-1a #249 6 reason 同源, 设计 ⑤)。
 
 ### 6.5 cursor 共序契约 (跨 RT-1 / CV-2 / DM-2 / CV-4)
 

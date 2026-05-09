@@ -48,11 +48,11 @@
 
 - DL-2 #615 EventStore + EventsRetentionSweeper byte-identical 不破
 - DL-3 #618 ThresholdMonitor / EventsArchiveOffloader 字面 byte-identical (仅加 Start/Done/runOnceLog ctx-aware)
-- DL-4 #485 AgentTaskNotifier nil-safe 模式承袭
+- DL-4 #485 AgentTaskNotifier nil-safe 同模式
 - RT-3 #616 TaskLifecycleHandler 字面 byte-identical (SetPushFanout 是 setter 加, BPP-3 既有 wire 模式不破)
-- TEST-FIX-2 #608 ctx-aware shutdown 立场承袭 (反 goroutine leak)
+- TEST-FIX-2 #608 ctx-aware shutdown 同模式 (反 goroutine leak)
 - ADM-0 §1.3 admin god-mode 红线 (反 user-rail 漂)
-- post-#621 haystack gate Func=50/Pkg=70/Total=85 (TEST-FIX-3-COV 立场承袭)
+- post-#621 haystack gate Func=50/Pkg=70/Total=85 (跟 TEST-FIX-3-COV 一致)
 
 ## 5. Tests + verify
 
@@ -71,6 +71,6 @@
 
 ## 7. 留账 (透明)
 
-- events 接 RT-3 fanout 上游 hook (DL-2 cold → RT-3 hub.PushFrame 桥) 留 v1.x follow-up
+- events 接 RT-3 fanout 上游 hook (DL-2 cold → RT-3 hub.PushFrame 桥) 留 v1.x 后续
 - HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/internal/grants/sqlite_consumer.go`); 阈值哨 wire 留 v1.x
 - ADM-3 v1 host_bridge placeholder 真接 留 ADM-3.bis (HB-1 audit 表 v1 未落)

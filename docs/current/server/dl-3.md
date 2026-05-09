@@ -2,7 +2,7 @@
 
 > 落地: PR feat/dl-3 · DL3.1 (ThresholdMonitor 4 metric) + DL3.2 (EventsArchiveOffloader cold archive) + DL3.3 closure
 > 蓝图锚: data-layer.md §5 阈值哨 (db_size / wal_pending / write_lock / row_count)
-> 立场承袭: [`dl-3-spec.md`](../../implementation/modules/dl-3-spec.md) §0 ① DL-1+DL-2 byte-identical + ② 0 schema 改 + 4 阈值哨 SSOT + auto cold archive + ③ 0 endpoint 改 + admin god-mode 永不挂
+> 设计沿用: [`dl-3-spec.md`](../../implementation/modules/dl-3-spec.md) §0 ① DL-1+DL-2 byte-identical + ② 0 schema 改 + 4 阈值哨 SSOT + auto cold archive + ③ 0 endpoint 改 + admin god-mode 永不挂
 
 ## 1. 文件清单
 
@@ -50,7 +50,7 @@
 - DL-2 #615 EventStore + retention sweeper + must_persist_kinds (offloader audit 走 cold consumer)
 - 蓝图 §5 阈值哨 4 metric 字面 (db_size/wal_pending/write_lock/row_count)
 - ADM-0 §1.3 admin god-mode 红线 (events 阈值域永不挂 admin endpoint)
-- ctx-aware Start(ctx) (反 goroutine leak, #608/#614/#615 立场承袭)
+- ctx-aware Start(ctx) (反 goroutine leak, 跟 #608/#614/#615 一致)
 - post-#615 haystack gate Func=50/Pkg=70/Total=85
 - 0-endpoint-改 wrapper 决策树**变体** (跟 INFRA-3/4 / REFACTOR-1/2 / NAMING-1 / DL-2 同源)
 

@@ -2,7 +2,7 @@
 
 > 落地: PR feat/refactor-2 · R2.1 (4 helper SSOT) + R2.2 (caller 跟随) + R2.3 (drift #11 部分 + #12 收口) + closure
 > 蓝图锚: refactor 元 milestone (跟 REFACTOR-1 / INFRA-3 / INFRA-4 同等级)
-> 立场承袭: [`refactor-2-spec.md`](../../implementation/modules/refactor-2-spec.md) v1 §0 ① 行为不变量 + ② 4 helper SSOT + ③ 0 schema/endpoint
+> 设计沿用: [`refactor-2-spec.md`](../../implementation/modules/refactor-2-spec.md) v1 §0 ① 行为不变量 + ② 4 helper SSOT + ③ 0 schema/endpoint
 >
 > **v1 audit 反转**: spec v0 错估 3 处校准 (用户拍板批准 — 一次做干净铁律, scope 内做不了改 spec 不留尾).
 
@@ -36,14 +36,14 @@
 ## 4. 跨 milestone byte-identical 锁链
 
 - REFACTOR-1 #611 4 helper SSOT (mustUser/decodeJSON/loadAgentByPath/fanoutChannelStateMessage 续作 + RejectDM 组字面单源继承)
-- BPP-3 #489 PluginFrameDispatcher / reasons.IsValid #496 / TEST-FIX-3 #610 fixture SSOT (helper 单源模式承袭)
+- BPP-3 #489 PluginFrameDispatcher / reasons.IsValid #496 / TEST-FIX-3 #610 fixture SSOT (helper 单源同模式)
 - AP-4 #551 + AP-5 #555 ACL helper — write 路径走双层 fail-closed AND (post-removal 真守) / list 路径走单 CAC (audit 反转后真值)
-- post-#612 haystack gate (Func=50/Pkg=70/Total=85 三轨守, TEST-FIX-3-COV 立场承袭)
+- post-#612 haystack gate (Func=50/Pkg=70/Total=85 三轨守, 跟 TEST-FIX-3-COV 一致)
 - 0-行为-改 wrapper 决策树**变体** — 跟 INFRA-3 / INFRA-4 / CV-15 / TEST-FIX-3 / REFACTOR-1 同源
 
 ## 5. v1 audit 反转 (撤 spec v0 错估)
 
-- ❌ helper-3 DM-gate 三错码归一 **撤** — dm_4 `dm.edit_only_in_dm` (DM-only 403) vs chn_6/7/8/layout `layout.dm_not_grouped` (RejectDM 400) 同字段反向条件不同 status 不同 reason, 字面归一破 user-facing 错码契约. 真值: 双向各自字面 byte-identical 单源, 立场目标已达成.
+- ❌ helper-3 DM-gate 三错码归一 **撤** — dm_4 `dm.edit_only_in_dm` (DM-only 403) vs chn_6/7/8/layout `layout.dm_not_grouped` (RejectDM 400) 同字段反向条件不同 status 不同 reason, 字面归一破 user-facing 错码契约. 真值: 双向各自字面 byte-identical 单源, 设计目标已达成.
 - ❌ helper-4 ACL 双重 → 单源 **撤** — 双层 `IsChannelMember && CanAccessChannel` 是 security correctness 设计, 不是 drift. 实测折叠破 TestAP5_*PostRemovalReject. 真值: write 路径双层 AND / list 路径单 CAC — 已分清.
 - ❌ helper-5 admin-list **撤** — 1-line 替换净减 0 + 触发 cov gate.
 - ❌ helper-7 cursor envelope **推 REFACTOR-3 新 audit 范畴** — scope 在 internal/ws (5 Push* 方法 `pushFrame[T any]` 泛型重构), 不在 internal/api. 不算留尾.

@@ -2,11 +2,11 @@
 
 > AP-2 (#525) · Phase 5+ · 蓝图 [`auth-permissions.md`](../../blueprint/current/auth-permissions.md) §5 (周期性 sweep, 不要求实时) + AP-1.1 #493 schema (`user_permissions.expires_at` reserved) + ADM-2.1 #484 admin_actions audit reuse + AL-1b #458 sweeper goroutine pattern.
 
-## 1. 立场
+## 1. 设计
 
 闭 AP-1.1 reserved column 的运行时回路 — 周期性 goroutine 扫 `user_permissions WHERE expires_at < now AND revoked_at IS NULL`, 写 `revoked_at = expires_at` (forward-only soft-delete, 不 DELETE row), 每行落一条 `admin_actions` audit (复用 ADM-2.1 既有 path, actor='system').
 
-立场 (跟 ap-2-spec.md §0):
+设计原则 (跟 ap-2-spec.md §0):
 - ① forward-only soft-delete (UPDATE revoked_at, 不 DELETE row, 跟 AL-1 state_log + ADM-2.1 admin_actions 同精神)
 - ② 复用 admin_actions, 不另起 expires_audit 表 (audit 单表, 改 = 改 ADM-2.1 一处)
 - ③ time.Ticker, 不引 cron 框架 (跟 AL-1b agent_status sweeper #458 同模式)

@@ -2,7 +2,7 @@
 
 > 落地: PR feat/naming-1 · N1.1 (A 文件 + B struct/handler + C test func) + N1.2 (E modules→architecture) + N1.3 closure
 > 蓝图锚: naming convention 元 milestone (跟 REFACTOR-1/2 / INFRA-3/4 同等级)
-> 立场承袭: [`naming-1-spec.md`](../../implementation/modules/naming-1-spec.md) §0 ① 0 行为改 + ② 5 类 rename 一次全清 + ③ 0 schema/endpoint/v 号
+> 设计沿用: [`naming-1-spec.md`](../../implementation/modules/naming-1-spec.md) §0 ① 0 行为改 + ② 5 类 rename 一次全清 + ③ 0 schema/endpoint/v 号
 
 ## 1. 5 类 rename scope
 
@@ -28,7 +28,7 @@
 | 字面 | baseline | 当前 | 锚 |
 |---|---|---|---|
 | HTTP status code 字面 | byte-identical | byte-identical ✅ | rename 仅动文件路径 / 类型符号 / 测试函数名 |
-| error reason code 字面 (`layout.dm_not_grouped` ≥19 / `dm.edit_only_in_dm` 7 / `pin.dm_only_path` 等) | baseline | baseline ✅ | REFACTOR-1/2 锁链承袭 |
+| error reason code 字面 (`layout.dm_not_grouped` ≥19 / `dm.edit_only_in_dm` 7 / `pin.dm_only_path` 等) | baseline | baseline ✅ | 跟 REFACTOR-1/2 锁链一致 |
 | audit log 字段 + WS broadcast event 名 | byte-identical | byte-identical ✅ | rename 不动 audit/ws |
 | migration Version 数值 (v=1..v=45) | 不动 | 不动 ✅ | git diff origin/main -- migrations/ \| grep '^+.*Version:' 0 hit |
 | DB schema column 名 | 不动 | 不动 ✅ | rename 仅 var 名不动 column |
@@ -36,8 +36,8 @@
 
 ## 4. 跨 milestone byte-identical 锁链
 
-- INFRA-3 #594 git mv rename detection 模式 (PROGRESS 子文件迁同精神)
-- REFACTOR-1 #611 / REFACTOR-2 #613 字面 content-lock 必修条件承袭
+- INFRA-3 #594 git mv rename detection 同模式 (PROGRESS 子文件迁同精神)
+- REFACTOR-1 #611 / REFACTOR-2 #613 字面 content-lock 必修条件沿用
 - BPP-3 / reasons.IsValid SSOT 单源精神 (rename 后单源不漂)
 - TEST-FIX-3-COV #612 haystack gate 三轨 (Func=50/Pkg=70/Total=85, rename 后必过)
 - 0-行为-改 wrapper 决策树**变体** (跟 REFACTOR-1/2 / INFRA-3/4 / CV-15 / TEST-FIX-3 同源)

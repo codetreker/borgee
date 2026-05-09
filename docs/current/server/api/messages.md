@@ -3,7 +3,7 @@
 > gh#687 (PR #704) — 自己发的消息不应该让自己的 sidebar 闪 unread badge.
 > 蓝图: `channel-model.md` §2.1 (channel = 协作场) + §4.2 (未读语义) + §4.6 (mark-read) + §4.8 + §4.9 (multi-device).
 
-## 1. 立场
+## 1. 设计
 
 own message 三层防御 (defense-in-depth) 反 sidebar 闪 unread:
 - **Layer 1 (client)**: 发完 own message 立刻调 `markChannelRead(channelID, currentUser.id)` 标当前 channel 已读. 反 server 端聚合 ack 来之前的窗口期 unread badge 闪.

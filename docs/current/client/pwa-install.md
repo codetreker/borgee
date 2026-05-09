@@ -74,7 +74,7 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - Tauri 桌面壳 (HB stack Go 重审决策放弃)
 - IndexedDB 乐观缓存 (留 CS-4)
 - Web Notifications API 自定义渲染 (走 sw.js DL-4 路径)
-- background sync (蓝图 §1.1 字面承袭)
+- background sync (跟蓝图 §1.1 字面一致)
 - iOS Safari beforeinstallprompt 真支持 (留 v2)
 - per-device 多端管理 UI (留 v1)
 - admin god-mode PWA install / push 管理 (永久不挂 ADM-0 §1.3)

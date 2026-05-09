@@ -2,7 +2,7 @@
 
 > 落地: PR feat/dl-2 · DL2.1 (schema v=46/47) + DL2.2 (EventStore + retention sweeper + cold consumer) + DL2.3 closure
 > 蓝图锚: data-layer.md §2.7 / §3.4 必落清单 / §4.A.4 ULID
-> 立场承袭: [`dl-2-spec.md`](../../implementation/modules/dl-2-spec.md) §0 ① DL-1 byte-identical + ② 双流 enum SSOT + ③ 0 user-facing 改
+> 设计沿用: [`dl-2-spec.md`](../../implementation/modules/dl-2-spec.md) §0 ① DL-1 byte-identical + ② 双流 enum SSOT + ③ 0 user-facing 改
 
 ## 1. 文件清单
 
@@ -55,8 +55,8 @@ row-level `retention_days` 列覆盖 default (NULL = use kind default).
 - reasons.IsValid #496 / AP-4-enum #591 / NAMING-1 #614 enum SSOT (mustPersistKinds 单源)
 - AL-7 #533 + HB-5 audit retention sweeper 模式 (events_retention sweeper 同精神)
 - ULID lex_id 蓝图 §4.A.1+§4.A.4 (channel_events + global_events 主键 + cursor)
-- ctx-aware Start(ctx) 反 goroutine leak (#608 + #614 立场承袭)
-- post-#614 haystack gate Func=50/Pkg=70/Total=85 (TEST-FIX-3-COV 立场承袭)
+- ctx-aware Start(ctx) 反 goroutine leak (跟 #608 + #614 一致)
+- post-#614 haystack gate Func=50/Pkg=70/Total=85 (跟 TEST-FIX-3-COV 一致)
 - 0-endpoint-改 wrapper 决策树**变体** (跟 INFRA-3/4 / CV-15 / TEST-FIX-3 / REFACTOR-1/2 / NAMING-1 同源)
 
 ## 6. Tests + verify
@@ -80,6 +80,6 @@ row-level `retention_days` 列覆盖 default (NULL = use kind default).
 - EventBus 切 NATS/Redis 留 DL-3 阈值哨触发再启
 - HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/internal/grants/sqlite_consumer.go`)
 - session_resume_hint 表 (蓝图 §2.7) 留 DL-5+
-- events fanout 接 RT-3 留 follow-up
+- events fanout 接 RT-3 留后续 PR
 - per-user events feed / inbox 留 DL-5+
 - events FTS 搜索 留 v3+
