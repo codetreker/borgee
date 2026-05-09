@@ -34,7 +34,7 @@ POST `/api/v1/agent_invitations` 创建后, push pending → `agent.OwnerID`.
 
 PATCH `/api/v1/agent_invitations/{id}` (approve/reject) 落库后, push decided → 双方 (`inv.RequestedBy` + `agent.OwnerID`); 多设备并发 (realtime.md §1.4 A 全推默认).
 
-## 4. schema 锁
+## 4. schema 锁定
 
 字段顺序 + JSON tag 必须与 `packages/client/src/types/ws-frames.ts` (PR #218) 字面对齐:
 
@@ -49,7 +49,7 @@ decided : type, invitation_id, state, decided_at
 
 ## 5. Phase 4 BPP cutover
 
-调用方 (`agent_invitations.go` handler) 不动. `Hub.PushAgentInvitation*` 实现内部把 `BroadcastToUser` 换成 `bpp.SendFrame` 即可. struct 字段顺序锁让 `bpp/frame_schemas.go` 与 `ws/event_schemas.go` 可 type-alias 共用 (G2.6 CI lint 保底).
+调用方 (`agent_invitations.go` handler) 不动. `Hub.PushAgentInvitation*` 实现内部把 `BroadcastToUser` 换成 `bpp.SendFrame` 即可. struct 字段顺序锁定让 `bpp/frame_schemas.go` 与 `ws/event_schemas.go` 可 type-alias 共用 (G2.6 CI lint 保底).
 
 ## 6. Phase 3 fanout 路径扩展 (CV-1/CV-2/DM-2 同 hub 多 frame)
 

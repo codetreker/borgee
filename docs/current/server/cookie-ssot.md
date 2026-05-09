@@ -26,7 +26,7 @@ const CookieName = "borgee_token"
 
 - ❌ cookie 字面值改 (反 user session 全失效红线)
 - ❌ JWT secret / SameSite / HttpOnly / Secure attr 改 (留 v2+ session hardening)
-- ❌ admin 单一来源 跟 user 单一来源 混 (admin/auth.go::CookieName 字面值不同, 拆死)
+- ❌ admin 单一来源 跟 user 单一来源 混 (admin/auth.go::CookieName 字面值不同, 真分清)
 - ❌ admin god-mode 走 user CookieName (ADM-0 §1.3 红线)
 
 ## 4. 测试
