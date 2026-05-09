@@ -1,10 +1,10 @@
 # ArtifactThumbnail — code/markdown 缩略 DOM contract
 
-> **Source-of-truth pointer.** Component in
+> **单一来源 pointer.** Component in
 > `packages/client/src/components/ArtifactThumbnail.tsx`. Vitest pins in
 > `packages/client/src/__tests__/ArtifactThumbnail.test.tsx` (23 cases).
 > Sister component: `MediaPreview.tsx` (CV-2 v2) for image/video/pdf
-> kinds — 二闸互斥.
+> kinds — 二端互斥.
 
 ## Why
 
@@ -14,7 +14,7 @@ icon-only fallback when `thumbnail_url` not yet generated). Server
 records `thumbnail_url` (CV-3 v2 server endpoint). HTML5 native + no
 client-side renderer libs.
 
-## Stance (cv-3-v2-spec.md §0)
+## 原则 (cv-3-v2-spec.md §0)
 
 - **HTML5 native primitives.** `<img loading="lazy">` 256x256; no
   html2canvas / dom-to-image / puppeteer-client / shiki client-side
@@ -23,11 +23,11 @@ client-side renderer libs.
   byte-identical 跟 server `ValidateImageLinkURL` 同源. Non-https URL
   → fallback div, 不渲染 `<img>`.
 - **kind 闸 (2-tuple).** `THUMBNAILABLE_KINDS = ['markdown', 'code']`
-  byte-identical 跟 server `ThumbnailableKinds` 同源 (vitest 双向锁).
+  byte-identical 跟 server `ThumbnailableKinds` 同源 (vitest 双向锁定).
   其他 kind (image_link / video_link / pdf_link / unknown) → null
-  (走 CV-2 v2 `MediaPreview` 既有 path, 二闸互斥).
+  (走 CV-2 v2 `MediaPreview` 既有 path, 二端互斥).
 
-## DOM contract (vitest + future e2e 锚)
+## DOM contract (vitest + future e2e 出处)
 
 | 条件 | tag | required attrs | data-thumbnail-kind |
 |---|---|---|---|
@@ -62,9 +62,9 @@ font.
 
 非 https `thumbnailUrl` → 不渲染 `<img>`, 走 fallback div. 防把 unsafe
 URL 推入 DOM (`<img src>` 是 XSS attack vector); 反向断言 `img` count==0
-是 vitest 锚.
+是 vitest 出处.
 
-## 二闸互斥 (跟 CV-2 v2 MediaPreview)
+## 二端互斥 (跟 CV-2 v2 MediaPreview)
 
 `THUMBNAILABLE_KINDS` 跟 CV-2 v2 `PREVIEWABLE_KINDS` 互斥:
 
@@ -73,7 +73,7 @@ THUMBNAILABLE_KINDS = [markdown, code]
 PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
 ```
 
-调用方 (e.g. ArtifactPanel sidebar) 按 kind 路由:
+调用方 (e.g. ArtifactPanel 侧栏) 按 kind 路由:
 
 - markdown / code → `<ArtifactThumbnail kind={...} title={...}
   thumbnailUrl={artifact.thumbnail_url} />`
@@ -81,15 +81,15 @@ PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
   body={...} title={...} previewUrl={artifact.preview_url} />` (CV-2 v2
   既有 path).
 
-## 跨 milestone byte-identical 锁
+## 跨 milestone byte-identical 锁定
 
 - 2-tuple `THUMBNAILABLE_KINDS` 跟 server `ThumbnailableKinds` slice
-  byte-identical (server vs client 双向锁, 改 = 改两处).
-- 5 kind enum 跟 CV-2 v2 + CV-3 共 schema 单源 (不扩 kind).
+  byte-identical (server vs client 双向锁定, 改 = 改两处).
+- 5 kind enum 跟 CV-2 v2 + CV-3 共 schema 单一来源 (不扩 kind).
 - `isHttpsURL` 复用 `ImageLinkRenderer` (CV-3.3 既有), 跟 server
   `ValidateImageLinkURL` byte-identical 同源 (XSS 红线第一道).
 - DOM `data-thumbnail-kind` 二 enum byte-identical 跟 server endpoint
-  spec 锚.
+  spec 出处.
 - 不引入 client-side renderer 重 lib — 跟 CV-2 v2 `MediaPreview` 设计
   ② "不引入 video.js/hls.js/dash.js/shaka-player/pdf.js/react-pdf" 同
   精神 (grep 检查 package.json count==0 on `html2canvas|dom-to-image|
@@ -98,8 +98,8 @@ PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
 ## 不在范围
 
 - Inline syntax-highlight thumbnail render (e.g. shiki client-side) —
-  设计 ① server-side SSOT.
-- Multi-size thumbnail (mobile 128 / sidebar 256 / preview 512) — v3+,
+  设计 ① server-side 单一来源.
+- Multi-size thumbnail (mobile 128 / 侧栏 256 / preview 512) — v3+,
   v0 单 256x256.
 - WebSocket push frame for thumbnail update — 静态 CDN, client GET
   /artifacts/:id pull (CV-2 v2 同精神).
