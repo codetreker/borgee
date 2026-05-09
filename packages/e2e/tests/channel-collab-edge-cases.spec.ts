@@ -1,4 +1,4 @@
-// tests/channel-collab-followup.spec.ts — channel 协作场反向断言 + 跨 org 隔离边界.
+// tests/channel-collab-edge-cases.spec.ts — channel 协作场反向断言 + 跨 org 隔离边界.
 //
 // 测试范围:
 //   - DM 视图永不含 workspace tab + 不挂 channel pin handle

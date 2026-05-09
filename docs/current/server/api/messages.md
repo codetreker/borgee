@@ -83,7 +83,7 @@ expect: owner (user A) 视角 GET /channels 返 shared channel unread_count >= 1
   - `gh-687-own-unread-reducer.test.ts` — Layer 3 reducer skip own (≥3 case: 自己发跳 / 别人发 bump / 当前 channel 不 bump)
 - go test unit (`packages/server-go/internal/store/`):
   - `gh-687-unread-sql.test.go` — Layer 2 SQL 5 spot 全过 + 反向 peer 仍算 (≥6 case)
-- e2e (`packages/e2e/tests/me-1-self-message-unread.spec.ts`, gh#700 / PR #711):
+- e2e (`packages/e2e/tests/self-message-unread-counter.spec.ts`, gh#700 / PR #711):
   - §7.3 主路径 5 步: own message 切走切回 unread=0
   - §7.2 反向 peer 发的仍算 unread
   - §4.2 multi-device own 设备 B 不闪 unread

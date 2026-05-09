@@ -52,4 +52,4 @@ DOM 出处: `data-ap2-bundle-selector` / `data-ap2-bundle-row` / `data-bundle-na
 - `__tests__/capability-bundles.test.ts` 5 vitest (跨层锁定 + assertBundlesValid + helpers)
 - `__tests__/BundleSelector.test.tsx` 4 vitest (expand + 主权 uncheck + 必显式 confirm + DOM 出处)
 - `__tests__/ap-2-reverse-grep.test.ts` 11 vitest (14 const + 反 RBAC 英 4 / 中 3 + admin 独立 + 单一来源 + PascalCase bundle 名 + role in bundle const + POST /api/v1/bundles + BundleHasCapability/HasBundle 0 hit)
-- `packages/e2e/tests/ap-2-bundle.spec.ts` Playwright 4 case (capability response shape + 反 bundle endpoint 漂 + UI 真渲染反 RBAC 8 词 0 hit body + admin god-mode UI 独立路径) + screenshot `docs/qa/screenshots/ap-2-bundle-ui.png`
+- `packages/e2e/tests/agent-permission-bundle.spec.ts` Playwright 4 case (capability response shape + 反 bundle endpoint 漂 + UI 真渲染反 RBAC 8 词 0 hit body + admin god-mode UI 独立路径) + screenshot `docs/qa/screenshots/ap-2-bundle-ui.png`

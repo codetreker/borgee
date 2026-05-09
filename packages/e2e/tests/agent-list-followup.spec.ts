@@ -1,4 +1,4 @@
-// tests/agent-list-acceptance-followup.spec.ts — agent 列表运行时卡 + 状态徽章 + owner 门禁.
+// tests/agent-list-followup.spec.ts — agent 列表运行时卡 + 状态徽章 + owner 门禁.
 //
 // 测试范围:
 //   - agent 没注册 runtime 时 RuntimeCard 不渲染 (优雅降级 omit)

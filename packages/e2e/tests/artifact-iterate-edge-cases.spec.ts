@@ -1,4 +1,4 @@
-// tests/artifact-iterate-followup.spec.ts — IteratePanel 表单填充态 + 触发错误态 + 反向断 owner 门禁.
+// tests/artifact-iterate-edge-cases.spec.ts — IteratePanel 表单填充态 + 触发错误态 + 反向断 owner 门禁.
 //
 // 测试范围:
 //   - pre-trigger 富状态: intent textarea 填好 + agent picker 已选 (替之前的空 form baseline)

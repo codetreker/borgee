@@ -138,7 +138,7 @@ const ok = document.execCommand('copy');
 ## 8. 测试
 
 - `packages/client/src/__tests__/AgentManager-detail.test.tsx` 8 case (mask 字面 / aria-label / Show 反向断言 / toast 文案 / sk- 反向 / closure GC / writeText / readText 比对)
-- `packages/e2e/tests/gh-684-agent-detail-credentials.spec.ts` 6 case (1280 / login / Manage 展开 / mask 显 / 复制 toast + clipboard / 480 mobile / 反向 DOM)
+- `packages/e2e/tests/agent-detail-credentials-display.spec.ts` 6 case (1280 / login / Manage 展开 / mask 显 / 复制 toast + clipboard / 480 mobile / 反向 DOM)
 
 ## 9. 出处
 
