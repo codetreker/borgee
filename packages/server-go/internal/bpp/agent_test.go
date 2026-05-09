@@ -2,14 +2,14 @@
 // byte-identity locks for AgentConfigUpdateFrame (7 字段) +
 // AgentConfigAckFrame (7 字段) + status enum CHECK.
 //
-// 锚: docs/qa/acceptance-templates/al-2b.md §1.1 / §1.2 + 蓝图
+// 出处: docs/qa/acceptance-templates/al-2b.md §1.1 / §1.2 + 蓝图
 // `plugin-protocol.md` §1.5 (热更新分级 + 幂等 reload + runtime 不缓存)
 // + §2.1 (control-plane row `agent_config_update` + data-plane row
 // `agent_config_ack`).
 //
-// 反约束: 字段顺序漂移 = lint fail = PR 卡 (跟 BPP-1 #304 envelope CI
+// 反向约束: 字段顺序脱节 = lint fail = PR 卡 (跟 BPP-1 #304 envelope CI
 // lint reflect 自动覆盖同模式 — frame_schemas_test.go ④ 已守 whitelist
-// closure, 此 file 加 §1.1/§1.2 byte-identical 字面串锚 + status enum
+// closure, 此 file 加 §1.1/§1.2 byte-identical 字面串锁定 + status enum
 // CHECK reject).
 package bpp_test
 
@@ -27,7 +27,7 @@ import (
 //   {type, cursor, agent_id, schema_version, blob, idempotency_key, created_at}
 //
 // JSON key order follows struct declaration order. Drift here breaks
-// the BPP-2 dispatcher contract + AL-2a SSOT round-trip simultaneously.
+// the BPP-2 dispatcher contract + AL-2a 单一来源 round-trip simultaneously.
 func TestAL_AgentConfigUpdateFrameFieldOrder(t *testing.T) {
 	t.Parallel()
 
@@ -104,7 +104,7 @@ func TestAL_AgentConfigAckFrameFieldOrder(t *testing.T) {
 		SchemaVersion: 2, // plugin 旧值
 		Status:        bpp.AgentConfigAckStatusStale,
 		Reason:        "unknown",
-		AppliedAt:     0, // stale 态时 0 (反约束 不挂 omitempty 始终序列化)
+		AppliedAt:     0, // stale 态时 0 (反向约束 不挂 omitempty 始终序列化)
 	}
 	b, err = json.Marshal(&stale)
 	if err != nil {
@@ -136,7 +136,7 @@ func TestAL_AgentConfigAckFrameFieldOrder(t *testing.T) {
 }
 
 // TestAL_AgentConfigAckDirectionLock pins acceptance §1.2 direction
-// 锁 — plugin→server only (反向断言 DirectionServerToPlugin 不在此
+// 锁定 — plugin→server only (反向断言 DirectionServerToPlugin 不在此
 // frame). 跟 BPP-1 #304 direction lock 同模式 reflect 自动覆盖.
 func TestAL_AgentConfigAckDirectionLock(t *testing.T) {
 	t.Parallel()
@@ -156,8 +156,8 @@ func TestAL_AgentConfigAckDirectionLock(t *testing.T) {
 }
 
 // TestAL_AgentConfigAckStatusEnum pins acceptance §1.2 status CHECK
-// — 3 态 byte-identical ('applied' | 'rejected' | 'stale'). 反约束:
-// fail-closed 校验 reject 'unknown' / '' / 同义词漂.
+// — 3 态 byte-identical ('applied' | 'rejected' | 'stale'). 反向约束:
+// fail-closed 校验 reject 'unknown' / '' / 同义词脱节.
 //
 // schema 层无 CHECK enum (BPP frame 是 wire format, 不是 SQL); 此 test
 // 跟 al_4_1 TestAL41_RejectsInvalidStatus / cv_3_2 ValidArtifactKinds
@@ -179,9 +179,9 @@ func TestAL_AgentConfigAckStatusEnum(t *testing.T) {
 	// 枚举外值 reject.
 	for _, bad := range []string{
 		"unknown", "ok", "fail", "",
-		"APPLIED",   // 大小写漂
-		"applying",  // 中间态漂
-		"completed", // CV-4 状态漂入
+		"APPLIED",   // 大小写脱节
+		"applying",  // 中间态脱节
+		"completed", // CV-4 状态脱节
 	} {
 		if isValidAckStatus(bad) {
 			t.Errorf("status %q accepted — should reject (acceptance §1.2 CHECK 3 态 fail-closed)", bad)
@@ -264,12 +264,12 @@ func TestAL_AgentConfigAck7Fields(t *testing.T) {
 	}
 }
 
-// TestAL_NoBlobRuntimeOnlyFields pins acceptance §3.2 — SSOT 立场承袭.
-// frame `Blob` 是 opaque JSON wire payload (server 端 marshal SSOT 字段);
+// TestAL_NoBlobRuntimeOnlyFields pins acceptance §3.2 — 单一来源原则一致.
+// frame `Blob` 是 opaque JSON wire payload (server 端 marshal 单一来源 字段);
 // 此 test 反向断言 Blob 不是结构体直嵌 runtime-only 字段 (api_key /
 // temperature / token_limit / retry_policy). 真实校验在 AL-2b.2 server
 // PATCH hook (fail-closed 跟 AL-2a #447 TestAL2A1_NoDomainBleed 同源),
-// 此 PR frame 层仅锁 Blob 是 string opaque (反约束 schema 层 NoDomainBleed).
+// 此 PR frame 层仅锁定 Blob 是 string opaque (反向约束 schema 层 NoDomainBleed).
 func TestAL_NoBlobRuntimeOnlyFields(t *testing.T) {
 	t.Parallel()
 
@@ -283,14 +283,14 @@ func TestAL_NoBlobRuntimeOnlyFields(t *testing.T) {
 			blobField.Type.Kind())
 	}
 
-	// 反向: frame 不直接暴露 runtime-only 字段名 (AL-2a #447 SSOT 立场
-	// 反约束 — api_key/temperature 是 plugin 内部事, 不进 server SSOT).
+	// 反向: frame 不直接暴露 runtime-only 字段名 (AL-2a #447 单一来源 原则
+	// 反向约束 — api_key/temperature 是 plugin 内部事, 不进 server 单一来源).
 	for _, forbidden := range []string{
 		"APIKey", "ApiKey", "Temperature", "TokenLimit", "RetryPolicy",
-		"LLMProvider", "ModelName", // AL-4.1 #398 反约束同源
+		"LLMProvider", "ModelName", // AL-4.1 #398 反向约束同源
 	} {
 		if _, has := typ.FieldByName(forbidden); has {
-			t.Errorf("AgentConfigUpdateFrame leaks runtime-only field %q — 反约束 broken (acceptance §3.2 + AL-2a #447 SSOT)", forbidden)
+			t.Errorf("AgentConfigUpdateFrame leaks runtime-only field %q — 反向约束 broken (acceptance §3.2 + AL-2a #447 单一来源)", forbidden)
 		}
 	}
 }

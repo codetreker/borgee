@@ -1,7 +1,7 @@
 // Package bpp — agent_config_ack_dispatcher.go: AL-2b ack frame 入站
 // dispatcher source-of-truth.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (热更新 + 幂等
+// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.5 (热更新 + 幂等
 // reload + ack 回执) + §2.2 (data plane, Plugin → Server).
 // Spec brief: docs/implementation/modules/al-2b-spec.md (烈马 #465 v0)
 // + docs/implementation/modules/al-2b.2-server-hook-spec.md §1
@@ -15,25 +15,25 @@
 //      同模式).
 //   2. When Status ∈ {rejected, stale} 且 Reason 非空: 校验 Reason ∈
 //      AL-1a 6 字典 byte-identical 同源 (跟 BPP-2.2 task_finished failed
-//      reason 第 7 处, 此处第 8 处跟链 — 改 = 改 8 处单测锁:
+//      reason 第 7 处, 此处第 8 处跟链 — 改 = 改 8 处单测守护:
 //      AL-1a #249 + AL-3 #305 + CV-4 #380 + AL-2a #454 + AL-1b #458 +
 //      AL-4 #387/#461 + BPP-2.2 #485 + AL-2b #481, 不另起字典).
 //   3. cross-owner reject — sess.AgentUserID (BPP-1 connect 时已认证
 //      的 plugin owner) 跟 frame.AgentID 的 owner 不匹配 → reject +
-//      log warn `bpp.ack_cross_owner_reject` (跟 anchor #360 owner-only
+//      log warn `bpp.ack_cross_owner_reject` (跟出处 #360 owner-only
 //      + REG-INV-002 fail-closed 扫描器同模式).
 //   4. ActionHandler-style interface seam (跟 BPP-2.1 dispatcher.go
 //      ActionHandler / cv-4.2 IterationStatePusher 同模式) — bpp 包
 //      不 import internal/api, api 包注册 AgentConfigAckHandler.
 //
-// 反约束 (acceptance §3.2 + §4 反向 grep, 跟 al-2b-spec §3 byte-identical):
+// 反向约束 (acceptance §3.2 + §4 反向 grep, 跟 al-2b-spec §3 byte-identical):
 //   - admin god-mode 不入业务路径 — CI 反向 grep 守 (al-2b-spec §3
 //     第 3 行) count==0.
 //   - cursor 唯一可信序 — CI 反向 grep 守 (al-2b-spec §3 第 7 行) count==0.
-//   - AL-2a 轮询路径下线 drift 防双轨 — CI 反向 grep 守 (al-2b-spec §3
+//   - AL-2a 轮询路径下线 脱节 防双轨 — CI 反向 grep 守 (al-2b-spec §3
 //     第 6 行) count==0.
-//   - reason 字典不另起 — 复用 internal/agent/state.go::Reason* SSOT,
-//     drift 则 BPP-2.2 task_finished + AL-2b ack 同破.
+//   - reason 字典不另起 — 复用 internal/agent/state.go::Reason* 单一来源,
+//     脱节 则 BPP-2.2 task_finished + AL-2b ack 同破.
 //   - bpp 包零 internal/api 依赖 — interface seam (跟 BPP-2.1 同模式).
 package bpp
 
@@ -80,12 +80,12 @@ var validAckStatuses = map[string]bool{
 	AgentConfigAckStatusStale:    true,
 }
 
-// validAL1aReason — REFACTOR-REASONS: SSOT 迁到 internal/agent/reasons.
+// validAL1aReason — REFACTOR-REASONS: 单一来源 迁到 internal/agent/reasons.
 // 改字面 = 改 reasons.ALL 一处即 8 处单测同步挂.
 //
 // 历史: 此处原 inline 6 字面 byte-identical 跟 agent/state.go Reason*
-// (#249/#305/#321/#380/#454/#458/#481/#492 八处单测锁链), REFACTOR-REASONS
-// 一 PR dedupe 到 internal/agent/reasons SSOT 包.
+// (#249/#305/#321/#380/#454/#458/#481/#492 八处单测守护链), REFACTOR-REASONS
+// 一 PR dedupe 到 internal/agent/reasons 单一来源 包.
 func validAL1aReason(s string) bool { return reasons.IsValid(s) }
 
 // AckSessionContext is the per-plugin-connection context the
@@ -104,13 +104,13 @@ type AckSessionContext struct {
 // AgentConfigAckHandler is the seam between the bpp package and the api
 // package for processing a validated AgentConfigAckFrame. The api
 // package implements one handler that:
-//   - Looks up agent_configs.schema_version SSOT 当前值;
+//   - Looks up agent_configs.schema_version 单一来源 当前值;
 //   - Compares against frame.SchemaVersion (mismatch → log stale, skip
 //     last_applied_at 更新);
 //   - For Status==applied: UPDATE agent_configs.last_applied_at;
 //   - For Status∈{rejected,stale}: log warn (best-effort, 不 block).
 //
-// 反约束: bpp 包不 import internal/api — handler 是 interface 注入
+// 反向约束: bpp 包不 import internal/api — handler 是 interface 注入
 // (跟 BPP-2.1 ActionHandler / cv-4.2 IterationStatePusher 同模式).
 type AgentConfigAckHandler interface {
 	HandleAck(frame AgentConfigAckFrame, sess AckSessionContext) error
@@ -118,7 +118,7 @@ type AgentConfigAckHandler interface {
 
 // OwnerResolver resolves an agent_id to its owner user UUID for cross-
 // owner ACL. The api package wires this to the agents table (跟 既有
-// REST handler owner-only ACL 同闸 — anchor #360 / DM-2 #372 同模式).
+// REST handler owner-only ACL 同闸 — 出处 #360 / DM-2 #372 同模式).
 //
 // Returns ("", error) when agent_id 不存在; the dispatcher treats this
 // as a soft reject (frame from disconnected agent — log warn but don't
@@ -137,7 +137,7 @@ type OwnerResolver interface {
 //     mismatch → errAckCrossOwnerReject.
 //  4. Delegate to handler.HandleAck(frame, sess).
 //
-// 反约束 (acceptance §4):
+// 反向约束 (acceptance §4):
 //   - admin god-mode 不入此路径 (handler.HandleAck 走 owner-only ACL,
 //     CI 反向 grep 守 al-2b-spec §3 第 3 行).
 //   - 不接 raw HTTP / REST endpoint (interface seam, dispatcher 零
