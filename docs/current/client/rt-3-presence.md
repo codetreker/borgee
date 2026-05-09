@@ -1,7 +1,7 @@
 # RT-3 ⭐ client — useRT3Presence + RT3PresenceDot (≤40 行)
 
 > 落地: feat/rt-3 RT-3.2 client (`hooks/useRT3Presence.ts` + `components/RT3PresenceDot.tsx` + 13 vitest)
-> 关联: server `docs/current/server/rt-3.md` PresenceState 4 态 enum SSOT (byte-identical)
+> 关联: server `docs/current/server/rt-3.md` PresenceState 4 态 enum 单一来源 (byte-identical)
 
 ## 1. hook — `hooks/useRT3Presence.ts`
 
@@ -13,11 +13,11 @@ export function getRT3Presence(userID): RT3PresenceEntry | undefined;
 export function useRT3Presence(userID): RT3PresenceEntry | undefined; // 派生 online ≥ 5min → away
 ```
 
-**反约束**: thinking 态 + 空 subject → drop (反"假 loading" 漂, 跟 server `ValidateTaskStarted` SSOT byte-identical).
+**反向约束**: thinking 态 + 空 subject → drop (反"假 loading" 脱节, 跟 server `ValidateTaskStarted` 单一来源 byte-identical).
 
 ## 2. component — `components/RT3PresenceDot.tsx`
 
-DOM data-attr SSOT (跟 content-lock §2 byte-identical):
+DOM data-attr 单一来源 (跟 content-lock §2 byte-identical):
 - `data-rt3-presence-dot` ∈ {online, offline, recently-active}
 - `data-rt3-last-seen` = unix-ms
 - `data-rt3-cursor-user` = user-id
@@ -27,10 +27,10 @@ DOM data-attr SSOT (跟 content-lock §2 byte-identical):
 
 ## 3. tests
 
-- `__tests__/RT3PresenceDot.test.tsx` 9 case (4 态 + last-seen + thinking subject 反约束 + multi-device + RT3_AWAY_THRESHOLD_MS const)
-- `__tests__/rt3-content-lock-reverse-grep.test.ts` 4 case (typing 9 同义词 0 hit + thought-process 5-pattern 0 hit + 4 态 enum + DOM attr SSOT)
+- `__tests__/RT3PresenceDot.test.tsx` 9 case (4 态 + last-seen + thinking subject 反向约束 + multi-device + RT3_AWAY_THRESHOLD_MS const)
+- `__tests__/rt3-content-lock-reverse-grep.test.ts` 4 case (typing 9 同义词 0 hit + thought-process 5-pattern 0 hit + 4 态 enum + DOM attr 单一来源)
 
-## 4. 反约束
+## 4. 反向约束
 
 - ❌ typing-indicator 真启 (永久不挂)
 - ❌ AL-3 既有 `usePresence.ts` 不复用 (那是 agent presence cache, RT-3 是 human multi-device presence — 不同维度不混)
