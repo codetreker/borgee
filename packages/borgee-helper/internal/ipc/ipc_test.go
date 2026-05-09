@@ -107,12 +107,12 @@ func TestHB25_AuditWrittenForReject(t *testing.T) {
 		`{"request_id":"r1","action":"read_file","agent_id":"a1","params":{"path":"/missing"}}` + "\n")
 	_ = startServe(t, h, in)
 	if auditBuf.Len() == 0 {
-		t.Fatal("audit log empty after reject (反约束 #5 要求每次 IPC call 含 reject 写 audit)")
+		t.Fatal("audit log empty after reject (反向约束 #5 要求每次 IPC call 含 reject 写 audit)")
 	}
 	var ev audit.Event
 	_ = json.Unmarshal(bytes.TrimSpace(auditBuf.Bytes()), &ev)
 	if ev.Actor != "a1" || ev.Action != "read_file" {
-		t.Errorf("audit event drift: %+v", ev)
+		t.Errorf("audit event 脱节: %+v", ev)
 	}
 }
 

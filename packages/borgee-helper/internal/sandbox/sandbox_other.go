@@ -15,5 +15,5 @@ type Profile struct {
 	TmpCachePath string
 }
 
-// Platform 锚 — 单测断 build tag 选对.
+// Platform 出处 — 单测断 build tag 选对.
 const Platform = "other"

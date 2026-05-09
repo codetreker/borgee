@@ -39,10 +39,10 @@ func TestHB24_PathTraversalRejected(t *testing.T) {
 	for _, p := range cases {
 		d := g.Decide(context.Background(), "a1", "a1", ActionReadFile, p)
 		if d.Allow {
-			t.Errorf("traversal %q allowed (反约束 #2 break)", p)
+			t.Errorf("traversal %q allowed (反向约束 #2 break)", p)
 		}
 		if d.Reason != reasons.PathOutsideGrants {
-			t.Errorf("traversal %q reason drift: %s (want path_outside_grants)", p, d.Reason)
+			t.Errorf("traversal %q reason 脱节: %s (want path_outside_grants)", p, d.Reason)
 		}
 	}
 }
@@ -76,7 +76,7 @@ func TestHB24_GrantExpired(t *testing.T) {
 	}
 }
 
-// TestHB24_WriteActions100PercentRejected — 反约束 #7 反向枚举锚.
+// TestHB24_WriteActions100PercentRejected — 反向约束 #7 反向枚举出处.
 func TestHB24_WriteActions100PercentRejected(t *testing.T) {
 	t.Parallel()
 	g, mc := newGate(t)

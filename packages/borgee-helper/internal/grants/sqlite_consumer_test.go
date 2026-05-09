@@ -67,7 +67,7 @@ func TestHB2D_SQLiteConsumer_LookupHappyPath(t *testing.T) {
 		t.Fatalf("lookup: ok=%v err=%v", ok, err)
 	}
 	if g.Scope != "/data" {
-		t.Errorf("scope drift: %q", g.Scope)
+		t.Errorf("scope 脱节: %q", g.Scope)
 	}
 }
 
@@ -118,10 +118,10 @@ func TestHB2D_SQLiteConsumer_RevocationImmediate(t *testing.T) {
 	_, ok, _ := c.Lookup(context.Background(), "a1", "/data")
 	elapsed := time.Since(t0)
 	if ok {
-		t.Error("revocation 不立即生效 (反 grantsCache 反约束 break)")
+		t.Error("revocation 不立即生效 (反 grantsCache 反向约束 break)")
 	}
 	if elapsed > 100*time.Millisecond {
-		t.Errorf("HB-3 §1.5 撤销→reject latency %v > 100ms (反约束 §1.3 不缓存)", elapsed)
+		t.Errorf("HB-3 §1.5 撤销→reject latency %v > 100ms (反向约束 §1.3 不缓存)", elapsed)
 	}
 }
 
