@@ -1,5 +1,5 @@
 // Package auth — heartbeat_retention_sweeper_test.go: HB-5.2 sweeper
-// unit tests + reverse grep 反约束 守 (跟 al-7 audit_retention_sweeper_
+// unit tests + reverse grep 反向约束 守 (跟 al-7 audit_retention_sweeper_
 // test.go 同模式).
 //
 // Pins:
@@ -149,29 +149,29 @@ func TestHB_NilSafeCtor(t *testing.T) {
 	}
 }
 
-// REG-HB5-006 — const byte-identical 跟 reasons.Unknown 同源 (AL-1a 锁链
-// 第 17 处 — AL-7 #15 + AL-8 #16 承袭不漂).
+// REG-HB5-006 — const byte-identical 跟 reasons.Unknown 同源 (AL-1a 守护链
+// 第 17 处 — AL-7 #15 + AL-8 #16 不变不脱节).
 func TestHB_SweeperReason_ByteIdentical(t *testing.T) {
 	if HeartbeatSweeperReason != reasons.Unknown {
-		t.Errorf("HeartbeatSweeperReason drift: got %q, want %q",
+		t.Errorf("HeartbeatSweeperReason 脱节: got %q, want %q",
 			HeartbeatSweeperReason, reasons.Unknown)
 	}
 	if HeartbeatSweeperReason != "unknown" {
-		t.Errorf("HeartbeatSweeperReason 字面 drift: got %q", HeartbeatSweeperReason)
+		t.Errorf("HeartbeatSweeperReason 字面脱节: got %q", HeartbeatSweeperReason)
 	}
 	if HeartbeatRetentionDays != 30 {
-		t.Errorf("HeartbeatRetentionDays drift: got %d, want 30", HeartbeatRetentionDays)
+		t.Errorf("HeartbeatRetentionDays 脱节: got %d, want 30", HeartbeatRetentionDays)
 	}
 	if HeartbeatTargetLabel != "heartbeat" {
-		t.Errorf("HeartbeatTargetLabel drift: got %q", HeartbeatTargetLabel)
+		t.Errorf("HeartbeatTargetLabel 脱节: got %q", HeartbeatTargetLabel)
 	}
-	// 立场 ② — 复用 AL-7 既有 ActionAuditRetentionOverride const, 不另起.
+	// 原则 ② — 复用 AL-7 既有 ActionAuditRetentionOverride const, 不另起.
 	if ActionAuditRetentionOverride != "audit_retention_override" {
-		t.Errorf("ActionAuditRetentionOverride drift: got %q", ActionAuditRetentionOverride)
+		t.Errorf("ActionAuditRetentionOverride 脱节: got %q", ActionAuditRetentionOverride)
 	}
 }
 
-// REG-HB5-006b — 立场 ④ + 立场 ⑤ 反向 grep: cron framework + retention
+// REG-HB5-006b — 原则 ④ + 原则 ⑤ 反向 grep: cron framework + retention
 // queue tokens 0 hit in this file.
 func TestHB_NoCronFrameworkImport(t *testing.T) {
 	body, err := os.ReadFile("heartbeat_retention_sweeper.go")
@@ -180,15 +180,15 @@ func TestHB_NoCronFrameworkImport(t *testing.T) {
 	}
 	for _, pat := range []string{`"github.com/robfig/cron`, `"github.com/go-co-op/gocron`, `gocron.`} {
 		if strings.Contains(string(body), pat) {
-			t.Errorf("反约束 broken — cron import %q in heartbeat_retention_sweeper.go", pat)
+			t.Errorf("反向约束 broken — cron import %q in heartbeat_retention_sweeper.go", pat)
 		}
 	}
 }
 
-// REG-HB5-006c — 立场 ⑤ AST 锁链延伸第 9 处 forbidden-token 0 hit.
+// REG-HB5-006c — 原则 ⑤ AST 守护链延伸第 9 处 forbidden-token 0 hit.
 //
 // Scans internal/auth + internal/api production *.go (excluding tests)
-// for heartbeat retention queue / dead-letter tokens (跟 AL-7 锁链延伸
+// for heartbeat retention queue / dead-letter tokens (跟 AL-7 守护链延伸
 // 第 7 处 + AL-8 第 8 处 同模式).
 func TestHB_NoHeartbeatRetentionQueue(t *testing.T) {
 	forbidden := []string{
@@ -214,7 +214,7 @@ func TestHB_NoHeartbeatRetentionQueue(t *testing.T) {
 			}
 			for _, tok := range forbidden {
 				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 锁链延伸第 9 处 broken — forbidden token %q in %s", tok, p)
+					t.Errorf("AST 守护链延伸第 9 处 broken — forbidden token %q in %s", tok, p)
 				}
 			}
 			return nil

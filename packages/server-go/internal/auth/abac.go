@@ -1,26 +1,26 @@
-// Package auth — abac.go: AP-1 立场 ② ABAC capability check 单 SSOT.
+// Package auth — abac.go: AP-1 原则 ② ABAC capability check 单一来源.
 //
 // 单 helper `HasCapability(ctx, permission, scope) bool` — 所有 endpoint
 // authz 走此一处, 不字面 hardcode permission name (反 grep 守 spec §2 #1).
 //
-// SSOT: `user_permissions(user_id, permission, scope)` 表 (蓝图 §1.1
+// 单一来源: `user_permissions(user_id, permission, scope)` 表 (蓝图 §1.1
 // + data-layer.md). agent 是 user_id 一种, 同 ABAC.
 //
-// Spec锚: docs/implementation/modules/ap-1-spec.md §1 立场 ② + §3 文件
-// 清单 (`internal/auth/abac.go` 单 SSOT).
+// Spec出处: docs/implementation/modules/ap-1-spec.md §1 原则 ② + §3 文件
+// 清单 (`internal/auth/abac.go` 单一来源).
 //
 // AP-3 (战马C, d69b617): 加 1 层 cross-org owner-only gate — grantee
 // `user.org_id` ≠ resource org_id (channel.org_id, artifact 走所属
-// channel.org_id) → false. NULL = legacy 行 (跟 AP-1 现网行为零变, 任一
-// NULL 走 legacy 路径). admin god-mode 不入此路径 (走 /admin-api/* 单独
+// channel.org_id) → false. NULL = 历史行 (跟 AP-1 现网行为零变, 任一
+// NULL 走历史路径). admin god-mode 不入此路径 (走 /admin-api/* 单独
 // mw, ADM-0 §1.3 红线). 反向 grep `cross.org.*bypass\|skip.*org.*check`
 // 在 internal/api/ count==0.
 //
-// 蓝图锚: docs/blueprint/current/auth-permissions.md §1.1 (ABAC source of truth)
+// 蓝图出处: docs/blueprint/current/auth-permissions.md §1.1 (ABAC source of truth)
 // + §1.2 (Scope 三层 v1: `*` / `channel:<id>` / `artifact:<id>`) + §5
 // (cross-org 强制 — AP-3 后续 milestone) + channel-model.md §1.4 (主权列).
 //
-// 反约束: bundle 字面不入 server (spec §2 #3 — bundle 是 client UI 糖,
+// 反向约束: bundle 字面不入 server (spec §2 #3 — bundle 是 client UI 糖,
 // server 端只看 capability list); admin god-mode 不入此 ABAC (spec §2
 // #5 — admin 走 /admin-api/* 单独 mw, ADM-0 §1.3 红线).
 package auth
@@ -36,7 +36,7 @@ import (
 
 // ErrCodeCrossOrgDenied is the byte-identical error code emitted by
 // callers when HasCapability rejects a request due to the AP-3 cross-org
-// gate (用于 endpoint 错误响应 body, 跟 AP-1 const 单源同模式).
+// gate (用于 endpoint 错误响应 body, 跟 AP-1 const 单一来源同模式).
 //
 // Drift between this const and handler hardcoded strings is caught by
 // reverse grep: `"abac\.cross_org_denied"` in internal/ ≥1 hit
@@ -56,12 +56,12 @@ type scopeOrgResolver interface {
 // scope. Returns ("", false) when the scope cannot be resolved (e.g.
 // scope == "*" — wildcard, no resource bound; or unknown channel/artifact
 // — handler will 404 on its own path). Resolved empty string also
-// returns ("", false) — empty == legacy / unset, NOT cross-org evidence.
+// returns ("", false) — empty == 历史 / unset, NOT cross-org evidence.
 //
 // Scope format (蓝图 §1.2 三层):
 //   - "*"               → no resource, ("", false) (skip org gate)
 //   - "channel:<id>"    → channel.org_id from store
-//   - "artifact:<id>"   → artifact.channel_id → channel.org_id (CV-1 立场
+//   - "artifact:<id>"   → artifact.channel_id → channel.org_id (CV-1 原则
 //                         ① 归属=channel, artifact 跟 channel 同 org 是
 //                         CM-3 #208 既有不变量)
 func resolveScopeOrgID(s scopeOrgResolver, scope string) (string, bool) {
@@ -83,7 +83,7 @@ func resolveScopeOrgID(s scopeOrgResolver, scope string) (string, bool) {
 		return ch.OrgID, true
 	}
 	if strings.HasPrefix(scope, "artifact:") {
-		// artifact 跟 channel 同 org (CV-1 立场 ① 归属=channel + CM-3 #208).
+		// artifact 跟 channel 同 org (CV-1 原则 ① 归属=channel + CM-3 #208).
 		// Lookup goes through store seam — interface kept slim by adding a
 		// store path ad-hoc when needed; for v0 we resolve via raw SQL on
 		// the *store.Store concrete type via the wider seam.
@@ -105,11 +105,11 @@ func resolveScopeOrgID(s scopeOrgResolver, scope string) (string, bool) {
 		return "", false
 	}
 	// Unknown scope prefix — skip org gate (forward-compat to v2+ scope
-	// 层级扩展, 蓝图 §1.2 留账).
+	// 层级扩展, 蓝图 §1.2 留作后续).
 	return "", false
 }
 
-// HasCapability is the single SSOT capability check — all endpoint
+// HasCapability is the single 单一来源 capability check — all endpoint
 // authz routes through this helper. Returns true iff the user (from
 // context) has been granted (permission, scope), with the v1 scope
 // fallback hierarchy:
@@ -117,18 +117,18 @@ func resolveScopeOrgID(s scopeOrgResolver, scope string) (string, bool) {
 //   - explicit (permission, scope) row → grant
 //   - explicit (permission, "*") row → grant (wildcard scope)
 //   - explicit ("*", "*") wildcard row → grant (human admin / AP-0
-//     default; agent 不享, 蓝图 §1.4 字面承袭, 见 IsAgent 守)
+//     default; agent 不享, 蓝图 §1.4 字面不变, 见 IsAgent 守)
 //
 // AP-3 cross-org gate (战马C v0): 在 above 任意 grant 命中前先过 org
 // gate — grantee `user.org_id` 与 resource org_id (resolveScopeOrgID)
 // 都非空且不等 → false 直返 (cross-org owner-only). 任一 NULL/empty 走
-// legacy 路径 (跟 AP-1 现网行为零变, 立场 ⑥).
+// 历史路径 (跟 AP-1 现网行为零变, 原则 ⑥).
 //
-// 反约束 (spec §2 + 蓝图 §1.4 + §2 不变量 + AP-3 立场 ①③⑤⑦):
+// 反向约束 (spec §2 + 蓝图 §1.4 + §2 不变量 + AP-3 原则 ①③⑤⑦):
 //   - admin 不入此路径 — admin god-mode 走 /admin-api/* (ADM-0 §1.3).
 //   - agent 不享 (*,*) wildcard — IsAgent 守, owner 即使误 grant 也 403.
 //   - bundle 字面不入 — bundle 是 client UI 糖, server 只看 capability.
-//   - cross-org agent path 走同 SSOT (BPP-1 #304 org sandbox 同源).
+//   - cross-org agent path 走同 单一来源 (BPP-1 #304 org sandbox 同源).
 //
 // Returns (granted bool). Use store.Store.ListUserPermissions through
 // the package var hook so tests can swap.
@@ -137,7 +137,7 @@ func HasCapability(ctx context.Context, s *store.Store, permission, scope string
 	if user == nil {
 		return false
 	}
-	// AP-3 立场 ① cross-org owner-only gate — 高于 wildcard 短路, 在
+	// AP-3 原则 ① cross-org owner-only gate — 高于 wildcard 短路, 在
 	// permission 命中前先 reject.
 	if resourceOrgID, ok := resolveScopeOrgID(s, scope); ok {
 		if user.OrgID != "" && user.OrgID != resourceOrgID {
@@ -150,7 +150,7 @@ func HasCapability(ctx context.Context, s *store.Store, permission, scope string
 	}
 	isAgent := user.Role == "agent"
 	for _, p := range perms {
-		// agent 不享 (*,*) 短路 — 蓝图 §1.4 立场字面.
+		// agent 不享 (*,*) 短路 — 蓝图 §1.4 原则字面.
 		if !isAgent {
 			if p.Permission == "*" && p.Scope == "*" {
 				return true
