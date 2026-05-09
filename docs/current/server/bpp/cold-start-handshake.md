@@ -23,11 +23,11 @@ BPP-6 ships a dedicated `cold_start_handshake` frame that signals
 process restart (no cursor) and triggers a fresh `online` transition
 audited as `runtime_crashed`.
 
-## Stance (蓝图 §1.6 + §2.1 + AL-1 #492 字面承袭)
+## 原则 (蓝图 §1.6 + §2.1 + AL-1 #492 原则一致)
 
 - **cold-start ≠ reconnect.** `cold_start_handshake` = BPP envelope
   第 15 frame, direction lock plugin→server (server 永不发). 字段集
-  与 `ReconnectHandshakeFrame` **互斥反断** — cold-start 不含
+  与 `ReconnectHandshakeFrame` **互斥反向断言** — cold-start 不含
   `LastKnownCursor` / `DisconnectAt` / `ReconnectAt` (spec §0.1).
   AST scan + reverse grep `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` 守门 0 hit.
 - **agent state 重新 derive (反向 BPP-5).** Handler steps:
@@ -41,19 +41,19 @@ audited as `runtime_crashed`.
   / `ResumeModeIncremental` / `DefaultResumeLimit` 在
   `cold_start_handler.go` ident scan 0 hit.
 - **AL-1a reason 6-dict 不扩第 7.** Reason `runtime_crashed` is
-  reused byte-identical (反映上次 error → 此次复活语义). reasons SSOT
-  #496 6-dict 不动. AL-1a reason 锁链 BPP-6 = **第 11 处** (BPP-2.2
+  reused byte-identical (反映上次 error → 此次复活语义). reasons 单一来源
+  #496 6-dict 不动. AL-1a reason 守护链 BPP-6 = **第 11 处** (BPP-2.2
   第 7 + AL-2b 第 8 + BPP-4 第 9 + BPP-5 第 10 + BPP-6 第 11).
 - **Restart count audit-only, count derived from state-log.** No
   separate `plugin_restart_count` column; restart frequency is read
   via `COUNT(WHERE to_state='online' AND reason='runtime_crashed')`
   on demand. AST reverse-grep `plugin_restart_count` /
   `cold_start_count` / `restart_counter` 0 hit (spec §0.3).
-- **Best-effort, no retry queue (BPP-4+BPP-5 锁链延伸第 3 处).**
+- **Best-effort, no retry queue (BPP-4+BPP-5 守护链延伸第 3 处).**
   Handler returns success/failure exactly once; no persistent
   cold-start state, no pending queue, no backoff timer. AST
   reverse-grep forbids `pendingColdStart` / `coldStartQueue` /
-  `deadLetterColdStart` — 锁链延伸 from BPP-4 dead_letter_test
+  `deadLetterColdStart` — 守护链延伸 from BPP-4 dead_letter_test
   + BPP-5 reconnect_handler_test.
 - **No transient `cold_starting` state.** AL-1 5-state graph (#492)
   is unchanged — single-gate jumps any → online directly. (Mirrors
@@ -75,20 +75,20 @@ type ColdStartHandshakeFrame struct {
 }
 ```
 
-## Field set vs ReconnectHandshakeFrame (BPP-5) — 字段集互斥反断
+## Field set vs ReconnectHandshakeFrame (BPP-5) — 字段集互斥反向断言
 
 | Field            | BPP-5 (reconnect) | BPP-6 (cold_start) |
 |------------------|:---:|:---:|
 | Type             | ✓ | ✓ |
 | PluginID         | ✓ | ✓ |
 | AgentID          | ✓ | ✓ |
-| LastKnownCursor  | ✓ | **✗** (互斥反断, spec §0.1) |
-| DisconnectAt     | ✓ | **✗** (互斥反断) |
-| ReconnectAt      | ✓ | **✗** (互斥反断) |
+| LastKnownCursor  | ✓ | **✗** (互斥反向断言, spec §0.1) |
+| DisconnectAt     | ✓ | **✗** (互斥反向断言) |
+| ReconnectAt      | ✓ | **✗** (互斥反向断言) |
 | RestartAt        | ✗ | ✓ |
 | RestartReason    | ✗ | ✓ |
 
-`TestBPP6_FrameSet_NoReconnectFields` asserts the互斥 invariant via
+`TestBPP6_FrameSet_NoReconnectFields` asserts the 互斥 invariant via
 `reflect`. CI lint grep 检查 `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` 0 hit.
 
 ## Wire path (server.go boot)
@@ -127,9 +127,9 @@ import store 业务边界, 跟 BPP-3/4/5 同 interface 注入模式.
 
 ## Tests (cold_start_handler_test.go) — 9 unit cases
 
-- `TestBPP6_FieldOrder` — 5 字段顺序锁 byte-identical.
+- `TestBPP6_FieldOrder` — 5 字段顺序锁定 byte-identical.
 - `TestBPP6_DirectionLock` — `FrameDirection() == DirectionPluginToServer`.
-- `TestBPP6_FrameSet_NoReconnectFields` — 字段集互斥反断 (spec §0.1).
+- `TestBPP6_FrameSet_NoReconnectFields` — 字段集互斥反向断言 (spec §0.1).
 - `TestBPP6_Handler_TransitionsToOnline_FromInitial` / `_FromError` /
   `_FromOffline` — 3 valid edges via AL-1 #492 single-gate.
 - `TestBPP6_Handler_CrossOwnerReject` — sentinel `errColdStartCrossOwnerReject`.
@@ -143,7 +143,7 @@ import store 业务边界, 跟 BPP-3/4/5 同 interface 注入模式.
 - `TestBPP6_NoColdStartQueueInBPPPackage` — AST ident scan on all
   internal/bpp/*.go (production) for `pendingColdStart` / `coldStartQueue` /
   `deadLetterColdStart` / `plugin_restart_count` / `coldStartCount` /
-  `restartCounter` 0 hit. **AL-1 best-effort 锁链延伸第 3 处** (BPP-4
+  `restartCounter` 0 hit. **AL-1 best-effort 守护链延伸第 3 处** (BPP-4
   `TestBPP4_NoRetryQueueInBPPPackage` + BPP-5
   `TestBPP5_NoReconnectQueueInBPPPackage` + BPP-6 此).
 
@@ -151,12 +151,12 @@ Plus envelope-level: `TestBPPEnvelopeFrameWhitelist` count==15
 (BPP-5 14 + BPP-6 cold_start_handshake +1) +
 `TestBPPEnvelopeDirectionLock` data-plane 7→8.
 
-## Cross-milestone byte-identical lock chain
+## Cross-milestone byte-identical 守护链
 
 - BPP-1 #304 envelope reflect lint (whitelist 14→15 自动覆盖)
 - BPP-3 #489 PluginFrameDispatcher (handler 复用, 不开新 hub method)
 - BPP-5 #503 reconnect 反向帧 (字段集互斥)
 - AL-1 #492 single-gate `AppendAgentStateTransition` (any→online valid edge)
-- REFACTOR-REASONS #496 6-dict (复用 `runtime_crashed`, AL-1a 锁链第 11 处)
-- BPP-4 #499 + BPP-5 #503 best-effort AST 锁链延伸第 3 处
+- REFACTOR-REASONS #496 6-dict (复用 `runtime_crashed`, AL-1a 守护链第 11 处)
+- BPP-4 #499 + BPP-5 #503 best-effort AST 守护链延伸第 3 处
 - ADM-0 §1.3 red-line (admin god-mode 不挂 cold_start)

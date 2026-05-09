@@ -10,7 +10,7 @@ Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 - **`none`** — cold start. runtime 显式不要补; server 回 ack `count=0 + cursor=high_water`, 不查 store.
 - **`full`** — agent 显式要求 (runtime 丢了 durable state). 从 cursor=0 在 channel scope 内重放. **人 client 不许走这条**.
 
-## 2. 反约束 (hardline)
+## 2. 反向约束 (hardline)
 
 > server **NEVER defaults** caller into `full`. 空字符串 / 未知 / 大小写错 (`FULL`, `Full`) 一律 fallthrough 到 `incremental`. 唯一进 `Full` 分支的输入是字面量 `"full"`.
 
@@ -30,7 +30,7 @@ Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 {"type":"session.resume_ack","count":3,"cursor":99}
 ```
 
-字段顺序锁跟 #237 invitation envelope + RT-1.1 `artifact_updated` 一致 (`type` 在前, semantic IDs 紧跟). 加字段必须 client / agent SDK 同 PR 同步, CI lint G2.6 (Phase 4 加) catch drift.
+字段顺序锁跟 #237 invitation envelope + RT-1.1 `artifact_updated` 一致 (`type` 在前, semantic IDs 紧跟). 加字段必须 client / agent SDK 同 PR 同步, CI lint G2.6 (Phase 4 加) 防脱节.
 
 ## 4. 实现 surface
 
@@ -45,7 +45,7 @@ Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 
 - **cursor 单调** — 由 RT-1.1 `CursorAllocator` 保证. 此包不分配 cursor, 只读.
 - **client backfill** — 人 client 走 RT-1.2 `GET /api/v1/events?since=N`, **不**走 BPP. BPP 只给 agent runtime.
-- **events 永不按 timestamp 排** — 反约束 跟 RT-1.x 一致 (cursor IS the order).
+- **events 永不按 timestamp 排** — 反向约束 跟 RT-1.x 一致 (cursor IS the order).
 
 ## 6. 不动什么
 

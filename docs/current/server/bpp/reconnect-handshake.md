@@ -20,7 +20,7 @@ BPP-5 ships a dedicated `reconnect_handshake` frame that carries
 `last_known_cursor` and reuses RT-1.3 #296 cursor replay as the
 recovery path.
 
-## Stance (蓝图 §1.6 + §2.1 + RT-1.3 字面承袭)
+## 原则 (蓝图 §1.6 + §2.1 + RT-1.3 原则一致)
 
 - **reconnect_handshake = BPP envelope 第 14 frame.** direction lock
   plugin→server (server 永不发). 不另开 channel. `ConnectFrame` and
@@ -49,7 +49,7 @@ recovery path.
   exactly once; no persistent reconnect state, no pending-acks queue,
   no backoff timer. AST reverse-grep forbids
   `pendingReconnects` / `reconnectQueue` / `deadLetterReconnect` —
-  锁链延伸 from BPP-4 dead_letter_test.
+  守护链延伸 from BPP-4 dead_letter_test.
 
 ## Frame schema (envelope.go)
 
@@ -107,8 +107,8 @@ log.Info("bpp.reconnect_handshake_resolved", …)
   - §2 server handler (5): ResolveResume call args / Clear on success /
     cross-owner reject + log + no-clear / cursor regression
     trust-but-log / panic on nil deps.
-  - §4 反约束 (1): AST scan reconnect-queue identifiers 0 hit
-    (BPP-4 dead_letter_test 锁链延伸).
+  - §4 反向约束 (1): AST scan reconnect-queue identifiers 0 hit
+    (BPP-4 dead_letter_test 守护链延伸).
 
 Regression rows: `REG-BPP5-001..009` in
 `docs/qa/regression-registry.md`.
@@ -119,7 +119,7 @@ Regression rows: `REG-BPP5-001..009` in
 2. Update `TestBPP5_ReconnectHandshakeFrame_FieldOrder` to include the
    new (name, json-tag) entry.
 3. Update `TestBPP5_ConnectFrame_NoReconnectFields` if the new field
-   could plausibly appear on `ConnectFrame` too — the 字段集不交反断
-   guards drift.
+   could plausibly appear on `ConnectFrame` too — the 字段集不交反向断言
+   guards 脱节.
 4. Plugin SDK schema must add the field in the SAME PR (跟 BPP-1
    envelope CI lint 同模式).
