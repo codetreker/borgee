@@ -64,8 +64,9 @@ func (c *SQLiteConsumer) Close() error {
 
 // Lookup — Consumer interface 实现.
 //
-// 反约束 §1.3 不缓存: 每次 call SELECT 真走 SQL (撤销 <100ms 真守, HB-4
-// release-gate 第 5 行 byte-identical).
+// 反约束 §1.3 不缓存: 每次 call SELECT 真走 SQL (撤销 <100ms 真守, 由
+// internal/api/host_grants_test.go::TestHB_DELETE_RevokeStampsRevokedAt
+// 行为 test 守门).
 func (c *SQLiteConsumer) Lookup(ctx context.Context, agentID, scope string) (Grant, bool, error) {
 	g, exists, expired, err := c.LookupRaw(ctx, agentID, scope)
 	if err != nil || !exists || expired {

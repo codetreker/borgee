@@ -130,12 +130,13 @@ byte-identical 跟 const 声明) + `func init()` 自动 rebuild Capabilities map
 改 ALL **一处**, reflect-lint 单测自动守 ALL ↔ const 双向 ⊂.
 
 Handler 不准直查 `auth.Capabilities[name]` map; 走 `auth.IsValidCapability(
-name) bool` helper 单源 (跟 reasons.IsValid #496 SSOT 包同模式). CI step
-`ap4enum-no-hardcode-capability` (`.github/workflows/release-gate.yml`)
-跑 4 反向 grep — `HasCapability("...")` hardcode in api/ count==0 +
+name) bool` helper 单源 (跟 reasons.IsValid #496 SSOT 包同模式). 守门走
+`packages/server-go/internal/api/permission_reverse_grep_test.go` 3 个反向
+grep 行为 test — `HasCapability("...")` hardcode in api/ count==0 +
 `auth.Capabilities[` direct in api/ count==0 + `Capabilities["..."] =`
-literal mutate in auth/ count==0 (init 走变量 c) + `admin_|godmode_|
-impersonat` in capabilities.go count==0 (ADM-0 §1.3 红线).
+literal mutate in auth/ count==0 (init 走变量 c). 历史 release-gate.yml
+里的 `ap4enum-no-hardcode-capability` yaml grep step 已随 #717 整治删除
+(行为 test 替临时字符串 grep).
 
 ## 跨 milestone byte-identical 锁
 
@@ -143,7 +144,7 @@ impersonat` in capabilities.go count==0 (ADM-0 §1.3 红线).
   abac.go 一处, endpoint 0 行改, capabilities.go 14 const 不动).
 - AP-4-enum #TBD ALL slice + init + IsValidCapability — 复用 AP-1
   14 const byte-identical 不动, 仅加 wrapper SSOT (跟 reasons.IsValid
-  #496 SSOT 包同精神, BPP-4 / HB-3 release-gate 同模式).
+  #496 SSOT 包同精神).
 - AP-1.1 #493 `user_permissions.expires_at` ALTER ADD COLUMN NULL 模式
   — AP-3.1 schema 同模式, 跟 AP-2.1 #ap-2 `revoked_at` 同模式三连.
 - CM-3 #208 cross-org 资源归属 + CHN-1 #286 channel-org membership —

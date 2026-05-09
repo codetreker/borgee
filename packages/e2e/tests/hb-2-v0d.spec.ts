@@ -216,8 +216,8 @@ test.describe('HB-2 v0(D) Playwright e2e — acceptance §1+§2 真补 (post-#62
     const deleteRes = await user.ctx.delete(`/api/v1/host-grants/${grantID}`);
     const elapsedMs = Date.now() - t0;
     expect(deleteRes.ok(), `revoke: ${deleteRes.status()} ${await deleteRes.text()}`).toBe(true);
-    // <100ms 是 release-gate 阈值 (本机 e2e 通常 <30ms; CI 给宽容到 100ms).
-    expect(elapsedMs, `撤销 <100ms (HB-4 §1.5 第 5 行) — 真测 ${elapsedMs}ms`).toBeLessThan(100);
+    // <100ms 是 HB-3 §1.5 撤销 latency 阈值 (本机 e2e 通常 <30ms; CI 给宽容到 100ms).
+    expect(elapsedMs, `撤销 <100ms (HB-3 §1.5 — 真测 ${elapsedMs}ms`).toBeLessThan(100);
 
     // 反向断 — DELETE 后 GET list 不再返此 grant (revoked_at 已落).
     const listRes = await user.ctx.get('/api/v1/host-grants');
