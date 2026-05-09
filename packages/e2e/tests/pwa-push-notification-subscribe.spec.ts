@@ -1,15 +1,18 @@
-// tests/dl-4-pwa-subscribe.spec.ts — DL-4.5 PWA install 三件套 e2e:
+// tests/pwa-push-notification-subscribe.spec.ts — PWA install 三件套 (manifest + sw.js + push helper).
 //
-// 1. PWA Web App Manifest GET endpoint returns W3C-compliant payload
-//    (display=standalone + 192/512 icons + proper Content-Type).
-// 2. Service worker /sw.js registers without error (push handler attaches).
-// 3. (Browser-permission gated) PushManager.subscribe path is reachable —
-//    we don't actually subscribe in headless CI (no VAPID key + no
-//    user-permission grant), but verify the helper module loads + helper
-//    exports are intact.
+// 测试范围:
+//   - PWA Web App Manifest endpoint 返回 W3C 兼容载荷 (display=standalone + 192/512 icons + Content-Type)
+//   - Service worker /sw.js 注册成功 (push handler 挂得上)
+//   - PushManager.subscribe 路径可达 (headless CI 不真订阅, 仅验 helper 模块加载 + 导出齐全)
 //
-// 蓝图 client-shape.md L42 (manifest + install prompt + Web Push +
-// standalone). DL-4 spec §1 DL-4.5 acceptance §1.
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/client-shape.md L42 (manifest + install + Web Push + standalone)
+//   - 验收: DL-4 spec §1 DL-4.5 acceptance §1
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto 真发请求 + 浏览器层 sw register)
+//   - headless 不强求 user-permission grant
+//   - 不允许 fs.* / page.evaluate(fetch) 走 cookie 直调 / 只打 API / noop
 import { test, expect } from '@playwright/test';
 
 test('DL-4.4 PWA manifest endpoint returns W3C-compliant JSON', async ({ request }) => {

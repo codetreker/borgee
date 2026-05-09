@@ -1,20 +1,25 @@
-// tests/gh-698-agent-config-form-layout.spec.ts — gh#698 form 排版 e2e
+// tests/agent-config-form-layout.spec.ts — Agent 配置 form 排版多 viewport 自适应 (gh#698).
 //
-// 验 design 698-agent-config-form-overlap-fix.md §7 测试策略 + §4 边界条件
-// + liema review 4 条非阻塞建议:
-//   ✓ liema #1 a11y 反向断言走浏览器层 (不 vitest), 真量 inline style
-//   ✓ liema #3 多 viewport 自适应 (1280 + 1024 + 480)
-//   - liema #4 label htmlFor 隐式关联 (设计层 §3 已写, 不需要 e2e 测)
+// 测试范围:
+//   - 6 个 label 各占独立行不重叠 (修前 800px 父容器下 inline 流水重叠)
+//   - 5 个 text/textarea label 用 inline style display:'block'
+//   - 1 个 checkbox label 用 inline style display:'flex'
+//   - data-agent-config-field 6 个标记位齐全
+//   - 多 viewport 自适应: 1280 / 1024 / 480
+//   - a11y 反向断走浏览器层 (真量 inline style, 不走 vitest)
 //
-// 立场反查 (跟 design 对齐):
-//   ① 6 个 label 各占独立行不重叠 (修前 800px 父容器下 inline 流水重叠)
-//   ② 5 个 text/textarea label display: 'block' (yema 拍 a 默认)
-//   ③ 1 个 checkbox label display: 'flex' inline (yema 拍 b 例外)
-//   ④ data-agent-config-field byte-identical 6 个 (REG-AL2A-* 锚保)
+// 不在范围:
+//   - label htmlFor 隐式关联 (设计层 §3 已论证, 不在 e2e 覆盖)
+//   - 新 CSS class 验证 (本修选方案 A 内联 style, 不引 class)
+//   - al-2a content lock 漂移 (gh#701 后续, 不在本 spec)
 //
-// 反约束 (本 spec 锚):
-//   - 不引入新 CSS class 验证 (方案 A 是内联 style)
-//   - 不测 al-2a content lock drift (gh#701 followup, 不在本 PR)
+// 关联文档:
+//   - 设计: docs/tasks/698-agent-config-form-overlap/design.md §7 测试策略 + §4 边界
+//   - QA review: liema #1 / #3 / #4
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真 viewport 切换 + getBoundingClientRect 真量)
+//   - 不允许 fs.* / page.evaluate(fetch) 走 cookie 直调 / 只打 API / noop
 
 import {
   test,

@@ -1,19 +1,21 @@
-// tests/me-1-self-message-unread.spec.ts — gh#687 own message 不计未读 e2e
+// tests/self-message-unread-counter.spec.ts — own message 不计未读三层防御 (gh#687).
 //
-// 闭环 docs/implementation/design/687-self-message-unread-design.md §7.4
-// (e2e 自动化, gh#700 followup): 走真 UI input/click 自动化跑 §7.3 5 步路径
-// + §4.2 multi-device + §7.2 反向断言 (peer 发的仍算未读).
+// 测试范围:
+//   - Layer 1 (client send): 自己发消息后, 当前 channel unread 立刻清 0
+//   - Layer 2 (server SQL): GET /api/v1/channels unread_count 排除 sender_id == 自己
+//   - Layer 3 (client reducer): ws push 自己消息在非当前 channel 不 bump unread
+//   - 多设备场景 (multi-device): 第二端同步排除 own message
+//   - 反向断: peer 发的消息仍计 unread
 //
-// 立场反查 (§1 + §2 三层防御):
-//   ① Layer 1 client send: own message → mark current channel read 立刻清 unread
-//   ② Layer 2 server SQL: GET /api/v1/channels unread_count 排除 sender_id == 自己
-//   ③ Layer 3 client reducer: ws push own message 在 non-current channel 不 bump unread
+// 关联文档:
+//   - 设计: docs/implementation/design/687-self-message-unread-design.md §7.4 (e2e 自动化, gh#700 后续)
 //
-// 反约束 (本 spec 锚, memory `e2e_no_curl_only_ui`):
-//   - 走真 UI input/click/screenshot, 不用 page.evaluate(fetch) / cURL 直调
-//   - 创建 channel 走 sidebar UI 入口 (+ 按钮 → 创建频道 → form submit)
-//   - 发消息走 ProseMirror editor input + Enter (跟用户真路径一致)
+// 实施约束:
+//   - 真 UI input / click / screenshot, 不用 page.evaluate(fetch) / cURL 直调
+//   - 创 channel 走 sidebar UI (+ 按钮 → 创建频道 → form submit)
+//   - 发消息走 ProseMirror editor input + Enter
 //   - 切 channel 走 sidebar .channel-name click
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,

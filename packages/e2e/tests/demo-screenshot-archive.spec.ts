@@ -1,17 +1,23 @@
-// tests/g2.4-demo-screenshots.spec.ts — Phase 2 退出 gate G2.4 截屏 5 张
+// tests/demo-screenshot-archive.spec.ts — Phase 2 退出门槛 G2.4 demo 截屏归档.
 //
-// 计划锚: docs/qa/g2.4-screenshot-plan.md (PR #199, 5 张文案锁 + Playwright 触发条件)
-// 签字锚: docs/qa/g2.4-demo-signoff.md (野马 4/5 项 ✅/❌)
-// 立场锚: 14 立场 §1.1 / §1.2 / §1.4 + README §核心 11 + onboarding-journey §3 步骤 1-2 + 5
+// 测试范围:
+//   - #1 Welcome 第一眼非空屏: register 后 DOM 含 system message + 不含 "👈 选择频道"
+//   - #5 系统消息 + CTA 按钮: message bubble + 按钮点击跳 AgentManager
 //
-// 5 张截屏命名 (落 docs/qa/screenshots/g2.4-{1..5}.png):
-//   #1 Welcome 第一眼非空屏 (§1.4 + onboarding 步骤 2) — register → DOM 含 system message + 不含 "👈 选择频道"
-//   #2 左栏团队感知 — DEFERRED-UNWIND audit真删 (依赖 milestone closure 后由 AL-1b spec test 锁源头, e2e 加层重复)
-//   #3 Agent invitation inbox name 渲染 — DEFERRED-UNWIND audit真删 (cm-4-bug-029-name-display-regression.spec.ts 已锁 inbox name 渲染立场 byte-identical, 跟此 demo 截屏目标 重复)
-//   #4 Quick action 错误态 — DEFERRED-UNWIND audit真删 (依赖 mock 409 重写 fixture infra, agent_invitation accept 错误码 409 由 server-side unit api/agent_invitations_test.go 锁)
-//   #5 System message + CTA button (步骤 2 message kind) — 同 #1 重点截 message bubble + button → click 跳 AgentManager
+// 不在范围 (审计后删除占位 case, 改由其它路径覆盖):
+//   - #2 左栏团队感知 (已由 AL-1b 单测锁源)
+//   - #3 Agent invitation inbox 名字渲染 (已由 chat-name-display-regression e2e 覆盖)
+//   - #4 Quick action 错误态 409 (依赖 mock fixture, 已由 server unit api/agent_invitations_test.go 锁)
 //
-// 复用 cm-onboarding.spec.ts 的 admin-login → invite-code → register pattern.
+// 关联文档:
+//   - 计划: docs/qa/g2.4-screenshot-plan.md (PR #199)
+//   - 签字: docs/qa/g2.4-demo-signoff.md
+//   - 输出: docs/qa/screenshots/g2.4-{1..5}.png
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真按钮 + page.screenshot 入 git)
+//   - seed 用 REST: admin invite + register, 流程跟 chat-first-time-onboarding 一致
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop / 占位 expect(true)
 import { test, expect, request as apiRequest } from '@playwright/test';
 import * as path from 'path';
 import { fileURLToPath } from 'url';

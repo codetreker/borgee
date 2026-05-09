@@ -1,19 +1,20 @@
-// tests/smoke.spec.ts — INFRA-2 smoke test.
+// tests/smoke-app-loads.spec.ts — 双服务 (server-go + vite) harness smoke (INFRA-2).
 //
-// **Goal of this PR (INFRA-2)**: prove the two-server harness works in CI.
-// We do NOT exercise auth or product features here — that's RT-0 / CM-onboarding's
-// job once they land their fixtures. A smoke test that fails would fail
-// for *infrastructure* reasons (port conflict, server crash, vite proxy
-// misconfig), so it has to stay tight.
+// 测试范围:
+//   - server-go /health endpoint 返回 200 (Go 二进制启动成功)
+//   - client SPA 根 / 返回包含 Borgee title 的 HTML 文档 (vite 启动 + index.html 服务)
+//   - vite dev proxy 转发 /health 到 server-go (代理 override env 端到端生效)
 //
-// Three assertions:
-//   1. server-go health endpoint responds 200 (proves Go binary booted).
-//   2. client SPA root serves an HTML doc with the Borgee title (proves
-//      vite started + serves index.html).
-//   3. The vite dev proxy actually forwards /health to server-go (proves
-//      the proxy override env var works end-to-end). This is the one
-//      that will save RT-0 from spending hours debugging "why does my
-//      ws connection 404".
+// 不在范围:
+//   - auth / 产品功能 (走 RT-0 / chat-first-time-onboarding 等专项 spec)
+//
+// 关联文档:
+//   - 验收: INFRA-2 spec (双服务 harness CI 跑通)
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (request.get + page.goto)
+//   - smoke fail 必须是基础设施问题 (端口冲突 / server crash / proxy 配置错), 不是产品 bug
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API 不开浏览器 / noop
 import { test, expect } from '@playwright/test';
 
 test.describe('INFRA-2 smoke', () => {

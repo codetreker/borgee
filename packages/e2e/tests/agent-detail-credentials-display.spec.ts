@@ -1,17 +1,23 @@
-// tests/gh-684-agent-detail-credentials.spec.ts — gh#684 e2e 锁
+// tests/agent-detail-credentials-display.spec.ts — Agent 详情 Manage 卡片 + Credentials 凭据展示 (gh#684).
 //
-// 验 brief §5 e2e + §3 文案锁:
-//   ✓ Manage 展开后 6 卡 section 出现
-//   ✓ Credentials 卡显 mask `bgr_...{last4}` (非完整 plaintext)
-//   ✓ 没 Show 按钮 (反向断言, 防回归)
-//   ✓ 复制按钮 aria-label="复制 API Key" + title byte-identical
-//   ✓ Prompt textarea rows=8 (yema brief §2.2)
+// 测试范围:
+//   - Manage 展开后 6 卡 section 渲染齐全
+//   - Credentials 卡显 mask 形式 `bgr_...{last4}` (非完整 plaintext)
+//   - 反向断: 没有 Show 按钮 (防回归)
+//   - 复制按钮 aria-label="复制 API Key" + title 文案一致
+//   - Prompt textarea rows=8
 //
-// 不测 clipboard.readText (jsdom + Playwright 跨环境 permission 复杂; vitest
-// 单测已锁 writeText 调用 + auto-clear setTimeout writeText('')). 真验路径是
-// liema 6 步手工真验 (brief §5 行 167).
+// 不在范围:
+//   - clipboard.readText 跨环境 permission 验证 (走 vitest 单测覆盖 writeText 调用 + auto-clear)
+//   - 完整复制流程 (走 QA 6 步手工真验, 见 brief §5 行 167)
 //
-// 跟 gh-698-agent-config-form-layout.spec.ts 同 helpers 模式.
+// 关联文档:
+//   - 需求: gh#684 brief §5 (e2e) + §3 (文案锁) + §2.2 (Prompt rows)
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真展开 + DOM 断)
+//   - 跟 agent-config-form-layout.spec.ts 共用 helpers 模式
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,
