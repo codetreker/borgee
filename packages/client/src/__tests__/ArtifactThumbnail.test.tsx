@@ -1,7 +1,7 @@
-// ArtifactThumbnail.test.tsx — CV-3 v2 acceptance vitest 锁 (#cv-3-v2).
+// ArtifactThumbnail.test.tsx — CV-3 v2 acceptance vitest 锁定 (#cv-3-v2).
 //
-// 锚: docs/implementation/modules/cv-3-v2-spec.md §0 设计 ① 服务端 thumbnail
-// 不 inline + ② https only + ③ 二闸互斥 跟 PreviewableKinds.
+// 出处: docs/implementation/modules/cv-3-v2-spec.md §0 设计 ① 服务端 thumbnail
+// 不 inline + ② https only + ③ 二端互斥 跟 PreviewableKinds.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -101,7 +101,7 @@ describe('ArtifactThumbnail — fallback div (设计 ① no thumbnailUrl)', () =
   });
 });
 
-describe('ArtifactThumbnail XSS 红线 #1 — https only (设计 ② 反约束)', () => {
+describe('ArtifactThumbnail XSS 红线 #1 — https only (设计 ② 反向约束)', () => {
   it.each([
     'http://cdn.example/x.png',
     'javascript:alert(1)',
