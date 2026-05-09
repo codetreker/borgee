@@ -17,11 +17,11 @@ func TestHB2_Reason8DictByteIdentical(t *testing.T) {
 	}
 	got := All()
 	if len(got) != len(want) {
-		t.Fatalf("8-dict len drift: got=%d want=%d", len(got), len(want))
+		t.Fatalf("8-dict len 脱节: got=%d want=%d", len(got), len(want))
 	}
 	for i, w := range want {
 		if got[i] != w {
-			t.Errorf("dict[%d] drift: got=%q want=%q", i, got[i], w)
+			t.Errorf("dict[%d] 脱节: got=%q want=%q", i, got[i], w)
 		}
 	}
 }
@@ -45,7 +45,7 @@ func TestHB2_NoSeventhDictBleed(t *testing.T) {
 	}
 	for _, f := range forbidden {
 		if have[f] {
-			t.Errorf("HB-2 8-dict 污染: 含禁字面 %q (跟 HB-1/AL-1a 字典分立反约束冲突)", f)
+			t.Errorf("HB-2 8-dict 污染: 含禁字面 %q (跟 HB-1/AL-1a 字典分立反向约束冲突)", f)
 		}
 	}
 }

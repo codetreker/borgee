@@ -11,13 +11,13 @@ func TestHB2D_PlatformLabelMatchesBuildTag(t *testing.T) {
 	switch Platform {
 	case "linux", "darwin", "windows", "other":
 	default:
-		t.Errorf("Platform 字面 drift: got=%q (want linux|darwin|windows|other)", Platform)
+		t.Errorf("Platform 字面 脱节: got=%q (want linux|darwin|windows|other)", Platform)
 	}
 	// On test runner, build tag must select per GOOS.
 	want := runtime.GOOS
 	if want == "linux" || want == "darwin" || want == "windows" {
 		if Platform != want {
-			t.Errorf("Platform tag drift on %s runner: got=%q want=%q", want, Platform, want)
+			t.Errorf("Platform tag 脱节 on %s runner: got=%q want=%q", want, Platform, want)
 		}
 	}
 }
@@ -31,11 +31,11 @@ func TestHB2D_PlatformLabelMatchesBuildTag(t *testing.T) {
 // NOTE: 真 landlock_restrict_self 调 in-process 后, 后续 file open 全
 // reject — t.TempDir cleanup 会 fail. 故此测在 Linux 用 subprocess 隔离;
 // 这里只跑 Apply 不真 restrict (空 ReadPaths 路径在 v0(D) 跑 restrictEmptyRuleset
-// 真锁本进程, 不能继续运行其他 test). 跳过 Linux empty-ruleset 真测,
+// 真锁定本进程, 不能继续运行其他 test). 跳过 Linux empty-ruleset 真测,
 // 留给 integration test 子进程跑.
 func TestHB2D_ApplyEmptyProfile_NoError_NonLinux(t *testing.T) {
 	if runtime.GOOS == "linux" {
-		t.Skip("Linux empty profile真 restrict_self 自锁本测进程; 留 integration test 子进程跑")
+		t.Skip("Linux empty profile真 restrict_self 自锁定本测进程; 留 integration test 子进程跑")
 	}
 	t.Parallel()
 	if err := Apply(Profile{}); err != nil {
@@ -47,7 +47,7 @@ func TestHB2D_ApplyEmptyProfile_NoError_NonLinux(t *testing.T) {
 // 其他平台 wrapper-only no-op.
 func TestHB2D_ApplyWithExistingPath_NonLinux(t *testing.T) {
 	if runtime.GOOS == "linux" {
-		t.Skip("Linux landlock_restrict_self 自锁本测进程; 留 integration test")
+		t.Skip("Linux landlock_restrict_self 自锁定本测进程; 留 integration test")
 	}
 	t.Parallel()
 	tmp := t.TempDir()

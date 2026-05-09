@@ -15,7 +15,7 @@ func TestHB23_GrantLookupHappyPath(t *testing.T) {
 		t.Fatalf("lookup miss: ok=%v err=%v", ok, err)
 	}
 	if g.Scope != "fs:/x" {
-		t.Errorf("scope drift: %q", g.Scope)
+		t.Errorf("scope 脱节: %q", g.Scope)
 	}
 }
 
@@ -64,6 +64,6 @@ func TestHB23_RevocationImmediate(t *testing.T) {
 	c.Delete("a1", "fs:/x")
 	_, ok, _ = c.Lookup(context.Background(), "a1", "fs:/x")
 	if ok {
-		t.Error("revocation 不立即生效 (grants cache 反约束 break)")
+		t.Error("revocation 不立即生效 (grants cache 反向约束 break)")
 	}
 }

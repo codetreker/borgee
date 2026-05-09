@@ -28,11 +28,11 @@ func TestHB2DE_SandboxApply_PlatformMatchesGOOS(t *testing.T) {
 	switch runtime.GOOS {
 	case "linux":
 		if sandbox.Platform != "linux" {
-			t.Errorf("linux build tag drift: Platform=%q", sandbox.Platform)
+			t.Errorf("linux build tag 脱节: Platform=%q", sandbox.Platform)
 		}
 	case "darwin":
 		if sandbox.Platform != "darwin" {
-			t.Errorf("darwin build tag drift: Platform=%q", sandbox.Platform)
+			t.Errorf("darwin build tag 脱节: Platform=%q", sandbox.Platform)
 		}
 	case "windows":
 		t.Skipf("Windows Job Object sandbox v1+; HB-2 v0(D) main.go is //go:build linux||darwin")
@@ -52,7 +52,7 @@ func TestHB2DE_SandboxApply_RealCallSucceeds(t *testing.T) {
 		t.Skip("integration test")
 	}
 	// Linux landlock 真改进程能力 — 不能跑两次, 不能跟其他 t.Parallel test
-	// 共进程 (整 test binary 进程被锁死). 故此 test 仅在子进程跑或独立 build.
+	// 共进程 (整 test binary 进程被锁定). 故此 test 仅在子进程跑或独立 build.
 	if runtime.GOOS == "linux" {
 		t.Skipf("landlock_restrict_self irreversibly mutates process; daemon_startup_test 已覆盖真启路径")
 	}

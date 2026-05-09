@@ -19,7 +19,7 @@ func TestHB2D_ReadFile_HappyPath(t *testing.T) {
 		t.Fatalf("read: %v", err)
 	}
 	if string(res.Bytes) != "hello world" {
-		t.Errorf("content drift: %q", res.Bytes)
+		t.Errorf("content 脱节: %q", res.Bytes)
 	}
 	if res.Truncated {
 		t.Errorf("expected non-truncated")

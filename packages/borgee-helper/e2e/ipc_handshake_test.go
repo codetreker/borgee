@@ -104,7 +104,7 @@ func TestHB2DE_IPCHandshake_RoundTrip(t *testing.T) {
 	if err := os.WriteFile(probe, []byte("hello"), 0o600); err != nil {
 		t.Fatalf("probe: %v", err)
 	}
-	// Note: ACL gate will likely reject (scope drift between seed + probe);
+	// Note: ACL gate will likely reject (scope 脱节 between seed + probe);
 	// the assertion is wire-level — daemon parsed handshake + responded.
 	req := map[string]interface{}{
 		"request_id": "r1",
@@ -128,7 +128,7 @@ func TestHB2DE_IPCHandshake_RoundTrip(t *testing.T) {
 		t.Fatalf("response unmarshal: %v (raw=%q)", err, line)
 	}
 	if got := resp["request_id"]; got != "r1" {
-		t.Errorf("request_id drift: %v", got)
+		t.Errorf("request_id 脱节: %v", got)
 	}
 	// status ∈ {ok, rejected} both prove handshake + dispatch worked;
 	// "failed" indicates protocol bug (反 silent abort).
@@ -138,7 +138,7 @@ func TestHB2DE_IPCHandshake_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestHB2DE_IPCHandshake_RejectsMalformed — handshake 反约束: 无
+// TestHB2DE_IPCHandshake_RejectsMalformed — handshake 反向约束: 无
 // agent_id 字段 → daemon 关连接 (反静默接受 unauthenticated stream).
 func TestHB2DE_IPCHandshake_RejectsMalformed(t *testing.T) {
 	if testing.Short() {

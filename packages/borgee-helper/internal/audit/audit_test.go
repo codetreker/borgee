@@ -21,10 +21,10 @@ func TestHB22_AuditEvent5FieldSchemaByteIdentical(t *testing.T) {
 		t.Fatalf("Write err: %v", err)
 	}
 	line := strings.TrimSpace(buf.String())
-	// 字面 byte-identical 5-field schema (跟 HB-1 audit log 同 SSOT).
+	// 字面 byte-identical 5-field schema (跟 HB-1 audit log 同单一来源).
 	want := `{"actor":"agent-uuid-1","action":"read_file","target":"/Users/me/projects/foo.txt","when":1714492800000,"scope":"fs:/Users/me/projects"}`
 	if line != want {
-		t.Errorf("audit JSON drift:\n got=%s\nwant=%s", line, want)
+		t.Errorf("audit JSON 脱节:\n got=%s\nwant=%s", line, want)
 	}
 }
 
@@ -39,11 +39,11 @@ func TestHB22_AuditEvent5FieldSetExact(t *testing.T) {
 	}
 	want := []string{"actor", "action", "target", "when", "scope"}
 	if len(m) != len(want) {
-		t.Errorf("audit field count drift: got=%d want=%d (forbid 6th drift)", len(m), len(want))
+		t.Errorf("audit field count 脱节: got=%d want=%d (forbid 6th 脱节)", len(m), len(want))
 	}
 	for _, k := range want {
 		if _, ok := m[k]; !ok {
-			t.Errorf("missing field %q (5-field SSOT 跟 HB-1 byte-identical)", k)
+			t.Errorf("missing field %q (5-field 单一来源 跟 HB-1 byte-identical)", k)
 		}
 	}
 }
