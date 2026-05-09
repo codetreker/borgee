@@ -36,8 +36,8 @@ without polluting the platform-level permission schema.
 - **forward-only revoke.** DELETE 不真删行 — stamp `revoked_at` 留账
   audit (蓝图 §2 信任五支柱第 3 条).
 - **admin god-mode 不入** — 用户授权是用户主权 (蓝图 §1.3 + ADM-0 §1.3
-  红线). 反向 grep `admin.*host_grant` 0 hit.
-- **best-effort, no retry queue** (跟 BPP-4 #499 §0.3 立场承袭). AST
+  红线). grep 检查 `admin.*host_grant` 0 hit.
+- **best-effort, no retry queue** (跟 BPP-4 #499 §0.3 设计沿用). AST
   scan reverse-grep守门 forbids `pendingGrants` / `grantQueue` /
   `deadLetterGrants` (锁链延伸第 3 处, 跟 BPP-4 dead_letter_test +
   BPP-5 reconnect_handler_test 锁链同源).

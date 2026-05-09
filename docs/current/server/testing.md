@@ -1,7 +1,7 @@
 # Server: Testing 工具 (testutil)
 
 > 同步 `packages/server-go/internal/testutil/` 当前状态。
-> Blueprint 对应: [`../../blueprint/`](../../blueprint/) — testing 不是产品立场, 这里只描述 **当前实现**。
+> Blueprint 对应: [`../../blueprint/`](../../blueprint/) — testing 不是产品设计, 这里只描述 **当前实现**。
 
 ## 总览
 

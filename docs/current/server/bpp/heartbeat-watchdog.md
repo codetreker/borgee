@@ -20,10 +20,10 @@
   adds an audit log entry per drop so operators can see what was
   missed; reconnect path is unchanged (RT-1.3 cursor replay).
 
-## Stance (蓝图 §1.6 + §1.5 字面立场)
+## 设计 (蓝图 §1.6 + §1.5 字面)
 
 - **Borgee 不取消 in-flight 任务.** Watchdog flips agent state only;
-  it does NOT send `cancel` / `abort` / `kill` frames (反向 grep
+  it does NOT send `cancel` / `abort` / `kill` frames (grep 检查
   `cancel.*task|abort.*inflight|server.*kill.*runtime` 0 hit守门).
 - **30s threshold is single-source.** `BPP_HEARTBEAT_TIMEOUT_SECONDS = 30`
   in `heartbeat_watchdog.go` is the only declaration; CI grep prevents

@@ -113,7 +113,7 @@ log.Info("bpp.reconnect_handshake_resolved", …)
 Regression rows: `REG-BPP5-001..009` in
 `docs/qa/regression-registry.md`.
 
-## Adding a new BPP-5 follow-up frame field
+## Adding a new BPP-5 后续 frame field
 
 1. Add field to `ReconnectHandshakeFrame` struct in `envelope.go`.
 2. Update `TestBPP5_ReconnectHandshakeFrame_FieldOrder` to include the

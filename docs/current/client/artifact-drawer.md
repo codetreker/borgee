@@ -52,7 +52,7 @@
 
 三入口走同一 `onPromoteToSplit` callback → `useArtifactPanel.promoteToSplit()` 单源 transition. 反约束: `closed → split` 不在三入口任一中可达 (closed 态 ArtifactDrawer 不挂 DOM, 按钮 + drag handle 都不存在).
 
-## 反向 grep 守门
+## grep 守门
 
 | 锚 | 期望 |
 |---|---|

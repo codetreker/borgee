@@ -328,7 +328,7 @@
 - `<button className="group-header-menu-btn">` ⋯ 菜单按钮
 - `<span className={cn('group-header-arrow', { collapsed })}>` 三角图标 (默认 ▶ + collapsed 类加 90° rotate)
 
-### 6.3 反向 grep 锚
+### 6.3 grep 检查项
 
 - `.icon-btn` 在 GroupHeader 命中 0 (反通用 class 撑大行高)
 - `transform: rotate` 在 group-header CSS 命中 ≥1 (折叠态走 transform 不走字面)
