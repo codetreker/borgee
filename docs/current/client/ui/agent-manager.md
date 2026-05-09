@@ -4,7 +4,7 @@
 > gh#684 (PR #710) — Agent 详情 6 卡 section 重组 + Credentials 卡 mask + 复制 + auto-clear 60s.
 > 蓝图: `client-shape.md` § agent-manage / agent-detail.
 
-## 1. 立场
+## 1. 设计
 
 agent 详情页 ("Manage" 展开区) 重组成 6 卡 section, 视觉分层"读"vs"写"清晰 + Credentials 卡 by-construction 反完整 plaintext API key 进 DOM.
 
@@ -93,9 +93,9 @@ unmount cleanup `clearTimeout(autoClearTimerRef.current)` 反 dirty timer 卸载
 const ok = document.execCommand('copy');
 ```
 
-`execCommand` 已 deprecated 但仍是 fallback 唯一选项 (反第三方 clipboard 库, heima Sec 立场 4).
+`execCommand` 已 deprecated 但仍是 fallback 唯一选项 (反第三方 clipboard 库, heima Sec 设计 4).
 
-### 4.4 反向 grep 7 锚 (heima Sec 必扫清单)
+### 4.4 grep 检查 7 锚 (heima Sec 必扫清单)
 
 | 锚 | 预期 | 真量 |
 |---|---|---|

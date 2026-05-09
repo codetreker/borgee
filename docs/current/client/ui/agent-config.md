@@ -62,8 +62,8 @@ onSave → updateAgentConfig(agentId, draft) → PATCH /api/v1/agents/{id}/confi
 
 UI 层 + server 层双层 fail-closed:
 - `data-agent-config-field="{api_key|temperature|token_limit|retry_policy}"` count==0 — runtime-only 字段 UI **不渲染** form input (UI 层 fail-closed); server `allowedConfigKeys` whitelist reject 400 with code `agent_config.runtime_field_rejected` (server 层 fail-closed)
-- 不订阅 ws push — 反向 grep: `subscribeWS` / `hub.subscribe` count==0 in AgentConfigPanel.tsx
-- BPP frame `'agent_config_update'` 单引号字面 (代码使用形式) count==0 — 仅 doc comment 出现说明立场, 不在代码路径
+- 不订阅 ws push — grep 检查: `subscribeWS` / `hub.subscribe` count==0 in AgentConfigPanel.tsx
+- BPP frame `'agent_config_update'` 单引号字面 (代码使用形式) count==0 — 仅 doc comment 出现说明设计, 不在代码路径
 
 ## 6. ADM-0 红线 (admin god-mode 不挂)
 
@@ -79,7 +79,7 @@ UI 层 + server 层双层 fail-closed:
 | `model` | `model` | identifier 字符串 (非 LLM 调用参数) |
 | `capabilities` | `capabilities` | 能力开关 |
 | `enabled` | `enabled` | 启用状态 |
-| `memory_ref` | `memory_ref` | SSOT 立场 |
+| `memory_ref` | `memory_ref` | SSOT 一致 |
 
 改 list = 改 server map + 改 al-2a-content-lock.test.ts 字面锁 + 改 acceptance §数据契约 row 2 三处同步。
 
@@ -94,7 +94,7 @@ UI 层 + server 层双层 fail-closed:
 - 反约束 runtime-only 4 字段不渲染
 - 反约束 不订阅 push frame
 - 反约束 toast 同义词漂移 0 hit
-- 反向锚 (gh#701 drift 修): packages/ + docs/qa/ 全树 `data-form="agent-config"` 字面 0 hit (容器是 section, 不是 form)
+- grep 检查 (gh#701 drift 修): packages/ + docs/qa/ 全树 `data-form="agent-config"` 字面 0 hit (容器是 section, 不是 form)
 
 ## 9. 排版守卫 (gh#698 / PR #706)
 

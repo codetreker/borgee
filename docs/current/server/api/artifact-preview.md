@@ -23,7 +23,7 @@ the https-only XSS gate; client renders with HTML5 native primitives.
   (server validation 红线 #1, 复用 ValidateImageLinkURL 同源). client
   只 `<img src>` / `<video poster>`, 不引入 inline 渲染 lib.
 - **② HTML5 native 不引入重 lib.** video → `<video controls>`; pdf →
-  `<embed type="application/pdf">`. 反向 grep
+  `<embed type="application/pdf">`. grep 检查
   `video.js|hls.js|dash.js|shaka-player|pdf.js|react-pdf` package.json
   count==0.
 - **③ kind enum 跟 CV-3 共 schema 单源.** v=28 12-step table-recreate
@@ -63,7 +63,7 @@ ACL (反约束 ① owner-only):
 - No auth user → **401 Unauthorized** (admin god-mode 不入此 path, ADM-0
   §1.3 红线; admin 走 `/admin-api/*` 单独 mw).
 - Authenticated non-owner (channel.created_by != user.ID) →
-  **403 `preview.not_owner`** (跟 CV-1.2 rollback 立场 ⑦ 同 path).
+  **403 `preview.not_owner`** (跟 CV-1.2 rollback 设计 ⑦ 同 path).
 - Channel access defense-in-depth (`canAccessChannel`) → **403 `preview.not_owner`**.
 - Artifact missing → **404 `preview.artifact_not_found`**.
 
@@ -82,7 +82,7 @@ Side-effects on success (200):
 
 - `UPDATE artifacts SET preview_url = ? WHERE id = ?` (overwrite
   接受 — owner 可重发).
-- 不写 system message (跟 CV-1.2 rollback 立场 ⑦ "system message 不发"
+- 不写 system message (跟 CV-1.2 rollback 设计 ⑦ "system message 不发"
   同精神, owner action 不污染 fanout).
 - 不 push WS frame (preview_url 静态 CDN; client 下次 GET
   `/api/v1/artifacts/:id` 拉 — spec §3 不在范围 "实时刷新").
@@ -125,7 +125,7 @@ test-time via `preview_test.go` substring asserts (`preview.url_` 锚 +
   byte-identical 跟 client `PREVIEWABLE_KINDS` (vitest 双向锁).
 - https-only XSS 红线第一道 byte-identical 跟 CV-3.2 #400
   `ValidateImageLinkURL` 同源.
-- Owner-only ACL byte-identical 跟 CV-1.2 #342 rollback 立场 ⑦
+- Owner-only ACL byte-identical 跟 CV-1.2 #342 rollback 设计 ⑦
   channel.created_by gate.
 
 ## 不在范围

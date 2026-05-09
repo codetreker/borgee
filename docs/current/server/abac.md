@@ -19,13 +19,13 @@ grantee `user.org_id` ≠ resource `org_id` ⇒ `HasCapability` returns
 ## Stance (ap-3-spec.md §0)
 
 - **① cross-org owner-only enforcement** — agent / user 跨 org 调
-  channel/artifact 路径直接 false. 复用 `channel.org_id` + CV-1 立场 ①
+  channel/artifact 路径直接 false. 复用 `channel.org_id` + CV-1 设计 ①
   "artifact 归属 channel" + CM-3 #208 既有不变量 (artifact 跟 channel
   同 org).
 - **② `user_permissions.org_id TEXT NULL` (兼容 AP-1)** — NULL = legacy
   / inheritance, 跟 user.org_id NULL = legacy 同精神 (跟 AP-1.1
   expires_at NULL = 永久 ALTER ADD COLUMN NULL 模式同源, 现网行为零变).
-- **③ 反向 grep cross-org bypass 0 hit** — 跟 AP-1 #493 5 grep 反约束
+- **③ grep 检查 cross-org bypass 0 hit** — 跟 AP-1 #493 5 grep 反约束
   同模式守 future drift.
 
 ## Schema (v=29)
@@ -64,11 +64,11 @@ HasCapability(ctx, permission, scope) → bool
 - `"channel:<id>"` → `(channel.org_id, true)` if found and non-empty;
   else `("", false)`.
 - `"artifact:<id>"` → resolves to `artifacts.channel_id` →
-  `channel.org_id` (CV-1 立场 ① + CM-3 既有 invariant).
+  `channel.org_id` (CV-1 设计 ① + CM-3 既有 invariant).
 - Unknown prefix → `("", false)` — forward-compat to v2+ scope 层级
   扩展, skip org gate.
 
-## NULL compatibility (立场 ⑥)
+## NULL compatibility (设计 ⑥)
 
 The gate enforces only when **both** sides have non-empty `org_id`:
 

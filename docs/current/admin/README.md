@@ -142,13 +142,13 @@ PRD F1: admin = 全权运维 + 不在 org 内. 代码层:
 ### Endpoints
 
 **User-rail** (`/api/v1/me/*`, 走 `borgee_token` cookie):
-- `GET /api/v1/me/admin-actions` — 立场 ④ 只见自己 (server `WHERE target_user_id = current`, ?target_user_id 参数被忽略防 inject); user-rail 不返 `actor_id` raw.
+- `GET /api/v1/me/admin-actions` — 设计 ④ 只见自己 (server `WHERE target_user_id = current`, ?target_user_id 参数被忽略防 inject); user-rail 不返 `actor_id` raw.
 - `GET /api/v1/me/impersonation-grant` — 业主端 BannerImpersonate 查询.
 - `POST /api/v1/me/impersonation-grant` — 业主授权 24h (server 固定 expires_at = granted_at + 24h); 已有 active grant → 409 `impersonate.grant_already_active`.
 - `DELETE /api/v1/me/impersonation-grant` — 业主主动撤销 (204).
 
 **Admin-rail** (`/admin-api/v1/audit-log`, 走 `borgee_admin_session`):
-- `GET /admin-api/v1/audit-log` — 立场 ③ 互可见 (无 WHERE 默认; 可选 `?actor_id=` / `?action=` / `?target_user_id=` 三 filter); user cookie → 401 (REG-ADM0-002 共享底线).
+- `GET /admin-api/v1/audit-log` — 设计 ③ 互可见 (无 WHERE 默认; 可选 `?actor_id=` / `?action=` / `?target_user_id=` 三 filter); user cookie → 401 (REG-ADM0-002 共享底线).
 
 ### 5 admin write-action audit hook
 
@@ -161,9 +161,9 @@ PRD F1: admin = 全权运维 + 不在 org 内. 代码层:
 
 audit + DM emit 走 `store.EmitAdminActionAudit` (composite); DM emit failure 不 rollback audit (蓝图 §2 优先).
 
-### Forward-only 立场 ⑤
+### Forward-only 设计 ⑤
 
-Schema 不挂 `updated_at` 列, server 不开 UPDATE/DELETE 路径. 反向 grep `UPDATE admin_actions\|DELETE FROM admin_actions` 在 `internal/` 除 migration 应 count==0.
+Schema 不挂 `updated_at` 列, server 不开 UPDATE/DELETE 路径. grep 检查 `UPDATE admin_actions\|DELETE FROM admin_actions` 在 `internal/` 除 migration 应 count==0.
 
 ### 反约束 (stance §2 ADM2-NEG-001..010)
 
@@ -175,7 +175,7 @@ Schema 不挂 `updated_at` 列, server 不开 UPDATE/DELETE 路径. 反向 grep 
 ### ADM-2-FOLLOWUP (#626 PR feat/adm-2-followup)
 
 - REG-ADM2-010 wire: `handleCreateMyImpersonateGrant` 在 `s.GrantImpersonation` 成功后 fire `InsertAdminAction(actor=user, target=user, action="start_impersonation", metadata={grant_id, expires_at})` audit hook → REG-ADM2-003 4/5 → 5/5 收口.
-- REG-ADM2-010 helper: `api.RequireImpersonationGrant(w, r, s, targetUserID)` 返 `(true, *admin.Admin)` 或 (false, _) 已写 4 字面错码: `impersonate.no_admin` (401) / `impersonate.no_target` (400) / `impersonate.no_grant` (403). 5 admin write handler 集成留 v1 follow-up; helper 已落 + 4 unit branch 全覆.
+- REG-ADM2-010 helper: `api.RequireImpersonationGrant(w, r, s, targetUserID)` 返 `(true, *admin.Admin)` 或 (false, _) 已写 4 字面错码: `impersonate.no_admin` (401) / `impersonate.no_target` (400) / `impersonate.no_grant` (403). 5 admin write handler 集成留 v1 后续; helper 已落 + 4 unit branch 全覆.
 - REG-ADM2-011: 新 admin SPA audit-log 页 `[data-page="admin-audit-log"]` + `[data-adm2-audit-list="true"]` + `[data-adm2-red-banner="active"]` + 中文 title "审计日志" + 中文 empty "暂无审计记录" + 红 banner 字面 byte-identical "当前以业主身份操作 — 该会话受 24h 时限".
 - 测试 seam: `admin.WithAdminContext(ctx, *Admin)` 导出 (test-only 注入 adminCtxKey, production 仍走 RequireAdmin → ResolveSession 唯一路径).
 
@@ -187,7 +187,7 @@ Schema 不挂 `updated_at` 列, server 不开 UPDATE/DELETE 路径. 反向 grep 
 
 **D3 AdminChannel.member_count 死字段删**: server `Channel` gorm json (`store/models.go::Channel`) 不返 member_count 字段. 客户端 interface + ChannelsPage 表格列同删.
 
-**D4 AL-8 archived 三态 (走 A)**: server `store.AdminAction` 加 `ArchivedAt *int64 \`gorm:"column:archived_at" json:"-"\``; `sanitizeAdminAction` 加 nil-safe surface (null/缺 = active 不写, non-null = `archived_at: int64 ms`). AdminAuditLogPage row 加 `data-archived-state="active|archived"` + `admin-audit-row-{active,archived}` className. AL-8 §0 立场③ 真兑现.
+**D4 AL-8 archived 三态 (走 A)**: server `store.AdminAction` 加 `ArchivedAt *int64 \`gorm:"column:archived_at" json:"-"\``; `sanitizeAdminAction` 加 nil-safe surface (null/缺 = active 不写, non-null = `archived_at: int64 ms`). AdminAuditLogPage row 加 `data-archived-state="active|archived"` + `admin-audit-row-{active,archived}` className. AL-8 §0 设计③ 真兑现.
 
 **D5 InviteCode.note**: 收紧 `string` non-null (server `store.InviteCode.Note string \`json:"note"\`` 默认 "").
 
@@ -227,7 +227,7 @@ ADM-0.1 bootstrap env 加二选一支持: 推荐 prod 用 hash, dev/testing 用 
 
 **反约束**:
 - 0 server / 0 schema / 0 endpoint URL / 0 cookie 改 (`git diff origin/main -- packages/server-go/` = 0 行)
-- #633 D4-A row className/data-archived-state 不破 (此 PR 反向 grep 守, 0 改)
+- #633 D4-A row className/data-archived-state 不破 (此 PR grep 检查 守, 0 改)
 - 3 option value byte-identical 跟 server `admin_endpoints.go::handleAdminAuditLog ?archived=` enum 字面单源 (drift = 改两处 client + server)
 - `admin-audit-row-archived` className 仅 AdminAuditLogPage 内, 0 漂入 AdminApp 别 page (反 cross-page contamination)
 

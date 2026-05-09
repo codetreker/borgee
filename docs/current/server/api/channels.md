@@ -18,7 +18,7 @@ CHN-10 #561 ships owner-only channel description (= channels.topic 列, 复
 JSON array on the same row (channels.description_edit_history TEXT NULL),
 reusing the DM-7 #558 messages.edit_history pattern (跨八 milestone ALTER
 ADD COLUMN nullable 同模式; AL-7.1+HB-5.1+AP-1.1+AP-3.1+AP-2.1+DM-7.1+
-CV-6.1+CHN-14.1). 不另起 history table (反向 grep 锁守).
+CV-6.1+CHN-14.1). 不另起 history table (grep 检查 锁守).
 
 ## Stance (chn-10-spec.md §0 + chn-14-spec.md §0 字面)
 
@@ -29,7 +29,7 @@ CV-6.1+CHN-14.1). 不另起 history table (反向 grep 锁守).
 - **② UpdateChannelDescription SSOT.** PUT /channels/:id/description 走
   store.UpdateChannelDescription wrapper: SELECT old topic + edit_history
   → JSON append `{old_content, ts, reason='unknown'}` → UPDATE atomic.
-  反向 grep `inline UPDATE channels.*topic` 在 chn_10/chn_14 之外
+  grep 检查 `inline UPDATE channels.*topic` 在 chn_10/chn_14 之外
   production 0 hit (single-source).
 - **③ owner-only ACL 锁链第 21 处.** PUT + GET history user-rail 走
   `channel.CreatedBy == user.ID` 反向断 (member-level → 403); admin-rail
@@ -37,7 +37,7 @@ CV-6.1+CHN-14.1). 不另起 history table (反向 grep 锁守).
 - **④ 文案锁** (chn-14-content-lock.md §1):
   - modal title `编辑历史` (跟 DM-7 #558 EditHistoryModal byte-identical
     跨 milestone)
-  - empty state `暂无编辑记录` (CHN-14 立场 ⑥ 显式空态; DM-7 立场是空
+  - empty state `暂无编辑记录` (CHN-14 设计 ⑥ 显式空态; DM-7 设计是空
     return null — 真分歧)
   - 行 action `: 修改了说明` (CHN-14 独有, per-edit 显式)
   - 同义词反向 reject `History/Audit/Log/记录/日志/审计/回退/恢复`
@@ -89,7 +89,7 @@ Side-effects on success (200):
   reason='unknown'}` → UPDATE topic + description_edit_history.
 - **idempotent** — same-content PUT 不入 history (跟 DM-7 #558 同精神).
 - 不发 system message (owner action 不污染 fanout).
-- 不 push WS frame (CHN-10 立场 ⑤ — client 下次 GET pull).
+- 不 push WS frame (CHN-10 设计 ⑤ — client 下次 GET pull).
 
 Response body: 既有 channel JSON shape (含 topic 新值).
 
@@ -123,7 +123,7 @@ Response body:
 ### GET /admin-api/v1/channels/{channelId}/description/history (CHN-14 admin readonly)
 
 Same response shape as user-rail GET, no owner-only check (admin
-可见全 org). admin god-mode 不挂 PATCH/DELETE 反向 grep 守门 — admin
+可见全 org). admin god-mode 不挂 PATCH/DELETE grep 守门 — admin
 看 audit 不直接改 (ADM-0 §1.3 红线).
 
 ## 跨 milestone byte-identical 锁
@@ -132,14 +132,14 @@ Same response shape as user-rail GET, no owner-only check (admin
   HB-5.1 + AP-1.1 + AP-3.1 + AP-2.1 + CV-6.1 + CHN-14.1).
 - UpdateChannelDescription SSOT 模式承袭 DM-7 #558 UpdateMessage SSOT.
 - owner-only ACL 锁链第 21 处 (CHN-10 #20 + DM-7 #19 + ...).
-- audit inline JSON 列模式 (跟 DM-7 #558 立场 ⑤ 同精神, 不入 admin_actions).
+- audit inline JSON 列模式 (跟 DM-7 #558 设计 ⑤ 同精神, 不入 admin_actions).
 - 文案 `编辑历史` byte-identical 跨 DM-7 EditHistoryModal + CHN-14
   DescriptionHistoryModal (cross-modal 锚).
 - AST 锁链延伸第 22 处 forbidden 3 token 0 hit.
 
 ## 不在范围
 
-- 单条 history 删/编 (forward-only 立场).
+- 单条 history 删/编 (forward-only 设计).
 - 非 description 字段 audit (CHN-2 既有 PUT /topic member-level path 不挂).
 - 跨 org admin 全局 history (留 v3 — 仅同 org admin readonly).
 - audit retention 自动清理 (留 v3 跟 AL-7 同期统一).

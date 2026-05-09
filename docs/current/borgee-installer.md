@@ -28,7 +28,7 @@ unit. **No `server-go` or `borgee-helper` bytes change.**
 - **3 平台拆分, Windows 留 v2** — Linux `.deb` + macOS `.pkg` v1
   实施; Windows `.msi` per blueprint §1.4 字面 "Windows: v2 才支持,
   需重新设计" 留账, `cmd/borgee-installer-windows/` 在 v1 不存在
-  (反向 grep 0 hit).
+  (grep 检查 0 hit).
 - **首次 install ed25519 manifest verify** — 安装前 fetch HB-1 endpoint
   + 验签 (复用 HB-1 既有 `PluginManifestEntries` const slice + ed25519
   detached signature). verify 失败 → 安装阻塞 (反 silent fallback).
@@ -43,7 +43,7 @@ unit. **No `server-go` or `borgee-helper` bytes change.**
   `packages/borgee-installer/` 独立 Go module + GitHub Actions matrix
   workflow + uninstall 脚本.
 - **admin god-mode 永久不挂** (ADM-0 §1.3 红线) — installer 走用户
-  sudo, 反向 grep `admin.*installer|/admin-api/.*installer` 0 hit.
+  sudo, grep 检查 `admin.*installer|/admin-api/.*installer` 0 hit.
 
 ## Module layout
 
@@ -53,7 +53,7 @@ packages/borgee-installer/
 ├── cmd/
 │   ├── borgee-installer-linux/main.go            # .deb installer
 │   └── borgee-installer-darwin/main.go           # .pkg installer
-│   (Windows v2 留账; 反向 grep 0 hit)
+│   (Windows v2 留账; grep 检查 0 hit)
 ├── internal/
 │   ├── manifest/   # HB-1 endpoint fetch + ed25519 verify
 │   ├── dialog/     # 4 grant_type permission popup
@@ -98,7 +98,7 @@ migration v=27). 改前端 = 改 schema CHECK = 改 content-lock §1.①.
 
 ## Uninstall (信任底线, 蓝图 §1.2 字面 6 项)
 
-`borgee-installer-uninstall` (留 v1 release follow-up PR) 真挂 6 项删除:
+`borgee-installer-uninstall` (留 v1 release 后续 PR) 真挂 6 项删除:
 
 1. 二进制 (`/usr/local/bin/borgee-helper` / `/Applications/Borgee Helper.app`)
 2. 配置 / 状态 (`~/.config/borgee-helper/`)
