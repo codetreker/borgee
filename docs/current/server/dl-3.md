@@ -60,7 +60,7 @@
 - `go test -tags sqlite_fts5 -timeout=300s ./...` 全包 PASS ✅
 - haystack gate TOTAL 85.6% / Pkg datalayer 89.0% / 0 func<50% (events_threshold collectors 全测) ✅
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - DL-1+DL-2 interface 不破: `git diff origin/main -- internal/datalayer/{eventbus,repository,presence,storage,events_store,events_retention,must_persist_kinds}.go` signature 0 改
 - 0 schema 改: `ls migrations/ | grep -cE 'dl_3|threshold|offload'` 0 hit

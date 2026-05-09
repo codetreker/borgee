@@ -1,7 +1,7 @@
 # CS-4 IndexedDB 乐观缓存 (client)
 
 > 锚: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque) + `docs/implementation/modules/cs-4-spec.md` v0
-> 落点: 战马D + 飞马 + 烈马 + 野马 (一 milestone 一 PR, 0 server prod + 0 schema)
+> 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
 ## IDB wrapper SSOT (lib/cs4-idb.ts)
 

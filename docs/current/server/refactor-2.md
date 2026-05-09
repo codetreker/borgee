@@ -55,7 +55,7 @@
 - post-#612 haystack gate TOTAL 85.5% no func<50% no pkg<70% ✅
 - LoC 净减 -137 行 (40 文件 +509 -495; spec v0 错估 500-700 因为算"5→0"实际"3→1" = 1 行减/callsite)
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - `grep -cE '^func mustUser\\(' auth_helpers.go` ==1
 - `grep -cE '^func decodeJSON\\(' request_helpers.go` ==1

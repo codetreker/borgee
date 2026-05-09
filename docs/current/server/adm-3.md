@@ -68,7 +68,7 @@
 - `pnpm exec vitest run` 99 file 655 tests 全 PASS ✅
 - haystack gate TOTAL 85.6% / 0 func<50% / exit 0 ✅
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - 4 source const SSOT: `grep AuditSource{Server,Plugin,HostBridge,Agent} admin_audit_query.go` ==4 hit
 - 0 schema 改: `git diff origin/main -- migrations/` 0 行

@@ -63,7 +63,7 @@ Plugin SDK 收 BPP-3.1 `permission_denied` frame (after AP-1 `auth.HasCapability
 {agent_name} 想 {attempted_action} 但缺权限 {required_capability}
 ```
 
-字段 byte-identical 跟 BPP-3.1 PermissionDeniedFrame body + AP-1 `auth.abac.go` 403 body (跨 PR drift 守, content-lock §5 五处). 反向 grep `agent.*尝试.*权限\|agent.*请求.*授权` 在 internal/api/ count==0 (近义词漂禁).
+字段 byte-identical 跟 BPP-3.1 PermissionDeniedFrame body + AP-1 `auth.abac.go` 403 body (跨 PR drift 守, content-lock §5 五处). grep 检查 `agent.*尝试.*权限\|agent.*请求.*授权` 在 internal/api/ count==0 (近义词漂禁).
 
 ### 4.3 quick_action JSON shape (content-lock §2)
 
@@ -75,4 +75,4 @@ Plugin SDK 收 BPP-3.1 `permission_denied` frame (after AP-1 `auth.HasCapability
 
 ### 4.4 Capability + scope 校验
 
-`required_capability` 必走 AP-1 `auth.Capabilities` 14 项 const; 字典外值 reject + log warn `bpp.grant_capability_disallowed`. 反向 grep `GrantPermission.*Permission:.*"<literal>"` 在 internal/api/ count==0 (跟 AP-1 反约束 #1 同源).
+`required_capability` 必走 AP-1 `auth.Capabilities` 14 项 const; 字典外值 reject + log warn `bpp.grant_capability_disallowed`. grep 检查 `GrantPermission.*Permission:.*"<literal>"` 在 internal/api/ count==0 (跟 AP-1 反约束 #1 同源).

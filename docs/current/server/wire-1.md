@@ -41,7 +41,7 @@
 | DL-1+DL-2+DL-3+DL-4 interface signature | byte-identical | byte-identical ✅ | 仅 NewEventsArchiveOffloader 加 interval 参数, NewDataLayer 加 logger 参数 (callsite 跟随) |
 | 0 endpoint URL 改 | byte-identical | byte-identical ✅ | server.go 仅 +Start / +SetPushFanout, 0 HandleFunc |
 | 0 schema 改 | byte-identical | byte-identical ✅ | migrations/ 0 行 |
-| admin god-mode 不挂 wire 路径 (ADM-0 §1.3) | 0 hit | 0 hit ✅ | 反向 grep `admin.*EventsArchiveOffloader\|admin.*AgentTaskNotifier\|/admin-api/.*offload` 0 hit |
+| admin god-mode 不挂 wire 路径 (ADM-0 §1.3) | 0 hit | 0 hit ✅ | grep 检查 `admin.*EventsArchiveOffloader\|admin.*AgentTaskNotifier\|/admin-api/.*offload` 0 hit |
 | ctx-aware 反 leak | byte-identical | ✅ | Start(s.ctx) 跨 RetentionSweeper / ThresholdMonitor / EventsArchiveOffloader 3 处 + sync.Once + Done() chan |
 
 ## 4. 跨 milestone byte-identical 锁链
@@ -60,7 +60,7 @@
 - `go test -tags sqlite_fts5 -timeout=300s ./...` 25+ packages 全 PASS ✅
 - haystack gate TOTAL 85.7% / datalayer 91.4% / bpp 93.7% / 0 func<50% / exit 0 ✅
 
-## 6. 反向 grep 守门 (spec §2 6 锚)
+## 6. grep 守门 (spec §2 6 锚)
 
 - DL-2 cold consumer: `grep -cE 'NewInProcessEventBusWithStore' factory.go` ==1 + `func NewInProcessEventBus()` 0 hit (已删)
 - DL-3 offloader 真启: `grep -cE 'EventsArchiveOffloader.*Start\(' server.go` ==1

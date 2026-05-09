@@ -1,7 +1,7 @@
 # CS-3 PWA install + Web Push UI (client)
 
 > 锚: `docs/blueprint/current/client-shape.md` §1.1 (PWA 主战场) + §1.4 (Web Push) + `docs/implementation/modules/cs-3-spec.md` v0
-> 落点: 战马D + 飞马 + 烈马 + 野马 (一 milestone 一 PR, 0 server prod + 0 schema)
+> 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
 ## PWA install prompt SSOT (lib/cs3-install-prompt.ts)
 

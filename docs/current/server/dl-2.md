@@ -65,7 +65,7 @@ row-level `retention_days` 列覆盖 default (NULL = use kind default).
 - `go test -tags sqlite_fts5 -timeout=300s ./...` 24 包全 PASS ✅ (含 9 新 events_test PASS, deterministic via sync.WaitGroup)
 - post-NAMING-1 haystack gate TOTAL 85.6%, no func<50%, no pkg<70% ✅
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - DL-1 signature 不破: `git diff origin/main -- eventbus.go | grep -E '^-.*Publish|^-.*Subscribe'` 0 hit
 - channel_events + global_events 单表: `ls migrations/ | grep -cE 'channel_events|global_events'` ==2

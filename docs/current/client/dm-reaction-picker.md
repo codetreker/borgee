@@ -21,7 +21,7 @@
 | ① | 0 server production code — 复用 CV-7 PUT/DELETE/GET reactions endpoint + AP-4 ACL gate; 跟 DM-9 + DM-5 同 endpoint 单源 |
 | ② | DM-only mounting path — 父组件 (MessageItem.tsx for DM channels) 仅在 `channel.type === 'dm'` 时挂此 composite (反 cross-channel mount) |
 | ③ | 复用 EmojiPickerPopover (add 新 emoji) + ReactionSummary (display 既有 + toggle); 不另起组件复制功能 |
-| ④ | thinking 5-pattern 锁链第 12 处 (DM-9 第 11 后续) — composite 不暴露 reasoning, 反向 grep 5 字面 0 hit |
+| ④ | thinking 5-pattern 锁链第 12 处 (DM-9 第 11 后续) — composite 不暴露 reasoning, grep 检查 5 字面 0 hit |
 | ⑤ | DOM data-attr 锁: `data-dm12-reaction-picker` (root) + delegate to DM-9 `data-dm9-*` + DM-5 `data-dm5-*` (反向不重复 attr) |
 
 ## Props 契约
@@ -58,7 +58,7 @@ const DM9_EMOJI_PRESET = ['👍', '❤️', '😄', '🎉', '🚀'] as const;
 
 字面顺序 SSOT 在 `EmojiPickerPopover.tsx`. 改 = 改一处.
 
-## 反向 grep 守门
+## grep 守门
 
 | 锚 | 期望 |
 |---|---|

@@ -13,7 +13,7 @@
 | offline | `PresenceStateOffline = "offline"` | 0 live session | `data-rt3-presence-dot=offline` + `离线` |
 | thinking | `PresenceStateThinking = "thinking"` | agent 执行任务 (走 bpp.task_started + Subject 必带非空) | `data-rt3-presence-dot=recently-active` (subject 由 caller UI 显示) |
 
-**反约束**: 4 态封闭枚举 (反 PresenceStateTyping/Composing/Idle/Pending/Loading 漂 — 反向 grep 0 hit).
+**反约束**: 4 态封闭枚举 (反 PresenceStateTyping/Composing/Idle/Pending/Loading 漂 — grep 检查 0 hit).
 
 ## 2. thinking subject 反约束 (蓝图 §1.1 ⭐ 关键纪律)
 

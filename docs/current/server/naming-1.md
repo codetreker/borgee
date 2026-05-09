@@ -44,7 +44,7 @@
 
 ## 5. 留账透明
 
-- ❌ Test func collision-keep — 飞马 audit 反转: 90 处全 unique 化 (file-prefix functionality suffix, 不留 NAMING-2). 实施 commit c2d192c4: `Test<Domain>\d+_X` → `Test<FilePrefixCamel>_X` (e.g. TestCHN51_NoSchemaChange → TestChn5archived_NoSchemaChange). 反向 grep `Test(CHN|DM|RT|AL|CV|BPP|HB|AP|ADM|CM|CS|DL)[0-9]+` ==0.
+- ❌ Test func collision-keep — 飞马 audit 反转: 90 处全 unique 化 (file-prefix functionality suffix, 不留 NAMING-2). 实施 commit c2d192c4: `Test<Domain>\d+_X` → `Test<FilePrefixCamel>_X` (e.g. TestCHN51_NoSchemaChange → TestChn5archived_NoSchemaChange). grep 检查 `Test(CHN|DM|RT|AL|CV|BPP|HB|AP|ADM|CM|CS|DL)[0-9]+` ==0.
 - ❌ REFACTOR-3 (cursor envelope 深化 / messages.go 长函数拆 / store query helper 整合) — 留 REFACTOR-3 议程, 跟本 NAMING-1 不同 concern
 - ❌ DOM data-attr / CSS class 命名归一 (e.g. `data-cv7-comment-input`) — content-lock 绑, 留 v3+ 议程
 - ❌ DB column 名改 — 0 schema 改铁律
@@ -57,7 +57,7 @@
 - `go vet ./...` 0 redeclared ✅
 - post-#613 haystack gate TOTAL 85.5%, no func<50%, no pkg<70% ✅
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - 文件 milestone-prefix 0 残留: `find packages/server-go/internal -name '*.go' | grep -cE '/(al|chn|dm|cv|bpp|hb|rt|ap|adm|cm|cs|dl|infra|test_fix)_[0-9]'` ==0
 - struct/handler milestone-prefix 0 残留: `grep -rE 'type [A-Z]+[0-9]+[A-Z][a-zA-Z]*Handler'` 0 hit
