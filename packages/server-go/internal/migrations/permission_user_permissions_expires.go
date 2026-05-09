@@ -16,7 +16,7 @@ import "gorm.io/gorm"
 //      expires_at) WHERE expires_at IS NOT NULL — sparse index 仅扫
 //      有期限行, sweeper 路径热查 (v2+ 业务化时挂 cron, v1 不消费).
 //
-// 反约束 (auth-permissions.md §1.2 + 立场 "v1 schema 保留, UI 不做"):
+// 反约束 (auth-permissions.md §1.2 + 设计 "v1 schema 保留, UI 不做"):
 //   - 不挂 NOT NULL — 现网行 expires_at 全 NULL = 永久, 跟蓝图 §1.1
 //     "ABAC source of truth" 行为不变.
 //   - 不挂 default 值 — NULL 是合法终态, 不 default 0 (0 会被 sweeper

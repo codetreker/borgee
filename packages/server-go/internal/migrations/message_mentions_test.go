@@ -54,8 +54,8 @@ func TestDM_CreatesMessageMentionsTable(t *testing.T) {
 
 // TestDM_NoCursorOrFanoutOwnerColumns pins acceptance §1.0.e —
 // 反约束 column list. cursor / fanout_to_owner_id / cc_owner_id /
-// target_kind / read_at must NOT exist. spec §0 立场 ③ (mention 永不
-// 抄送 owner) + 立场 ⑥ (user / agent 同语义, 不分叉 target_kind).
+// target_kind / read_at must NOT exist. spec §0 设计 ③ (mention 永不
+// 抄送 owner) + 设计 ⑥ (user / agent 同语义, 不分叉 target_kind).
 func TestDM_NoCursorOrFanoutOwnerColumns(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -64,10 +64,10 @@ func TestDM_NoCursorOrFanoutOwnerColumns(t *testing.T) {
 	cols := pragmaColumns(t, db, "message_mentions")
 	for _, forbidden := range []string{
 		"cursor",            // RT-1 envelope cursor 拆死
-		"fanout_to_owner_id", // 立场 ③ 永不抄送 owner
-		"cc_owner_id",       // 立场 ③ 永不抄送 owner (#293 §4.a 反约束)
-		"owner_id",          // 立场 ③ 任何 owner 路由列禁
-		"target_kind",       // 立场 ⑥ user / agent 同语义不分叉
+		"fanout_to_owner_id", // 设计 ③ 永不抄送 owner
+		"cc_owner_id",       // 设计 ③ 永不抄送 owner (#293 §4.a 反约束)
+		"owner_id",          // 设计 ③ 任何 owner 路由列禁
+		"target_kind",       // 设计 ⑥ user / agent 同语义不分叉
 		"read_at",           // mention 阅读态留 Phase 5+
 		"acknowledged_at",   // mention 阅读态留 Phase 5+
 	} {
@@ -79,7 +79,7 @@ func TestDM_NoCursorOrFanoutOwnerColumns(t *testing.T) {
 
 // TestDM_RejectsDuplicateMentionPerMessage pins acceptance §1.0.b —
 // UNIQUE(message_id, target_user_id) — 同 message 同 target 二次 INSERT
-// reject (dedup, 立场 ⑥ agent=同事 同语义). 重复 `@<id>` 同 message
+// reject (dedup, 设计 ⑥ agent=同事 同语义). 重复 `@<id>` 同 message
 // 只持久化一行.
 func TestDM_RejectsDuplicateMentionPerMessage(t *testing.T) {
 	t.Parallel()

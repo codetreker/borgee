@@ -99,23 +99,23 @@ func TestAgentStateLog_NoDomainBleed(t *testing.T) {
 
 	cols := pragmaColumns(t, db, "agent_state_log")
 	for _, forbidden := range []string{
-		// 立场 ① forward-only — 反向 updated_at / modified_at 引诱 UPDATE 路径
+		// 设计 ① forward-only — 反向 updated_at / modified_at 引诱 UPDATE 路径
 		"updated_at",
 		"modified_at",
-		// 立场 ② state machine 单源 — 反向 task_state / state 单字段
+		// 设计 ② state machine 单源 — 反向 task_state / state 单字段
 		// (语义在 to_state, 双字段会引诱 redundant write)
 		"state",
 		"task_state",
 		// 跟 al_3_1 / al_4_1 / cv_*_1 / dm_2_1 / cv_4_1 / chn_3_1 / al_2a_1 /
 		// adm_2_1 / adm_2_2 同模式 — RT-1 envelope cursor 不下沉 schema
 		"cursor",
-		// 派生 users.org_id, 跟 admin_actions 立场 ⑥ 同精神
+		// 派生 users.org_id, 跟 admin_actions 设计 ⑥ 同精神
 		"org_id",
 		// owner_id 不在此表 (派生 users.owner_id, 反向不重复持有)
 		"owner_id",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("agent_state_log.%s exists — 反约束 broken (蓝图 §2.3 + AL-1a/AL-1b 立场承袭)", forbidden)
+			t.Errorf("agent_state_log.%s exists — 反约束 broken (蓝图 §2.3 + AL-1a/AL-1b 设计沿用)", forbidden)
 		}
 	}
 }
@@ -136,7 +136,7 @@ func TestAL_HasIndex(t *testing.T) {
 	}
 }
 
-// TestAgentStateLog_AcceptsAL1aReasonValues pins 立场 ④ — error 转移 reason 复用
+// TestAgentStateLog_AcceptsAL1aReasonValues pins 设计 ④ — error 转移 reason 复用
 // AL-1a 6 reason byte-identical (改 = 改 7 处单测锁链).
 func TestAgentStateLog_AcceptsAL1aReasonValues(t *testing.T) {
 	t.Parallel()

@@ -8,13 +8,13 @@ import "gorm.io/gorm"
 // 技术栈 SQLite SSOT 字面承袭 (不另起 elasticsearch / opensearch /
 // typesense / meilisearch / sonic / bleve search service). Spec brief:
 // docs/implementation/modules/cv-6-spec.md (战马C v0, d2fe1f0) §0
-// 立场 ① + §1 拆段 CV-6.1.
+// 设计 ① + §1 拆段 CV-6.1.
 //
 // What this migration does:
 //   1. CREATE VIRTUAL TABLE artifacts_fts USING fts5(title, body,
 //      content=artifacts, content_rowid=id, tokenize='unicode61
 //      remove_diacritics 2') — contentless 模式跟 artifacts 单源 SSOT,
-//      不裂表 (立场 ③ 反向 grep `CREATE TABLE.*search_index|
+//      不裂表 (设计 ③ grep 检查 `CREATE TABLE.*search_index|
 //      artifact_search_results|fts_documents` 0 hit).
 //   2. 三 AFTER trigger byte-identical 命名 artifacts_ai (INSERT) /
 //      artifacts_au (UPDATE) / artifacts_ad (DELETE) — 自动同步
@@ -22,10 +22,10 @@ import "gorm.io/gorm"
 //      自动入 index).
 //   3. Initial backfill — `INSERT INTO artifacts_fts(rowid, title, body)
 //      SELECT id, title, body FROM artifacts WHERE archived_at IS NULL`
-//      — legacy 行入 index, 立场 ⑥ archived_at IS NOT NULL 反向断言
+//      — legacy 行入 index, 设计 ⑥ archived_at IS NOT NULL 反向断言
 //      不出现.
 //
-// 反约束 (cv-6-spec.md §0 立场 ①③ + §3 反约束 grep):
+// 反约束 (cv-6-spec.md §0 设计 ①③ + §3 反约束 grep):
 //   - 不另起 search 表 (FTS5 contentless 跟 artifacts 单源 SSOT, 反向
 //     grep 0 hit).
 //   - 不引入 cron 框架 reindex (FTS5 trigger 自动同步).
@@ -89,7 +89,7 @@ var artifactsFTS = Migration{
 			return err
 		}
 
-		// Step 3 — initial backfill, legacy 行入 index (立场 ⑥
+		// Step 3 — initial backfill, legacy 行入 index (设计 ⑥
 		// archived_at IS NULL 过滤 — archived 不出现).
 		if err := tx.Exec(`INSERT INTO artifacts_fts(rowid, title, body)
 			SELECT rowid, title, body FROM artifacts WHERE archived_at IS NULL`).Error; err != nil {

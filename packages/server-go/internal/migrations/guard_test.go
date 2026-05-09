@@ -1,7 +1,7 @@
 // Package migrations — guard_test.go: cover the "early-return when prerequisite
 // table missing" branches that 7 forward-only migrations share. Each
 // guard returns nil without touching schema (跟 Phase-6 partial-rollout
-// 立场 — 不裂表, 不假装存在).
+// 设计 — 不裂表, 不假装存在).
 package migrations
 
 import (

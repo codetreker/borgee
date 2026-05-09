@@ -162,7 +162,7 @@ func TestAgentAdminActionsArchivedAt_Idempotent(t *testing.T) {
 	}
 }
 
-// TestAL_NoSeparateArchiveTable — acceptance §1.3 立场 ① 反断.
+// TestAL_NoSeparateArchiveTable — acceptance §1.3 设计 ① 反断.
 //
 // Verifies that no audit_archive_table / audit_history_log / al7_archive_log
 // tables exist after migration chain runs (audit retention reuses
@@ -180,7 +180,7 @@ func TestAL_NoSeparateArchiveTable(t *testing.T) {
 		var n int64
 		db.Raw(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?`, name).Scan(&n)
 		if n > 0 {
-			t.Errorf("AL-7 立场 ① broken: forbidden archive table %q exists (audit reuses admin_actions.archived_at)", name)
+			t.Errorf("AL-7 设计 ① broken: forbidden archive table %q exists (audit reuses admin_actions.archived_at)", name)
 		}
 	}
 }

@@ -42,7 +42,7 @@ func TestCV_AcceptsCodeAndImageLinkKinds(t *testing.T) {
 }
 
 // TestCV_RejectsPdfKanbanMindmap pins acceptance §1.2 — CHECK reject
-// 'pdf' / 'kanban' / 'mindmap' (蓝图 §2 v1 不做字面禁守住). 立场 ① enum
+// 'pdf' / 'kanban' / 'mindmap' (蓝图 §2 v1 不做字面禁守住). 设计 ① enum
 // 收窄: 不开 v2+ kind 漏口.
 func TestCV_RejectsPdfKanbanMindmap(t *testing.T) {
 	t.Parallel()
@@ -64,7 +64,7 @@ func TestCV_RejectsPdfKanbanMindmap(t *testing.T) {
 
 // TestCV_PreservesMarkdownRowsAcrossRebuild pins data preservation —
 // CV-1 既有 markdown rows MUST survive the v=17 table-recreate copy.
-// 反约束: 数据丢失即立场 ① "enum 扩不裂表" 字面破 (拆表 ≈ 老数据丢).
+// 反约束: 数据丢失即设计 ① "enum 扩不裂表" 字面破 (拆表 ≈ 老数据丢).
 func TestCV_PreservesMarkdownRowsAcrossRebuild(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -120,7 +120,7 @@ func TestCV_PreservesMarkdownRowsAcrossRebuild(t *testing.T) {
 }
 
 // TestCanvasArtifactKinds_PreservesChannelIDIndex pins acceptance §1 + cv-1-spec §0
-// 立场 — `idx_artifacts_channel_id` MUST survive the table-recreate
+// 设计 — `idx_artifacts_channel_id` MUST survive the table-recreate
 // (DROP TABLE drops the index, the migration must recreate it). channel-list
 // 是 CV-1.2 list 端热路径; index 丢失 = list 全表扫.
 func TestCanvasArtifactKinds_PreservesChannelIDIndex(t *testing.T) {
@@ -137,7 +137,7 @@ func TestCanvasArtifactKinds_PreservesChannelIDIndex(t *testing.T) {
 }
 
 // TestCanvasArtifactKinds_NoSeparateKindTables pins acceptance §1.5 + spec §3 反约束 —
-// 立场 ① 不裂表: 不开 artifact_code / artifact_images. 反向断言
+// 设计 ① 不裂表: 不开 artifact_code / artifact_images. 反向断言
 // sqlite_master.tables 不含此名 (跟 spec §3 reverse grep 同源, schema
 // 层 belt 兜).
 func TestCanvasArtifactKinds_NoSeparateKindTables(t *testing.T) {
@@ -152,7 +152,7 @@ func TestCanvasArtifactKinds_NoSeparateKindTables(t *testing.T) {
 			t.Fatalf("scan %s: %v", forbidden, err)
 		}
 		if n != 0 {
-			t.Errorf("table %q exists — 反约束 broken (立场 ① enum 扩不裂表)", forbidden)
+			t.Errorf("table %q exists — 反约束 broken (设计 ① enum 扩不裂表)", forbidden)
 		}
 	}
 }

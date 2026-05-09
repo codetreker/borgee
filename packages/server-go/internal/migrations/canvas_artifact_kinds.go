@@ -10,10 +10,10 @@ import (
 // (artifact 集合: Markdown / 代码片段带语言标注 / 设计稿图片或链接 /
 // 看板 v2+) + §2 v1 不做清单 (❌ 无限画布 / ❌ 多 artifact 关联视图 /
 // ❌ CRDT / ❌ PDF / ❌ 看板). Spec brief: `docs/implementation/modules/cv-3-spec.md`
-// (飞马 #363, merged 74700e0) §0 立场 ① + §1 拆段 CV-3.1.
+// (飞马 #363, merged 74700e0) §0 设计 ① + §1 拆段 CV-3.1.
 // Stance: `docs/qa/cv-3-stance-checklist.md` (野马 #385). Acceptance:
 // `docs/qa/acceptance-templates/cv-3.md` (#376) §1.1-§1.5. Content lock:
-// `docs/qa/cv-3-content-lock.md` (野马 #370) §1 ①②⑦ + §2 反向 grep.
+// `docs/qa/cv-3-content-lock.md` (野马 #370) §1 ①②⑦ + §2 grep 检查.
 //
 // What this migration does (SQLite CHECK rewrite via the standard
 // 12-step "create _new + copy + swap" pattern, since SQLite cannot
@@ -25,7 +25,7 @@ import (
 //      (CV-1.1 #311 v=13 had `type = 'markdown'`; CV-3.1 extends).
 //   3. INSERT INTO artifacts_cv31_new SELECT * FROM artifacts — copies
 //      every row verbatim. Existing rows are all kind='markdown' (CV-1
-//      v1 was Markdown ONLY by立场 ④), they pass the new CHECK.
+//      v1 was Markdown ONLY by设计 ④), they pass the new CHECK.
 //   4. DROP TABLE artifacts; ALTER TABLE artifacts_cv31_new RENAME TO
 //      artifacts. SQLite's swap is atomic within the migration tx;
 //      recovery comes from the migration framework's tx rollback.
@@ -34,7 +34,7 @@ import (
 //
 // Naming note (semantic vs schema):
 //   - 蓝图 + spec + content-lock + acceptance 全部用 "kind" 概念命名
-//     (DOM `data-artifact-kind`, anchor_comments.author_kind, 立场 ④
+//     (DOM `data-artifact-kind`, anchor_comments.author_kind, 设计 ④
 //     "kind=='code'必含 metadata.language"). 现有 schema column 仍叫
 //     `type` (CV-1.1 #311 落地命名). 此 migration **不重命名 column** —
 //     重命名要扫所有 server / store / api / test, 远超 CV-3.1 schema 范围
@@ -43,7 +43,7 @@ import (
 //
 // 反约束 (cv-3-spec.md §0 + §3 + acceptance §1.5):
 //   - 不裂表: 表名仍 `artifacts`, 不开 `artifact_code` / `artifact_images`
-//     (立场 ① enum 扩不裂表; 反向 grep `CREATE TABLE.*artifact_code|
+//     (设计 ① enum 扩不裂表; grep 检查 `CREATE TABLE.*artifact_code|
 //     CREATE TABLE.*artifact_images` count==0).
 //   - CHECK 严格 reject 'pdf' / 'kanban' / 'mindmap' (蓝图 §2 v1 不做字面禁;
 //     acceptance §1.2 + content-lock §1 ① 反约束 byte-identical).
@@ -52,7 +52,7 @@ import (
 //     锁 enum CHECK, 校验留 server 层 — schema CHECK 不能装 11 项白名单).
 //
 // v0 stance: forward-only, no Down(). Rows pass new CHECK because
-// existing data is exclusively 'markdown' (CV-1 v1 立场 ④ Markdown ONLY).
+// existing data is exclusively 'markdown' (CV-1 v1 设计 ④ Markdown ONLY).
 // Idempotent re-run guard: hasTable("artifacts_cv31_new") + COPIED
 // already would skip rerun via outer migration framework's `applied`
 // table — this body assumes fresh tx (one-shot CHECK migration).
@@ -96,7 +96,7 @@ var artifactKinds = Migration{
 		}
 
 		// Step 2 — copy data verbatim. Existing rows are all 'markdown'
-		// (CV-1 立场 ④); they pass the new CHECK. We list columns
+		// (CV-1 设计 ④); they pass the new CHECK. We list columns
 		// explicitly so a future ALTER TABLE artifacts ADD COLUMN doesn't
 		// silently drift between v=17 and the running schema.
 		if err := tx.Exec(`INSERT INTO artifacts_cv31_new

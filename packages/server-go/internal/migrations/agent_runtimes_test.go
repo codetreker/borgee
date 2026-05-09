@@ -73,11 +73,11 @@ func TestAL_CreatesAgentRuntimesTable(t *testing.T) {
 	}
 }
 
-// TestAL_NoLLMOrPresenceColumns pins acceptance §1.5 — 立场 ① "Borgee
-// 不带 runtime" + 立场 ③ runtime status ≠ presence. 反向断言列名:
+// TestAL_NoLLMOrPresenceColumns pins acceptance §1.5 — 设计 ① "Borgee
+// 不带 runtime" + 设计 ③ runtime status ≠ presence. 反向断言列名:
 // llm_provider / model_name / api_key / prompt_template 全无 (蓝图
-// 立场 #7 字面 — 那是 plugin 内部事); is_online 全无 (跟 AL-3
-// presence_sessions 拆死, 立场 ③ 字面).
+// 设计 #7 字面 — 那是 plugin 内部事); is_online 全无 (跟 AL-3
+// presence_sessions 拆死, 设计 ③ 字面).
 func TestAL_NoLLMOrPresenceColumns(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -85,12 +85,12 @@ func TestAL_NoLLMOrPresenceColumns(t *testing.T) {
 
 	cols := pragmaColumns(t, db, "agent_runtimes")
 	for _, forbidden := range []string{
-		// 立场 ① 反约束 — Borgee 不带 runtime, 那是 plugin 内部事.
+		// 设计 ① 反约束 — Borgee 不带 runtime, 那是 plugin 内部事.
 		"llm_provider",
 		"model_name",
 		"api_key",
 		"prompt_template",
-		// 立场 ③ 反约束 — runtime status ≠ presence, 不替代 AL-3.
+		// 设计 ③ 反约束 — runtime status ≠ presence, 不替代 AL-3.
 		"is_online",
 		"presence",
 		// 蓝图 §4 留第 6 轮 — 不前置.
@@ -101,7 +101,7 @@ func TestAL_NoLLMOrPresenceColumns(t *testing.T) {
 		"cursor",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("agent_runtimes.%s exists — 反约束 broken (acceptance §1.5 + spec §0 立场 ①③)", forbidden)
+			t.Errorf("agent_runtimes.%s exists — 反约束 broken (acceptance §1.5 + spec §0 设计 ①③)", forbidden)
 		}
 	}
 }
@@ -137,7 +137,7 @@ func TestAL_RejectsInvalidProcessKind(t *testing.T) {
 
 // TestAL_RejectsInvalidStatus pins acceptance §1.2 — status CHECK
 // ('registered','running','stopped','error') 4 态. 反约束: 'busy' /
-// 'idle' / 'starting' 等中间态 reject (立场 ③ 反约束 + 文案锁 §2 字面
+// 'idle' / 'starting' 等中间态 reject (设计 ③ 反约束 + 文案锁 §2 字面
 // "v0 不允许 starting/stopping/restarting 中间态").
 func TestAL_RejectsInvalidStatus(t *testing.T) {
 	t.Parallel()
@@ -165,7 +165,7 @@ func TestAL_RejectsInvalidStatus(t *testing.T) {
 }
 
 // TestAL_RejectsDuplicateRuntimePerAgent pins acceptance §1.3 —
-// UNIQUE(agent_id). 立场 ① v1 不优化多 runtime 并行 (蓝图 §2.2 字面);
+// UNIQUE(agent_id). 设计 ① v1 不优化多 runtime 并行 (蓝图 §2.2 字面);
 // 同 agent 二次 INSERT runtime reject (跟 AL-3.1 #310
 // TestAL31_RejectsDuplicateSessionID 同模式 但语义反 — agent 单 runtime
 // vs user 多 session).

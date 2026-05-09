@@ -33,7 +33,7 @@ func TestCV_AddsThumbnailURLColumn(t *testing.T) {
 		t.Fatalf("artifacts missing thumbnail_url column (have %v)", keys(cols))
 	}
 	if c.notNull {
-		t.Errorf("artifacts.thumbnail_url must be nullable (NULL = 未生成, 立场 ③ 五连模式)")
+		t.Errorf("artifacts.thumbnail_url must be nullable (NULL = 未生成, 设计 ③ 五连模式)")
 	}
 }
 
@@ -91,8 +91,8 @@ func TestCV_AcceptsExplicitThumbnailURL(t *testing.T) {
 	}
 }
 
-// REG-CV3V2-001d (spec §3 反约束 + 立场 ⑧) — does NOT create separate
-// thumbnail tables (CV-3.1 立场 ① "enum 扩不裂表" 同精神).
+// REG-CV3V2-001d (spec §3 反约束 + 设计 ⑧) — does NOT create separate
+// thumbnail tables (CV-3.1 设计 ① "enum 扩不裂表" 同精神).
 func TestCV_NoSeparateThumbnailTables(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -105,7 +105,7 @@ func TestCV_NoSeparateThumbnailTables(t *testing.T) {
 			t.Fatalf("scan %s: %v", forbidden, err)
 		}
 		if n != 0 {
-			t.Errorf("table %q exists — 反约束 broken (立场 ⑧ 不裂表)", forbidden)
+			t.Errorf("table %q exists — 反约束 broken (设计 ⑧ 不裂表)", forbidden)
 		}
 	}
 }

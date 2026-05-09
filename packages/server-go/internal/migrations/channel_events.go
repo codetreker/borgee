@@ -20,7 +20,7 @@ import "gorm.io/gorm"
 //   - idx_channel_events_kind_created (kind, created_at) — sweeper scan
 //
 // 反约束 (dl-2-spec.md §0):
-//   - lex_id PK (ULID, 跟 RT-1.3 cursor replay byte-identical 立场).
+//   - lex_id PK (ULID, 跟 RT-1.3 cursor replay byte-identical 设计).
 //   - retention_days NULL = sweeper default (per-kind enum SSOT, 反 inline 字面漂).
 //   - 不裂表 (channel_events 单表; agent_task / artifact 类按 kind 字段筛, 反 N 表漂).
 //

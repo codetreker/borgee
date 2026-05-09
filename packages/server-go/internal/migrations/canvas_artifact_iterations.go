@@ -11,7 +11,7 @@ import (
 // 做清单 ("agent 可 iterate, 再次写入触发新版本") + §3 差距 ("Agent
 // iterate / 版本历史: 无 → 需要新表 + 写入策略").
 // Spec brief: `docs/implementation/modules/cv-4-spec.md` (飞马 #365 v0,
-// merged 9720a66) §0 立场 ① 域隔离 + ② commit 单源 + ③ client 算 diff +
+// merged 9720a66) §0 设计 ① 域隔离 + ② commit 单源 + ③ client 算 diff +
 // §1 拆段 CV-4.1.
 // Stance: `docs/qa/cv-4-stance-checklist.md` (野马 #385, merged 572a5ea).
 // Acceptance: `docs/qa/acceptance-templates/cv-4.md` (#384, merged
@@ -37,7 +37,7 @@ import (
 //                                                                owner-only
 //                                                                acceptance §2.1
 //                                                                + ADM-0 §1.3
-//                                                                红线 立场 ⑦)
+//                                                                红线 设计 ⑦)
 //        - intent_text                 TEXT    NOT NULL         (用户输入意图
 //                                                                — 隐私字段,
 //                                                                admin god-mode
@@ -47,7 +47,7 @@ import (
 //        - target_agent_id             TEXT    NOT NULL         (FK agents.id =
 //                                                                users.id where
 //                                                                role='agent';
-//                                                                立场 ⑥ 同 DM-2.1
+//                                                                设计 ⑥ 同 DM-2.1
 //                                                                target_user_id
 //                                                                同模式 — 单列
 //                                                                agent / human
@@ -67,7 +67,7 @@ import (
 //        - created_artifact_version_id INTEGER NULL             (FK
 //                                                                artifact_versions.id;
 //                                                                completed 态时
-//                                                                填 — 立场 ②
+//                                                                填 — 设计 ②
 //                                                                CV-1 commit
 //                                                                单源 atomic
 //                                                                UPDATE; 反向
@@ -108,15 +108,15 @@ import (
 //        (acceptance §1.3 字面双索引).
 //
 // 反约束 (cv-4-spec.md §0 + §3 + acceptance §1.5):
-//   - 立场 ① 域隔离: 不污染 messages 表加反指列 (mention×artifact×
-//     anchor×iterate 四路径独立, 跟 CHN-4 #374/#378 立场 ② 同源). 反向
+//   - 设计 ① 域隔离: 不污染 messages 表加反指列 (mention×artifact×
+//     anchor×iterate 四路径独立, 跟 CHN-4 #374/#378 设计 ② 同源). 反向
 //     grep 加列模式 count==0 (acceptance §4.2 字面).
-//   - 立场 ① v0 immutable append: 不动 artifact_versions schema —
-//     反指列不开. 反向 grep 加列模式 count==0 (acceptance §4.2 字面).
-//   - 立场 ② CV-1 commit 单源: 不开 `POST /iterations/:id/commit` 旁路 —
+//   - 设计 ① v0 immutable append: 不动 artifact_versions schema —
+//     反指列不开. grep 检查 加列模式 count==0 (acceptance §4.2 字面).
+//   - 设计 ② CV-1 commit 单源: 不开 `POST /iterations/:id/commit` 旁路 —
 //     commit 走 `?iteration_id=` query atomic UPDATE (CV-4.2 server 层
 //     落地, 此 schema 仅留 created_artifact_version_id NULL 列).
-//   - 立场 ③ server 不算 diff: 表无 `diff_blob` / `diff_lines` 列 (jsdiff
+//   - 设计 ③ server 不算 diff: 表无 `diff_blob` / `diff_lines` 列 (jsdiff
 //     仅 client 算, acceptance §2.6 + §4.4).
 //   - state CHECK 严格 reject 'starting' / 'busy' / 'unknown' 中间态
 //     (#380 文案锁 ③ 4 态 byte-identical, 字面禁字典外值).

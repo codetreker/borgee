@@ -123,7 +123,7 @@ func TestBPP_Idempotent(t *testing.T) {
 	}
 }
 
-// TestBPP_NoSeparateLifecycleTable — acceptance §1.2 立场 ① 反断.
+// TestBPP_NoSeparateLifecycleTable — acceptance §1.2 设计 ① 反断.
 //
 // Verifies that no plugin_lifecycle_events / plugin_audit_log /
 // bpp_event_log tables exist after migration chain runs (audit reuses
@@ -141,7 +141,7 @@ func TestBPP_NoSeparateLifecycleTable(t *testing.T) {
 		var n int64
 		db.Raw(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?`, name).Scan(&n)
 		if n > 0 {
-			t.Errorf("BPP-8 立场 ① broken: forbidden lifecycle table %q exists (audit reuses admin_actions)", name)
+			t.Errorf("BPP-8 设计 ① broken: forbidden lifecycle table %q exists (audit reuses admin_actions)", name)
 		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 // Blueprint锚: `canvas-vision.md` §1.4 (artifact 集合) + §1.6 (锚点对话 =
 // owner review agent 产物的工具) + §2 v1 不做清单第 5 条 ("段落锚点对话, v2 加").
 // Spec brief: `docs/implementation/modules/cv-2-spec.md` (飞马 v0/v1/v2,
-// 3 立场 + 3 拆段). Content lock: `docs/qa/cv-2-content-lock.md` (野马, 立场 ⑤
+// 3 条原则 + 3 拆段). Content lock: `docs/qa/cv-2-content-lock.md` (野马, 设计 ⑤
 // 反约束三连 — anchor 仅 owner 视角, agent POST 锚 → 403 anchor.create_owner_only).
 // Acceptance skeleton: `docs/qa/acceptance-templates/cv-2.md` (#358).
 //
@@ -19,13 +19,13 @@ import (
 //        - artifact_id         TEXT    NOT NULL         (FK artifacts.id;
 //                                                       逻辑 FK, 软删随 artifact)
 //        - artifact_version_id INTEGER NOT NULL         (FK artifact_versions.id;
-//                                                       立场 ② 锚钉死创时 version,
+//                                                       设计 ② 锚钉死创时 version,
 //                                                       artifact 滚下个 version 锚
 //                                                       不自动迁移 — review 语境
 //                                                       绑死, 否则漂移)
 //        - start_offset        INTEGER NOT NULL         (字符索引, ≥0)
 //        - end_offset          INTEGER NOT NULL         (字符索引, CHECK end>=start)
-//        - created_by          TEXT    NOT NULL         (user_id; 立场 ① 仅 owner /
+//        - created_by          TEXT    NOT NULL         (user_id; 设计 ① 仅 owner /
 //                                                       channel 成员可创, 反约束:
 //                                                       agent 不能 POST 锚, server
 //                                                       403 anchor.create_owner_only)
@@ -42,7 +42,7 @@ import (
 //                                                       作者, 不复用 CV-1
 //                                                       artifact_versions.committer_kind
 //                                                       命名 — 飞马 spec v2 字面锁;
-//                                                       立场 ① 反 agent→agent thread —
+//                                                       设计 ① 反 agent→agent thread —
 //                                                       server 校验 thread 至少有
 //                                                       一 author_kind='human' 锚点)
 //        - author_id   TEXT    NOT NULL
@@ -57,7 +57,7 @@ import (
 // 反约束 (cv-2-spec.md §0 + §4):
 //   - 不开 agent → agent 锚点对话 (蓝图 §1.6 字面禁; CV-2.2 server 路径校验, schema
 //     层不强 enum, 但 author_kind 列名锁让反查 grep 可断 0 hit)
-//   - 不做锚点跨版本自动迁移 (立场 ② v3+ 才考虑, schema 用 artifact_version_id FK
+//   - 不做锚点跨版本自动迁移 (设计 ② v3+ 才考虑, schema 用 artifact_version_id FK
 //     绑死)
 //   - 不做 anchor presence ("谁在看 thread") / typing indicator (留 AL-3 后续 + v3+,
 //     schema 不挂 viewer 列)

@@ -7,7 +7,7 @@ import "gorm.io/gorm"
 // Blueprint锚: `canvas-vision.md` §1.4 ("artifact 集合: 多类型, 首屏快读
 // 不是浏览器内全量解码"). Spec brief:
 // docs/implementation/modules/cv-3-v2-spec.md (战马C v0, 484ec08) §0
-// 立场 ③ + §1 拆段 CV-3 v2.1.
+// 设计 ③ + §1 拆段 CV-3 v2.1.
 //
 // What this migration does:
 //   1. ALTER TABLE artifacts ADD COLUMN thumbnail_url TEXT NULL
@@ -16,13 +16,13 @@ import "gorm.io/gorm"
 //      NULL = 未生成 thumbnail (跟 preview_url NULL = 未生成 thumbnail
 //      same精神, 跟 AP-1 现网 ABAC 行为零变 same模式).
 //
-// 反约束 (cv-3-v2-spec.md §0 立场 ③ + §3):
+// 反约束 (cv-3-v2-spec.md §0 设计 ③ + §3):
 //   - 不挂 NOT NULL — NULL = 未生成 (跟 preview_url 同精神, ALTER ADD
 //     COLUMN 五连同模式).
 //   - 不挂 default — NULL 是合法终态 (跟 expires_at / org_id /
 //     revoked_at / preview_url 五连同精神).
-//   - 不裂表 (CV-3.1 立场 ① "enum 扩不裂表" 字面承袭) — 表名仍
-//     `artifacts`, 反向 grep `CREATE TABLE.*artifact_thumbnails|
+//   - 不裂表 (CV-3.1 设计 ① "enum 扩不裂表" 字面承袭) — 表名仍
+//     `artifacts`, grep 检查 `CREATE TABLE.*artifact_thumbnails|
 //     artifact_previews` count==0.
 //   - thumbnail_url MUST be https only — 校验在 server validation 层
 //     (handler POST /artifacts/:id/thumbnail), schema 层仅允 NULL or

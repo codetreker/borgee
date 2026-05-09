@@ -90,7 +90,7 @@ func TestDL_NoDomainBleed(t *testing.T) {
 		"token",
 		"session_token",
 		// device 维度走 user_agent hint, 不开 device_id 路由 (跟 al_3_1
-		// presence multi-session last-wins 立场承袭)
+		// presence multi-session last-wins 设计沿用)
 		"device_id",
 		"device_kind",
 		"device_type",

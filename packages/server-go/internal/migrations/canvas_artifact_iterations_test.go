@@ -79,9 +79,9 @@ func TestCV_CreatesArtifactIterationsTable(t *testing.T) {
 	}
 }
 
-// TestCV_NoDomainBleed pins acceptance §1.5 — 立场 ① 域隔离 (跟 CHN-4
-// #374/#378 立场 ② 同源). 反向断言列名: cursor / diff_blob / diff_lines /
-// retry_count 全无 (反约束 #380 ⑦ failed 不复用 + 立场 ③ server 不算
+// TestCV_NoDomainBleed pins acceptance §1.5 — 设计 ① 域隔离 (跟 CHN-4
+// #374/#378 设计 ② 同源). 反向断言列名: cursor / diff_blob / diff_lines /
+// retry_count 全无 (反约束 #380 ⑦ failed 不复用 + 设计 ③ server 不算
 // diff + RT-1 envelope cursor 拆死).
 func TestCV_NoDomainBleed(t *testing.T) {
 	t.Parallel()
@@ -90,7 +90,7 @@ func TestCV_NoDomainBleed(t *testing.T) {
 
 	cols := pragmaColumns(t, db, "artifact_iterations")
 	for _, forbidden := range []string{
-		// 立场 ③ server 不算 diff (jsdiff 仅 client, acceptance §2.6 + §4.4).
+		// 设计 ③ server 不算 diff (jsdiff 仅 client, acceptance §2.6 + §4.4).
 		"diff_blob",
 		"diff_lines",
 		"diff",
@@ -100,11 +100,11 @@ func TestCV_NoDomainBleed(t *testing.T) {
 		// #380 ⑦ failed 不复用 — owner 重新触发 = 新 iteration_id.
 		"retry_count",
 		"retry_at",
-		// 立场 ① 域隔离 — iteration 不抄送 message 路径.
+		// 设计 ① 域隔离 — iteration 不抄送 message 路径.
 		"message_id",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("artifact_iterations.%s exists — 反约束 broken (acceptance §1.5 + spec §0 立场 ①③)", forbidden)
+			t.Errorf("artifact_iterations.%s exists — 反约束 broken (acceptance §1.5 + spec §0 设计 ①③)", forbidden)
 		}
 	}
 }

@@ -6,7 +6,7 @@ import "gorm.io/gorm"
 //
 // Blueprint锚: `plugin-protocol.md` §1.6 (失联与故障状态) + §3 plugin
 // lifecycle audit. Spec brief: `docs/implementation/modules/bpp-8-spec.md`
-// (战马D v0) §0 立场 ① + §1 拆段 BPP-8.1.
+// (战马D v0) §0 设计 ① + §1 拆段 BPP-8.1.
 //
 // What this migration does:
 //
@@ -19,8 +19,8 @@ import "gorm.io/gorm"
 // pattern shared with ADM-2.1 + AP-2 #525 sweeper + BPP-4 #499 watchdog
 // across five milestones (锁链第 5 处).
 //
-// 反约束 (bpp-8-spec.md §0 立场 ①):
-//   - 不裂表: 反向 grep `plugin_lifecycle_events\|plugin_audit_log\|
+// 反约束 (bpp-8-spec.md §0 设计 ①):
+//   - 不裂表: grep 检查 `plugin_lifecycle_events\|plugin_audit_log\|
 //     bpp_event_log` 0 hit.
 //   - admin_actions enum 加 5 项 (6→11) — 反向 reject spec 外值
 //     (TestBPP81_RejectsUnknownAction 守).

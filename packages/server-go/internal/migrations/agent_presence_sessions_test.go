@@ -100,7 +100,7 @@ func TestAL_RejectsDuplicateSessionID(t *testing.T) {
 	}
 }
 
-// TestAL_AllowsMultiSessionPerUser pins #301 spec §0 立场 ③: one user
+// TestAL_AllowsMultiSessionPerUser pins #301 spec §0 设计 ③: one user
 // can have many concurrent sessions (web tab + mobile + plugin). The
 // schema MUST NOT have UNIQUE(user_id); only session_id is unique.
 func TestAL_AllowsMultiSessionPerUser(t *testing.T) {

@@ -19,7 +19,7 @@ func runHB31(t *testing.T, db *gorm.DB) {
 }
 
 // TestHB_CreatesHostGrantsTable pins acceptance §1.1 — 表 9 列 byte-
-// identical 跟 hb-3-spec.md §1 BPP-3.1 + stance §1 立场 ① schema SSOT.
+// identical 跟 hb-3-spec.md §1 BPP-3.1 + stance §1 设计 ① schema SSOT.
 func TestHB_CreatesHostGrantsTable(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -133,7 +133,7 @@ func TestHB_TtlKindEnumReject(t *testing.T) {
 	}
 }
 
-// TestHB_NoDomainBleed pins stance §2 立场 ② 字典分立 (host vs runtime),
+// TestHB_NoDomainBleed pins stance §2 设计 ② 字典分立 (host vs runtime),
 // 反向断言 schema 不挂 user_permissions / runtime / cursor / org_id 等
 // 跨域字段 (跟 al_2a_1_agent_configs_test::TestAL2A1_NoDomainBleed 同模式).
 func TestHB_NoDomainBleed(t *testing.T) {

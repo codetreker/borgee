@@ -42,7 +42,7 @@ func TestAP_AddsRevokedAtColumn(t *testing.T) {
 		t.Fatalf("user_permissions missing revoked_at column (have %v)", keys(cols))
 	}
 	if c.notNull {
-		t.Errorf("user_permissions.revoked_at must be nullable (NULL = active, 立场 ①)")
+		t.Errorf("user_permissions.revoked_at must be nullable (NULL = active, 设计 ①)")
 	}
 }
 
