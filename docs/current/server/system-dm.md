@@ -1,6 +1,6 @@
 # System DM — Admin Action 受影响者通知 (ADM-2.2)
 
-> ADM-2.2 (#484) · Phase 4 · 蓝图 [`admin-model.md`](../../blueprint/current/admin-model.md) §1.4 三红线 1 ("受影响者必感知") + §2 不变量 ("Audit 100% 留痕"). Content lock: [`docs/qa/adm-2-content-lock.md`](../../qa/adm-2-content-lock.md) §1 (5 模板字面). 原则反查: [`docs/qa/adm-2-stance-checklist.md`](../../qa/adm-2-stance-checklist.md) §2 ADM2-NEG-001..010.
+> ADM-2.2 (#484) · Phase 4 · 蓝图 [`admin-model.md`](../../blueprint/current/admin-model.md) §1.4 三红线 1 ("受影响者必感知") + §2 不变量 ("Audit 100% 留痕"). Content lock: [`docs/_archive/qa/adm-2-content-lock.md`](../../_archive/qa/adm-2-content-lock.md) §1 (5 模板字面). 原则反查: [`docs/_archive/qa/adm-2-stance-checklist.md`](../../_archive/qa/adm-2-stance-checklist.md) §2 ADM2-NEG-001..010.
 
 ## 1. 设计
 
@@ -36,7 +36,7 @@ DM emit 失败 (channel 缺失 / 网络) → 仅 log warn, audit 行已落不 ro
 
 - ADM2-NEG-001: body 不含模板占位符字面 — `git grep -nE '\{admin_id\}|\{actor_id\}|\$\{adminId\}'` count==0
 - ADM2-NEG-009: actor 必走 admins.Login 不走 UUID — `RenderAdminActionDMBody` 不接受 admin id 入参
-- ADM2-NEG-007: ts 不渲染 epoch — body literal **不**含 `\d{13}` 13 位整数字面 (单测正则锁)
+- ADM2-NEG-007: ts 不渲染 epoch — body literal **不**含 `\d{13}` 13 位整数字面 (单测正则锁定)
 - ADM2-NEG-005: `admin_actions.metadata` JSON 不挂 `body` / `content` / `text` / `artifact` 字段 (god-mode 仅元数据, 蓝图 §1.4 隐私边界)
 
 ## 6. 相关参考
@@ -44,7 +44,7 @@ DM emit 失败 (channel 缺失 / 网络) → 仅 log warn, audit 行已落不 ro
 - 实施: `internal/store/admin_actions.go::RenderAdminActionDMBody` (字面单一来源)
 - 单测: `internal/store/admin_actions_test.go` (5 模板 + 反向约束); `internal/api/adm_2_2_audit_hook_test.go` (full path E2E)
 - spec brief: [`docs/implementation/modules/adm-2-spec.md`](../../implementation/modules/adm-2-spec.md) §2 ADM-2.2
-- acceptance: [`docs/qa/acceptance-templates/adm-2.md`](../../qa/acceptance-templates/adm-2.md)
+- acceptance: [`docs/_archive/qa/acceptance-templates/adm-2.md`](../../_archive/qa/acceptance-templates/adm-2.md)
 
 ---
 

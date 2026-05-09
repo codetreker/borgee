@@ -10,9 +10,9 @@
 - ① forward-only soft-delete (UPDATE revoked_at, 不 DELETE row, 跟 AL-1 state_log + ADM-2.1 admin_actions 同精神)
 - ② 复用 admin_actions, 不另起 expires_audit 表 (audit 单表, 改 = 改 ADM-2.1 一处)
 - ③ time.Ticker, 不引 cron 框架 (跟 AL-1b agent_status sweeper #458 同模式)
-- ④ actor='system' 字面跨 milestone 锁 (BPP-4 watchdog / AL-1 system writer / DL-4 push GC / 未来自动 audit 写者同源)
-- 反约束: admin god-mode 不挂此 path (ADM-0 §1.3 红线; admin 主动 revoke 走 ADM-3+ 单独 path)
-- 反约束: 不 time.Sleep, 不真删 row, 不另起 reason 字典
+- ④ actor='system' 字面跨 milestone 锁定 (BPP-4 watchdog / AL-1 system writer / DL-4 push GC / 未来自动 audit 写者同源)
+- 反向约束: admin god-mode 不挂此 path (ADM-0 §1.3 红线; admin 主动 revoke 走 ADM-3+ 单独 path)
+- 反向约束: 不 time.Sleep, 不真删 row, 不另起 reason 字典
 
 ## 2. Public surface (`internal/auth/expires_sweeper.go`)
 
@@ -22,7 +22,7 @@
 | `(*ExpiresSweeper).Start(ctx)` | goroutine 启动 (ticker, ctx-aware shutdown, returns immediately) |
 | `(*ExpiresSweeper).RunOnce(ctx) (count int, err error)` | 单次扫描入口 (testable 同步 path, Start 内部循环走此) |
 | `ReasonPermissionExpired = "permission_expired"` | byte-identical 跟 admin_actions CHECK 6-tuple 同源 (改 = 改 const + ap_2_1 migration) |
-| `SystemActorID = "system"` | 跨 milestone 锁字面 |
+| `SystemActorID = "system"` | 跨 milestone 锁定字面 |
 | `DefaultSweeperInterval = 1 * time.Hour` | 蓝图 §5 字面 (业务 SLA + 运维成本平衡, v2+ 可调) |
 
 ## 3. Sweeper flow (RunOnce)
@@ -40,7 +40,7 @@
 
 `packages/server-go/internal/migrations/ap_2_1_user_permissions_revoked.go` 加 `revoked_at INTEGER NULL` 字段 + 扩 admin_actions CHECK 加入 `'permission_expired'` 6-tuple. Migration registry 顺序锁定, `revoked_at` 跟 `expires_at` 同 INTEGER ms 时间戳.
 
-## 5. 反约束 grep (PR lint 守)
+## 5. 反向约束 grep (PR lint 守)
 
 - `DELETE FROM user_permissions` 在 `internal/auth/`+`internal/api/` 除本文件 count==0
 - `cron|gocron` 在 `internal/auth/expires_sweeper.go` count==0
@@ -63,10 +63,10 @@
 - `_Start_CtxCancel_GoroutineExits` — ctx-aware shutdown
 - `_NilSafe_StoreNil_NoOp` — defensive
 
-## 7. 跨 milestone byte-identical 锁
+## 7. 跨 milestone byte-identical 锁定
 
 - AP-1.1 #493 `user_permissions.expires_at` schema (改 = 改 AP-1.1 migration + 本 sweeper WHERE)
 - ADM-2.1 #484 admin_actions audit path (改 = 改 ADM-2.1 InsertAdminAction + 本 sweeper Step 3)
 - AL-1b #458 sweeper goroutine pattern (Start nil-safe + ctx-aware + RunOnce sync entry)
-- BPP-4 watchdog actor='system' 跨五 milestone 字面锁
+- BPP-4 watchdog actor='system' 跨五 milestone 字面锁定
 - ADM-0 §1.3 红线 (admin god-mode 不入业务态变更)
