@@ -1,6 +1,6 @@
 // Package api — capability_grant.go: BPP-3.2.1 server-side handler for
 // `request_capability_grant` semantic op (蓝图 auth-permissions.md §1.3
-// 主入口字面 + bpp-3.2-spec.md §1 立场 ① + bpp-3.2-stance §1).
+// 主入口字面 + bpp-3.2-spec.md §1 设计 ① + bpp-3.2-stance §1).
 //
 // Flow:
 //   1. plugin SDK 收 BPP-3.1 PermissionDeniedFrame after AP-1 abac.go::
@@ -24,7 +24,7 @@
 //
 // 反约束 (bpp-3.2-stance §1):
 //   - DM 走 DM-2 messages + quick_action 既有 path, 不开新 channel 类型 /
-//     不写新 system_message_kind enum (反向 grep 守).
+//     不写新 system_message_kind enum (grep 检查 守).
 //   - capability 必走 auth.Capabilities const, 不 hardcode 字面 (跟 AP-1
 //     反约束 #1 同源).
 //   - admin god-mode 不入此路径 — agent 必有 OwnerID, admin 自己无 owner
@@ -50,8 +50,8 @@ import (
 // CapabilityGrantDMTemplate is the DM body byte-identical lock 跟蓝图
 // auth-permissions.md §1.3 字面 + bpp-3.2-content-lock.md §1.
 //
-// 改 = 改三处: 蓝图 §1.3 + spec §0 立场 ① + content-lock §1 + 此 const
-// (反向 grep "agent.*尝试.*权限\\|agent.*请求.*授权" count==0 守近义词漂禁).
+// 改 = 改三处: 蓝图 §1.3 + spec §0 设计 ① + content-lock §1 + 此 const
+// (grep 检查 "agent.*尝试.*权限\\|agent.*请求.*授权" count==0 守近义词漂禁).
 const CapabilityGrantDMTemplate = "%s 想 %s 但缺权限 %s"
 
 // CapabilityGrantDefaultAction is the default quick_action `action` value
@@ -79,7 +79,7 @@ func IsCapabilityDisallowed(err error) bool {
 
 // CapabilityGrantPayload is the parsed shape of SemanticActionFrame.Payload
 // for op=='request_capability_grant'. byte-identical 跟 bpp-3.2-spec.md
-// §1 立场 ① + content-lock §2.
+// §1 设计 ① + content-lock §2.
 //
 // Field semantics:
 //   - AgentID: 触发 frame 的 agent UUID
@@ -89,7 +89,7 @@ func IsCapabilityDisallowed(err error) bool {
 //     hardcode 0 hit, 跟 AP-1 反约束 #1 同源)
 //   - CurrentScope: ∈ {*, channel:<id>, artifact:<id>} v1 三层
 //   - RequestID: AP-1 调用方 trace UUID, plugin 端按此 key 做 retry cache
-//     dedup (BPP-3.2.3 follow-up)
+//     dedup (BPP-3.2.3 后续)
 type CapabilityGrantPayload struct {
 	AgentID            string `json:"agent_id"`
 	AttemptedAction    string `json:"attempted_action"`
@@ -136,7 +136,7 @@ func (h *CapabilityGrantHandler) HandleAction(frame bpp.SemanticActionFrame, ses
 			return nil, fmt.Errorf("bpp.grant_payload_field_empty: field=%q", name)
 		}
 	}
-	// Capability 必走 AP-1 const 白名单 (反约束 #1, 反向 grep 守 hardcode 0 hit).
+	// Capability 必走 AP-1 const 白名单 (反约束 #1, grep 检查 守 hardcode 0 hit).
 	if !auth.IsValidCapability(p.RequiredCapability) {
 		return nil, fmt.Errorf("%w: capability=%q (AP-1 Capabilities 14 项)",
 			errCapabilityDisallowed, p.RequiredCapability)

@@ -9,7 +9,7 @@ package api
 // 默认 baseline 仅走 nil 路径 → 66.7% (2/3 stmts cov). 本测试真补
 // h.Now/h.NewID 注入路径 → 100%.
 //
-// 立场: deterministic, 0 race-detector 依赖, 0 production 改.
+// 设计: deterministic, 0 race-detector 依赖, 0 production 改.
 
 import (
 	"testing"

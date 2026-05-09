@@ -2,15 +2,15 @@
 // REST endpoints. 跟 ADM-1 spec §2 wire 衔接.
 //
 // User-rail (走 authMw, /api/v1/me/*):
-//   - GET  /api/v1/me/admin-actions          (立场 ④ 只见自己)
+//   - GET  /api/v1/me/admin-actions          (设计 ④ 只见自己)
 //   - GET  /api/v1/me/impersonation-grant    (业主端红横幅查询当前 grant 状态)
-//   - POST /api/v1/me/impersonation-grant    (业主授权 24h, 立场 ⑦)
+//   - POST /api/v1/me/impersonation-grant    (业主授权 24h, 设计 ⑦)
 //   - DELETE /api/v1/me/impersonation-grant  (业主主动撤销)
 //
 // Admin-rail (走 adminMw, /admin-api/v1/audit-log):
-//   - GET  /admin-api/v1/audit-log           (立场 ③ admin 互可见 + 三 filter)
+//   - GET  /admin-api/v1/audit-log           (设计 ③ admin 互可见 + 三 filter)
 //
-// 反约束 (stance §1 立场 ④ + ADM2-NEG-005 反向 grep):
+// 反约束 (stance §1 设计 ④ + ADM2-NEG-005 grep 检查):
 //   - 不开 GET /api/v1/audit-log (无 /me/) — 全站 audit log 不对全体 user
 //     公开 (蓝图 §1.4 字面 "避免跨 org 隐私泄漏"); CI grep
 //     `GET /api/v1/audit-log[^/]` count==0 锁
@@ -38,7 +38,7 @@ type AdminEndpointsHandler struct {
 }
 
 // RegisterUserRoutes wires the user-rail endpoints behind authMw (走
-// borgee_token cookie / Bearer). 立场 ④ + ⑦.
+// borgee_token cookie / Bearer). 设计 ④ + ⑦.
 func (h *AdminEndpointsHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/me/admin-actions", authMw(http.HandlerFunc(h.handleListMyAdminActions)))
 	mux.Handle("GET /api/v1/me/impersonation-grant", authMw(http.HandlerFunc(h.handleGetMyImpersonateGrant)))
@@ -47,14 +47,14 @@ func (h *AdminEndpointsHandler) RegisterUserRoutes(mux *http.ServeMux, authMw fu
 }
 
 // RegisterAdminRoutes wires the admin-rail audit log endpoint behind adminMw
-// (走 borgee_admin_session cookie). 立场 ③.
+// (走 borgee_admin_session cookie). 设计 ③.
 func (h *AdminEndpointsHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/audit-log", adminMw(http.HandlerFunc(h.handleAdminAuditLog)))
 }
 
 // handleListMyAdminActions — GET /api/v1/me/admin-actions.
 //
-// 立场 ④ user 只见自己: WHERE target_user_id = current_user_id.
+// 设计 ④ user 只见自己: WHERE target_user_id = current_user_id.
 // 反约束: ?target_user_id 参数 server 忽略 (跨业主 inject 防线 — 测试反向断言).
 func (h *AdminEndpointsHandler) handleListMyAdminActions(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
@@ -77,14 +77,14 @@ func (h *AdminEndpointsHandler) handleListMyAdminActions(w http.ResponseWriter, 
 
 // handleAdminAuditLog — GET /admin-api/v1/audit-log.
 //
-// 立场 ③ admin 之间互可见: 默认无 WHERE; ?actor_id / ?action / ?target_user_id
+// 设计 ③ admin 之间互可见: 默认无 WHERE; ?actor_id / ?action / ?target_user_id
 // 三 filter 是 UI 收敛, 不是分桶. user cookie 走 admin-rail → admin.RequireAdmin
-// middleware 已 401 (REG-ADM0-002 共享底线, 立场 ⑥ admin/user 二轨拆死).
+// middleware 已 401 (REG-ADM0-002 共享底线, 设计 ⑥ admin/user 二轨拆死).
 //
 // AL-8 additive filter (al-8-spec.md §0): ?since / ?until int64 ms epoch
 // BETWEEN created_at; ?archived 三态 ("" or "active" 默认 / "archived" /
 // "all"); ?action 多值 (重复 query param) 走 IN slice. 既有 3-filter
-// (actor_id/action/target_user_id) byte-identical 不动 (立场 ①).
+// (actor_id/action/target_user_id) byte-identical 不动 (设计 ①).
 func (h *AdminEndpointsHandler) handleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {
@@ -97,13 +97,13 @@ func (h *AdminEndpointsHandler) handleAdminAuditLog(w http.ResponseWriter, r *ht
 		Action:       q.Get("action"), // ADM-2.2 single-value backward-compat
 		TargetUserID: q.Get("target_user_id"),
 	}
-	// AL-8 §0 立场 ⑤ — actions 多值 (重复 ?action=a&action=b). 走 IN slice;
+	// AL-8 §0 设计 ⑤ — actions 多值 (重复 ?action=a&action=b). 走 IN slice;
 	// 单值 ADM-2.2 既有 path byte-identical 走 filters.Action 单字段.
 	if actions := q["action"]; len(actions) > 1 {
 		filters.Actions = actions
 		filters.Action = "" // mutex — Actions 优先
 	}
-	// AL-8 §0 立场 ④ — since/until int64 ms epoch; reject negative / non-int.
+	// AL-8 §0 设计 ④ — since/until int64 ms epoch; reject negative / non-int.
 	if v := q.Get("since"); v != "" {
 		ms, err := al8ParseEpochMs(v)
 		if err != nil {
@@ -124,7 +124,7 @@ func (h *AdminEndpointsHandler) handleAdminAuditLog(w http.ResponseWriter, r *ht
 		writeJSONError(w, http.StatusBadRequest, "audit_log.time_range_inverted")
 		return
 	}
-	// AL-8 §0 立场 ③ — archived 三态 (active 默认 / archived / all).
+	// AL-8 §0 设计 ③ — archived 三态 (active 默认 / archived / all).
 	if v := q.Get("archived"); v != "" {
 		switch v {
 		case "active", "archived", "all":
@@ -149,7 +149,7 @@ func (h *AdminEndpointsHandler) handleAdminAuditLog(w http.ResponseWriter, r *ht
 }
 
 // al8ParseEpochMs parses int64 ms epoch from a query string. Rejects
-// negative + non-int + empty (caller must guard "" vs zero). 立场 ④
+// negative + non-int + empty (caller must guard "" vs zero). 设计 ④
 // time_range_invalid 单源.
 func al8ParseEpochMs(s string) (int64, error) {
 	n, err := strconv.ParseInt(s, 10, 64)
@@ -168,7 +168,7 @@ var errAL8NegativeMs = errors.New("al8: negative ms epoch")
 //
 // Returns the user's currently active grant (or `null` body) — used by
 // client BannerImpersonate.tsx to render the 24h red banner with countdown.
-// 立场 ⑦ + content-lock §2.
+// 设计 ⑦ + content-lock §2.
 func (h *AdminEndpointsHandler) handleGetMyImpersonateGrant(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -188,12 +188,12 @@ func (h *AdminEndpointsHandler) handleGetMyImpersonateGrant(w http.ResponseWrite
 // handleCreateMyImpersonateGrant — POST /api/v1/me/impersonation-grant.
 //
 // 蓝图 §3 字面 "由 user 创建" — 业主自己 grant. 24h 固定期限 (server 端,
-// 立场 ⑦ 反约束: 不接受 client 传 expires_at). 重复 grant in-cooldown → 409.
+// 设计 ⑦ 反约束: 不接受 client 传 expires_at). 重复 grant in-cooldown → 409.
 //
 // REG-ADM2-010 (ADM-2-FOLLOWUP wire) — grant 创建后 emit audit row 进
 // admin_actions 表 (跟 ADM-2.2 既有 5/5 admin write handler 同精神).
 // actor=user.ID + action="impersonate.start" + target=user.ID (业主自签
-// 给自己; 跟 GrantImpersonation store SSOT 立场承袭).
+// 给自己; 跟 GrantImpersonation store SSOT 设计沿用).
 func (h *AdminEndpointsHandler) handleCreateMyImpersonateGrant(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -259,7 +259,7 @@ func sanitizeAdminAction(row store.AdminAction, adminView bool) map[string]any {
 	if adminView {
 		out["actor_id"] = row.ActorID
 	}
-	// ADMIN-SPA-SHAPE-FIX D4 (走 A): AL-8 §0 立场③ archived 三态 surface.
+	// ADMIN-SPA-SHAPE-FIX D4 (走 A): AL-8 §0 条原则③ archived 三态 surface.
 	// nil-safe — null/缺 = active row (不写字段); non-null = archived row
 	// (写 archived_at: int64 ms epoch). client UI 走 row class 三态渲染.
 	if row.ArchivedAt != nil {

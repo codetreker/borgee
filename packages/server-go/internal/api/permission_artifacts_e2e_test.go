@@ -8,7 +8,7 @@
 //   - REG-AP1-101: agent without commit_artifact grant → 403 + body BPP routing
 //   - REG-AP1-102: agent with explicit (commit_artifact, artifact:<id>) → 200
 //   - REG-AP1-103: agent with cross-artifact grant → 403 on target
-//   - REG-AP1-104: human owner without explicit grant 仍 200 (wildcard, 立场 ④)
+//   - REG-AP1-104: human owner without explicit grant 仍 200 (wildcard, 设计 ④)
 package api_test
 
 import (
@@ -108,7 +108,7 @@ func TestAP_AgentWithExplicitGrant_200(t *testing.T) {
 }
 
 // REG-AP1-103 — agent with grant for art-other 仍 403 on art-target
-// (cross-artifact strict立场 §1.4).
+// (cross-artifact strict 设计 §1.4).
 func TestAP_AgentCrossArtifactGrant_403(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -143,7 +143,7 @@ func TestAP_AgentCrossArtifactGrant_403(t *testing.T) {
 }
 
 // REG-AP1-104 — human owner without explicit per-artifact grant still
-// passes via wildcard (*,*) — 立场 ④ 区分 agent/human.
+// passes via wildcard (*,*) — 设计 ④ 区分 agent/human.
 func TestAP_HumanWildcardStillWorks_200(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

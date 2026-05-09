@@ -2,15 +2,15 @@
 // user_channel_layout REST acceptance tests (acceptance §2.* CHN-3.2).
 //
 // Stance pins exercised:
-//   - 立场 ② 个人偏好两维 collapsed + position — GET 返本人 row;
+//   - 设计 ② 个人偏好两维 collapsed + position — GET 返本人 row;
 //     PUT 批量 upsert + ON CONFLICT 复合 PK.
-//   - 立场 ④ DM 永不参与分组 — DM channel_id PUT → 400
+//   - 设计 ④ DM 永不参与分组 — DM channel_id PUT → 400
 //     `layout.dm_not_grouped` byte-identical (5 源 #357/#353/#366/#402).
-//   - 立场 ⑤ ADM-0 红线 — admin 不入业务路径 (本测试 + reverse grep
+//   - 设计 ⑤ ADM-0 红线 — admin 不入业务路径 (本测试 + reverse grep
 //     `admin.*user_channel_layout` 在 admin*.go count==0).
-//   - 立场 ⑥ ordering client 端 — server 不算 MIN-1.0; 接受任意 REAL
+//   - 设计 ⑥ ordering client 端 — server 不算 MIN-1.0; 接受任意 REAL
 //     position 值 (含负数, client pin 算法).
-//   - 立场 ⑦ non-member channel reject 403 (CHN-1 ACL 同源).
+//   - 设计 ⑦ non-member channel reject 403 (CHN-1 ACL 同源).
 package api_test
 
 import (
@@ -140,7 +140,7 @@ func TestCHN_PutBatchUpsertAndGet(t *testing.T) {
 	}
 }
 
-// TestCHN_DMReject pins 立场 ④ + content-lock 反约束 — DM channel
+// TestCHN_DMReject pins 设计 ④ + content-lock 反约束 — DM channel
 // PUT → 400 with code `layout.dm_not_grouped` byte-identical (5 源
 // #357/#353/#366/#402 同源).
 func TestCHN_DMReject(t *testing.T) {
@@ -217,7 +217,7 @@ func TestCHN_InvalidPayload(t *testing.T) {
 	}
 }
 
-// TestCHN_AcceptsNegativePosition pins 立场 ③ + ⑥ — server 接受任意
+// TestCHN_AcceptsNegativePosition pins 设计 ③ + ⑥ — server 接受任意
 // REAL position (含负数, client 算 MIN-1.0 pin). server 不 reject 负数.
 func TestCHN_AcceptsNegativePosition(t *testing.T) {
 	t.Parallel()
@@ -237,7 +237,7 @@ func TestCHN_AcceptsNegativePosition(t *testing.T) {
 	}
 }
 
-// TestCHN_PerUserIsolation pins 立场 ② — same channel, different
+// TestCHN_PerUserIsolation pins 设计 ② — same channel, different
 // users → independent rows; PK (user_id, channel_id) 复合 enforces.
 func TestCHN_PerUserIsolation(t *testing.T) {
 	t.Parallel()
@@ -305,7 +305,7 @@ func TestCHN_ToastErrorMsgLockPin(t *testing.T) {
 }
 
 // TestCHN_AdminAPINotMounted ensures admin-api server doesn't expose
-// /me/layout (立场 ⑤ ADM-0 §1.3 红线 — admin 不读业务数据).
+// /me/layout (设计 ⑤ ADM-0 §1.3 红线 — admin 不读业务数据).
 func TestCHN_AdminAPINotMounted(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

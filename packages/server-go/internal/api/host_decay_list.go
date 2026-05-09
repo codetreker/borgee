@@ -3,7 +3,7 @@
 //
 // Path: GET /api/v1/agents/{agentId}/heartbeat-decay
 //
-// 立场 (跟 hb-3-v2-spec.md §0.3 + stance §3 byte-identical):
+// 设计 (跟 hb-3-v2-spec.md §0.3 + stance §3 byte-identical):
 //   - **owner-only ACL** — agent.OwnerID == user.ID (跟 AL-2a /
 //     BPP-3.2 / AL-1 / AL-5 / DM-4 / CV-4 v2 / BPP-7 / BPP-8 owner-only
 //     8 处同模式; HB-3 v2 = 第 9 处).
@@ -13,8 +13,8 @@
 //     heartbeat_at via bpp.DeriveDecayState (no schema change).
 //
 // 反约束:
-//   - 反向 grep `admin.*heartbeat.*decay\|admin.*HB3` 在 admin*.go 0 hit.
-//   - 反向 grep raw `last_heartbeat_at` 不出现在 response (sanitizer
+//   - grep 检查 `admin.*heartbeat.*decay\|admin.*HB3` 在 admin*.go 0 hit.
+//   - grep 检查 raw `last_heartbeat_at` 不出现在 response (sanitizer
 //     反向 — 仅返 derived state, 不漏底层时间戳).
 
 package api

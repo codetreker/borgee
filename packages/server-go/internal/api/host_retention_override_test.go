@@ -54,11 +54,11 @@ func TestHB_OverrideEndpointWritesAudit(t *testing.T) {
 		t.Fatalf("metadata not valid JSON: %v", err)
 	}
 	if meta["target"] != "heartbeat" {
-		t.Errorf("metadata.target: got %v, want %q (HB-5 立场 ②)", meta["target"], "heartbeat")
+		t.Errorf("metadata.target: got %v, want %q (HB-5 设计 ②)", meta["target"], "heartbeat")
 	}
 }
 
-// TestHB_OverrideRejectsUserRail — 立场 ③ admin-rail only.
+// TestHB_OverrideRejectsUserRail — 设计 ③ admin-rail only.
 func TestHB_OverrideRejectsUserRail(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -72,7 +72,7 @@ func TestHB_OverrideRejectsUserRail(t *testing.T) {
 	}
 }
 
-// TestHB_OverrideClampsRetention — 立场 ⑥ clamp 1..365 (复用 auth pkg
+// TestHB_OverrideClampsRetention — 设计 ⑥ clamp 1..365 (复用 auth pkg
 // const 跟 AL-7 同源).
 func TestHB_OverrideClampsRetention(t *testing.T) {
 	t.Parallel()

@@ -6,7 +6,7 @@
 //   REG-CHN10-002 TestCHN_PutDescription_OwnerHappyPath
 //                 + _NonOwnerRejected + _Unauthorized401
 //   REG-CHN10-003 TestCHN_PutDescription_LengthCap500
-//   REG-CHN10-004 TestCHN_TopicPathByteIdentical (反向 grep dm_10/chn_10
+//   REG-CHN10-004 TestCHN_TopicPathByteIdentical (grep 检查 dm_10/chn_10
 //                 字面 在 channels.go::handleSetTopic block 0 hit)
 //   REG-CHN10-005 TestCHN_NoAdminDescriptionPath
 //   REG-CHN10-006 TestCHN_NoDescriptionQueue
@@ -25,7 +25,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-CHN10-001 — 0 schema 改 (反向 grep migrations/chn_10_*).
+// REG-CHN10-001 — 0 schema 改 (grep 检查 migrations/chn_10_*).
 func TestChn10description_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -36,7 +36,7 @@ func TestChn10description_NoSchemaChange(t *testing.T) {
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, "chn_10_") {
-			t.Errorf("CHN-10 立场 ① broken — found schema migration %q (must be 0 schema)", name)
+			t.Errorf("CHN-10 设计 ① broken — found schema migration %q (must be 0 schema)", name)
 		}
 	}
 	// DescriptionMaxLength byte-identical 跟 channels.topic GORM size:500.
@@ -115,7 +115,7 @@ func TestCHN_PutDescription_OwnerHappyPath(t *testing.T) {
 	}
 }
 
-// REG-CHN10-002b — non-owner member 403 (立场 ② owner-only).
+// REG-CHN10-002b — non-owner member 403 (设计 ② owner-only).
 func TestCHN_PutDescription_NonOwnerRejected(t *testing.T) {
 	t.Parallel()
 	url, _, memberToken, channelID, _ := setupCHN10(t)
@@ -166,7 +166,7 @@ func TestCHN_PutDescription_LengthCap500(t *testing.T) {
 }
 
 // REG-CHN10-004 — 既有 PUT /topic byte-identical 不变 — handleSetTopic
-// block 内反向 grep `chn_10|description` 0 hit (CHN-10 不漂入既有 path).
+// block 内grep 检查 `chn_10|description` 0 hit (CHN-10 不漂入既有 path).
 func TestCHN_TopicPathByteIdentical(t *testing.T) {
 	t.Parallel()
 	body, err := os.ReadFile(filepath.Join("..", "api", "channels.go"))
@@ -186,7 +186,7 @@ func TestCHN_TopicPathByteIdentical(t *testing.T) {
 	block := src[idx:end]
 	for _, tok := range []string{"chn_10", "DescriptionMaxLength", "/description"} {
 		if strings.Contains(block, tok) {
-			t.Errorf("既有 PUT /topic block 漂移 — token %q 在 handleSetTopic block (CHN-10 立场 ④ broken)", tok)
+			t.Errorf("既有 PUT /topic block 漂移 — token %q 在 handleSetTopic block (CHN-10 设计 ④ broken)", tok)
 		}
 	}
 }
@@ -240,7 +240,7 @@ func TestCHN_NoAdminDescriptionPath(t *testing.T) {
 			}
 			fb, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("CHN-10 立场 ② broken — admin description path in %s: %q",
+				t.Errorf("CHN-10 设计 ② broken — admin description path in %s: %q",
 					p, fb[loc[0]:loc[1]])
 			}
 			return nil

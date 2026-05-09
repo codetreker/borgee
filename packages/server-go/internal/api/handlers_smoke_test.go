@@ -7,7 +7,7 @@ package api
 // milestone TEST-FIX-3-COV 真补 deterministic cov 让 baseline 重回 ≥85%,
 // 不靠 race scheduler 抖.
 //
-// 立场:
+// 设计:
 //   - 真补 (不绕): 0% / 低覆盖 helper 函数走真实例化 + 调用
 //   - 0 race-detector 依赖: 全部 unit test 不 spin goroutine 不依赖调度
 //   - 0 行为改 (test-only)
@@ -15,7 +15,7 @@ package api
 // 跨 milestone 锁链:
 //   - hub.go heartbeatTick 抽出 (TEST-FIX-3-COV hub.go diff) — 同 PR 配套
 //     hub_heartbeat_test.go 走 deterministic 路径
-//   - 复用 TEST-FIX-3 #610 race_heavy + ctx-aware fixture 立场承袭
+//   - 复用 TEST-FIX-3 #610 race_heavy + ctx-aware fixture 设计沿用
 
 import (
 	"errors"

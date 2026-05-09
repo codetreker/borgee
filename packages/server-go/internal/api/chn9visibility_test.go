@@ -25,7 +25,7 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-9 立场 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-9 设计 ① broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -40,7 +40,7 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-9 立场 ① broken — visibility ALTER in %s", p)
+			t.Errorf("CHN-9 设计 ① broken — visibility ALTER in %s", p)
 		}
 		return nil
 	})
@@ -164,7 +164,7 @@ func TestCHN_CreatorOnlyChannel_NotLeakedToOrgPeers(t *testing.T) {
 	for _, raw := range channels {
 		c, _ := raw.(map[string]any)
 		if c["id"] == chID {
-			t.Errorf("CHN-9 立场 ③ broken — creator_only channel leaked to non-creator: %v", c)
+			t.Errorf("CHN-9 设计 ③ broken — creator_only channel leaked to non-creator: %v", c)
 		}
 	}
 }
@@ -179,17 +179,17 @@ func TestCHN_ListChannelsFilter_ByteIdentical(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read queries.go: %v", err)
 	}
-	// Existing CHN-1.2 filter 字面 byte-identical 锁 — 反向 grep
+	// Existing CHN-1.2 filter 字面 byte-identical 锁 — grep 检查
 	// `visibility = 'public'` 必须 ≥1 hit.
 	pat := regexp.MustCompile(`visibility\s*=\s*'public'`)
 	if pat.Find(body) == nil {
-		t.Error("CHN-9 立场 ③ broken — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
+		t.Error("CHN-9 设计 ③ broken — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
 	}
 	// 反向断言: 不出现 `visibility = 'creator_only'` 在 SQL 显式 filter
 	// (creator_only 走 IsChannelMember + creator-only ACL, 不走 SQL filter).
 	pat2 := regexp.MustCompile(`visibility\s*=\s*'creator_only'`)
 	if pat2.Find(body) != nil {
-		t.Error("CHN-9 立场 ③ broken — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
+		t.Error("CHN-9 设计 ③ broken — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
 	}
 }
 
@@ -208,7 +208,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 立场 ③ broken — admin visibility path in %s: %q",
+				t.Errorf("CHN-9 设计 ③ broken — admin visibility path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -227,7 +227,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 立场 ③ broken — admin visibility handler in %s: %q",
+				t.Errorf("CHN-9 设计 ③ broken — admin visibility handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil

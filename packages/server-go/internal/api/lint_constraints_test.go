@@ -68,7 +68,7 @@ func walkGoSources(t *testing.T, dir string, excludeTests bool) []string {
 	return out
 }
 
-// TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 立场 ⑤ heartbeat 30s
+// TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 设计 ⑤ heartbeat 30s
 // 数字常量单源锁. internal/bpp/ 下 BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
 // 单点定义, 不许涨到 30s 以上.
 func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
@@ -87,7 +87,7 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 		hits += len(singleSrc.FindAll(b, -1))
 	}
 	if hits < 1 {
-		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 立场 ⑤ 数字常量单源锁)", hits)
+		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计 ⑤ 数字常量单源锁)", hits)
 	}
 
 	// ② drift detection: heartbeat timeout > 30s 不允许
@@ -98,7 +98,7 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 			continue
 		}
 		if m := driftPat.Find(b); m != nil {
-			t.Errorf("%s: heartbeat timeout drifted above 30s (matched %q; BPP-4 §3 立场 ⑤ 反向断言)", f, string(m))
+			t.Errorf("%s: heartbeat timeout drifted above 30s (matched %q; BPP-4 §3 设计 ⑤ 反向断言)", f, string(m))
 		}
 	}
 }
@@ -173,7 +173,7 @@ func TestLint_ReasonsCrossMilestoneCoverage(t *testing.T) {
 	}
 }
 
-// TestLint_AgentStateLogNoConnecting — BPP-5 §1.4 立场: connecting 是
+// TestLint_AgentStateLogNoConnecting — BPP-5 §1.4 条原则: connecting 是
 // transient 中间态不入 5-state graph, agent_state_log.go 里禁字面
 // AgentStateConnecting / state.*connecting.
 func TestLint_AgentStateLogNoConnecting(t *testing.T) {
@@ -186,11 +186,11 @@ func TestLint_AgentStateLogNoConnecting(t *testing.T) {
 	}
 	pat := regexp.MustCompile(`AgentStateConnecting|state.*connecting`)
 	if m := pat.Find(b); m != nil {
-		t.Errorf("%s: connecting 持久态 drift (matched %q; BPP-5 §1.4 立场 — connecting 是 transient 中间态, 不入 5-state graph)", logFile, string(m))
+		t.Errorf("%s: connecting 持久态 drift (matched %q; BPP-5 §1.4 条原则 — connecting 是 transient 中间态, 不入 5-state graph)", logFile, string(m))
 	}
 }
 
-// TestLint_PresenceSessionsNoBusyWrite — AL-1b §2 立场 ② BPP frame 是
+// TestLint_PresenceSessionsNoBusyWrite — AL-1b §2 设计 ② BPP frame 是
 // busy/idle 唯一 source, presence_sessions 不写 busy 列.
 func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 	t.Parallel()
@@ -204,7 +204,7 @@ func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: busy/idle source drift (matched %q; AL-1b §2 立场 ② BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
+			t.Errorf("%s: busy/idle source drift (matched %q; AL-1b §2 设计 ② BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
 		}
 	}
 }

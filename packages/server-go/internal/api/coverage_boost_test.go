@@ -250,7 +250,7 @@ func TestChannelMemberOperations(t *testing.T) {
 		privID := privCh["id"].(string)
 		memberToken := testutil.LoginAs(t, ts.URL, "member@test.com", "password123")
 
-		// AP-1 立场 ① (REG-CHN1-007): 非 member GET → 403.
+		// AP-1 设计 ① (REG-CHN1-007): 非 member GET → 403.
 		resp, _ := testutil.JSON(t, "GET", ts.URL+"/api/v1/channels/"+privID, memberToken, nil)
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("expected 403, got %d", resp.StatusCode)

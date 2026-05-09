@@ -78,7 +78,7 @@ func (h *AgentHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handl
 	mux.Handle("PUT /api/v1/agents/{id}/permissions", wrap(h.handleSetPermissions))
 	mux.Handle("GET /api/v1/agents/{id}/files", wrap(h.handleGetAgentFiles))
 	// AL-1b.2 (#R3 Phase 4) — agent status endpoint (5-state 合并 GET +
-	// PATCH 405 reject 立场 ② BPP 单源).
+	// PATCH 405 reject 设计 ② BPP 单源).
 	mux.Handle("GET /api/v1/agents/{id}/status", wrap(h.handleGetAgentStatus))
 	mux.Handle("PATCH /api/v1/agents/{id}/status", wrap(h.handleRejectStatusPatch))
 }

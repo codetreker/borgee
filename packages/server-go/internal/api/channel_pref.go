@@ -14,14 +14,14 @@
 //
 // 三向锁: server const + client lib/notif_pref.ts NOTIF_PREF_* + bitmap
 // `(collapsed >> NotifPrefShift) & NotifPrefMask` 字面 byte-identical. 改
-// 一处 = 改三处. 立场 ① + content-lock §3.
+// 一处 = 改三处. 设计 ① + content-lock §3.
 //
 // 反约束 (chn-8-spec.md §0):
-//   - 立场 ② owner-only — admin god-mode 不挂 PUT/POST.
+//   - 设计 ② owner-only — admin god-mode 不挂 PUT/POST.
 //     owner-only ACL 锁链第 16 处 (CHN-7 #15 承袭).
-//   - 立场 ③ 不 drop messages — CreateMessage / RT-3 fan-out / WS frame
+//   - 设计 ③ 不 drop messages — CreateMessage / RT-3 fan-out / WS frame
 //     全 byte-identical. notif pref 仅影响 DL-4 push notifier.
-//   - 立场 ⑥ AST 锁链延伸第 13 处 forbidden 3 token 0 hit.
+//   - 设计 ⑥ AST 锁链延伸第 13 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -62,7 +62,7 @@ func GetNotifPref(collapsed int64) int64 {
 
 // RegisterCHN8Routes wires PUT /api/v1/channels/{channelId}/notification-pref
 // behind authMw. user-rail only (admin god-mode 不挂 ADM-0 §1.3 红线).
-// 立场 ②.
+// 设计 ②.
 func (h *ChannelHandler) RegisterCHN8Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("PUT /api/v1/channels/{channelId}/notification-pref",
 		authMw(http.HandlerFunc(h.handleSetNotificationPref)))
@@ -76,7 +76,7 @@ type chn8NotifPrefRequest struct {
 //
 // Sets bits 2-3 of user_channel_layout.collapsed for (user, channel).
 // Other bits (CHN-3 collapsed bit 0, CHN-7 mute bit 1) are preserved
-// (立场 ① 不互扰).
+// (设计 ① 不互扰).
 func (h *ChannelHandler) handleSetNotificationPref(w http.ResponseWriter, r *http.Request) {
 	channelID := r.PathValue("channelId")
 	user, _, ok := requireChannelMember(w, r, h.Store, channelID, ChannelACLOpts{RejectDM: true})

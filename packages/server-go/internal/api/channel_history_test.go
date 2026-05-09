@@ -1,5 +1,5 @@
 // Package api_test — chn_14_description_history_test.go: CHN-14 server
-// description edit history audit unit tests + 反向 grep守门.
+// description edit history audit unit tests + grep 检查守门.
 //
 // Pins:
 //   REG-CHN14-002 TestCHN142_UpdateChannelDescription_AppendsHistory + MultipleEdits + SameContent_NoAppend
@@ -207,7 +207,7 @@ func TestCHN_GetHistoryAdmin_HappyPath(t *testing.T) {
 	}
 }
 
-// REG-CHN14-004b — admin god-mode 不挂 PATCH/DELETE 反向 grep 守门.
+// REG-CHN14-004b — admin god-mode 不挂 PATCH/DELETE grep 守门.
 func TestCHN_NoAdminPatchDeletePath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}

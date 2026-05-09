@@ -3,7 +3,7 @@
 // Spec: docs/implementation/modules/adm-3-spec.md §1 ADM3.1.
 // Blueprint: admin-model.md §1.4 来源透明 (人/agent/admin/混合).
 //
-// 立场 (跟 DL-2 #615 events 双流 + ADM-2 #484 audit_events 同精神承袭):
+// 设计 (跟 DL-2 #615 events 双流 + ADM-2 #484 audit_events 同精神承袭):
 //   - 4 source enum SSOT (`AuditSourceServer/Plugin/HostBridge/Agent`),
 //     反 inline 字面漂 (跟 reasons.IsValid #496 / NAMING-1 / DL-2
 //     mustPersistKinds 同精神承袭).
@@ -72,7 +72,7 @@ type AdminAuditMultiSourceHandler struct {
 }
 
 // RegisterAdminRoutes wires GET /admin-api/v1/audit/multi-source behind adminMw.
-// 立场 ③ admin god-mode 路径独立 (反 user-rail 漂).
+// 设计 ③ admin god-mode 路径独立 (反 user-rail 漂).
 func (h *AdminAuditMultiSourceHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/audit/multi-source", adminMw(http.HandlerFunc(h.handle)))
 }
@@ -136,10 +136,10 @@ func validAuditSource(s string) bool {
 // audit_events (server) — actor_id/action/target_user_id/metadata/created_at
 // audit_events with action like 'plugin.%' (plugin) — same table, kind 区分
 // channel_events / global_events (agent) — DL-2 #615 双流 (channel_id/kind/payload/created_at)
-// host_bridge — placeholder until HB-1 audit table lands (留 HB-1 follow-up,
+// host_bridge — placeholder until HB-1 audit table lands (留 HB-1 后续,
 //               v1 0 行返回, 反空 UNION 跑空查反 SQL syntax err).
 //
-// 立场 ② SSOT — 单 helper, 反多处散布.
+// 设计 ② SSOT — 单 helper, 反多处散布.
 func MultiSourceAuditQuery(s *store.Store, f MultiSourceAuditFilter) ([]MultiSourceAuditRow, error) {
 	rows := make([]MultiSourceAuditRow, 0, f.Limit)
 	include := func(src string) bool {
@@ -178,7 +178,7 @@ func MultiSourceAuditQuery(s *store.Store, f MultiSourceAuditFilter) ([]MultiSou
 		rows = append(rows, agentRows...)
 	}
 
-	// host_bridge: HB-1 audit table 未落 v1 (留 HB-1 follow-up, 反约束:
+	// host_bridge: HB-1 audit table 未落 v1 (留 HB-1 后续, 反约束:
 	// MultiSourceAuditQuery 不假设表存在). 当前 0 行, 占位反 4 源缺漏.
 	_ = include(AuditSourceHostBridge)
 

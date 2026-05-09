@@ -115,7 +115,7 @@ func TestDM_PinUnpin_HappyPath(t *testing.T) {
 }
 
 // TestDM_DMOnly_NonDMRejected — POST pin on a non-DM channel → 400
-// `pin.dm_only_path` (立场 ②).
+// `pin.dm_only_path` (设计 ②).
 func TestDM_DMOnly_NonDMRejected(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -245,7 +245,7 @@ func TestDM_UnpinUnpinned_Idempotent(t *testing.T) {
 
 // =============================================================================
 // 飞马 (C) — 6 cov bump funcs covering dm_10_pin.go three-handler error branches.
-// 真补 cov 不 mask, 不调阈值, 不 skip. 立场: gate/handler 错误分支 byte-identical.
+// 真补 cov 不 mask, 不调阈值, 不 skip. 设计: gate/handler 错误分支 byte-identical.
 // =============================================================================
 
 // 1) TestDM_GateDM_AuthNil_401 — POST 不带 token → 401 (gateDM auth==nil 分支).

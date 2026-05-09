@@ -9,17 +9,17 @@
 //   - DescriptionMaxLength (= 500, byte-identical 跟 channels.topic GORM
 //     size:500 同源, 双向锁守门 跟 client DESCRIPTION_MAX_LENGTH).
 //
-// 反约束 (chn-10-spec.md §0 立场 ②③ 边界 ⑥):
+// 反约束 (chn-10-spec.md §0 设计 ②③ 边界 ⑥):
 //   - owner-only ACL 锁链第 20 处 (DM-7 #19 + CHN-9 #14 承袭) — handler
 //     走 channel.CreatedBy == user.ID 反向断言, 反 member-level (跟 既有
 //     PUT /topic CHN-2 #406 互补 byte-identical 不动).
-//   - admin god-mode 不挂 — RegisterAdminRoutes 不存在; 反向 grep
+//   - admin god-mode 不挂 — RegisterAdminRoutes 不存在; grep 检查
 //     `admin-api/v[0-9]+/.*description` PATCH/PUT/POST/DELETE 0 hit (ADM-0
 //     §1.3 红线).
 //   - 既有 PUT /topic byte-identical 不变 — channels.go::handleSetTopic
 //     不动; CHN-10 写入相同 channels.topic 列 (store.UpdateChannel 单源).
 //   - AST 锁链延伸第 17 处 — internal best-effort write path 不引入 retry
-//     queue / dead-letter 异步 sink (反向 grep 守门 _test.go).
+//     queue / dead-letter 异步 sink (grep 守门 _test.go).
 package api
 
 import (
@@ -43,7 +43,7 @@ type ChannelDescriptionHandler struct {
 	Logger *slog.Logger
 }
 
-// RegisterUserRoutes wires the user-rail endpoint behind authMw. 立场 ③
+// RegisterUserRoutes wires the user-rail endpoint behind authMw. 设计 ③
 // owner-only — channel.CreatedBy == user.ID 反向断 member-level reject 403.
 // admin god-mode 不挂 — 无 RegisterAdminRoutes (ADM-0 §1.3 红线).
 func (h *ChannelDescriptionHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -71,7 +71,7 @@ func (h *ChannelDescriptionHandler) handlePut(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusNotFound, "Channel not found")
 		return
 	}
-	// 立场 ② owner-only — creator-only ACL (CHN-9 manage_visibility 同精神).
+	// 设计 ② owner-only — creator-only ACL (CHN-9 manage_visibility 同精神).
 	if ch.CreatedBy != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Only the channel owner can update description")
 		return
@@ -81,7 +81,7 @@ func (h *ChannelDescriptionHandler) handlePut(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	// 立场 ③ length cap 500 — channels.topic GORM size:500 byte-identical.
+	// 设计 ③ length cap 500 — channels.topic GORM size:500 byte-identical.
 	if len(req.Description) > DescriptionMaxLength {
 		writeJSONError(w, http.StatusBadRequest,
 			"Description must be 500 characters or less")

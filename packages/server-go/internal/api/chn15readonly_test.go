@@ -47,8 +47,8 @@ func TestCHN_ReadonlyBit_ByteIdentical(t *testing.T) {
 	}
 }
 
-// TestChn15readonly_NoSchemaChange — filepath.Walk migrations/ 反向 grep
-// chn_15_\d+ 0 hit + sqlite_master 反向. 立场 ①.
+// TestChn15readonly_NoSchemaChange — filepath.Walk migrations/ grep 检查
+// chn_15_\d+ 0 hit + sqlite_master 反向. 设计 ①.
 func TestChn15readonly_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	root := chn15RepoRoot(t)
@@ -56,7 +56,7 @@ func TestChn15readonly_NoSchemaChange(t *testing.T) {
 	pat := regexp.MustCompile(`chn_15_\d+|ALTER TABLE channels.*readonly|channel_readonly_states|read_only_channels`)
 	hits := chn15GrepCount(t, migDir, pat)
 	if hits != 0 {
-		t.Errorf("expected 0 schema hit, got %d (立场 ① 0 schema 改)", hits)
+		t.Errorf("expected 0 schema hit, got %d (设计 ① 0 schema 改)", hits)
 	}
 }
 
@@ -193,7 +193,7 @@ func TestCHN_NoAdminReadonlyPath(t *testing.T) {
 	pat := regexp.MustCompile(`/admin-api/v[0-9]+/channels/[^/"]*/readonly|RegisterCHN15.*adminMw`)
 	hits := chn15GrepCount(t, dir, pat)
 	if hits != 0 {
-		t.Errorf("admin-rail CHN-15 readonly endpoint grep: got %d, want 0 (admin god-mode 不挂 立场 ②)", hits)
+		t.Errorf("admin-rail CHN-15 readonly endpoint grep: got %d, want 0 (admin god-mode 不挂 设计 ②)", hits)
 	}
 }
 

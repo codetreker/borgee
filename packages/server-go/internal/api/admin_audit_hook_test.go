@@ -81,7 +81,7 @@ func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 		t.Errorf("expected 1 system DM in owner's #welcome containing 'doomed-channel', got %d", msgCount)
 	}
 
-	// 反向断言: DM body 不含 raw UUID-looking actor_id (立场 ②
+	// 反向断言: DM body 不含 raw UUID-looking actor_id (设计 ②
 	// ADM2-NEG-001 — admin_username 必须是具体名).
 	var bodies []string
 	s.DB().Raw(`SELECT m.content FROM messages m

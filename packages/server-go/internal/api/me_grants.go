@@ -1,6 +1,6 @@
 // Package api — me_grants.go: BPP-3.2.2 owner-side `POST /api/v1/me/grants`
 // endpoint for one-click capability grant from owner DM (蓝图
-// auth-permissions.md §1.3 主入口字面 + bpp-3.2-spec.md §1 立场 ②).
+// auth-permissions.md §1.3 主入口字面 + bpp-3.2-spec.md §1 设计 ②).
 //
 // Flow:
 //   1. owner sees system DM written by BPP-3.2.1 CapabilityGrantHandler
@@ -169,7 +169,7 @@ func (h *MeGrantsHandler) handleGrant(w http.ResponseWriter, r *http.Request) {
 	case MeGrantsActionReject, MeGrantsActionSnooze:
 		// v1 audit-only: spec §4 留账 — 不持久化 deny list, 仅记 log
 		// 供 v2+ replay. Future BPP-3.2.3 plugin retry cache 自动 abort
-		// on owner reject (BPP-3.2.3 follow-up 实施 trigger).
+		// on owner reject (BPP-3.2.3 后续 实施 trigger).
 		h.logInfo("bpp.grant."+req.Action, req, user.ID)
 		writeJSONResponse(w, http.StatusOK, map[string]any{
 			"granted": false,

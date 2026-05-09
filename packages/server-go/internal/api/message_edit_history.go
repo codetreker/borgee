@@ -1,7 +1,7 @@
 // Package api — message_edit_history.go: REFACTOR-1 helper-2 SSOT
 // edit-history JSON parser shared between DM-7 / CV-15.
 //
-// 立场 ① + ② (refactor-1-spec.md §0):
+// 设计 ① + ② (refactor-1-spec.md §0):
 //   - byte-identical 行为不变量: NULL/empty → []map[string]any{} (反 nil) +
 //     Unmarshal 失败 → []map[string]any{} (跟 dm_7 / cv_15 既有 11 行 byte-
 //     identical, REG-DM7 / REG-CV15 不破).

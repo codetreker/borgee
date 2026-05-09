@@ -4,15 +4,15 @@
 // Blueprint: docs/blueprint/current/canvas-vision.md §1.4 (artifact 集合: Markdown
 // / 代码片段 / image_link / video_link / pdf_link; preview 是首屏快读).
 // Spec brief: docs/implementation/modules/cv-2-v2-media-preview-spec.md
-// (战马D v0). Stance: 3 立场 (① server CDN thumbnail 不 inline / ② HTML5
+// (战马D v0). Stance: 3 条原则 (① server CDN thumbnail 不 inline / ② HTML5
 // native player 不引入 video.js / ③ kind enum 跟 CV-3 #396 共 schema 单源).
 //
 // Endpoint:
 //
 //	POST /api/v1/artifacts/{artifactId}/preview        owner-only generate/record preview_url
 //
-// 立场反查:
-//   - ① owner-only ACL — channel.created_by gate (跟 CV-1.2 rollback 立场 ⑦
+// 设计反查:
+//   - ① owner-only ACL — channel.created_by gate (跟 CV-1.2 rollback 设计 ⑦
 //     同 path; admin god-mode → 401, non-owner → 403).
 //   - ② preview_url MUST be https — 反约束 javascript: / data: / http: /
 //     file: / 任何非 https scheme 全 reject (跟 ValidateImageLinkURL XSS
@@ -37,7 +37,7 @@ import (
 	"borgee-server/internal/auth"
 )
 
-// PreviewURLErrCode constants — byte-identical 跟 spec §0 立场 ②③ 同源.
+// PreviewURLErrCode constants — byte-identical 跟 spec §0 设计 ②③ 同源.
 const (
 	PreviewErrCodeNotOwner          = "preview.not_owner"
 	PreviewErrCodeURLInvalid        = "preview.url_invalid"
@@ -46,7 +46,7 @@ const (
 	PreviewErrCodeArtifactNotFound  = "preview.artifact_not_found"
 )
 
-// PreviewableKinds 是允许调 POST /preview 的 kind 白名单 (立场 ③).
+// PreviewableKinds 是允许调 POST /preview 的 kind 白名单 (设计 ③).
 // markdown / code 走 CV-1 既有 head body 渲染, 不需 preview_url.
 var PreviewableKinds = []string{
 	ArtifactKindImageLink,
@@ -55,7 +55,7 @@ var PreviewableKinds = []string{
 }
 
 // IsPreviewableKind reports whether kind k requires a preview thumbnail
-// path. 跟 PreviewableKinds slice 共闸; 反向 grep `markdown.*preview_url|
+// path. 跟 PreviewableKinds slice 共闸; grep 检查 `markdown.*preview_url|
 // code.*preview_url` count==0 (markdown/code 不走 preview).
 func IsPreviewableKind(k string) bool {
 	for _, v := range PreviewableKinds {
@@ -75,7 +75,7 @@ type previewRequest struct {
 
 // handlePreview implements POST /api/v1/artifacts/{artifactId}/preview.
 //
-// 反约束守 (立场 ①②③):
+// 反约束守 (设计 ①②③):
 //   - admin (no auth user) → 401 (admin god-mode 不入业务路径).
 //   - non-owner authenticated user → 403 + preview.not_owner.
 //   - artifact kind ∉ PreviewableKinds → 400 + preview.kind_not_previewable.
@@ -86,13 +86,13 @@ type previewRequest struct {
 //
 // Side-effect: UPDATE artifacts SET preview_url = ? WHERE id = ?.
 // 反约束: 不发 system message (preview 是 owner action, 不污染 fanout —
-// 跟 CV-1.2 rollback 立场 ⑦ "system message 不发" 同精神).
+// 跟 CV-1.2 rollback 设计 ⑦ "system message 不发" 同精神).
 // 反约束: 不 push WS frame (preview_url 静态 CDN, client 下次 GET
 // /artifacts/:id pull 就拿到 — spec §3 不在范围 "实时刷新").
 func (h *ArtifactHandler) handlePreview(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
 	if user == nil {
-		// 立场 ① admin → 401 (跟 CV-1.2 rollback 同 path).
+		// 设计 ① admin → 401 (跟 CV-1.2 rollback 同 path).
 		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -107,7 +107,7 @@ func (h *ArtifactHandler) handlePreview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 立场 ① owner = channel.created_by (跟 CV-1.2 rollback 同源).
+	// 设计 ① owner = channel.created_by (跟 CV-1.2 rollback 同源).
 	ownerID, err := h.channelOwnerID(art.ChannelID)
 	if err != nil {
 		writeJSONError(w, http.StatusNotFound, PreviewErrCodeArtifactNotFound+": channel not found")
@@ -123,7 +123,7 @@ func (h *ArtifactHandler) handlePreview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 立场 ③ kind 闸.
+	// 设计 ③ kind 闸.
 	if !IsPreviewableKind(art.Type) {
 		writeJSONError(w, http.StatusBadRequest,
 			PreviewErrCodeKindNotPreviewable+": kind "+art.Type+" does not support preview (must be one of [image_link video_link pdf_link])")
@@ -136,7 +136,7 @@ func (h *ArtifactHandler) handlePreview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 立场 ② https-only 红线. 复用 ValidateImageLinkURL — same XSS gate.
+	// 设计 ② https-only 红线. 复用 ValidateImageLinkURL — same XSS gate.
 	if err := ValidateImageLinkURL(req.PreviewURL); err != nil {
 		// errInvalidImageLinkURL.Error() 已带 "artifact.invalid_url:" 前缀.
 		// 我们想要 preview.url_must_be_https / preview.url_invalid 命名;

@@ -18,15 +18,15 @@
 //                                              撤销 < 100ms 真测)
 //
 // Stance pins (跟 stance §0+§1+§2+§3 byte-identical):
-//   - 立场 ① schema SSOT — server-go 唯一 INSERT/UPDATE/DELETE 路径; HB-2
+//   - 设计 ① schema SSOT — server-go 唯一 INSERT/UPDATE/DELETE 路径; HB-2
 //     daemon (Rust crate) read-only.
-//   - 立场 ② 字典分立 — 不复用 user_permissions schema (host vs runtime);
-//     反向 grep `host_grants.*JOIN.*user_permissions` 0 hit.
-//   - 立场 ⑤ ttl_kind 2-enum byte-identical 跟弹窗 UX 字面 (one_shot/always
+//   - 设计 ② 字典分立 — 不复用 user_permissions schema (host vs runtime);
+//     grep 检查 `host_grants.*JOIN.*user_permissions` 0 hit.
+//   - 设计 ⑤ ttl_kind 2-enum byte-identical 跟弹窗 UX 字面 (one_shot/always
 //     ↔ data-action="grant_one_shot"/"grant_always"); content-lock §1.②
 //     双向锁.
-//   - 立场 ⑦ admin god-mode 不入 — 用户主权 (蓝图 §1.3 + ADM-0 §1.3 红线);
-//     反向 grep `admin.*host_grant` 0 hit.
+//   - 设计 ⑦ admin god-mode 不入 — 用户主权 (蓝图 §1.3 + ADM-0 §1.3 红线);
+//     grep 检查 `admin.*host_grant` 0 hit.
 
 package api
 
@@ -113,7 +113,7 @@ type hostGrantPostRequest struct {
 }
 
 // handlePost — POST /api/v1/host-grants. Owner-only (caller writes own
-// grants; admin god-mode 不入路径 — 立场 ⑦).
+// grants; admin god-mode 不入路径 — 设计 ⑦).
 func (h *HostGrantsHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -198,11 +198,11 @@ func (h *HostGrantsHandler) handleList(w http.ResponseWriter, r *http.Request) {
 
 // handleDelete — DELETE /api/v1/host-grants/{id}. Forward-only revoke
 // (stamp revoked_at, 不真删行 — 留账 audit). owner-only (cross-user 403
-// — 立场 ⑦).
+// — 设计 ⑦).
 //
 // HB-4 §1.5 release gate 第 5 行: 撤销 → daemon 立即拒绝 < 100ms. v1
 // 实现 = REST DELETE → revoked_at NOT NULL + daemon 每次 IPC 重查
-// (反向 grep `cachedGrants` 0 hit).
+// (grep 检查 `cachedGrants` 0 hit).
 func (h *HostGrantsHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -223,7 +223,7 @@ func (h *HostGrantsHandler) handleDelete(w http.ResponseWriter, r *http.Request)
 		writeJSONError(w, http.StatusInternalServerError, "Failed to load host grant")
 		return
 	}
-	// Owner-only ACL (cross-user reject 403, 立场 ⑦ 跟 anchor #360 同源).
+	// Owner-only ACL (cross-user reject 403, 设计 ⑦ 跟 anchor #360 同源).
 	if row.UserID != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return

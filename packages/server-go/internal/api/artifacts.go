@@ -4,7 +4,7 @@
 // Blueprint: docs/blueprint/current/canvas-vision.md §0 (channel 围 artifact 协作)
 // + §1.1-§1.6 (D-lite + workspace per channel + Markdown ONLY v1) + §2
 // (v1 做/不做). Spec brief: docs/implementation/modules/cv-1-spec.md
-// (3 立场 + 3 拆段). Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 立场)
+// (3 条原则 + 3 拆段). Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 条原则)
 // + docs/qa/cv-1-stance-v1-supplement.md (v1, ②③⑤⑦ 字段 + 边界 + REST + 反断).
 //
 // Schema源: migration v=13 cv_1_1_artifacts (#334 merged) — artifacts +
@@ -19,7 +19,7 @@
 //	POST /api/v1/artifacts/{artifactId}/commits        commit a new version (acquires lock; lazy expire)
 //	POST /api/v1/artifacts/{artifactId}/rollback       owner-only rollback to a prior version
 //
-// 立场反查 (v0+v1):
+// 设计反查 (v0+v1):
 //
 //   - ① 归属 = channel — channel membership 是唯一 ACL, 无 owner_id 主权列;
 //     archive 随 channel.
@@ -63,12 +63,12 @@ import (
 // previous holder's next write returns 409 conflict.
 const ArtifactLockTTL = 30 * time.Second
 
-// ArtifactType locks the v1 enum (立场 ④, mirrored by the CHECK constraint
+// ArtifactType locks the v1 enum (设计 ④, mirrored by the CHECK constraint
 // on artifacts.type in migration v=13). Any drift here is caught by the
 // schema test (TestCV11_RejectsNonMarkdownType).
 const ArtifactType = "markdown"
 
-// CommitterKind values per migration v=13 CHECK constraint (立场 ⑥).
+// CommitterKind values per migration v=13 CHECK constraint (设计 ⑥).
 const (
 	CommitterKindAgent = "agent"
 	CommitterKindHuman = "human"
@@ -98,7 +98,7 @@ type ArtifactPusher interface {
 // unit tests that don't assert push behaviour; nil-safe at call sites.
 //
 // IterationPusher is the CV-4.2 seam — when a commit carries
-// `?iteration_id=<uuid>` (立场 ② commit 单源) we transition the
+// `?iteration_id=<uuid>` (设计 ② commit 单源) we transition the
 // iteration row from running→completed and emit IterationStateChanged.
 // Optional: nil disables the iteration completion path (legacy commit
 // behavior is unchanged, acceptance §2.2 反断).
@@ -200,7 +200,7 @@ func (h *ArtifactHandler) committerKindForUser(u *store.User) string {
 	return CommitterKindHuman
 }
 
-// resolveChannelOwner returns the channel.created_by user. CV-1 立场 ⑦
+// resolveChannelOwner returns the channel.created_by user. CV-1 设计 ⑦
 // rollback owner-only — channel-model §1.4 字面.
 func (h *ArtifactHandler) channelOwnerID(channelID string) (string, error) {
 	ch, err := h.Store.GetChannelByID(channelID)
@@ -211,7 +211,7 @@ func (h *ArtifactHandler) channelOwnerID(channelID string) (string, error) {
 }
 
 // canAccessChannel — channel membership (incl. private channel ACL).
-// Mirrors the messages handler's gate. 立场 ① 归属 = channel.
+// Mirrors the messages handler's gate. 设计 ① 归属 = channel.
 func (h *ArtifactHandler) canAccessChannel(channelID, userID string) bool {
 	if !h.Store.IsChannelMember(channelID, userID) {
 		// public channels: we still defer to CanAccessChannel so the
@@ -249,10 +249,10 @@ func (h *ArtifactHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusForbidden, "Channel is archived")
 		return
 	}
-	// CHN-2.1 立场 ② DM 无 workspace (蓝图 §1.2 字面禁; #353 acceptance §2.3
+	// CHN-2.1 设计 ② DM 无 workspace (蓝图 §1.2 字面禁; #353 acceptance §2.3
 	// 同源 — DM channel cross-type 反约束). DM channel 创 artifact → 403
 	// `dm.workspace_not_supported` 兜底, 防 client UI bug 漏检.
-	// 反向 grep 锚: `dm.workspace_not_supported` count≥1 (本行).
+	// grep 检查项: `dm.workspace_not_supported` count≥1 (本行).
 	if ch.Type == "dm" {
 		writeJSONErrorCode(w, http.StatusForbidden, "dm.workspace_not_supported", "DM 无 workspace, 跟 channel 拆")
 		return
@@ -275,8 +275,8 @@ func (h *ArtifactHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	// CV-3.2 (#363 / #397): kind enum extended to {markdown, code,
 	// image_link} per migration v=17 (cv_3_1_artifact_kinds, #396 merged).
-	// CV-1.2 立场 ④ Markdown ONLY 锁已废 — 旧的 `400 "type must be 'markdown' (v1)"`
-	// 文案此处删 (反向 grep `type must be 'markdown' \(v1\)` count==0,
+	// CV-1.2 设计 ④ Markdown ONLY 锁已废 — 旧的 `400 "type must be 'markdown' (v1)"`
+	// 文案此处删 (grep 检查 `type must be 'markdown' \(v1\)` count==0,
 	// spec #397 §3 drift 3 字面). 默认值仍 'markdown' 兼容旧 client (CV-1
 	// 既有 POST /artifacts 不带 type 字段的路径走 markdown 默认, 不破).
 	if req.Type == "" {
@@ -293,7 +293,7 @@ func (h *ArtifactHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// 反约束 — javascript: / data: / data:image / http: / file: / 任何
 	// 非 https scheme 全 reject (XSS 红线第一道, #370 §1 ④ + spec §3 锚).
 	//
-	// Note: metadata 本 PR **不持久化** (留账 — CV-3.2 schema follow-up
+	// Note: metadata 本 PR **不持久化** (留账 — CV-3.2 schema 后续
 	// 决定 add metadata column vs body JSON header). 服务端验完后丢弃,
 	// client reload 时按 kind 默认 (code 默认 'text', image_link body
 	// 即 URL). PR body Acceptance 段已明示此留账边界.
@@ -358,7 +358,7 @@ func (h *ArtifactHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "Artifact not found")
 		return
 	}
-	// Resolve head version's committer for the response (立场 ⑤: push frame
+	// Resolve head version's committer for the response (设计 ⑤: push frame
 	// 不含 committer; pull GET 才含).
 	var head versionRow
 	if err := h.Store.DB().Raw(`SELECT artifact_id, version, body, committer_kind, committer_id, created_at, rolled_back_from_version
@@ -405,7 +405,7 @@ FROM artifact_versions WHERE artifact_id = ? ORDER BY version ASC`, id).Scan(&ro
 type commitRequest struct {
 	// ExpectedVersion is the version the client edited from. If it
 	// differs from the artifact's current_version, return 409 — the
-	// client must reload (立场 ② lock conflict + reload hint).
+	// client must reload (设计 ② lock conflict + reload hint).
 	ExpectedVersion int64  `json:"expected_version"`
 	Body            string `json:"body"`
 }
@@ -425,8 +425,8 @@ func (h *ArtifactHandler) handleCommit(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
-	// AP-1 立场 ②③: ABAC capability check 单 SSOT — agent 严格 (蓝图
-	// §1.4 不享 wildcard); human 享 wildcard 短路. 反向 grep 守 const
+	// AP-1 设计 ②③: ABAC capability check 单 SSOT — agent 严格 (蓝图
+	// §1.4 不享 wildcard); human 享 wildcard 短路. grep 检查 守 const
 	// 字面单源 (spec §2 #1).
 	if !auth.HasCapability(r.Context(), h.Store, auth.CommitArtifact, auth.ArtifactScopeStr(id)) {
 		w.Header().Set("Content-Type", "application/json")
@@ -446,7 +446,7 @@ func (h *ArtifactHandler) handleCommit(w http.ResponseWriter, r *http.Request) {
 	nowMs := now.UnixMilli()
 	expireBefore := now.Add(-ArtifactLockTTL).UnixMilli()
 
-	// 立场 ② lazy lock acquire: a commit takes the lock if (a) lock free
+	// 设计 ② lazy lock acquire: a commit takes the lock if (a) lock free
 	// or (b) held by us, or (c) prior holder's window has lapsed beyond
 	// 30s. Otherwise → 409 conflict (someone else is mid-edit).
 	if art.LockHolderUserID != nil && *art.LockHolderUserID != user.ID {
@@ -501,7 +501,7 @@ func (h *ArtifactHandler) handleCommit(w http.ResponseWriter, r *http.Request) {
 		h.Pusher.PushArtifactUpdated(id, newVersion, art.ChannelID, nowMs, FrameKindCommit)
 	}
 
-	// CV-4.2 立场 ② commit 单源: when ?iteration_id=<uuid> present, atomic
+	// CV-4.2 设计 ② commit 单源: when ?iteration_id=<uuid> present, atomic
 	// UPDATE iteration row running→completed + push IterationStateChanged.
 	// State machine reject (source state not 'running') → 409 conflict
 	// (acceptance §2.3 反断 — completed→running / failed→pending 等回退
@@ -537,7 +537,7 @@ WHERE artifact_id = ? AND version = ?`, id, newVersion).Scan(&versionPKRow).Erro
 		}
 	}
 
-	// 立场 ⑥: agent commit fanout system message. Format byte-identical:
+	// 设计 ⑥: agent commit fanout system message. Format byte-identical:
 	// "{agent_name} 更新 {artifact_name} v{n}". Human commits silent.
 	if committerKind == CommitterKindAgent {
 		h.fanoutAgentCommitMessage(art.ChannelID, user.DisplayName, art.Title, newVersion, nowMs)
@@ -561,7 +561,7 @@ type rollbackRequest struct {
 func (h *ArtifactHandler) handleRollback(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
 	if user == nil {
-		// 立场 ⑦ admin → 401 (admin god-mode 不入写动作).
+		// 设计 ⑦ admin → 401 (admin god-mode 不入写动作).
 		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -578,7 +578,7 @@ func (h *ArtifactHandler) handleRollback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if user.ID != ownerID {
-		// 立场 ⑦ 非 owner → 403.
+		// 设计 ⑦ 非 owner → 403.
 		writeJSONError(w, http.StatusForbidden, "Only the channel owner may rollback")
 		return
 	}
@@ -601,7 +601,7 @@ func (h *ArtifactHandler) handleRollback(w http.ResponseWriter, r *http.Request)
 	nowMs := now.UnixMilli()
 	expireBefore := now.Add(-ArtifactLockTTL).UnixMilli()
 
-	// 立场 ⑦ rollback 也走锁路径: 锁持有 = 别人 (未过 30s TTL) → 409.
+	// 设计 ⑦ rollback 也走锁路径: 锁持有 = 别人 (未过 30s TTL) → 409.
 	if art.LockHolderUserID != nil && *art.LockHolderUserID != user.ID {
 		if art.LockAcquiredAt == nil || *art.LockAcquiredAt > expireBefore {
 			writeJSONError(w, http.StatusConflict, "Artifact is locked by another editor")
@@ -657,7 +657,7 @@ FROM artifact_versions WHERE artifact_id = ? AND version = ?`,
 	if h.Pusher != nil {
 		h.Pusher.PushArtifactUpdated(id, newVersion, art.ChannelID, nowMs, FrameKindRollback)
 	}
-	// 立场 ⑦ 反约束: rollback 不发 system message (rollback 是 owner 行为,
+	// 设计 ⑦ 反约束: rollback 不发 system message (rollback 是 owner 行为,
 	// 不污染 fanout, v1 supplement ⑦ "system message 不发").
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{
@@ -672,7 +672,7 @@ FROM artifact_versions WHERE artifact_id = ? AND version = ?`,
 
 var errArtifactConflict = errors.New("artifact version conflict")
 
-// fanoutAgentCommitMessage emits the system message anchored by 立场 ⑥
+// fanoutAgentCommitMessage emits the system message anchored by 设计 ⑥
 // + cv-1 acceptance §2.4. Format byte-identical:
 //
 //	"{agent_name} 更新 {artifact_name} v{n}"

@@ -3,7 +3,7 @@
 // CV-5 同字符).
 //
 // Blueprint锚: docs/blueprint/current/realtime.md §1.1 ⭐ "thinking 必须带 subject".
-// Spec: docs/implementation/modules/cv-7-spec.md §0 立场 ③ + §3 反向 grep 锚.
+// Spec: docs/implementation/modules/cv-7-spec.md §0 设计 ③ + §3 grep 检查项.
 //
 // 5-pattern (改 = 改 5 处 byte-identical):
 //   1. trailing "thinking" — body 末为 "thinking"
@@ -12,7 +12,7 @@
 //   4. "AI is thinking" 字面
 //   5. subject="" 空字符串 / whitespace-only
 //
-// 反向 grep 锚 (CI lint 必跑):
+// grep 检查项 (CI lint 必跑):
 //   `body.*"thinking"$|defaultSubject|fallbackSubject|"AI is thinking"|subject\s*=\s*""`
 //   在 internal/api/ 排除 _test.go count==0.
 //

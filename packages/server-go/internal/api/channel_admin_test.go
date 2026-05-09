@@ -1,13 +1,13 @@
 // Package api_test — chn_11_member_admin_test.go: CHN-11 0-server-prod
-// 反向 grep守门 (CHN-11 仅 client SPA — server-side POST/DELETE/GET
+// grep 检查守门 (CHN-11 仅 client SPA — server-side POST/DELETE/GET
 // /channels/:id/members CHN-1 #276 既有 path byte-identical 不变).
 //
 // Pins:
 //   REG-CHN11-001 TestChannelAdmin_NoSchemaChange (filepath.Walk migrations/)
-//   REG-CHN11-002 TestChannelAdmin_NoServerProductionCode (反向 grep `chn_11`
+//   REG-CHN11-002 TestChannelAdmin_NoServerProductionCode (grep 检查 `chn_11`
 //                  在 internal/api/*.go 非 _test.go 0 hit)
 //   REG-CHN11-003 TestCHN_HandlersByteIdentical (handleAddMember +
-//                  handleRemoveMember block 反向 grep `chn_11` 0 hit)
+//                  handleRemoveMember block grep 检查 `chn_11` 0 hit)
 //   REG-CHN11-004 TestCHN_NoMemberAdminQueue (AST 锁链延伸第 19 处)
 //   REG-CHN11-005 TestCHN_NoAdminMembersPath
 package api_test
@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-// REG-CHN11-001 — 0 schema 改 (反向 grep migrations/chn_11_*).
+// REG-CHN11-001 — 0 schema 改 (grep 检查 migrations/chn_11_*).
 func TestChannelAdmin_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -30,12 +30,12 @@ func TestChannelAdmin_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "chn_11_") {
-			t.Errorf("CHN-11 立场 ① broken — found schema migration %q (must be 0 schema)", e.Name())
+			t.Errorf("CHN-11 设计 ① broken — found schema migration %q (must be 0 schema)", e.Name())
 		}
 	}
 }
 
-// REG-CHN11-002 — 0 server production code (反向 grep `chn_11` / `chn11`
+// REG-CHN11-002 — 0 server production code (grep 检查 `chn_11` / `chn11`
 // 在 internal/api/*.go 非 _test.go 0 hit).
 func TestChannelAdmin_NoServerProductionCode(t *testing.T) {
 	t.Parallel()
@@ -55,7 +55,7 @@ func TestChannelAdmin_NoServerProductionCode(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("CHN-11 立场 ② broken — token %q in production %s (must be 0 server prod)", tok, p)
+				t.Errorf("CHN-11 设计 ② broken — token %q in production %s (must be 0 server prod)", tok, p)
 			}
 		}
 		return nil

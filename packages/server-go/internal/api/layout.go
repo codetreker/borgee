@@ -1,8 +1,8 @@
 // Package api — layout.go: CHN-3.2 user_channel_layout REST endpoints.
 //
-// Spec: docs/implementation/modules/chn-3-spec.md §0 (3 立场) + §1
+// Spec: docs/implementation/modules/chn-3-spec.md §0 (3 条原则) + §1
 // CHN-3.2 段.
-// Stance: docs/qa/chn-3-stance-checklist.md (#366, 7 立场).
+// Stance: docs/qa/chn-3-stance-checklist.md (#366, 7 条原则).
 // Acceptance: docs/qa/acceptance-templates/chn-3.md §2.* (CHN-3.2
 // server-side验收: GET 本人 / PUT 批量 / DM reject / admin reject /
 // non-member reject).
@@ -19,23 +19,23 @@
 //     position}, ...]}
 //
 // Stance reverse-grep targets:
-//   - 立场 ① 物理拆死: 不动 channels / channel_groups (此文件不 import
+//   - 设计 ① 物理拆死: 不动 channels / channel_groups (此文件不 import
 //     channel_groups package; 反约束 grep `channel_groups` count==0).
-//   - 立场 ② 个人偏好两维 collapsed + position: 入参字段反约束断言 (反向
+//   - 设计 ② 个人偏好两维 collapsed + position: 入参字段反约束断言 (反向
 //     reject hidden / muted / pinned / group_id 字段).
-//   - 立场 ③ pin = position 单调小数: server 不算 MIN-1.0 (client 端事,
-//     立场 ⑥). server 仅 store; reject DM channel (立场 ④).
-//   - 立场 ④ DM 永不参与分组: channel.type IN ('private','public') 校验
+//   - 设计 ③ pin = position 单调小数: server 不算 MIN-1.0 (client 端事,
+//     设计 ⑥). server 仅 store; reject DM channel (设计 ④).
+//   - 设计 ④ DM 永不参与分组: channel.type IN ('private','public') 校验
 //     → 400 `layout.dm_not_grouped` byte-identical (#357 spec / #353
 //     acceptance §2 / #366 ④ / #402 ⑤ 5 源).
-//   - 立场 ⑤ ADM-0 红线: admin god-mode endpoint **不返回**
+//   - 设计 ⑤ ADM-0 红线: admin god-mode endpoint **不返回**
 //     user_channel_layout 行 (本文件不挂 admin 路径; 反约束 grep
 //     `admin.*user_channel_layout` 在 admin*.go count==0).
-//   - 立场 ⑥ ordering client 端: server 不算偏好排序, 也不 push fanout
+//   - 设计 ⑥ ordering client 端: server 不算偏好排序, 也不 push fanout
 //     LayoutChangedFrame (本文件无 hub.Broadcast 调用; 反约束 grep
 //     `WSEnvelope.*position|push.*frame.*position|fanout.*user_channel_layout`
 //     在 ws/ count==0 + 本文件 count==0).
-//   - 立场 ⑦ lazy 清理: 作者删 group → 不级联清理 user_channel_layout
+//   - 设计 ⑦ lazy 清理: 作者删 group → 不级联清理 user_channel_layout
 //     (本文件不订阅 channel.delete event; 反约束 grep
 //     `cascade.*delete.*user_channel_layout` count==0).
 package api
@@ -82,11 +82,11 @@ type userChannelLayoutRow struct {
 // ----- GET /api/v1/me/layout -----
 //
 // Returns the caller's personal layout rows. ACL: 本人写本人读, no
-// admin path (立场 ⑤ ADM-0 §1.3 红线 — 此 endpoint 不接受 admin token,
+// admin path (设计 ⑤ ADM-0 §1.3 红线 — 此 endpoint 不接受 admin token,
 // admin SPA 用 /admin-api/* 走另一条 mux, 本路径 admin 401 by mw).
 //
 // Acceptance §2.1: 200 with `{"layout": [...]}` (空数组 if 无偏好);
-// fallback ordering 是 client 端事 (立场 ⑥), server 不补全缺失行.
+// fallback ordering 是 client 端事 (设计 ⑥), server 不补全缺失行.
 func (h *LayoutHandler) handleGetMyLayout(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -114,13 +114,13 @@ func (h *LayoutHandler) handleGetMyLayout(w http.ResponseWriter, r *http.Request
 //
 //	{"layout": [{channel_id, collapsed, position}, ...]}
 //
-// 反约束 grep 锚 (#402 ⑤ + #366 ④ + #357 §1 立场 ② + #353 acceptance
+// 反约束 grep 锚 (#402 ⑤ + #366 ④ + #357 §1 设计 ② + #353 acceptance
 // §2.3 5 源 byte-identical):
 //   - DM channel_id → 400 with code `layout.dm_not_grouped` (字面禁
 //     "升级为频道" / "Convert to channel" / "升级 DM" 同义词漂; 错码
 //     `layout.dm_not_grouped` 5 源 byte-identical).
-//   - non-member channel_id → 403 (立场 ⑦ + CHN-1 channel ACL 同源).
-//   - 输入字段反约束 (立场 ②): 仅接受 channel_id / collapsed / position
+//   - non-member channel_id → 403 (设计 ⑦ + CHN-1 channel ACL 同源).
+//   - 输入字段反约束 (设计 ②): 仅接受 channel_id / collapsed / position
 //     三字段; hidden / muted / pinned / group_id 字面忽略 (不接受写入,
 //     反约束 lint 锚: 无 alias 字段名).
 //
@@ -161,7 +161,7 @@ func (h *LayoutHandler) handlePutMyLayout(w http.ResponseWriter, r *http.Request
 	// partial writes don't leak cross-row drift. acceptance §2.4 字面.
 	// REFACTOR-1 R1.1: per-row 4-step preamble 走 requireChannelMember
 	// helper-1 (RejectDM=true + member-only). channel_id="" 仍 user-rail
-	// 直查 (helper 不接 empty path; layout PUT 立场 ⑤ invalid_payload 字面).
+	// 直查 (helper 不接 empty path; layout PUT 设计 ⑤ invalid_payload 字面).
 	for _, row := range req.Layout {
 		if row.ChannelID == "" {
 			writeJSONErrorCode(w, http.StatusBadRequest, "layout.invalid_payload", "channel_id required")
@@ -174,8 +174,8 @@ func (h *LayoutHandler) handlePutMyLayout(w http.ResponseWriter, r *http.Request
 
 	now := h.now()
 	// Per-row UPSERT — SQLite ON CONFLICT(user_id, channel_id) DO UPDATE.
-	// position 是 REAL (REAL_TYPE), client 算 MIN-1.0 (立场 ③ pin =
-	// 单调小数, server 不算; 立场 ⑥ ordering client 端).
+	// position 是 REAL (REAL_TYPE), client 算 MIN-1.0 (设计 ③ pin =
+	// 单调小数, server 不算; 设计 ⑥ ordering client 端).
 	for _, row := range req.Layout {
 		if err := h.Store.DB().Exec(`INSERT INTO user_channel_layout
 			(user_id, channel_id, collapsed, position, created_at, updated_at)
@@ -186,7 +186,7 @@ func (h *LayoutHandler) handlePutMyLayout(w http.ResponseWriter, r *http.Request
 			  updated_at = excluded.updated_at`,
 			user.ID, row.ChannelID, row.Collapsed, row.Position, now, now).Error; err != nil {
 			h.logErr("layout upsert", err)
-			// 立场 ⑥ 文案锁 — toast 文案 byte-identical 跟 #371 / acceptance
+			// 设计 ⑥ 文案锁 — toast 文案 byte-identical 跟 #371 / acceptance
 			// §3.5 / #402 ④ 三源.
 			writeJSONError(w, http.StatusInternalServerError, layoutSaveErrorMsg)
 			return

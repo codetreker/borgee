@@ -45,7 +45,7 @@ func TestAL_OverrideEndpointWritesAudit(t *testing.T) {
 	}
 }
 
-// TestAL_OverrideRejectsUserRail pins 立场 ③ admin-rail only — user
+// TestAL_OverrideRejectsUserRail pins 设计 ③ admin-rail only — user
 // cookie 调 admin-api 必 401 (admin.RequireAdmin middleware).
 func TestAL_OverrideRejectsUserRail(t *testing.T) {
 	t.Parallel()
@@ -61,7 +61,7 @@ func TestAL_OverrideRejectsUserRail(t *testing.T) {
 	}
 }
 
-// TestAL_OverrideClampsRetention pins 立场 ⑥ — clamp 1..365.
+// TestAL_OverrideClampsRetention pins 设计 ⑥ — clamp 1..365.
 //
 // 0 / -5 / 999 / missing field (decoder 默认 0) 全 reject 400.
 func TestAL_OverrideClampsRetention(t *testing.T) {

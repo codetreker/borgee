@@ -9,8 +9,8 @@
 //   - WindowSeconds (= BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS byte-identical)
 //   - LagThresholdMs (= 15000, watchdog 周期一半)
 //
-// 反约束 (hb-6-spec.md §0 + 立场 ②③):
-//   - admin-rail only — RegisterAdminRoutes 走 adminMw; 反向 grep
+// 反约束 (hb-6-spec.md §0 + 设计 ②③):
+//   - admin-rail only — RegisterAdminRoutes 走 adminMw; grep 检查
 //     `/api/v1/heartbeat-lag` user-rail 0 hit + POST/PATCH/PUT/DELETE
 //     在 admin-api/v1/heartbeat-lag 0 hit (ADM-0 §1.3 红线 admin readonly).
 //   - 不写表 / 不另起 admin_actions enum — lag derived metric, write 无意义.
@@ -47,7 +47,7 @@ type HostLagHandler struct {
 }
 
 // RegisterAdminRoutes wires the admin-rail GET endpoint behind adminMw.
-// 立场 ③: admin-rail only. user-rail (`/api/v1/...`) 不挂.
+// 设计 ③: admin-rail only. user-rail (`/api/v1/...`) 不挂.
 func (h *HostLagHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/heartbeat-lag",
 		adminMw(http.HandlerFunc(h.handleGet)))

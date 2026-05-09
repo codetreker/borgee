@@ -46,7 +46,7 @@ func cv22Setup(t *testing.T) (url string, ownerTok string, s *store.Store, chID 
 	return
 }
 
-// TestCV_CreateAnchorOnHead pins 立场 ② default-version path: omitted
+// TestCV_CreateAnchorOnHead pins 设计 ② default-version path: omitted
 // `version` defaults to head (current_version), anchor row written.
 func TestCV_CreateAnchorOnHead(t *testing.T) {
 	t.Parallel()
@@ -87,7 +87,7 @@ func TestCV_CreateAnchor_RejectInvertedRange(t *testing.T) {
 	}
 }
 
-// TestCV_AgentCannotCreateAnchor pins 立场 ① 反约束三连之一: agent role
+// TestCV_AgentCannotCreateAnchor pins 设计 ① 反约束三连之一: agent role
 // POST /anchors → 403 + 错码 byte-identical "anchor.create_owner_only".
 // 反查 grep: server kind='agent' 0 hit.
 func TestCV_AgentCannotCreateAnchor(t *testing.T) {
@@ -107,7 +107,7 @@ func TestCV_AgentCannotCreateAnchor(t *testing.T) {
 	}
 }
 
-// TestCanvasAnchors_CrossChannel403 pins 立场 ⑦: a non-member of the artifact's
+// TestCanvasAnchors_CrossChannel403 pins 设计 ⑦: a non-member of the artifact's
 // channel cannot create / list anchors.
 func TestCanvasAnchors_CrossChannel403(t *testing.T) {
 	t.Parallel()
@@ -134,7 +134,7 @@ func TestCanvasAnchors_CrossChannel403(t *testing.T) {
 	}
 }
 
-// TestCV_AnchorPinnedToVersion_Immutable pins 立场 ② 反约束: artifact
+// TestCV_AnchorPinnedToVersion_Immutable pins 设计 ② 反约束: artifact
 // rolls forward to v=2, the anchor created on v=1 STILL references the
 // v=1 artifact_version_id (does not auto-migrate).
 func TestCV_AnchorPinnedToVersion_Immutable(t *testing.T) {
@@ -165,7 +165,7 @@ func TestCV_AnchorPinnedToVersion_Immutable(t *testing.T) {
 	}
 }
 
-// TestCV_AddCommentPushesFrame pins 立场 ③: AddComment hits the
+// TestCV_AddCommentPushesFrame pins 设计 ③: AddComment hits the
 // AnchorCommentPusher with the 10-field tuple. We use a recording pusher
 // via standalone AnchorHandler since the live mux's hub already pushes
 // to ws clients (and we can't observe the internal tuple from the HTTP
@@ -194,7 +194,7 @@ func TestCV_AddCommentPushesFrame(t *testing.T) {
 	}
 }
 
-// TestCV22_AgentCannotReplyOnAgentOnlyThread pins 立场 ① 反约束 (agent
+// TestCV22_AgentCannotReplyOnAgentOnlyThread pins 设计 ① 反约束 (agent
 // → agent thread 0 hit). Setup: human creates anchor (server enforces
 // human-only create), agent reply OK because anchor creator is human.
 // Negative path: re-test the helper directly using thread without human

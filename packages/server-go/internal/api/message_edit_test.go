@@ -1,8 +1,8 @@
 // Package api_test — DM-4.1 server PATCH endpoint tests.
 //
-// 立场反查 (跟 dm-4-stance-checklist.md §1+§3+§4):
+// 设计反查 (跟 dm-4-stance-checklist.md §1+§3+§4):
 //   ① RT-3 既有 fan-out 复用 — events INSERT op="edit" 真写入
-//   ③ thinking 5-pattern 反约束延伸第 3 处 — dm_4*.go 反向 grep 0 hit
+//   ③ thinking 5-pattern 反约束延伸第 3 处 — dm_4*.go grep 检查 0 hit
 //   ④ DM-only path — channel.Type != "dm" reject 403
 //   ⑤ owner-only ACL — sender != caller → 403
 //
@@ -99,7 +99,7 @@ func TestDM_HappyPath(t *testing.T) {
 	}
 }
 
-// TestDM_HappyPath_IdempotentSameContent — DM-7 follow-up (G4.audit row #1):
+// TestDM_HappyPath_IdempotentSameContent — DM-7 后续 (G4.audit row #1):
 // 反向断 same-content PATCH 不追加 edit_history (保 idempotent).
 // Phase 4 batch1 audit §2.1 drift closure.
 func TestDM_HappyPath_IdempotentSameContent(t *testing.T) {
@@ -134,7 +134,7 @@ func TestDM_HappyPath_IdempotentSameContent(t *testing.T) {
 	}
 }
 
-// TestDM_NonOwnerRejected — acceptance §1.1 立场 ⑤ owner-only ACL.
+// TestDM_NonOwnerRejected — acceptance §1.1 设计 ⑤ owner-only ACL.
 // member@test.com is added as DM member to keep channel ACL satisfied
 // but is not the original sender, so PATCH must 403.
 func TestDM_NonOwnerRejected(t *testing.T) {
@@ -157,7 +157,7 @@ func TestDM_NonOwnerRejected(t *testing.T) {
 	}
 }
 
-// TestDM_NonDMReject — acceptance §1.1 立场 ④ DM-only path.
+// TestDM_NonDMReject — acceptance §1.1 设计 ④ DM-only path.
 // PATCH /api/v1/channels/{publicChannelId}/messages/{id} → 403
 // `dm.edit_only_in_dm`.
 func TestDM_NonDMReject(t *testing.T) {
@@ -227,9 +227,9 @@ func TestDM_NotFound404(t *testing.T) {
 	}
 }
 
-// TestDM_NoThinkingPatternInBody — acceptance §1.3 立场 ③
+// TestDM_NoThinkingPatternInBody — acceptance §1.3 设计 ③
 // thinking subject 5-pattern 反约束延伸第 3 处 (RT-3 第 1 + DM-3
-// 第 2 + DM-4 第 3). dm_4*.go 反向 grep 5 字面 0 hit (production
+// 第 2 + DM-4 第 3). dm_4*.go grep 检查 5 字面 0 hit (production
 // .go 不含 thinking 状态字面).
 func TestDM_NoThinkingPatternInBody(t *testing.T) {
 	t.Parallel()
@@ -266,7 +266,7 @@ func TestDM_NoThinkingPatternInBody(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-4 立场 ③ broken: thinking 5-pattern literal in dm_4*.go production: %v", hits)
+		t.Errorf("DM-4 设计 ③ broken: thinking 5-pattern literal in dm_4*.go production: %v", hits)
 	}
 }
 

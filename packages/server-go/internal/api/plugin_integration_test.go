@@ -3,12 +3,12 @@
 // 返 403 + body 含 BPP routing 字段 → owner POST /me/grants → user
 // _permissions 真改 → agent 重试 commit 成功).
 //
-// 替代 Playwright e2e 主菜 (留 acceptance §3.4 follow-up 当 plugin SDK
+// 替代 Playwright e2e 主菜 (留 acceptance §3.4 后续 当 plugin SDK
 // 真接入时落 .spec.ts) — 此 Go 集成测试覆盖 server-side full path
 // (BPP-3.1 + BPP-3.2.1 + BPP-3.2.2 + BPP-3.2.3 cache 4 件套全闭环).
 //
 // 锚: docs/qa/acceptance-templates/bpp-3.2.md §3.4 (e2e full flow) +
-// docs/implementation/modules/bpp-3.2-spec.md §1 三立场 + content-lock
+// docs/implementation/modules/bpp-3.2-spec.md §1 三条原则 + content-lock
 // §1+§2+§4.
 package api_test
 
@@ -23,7 +23,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-BPP32-301 (acceptance §3.4 + spec §1 三立场全闭环) — server-side
+// REG-BPP32-301 (acceptance §3.4 + spec §1 三条原则全闭环) — server-side
 // full flow integration: AP-1 abac 拒 → owner grant → agent 重试 200.
 func TestBPP_FullFlow_AgentDeniedThenGrantedThenRetrySuccess(t *testing.T) {
 	t.Parallel()

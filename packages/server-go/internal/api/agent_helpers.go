@@ -1,7 +1,7 @@
 // Package api — agent_helpers.go: REFACTOR-2 helper-6 SSOT for the
 // "load agent by path id + 404" boilerplate.
 //
-// 立场: byte-identical 跟既有 ~10 处 inline:
+// 设计: byte-identical 跟既有 ~10 处 inline:
 //
 //	id := r.PathValue("id")
 //	agent, err := h.Store.GetAgent(id)

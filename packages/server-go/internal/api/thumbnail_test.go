@@ -204,12 +204,12 @@ func TestCV_ThumbnailableVsPreviewableMutuallyExclusive(t *testing.T) {
 	t.Parallel()
 	for _, k := range api.ThumbnailableKinds {
 		if api.IsPreviewableKind(k) {
-			t.Errorf("kind %q in BOTH Thumbnailable and Previewable — 立场 ③ broken", k)
+			t.Errorf("kind %q in BOTH Thumbnailable and Previewable — 设计 ③ broken", k)
 		}
 	}
 	for _, k := range api.PreviewableKinds {
 		if api.IsThumbnailableKind(k) {
-			t.Errorf("kind %q in BOTH Previewable and Thumbnailable — 立场 ③ broken", k)
+			t.Errorf("kind %q in BOTH Previewable and Thumbnailable — 设计 ③ broken", k)
 		}
 	}
 	// And union covers all 5 known kinds (markdown/code/image_link/video_link/pdf_link).

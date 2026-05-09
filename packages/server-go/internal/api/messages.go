@@ -249,7 +249,7 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 	}
 
 	// DM-2.2 mention parser + cross-channel guard.
-	// 立场 ① parse `@<uuid>` token 拆死 raw UUID; 立场 ② cross-channel
+	// 设计 ① parse `@<uuid>` token 拆死 raw UUID; 设计 ② cross-channel
 	// reject 400 (mention 仅在 channel 内, 跟 RT-1/CHN-1 留账边界对齐).
 	// Dispatch (online push / offline owner DM fallback) 在 message
 	// 落库后执行 — 失败仅 log 不阻断 message 创建 (best-effort fanout,
@@ -381,7 +381,7 @@ func (h *MessageHandler) handleUpdateMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// AP-5 立场 ① — channel-member ACL gate (跟 AP-4 reactions 同模式).
+	// AP-5 设计 ① — channel-member ACL gate (跟 AP-4 reactions 同模式).
 	// Closes the post-removal gap: a same-org user removed from the
 	// channel must not be able to edit messages they previously sent
 	// there. byte-identical "Channel not found" 404 fail-closed.
@@ -395,7 +395,7 @@ func (h *MessageHandler) handleUpdateMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// CV-7 立场 ③: agent edit on artifact-comment-typed message must
+	// CV-7 设计 ③: agent edit on artifact-comment-typed message must
 	// re-pass the 5-pattern thinking-subject guard. byte-identical 跟
 	// CV-5 #530 artifact_comments.go::violatesThinkingSubject — 5-pattern
 	// 第 5 处链 (RT-3 + BPP-2.2 + AL-1b + CV-5 + CV-7). 5-pattern 改 =
@@ -462,7 +462,7 @@ func (h *MessageHandler) handleDeleteMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// AP-5 立场 ① — channel-member ACL gate (跟 AP-4 + handleUpdateMessage 同模式).
+	// AP-5 设计 ① — channel-member ACL gate (跟 AP-4 + handleUpdateMessage 同模式).
 	// Closes the post-removal gap on DELETE.
 	if !h.Store.IsChannelMember(existing.ChannelID, user.ID) || !h.Store.CanAccessChannel(existing.ChannelID, user.ID) {
 		writeJSONError(w, http.StatusNotFound, "Channel not found")

@@ -24,7 +24,7 @@ func TestP0PrivateChannelIsolation(t *testing.T) {
 	}
 
 	resp, data = testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+channelID, memberToken, nil)
-	// AP-1 立场 ① (REG-CHN1-007): 非 member GET → 403 (不再 404 隐藏存在性).
+	// AP-1 设计 ① (REG-CHN1-007): 非 member GET → 403 (不再 404 隐藏存在性).
 	requireStatus(t, resp, http.StatusForbidden, data)
 
 	resp, data = testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+channelID+"/messages", memberToken, nil)

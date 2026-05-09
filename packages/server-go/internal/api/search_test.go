@@ -189,7 +189,7 @@ func TestCV_DBErrorPath500(t *testing.T) {
 	}
 }
 
-// REG-CV6-006 (acceptance §1.6 + 立场 ⑥) — archived artifacts excluded.
+// REG-CV6-006 (acceptance §1.6 + 设计 ⑥) — archived artifacts excluded.
 func TestCV_ArchivedNotInResults(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

@@ -6,7 +6,7 @@
 // (战马C v0).
 //
 // Architecture: artifact comments live in the messages table with
-// content_type='artifact_comment' (CV-5 #530 立场 ① — comments 走 messages
+// content_type='artifact_comment' (CV-5 #530 设计 ① — comments 走 messages
 // 表单源 不裂表). messages.edit_history column is provided by DM-7.1 v=34
 // migration; CV-7 #535 既有 PATCH /api/v1/messages/{id} → UpdateMessage
 // SSOT (DM-7.2) → artifact comments 编辑早已自动产生 edit_history JSON.
@@ -22,11 +22,11 @@
 //   - (h *CanvasCommentEditHistoryHandler) RegisterAdminRoutes(mux, adminMw)
 //
 // 反约束 (cv-15-spec.md §0):
-//   - 立场 ① 0 schema — 复用 messages.edit_history (DM-7.1 v=34); 反向
+//   - 设计 ① 0 schema — 复用 messages.edit_history (DM-7.1 v=34); 反向
 //     grep `cv_15_\d+|artifact_comments` 在 migrations/ 0 hit.
-//   - 立场 ② owner-only sender + admin readonly; admin god-mode 不挂
+//   - 设计 ② owner-only sender + admin readonly; admin god-mode 不挂
 //     PATCH/DELETE/PUT (ADM-0 §1.3 红线).
-//   - 立场 ③ content_type='artifact_comment' filter 强制 — 非 artifact
+//   - 设计 ③ content_type='artifact_comment' filter 强制 — 非 artifact
 //     comment 调本 endpoint → 404 (跟 DM-7 既有 /edit-history 区分).
 package api
 
@@ -58,7 +58,7 @@ type CanvasCommentEditHistoryHandler struct {
 
 // RegisterUserRoutes wires GET /api/v1/channels/{channelId}/messages/
 // {messageId}/comment-edit-history behind authMw. user-rail sender-only
-// (立场 ② owner-only ACL 锁链第 22 处).
+// (设计 ② owner-only ACL 锁链第 22 处).
 func (h *CanvasCommentEditHistoryHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/channels/{channelId}/messages/{messageId}/comment-edit-history",
 		authMw(http.HandlerFunc(h.handleUserGet)))
@@ -66,7 +66,7 @@ func (h *CanvasCommentEditHistoryHandler) RegisterUserRoutes(mux *http.ServeMux,
 
 // RegisterAdminRoutes wires GET /admin-api/v1/messages/{messageId}/comment-edit-history
 // behind adminMw. admin readonly — no PATCH/DELETE/PUT on this path
-// (反向 grep 守门; admin god-mode ADM-0 §1.3 红线).
+// (grep 守门; admin god-mode ADM-0 §1.3 红线).
 func (h *CanvasCommentEditHistoryHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/messages/{messageId}/comment-edit-history",
 		adminMw(http.HandlerFunc(h.handleAdminGet)))
@@ -91,12 +91,12 @@ func (h *CanvasCommentEditHistoryHandler) handleUserGet(w http.ResponseWriter, r
 		writeJSONError(w, http.StatusNotFound, CommentEditHistoryErrCodeMessageNotFound)
 		return
 	}
-	// 立场 ③ content_type filter 强制 — 跟 DM-7 既有 /edit-history 区分.
+	// 设计 ③ content_type filter 强制 — 跟 DM-7 既有 /edit-history 区分.
 	if msg.ContentType != "artifact_comment" {
 		writeJSONError(w, http.StatusNotFound, CommentEditHistoryErrCodeNotArtifactComment)
 		return
 	}
-	// 立场 ② sender-only — 反向断言 sender == current user.
+	// 设计 ② sender-only — 反向断言 sender == current user.
 	if msg.SenderID != user.ID {
 		writeJSONError(w, http.StatusForbidden, CommentEditHistoryErrCodeNotOwner)
 		return
@@ -108,7 +108,7 @@ func (h *CanvasCommentEditHistoryHandler) handleUserGet(w http.ResponseWriter, r
 
 // handleAdminGet — GET /admin-api/v1/messages/{messageId}/comment-edit-history.
 //
-// admin readonly. 立场 ② 反约束: 不挂 PATCH/DELETE/PUT (反向 grep 守门).
+// admin readonly. 设计 ② 反约束: 不挂 PATCH/DELETE/PUT (grep 守门).
 // content_type filter still applies — admin querying a non-artifact_comment
 // message via this endpoint gets 404 (so DM-7 vs CV-15 endpoints stay
 // disjoint by message kind).

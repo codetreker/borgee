@@ -24,7 +24,7 @@ func cv8PostMsg(t *testing.T, url, tok, chID string, body map[string]any) (int, 
 	return resp.StatusCode, data
 }
 
-// TestCV_HumanReplyOnComment_OK pins 立场 ② sanity: human reply on an
+// TestCV_HumanReplyOnComment_OK pins 设计 ② sanity: human reply on an
 // artifact_comment-typed parent → 201, parent.reply_to_id linkage written.
 func TestCV_HumanReplyOnComment_OK(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestCV_HumanReplyOnComment_OK(t *testing.T) {
 	}
 }
 
-// TestCV_AgentReplyThinking_Reject pins 立场 ③ 4-pattern reject byte-identical
+// TestCV_AgentReplyThinking_Reject pins 设计 ③ 4-pattern reject byte-identical
 // CV-5/CV-7 errcode (`comment.thinking_subject_required`).
 func TestCV_AgentReplyThinking_Reject(t *testing.T) {
 	t.Parallel()
@@ -105,7 +105,7 @@ func TestCV_AgentReplyThinking_Reject(t *testing.T) {
 	}
 }
 
-// TestCV_ReplyOnReply_Reject pins 立场 ④: depth 2 → 400 thread_depth_exceeded.
+// TestCV_ReplyOnReply_Reject pins 设计 ④: depth 2 → 400 thread_depth_exceeded.
 func TestCV_ReplyOnReply_Reject(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -130,7 +130,7 @@ func TestCV_ReplyOnReply_Reject(t *testing.T) {
 	}
 }
 
-// TestCV_ReplyOnNonComment_Reject pins 立场 ④: reply target 必须 artifact_comment 类型.
+// TestCV_ReplyOnNonComment_Reject pins 设计 ④: reply target 必须 artifact_comment 类型.
 func TestCV_ReplyOnNonComment_Reject(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)

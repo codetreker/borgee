@@ -18,13 +18,13 @@
 //     递增 + 无丢失)
 //
 // Stance reverse-grep targets (蓝图 §1.4 SSOT + §1.5 BPP frame 反约束):
-//   - 蓝图 §1.4 SSOT 立场: blob 仅 Borgee 管字段 (name / avatar / prompt /
+//   - 蓝图 §1.4 SSOT 设计: blob 仅 Borgee 管字段 (name / avatar / prompt /
 //     model / capabilities / enabled / memory_ref). Runtime-only 字段
 //     (api_key / temperature / token_limit / retry_policy) **fail-closed**
 //     reject by allowedConfigKeys whitelist (acceptance §4.1.c reflect
 //     scan 同源).
 //   - 蓝图 §1.5 BPP frame `agent_config_update` 不在 AL-2a 范围: 本文件
-//     无 hub.Broadcast 调用 (反向 grep `agent_config_update` 在 ws/ 和
+//     无 hub.Broadcast 调用 (grep 检查 `agent_config_update` 在 ws/ 和
 //     bpp/ count==0; AL-2a 走轮询 reload, agent 端 GET 周期性).
 //   - Owner-only ACL: 跨 agent owner 调用 PATCH → 403 (跟 agents.go ACL
 //     pattern 同源, acceptance §4.1.b).
@@ -109,7 +109,7 @@ var allowedConfigKeys = map[string]bool{
 	"model":        true, // 蓝图 §1.4 "归 Borgee 管" (model identifier 字符串, 非 LLM 调用参数)
 	"capabilities": true, // 蓝图 §1.4 能力开关
 	"enabled":      true, // 蓝图 §1.4 启用状态
-	"memory_ref":   true, // 蓝图 §1.4 SSOT 立场
+	"memory_ref":   true, // 蓝图 §1.4 SSOT 设计
 }
 
 // ----- GET /api/v1/agents/:id/config -----
@@ -179,7 +179,7 @@ func (h *AgentConfigHandler) handleGetAgentConfig(w http.ResponseWriter, r *http
 //     白名单外字段, fail-closed reject — acceptance §4.1.c reflect scan)
 //   - 403 (cross-owner — acceptance §4.1.b)
 //   - 500 with msg "agent 配置保存失败, 请重试" (跟 layout.go 失败 toast
-//     同模式, AL-2a 文案锁待 #264 follow-up; 暂用此 msg).
+//     同模式, AL-2a 文案锁待 #264 后续; 暂用此 msg).
 const agentConfigSaveErrorMsg = "agent 配置保存失败, 请重试"
 
 type agentConfigPatchRequest struct {
@@ -211,7 +211,7 @@ func (h *AgentConfigHandler) handlePatchAgentConfig(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// 蓝图 §1.4 SSOT 立场 fail-closed: blob 仅含白名单字段, runtime-only 字段
+	// 蓝图 §1.4 SSOT 设计 fail-closed: blob 仅含白名单字段, runtime-only 字段
 	// (api_key / temperature / token_limit / retry_policy) 一律 reject.
 	// acceptance §4.1.c reflect scan 同源.
 	for k := range req.Blob {

@@ -10,9 +10,9 @@
 // VISIBILITY_* 跟 DB 字面 byte-identical. 改一处 = 改三处.
 //
 // 反约束 (chn-9-spec.md §0):
-//   - 立场 ① 0 schema — channels 表不动, 仅 app 层扩 enum 校验.
-//   - 立场 ② 三向锁 byte-identical (server + client + DB).
-//   - 立场 ③ owner-only — visibility PATCH 走既有 channel.manage_visibility
+//   - 设计 ① 0 schema — channels 表不动, 仅 app 层扩 enum 校验.
+//   - 设计 ② 三向锁 byte-identical (server + client + DB).
+//   - 设计 ③ owner-only — visibility PATCH 走既有 channel.manage_visibility
 //     permission (CHN-1.2 ACL byte-identical 不动); admin god-mode 不挂.
 //     creator_only 不 leak (ListChannelsWithUnread `visibility = 'public'`
 //     filter byte-identical 不动 — 反向 unit 守门).
@@ -42,7 +42,7 @@ var VisibilityValid = []string{
 
 // IsValidVisibility reports whether the given visibility string is one
 // of the three accepted enum values. Single-source predicate; 调用方
-// 禁止 inline `s == "public" || s == "private"` (反向 grep 锚 — handler
+// 禁止 inline `s == "public" || s == "private"` (grep 检查项 — handler
 // 走此谓词).
 func IsValidVisibility(s string) bool {
 	switch s {

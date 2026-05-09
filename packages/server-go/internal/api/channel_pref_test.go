@@ -25,7 +25,7 @@ func TestChannelPref_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-8 立场 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-8 设计 ① broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -36,7 +36,7 @@ func TestChannelPref_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-8 立场 ① broken — notif column ALTER in %s", p)
+			t.Errorf("CHN-8 设计 ① broken — notif column ALTER in %s", p)
 		}
 		return nil
 	})
@@ -186,7 +186,7 @@ func TestCHN_NoAdminNotifPrefPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-8 立场 ② broken — admin notification path in %s: %q",
+				t.Errorf("CHN-8 设计 ② broken — admin notification path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -204,7 +204,7 @@ func TestCHN_NoAdminNotifPrefPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-8 立场 ② broken — admin notif handler in %s: %q",
+				t.Errorf("CHN-8 设计 ② broken — admin notif handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -273,7 +273,7 @@ func TestCHN_NotifPrefDoesNotDropMessages(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-8 立场 ③ broken — notif pref drops messages in %s: %q",
+				t.Errorf("CHN-8 设计 ③ broken — notif pref drops messages in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil

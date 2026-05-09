@@ -1,7 +1,7 @@
 // Package api — request_helpers.go: REFACTOR-2 helper-2 SSOT for the
 // JSON-decode → 400 boilerplate.
 //
-// 立场: 仅 unify callsites that already use the canonical
+// 设计: 仅 unify callsites that already use the canonical
 // `writeJSONError(w, 400, "Invalid JSON")` shape. Custom-code callers
 // (agent_config / chn_8 / layout / host_grants / push_subscriptions /
 // chn_10) keep their inline form because their reason codes are part of

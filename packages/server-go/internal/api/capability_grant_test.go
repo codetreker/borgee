@@ -25,7 +25,7 @@ import (
 )
 
 // REG-BPP32-001 (acceptance §1.1) — ValidSemanticOps 7→8 + new const
-// SemanticOpRequestCapabilityGrant byte-identical 跟 spec §1 立场 ①.
+// SemanticOpRequestCapabilityGrant byte-identical 跟 spec §1 设计 ①.
 func TestBPP_ValidSemanticOps_8Ops(t *testing.T) {
 	t.Parallel()
 	if got, want := len(bpp.ValidSemanticOps), 8; got != want {

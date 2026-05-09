@@ -3,17 +3,17 @@
 //
 // Path: GET /api/v1/agents/{agentId}/lifecycle?limit=N (default 100, max 500).
 //
-// 立场 (跟 bpp-8-spec.md §0.3 + stance §3 byte-identical):
+// 设计 (跟 bpp-8-spec.md §0.3 + stance §3 byte-identical):
 //   - **owner-only ACL** — agent.OwnerID == current user.ID (跟 AL-2a /
 //     BPP-3.2 / AL-1 / AL-5 / DM-4 / CV-4 v2 / BPP-7 owner-only 7 处同模式).
 //   - **admin god-mode 不挂** — admin /admin-api/* rail 隔离, this handler
 //     mounted on user rail only (ADM-0 §1.3 红线).
 //   - 复用 admin_actions 表 — query filter `target_user_id = agent_id AND
-//     action LIKE 'plugin_%'` (立场 ① audit forward-only, 跟 ADM-2.1 +
+//     action LIKE 'plugin_%'` (设计 ① audit forward-only, 跟 ADM-2.1 +
 //     AP-2 + BPP-4 + BPP-8 跨五 milestone 同精神 — 锁链第 5 处).
 //
 // 反约束:
-//   - 反向 grep `admin.*plugin.*lifecycle\|admin.*BPP8` 在 admin*.go
+//   - grep 检查 `admin.*plugin.*lifecycle\|admin.*BPP8` 在 admin*.go
 //     count==0 (TestBPP83_AdminGodModeNotMounted 守).
 
 package api
@@ -104,7 +104,7 @@ func (h *PluginListHandler) handleList(w http.ResponseWriter, r *http.Request) {
 		out = append(out, map[string]any{
 			"id":         row.ID,
 			"action":     row.Action,
-			"actor_id":   row.ActorID, // 立场 ⑦ — always "system" byte-identical
+			"actor_id":   row.ActorID, // 设计 ⑦ — always "system" byte-identical
 			"agent_id":   row.TargetUserID,
 			"metadata":   row.Metadata,
 			"created_at": row.CreatedAt,

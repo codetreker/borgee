@@ -33,7 +33,7 @@ func TestADM2FU_REG010_ImpersonateStartAuditHook(t *testing.T) {
 	}
 
 	// Post-condition: admin_actions has new row with action="impersonate.start"
-	// + actor=owner.ID (业主自签 SSOT, 跟 spec 立场承袭).
+	// + actor=owner.ID (业主自签 SSOT, 跟 spec 设计沿用).
 	postActions, err := s.ListAdminActionsForTargetUser(owner.ID, 100)
 	if err != nil {
 		t.Fatalf("list admin_actions: %v", err)

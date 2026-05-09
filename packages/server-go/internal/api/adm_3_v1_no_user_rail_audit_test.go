@@ -1,12 +1,12 @@
 // Package api_test — adm_3_v1_no_user_rail_audit_test.go: ADM-3 v1 e2e
-// follow-up reverse-grep §2.2 (post-#623 liema CONDITIONAL LGTM).
+// 后续 reverse-grep §2.2 (post-#623 liema CONDITIONAL LGTM).
 //
 // 反约束 (adm-3-v1-e2e-spec.md §2.2 + ADM-0 §1.3 admin god-mode 红线核心):
 //   永不挂 user-rail audit feed —
 //   `/api/v1/me/audit*` / `/api/v1/audit/*` 在 production code 0 hit.
 //   仅 admin-rail `/admin-api/v1/audit/multi-source` 暴露.
 //
-// 立场承袭 (跟 RT-3 #616 thought-process 5-pattern reverse-grep + AP-2
+// 设计沿用 (跟 RT-3 #616 thought-process 5-pattern reverse-grep + AP-2
 // #620 反 RBAC role bleed reverse-grep + AP-4-enum #591 reflect-lint
 // 同模式承袭).
 package api_test
@@ -28,7 +28,7 @@ import (
 func TestADM3VE_NoUserRailAuditFeed_ReverseGrep(t *testing.T) {
 	t.Parallel()
 
-	// 反向 grep 三 pattern (ADM-0 §1.3 红线 + spec §2.2 字面).
+	// grep 检查 三 pattern (ADM-0 §1.3 红线 + spec §2.2 字面).
 	patterns := []*regexp.Regexp{
 		regexp.MustCompile(`mux\.Handle\([^)]*"\s*[A-Z]+\s+/api/v1/me/audit`),
 		regexp.MustCompile(`mux\.Handle\([^)]*"\s*[A-Z]+\s+/api/v1/audit/`),

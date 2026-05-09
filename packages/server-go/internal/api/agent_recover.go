@@ -6,7 +6,7 @@
 // `Store.AppendAgentStateTransition`. Reuses the AL-1 5-state graph valid
 // edge `error → online`; does not introduce new states or recovery dictionary.
 //
-// 立场反查 (al-5-spec.md §0):
+// 设计反查 (al-5-spec.md §0):
 //
 //	② recovery = 单 helper SSOT — 走 AppendAgentStateTransition (AL-1 #492
 //	   single-gate); 不另起 recovery 状态机, 不在 5-state 加新态
@@ -62,8 +62,8 @@ type AgentRecoverPayload struct {
 //  5. Returns 200 with {state: "online", reason}.
 //
 // Reverse约束:
-//   - admin god-mode 不挂此路径 (反向 grep `admin-api.*recover` count==0,
-//     dm-3-stance § 立场 ⑤ 同精神)
+//   - admin god-mode 不挂此路径 (grep 检查 `admin-api.*recover` count==0,
+//     dm-3-stance § 设计 ⑤ 同精神)
 //   - 状态机不裂 — 走 AL-1 ValidateTransition 既有 graph
 //   - reason 不新增 — 复用 last error transition 的 reason (≤6 字面 byte-identical)
 func (h *AgentRecoverHandler) handleRecover(w http.ResponseWriter, r *http.Request) {

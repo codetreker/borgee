@@ -11,12 +11,12 @@
 //   - (h *ChannelHandler) fanoutUnarchiveSystemMessage(...) — 互补 archive
 //
 // 反约束 (chn-5-spec.md §0):
-//   - 立场 ② owner-only — GET /api/v1/me/archived-channels 只见 user 自己
+//   - 设计 ② owner-only — GET /api/v1/me/archived-channels 只见 user 自己
 //     member 的 archived 频道; admin god-mode **不挂 PATCH** 路径.
-//   - 立场 ③ unarchive system DM 互补二式 — 文案 byte-identical 跟
+//   - 设计 ③ unarchive system DM 互补二式 — 文案 byte-identical 跟
 //     content-lock §1 (`channel #{name} 已被 {owner} 恢复于 {ts}`).
-//   - 立场 ④ admin-rail readonly — admin GET only, 无 PATCH/PUT/DELETE.
-//   - 立场 ⑥ AST 锁链延伸第 10 处 forbidden 3 token 0 hit.
+//   - 设计 ④ admin-rail readonly — admin GET only, 无 PATCH/PUT/DELETE.
+//   - 设计 ⑥ AST 锁链延伸第 10 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -32,14 +32,14 @@ import (
 )
 
 // RegisterCHN5Routes wires the user-rail archived channels GET endpoint.
-// 立场 ② owner-only via current-user filter (no admin god-mode 路径).
+// 设计 ② owner-only via current-user filter (no admin god-mode 路径).
 func (h *ChannelHandler) RegisterCHN5Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/me/archived-channels",
 		authMw(http.HandlerFunc(h.handleListMyArchivedChannels)))
 }
 
 // RegisterCHN5AdminRoutes wires the admin-rail readonly archived channels
-// GET endpoint. 立场 ④ readonly — no PATCH/PUT/DELETE on this path.
+// GET endpoint. 设计 ④ readonly — no PATCH/PUT/DELETE on this path.
 func (h *ChannelHandler) RegisterCHN5AdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/channels/archived",
 		adminMw(http.HandlerFunc(h.handleAdminListArchivedChannels)))
@@ -48,7 +48,7 @@ func (h *ChannelHandler) RegisterCHN5AdminRoutes(mux *http.ServeMux, adminMw fun
 // handleListMyArchivedChannels — GET /api/v1/me/archived-channels.
 //
 // Returns the user's archived channels (membership-scoped, cross-org
-// filtered跟 ListChannelsWithUnread 同精神). 立场 ② owner-only.
+// filtered跟 ListChannelsWithUnread 同精神). 设计 ② owner-only.
 func (h *ChannelHandler) handleListMyArchivedChannels(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -67,7 +67,7 @@ func (h *ChannelHandler) handleListMyArchivedChannels(w http.ResponseWriter, r *
 
 // handleAdminListArchivedChannels — GET /admin-api/v1/channels/archived.
 //
-// admin 全 org readonly 视图. 立场 ④: GET only, 无 PATCH/PUT/DELETE
+// admin 全 org readonly 视图. 设计 ④: GET only, 无 PATCH/PUT/DELETE
 // (admin god-mode ADM-0 §1.3 红线 — admin 看 audit, 不直接改).
 func (h *ChannelHandler) handleAdminListArchivedChannels(w http.ResponseWriter, r *http.Request) {
 	a := admin.AdminFromContext(r.Context())
@@ -87,7 +87,7 @@ func (h *ChannelHandler) handleAdminListArchivedChannels(w http.ResponseWriter, 
 }
 
 // fanoutUnarchiveSystemMessage delivers a system DM to every member of
-// the un-archived channel — CHN-5.2 立场 ③ 互补 fanoutArchiveSystemMessage
+// the un-archived channel — CHN-5.2 设计 ③ 互补 fanoutArchiveSystemMessage
 // 二式. Content format byte-identical 跟 content-lock §1:
 //
 //	"channel #{name} 已被 {owner_name} 恢复于 {ts}"

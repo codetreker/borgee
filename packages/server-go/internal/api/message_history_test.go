@@ -222,7 +222,7 @@ func TestDM_NoAdminPatchDeletePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("DM-7 立场 ③ broken — admin PATCH/DELETE/PUT path in %s: %q",
+				t.Errorf("DM-7 设计 ③ broken — admin PATCH/DELETE/PUT path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -231,7 +231,7 @@ func TestDM_NoAdminPatchDeletePath(t *testing.T) {
 }
 
 // REG-DM7-005 — DM-4 既有 dm_4_message_edit.go production byte-identical
-// 反向断言 (反向 grep dm_7 在 dm_4*.go 0 hit).
+// 反向断言 (grep 检查 dm_7 在 dm_4*.go 0 hit).
 func TestDM_DM4ProductionByteIdentical(t *testing.T) {
 	t.Parallel()
 	body, err := os.ReadFile(filepath.Join("..", "api", "message_edit.go"))

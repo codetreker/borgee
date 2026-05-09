@@ -5,10 +5,10 @@
 //
 // Pins:
 //   REG-CHN12-001 TestChn12reorder_NoSchemaChange (filepath.Walk migrations/)
-//   REG-CHN12-002 TestChn12reorder_NoServerProductionCode (反向 grep `chn_12`
+//   REG-CHN12-002 TestChn12reorder_NoServerProductionCode (grep 检查 `chn_12`
 //                  在 internal/api/*.go 非 _test.go 0 hit)
 //   REG-CHN12-003 TestCHN_HandlerByteIdentical (handlePutMyLayout block
-//                  反向 grep `chn_12` 0 hit)
+//                  grep 检查 `chn_12` 0 hit)
 //   REG-CHN12-004 TestCHN_NoReorderQueue (AST 锁链延伸第 20 处)
 //   REG-CHN12-005 TestCHN_NoAdminLayoutPath
 package api_test
@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-// REG-CHN12-001 — 0 schema 改 (反向 grep migrations/chn_12_*).
+// REG-CHN12-001 — 0 schema 改 (grep 检查 migrations/chn_12_*).
 func TestChn12reorder_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -31,12 +31,12 @@ func TestChn12reorder_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "chn_12_") {
-			t.Errorf("CHN-12 立场 ① broken — found schema migration %q (must be 0 schema, 复用 user_channel_layout.position)", e.Name())
+			t.Errorf("CHN-12 设计 ① broken — found schema migration %q (must be 0 schema, 复用 user_channel_layout.position)", e.Name())
 		}
 	}
 }
 
-// REG-CHN12-002 — 0 server production code (反向 grep `chn_12` / `chn12`
+// REG-CHN12-002 — 0 server production code (grep 检查 `chn_12` / `chn12`
 // 在 internal/api/*.go 非 _test.go 0 hit).
 func TestChn12reorder_NoServerProductionCode(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestChn12reorder_NoServerProductionCode(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("CHN-12 立场 ② broken — token %q in production %s (must be 0 server prod)", tok, p)
+				t.Errorf("CHN-12 设计 ② broken — token %q in production %s (must be 0 server prod)", tok, p)
 			}
 		}
 		return nil
@@ -83,7 +83,7 @@ func TestCHN_HandlerByteIdentical(t *testing.T) {
 			t.Errorf("既有 handlePutMyLayout block 漂入 CHN-12 — token %q (边界 ④ broken)", tok)
 		}
 	}
-	// 5 字面反向锚 byte-identical (CHN-3.2 + chn_3_2_layout_test.go 5 源).
+	// 5 字面 grep 检查 byte-identical (CHN-3.2 + chn_3_2_layout_test.go 5 源).
 	for _, must := range []string{
 		"layout.dm_not_grouped",
 		"layout.invalid_payload",
@@ -123,7 +123,7 @@ func TestCHN_NoReorderQueue(t *testing.T) {
 
 // REG-CHN12-005 — admin god-mode 不挂 PATCH/POST/PUT/DELETE 在 admin-api/
 // v1/.../layout 或 .../reorder (ADM-0 §1.3 红线; reorder 是 per-user
-// preference user-rail 立场 ⑥).
+// preference user-rail 设计 ⑥).
 func TestCHN_NoAdminLayoutPath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}

@@ -67,7 +67,7 @@ func TestAL_GetStateLog_OwnerSeesAgentHistory(t *testing.T) {
 	_ = owner
 }
 
-// TestAL_GetStateLog_NonOwnerRejected pins 立场 ① owner-only ACL — non-owner
+// TestAL_GetStateLog_NonOwnerRejected pins 设计 ① owner-only ACL — non-owner
 // → 403.
 func TestAL_GetStateLog_NonOwnerRejected(t *testing.T) {
 	t.Parallel()
@@ -117,7 +117,7 @@ func TestAL_GetStateLog_AgentNotFound(t *testing.T) {
 	}
 }
 
-// TestAL_GetStateLog_NonAgentRejected pins 立场 ① — calling state-log
+// TestAL_GetStateLog_NonAgentRejected pins 设计 ① — calling state-log
 // on a non-agent user (e.g., another human) → 404 (we treat as not-found
 // rather than leak that the id is a user).
 func TestAL_GetStateLog_NonAgentRejected(t *testing.T) {

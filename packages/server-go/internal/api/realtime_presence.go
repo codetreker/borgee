@@ -7,13 +7,13 @@
 //   - RealtimePresenceHandler{Store, Tracker, Logger}
 //   - (h *RealtimePresenceHandler) RegisterUserRoutes(mux, authMw)
 //
-// 反约束 (rt-4-spec.md §0 立场 ②③ 边界 ⑥):
+// 反约束 (rt-4-spec.md §0 设计 ②③ 边界 ⑥):
 //   - 0 schema 改 — 复用 AL-3.1 #277 presence_sessions + idx_presence_sessions_user_id.
 //   - 0 新 WS frame — synchronous GET 即时取交集 (presence-change push 留 v3).
 //   - member-only ACL — IsChannelMember 反向断 (非成员 403).
 //   - admin god-mode 不挂 — 无 RegisterAdminRoutes (ADM-0 §1.3 红线).
 //   - 既有 RT-2 typing path byte-identical 不变 — RT-4 不改 ws/client.go::handleTyping.
-//   - AST 锁链延伸 — 不引入 retry queue / dead-letter sink (反向 grep 守门 _test.go).
+//   - AST 锁链延伸 — 不引入 retry queue / dead-letter sink (grep 守门 _test.go).
 package api
 
 import (
@@ -33,7 +33,7 @@ type RealtimePresenceHandler struct {
 	Logger  *slog.Logger
 }
 
-// RegisterUserRoutes wires user-rail GET behind authMw. 立场 ③: member-
+// RegisterUserRoutes wires user-rail GET behind authMw. 设计 ③: member-
 // only — IsChannelMember 反向断. admin god-mode 不挂 (no RegisterAdminRoutes).
 func (h *RealtimePresenceHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/channels/{channelId}/presence",

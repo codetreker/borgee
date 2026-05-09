@@ -1,6 +1,6 @@
 // Package api — mention_dispatch_test.go: DM-2.2 acceptance tests for
 // the mention parser + persist + dispatch path. Pins #312 spec brief
-// §0 立场 ①②③ + acceptance §1.1-§2.5 + #314 §1 ③ system DM byte-identical.
+// §0 设计 ①②③ + acceptance §1.1-§2.5 + #314 §1 ③ system DM byte-identical.
 //
 // Layout: parser tests (ParseMentionTargets) at the top — pure function;
 // then validate (Validate) + persist (PersistMentions) + dispatch
@@ -22,7 +22,7 @@ import (
 // ---- ParseMentionTargets (pure, regex grammar) ---------------------
 
 // TestParseMentionTargets_HappyPath pins acceptance §1.1 — body 中
-// `@<uuid>` token 被抓; 立场 ① UUID grammar 字面 (8-4-4-4-12 lowercase hex).
+// `@<uuid>` token 被抓; 设计 ① UUID grammar 字面 (8-4-4-4-12 lowercase hex).
 func TestParseMentionTargets_HappyPath(t *testing.T) {
 	t.Parallel()
 	uid1 := "11111111-2222-3333-4444-555555555555"
@@ -46,7 +46,7 @@ func TestParseMentionTargets_DedupSameTarget(t *testing.T) {
 }
 
 // TestParseMentionTargets_NonMentions pins acceptance §1.2 反约束 — email /
-// 短 @name / 半段 UUID 都 NOT match. 立场 ① UUID-only grammar, 防 bare
+// 短 @name / 半段 UUID 都 NOT match. 设计 ① UUID-only grammar, 防 bare
 // `@username` 误抓走 routing.
 func TestParseMentionTargets_NonMentions(t *testing.T) {
 	t.Parallel()
@@ -58,7 +58,7 @@ func TestParseMentionTargets_NonMentions(t *testing.T) {
 		"prefixed lol@11111111-2222-3333-4444-555555555555 ", // boundary tolerated; @ within word still captures (regex 不强 word-boundary 因 token 即字面 @<uuid>)
 	}
 	// First 4 expect zero matches; case 5 expects 1 (the regex deliberately
-	// permits trailing-after-text — 立场 ① body 内 anywhere a `@<uuid>`
+	// permits trailing-after-text — 设计 ① body 内 anywhere a `@<uuid>`
 	// substring qualifies; bare-name dedup is downstream user_id validation).
 	for i, body := range cases {
 		got := ParseMentionTargets(body)
@@ -359,7 +359,7 @@ func TestDispatch_OfflineAgent_Throttled5Min(t *testing.T) {
 	}
 }
 
-// TestDispatch_OfflineHuman_NoFallback pins spec §0 立场 — 蓝图 §4.1 仅
+// TestDispatch_OfflineHuman_NoFallback pins spec §0 条原则 — 蓝图 §4.1 仅
 // agent 离线场景触发 owner DM. 人离线 mention 不触发 fallback (没有
 // owner_id, role != 'agent').
 func TestDispatch_OfflineHuman_NoFallback(t *testing.T) {

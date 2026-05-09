@@ -52,7 +52,7 @@ func TestAL_Recover_Owner_HappyPath(t *testing.T) {
 		t.Errorf("expected reason=api_key_invalid (carried forward), got %v", got)
 	}
 
-	// Verify state-log row was appended (forward-only audit, AL-1 立场 ①).
+	// Verify state-log row was appended (forward-only audit, AL-1 设计 ①).
 	rows, _ := s.ListAgentStateLog(agentID, 10)
 	if len(rows) < 3 {
 		t.Errorf("expected ≥3 transitions (online + error + recover), got %d", len(rows))
@@ -63,7 +63,7 @@ func TestAL_Recover_Owner_HappyPath(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_NonOwnerRejected pins 立场 ② owner-only ACL — non-owner → 403.
+// TestAL_Recover_NonOwnerRejected pins 设计 ② owner-only ACL — non-owner → 403.
 func TestAL_Recover_NonOwnerRejected(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -109,7 +109,7 @@ func TestAL_Recover_AgentNotFound(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_NotInErrorStateConflict pins 立场 ② state machine gate —
+// TestAL_Recover_NotInErrorStateConflict pins 设计 ② state machine gate —
 // agent must currently be in `error` state to recover; otherwise 409.
 func TestAL_Recover_NotInErrorStateConflict(t *testing.T) {
 	t.Parallel()

@@ -192,7 +192,7 @@ func TestBPP_PostGrant_RejectSnoozeAuditOnly(t *testing.T) {
 }
 
 // REG-BPP32-011 (反约束 spec §3 #5+#6) — admin path 不挂 /me/grants
-// (admin god-mode 走 /admin-api 单独 mw); + cross-org grant 反向 grep.
+// (admin god-mode 走 /admin-api 单独 mw); + cross-org grant grep 检查.
 func TestBPP_ReverseGrep_NoAdminPathAndNoCrossOrgGrant(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
