@@ -4,7 +4,7 @@
 
 > INFRA-2 (Phase 2 R3 解封前置) — Playwright scaffold. RT-0 (#40 latency stopwatch), CM-onboarding (#42 注册→Welcome 流), CM-4 闸 4 demo (G2.1/G2.2/G2.4 邀请审批 / 离线 fallback / 用户感知签字) 都落在这个 package。
 
-## 1. 设计立场
+## 1. 设计
 
 - **独立 pnpm workspace 包** `@borgee/e2e` (不挂在 `@borgee/client` 下), 避免把 `@playwright/test` ~150MB 拖进 client build。
 - **真二进制启动**, 不 mock: server-go 跑 `go run ./cmd/collab`, client 跑真 vite dev, 行为跟开发环境一致 (CM-4.2 60s polling 那种集成 bug 单测抓不出, 只能 E2E)。
@@ -31,7 +31,7 @@ packages/e2e/
     └── cv-1-3-canvas.spec.ts             # CV-1.3 Canvas tab markdown+WS push (§3.1-§3.3)
 ```
 
-`cv-1-3-canvas.spec.ts` 闭环 cv-1.md §3 acceptance: markdown-ONLY 渲染 (立场 ④), rollback owner-only DOM 闸 + label byte-identical `"v{N+1} (rollback from v{M})"` (立场 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (立场 ②⑤)。两条 test 共 ~3.7s, 真 server-go + vite, REST 驱动 other-user commit 触发 push。
+`cv-1-3-canvas.spec.ts` 闭环 cv-1.md §3 acceptance: markdown-ONLY 渲染 (设计 ④), rollback owner-only DOM 闸 + label byte-identical `"v{N+1} (rollback from v{M})"` (设计 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (设计 ②⑤)。两条 test 共 ~3.7s, 真 server-go + vite, REST 驱动 other-user commit 触发 push。
 
 ## 3. 双 server 编排
 

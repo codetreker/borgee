@@ -76,7 +76,7 @@ admin god-mode 不入路径 (用户主权, ADM-0 §1.3 红线).
 
 ## Reverse-grep守门 (content-lock §2)
 
-Forbidden synonyms (≥10 同义词反向 grep 0 hit, CI lint 守):
+Forbidden synonyms (≥10 同义词grep 检查 0 hit, CI lint 守):
 
 - 拒绝 同义词: 否决 / 不允许 / reject / deny() / 拒绝授权 → 0 hit
 - 仅这一次 同义词: 单次 / 临时 / once / transient → 0 hit (注: "仅这一次"

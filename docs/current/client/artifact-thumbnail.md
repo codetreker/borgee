@@ -90,15 +90,15 @@ PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
   `ValidateImageLinkURL` byte-identical 同源 (XSS 红线第一道).
 - DOM `data-thumbnail-kind` 二 enum byte-identical 跟 server endpoint
   spec 锚.
-- 不引入 client-side renderer 重 lib — 跟 CV-2 v2 `MediaPreview` 立场
+- 不引入 client-side renderer 重 lib — 跟 CV-2 v2 `MediaPreview` 设计
   ② "不引入 video.js/hls.js/dash.js/shaka-player/pdf.js/react-pdf" 同
-  精神 (反向 grep package.json count==0 on `html2canvas|dom-to-image|
+  精神 (grep 检查 package.json count==0 on `html2canvas|dom-to-image|
   puppeteer-client|shiki`).
 
 ## 不在范围
 
 - Inline syntax-highlight thumbnail render (e.g. shiki client-side) —
-  立场 ① server-side SSOT.
+  设计 ① server-side SSOT.
 - Multi-size thumbnail (mobile 128 / sidebar 256 / preview 512) — v3+,
   v0 单 256x256.
 - WebSocket push frame for thumbnail update — 静态 CDN, client GET

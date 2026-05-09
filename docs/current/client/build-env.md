@@ -52,7 +52,7 @@ VITE_AGENT_WS_SERVER=wss://my-fork.example.com pnpm --filter @borgee/client buil
 VITE_AGENT_WS_SERVER=wss://my-fork.example.com
 ```
 
-## 反向 grep 锚 (REG-NHD-001..006)
+## grep 检查项 (REG-NHD-001..006)
 
 ```bash
 # production code 0 hit codetrek.cn (excl. comments) — vitest stripComments helper 真守

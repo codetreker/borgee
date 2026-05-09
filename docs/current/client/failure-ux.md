@@ -1,7 +1,7 @@
 # CS-2 故障 UX 分层呈现 (client)
 
 > 锚: `docs/blueprint/current/client-shape.md` §1.3 + `docs/implementation/modules/cs-2-spec.md` v0
-> 落点: 战马D + 飞马 + 烈马 + 野马 (一 milestone 一 PR, 0 server prod + 0 schema)
+> 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
 ## 故障三态枚举 (lib/cs2-failure-state.ts)
 
@@ -49,7 +49,7 @@ export type FailureRepairAction = 'reconnect' | 'refill_api_key' | 'view_logs';
 - `refill_api_key` → AL-2a config update PATCH
 - `view_logs` → plugin SDK log stream
 
-蓝图字面 "inline 修复, 不跳设置页" — 反向 grep `navigate.*\/settings` 在
+蓝图字面 "inline 修复, 不跳设置页" — grep 检查 `navigate.*\/settings` 在
 `components/Failure*.tsx` count==0.
 
 ## 反约束守门

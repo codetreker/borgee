@@ -105,7 +105,7 @@ snippet(artifacts_fts, 1, '<mark>', '</mark>', '...', 32)
 (col=1 is `body`; prefix/suffix `<mark>...</mark>` literal; ellipsis
 `...`; window 32 tokens).
 
-## Excluded from results (立场 ⑥)
+## Excluded from results (设计 ⑥)
 
 - archived artifacts (`archived_at IS NOT NULL`) — CV-1 既有不变量.
 

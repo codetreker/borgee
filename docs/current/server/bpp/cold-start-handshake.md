@@ -89,7 +89,7 @@ type ColdStartHandshakeFrame struct {
 | RestartReason    | ✗ | ✓ |
 
 `TestBPP6_FrameSet_NoReconnectFields` asserts the互斥 invariant via
-`reflect`. CI lint 反向 grep `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` 0 hit.
+`reflect`. CI lint grep 检查 `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` 0 hit.
 
 ## Wire path (server.go boot)
 
@@ -135,7 +135,7 @@ import store 业务边界, 跟 BPP-3/4/5 同 interface 注入模式.
 - `TestBPP6_Handler_CrossOwnerReject` — sentinel `errColdStartCrossOwnerReject`.
 - `TestBPP6_Handler_NilSafeCtor` — 3 deps panic on nil.
 - `TestBPP6_RestartCount_DerivedFromStateLog` — 3 cold-start dispatches
-  → COUNT(to_state='online' AND reason='runtime_crashed') == 3 (立场 ③
+  → COUNT(to_state='online' AND reason='runtime_crashed') == 3 (设计 ③
   反向 derive).
 - `TestBPP6_Handler_DoesNotInvokeResolveResume` — AST identifier scan
   on `cold_start_handler.go` for `ResolveResume`/`SessionResumeRequest`/

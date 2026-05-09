@@ -15,7 +15,7 @@ without dragging in heavy inline render libs. Server records
 `preview_url` (https-only); client uses it as image thumbnail-first src
 and video poster. PDF embeds use the browser's native `<embed>`.
 
-## Stance (cv-2-v2-media-preview-spec.md §0 + 立场 ②)
+## Stance (cv-2-v2-media-preview-spec.md §0 + 设计 ②)
 
 - **HTML5 native primitives.** image → `<img loading="lazy">`; video →
   `<video controls preload="metadata">`; pdf → `<embed

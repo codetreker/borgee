@@ -37,7 +37,7 @@
 - **单调**: 同 origin server 内 cursor 严格递增, atomic int64 + CAS 保 100 并发无重复 (race detector 单测 `TestCursorMonotonicUnderConcurrency`).
 - **不回退**: `NewCursorAllocator(s)` 从 `Store.GetLatestCursor()` (即 `MAX(events.cursor)`) 种子 in-memory head, 重启后第一个 cursor > 重启前最大值 (`TestCursorNoRollbackAfterRestart`).
 - **Idempotent**: 同 `(artifact_id, version)` 重 emit 必然返回同 cursor 且 `fresh=false` (`TestCursorIdempotentSameArtifactVersion` + `TestHubPushArtifactUpdatedDedup`); client RT-1.2 已渲染集 dedup fail-closed.
-- **反向 grep 锚** (RT-1 spec §3, 0 命中): `artifact_updated.*timestamp|sort.*ArtifactUpdated.*time` in `internal/ws/` (非 _test.go). client **不可**按 `updated_at` 排序, 必须按 `cursor`.
+- **grep 检查项** (RT-1 spec §3, 0 命中): `artifact_updated.*timestamp|sort.*ArtifactUpdated.*time` in `internal/ws/` (非 _test.go). client **不可**按 `updated_at` 排序, 必须按 `cursor`.
 
 ## 4. 不在范围
 
