@@ -2,7 +2,7 @@
 
 > 落地: PR feat/dl-1 · DL-1.1 4 interface + factory + 12 unit + DL-1.2 server.go wire + 5 sample handler 注入 + CI dl1-no-direct-store
 > 蓝图锚: [`data-layer.md`](../../blueprint/current/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)"
-> 立场承袭: [`dl-1-spec.md`](../../implementation/modules/dl-1-spec.md) §0 ① 4 interface byte-identical + ② factory + DI seam + ③ 0 schema/0 endpoint
+> 设计沿用: [`dl-1-spec.md`](../../implementation/modules/dl-1-spec.md) §0 ① 4 interface byte-identical + ② factory + DI seam + ③ 0 schema/0 endpoint
 
 ## 1. interface 4 条 SSOT (`internal/datalayer/`)
 
@@ -13,7 +13,7 @@
 | `EventBus` | `Publish / Subscribe` | `inProcessEventBus` (in-process map + buffered chan, best-effort drop) | `NATSEventBus / RedisEventBus` (留 DL-3 阈值哨) |
 | `UserRepository` / `ChannelRepository` / `MessageRepository` | `GetByID / GetByEmail / GetByAPIKey / GetByDisplayName / Create` (各 typed) | `sqlite{User,Channel,Message}Repo` wrap `store.Store` gorm 直查 byte-identical | `PostgresRepository` 走标准 SQL (蓝图 §4 C #10 字面禁 ORM) |
 
-**Note**: `ArtifactRepository` 留 v1.5 follow-up — `store.Artifact` model 没抽出 (artifact body 现走 `internal/api/artifacts.go` 直 gorm). 蓝图 §4 B 列 4 typed Repo 字面, v1 现状只 3 typed 真有 store.Store CRUD.
+**Note**: `ArtifactRepository` 留 v1.5 后续 — `store.Artifact` model 没抽出 (artifact body 现走 `internal/api/artifacts.go` 直 gorm). 蓝图 §4 B 列 4 typed Repo 字面, v1 现状只 3 typed 真有 store.Store CRUD.
 
 ## 2. factory + DI seam (`factory.go`)
 
@@ -40,7 +40,7 @@ server.go `New()` 单源调用 `datalayer.NewDataLayer(s, presenceTracker)`; han
 | `AgentHandler` (agents.go) | ✅ nil-safe | `Store.CreateUser(agent)` → `DataLayer.UserRepo.Create(ctx, agent)` (DataLayer 非 nil 时) |
 | `AL5Handler` (al_5_recover.go) | ✅ nil-safe | `Store.GetUserByID(agentID)` → `DataLayer.UserRepo.GetByID(ctx, agentID)` (DataLayer 非 nil 时) |
 
-**渐进迁移**: 反向 grep CI step `dl1-no-direct-store` 锁 `internal/api/` 直 import `internal/store` 文件数 ≤ baseline 108 (DL-1.2 wire-up 时定); 后续 milestone PR 顺手补迁移, 不要求一次清零 (反 over-engineer).
+**渐进迁移**: grep 检查 CI step `dl1-no-direct-store` 锁 `internal/api/` 直 import `internal/store` 文件数 ≤ baseline 108 (DL-1.2 wire-up 时定); 后续 milestone PR 顺手补迁移, 不要求一次清零 (反 over-engineer).
 
 ## 4. CI 守门链第 6 处 (`release-gate.yml::dl1-no-direct-store`)
 
@@ -60,4 +60,4 @@ actual=$(grep -rl "borgee-server/internal/store" packages/server-go/internal/api
 - ❌ EventBus → NATS/Redis 真切 (DL-3 阈值哨触发再启)
 - ❌ 全 handler 一次切 Repository (渐进迁移, 单调下降)
 - ❌ generic ORM abstraction (蓝图 §4 C #10 字面禁)
-- ❌ admin god-mode 挂 datalayer (ADM-0 §1.3 红线, 反向 grep 0 hit)
+- ❌ admin god-mode 挂 datalayer (ADM-0 §1.3 红线, grep 检查 0 hit)

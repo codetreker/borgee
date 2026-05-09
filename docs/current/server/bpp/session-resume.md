@@ -2,7 +2,7 @@
 
 > RT-1.3 (#293) · Phase 4 BPP-1 子集 · 跟 RT-1.1 (#290) cursor + RT-1.2 (#292) client backfill 同语义, 错段在 wire (BPP runtime ↔ server) 不在 REST.
 
-## 1. 立场
+## 1. 设计
 
 Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 
@@ -17,7 +17,7 @@ Agent runtime ↔ server 重连后的 replay 握手. 三 mode:
 实现锁:
 
 - `ParseResumeMode` (`session_resume.go`) — `default:` 返回 `ResumeModeIncremental`, **不**返回 `ResumeModeFull`.
-- 反向 grep `replay_mode.*=.*"full"|defaultReplayMode|default.*ResumeModeFull` 在 `internal/bpp/` (排除 `_test.go`) 必须为空, 仅 `case ResumeModeFull: return ResumeModeFull` 命中 (字面量解析路径, **不是** default).
+- grep 检查 `replay_mode.*=.*"full"|defaultReplayMode|default.*ResumeModeFull` 在 `internal/bpp/` (排除 `_test.go`) 必须为空, 仅 `case ResumeModeFull: return ResumeModeFull` 命中 (字面量解析路径, **不是** default).
 - 单测 `TestParseResumeModeNeverDefaultsFull` + `TestResolverNeverDefaultsToFullBranch` — 喂 11 种坏输入, 任何一个进 full 分支立即红.
 
 ## 3. Frame schema (byte-locked)

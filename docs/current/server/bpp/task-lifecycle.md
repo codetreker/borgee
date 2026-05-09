@@ -2,9 +2,9 @@
 
 > BPP-2.2 (#485) · Phase 4 plugin-protocol 主线 · 蓝图 [`plugin-protocol.md`](../../../blueprint/current/plugin-protocol.md) §1.6 (失联与故障状态) + [`agent-lifecycle.md`](../../../blueprint/current/agent-lifecycle.md) §2.3 字面: "busy/idle source 必须 plugin 上行 frame, 不准 stub".
 
-## 1. 立场 — busy/idle 单源
+## 1. 原则 — busy/idle 单源
 
-`busy` 状态由 `task_started` / `task_finished` frame 单源驱动. **不开** PATCH `/api/v1/agents/:id/state`. `online = session-level` 走 WS conn lifecycle, 跟 task-level (busy) 正交. 跟 AL-1b #482 BPP single source 立场同源 (蓝图 §2.3 R3).
+`busy` 状态由 `task_started` / `task_finished` frame 单源驱动. **不开** PATCH `/api/v1/agents/:id/state`. `online = session-level` 走 WS conn lifecycle, 跟 task-level (busy) 正交. 跟 AL-1b #482 BPP single source 一致 (蓝图 §2.3 R3).
 
 AL-1b client busy/idle UI 走**派生** push: server 在收到 task lifecycle frame 后, 直接复用既有 RT-* AgentRosterUpdated / presence push 通道把派生 state 推给 client. 不另起独立的 `AgentTaskStateChangedFrame` (frame 数量少一个 不冗余, busy/idle 是 task lifecycle 的算法结果不是独立信号).
 
@@ -28,7 +28,7 @@ Direction 锁 `plugin_to_server`. `bppEnvelopeWhitelist` 11 frame (control 6 + d
 
 `validAL1aReasons` byte-identical 跟 `internal/agent/state.go::Reason*` SSOT 同源. **改 = 改六处单测锁**: AL-1a #249 + AL-3 #305 + CV-4 #380 + AL-2a #454 + AL-1b #458 + AL-4 #387/#461 (BPP-2.2 是第七跟链处, 不另起字典).
 
-## 5. 锚
+## 5. 相关参考
 
 - spec brief: [`docs/implementation/modules/bpp-2-spec.md`](../../../implementation/modules/bpp-2-spec.md) §1 BPP-2.2
 - acceptance: [`docs/qa/acceptance-templates/bpp-2.md`](../../../qa/acceptance-templates/bpp-2.md) §2

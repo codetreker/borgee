@@ -2,11 +2,11 @@
 
 > AL-5 (#TBD) · Phase 5 · 蓝图 [`agent-lifecycle.md`](../../blueprint/current/agent-lifecycle.md) §2.3 (5-state error → online recovery edge) + AL-1 #492 single-gate helper + REFACTOR-REASONS #496 SSOT.
 
-## 1. 立场
+## 1. 设计
 
-owner-driven manual recovery — agent state 由 BPP-4 watchdog (或手动) 翻 error → owner 收到 system DM 通知 (AL-5.1, follow-up) → owner 点击 "重连" 按钮 → POST /api/v1/agents/:id/recover → server 走 AL-1 #492 single-gate helper `AppendAgentStateTransition(agent, error→online, lastReason)` → state-log 行落 (forward-only audit).
+owner-driven manual recovery — agent state 由 BPP-4 watchdog (或手动) 翻 error → owner 收到 system DM 通知 (AL-5.1, 后续 PR) → owner 点击 "重连" 按钮 → POST /api/v1/agents/:id/recover → server 走 AL-1 #492 single-gate helper `AppendAgentStateTransition(agent, error→online, lastReason)` → state-log 行落 (forward-only audit).
 
-立场 (跟 al-5-spec.md §0):
+设计原则 (跟 al-5-spec.md §0):
 - ② recovery = 单 helper SSOT (走 AppendAgentStateTransition, 不裂状态机)
 - ③ recovery reason 不另起字典 (复用 last error transition reason, AL-1a 6 字面)
 - 反约束: admin god-mode 不挂此路径 (ADM-0 §1.3 红线)
@@ -38,7 +38,7 @@ owner-driven manual recovery — agent state 由 BPP-4 watchdog (或手动) 翻 
 
 ## 5. 反约束
 
-- 不另起 recovery 状态字典 (反向 grep `recovering|reconnecting|recovery_in_progress|auto_recover` 0 hit)
+- 不另起 recovery 状态字典 (grep 检查 `recovering|reconnecting|recovery_in_progress|auto_recover` 0 hit)
 - 不在 5-state graph 加新态 (走 AL-1 ValidateTransition 既有 error→online edge)
 - reason 不新增字面 (复用 last transition reason, REFACTOR-REASONS SSOT)
 - admin-api 不挂此路径 (TestAL5_Recover_AdminAPINotMounted 守)
@@ -46,7 +46,7 @@ owner-driven manual recovery — agent state 由 BPP-4 watchdog (或手动) 翻 
 ## 6. 测试覆盖
 
 `internal/api/al_5_recover_test.go` 7 unit:
-- `_Owner_HappyPath` — recovery 200 + state-log 第 3 行 (error→online + reason 承袭)
+- `_Owner_HappyPath` — recovery 200 + state-log 第 3 行 (error→online + reason 沿用)
 - `_NonOwnerRejected` — 403
 - `_Unauthenticated401` — 401
 - `_AgentNotFound` — 404 (含 non-agent user)

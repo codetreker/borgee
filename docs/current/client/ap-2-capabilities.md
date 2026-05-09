@@ -32,7 +32,7 @@ DOM data-attr SSOT (跟 content-lock §2 byte-identical):
 - ❌ RBAC 角色名漂入 (英 admin/editor/viewer/owner + 中 管理员/编辑者/查看者) 0 hit
 - ❌ inline 字面散落 (capabilityLabel SSOT 单源 production 仅 1 hit)
 - ❌ admin god-mode UI 永久独立 (capabilityLabel 不挂 components/admin/* 路径)
-- ❌ thought-process 5-pattern + typing-indicator 漂入 (跟 RT-3 #616 承袭)
+- ❌ thought-process 5-pattern + typing-indicator 漂入 (跟 RT-3 #616 一致)
 
 ## 4. bundle SSOT — `lib/capability-bundles.ts` + `components/BundleSelector.tsx`
 

@@ -1,11 +1,11 @@
 # Admin SPA — UserDetailPage (admin-spa-ui-coverage 第一波)
 
-> 2026-05-02 · admin-spa-ui-coverage milestone (战马C). 一 milestone 一 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤300 行 接 既有 server endpoint UI.
+> 2026-05-02 · admin-spa-ui-coverage milestone (战马C). 一个 milestone 一个 PR. 0 server / 0 endpoint / 0 schema 改, 仅 client ≤300 行 接 既有 server endpoint UI.
 
-## 0. 立场承袭
+## 0. 设计沿用
 
 - **ADM-0 §1.3 admin god-mode 路径独立** — UserDetailPage 仅访问 `/admin-api/*` 走 admin api 模块, 不串 user-rail (`/api/v1/`) + 不 import user-rail `lib/api`
-- **CAPABILITY-DOT #628 14 const SSOT byte-identical** — UserDetailPage 走 `lib/capabilities::CAPABILITY_TOKENS` 单源, 反 hardcode 字面散落
+- **CAPABILITY-DOT #628 14 const SSOT byte-identical** — UserDetailPage 走 `lib/capabilities::CAPABILITY_TOKENS` 单源, 不准 hardcode 字面散落
 - **ADMIN-SPA-SHAPE-FIX #633 D6 server gate + 本 milestone client UI dropdown** — server `auth.IsValidCapability` 守入口, client dropdown 限定 14 dot-notation, 双侧守门 SSOT
 
 ## 1. 文件 + 范围
@@ -13,7 +13,7 @@
 | 文件 | 改动 |
 |---|---|
 | `packages/client/src/admin/api.ts` | 加 `UserPermissionDetail` interface (4 字段 byte-identical 跟 server `sanitize` admin.go:393-403) + `UserPermissionsResponse` interface + `fetchUserPermissions` / `grantUserPermission` / `revokeUserPermission` 3 helper byte-identical 跟 server admin.go:39-41; `patchUser` body 扩 5 字段 (`display_name?` / `password?` / `disabled?` + `role?` + `require_mention?`) byte-identical 跟 server `handleUpdateUser` admin.go:205-211 |
-| `packages/client/src/admin/pages/UserDetailPage.tsx` | 重写 4 段 UI (账号信息既有 + 账号操作新 + 能力授权新 + 当前授权新 + Agents 既有不动); 15 DOM 锚 `data-asuc-*` byte-identical (跟 ADM-2-FOLLOWUP `data-adm2-*` + ADMIN-SPA-SHAPE-FIX `data-asf-*` 模式承袭) |
+| `packages/client/src/admin/pages/UserDetailPage.tsx` | 重写 4 段 UI (账号信息既有 + 账号操作新 + 能力授权新 + 当前授权新 + Agents 既有不动); 15 DOM 锚 `data-asuc-*` byte-identical (跟 ADM-2-FOLLOWUP `data-adm2-*` + ADMIN-SPA-SHAPE-FIX `data-asf-*` 模式沿用) |
 
 ## 2. UI 段 (4 段)
 
@@ -35,7 +35,7 @@
 | DELETE | `/admin-api/v1/users/{id}/permissions` | `handleRevokePermission` (admin.go:41) | 撤销 capability |
 | PATCH | `/admin-api/v1/users/{id}` | `handleUpdateUser` (admin.go:205-211) | 改 display_name/password/role/require_mention/disabled (5 字段 body) |
 
-## 5. 反向 grep 锚 (REG-ASUC-001..007)
+## 5. grep 检查项 (REG-ASUC-001..007)
 
 ```bash
 # REG-ASUC-006 — 反 hardcode 14 const 字面 (CAPABILITY-DOT SSOT)

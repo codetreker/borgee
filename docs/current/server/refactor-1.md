@@ -2,7 +2,7 @@
 
 > 落地: PR feat/refactor-1 · R1.1 (4 helper-1 + helper-4 CHN 域) + R1.2 (helper-2 + helper-3 跨域) + R1.3 closure
 > 蓝图锚: refactor 元 milestone (跟 INFRA-3/INFRA-4 同等级)
-> 立场承袭: [`refactor-1-spec.md`](../../implementation/modules/refactor-1-spec.md) §0 ① 行为不变量 + ② 4 helper SSOT + ③ 0 schema/endpoint
+> 设计沿用: [`refactor-1-spec.md`](../../implementation/modules/refactor-1-spec.md) §0 ① 行为不变量 + ② 4 helper SSOT + ③ 0 schema/endpoint
 
 ## 1. 4 helper SSOT (`internal/api/`)
 
@@ -33,7 +33,7 @@ CHN 域: `chn_6_pin.go` / `chn_7_mute.go` / `chn_8_notif_pref.go` / `chn_15_read
 
 ## 4. 跨 milestone byte-identical 锁链
 
-- BPP-3 #489 PluginFrameDispatcher / reasons.IsValid #496 / TEST-FIX-3 #610 fixture SSOT (helper 单源模式承袭)
+- BPP-3 #489 PluginFrameDispatcher / reasons.IsValid #496 / TEST-FIX-3 #610 fixture SSOT (helper 单源模式沿用)
 - chn_7 #523 / chn_15 既立 toggle 模式 (chn_6 对齐 drift 收口)
 - content-lock §1 字面绑 (DM-gate 4 字面跨 helper 不漂)
 - audit-forward-only / owner-only ACL 链 (RetentionOverride helper audit byte-identical)
@@ -43,7 +43,7 @@ CHN 域: `chn_6_pin.go` / `chn_7_mute.go` / `chn_8_notif_pref.go` / `chn_15_read
 
 - ❌ #4 user==nil → 401 boilerplate 100+ 处收 — 留 REFACTOR-2 (单 PR 风险高)
 - ❌ #5 JSON-decode → 400 boilerplate 30 处 — 留 REFACTOR-2
-- ❌ #6 DM-gate 13 hits 三种错误码统一 — 留 REFACTOR-2 (需先讨论 error code SSOT 立场)
+- ❌ #6 DM-gate 13 hits 三种错误码统一 — 留 REFACTOR-2 (需先讨论 error code SSOT 设计原则)
 - ❌ #8/#9/#10/#11 admin-list / loadAgent / cursor-push / ACL drift — 留 REFACTOR-2/3
 - ❌ #12/#13 fanout 字面差 / agents 双形状 decoder — content-lock 绑 / 不够痛, 不动
 

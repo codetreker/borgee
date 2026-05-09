@@ -25,7 +25,7 @@
 - `Hub.Register(client)` → `presenceWriter.TrackOnline(userID, sessionID, agentID)` (`agentID` 仅 `client.user.Role == "agent"` 时填指针, 否则 nil → partial index 不入)
 - `Hub.Unregister(client)` → `presenceWriter.TrackOffline(sessionID)` (defer-based, 唯一 teardown 入口 → panic / ctx-cancel / normal close 三路均走)
 
-**多端 last-wins** — `web+mobile+plugin` 多 session 同 user 共存合法 (UNIQUE 在 session_id 而非 user_id), `IsOnline` 仅 last `TrackOffline` 才返 false. 反约束: 单 session close 不误判 offline; 多端是实施细节, 上层 API 仍单 bool (立场 ⑥).
+**多端 last-wins** — `web+mobile+plugin` 多 session 同 user 共存合法 (UNIQUE 在 session_id 而非 user_id), `IsOnline` 仅 last `TrackOffline` 才返 false. 反约束: 单 session close 不误判 offline; 多端是实施细节, 上层 API 仍单 bool (设计 ⑥).
 
 **容错策略**:
 - `TrackOnline` 失败仅 log, **不阻断** in-memory broadcast — DB 抖动不能拒服务 (`TestPresenceLifecycle_TrackOnlineFailureDoesNotAbort`).
@@ -40,6 +40,6 @@
 ## 后续留账 (AL-3.3)
 
 - 5s presence 变更节流 (clock fixture, 跟 G2.3 同模式) + 60s 心跳超时 → 标 offline (REG-AL3-008).
-- `presence.changed` frame 独立路径 + 字段白名单 `{agent_id, status, reason?}` (REG-AL3-008, 立场 ⑥ 不带 last_heartbeat_at / connection_count / endpoints[]).
+- `presence.changed` frame 独立路径 + 字段白名单 `{agent_id, status, reason?}` (REG-AL3-008, 设计 ⑥ 不带 last_heartbeat_at / connection_count / endpoints[]).
 - Client SPA agent 行 dot DOM lock + 文案守 §11 "已离线" 不准灰点不说原因 (REG-AL3-010).
 - Admin god-mode 元数据白名单 (`/admin-api/agents/:id` 无 in-flight / active_channel_ids), 等 ADM-2 实施 (REG-AL3-010).
