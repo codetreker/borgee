@@ -23,8 +23,8 @@
 ## 当前在做的
 
 - [716-e2e-real-ui-audit](716-e2e-real-ui-audit/) — 全量审计 e2e case 删假 grep 充数 (P0, in-flight)
-- gh#718 — 全 repo 黑话整治 (P2, in-flight). sed 时代 12 PR (#721/#723/#725/#726/#727/#728/#729/#730/#731/#732/#733/#734) 已合, 用户拍方法学违反 issue 原文重做; v13+ 按语境读真做 (PR #738/#739/#740 已合, 累计 3 PR / 21 文件 / 余 ~519 文件 / 估 60-70 PR), 无独立 tasks/ 目录
-- gh#724 — zhanma-c follow-up (待 triage, 24h 窗口内)
+- gh#718 — 全 repo 黑话整治 (P2, in-flight). sed 时代 12 PR (#721/#723/#725/#726/#727/#728/#729/#730/#731/#732/#733/#734) 已合, 用户拍方法学违反 issue 原文重做; v13+ 按语境读真做, 已合 9 PR (#738/#739/#740/#742/#743/#744/#745/#746/#747) / 50 文件 / 余 ~490 文件 / 估 ~85 PR. v17-v21 累计 0/217 = 0% 漏率 5 连标杆 (v22 起加 Pre-flight Layer 7 防注意力疲劳). 无独立 tasks/ 目录.
+- gh#724 — 已 triage (Task / backlog / p2-normal). zhanma-c follow-up: ArtifactComments 系列 mount + ACL forbidden state UX, 留 v2 brainstorm 输入
 
 **v2 brainstorm 输入 (不是 current-iteration)**:
 
