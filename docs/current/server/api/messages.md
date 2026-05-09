@@ -1,17 +1,17 @@
 # Messages API + own message 不计未读 (gh#687) — implementation note
 
-> gh#687 (PR #704) — 自己发的消息不应该让自己的 sidebar 闪 unread badge.
+> gh#687 (PR #704) — 自己发的消息不应该让自己的侧边栏闪 unread badge.
 > 蓝图: `channel-model.md` §2.1 (channel = 协作场) + §4.2 (未读语义) + §4.6 (mark-read) + §4.8 + §4.9 (multi-device).
 
 ## 1. 设计
 
-own message 三层防御 (defense-in-depth) 反 sidebar 闪 unread:
+own message 三层防御 (defense-in-depth) 反侧边栏闪 unread:
 - **Layer 1 (client)**: 发完 own message 立刻调 `markChannelRead(channelID, currentUser.id)` 标当前 channel 已读. 反 server 端聚合 ack 来之前的窗口期 unread badge 闪.
 - **Layer 2 (server SQL)**: `GetChannelsForUser` 聚合 unread_count 时 `WHERE m.sender_id != ?` 排除自己发的. 反 multi-device 场景下 server 算 unread 把自己发的算进去.
-- **Layer 3 (client reducer)**: ws push frame 来时 reducer 判 `if (frame.sender_id === currentUser.id) return; // skip bump` — 反非当前 channel 收到自己 (跨设备) 发的消息时 sidebar bump.
+- **Layer 3 (client reducer)**: ws push frame 来时 reducer 判 `if (frame.sender_id === currentUser.id) return; // skip bump` — 反非当前 channel 收到自己 (跨设备) 发的消息时侧边栏 bump.
 
-反约束:
-- ① 三层都必须有 (单层失效另两层兜底, 反 single point of failure)
+反向约束:
+- ① 三层都必须有 (单层失效另两层保底, 反 single point of failure)
 - ② Layer 2 SQL `sender_id != ?` 不能改成 `sender_id == ?` (反误反 — 那会让自己看不到自己发的)
 - ③ peer 发的消息仍算 unread (反向断言: Layer 2 不误伤别人)
 - ④ multi-device own (设备 A 发, 设备 B 收) 在设备 B 也不算 unread (Layer 3 走 sender_id 比对)
@@ -23,15 +23,15 @@ own message 三层防御 (defense-in-depth) 反 sidebar 闪 unread:
 ```go
 // CreateMessageFull 写消息后, server 端尽力 mark current channel read for the sender.
 // 反 client 端等 server 端聚合 ack 来再 mark 的窗口期 (用户 ws push 看到自己发的
-// 消息但 sidebar 还没 mark-read, badge 闪一下).
+// 消息但侧边栏还没 mark-read, badge 闪一下).
 err := h.store.MarkChannelRead(ctx, channelID, user.ID)
 if err != nil {
-  // 反阻塞 — 失败仅 log, 走 client Layer 1 兜底 (跟 client mark 重复幂等).
+  // 反阻塞 — 失败仅 log, 走 client Layer 1 保底 (跟 client mark 重复幂等).
   log.Warn(...)
 }
 ```
 
-best-effort: 失败仅 log 不阻塞消息创建 — Layer 3 reducer skip own + Layer 2 SQL filter 兜底.
+best-effort: 失败仅 log 不阻塞消息创建 — Layer 3 reducer skip own + Layer 2 SQL filter 保底.
 
 ## 3. Layer 2 (server SQL) — `packages/server-go/internal/store/queries.go`
 
@@ -46,7 +46,7 @@ WHERE c.id = ?
   AND m.sender_id != ?  -- ← gh#687 Layer 2: 排除自己发的
 ```
 
-5 处全改齐 — 缺一处会造成 GET /channels list 视图跟 GET /channels/:id 详情视图 unread 不一致, 反 server 端聚合不一致漂.
+5 处全改齐 — 缺一处会造成 GET /channels list 视图跟 GET /channels/:id 详情视图 unread 不一致, 反 server 端聚合不一致脱节.
 
 ## 4. Layer 3 (client reducer) — `packages/client/src/context/AppContext.tsx`
 
@@ -68,7 +68,7 @@ case 'NEW_MESSAGE': {
 
 ## 5. 反向断言 (peer 仍算 unread)
 
-Layer 2 SQL 的 `sender_id != ?` 关键反约束: peer 发的消息仍算 unread. 反向断言:
+Layer 2 SQL 的 `sender_id != ?` 关键反向约束: peer 发的消息仍算 unread. 反向断言:
 
 ```
 test: peer (user B) 发消息到 shared channel
@@ -88,7 +88,7 @@ expect: owner (user A) 视角 GET /channels 返 shared channel unread_count >= 1
   - §7.2 反向 peer 发的仍算 unread
   - §4.2 multi-device own 设备 B 不闪 unread
 
-## 7. 锚
+## 7. 参考资料
 
 - 蓝图: `channel-model.md` §2.1 / §4.2 / §4.6 / §4.8 / §4.9
 - design: `docs/implementation/design/687-self-message-unread-design.md`

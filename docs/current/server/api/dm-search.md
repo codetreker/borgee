@@ -20,7 +20,7 @@ reuses the `messages.content` column (no new schema) and stays scoped
 to DM-only channels with channel-member ACL — admin god-mode is
 permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
 
-## Stance (蓝图 channel-model.md §1.2 + §3.2 字面)
+## 原则 (蓝图 channel-model.md §1.2 + §3.2 原文)
 
 - **0 schema 改** — 复用 `messages.content` + LIKE %q% (跟 messages
   search #467 + CHN-13 channel search #583 既有同模式). FTS5 已在
@@ -37,7 +37,7 @@ permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
 - **admin god-mode 永久不挂** — grep 检查
   `admin.*dm.*search|/admin-api/.*dm/search` in `admin*.go` 0 hit
   (ADM-0 §1.3 红线; cross-user DM search 永久不挂 admin, 跟 DM-10 +
-  DM-7 edit history admin god-mode 红线锁链承袭).
+  DM-7 edit history admin god-mode 红线 一致沿用).
 - **不返 deleted_at IS NOT NULL 行** — `maskDeletedMessages` helper 守
   (反 deleted leak).
 
@@ -84,10 +84,10 @@ content-lock §1).
 4. `Store.SearchDMMessages(user.ID, q, limit)` — DM-only + channel-
    member ACL JOIN.
 
-## Reverse-grep 锚 (DM-11 实施 PR 必跑)
+## Reverse-grep 反查 (DM-11 实施 PR 必跑)
 
 ```
-git grep -nE 'dm_search_index|dm_search_table|dm_11_search_log' packages/server-go/internal/  # 0 hit (单源 messages.content 列)
+git grep -nE 'dm_search_index|dm_search_table|dm_11_search_log' packages/server-go/internal/  # 0 hit (单一来源 messages.content 列)
 git grep -nE 'admin.*dm.*search|/admin-api/.*dm/search'         packages/server-go/internal/api/admin*.go  # 0 hit (ADM-0 §1.3)
 git grep -nE 'fts5|MATCH.*dm_search|VIRTUAL TABLE.*dm'          packages/server-go/internal/  # 0 hit (FTS5 不走留 v2)
 git diff origin/main -- packages/server-go/internal/migrations/ | grep -c '^\+'                  # 0 production 行
@@ -106,11 +106,11 @@ git diff origin/main -- packages/server-go/internal/migrations/ | grep -c '^\+' 
 Regression rows: `REG-DM11-001..006` in
 [`docs/qa/regression-registry.md`](../../qa/regression-registry.md).
 
-## Not in scope (留账)
+## Not in scope (遗留项)
 
 - ❌ FTS5 走 `artifacts_fts` 模式 — 留 v2 (DM 消息量增长后再考虑跨表
   join 复杂度).
-- ❌ Sort by relevance — 留 v2 (现版 `ORDER BY created_at DESC` 单源,
+- ❌ Sort by relevance — 留 v2 (现版 `ORDER BY created_at DESC` 单一来源,
   跟 messages search #467 同精神).
 - ❌ Admin god-mode cross-user search — 永久不挂 (ADM-0 §1.3 红线).
 - ❌ Cross-org search — 留 AP-3 同期 (复用 store.CrossOrg 既有).
