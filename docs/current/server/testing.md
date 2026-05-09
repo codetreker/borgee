@@ -11,7 +11,7 @@
 | `db` | `internal/testutil/db/` | 内存 sqlite + fixture seeder, 每用例独立隔离 |
 | `regression` | `internal/testutil/regression/` | 闸 5 回归入册, 已合 milestone 的 4.1 acceptance 自动入册 |
 | `regression_suite` | `internal/testutil/regression_suite/` | `make regression` 的 dispatcher |
-| (legacy) | `internal/testutil/server.go` | 历史遗留, 启服务 + ws 工具, 保留不动 |
+| (历史) | `internal/testutil/server.go` | 历史遗留, 启服务 + ws 工具, 保留不动 |
 
 ## clock 子包 (INFRA-1b.1)
 

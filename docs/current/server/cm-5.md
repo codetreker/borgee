@@ -32,7 +32,7 @@ agent B (owner_B's agent) ──┘                                     ↓
 ```
 
 **复用机制**:
-- CV-1.2 既有 single-doc lock 30s (`artifacts.locked_by` 列 — channel 内仅一锁)
+- CV-1.2 既有 single-doc lock 30s (`artifacts.locked_by` 列 — channel 内仅一把锁)
 - CV-4.1 既有 iterations state machine (4 态: pending/running/completed/failed)
 - CV-4 #380 ⑦ 既有 409 错码字面 `artifact.locked_by_another_iteration`
 - CV-4.3 既有 client UI toast 文案锁定 byte-identical

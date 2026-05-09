@@ -4,7 +4,7 @@
 
 **三态 enum** (`internal/agent/state.go`): `Online` / `Offline` / `Error`. 蓝图 §2.3 四态去 busy/idle (4 人 review #5 决议 — 没 BPP 不准 stub).
 
-**6 reason codes** (字面跟客户端 `lib/agent-state.ts` 锁):
+**6 reason codes** (字面跟客户端 `lib/agent-state.ts` 锁定):
 
 | code | 触发 (`ClassifyProxyError`) |
 |------|------|

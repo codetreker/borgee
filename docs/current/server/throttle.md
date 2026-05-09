@@ -10,7 +10,7 @@
 
 | Symbol | 行为 |
 |--------|------|
-| `ThrottleWindow = 5 * time.Minute` | 蓝图常量 (concept §4.1 B.1). REG-CHECK grep 反向锁, **不准 inline literal** |
+| `ThrottleWindow = 5 * time.Minute` | 蓝图常量 (concept §4.1 B.1). REG-CHECK grep 反向锁定, **不准 inline literal** |
 | `New(clock.Clock) *Throttle` | prod 传 `clock.NewReal()`, 测试传 `clock.NewFake()` (G2.3 拒收红线 #4: 真 sleep > 100ms = CI 慢闸) |
 | `(*Throttle).Allow(channelID, agentID) bool` | true = 允许发送 + 记 last; false = 落入窗口被压 |
 

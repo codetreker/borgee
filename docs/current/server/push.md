@@ -4,7 +4,7 @@
 
 ## 1. 设计
 
-`web_push_subscriptions` 表 (v=24) + REST POST/DELETE + push gateway (VAPID, SherClockHolmes/webpush-go v1.4.0) + mention/agent-task 派生 fan-out hook. Push 是 fire-and-forget, 不走 hub.cursors sequence (跟 RT-1/CV-2/DM-2/CV-4/AL-2b/RT-3 6 frame 共序拆死). 退订单一来源 = DELETE row (蓝图 L22 字面).
+`web_push_subscriptions` 表 (v=24) + REST POST/DELETE + push gateway (VAPID, SherClockHolmes/webpush-go v1.4.0) + mention/agent-task 派生 fan-out hook. Push 是 fire-and-forget, 不走 hub.cursors sequence (跟 RT-1/CV-2/DM-2/CV-4/AL-2b/RT-3 6 frame 共序真分清). 退订单一来源 = DELETE row (蓝图 L22 字面).
 
 ## 2. Schema (v=24, `internal/migrations/dl_4_1_web_push_subscriptions.go`)
 
@@ -52,14 +52,14 @@ type Gateway interface {
 
 两 notifier 都 nil-safe (Gateway==nil → return nil; nil receiver Notify* → return 0). MentionDispatcher.PushNotifier 字段 nil-safe (老调用方可不传).
 
-## 6. ⚠️ 命名拆死 — DL-4 vs HB-1 #491
+## 6. ⚠️ 命名真分清 — DL-4 vs HB-1 #491
 
 | | endpoint | 用途 | 安全模型 |
 |---|---|---|---|
 | HB-1 #491 | `GET /api/v1/plugin-manifest` | install-butler 消费 binary plugin manifest | **双签必需** (蓝图 host-bridge §1.2 ① + §4.5 "未签 100% reject") |
 | DL-4 (本) | `GET /api/v1/pwa/manifest` | PWA installable web app manifest (浏览器 install prompt) | 公开 endpoint (HTTPS, 无 auth — install prompt 在 login 前 fetch) |
 
-**反向约束**: DL-4 endpoint 字面**不**含 `plugin-manifest` (HB-1 独占). grep 检查 `manifest/plugins|plugin-manifest` 在 `internal/api/pwa_manifest.go` + `packages/client/src/` count==0 (zhanma-a drift audit 来源). `TestDL44_PWAManifest_NameNotPluginManifest` 实测断言 DL-4 server 不响应 HB-1 路径 (404).
+**反向约束**: DL-4 endpoint 字面**不**含 `plugin-manifest` (HB-1 独占). grep 检查 `manifest/plugins|plugin-manifest` 在 `internal/api/pwa_manifest.go` + `packages/client/src/` count==0 (zhanma-a 脱节 audit 来源). `TestDL44_PWAManifest_NameNotPluginManifest` 实测断言 DL-4 server 不响应 HB-1 路径 (404).
 
 ## 6a. PWA Web App Manifest (`internal/api/pwa_manifest.go`)
 
@@ -78,7 +78,7 @@ W3C App Manifest 标准 endpoint, 浏览器 install prompt 触发器.
 
 **反向约束** (TestDL44_PWAManifest_NoSecretsLeak 守门): manifest body 不含 `vapid_secret` / `vapid_private` / `private_key` / `api_key` / `secret` / `token` / `borgee_token` / `borgee_admin_session` 字面.
 
-**5 test 全绿**: PublicEndpoint (无 auth) / ContentType (W3C MIME) / RequiredFields (W3C 字段集 + display=standalone + 192x192/512x512 基线) / NoSecretsLeak / NameNotPluginManifest (拆死实测).
+**5 test 全绿**: PublicEndpoint (无 auth) / ContentType (W3C MIME) / RequiredFields (W3C 字段集 + display=standalone + 192x192/512x512 基线) / NoSecretsLeak / NameNotPluginManifest (真分清实测).
 
 ## 7. 相关参考
 
