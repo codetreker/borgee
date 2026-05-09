@@ -1,23 +1,21 @@
-// tests/adm-2-followup.spec.ts — ADM-2-FOLLOWUP acceptance §1+§2 e2e + G4.2
-// 双截屏 (`g4.2-adm2-audit-list.png` + `g4.2-adm2-red-banner.png`).
+// tests/admin-audit-deletion-followup.spec.ts — admin 审计日志页 + 红横幅渲染 + G4.2 demo 截屏.
 //
-// 闭环 docs/_archive/qa/acceptance-templates/adm-2-followup.md:
-//   §1.1 admin audit list UI 真渲染 (AdminAuditList_RealRender)
-//   §1.2 红 banner 真渲染 (AdminGodModeRedBanner_Real)
-//   §2.1 g4.2-adm2-audit-list.png ≥3000 bytes
-//   §2.2 g4.2-adm2-red-banner.png ≥3000 bytes
-//   §2.3 2 case PASS
+// 测试范围:
+//   - admin SPA `/admin/audit-log` 真渲染审计列表 DOM
+//   - admin god-mode 红色横幅在会话内渲染并显示 24h 时限文案
+//   - 截屏存档 docs/qa/screenshots/g4.2-adm2-audit-list.png
+//   - 截屏存档 docs/qa/screenshots/g4.2-adm2-red-banner.png
 //
-// 立场 (adm-2-followup-stance §1):
-//   - admin SPA `/admin/audit-log` 走 admin cookie (拆 user cookie, ADM-0 §1.3)
-//   - DOM 锚 `[data-page="admin-audit-log"]` + `[data-adm2-audit-list="true"]`
-//     + `[data-adm2-red-banner="active"]` (反向 grep 锚)
-//   - 红 banner 字面 byte-identical "当前以业主身份操作 — 该会话受 24h 时限"
-//   - 反约束: 不引用 user SPA 中文动词 (跨端字面拆死, content-lock §5)
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/admin-model.md §1.3 (admin god-mode 路径独立)
+//   - 验收: docs/_archive/qa/acceptance-templates/adm-2-followup.md §1+§2
 //
-// 实现说明: 真 server-go(4901) + vite(5174) admin SPA 路径分叉. admin cookie
-// 通过 `/admin-api/auth/login` 拿到, 注入 BrowserContext 后访问 `/admin/audit-log`.
-// 页面渲染后双截屏存 docs/qa/screenshots (跟 ADM-1 G4.1 同模式).
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + page.click + DOM 断)
+//   - admin cookie 走 `/admin-api/auth/login` 拿, 注入 BrowserContext 后访问 admin SPA
+//   - 红横幅文案字面相等: "当前以业主身份操作 — 该会话受 24h 时限"
+//   - 不引用 user SPA 中文动词 (admin/user 文案分叉)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,

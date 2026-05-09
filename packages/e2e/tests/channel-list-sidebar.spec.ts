@@ -1,15 +1,18 @@
-// tests/chn-1-3-channel-list.spec.ts — CHN-1.3 client SPA channel list e2e
+// tests/channel-list-sidebar.spec.ts — channel sidebar 列表创建 / silent agent / 归档展示.
 //
-// 立场锚 (#265 拆段 3/3 + chn-1.md):
-//   ① Create channel — default visibility=public, creator-only member
-//   ② Silent agent member — agent added to channel renders 🔕 silent badge
-//      (channel_members.silent=true) + system message "{agent_name} joined"
-//   ③ Archive flip — PATCH archived=true → 频道行渲染 channel-item-archived
-//      class + 已归档 badge + system DM "channel #{name} 已被 ... 关闭于 ..."
+// 测试范围:
+//   - 通过 Create channel dialog 建频道, 默认 visibility=public + creator-only 成员
+//   - 添加 agent 后该行渲染 🔕 silent badge + 系统消息 "{agent_name} joined"
+//   - PATCH archived=true 后频道行加 channel-item-archived class + 已归档 badge + 系统 DM 文案
 //
-// Pattern follows cm-onboarding.spec.ts: admin invite → register → cookie
-// inject → SPA assertions; raw fetch for fixtures that the UI doesn't need
-// to drive (creating agents, etc.).
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/chn-1.md (PR #265 拆段 3/3)
+//
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真 dialog 操作 + DOM 断)
+//   - seed 用 REST: admin invite + register + 创 agent
+//   - 测试主体走 SPA channel sidebar
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 import { test, expect, request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
 
 const ADMIN_LOGIN = 'e2e-admin';

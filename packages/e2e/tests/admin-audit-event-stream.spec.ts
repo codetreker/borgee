@@ -1,17 +1,21 @@
-// tests/adm-3-audit-events.spec.ts — ADM-3 v1 multi-source audit Playwright e2e (acceptance §3.3).
+// tests/admin-audit-event-stream.spec.ts — admin 多源审计事件流页面 + 来源过滤 + 时间窗.
 //
-// 闭环 docs/_archive/qa/acceptance-templates/adm-3-v1-e2e.md §1+§2+§3:
-//   case-1 admin /admin/audit-multi-source 渲染 (page DOM + 4 source filter dropdown 真显)
-//   case-2 4 source filter dropdown — 选 plugin → 表只显 plugin source 行 (反向断 server/host_bridge/agent 行 0 hit)
-//   case-3 admin god-mode 路径独立 (user-rail 走 /api/v1/audit/multi-source 反向断 404/403 + page-level reverse-grep)
+// 测试范围:
+//   - admin `/admin/audit-multi-source` 页面真渲染 + 4 个来源 filter dropdown 真显
+//   - 选 plugin 来源后表格仅显 plugin 行 (其它 3 来源 0 hit)
+//   - admin god-mode 路径独立: user-rail 访问 multi-source 端点应 404/403
+//   - since/until 时间窗过滤生效, invalid 入参返回 400 audit.time_range_invalid
+//   - limit clamp: limit=999 → 500, limit=0 → 100
 //
-// 立场反查 (admin-model.md §1.4 来源透明 + ADM-0 §1.3 admin god-mode 路径独立):
-//   - 4 source enum SSOT (server/plugin/host_bridge/agent) byte-identical 跟 server-side AuditSources
-//   - admin god-mode 路径独立: 仅 /admin-api/v1/audit/multi-source 暴露, 反 user-rail 漂
-//   - 0 production code 改 (post-#619 byte-identical, 本 PR 仅加 e2e)
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/admin-model.md §1.3 (god-mode 路径独立) §1.4 (来源透明)
+//   - 验收: docs/_archive/qa/acceptance-templates/adm-3-v1-e2e.md §1+§2+§3
 //
-// 实现策略: REST-driven anchor (跟 ap-2-bundle.spec.ts + dm-3-multi-device-sync.spec.ts 同模式)
-// + admin SPA browser context (跟 adm-1-privacy-promise.spec.ts SettingsPage e2e 模式承袭).
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + 真 dropdown 选择 + DOM 断)
+//   - 4 来源枚举跟 server AuditSources 字面相等: server/plugin/host_bridge/agent
+//   - 0 production code 改 (本 spec 仅加 e2e 覆盖, 不动 #619 实现)
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,

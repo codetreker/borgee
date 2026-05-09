@@ -1,24 +1,22 @@
-// tests/al-3-3-presence-dot.spec.ts — AL-3.3 (#R3 Phase 2) e2e DOM 字面锁.
+// tests/agent-list-presence-indicator.spec.ts — agent 列表在线状态指示点.
 //
-// al-3.md acceptance §3.1 + §3.2 + §3.4 — client SPA presence dot 三态:
+// 测试范围:
+//   - 新建 agent 无 runtime 时, 列表行渲染 `data-presence="offline"` + 文本 "已离线"
+//   - AgentManager 视图所有 [data-presence] 行 role 必为 agent (用户行无 presence 槽位)
+//   - 跨 org owner 看到的 agent 行同样走 offline DOM 形状, 不按 org 边界区分
 //
-//   §3.1 DOM 字面锁: 新建 agent 没 runtime → `data-presence="offline"` +
-//   文本 "已离线". online/error 两态需 server 端 `presence.changed` 推送
-//   (§2.5 TBD), 这里只锁 offline 默认态 — 后续 AL-3.x 等 push frame 落地
-//   再扩 online + 6 reason codes 那两条 case (留 TODO).
+// 待办:
+//   - online / error 两态等 server 端 presence.changed 推送落地后再加 (al-3.md §2.5)
+//   - cross-org 完整链路等 PR #318 邀请验收完成后再加 (al-3.md §3.4)
 //
-//   §3.2 only-agent 反约束: AgentManager 视图所有 [data-presence] 行 role
-//   都 ='agent'; 反查 [data-role="user"][data-presence] count==0 — 永久守
-//   "人不带 presence 槽位" (立场 ①).
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/al-3.md §3.1 / §3.2 / §3.4
 //
-//   §3.4 cross-org: 跨 org owner 看到的 agent 行也走同 DOM 字面 (offline
-//   语义), 不区分 org boundary. 实测 cross-org channel 邀请落地后再看, 这里
-//   先用单 org agent 验 DOM 形状 — cross-org 那条等 §2 push frame + #318
-//   邀请 acceptance 全 ready 一起上 (留 TODO 引 al-3.md §3.4).
-//
-// fixture 模式跟 cm-onboarding.spec.ts / cm-4-realtime.spec.ts 同形 (admin
-// 派 invite → owner 注册 → POST /api/v1/agents → 跳 SPA AgentManager 看
-// DOM). 不依赖 INFRA-2 placeholder fixtures/auth.ts.
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + DOM 断)
+//   - seed 用 REST: admin login + invite + register + POST /api/v1/agents
+//   - 测试主体走 SPA AgentManager 视图查 DOM
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 import { test, expect, request as apiRequest } from '@playwright/test';
 
 const ADMIN_LOGIN = 'e2e-admin';

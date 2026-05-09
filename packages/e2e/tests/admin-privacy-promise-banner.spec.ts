@@ -1,16 +1,20 @@
-// tests/adm-1-privacy-promise.spec.ts — ADM-1 e2e + G4.1 demo 双截屏.
+// tests/admin-privacy-promise-banner.spec.ts — admin 隐私承诺横幅 + 八行表格 + G4.1 demo 截屏.
 //
-// 闭环 docs/_archive/qa/acceptance-templates/adm-1.md:
-//   §1 三承诺字面 1:1 + §2 八行 ✅/❌ 表格 byte-identical + §3 三色锁
-//   §2 反约束 — privacy section 默认展开不可折叠 (反 details-element 包裹)
-//   §4 闸 4 demo 双截屏: g4.1-adm1-{privacy-promise,privacy-table}.png
+// 测试范围:
+//   - 三条隐私承诺文案在用户设置页字面相等渲染
+//   - 八行能力 ✅/❌ 表格按 admin-model.md §4.1 字面相等渲染
+//   - 隐私段落默认展开, 不允许 details/summary 包裹折叠
+//   - admin SPA 路径与 user SPA 路径分叉 (cookie 不互通)
 //
-// 立场反查 (admin-model.md §0):
-//   - "强权但不窥视" — admin 是平台运维, 不是协作者
-//   - 用户首次进设置页就读懂 admin 跟自己关系 (§4.1 字面)
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/admin-model.md §0 (强权但不窥视) §4.1 (三承诺文案)
+//   - 验收: docs/_archive/qa/acceptance-templates/adm-1.md §1+§2+§3+§4
 //
-// 实现说明: 真 server-go(4901) + vite(5174), 不 mock (跟 cm-onboarding /
-// cv-3-3-renderers / chn-4-collab-skeleton 同模式).
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + page.click + DOM 断)
+//   - seed 用 REST (admin login + invite + register), 测试主体走 UI
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+//   - 真 server-go(4901) + vite(5174), 不 mock
 import {
   test,
   expect,

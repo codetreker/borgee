@@ -1,30 +1,26 @@
-// tests/al-4-acceptance-followup.spec.ts — AL-4 acceptance §3 (AL-4.3 client) e2e
-// + G2.7 demo screenshot follow-up.
+// tests/agent-list-acceptance-followup.spec.ts — agent 列表运行时卡 + 状态徽章 + owner 门禁.
 //
-// 闭环 al-4.md acceptance §3.1-§3.4 (AL-4.3 client, owner-only DOM gate +
-// 4 态 status badge + reason label byte-identical 跟 AL-1a #249 + system
-// DM 3 态文案锁 #321) + §4 反查锚 (positive 4.5/4.6 真落).
+// 测试范围:
+//   - agent 没注册 runtime 时 RuntimeCard 不渲染 (优雅降级 omit)
+//   - 非 owner 视图下 start/stop 按钮 DOM 不渲染 (前后端双层防越权)
+//   - data-runtime-status 仅渲染四态: registered / running / stopped / error
+//     反向检查同义词 busy/idle/starting/stopping/restarting 0 hit
+//   - reason 标签 6 项跟 lib/agent-state.ts REASON_LABELS 文案一致
+//   - Agents 页面在 1280 viewport 下默认占满 800px max-width (gh#683 回归)
+//   - G2.7 demo 全景截屏归档
 //
-// 立场反查 (al-4-spec.md §0 + #319 stance + #321 文案锁):
-//   ① "Borgee 不带 runtime" — runtime 未注册时 RuntimeCard 不渲染
-//      (graceful degrade omit, 跟 spec §3.1 同源)
-//   ② owner-only DOM gate — start/stop button 非 owner DOM omit
-//      (defense-in-depth, server 兜底 RequirePermission('agent.runtime.control'))
-//   ③ runtime status ≠ presence — data-runtime-status 4 态严闭
-//      ('registered'/'running'/'stopped'/'error'), 反约束 'busy'/'idle'/
-//      'starting'/'stopping' 0 hit (跟 AL-3 拆死)
-//   ④ reason 6 项 byte-identical 跟 AL-1a #249 lib/agent-state.ts
-//      REASON_LABELS 三处单测锁
+// 待办 (本 spec 不覆盖, 走 server unit):
+//   - admin `GET /admin-api/v1/runtimes` 元数据白名单 (REG-AL4-009)
+//   - heartbeat 双表两路径反向断言 (REG-AL4-008)
 //
-// 实现说明: AL-4.2 server #414 OPEN coverage 修中, 此 e2e 走真路径在
-// #414 merged 后自动通过. 当前 spec 已落 RuntimeCard 组件 (#417 merged
-// 03:51) — DOM gate + status badge 可独立验证, runtime 列表通过 REST
-// register 触发 (#414 server 端). 真路径整链 ≤3s.
+// 关联文档:
+//   - 验收: docs/_archive/qa/acceptance-templates/al-4.md §3.1-§3.4 + §4
+//   - 文案: PR #321 reason 标签锁
 //
-// 不在范围 (留账 follow-up):
-// - admin god-mode `GET /admin-api/v1/runtimes` 元数据白名单 (server
-//   端 reflect scan 验, 走 unit 不走 e2e — REG-AL4-009 同源)
-// - heartbeat 双表两路径反向断言 (server 端 unit, REG-AL4-008 同源)
+// 实施约束:
+//   - 真 UI 走浏览器 (page.goto + DOM 断)
+//   - seed 用 REST register runtime, 测试主体走 SPA RuntimeCard DOM
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
   test,
