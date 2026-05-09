@@ -6,10 +6,10 @@
 //   - 'split'      显式动作 (拖拽 OR 二次点击) → 主区 + artifact 50/50
 //   - 'fullscreen' mobile (≤768px) 降级 → 全屏 modal
 //
-// 反约束 (spec §0 立场 ②): closed → split 直接 reject (必先经 drawer);
+// 反约束 (spec §0 设计 ②): closed → split 直接 reject (必先经 drawer);
 // state 单源不另起多 state.
 //
-// AST/grep 锚: 反向 grep `SplitView.*directOpen|artifact.*autoSplit|setMode\("split"\)`
+// AST/grep 锚: grep 检查 `SplitView.*directOpen|artifact.*autoSplit|setMode\("split"\)`
 // 仅命中 ArtifactDrawer drag handler 一处.
 
 import { useCallback, useState } from 'react';

@@ -6,10 +6,10 @@
 //               PresenceDot data-presence="error" 字面 byte-identical, AL-3 锁)
 //   - offline : disable / 用户主动关
 //
-// 反约束 (cs-2-stance-checklist 立场 ①):
+// 反约束 (cs-2-stance-checklist 设计 ①):
 //   - 不允许第 4 态 'busy' / 'idle' 漂入 (那是 AL-1b §2.3 BPP progress
 //     frame 真实施时 v2 才加; CS-2 三态拆死锁).
-//   - 反向 grep `'busy'|'idle'|'standby'` 在 cs-2-* 0 hit (拆死锁).
+//   - grep 检查 `'busy'|'idle'|'standby'` 在 cs-2-* 0 hit (拆死锁).
 
 export const FAILURE_TRI_STATE = ['online', 'error', 'offline'] as const;
 

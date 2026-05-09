@@ -1,15 +1,15 @@
 // AP-2 client — capability bundle SSOT (acceptance §1.1).
 //
-// 立场承袭 (ap-2-spec.md + acceptance §1.1+§1.3 + content-lock):
+// 设计沿用 (ap-2-spec.md + acceptance §1.1+§1.3 + content-lock):
 //   - 3 bundle 内 capability 字面 byte-identical 跟 AP-1 #493
 //     `internal/auth/capabilities.go::ALL` 14-const 跨层锁
 //     (改 = 改两处: server const + 此 BUNDLES)
 //   - bundle 仅 client-side const map; server 不识别 bundle (蓝图 §1.1
-//     字面 — 反向 grep `bundle_name|capability_bundle|preset_bundle`
+//     字面 — grep 检查 `bundle_name|capability_bundle|preset_bundle`
 //     在 internal/ 0 hit)
 //   - 复用 AP-1 既有 grant endpoint (不开旁路 endpoint);
 //     一次 grant 多 capability = client SPA 解开 list → N 次调 AP-1 PUT
-//   - 反 RBAC ladder 字面 in bundle const (反向 grep 守, 蓝图 §1.3 A' 立场)
+//   - 反 RBAC ladder 字面 in bundle const (grep 检查 守, 蓝图 §1.3 A. 设计)
 import { CAPABILITY_TOKENS, type CapabilityToken } from './capabilities';
 
 /** Bundle id — content-lock §1 byte-identical (改 = 改两处). */

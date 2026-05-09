@@ -10,7 +10,7 @@
 //     daemon 启动 + Platform=="darwin".
 //   - Windows: Job Object 留 v1+; 此处 t.Skipf 真带 reason (反 silent skip).
 //
-// 立场 (hb-2-v0d-e2e-spec.md §0 立场 ②+③): build tag matrix + skip-with-reason.
+// 设计 (hb-2-v0d-e2e-spec.md §0 设计 ②+③): build tag matrix + skip-with-reason.
 package e2e
 
 import (

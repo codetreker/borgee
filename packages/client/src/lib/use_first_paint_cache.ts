@@ -1,6 +1,6 @@
 // CS-4 — useFirstPaintCache hook (蓝图 client-shape.md §1.4 cursor sync).
 //
-// 立场 ② (cs-4-stance-checklist):
+// 设计 ② (cs-4-stance-checklist):
 //   - mount 时 IDB.get 返 cached + 同时触发 server cursor backfill
 //   - cache miss 时不阻塞 UI (cached=null → 直接走 server fetch)
 //   - offline 时 (navigator.onLine=false) skip server fetch 走 cache hit
@@ -92,7 +92,7 @@ export function useFirstPaintCache(
       try {
         const fresh = await cursorBackfillFn(sinceCursor);
         if (cancelled) return;
-        // 3) IDB.put 覆盖 (走 cursor key, 立场 ②)
+        // 3) IDB.put 覆盖 (走 cursor key, 设计 ②)
         try {
           const db = await openCS4DB();
           for (const msg of fresh) {

@@ -8,7 +8,7 @@
 //   - send handshake `{"agent_id":"a1"}\n` → 后续 send Request → 收 Response
 //   - reject malformed handshake (无 agent_id → daemon close conn 反静默)
 //
-// 立场 (hb-2-v0d-e2e-spec.md §0 立场 ②): build tag integration + Linux/macOS POSIX UDS.
+// 设计 (hb-2-v0d-e2e-spec.md §0 设计 ②): build tag integration + Linux/macOS POSIX UDS.
 package e2e
 
 import (

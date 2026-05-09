@@ -5,7 +5,7 @@
 // hb-2-v0d-spec.md §0.2: read_file 真走 os.ReadFile (max_bytes 限);
 // list_files 真走 os.ReadDir (entry 数限).
 //
-// 反约束: 反向 grep `os\.WriteFile|os\.Create|os\.Remove` 在本包 0 hit
+// 反约束: grep 检查 `os\.WriteFile|os\.Create|os\.Remove` 在本包 0 hit
 // (read-only domain, 写类 100% reject 由 ACL 层 + landlock 双守).
 
 package fileio

@@ -8,7 +8,7 @@
 // hb-2-v0d-spec.md §0.2: kernel ≥5.13 真 landlock; <5.13 fallback no-op
 // + warn (生产 daemon 启动时 main.go 检 sandbox.Apply 错误决是否 abort).
 //
-// 反约束 (反向 grep 0 hit): cgroups, cgroupv2 — landlock 限 path 已足.
+// 反约束 (grep 检查 0 hit): cgroups, cgroupv2 — landlock 限 path 已足.
 
 package sandbox
 

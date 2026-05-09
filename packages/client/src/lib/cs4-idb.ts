@@ -1,6 +1,6 @@
 // CS-4 — IndexedDB wrapper SSOT (蓝图 client-shape.md §1.4 乐观缓存 B 路径).
 //
-// 立场 ① (cs-4-stance-checklist):
+// 设计 ① (cs-4-stance-checklist):
 //   - 3 store 拆死: messages / last_read_at / agent_state
 //   - typing/presence-realtime 必从 server 实时拉, 不入 IDB (蓝图 §1.4 字面)
 //   - artifact 内容 / DM body / 草稿 走 CV-10 localStorage 既有, 不漂

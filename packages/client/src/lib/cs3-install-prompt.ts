@@ -1,13 +1,13 @@
 // CS-3.1 — PWA install prompt SSOT (蓝图 client-shape.md §1.1 PWA 主战场).
 //
-// 立场 ① (cs-3-stance-checklist):
+// 设计 ① (cs-3-stance-checklist):
 //   - `beforeinstallprompt` event 拦截 (preventDefault) + cache deferredPrompt
 //   - `prompt()` 必由 user click handler 触发 (Chrome/Edge 防滥用红线)
 //   - 三态 enum: 'installable' / 'installed' / 'unavailable'
 //
 // 反约束:
-//   - mount/effect 内调 prompt() — 反向 grep `prompt\(\)\.then` 0 hit
-//   - auto/silent install — 反向 grep `auto.*install|silent.*install` 0 hit
+//   - mount/effect 内调 prompt() — grep 检查 `prompt\(\)\.then` 0 hit
+//   - auto/silent install — grep 检查 `auto.*install|silent.*install` 0 hit
 
 import { useEffect, useState, useCallback } from 'react';
 

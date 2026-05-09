@@ -1,6 +1,6 @@
 // cm5-toast.ts — CM-5 X2 冲突 + 协作可见性 toast 文案锁.
 //
-// Spec: docs/implementation/modules/cm-5-spec.md §1.3 + §3 + 立场 ③
+// Spec: docs/implementation/modules/cm-5-spec.md §1.3 + §3 + 设计 ③
 //   X2 冲突复用 CV-1.2 single-doc lock + CV-4 #380 ⑦ 错码字面 + ⑤
 //   透明 owner-first 可见性.
 // Acceptance: docs/qa/acceptance-templates/cm-5.md §3 client UI.
@@ -43,8 +43,8 @@ export const CM5_X2_CONFLICT_TOAST_SUFFIX = ' 处理';
 export const CM5_COLLAB_LINK_DOM_ATTR = 'data-cm5-collab-link';
 
 /**
- * 反约束 (蓝图 §185 透明协作立场): 不渲染 ai_only / agent_only
- * visibility scope 字段. 此 array 在 vitest 反向 grep 守 — 任何这些
+ * 反约束 (蓝图 §185 透明协作设计): 不渲染 ai_only / agent_only
+ * visibility scope 字段. 此 array 在 vitest grep 检查 守 — 任何这些
  * DOM attr 出现在 channel/agent 视图都 reject.
  */
 export const CM5_FORBIDDEN_VISIBILITY_DOM_ATTRS = [

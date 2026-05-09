@@ -1,9 +1,9 @@
 // AP-2 client — capability label SSOT (i18n-ready, currently zh-CN literals).
 //
-// 立场承袭 (ap-2-spec.md §0.2 + content-lock + capability-dot-spec.md):
+// 设计沿用 (ap-2-spec.md §0.2 + content-lock + capability-dot-spec.md):
 //   - 14 capability const byte-identical 跟 server `internal/auth/capabilities.go::ALL`
 //     (改 = 改两处: server const + 此 LABEL_MAP)
-//   - capabilityLabel(token) 单源 helper, 反 inline 字面散落 (反向 grep
+//   - capabilityLabel(token) 单源 helper, 反 inline 字面散落 (grep 检查
 //     `function capabilityLabel|export.*capabilityLabel` ==1 hit)
 //   - 反 RBAC 角色名双语 (英 a/e/v/o + 中文 3 词) 0 hit (反 role bleed)
 //
@@ -60,7 +60,7 @@ const LABEL_MAP: Record<CapabilityToken, string> = {
  * label. Unknown tokens render the raw token (forward-compat).
  *
  * 反约束: 调用方禁止 inline 字面 (如 `'查看频道'`); 走此 helper SSOT
- * (反向 grep `function capabilityLabel|export.*capabilityLabel` ==1 hit).
+ * (grep 检查 `function capabilityLabel|export.*capabilityLabel` ==1 hit).
  */
 export function capabilityLabel(token: string): string {
   if (token in LABEL_MAP) {

@@ -2,7 +2,7 @@
 // mock. 走 read-only sqlite3 driver 真接 HB-3 #520 host_grants 表.
 //
 // hb-2-v0d-spec.md §0.2: 撤销 <100ms 真守 — 每次 IPC call 重查 (反 cache),
-// HB-3 spec §1.4 "daemon 不缓存; revoked_at IS NULL 谓词单源". 反向 grep
+// HB-3 spec §1.4 "daemon 不缓存; revoked_at IS NULL 谓词单源". grep 检查
 // `grantsCache|cachedGrants` 0 hit (反约束 §1.3).
 //
 // 读: SELECT id, scope, expires_at, revoked_at FROM host_grants

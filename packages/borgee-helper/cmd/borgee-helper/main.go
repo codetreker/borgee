@@ -48,7 +48,7 @@ func run(socket, auditLogPath, grantsDSN, readPaths string) error {
 	auditLogger := audit.New(logFile)
 
 	// v0(D) Grants consumer: SQLite real-接, production 路径强制 (反约束 §1.5
-	// "反向 grep MemoryConsumer 在 production 路径 0 hit"). dev 测试走
+	// "grep 检查 MemoryConsumer 在 production 路径 0 hit"). dev 测试走
 	// MemoryConsumer 在 _test.go 内部, 不在 main 路径.
 	if grantsDSN == "" {
 		return errAbort("--grants-db is required (HB-3 host_grants SQLite DSN, e.g. file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000)")
