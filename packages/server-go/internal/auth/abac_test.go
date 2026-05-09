@@ -1,15 +1,15 @@
-// Package auth — abac_test.go: AP-1 立场 ②③ ABAC 单 SSOT + capability
+// Package auth — abac_test.go: AP-1 原则 ②③ ABAC 单一来源 + capability
 // const 白名单单测.
 //
 // Pins:
 //   REG-AP1-001 — capability const 白名单 byte-identical (≤30, spec §1 ③)
 //   REG-AP1-002 — HasCapability agent 严格 (蓝图 §1.4 不享 wildcard)
 //   REG-AP1-003 — HasCapability cross-scope 403
-//   REG-AP1-004 — HasCapability human 享 wildcard 短路 (立场 ④)
+//   REG-AP1-004 — HasCapability human 享 wildcard 短路 (原则 ④)
 //   REG-AP1-005 — HasCapability nil user → false
 //   REG-AP1-006 — ArtifactScope resolver `artifact:{id}` (跟 channelScope 同模式)
-//   REG-AP1-007 — ArtifactScopeStr / ChannelScopeStr 单源 builder
-//   REG-AP1-008 — 反约束 grep #1: api/ 不出现 HasCapability("..." 字面 hardcode
+//   REG-AP1-007 — ArtifactScopeStr / ChannelScopeStr 单一来源 builder
+//   REG-AP1-008 — 反向约束 grep #1: api/ 不出现 HasCapability("..." 字面 hardcode
 package auth
 
 import (
@@ -24,7 +24,7 @@ import (
 	"borgee-server/internal/store"
 )
 
-// TestCapabilities_WhitelistByteIdentical pins spec §1 立场 ③ — 字面
+// TestCapabilities_WhitelistByteIdentical pins spec §1 原则 ③ — 字面
 // 白名单 ≤30, 跟 spec §1 ③ + 蓝图 §1 byte-identical (改一处 = 改三处+:
 // spec + 蓝图 + acceptance + 此 const).
 func TestCapabilities_WhitelistByteIdentical(t *testing.T) {
@@ -46,15 +46,15 @@ func TestCapabilities_WhitelistByteIdentical(t *testing.T) {
 	}
 	for k := range Capabilities {
 		if !want[k] {
-			t.Errorf("Capabilities has unexpected %q (drift from spec §1 ③)", k)
+			t.Errorf("Capabilities has unexpected %q (脱节 from spec §1 ③)", k)
 		}
 	}
-	// const 字面锁: 防 typo / rename.
+	// const 字面锁定: 防 typo / rename.
 	if CommitArtifact != "artifact.commit" {
-		t.Errorf("CommitArtifact const drift: got %q, want %q", CommitArtifact, "artifact.commit")
+		t.Errorf("CommitArtifact const 脱节: got %q, want %q", CommitArtifact, "artifact.commit")
 	}
 	if ReadChannel != "channel.read" {
-		t.Errorf("ReadChannel const drift: got %q", ReadChannel)
+		t.Errorf("ReadChannel const 脱节: got %q", ReadChannel)
 	}
 }
 
@@ -75,7 +75,7 @@ func TestHasCapability_AgentExplicitScope_Pass(t *testing.T) {
 }
 
 // TestHasCapability_AgentNoWildcardShortcut — agent 即使有 (*,*) 行
-// 也 false (蓝图 §1.4 立场 字面承袭). REG-AP1-002 + spec §2 反约束精神.
+// 也 false (蓝图 §1.4 原则 字面一致). REG-AP1-002 + spec §2 反向约束精神.
 func TestHasCapability_AgentNoWildcardShortcut(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
@@ -107,7 +107,7 @@ func TestHasCapability_AgentCrossScope_False(t *testing.T) {
 }
 
 // TestHasCapability_HumanWildcard_Pass — human owner 享 (*,*) 短路
-// (立场 ④ 区分 agent/human).
+// (原则 ④ 区分 agent/human).
 func TestHasCapability_HumanWildcard_Pass(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
@@ -118,7 +118,7 @@ func TestHasCapability_HumanWildcard_Pass(t *testing.T) {
 	})
 	ctx := context.WithValue(context.Background(), userContextKey, human)
 	if !HasCapability(ctx, s, CommitArtifact, "artifact:art-1") {
-		t.Error("human (*,*) wildcard 应短路 — 立场 ④ 区分 agent/human")
+		t.Error("human (*,*) wildcard 应短路 — 原则 ④ 区分 agent/human")
 	}
 }
 
@@ -142,7 +142,7 @@ func TestArtifactScope_ResolvesPathValue(t *testing.T) {
 	}
 }
 
-// TestScopeStr_Builders — 单源 scope-string builder (跟 channelScope
+// TestScopeStr_Builders — 单一来源 scope-string builder (跟 channelScope
 // resolver 同模式 byte-identical).
 func TestScopeStr_Builders(t *testing.T) {
 	t.Parallel()
@@ -154,9 +154,9 @@ func TestScopeStr_Builders(t *testing.T) {
 	}
 }
 
-// TestReverseGrep_NoHardcodedPermissionLiteral — spec §2 反约束 #1:
+// TestReverseGrep_NoHardcodedPermissionLiteral — spec §2 反向约束 #1:
 // `git grep -nE 'HasCapability\("[a-z_]+"' packages/server-go/internal/api/`
-// 必 0 hit. 此测试是 CI lint 等价 — 防 future drift.
+// 必 0 hit. 此测试是 CI lint 等价 — 防 future 脱节.
 func TestReverseGrep_NoHardcodedPermissionLiteral(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
@@ -182,6 +182,6 @@ func TestReverseGrep_NoHardcodedPermissionLiteral(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 spec §2 #1 broken — HasCapability(\"<literal>\") hardcode 出现于: %v (必走 auth.<Capability> const)", hits)
+		t.Errorf("反向约束 spec §2 #1 broken — HasCapability(\"<literal>\") hardcode 出现于: %v (必走 auth.<Capability> const)", hits)
 	}
 }

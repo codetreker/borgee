@@ -1,9 +1,9 @@
-// Package auth — audit_retention_sweeper.go: AL-7.2 立场 ① archived_at
-// soft-archive sweeper + 立场 ④ time.Ticker (no cron) + 立场 ⑤ best-effort.
+// Package auth — audit_retention_sweeper.go: AL-7.2 原则 ① archived_at
+// soft-archive sweeper + 原则 ④ time.Ticker (no cron) + 原则 ⑤ best-effort.
 //
 // Blueprint: admin-model.md §3 retention + ADM-2.1 #484 forward-only audit
 // 终结收尾. Spec: docs/implementation/modules/al-7-spec.md (战马D v0
-// 3fa2db0) §0 立场 ① + §1 拆段 AL-7.2.
+// 3fa2db0) §0 原则 ① + §1 拆段 AL-7.2.
 //
 // What this does (one round-trip closes the AL-7 retention loop):
 //
@@ -11,14 +11,14 @@
 //     SET archived_at = now WHERE created_at < (now - RetentionDays*24h)
 //     AND archived_at IS NULL.
 //   - 不真删 — UPDATE not DELETE (反向 grep `DELETE FROM admin_actions`
-//     在 production 0 hit; forward-only 跟 ADM-2.1 + AP-2 立场承袭).
-//   - 不另起 archive 表 — admin_actions.archived_at 列单源
+//     在 production 0 hit; forward-only 跟 ADM-2.1 + AP-2 原则一致).
+//   - 不另起 archive 表 — admin_actions.archived_at 列单一来源
 //     (反向 grep `audit_archive_table\|audit_history_log\|al7_archive_log`
-//     0 hit, 立场 ① 守).
+//     0 hit, 原则 ① 守).
 //   - 不引入 scheduler 框架 — time.Ticker (跟 AP-2 ExpiresSweeper 同模式;
-//     反向 grep scheduler import 在此文件 0 hit, 立场 ④).
+//     反向 grep scheduler import 在此文件 0 hit, 原则 ④).
 //   - reason 复用 AL-1a 6-dict — SweeperReason = reasons.Unknown
-//     byte-identical (AL-1a 锁链第 15 处, 立场 ②).
+//     byte-identical (AL-1a 守护链第 15 处, 原则 ②).
 //
 // Public surface (跟 AP-2 ExpiresSweeper 同模式 nil-safe):
 //   - RetentionSweeper{Store, Logger, RetentionDays, Interval, Now} — config
@@ -27,12 +27,12 @@
 //   - (s *RetentionSweeper) RunOnce(ctx) (count int, err error) — 单次扫
 //     描入口 (testable 同步 path).
 //
-// 反约束 (al-7-spec.md §0 + 立场 ①④⑤⑥):
+// 反向约束 (al-7-spec.md §0 + 原则 ①④⑤⑥):
 //   - 不真删 row — UPDATE archived_at, 不 DELETE (反向 grep 测试守).
-//   - 不裂表 — 复用 admin_actions (反向 grep 测试守).
+//   - 不拆表 — 复用 admin_actions (反向 grep 测试守).
 //   - 不引入 scheduler 框架 — time.Ticker only.
-//   - 不开 retention queue — AST 锁链延伸第 7 处 forbidden token 0 hit.
-//   - retention 14d 字面单源 — RetentionDays = 14 const (反向 grep
+//   - 不开 retention queue — AST 守护链延伸第 7 处 forbidden token 0 hit.
+//   - retention 14d 字面单一来源 — RetentionDays = 14 const (反向 grep
 //     hardcode 非 14 字面 0 hit).
 package auth
 
@@ -49,7 +49,7 @@ import (
 // admin-model.md §3 字面 14d. Admin override (POST /admin-api/v1/audit-
 // retention/override) writes one admin_actions row and updates the
 // in-memory effective window via the handler — not via mutating this
-// const (compile-time SSOT, 立场 ⑥ 字面单源).
+// const (compile-time 单一来源, 原则 ⑥ 字面单一来源).
 const RetentionDays = 14
 
 // RetentionMinDays / RetentionMaxDays clamp range for admin override
@@ -65,8 +65,8 @@ const (
 const DefaultRetentionInterval = 1 * time.Hour
 
 // SweeperReason is the AL-1a 6-dict byte-identical const referenced by
-// the retention sweeper. AL-1a reason 锁链第 15 处 (HB-3 v2 #14 承袭不
-// 漂). 立场 ②: 不另起 reason 字典 — 复用 reasons.Unknown (sweeper 走
+// the retention sweeper. AL-1a reason 守护链第 15 处 (HB-3 v2 #14 不变
+// 不脱节). 原则 ②: 不另起 reason 字典 — 复用 reasons.Unknown (sweeper 走
 // best-effort, 不区分细分原因, 跟 BPP-7/BPP-8 SDK reason 一致).
 const SweeperReason = reasons.Unknown
 
@@ -141,7 +141,7 @@ func (s *RetentionSweeper) Start(ctx context.Context) {
 // instant returns count==0 (already-archived rows excluded by WHERE
 // archived_at IS NULL).
 //
-// 立场 ①: UPDATE not DELETE (forward-only soft-archive). 反向 grep
+// 原则 ①: UPDATE not DELETE (forward-only soft-archive). 反向 grep
 // `DELETE FROM admin_actions` 在 production *.go 0 hit.
 func (s *RetentionSweeper) RunOnce(ctx context.Context) (int, error) {
 	if s == nil || s.Store == nil {
@@ -151,7 +151,7 @@ func (s *RetentionSweeper) RunOnce(ctx context.Context) (int, error) {
 	cutoff := nowMs - int64(s.retentionDays())*24*60*60*1000
 
 	// Step — soft-archive: UPDATE archived_at = now WHERE created_at < cutoff
-	// AND archived_at IS NULL. 立场 ①: not DELETE.
+	// AND archived_at IS NULL. 原则 ①: not DELETE.
 	res := s.Store.DB().WithContext(ctx).Exec(
 		`UPDATE admin_actions SET archived_at = ?
 		 WHERE created_at < ? AND archived_at IS NULL`,
