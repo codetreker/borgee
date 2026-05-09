@@ -2,8 +2,8 @@
 // "inline 修复, 不跳设置页"). v0 hook 占位, v1 接 plugin SDK + AL-2a /
 // HB-3 真路径.
 //
-// 反约束 (cs-2-stance-checklist 立场 ② + content-lock §2):
-//   - 浮层 3 inline button 不跳设置页 (反向 grep `navigate.*\/settings`
+// 反约束 (cs-2-stance-checklist 设计 ② + content-lock §2):
+//   - 浮层 3 inline button 不跳设置页 (grep 检查 `navigate.*\/settings`
 //     在 Failure*.tsx count==0).
 //   - hook return value 是占位 string, 真实施时改 RPC call.
 

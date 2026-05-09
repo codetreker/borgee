@@ -7,7 +7,7 @@
 // AL-1b (#R3 Phase 4) 扩 busy/idle 两态 — server-side 5-state 合并优先级
 // 见 al-1b-spec.md §1 (error > busy > idle > online > offline). 客户端
 // describeAgentState() 只负责把单个 state 翻成文案 — 优先级合并由 server
-// 端 resolveStatus5State() 做 (立场 ① 拆三路径 — client 不重做合并).
+// 端 resolveStatus5State() 做 (设计 ① 拆三路径 — client 不重做合并).
 //
 // 改这里 = 改 server 的 agent.Reason* 常量字符串. 单测 agent-state.test.ts
 // 跟 internal/agent/state.go + internal/api/al_1b_2_status.go 字面绑定.

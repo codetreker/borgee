@@ -1,6 +1,6 @@
 // CS-4 — SyncState 4-enum + 文案 byte-identical (蓝图 client-shape.md §1.4).
 //
-// 立场 ② + content-lock §1:
+// 设计 ② + content-lock §1:
 //   - offline_cache_hit → "离线模式" (navigator.onLine=false + cached present)
 //   - synced            → "已同步"   (server fetch confirm + IDB.put done)
 //   - syncing           → "同步中…"  (≥3s in-flight; ≤3s 沉默)

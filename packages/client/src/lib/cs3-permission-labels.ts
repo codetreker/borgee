@@ -1,6 +1,6 @@
 // CS-3.1 — Push permission 三态文案 (蓝图 client-shape.md §1.4 + DL-4 #485 同源).
 //
-// 立场 ② (cs-3-stance-checklist):
+// 设计 ② (cs-3-stance-checklist):
 //   - 4-enum byte-identical 跟 DL-4 PushPermissionState (granted/denied/default/unsupported)
 //   - 文案 byte-identical 跟蓝图字面 (改 = 改两处 + content-lock §1)
 //

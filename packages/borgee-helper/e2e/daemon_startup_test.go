@@ -9,7 +9,7 @@
 //   - SIGTERM 触发 ctx.Done → 反向断 net.Listener.Close → 进程 0 退出
 //   - audit log 文件存在 (反 silent abort)
 //
-// 立场 (hb-2-v0d-e2e-spec.md §0 立场 ①+②):
+// 设计 (hb-2-v0d-e2e-spec.md §0 设计 ①+②):
 //   - 0 production .go 改 (本 _test.go 仅消费既有 cmd/borgee-helper main.go)
 //   - build tag `integration` 隔离 (CI 不默认跑, 跟 HB-2.0 #605 IPC matrix 同模式)
 package e2e

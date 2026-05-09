@@ -54,9 +54,9 @@ export function renderMarkdown(text: string, mentionedUserIds?: string[], userMa
   if (userMap) {
     processed = processed.replace(/<@([^>]+)>/g, (_match, userId: string) => {
       const displayName = userMap.get(userId);
-      // DM-2.3 (#377) §0 立场 ②: raw UUID lives in data-mention-id attr only;
+      // DM-2.3 (#377) §0 设计 ②: raw UUID lives in data-mention-id attr only;
       // text node renders display_name → no UUID leakage in DOM textContent
-      // (反向 grep `[0-9a-f]{8}-[0-9a-f]{4}-...` 0 hit; 反约束 byte-identical
+      // (grep 检查 `[0-9a-f]{8}-[0-9a-f]{4}-...` 0 hit; 反约束 byte-identical
       // 跟 ADM-0 #211 §1.1 隐私红线同源).
       const safeId = escapeHtml(userId);
       if (displayName) return `<span class="mention" data-mention-id="${safeId}">@${escapeHtml(displayName)}</span>`;

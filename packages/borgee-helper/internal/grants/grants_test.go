@@ -51,7 +51,7 @@ func TestHB23_GrantExpired(t *testing.T) {
 }
 
 // TestHB23_RevocationLessThan100ms 反向断言: 撤销后下次 Lookup 立即拒绝
-// (HB-4 §1.5 release gate 第 5 行 < 100ms; 反向 grep grantsCache 0 hit).
+// (HB-4 §1.5 release gate 第 5 行 < 100ms; grep 检查 grantsCache 0 hit).
 func TestHB23_RevocationImmediate(t *testing.T) {
 	t.Parallel()
 	c := NewMemoryConsumer()

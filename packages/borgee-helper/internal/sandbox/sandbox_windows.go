@@ -7,7 +7,7 @@
 // 真 Restricted Token + ACL 限 read 路径 留 v1.5+ (复杂度高, v0(D) 走 Job Object
 // 已守 daemon kill-on-job-close, 文件权限 fall back to NTFS ACL by daemon user).
 //
-// 反约束: 反向 grep `syscall.CreateNamedPipe` 0 hit (走 go-winio SSOT in ipc 包).
+// 反约束: grep 检查 `syscall.CreateNamedPipe` 0 hit (走 go-winio SSOT in ipc 包).
 
 package sandbox
 

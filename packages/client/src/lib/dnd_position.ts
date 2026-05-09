@@ -1,6 +1,6 @@
 // dnd_position.ts — CHN-12.3 channel reorder 单调小数算法.
 //
-// CHN-12 立场 ②: 0 server prod — 算法跑 client 端, server PUT /me/layout
+// CHN-12 设计 ②: 0 server prod — 算法跑 client 端, server PUT /me/layout
 // 既有 batch upsert (CHN-3.2 #357 + CHN-3.3 #415 单调小数 acceptance §2.4).
 //
 // 数学锁 (跟 CHN-3.3 #415 acceptance §2.4 同源 byte-identical):

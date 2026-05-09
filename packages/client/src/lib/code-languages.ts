@@ -2,7 +2,7 @@
 //
 // byte-identical 跟 cv_3_2_artifact_validation.go::ValidCodeLanguages
 // + cv-3-content-lock.md §1 ② 同源. 短码唯一; 全名映射在
-// prism-lang-map.ts 隔离, 让 CodeRenderer.tsx 反向 grep 干净.
+// prism-lang-map.ts 隔离, 让 CodeRenderer.tsx grep 检查 干净.
 export const CODE_LANGUAGES = [
   'go', 'ts', 'js', 'py', 'md', 'sh',
   'sql', 'yaml', 'json', 'html', 'css',

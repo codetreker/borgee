@@ -70,8 +70,8 @@ export async function logout(): Promise<void> {
 // ─── Channels ───────────────────────────────────────────
 
 export async function fetchChannels(q?: string): Promise<{ channels: Channel[]; groups: ChannelGroup[] }> {
-  // CHN-13 立场 ②: optional `q` 子串 filter — 空 q (undefined / "") 走
-  // 既有 URL `/api/v1/channels` byte-identical (反向 grep 锚不漂 `?q=`);
+  // CHN-13 设计 ②: optional `q` 子串 filter — 空 q (undefined / "") 走
+  // 既有 URL `/api/v1/channels` byte-identical (grep 检查项不漂 `?q=`);
   // q 含特殊字符走 encodeURIComponent (server LIKE 走 prepared stmt).
   const url = q ? `/api/v1/channels?q=${encodeURIComponent(q)}` : '/api/v1/channels';
   return request<{ channels: Channel[]; groups: ChannelGroup[] }>(url);
@@ -108,7 +108,7 @@ export async function updateChannel(
   return data.channel;
 }
 
-// CHN-1.2 立场 ⑤: archive flip is server-stamped. Pass `true` to retire,
+// CHN-1.2 设计 ⑤: archive flip is server-stamped. Pass `true` to retire,
 // `false` to un-archive. Server emits a system DM to channel members on the
 // `false → true` transition so that everyone observes the closure.
 export async function archiveChannel(channelId: string, archived: boolean): Promise<Channel> {
@@ -116,7 +116,7 @@ export async function archiveChannel(channelId: string, archived: boolean): Prom
 }
 
 // CHN-7: mute / unmute a channel for the current user. user-rail only;
-// admin god-mode 不挂 (ADM-0 §1.3 红线 + 立场 ②). Server toggles bit 1
+// admin god-mode 不挂 (ADM-0 §1.3 红线 + 设计 ②). Server toggles bit 1
 // of user_channel_layout.collapsed (bit 0 preserved for CHN-3 collapse).
 export async function muteChannel(channelId: string, muted: boolean): Promise<{ collapsed: number; muted: boolean }> {
   const method = muted ? 'POST' : 'DELETE';
@@ -138,14 +138,14 @@ export async function setChannelVisibility(
 
 // CHN-5: list the user's archived channels (owner-only — server filters
 // to the caller's membership). Single-source API client; components
-// must NOT inline fetch this path (反向 grep守, content-lock §3 立场 ⑤).
+// must NOT inline fetch this path (grep 检查守, content-lock §3 设计 ⑤).
 export async function listArchivedChannels(): Promise<Channel[]> {
   const data = await request<{ channels: Channel[] }>('/api/v1/me/archived-channels');
   return data.channels;
 }
 
 // CHN-6: pin / unpin a channel for the current user. user-rail only;
-// admin god-mode 不挂 (ADM-0 §1.3 红线 + 立场 ②). Server stamps
+// admin god-mode 不挂 (ADM-0 §1.3 红线 + 设计 ②). Server stamps
 // position = -(nowMs) on pin / max(positive)+1.0 on unpin (跟 CHN-3.3
 // MIN-1.0 单调小数模式互补).
 export async function pinChannel(channelId: string, pinned: boolean): Promise<{ position: number; pinned: boolean }> {
@@ -156,7 +156,7 @@ export async function pinChannel(channelId: string, pinned: boolean): Promise<{ 
 }
 
 // CHN-8: set notification preference for a channel. user-rail only;
-// admin god-mode 不挂 (ADM-0 §1.3 红线 + 立场 ②). pref ∈ {'all', 'mention', 'none'}.
+// admin god-mode 不挂 (ADM-0 §1.3 红线 + 设计 ②). pref ∈ {'all', 'mention', 'none'}.
 export async function setNotificationPref(
   channelId: string,
   pref: NotifPref,
@@ -240,7 +240,7 @@ export interface ChannelMember {
   role: string;
   avatar_url?: string | null;
   joined_at: number;
-  // CHN-1.2 立场 ⑥ (concept-model §1.4): when true, this member does not
+  // CHN-1.2 设计 ⑥ (concept-model §1.4): when true, this member does not
   // auto-broadcast on lifecycle events. Default false for humans; backfilled
   // to true for agents — UI renders a "silent" badge so peers know the agent
   // listens but won't chime in unprompted.
@@ -523,7 +523,7 @@ export interface Agent {
 //
 // AL-4.3 client UI consumes this shape; runtime-not-yet-registered
 // agents → server 404 → UI hides the start/stop card surface entirely
-// (graceful degrade, 反约束 立场 ① "Borgee 不带 runtime" — 没注册的
+// (graceful degrade, 反约束 设计 ① "Borgee 不带 runtime" — 没注册的
 // agent 不假装有 runtime).
 
 // AgentRuntimeStatus is the 4-态 process-level enum (v=16 schema
@@ -548,7 +548,7 @@ export interface AgentRuntime {
 }
 
 // fetchAgentRuntime returns the runtime row for the agent, or null if
-// no runtime is registered (server 404). 反约束 立场 ① "Borgee 不带
+// no runtime is registered (server 404). 反约束 设计 ① "Borgee 不带
 // runtime" — 没注册的 agent 不假装 (graceful degrade UI omit the card).
 //
 // Returns null on 404 specifically (not other errors) so the UI can
@@ -949,11 +949,11 @@ export async function listCommands(channelId?: string): Promise<CommandsResponse
 //
 // Spec: docs/implementation/modules/cv-1-spec.md §3 (CV-1.3 段) +
 // docs/qa/acceptance-templates/cv-1.md §3 + docs/qa/cv-1-stance-checklist.md
-// (7 立场) + cv-1-stance-v1-supplement.md (②③⑤⑦ v1 字段).
+// (7 条原则) + cv-1-stance-v1-supplement.md (②③⑤⑦ v1 字段).
 //
 // Pull-side契约: server's PushArtifactUpdated frame is signal-only (no
 // body, no committer). 当 ArtifactUpdated frame 到达 client, 必须再走
-// GET /api/v1/artifacts/:id 拿 body + committer (立场 ⑤ envelope 仅信号).
+// GET /api/v1/artifacts/:id 拿 body + committer (设计 ⑤ envelope 仅信号).
 
 /**
  * CV-3.1/3.2 (#396 / #400): artifact kind enum extended from the v1
@@ -978,10 +978,10 @@ export interface Artifact {
   current_version: number;
   created_at: number;
   archived_at?: number;
-  /** 立场 ⑥ committer_kind 'agent'|'human' (head version 的). */
+  /** 设计 ⑥ committer_kind 'agent'|'human' (head version 的). */
   committer_kind: 'agent' | 'human';
   committer_id: string;
-  /** 立场 ② 单文档锁 30s TTL — nil = 无人持锁可写. */
+  /** 设计 ② 单文档锁 30s TTL — nil = 无人持锁可写. */
   lock_holder_user_id?: string;
   lock_acquired_at?: number;
   /** CV-2 v2 (#cv-2-v2): server-recorded thumbnail / poster URL (https only). */
@@ -994,7 +994,7 @@ export interface ArtifactVersion {
   committer_kind: 'agent' | 'human';
   committer_id: string;
   created_at: number;
-  /** 立场 ⑦ rollback 路径 — 非 NULL = 该 row 是 rollback 触发的新 commit. */
+  /** 设计 ⑦ rollback 路径 — 非 NULL = 该 row 是 rollback 触发的新 commit. */
   rolled_back_from_version?: number;
 }
 
@@ -1024,12 +1024,12 @@ export async function createArtifact(
   });
 }
 
-/** GET head body + committer (立场 ⑤ pull 路径). */
+/** GET head body + committer (设计 ⑤ pull 路径). */
 export async function getArtifact(artifactId: string): Promise<Artifact> {
   return request<Artifact>(`/api/v1/artifacts/${encodeURIComponent(artifactId)}`);
 }
 
-/** GET version sidebar list (立场 ③ 线性版本号). */
+/** GET version sidebar list (设计 ③ 线性版本号). */
 export async function listArtifactVersions(
   artifactId: string,
 ): Promise<{ versions: ArtifactVersion[] }> {
@@ -1040,7 +1040,7 @@ export async function listArtifactVersions(
 
 /**
  * Commit a new version. expected_version 来自 client 编辑时的 head;
- * server 端 mismatch → 409 (立场 ② lock conflict + reload hint).
+ * server 端 mismatch → 409 (设计 ② lock conflict + reload hint).
  */
 export async function commitArtifact(
   artifactId: string,
@@ -1056,7 +1056,7 @@ export async function commitArtifact(
 }
 
 /**
- * Rollback to a prior version (立场 ⑦ owner-only). 服务器侧已闸 admin →
+ * Rollback to a prior version (设计 ⑦ owner-only). 服务器侧已闸 admin →
  * 401 / 非 owner → 403 / 锁持有=别人 → 409.
  */
 export async function rollbackArtifact(
@@ -1074,7 +1074,7 @@ export async function rollbackArtifact(
 
 // ─── Iterations (CV-4.2 server #409 / CV-4.3 client) ─────────
 //
-// Spec: docs/implementation/modules/cv-4-spec.md §0 立场 ②
+// Spec: docs/implementation/modules/cv-4-spec.md §0 设计 ②
 // (owner triggers iterate, agent commit goes through CV-1's existing
 // /commits endpoint with ?iteration_id query). 文案锁:
 // docs/qa/cv-4-content-lock.md §1 ③ (state 4 态 byte-identical).
@@ -1092,7 +1092,7 @@ export type IterationState = 'pending' | 'running' | 'completed' | 'failed';
  * target_agent_id / state / created_artifact_version_id NULL /
  * error_reason NULL / created_at / completed_at NULL.
  *
- * 立场 ⑦ admin god-mode 字段白名单不含 intent_text — 但 owner 拉自己
+ * 设计 ⑦ admin god-mode 字段白名单不含 intent_text — 但 owner 拉自己
  * 触发的 iteration 时返完整 row (intent_text 是 owner 自己输入).
  */
 export interface ArtifactIteration {
@@ -1136,7 +1136,7 @@ export async function createIteration(
 }
 
 /**
- * GET single iteration body — 立场 ⑤ envelope-signal-only 后 pull 路径.
+ * GET single iteration body — 设计 ⑤ envelope-signal-only 后 pull 路径.
  * Push frame 仅信号, intent_text 不在 frame (admin 字段白名单反断同源).
  */
 export async function getIteration(
@@ -1164,13 +1164,13 @@ export async function listIterations(
 
 // ─── Anchors (CV-2.2 server / CV-2.3 client) ───────────────
 //
-// Spec: docs/implementation/modules/cv-2-spec.md §0 (3 立场) + §1
+// Spec: docs/implementation/modules/cv-2-spec.md §0 (3 条原则) + §1
 // (CV-2.3 段). Server: packages/server-go/internal/api/anchors.go (#360).
 //
 // Pull-side契约: server's PushAnchorCommentAdded frame is signal-only
 // (10 字段 envelope, no body). 当 anchor_comment_added frame 到达
 // client, 必须再走 GET /api/v1/artifacts/:id/anchors +
-// GET /api/v1/anchors/:id/comments 拿评论列表 (立场 ③ envelope 仅信号).
+// GET /api/v1/anchors/:id/comments 拿评论列表 (设计 ③ envelope 仅信号).
 
 export interface AnchorThread {
   id: string;
@@ -1250,13 +1250,13 @@ export async function resolveAnchor(anchorId: string): Promise<{ id: string; res
 // ─── CHN-3.2 user_channel_layout (CHN-3.3 client) ──────────
 //
 // Spec: docs/implementation/modules/chn-3-spec.md §1 CHN-3.2 段 + §0
-// 立场 ② 个人偏好两维 collapsed + position. Server: api/layout.go
+// 设计 ② 个人偏好两维 collapsed + position. Server: api/layout.go
 // (#412, stacked off CHN-3.1 schema #410 v=19).
 //
-// 立场 ④ 反约束 错码 byte-identical: server PUT 对 DM channel_id 返
+// 设计 ④ 反约束 错码 byte-identical: server PUT 对 DM channel_id 返
 // 400 with code `layout.dm_not_grouped` (5 源 #357/#353/#366/#402/
 // #412); client 走 GET pull, PUT batch upsert, 不挂 push frame
-// (立场 ⑥ ordering client 端事).
+// (设计 ⑥ ordering client 端事).
 
 export interface LayoutRow {
   channel_id: string;
@@ -1287,7 +1287,7 @@ export async function putMyLayout(layout: LayoutRow[]): Promise<{ ok: boolean }>
 //
 // Spec: docs/implementation/modules/adm-2-spec.md §2.
 // Content lock: docs/qa/adm-2-content-lock.md §1+§2+§3+§4.
-// Stance: docs/qa/adm-2-stance-checklist.md (立场 ④ user 只见自己 + ⑦
+// Stance: docs/qa/adm-2-stance-checklist.md (设计 ④ user 只见自己 + ⑦
 // impersonate 显眼). Server: api/adm_2_2_endpoints.go.
 
 export interface AdminActionRow {
@@ -1307,7 +1307,7 @@ export interface ImpersonateGrantRow {
   admin_username?: string;
 }
 
-/** GET /api/v1/me/admin-actions — user 只见自己 (立场 ④, ?target_user_id 服务端忽略). */
+/** GET /api/v1/me/admin-actions — user 只见自己 (设计 ④, ?target_user_id 服务端忽略). */
 export async function getMyAdminActions(): Promise<{ actions: AdminActionRow[] }> {
   return request<{ actions: AdminActionRow[] }>(`/api/v1/me/admin-actions`);
 }
@@ -1317,7 +1317,7 @@ export async function getMyImpersonateGrant(): Promise<{ grant: ImpersonateGrant
   return request<{ grant: ImpersonateGrantRow | null }>(`/api/v1/me/impersonation-grant`);
 }
 
-/** POST /api/v1/me/impersonation-grant — 业主授权 24h (立场 ⑦, 重复 → 409). */
+/** POST /api/v1/me/impersonation-grant — 业主授权 24h (设计 ⑦, 重复 → 409). */
 export async function createMyImpersonateGrant(): Promise<{ grant: ImpersonateGrantRow }> {
   return request<{ grant: ImpersonateGrantRow }>(`/api/v1/me/impersonation-grant`, {
     method: 'POST',
@@ -1407,7 +1407,7 @@ export async function postAgentRecover(req: AL5RecoverPayload): Promise<AL5Recov
 // DM-4.1 — agent message edit 多端同步.
 // PATCH /api/v1/channels/{channelId}/messages/{messageId}
 //
-// 立场 (跟 dm-4-spec.md §0):
+// 设计 (跟 dm-4-spec.md §0):
 //   ① 复用 RT-3 既有 fan-out (events INSERT op="edit" + Hub broadcast)
 //   ② edit 是 cursor 子集 (cursor 进展归 useDMSync DM-3 #508)
 //   ③ thinking 5-pattern 反约束延伸第 3 处 (机械修订, 不暴露 reasoning)
@@ -1449,7 +1449,7 @@ export async function patchDMMessage(
 
 // ─── CV-5 Artifact comments ─────────────────────────────────
 //
-// Spec: docs/implementation/modules/cv-5-spec.md §0 立场 ① — comment row
+// Spec: docs/implementation/modules/cv-5-spec.md §0 设计 ① — comment row
 // lives in messages 表 with virtual `artifact:<id>` namespace channel
 // (跟 DM-2 dm: 同模式). Server-side path POST/GET
 // /api/v1/artifacts/{artifactId}/comments. body_preview 80 rune cap on
@@ -1493,7 +1493,7 @@ export async function listArtifactComments(
 
 // ─── CV-8 Artifact comment thread reply ─────────────────────
 //
-// Spec: docs/implementation/modules/cv-8-spec.md §0 立场 ① — 走 messages
+// Spec: docs/implementation/modules/cv-8-spec.md §0 设计 ① — 走 messages
 // 表既有 endpoint POST /api/v1/channels/{channelId}/messages with
 // content_type='artifact_comment' + reply_to_id (既有 schema 字段).
 // CV-8 不开新 client api;  此函数仅是 sendMessage 的 thin wrapper,
@@ -1521,9 +1521,9 @@ export async function postArtifactCommentReply(
 
 // ─── CV-12 Artifact comment search ──────────────────────────
 //
-// Spec: docs/implementation/modules/cv-12-spec.md §0 立场 ① — 走既有
+// Spec: docs/implementation/modules/cv-12-spec.md §0 设计 ① — 走既有
 // GET /api/v1/channels/{channelId}/messages/search?q= endpoint 单源.
-// channelId 是 artifact: namespace channel UUID (CV-5 #530 立场 ①).
+// channelId 是 artifact: namespace channel UUID (CV-5 #530 设计 ①).
 // 0 server code; CV-12 仅这 1 函数 thin wrapper.
 
 export interface ArtifactCommentSearchHit {

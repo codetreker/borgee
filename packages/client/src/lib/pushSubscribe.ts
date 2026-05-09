@@ -17,7 +17,7 @@
 //   4. getCurrentSubscriptionState() — query browser current state
 //      ('granted' | 'denied' | 'default' | 'unsupported').
 //
-// 立场承袭 DL-4 spec §0:
+// 设计沿用 DL-4 spec §0:
 //   - VAPID 公钥 client 持 (server env 持私钥单源)
 //   - subscription 对象由 browser 生成 (endpoint + p256dh + auth)
 //   - 退订单源: PushManager.unsubscribe + server DELETE 双侧同步

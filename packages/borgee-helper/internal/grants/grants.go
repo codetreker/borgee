@@ -2,7 +2,7 @@
 // SSOT (hb-2-spec.md §3.2). HB-2 不写 grants — 仅查; HB-3 持 schema +
 // 弹窗写路径. v0(C) 提供 mock impl, HB-3 落地后真接 SQLite consumer.
 //
-// 反约束 (hb-2-spec.md §4 #3): 不缓存 — 每次 IPC call 重查; 反向 grep
+// 反约束 (hb-2-spec.md §4 #3): 不缓存 — 每次 IPC call 重查; grep 检查
 // `grantsCache|cachedGrants` 0 hit (撤销 < 100ms 锁 HB-4 release gate).
 package grants
 
