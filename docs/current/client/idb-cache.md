@@ -1,7 +1,7 @@
 # CS-4 IndexedDB 乐观缓存 (client)
 
 > 锚: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque) + `docs/implementation/modules/cs-4-spec.md` v0
-> 落点: 战马D + 飞马 + 烈马 + 野马 (一 milestone 一 PR, 0 server prod + 0 schema)
+> 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
 ## IDB wrapper SSOT (lib/cs4-idb.ts)
 
@@ -55,7 +55,7 @@ export function useFirstPaintCache(
 DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 
 - cache_miss → `return null`
-- syncing ≤3s → `return null` (沉默胜于假 loading 字面承袭 RT-1 §1.1)
+- syncing ≤3s → `return null` (沉默胜于假 loading 跟 RT-1 §1.1 一致)
 - syncing ≥3s → 显示 `同步中…`
 
 ## 反约束守门
@@ -71,7 +71,7 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 ## 跨 milestone byte-identical 锁
 
 - RT-1 #290 cursor opaque (CS-4 IDB.put cursor key 跟 server `?cursor=` 同源)
-- DM-3 useDMSync 既有 client cursor 同步模式承袭
+- DM-3 useDMSync 既有 client cursor 同步同模式
 - CV-10 草稿 localStorage 拆死 (CS-4 不入草稿域)
 - CS-2 #595 故障三态联动 (failed 时 IDB cache hit + offline label graceful fallback)
 - ADM-0 §1.3 admin god-mode 不挂

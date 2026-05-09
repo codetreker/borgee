@@ -41,18 +41,18 @@
 | DL-1+DL-2+DL-3+DL-4 interface signature | byte-identical | byte-identical ✅ | 仅 NewEventsArchiveOffloader 加 interval 参数, NewDataLayer 加 logger 参数 (callsite 跟随) |
 | 0 endpoint URL 改 | byte-identical | byte-identical ✅ | server.go 仅 +Start / +SetPushFanout, 0 HandleFunc |
 | 0 schema 改 | byte-identical | byte-identical ✅ | migrations/ 0 行 |
-| admin god-mode 不挂 wire 路径 (ADM-0 §1.3) | 0 hit | 0 hit ✅ | 反向 grep `admin.*EventsArchiveOffloader\|admin.*AgentTaskNotifier\|/admin-api/.*offload` 0 hit |
+| admin god-mode 不挂 wire 路径 (ADM-0 §1.3) | 0 hit | 0 hit ✅ | grep 检查 `admin.*EventsArchiveOffloader\|admin.*AgentTaskNotifier\|/admin-api/.*offload` 0 hit |
 | ctx-aware 反 leak | byte-identical | ✅ | Start(s.ctx) 跨 RetentionSweeper / ThresholdMonitor / EventsArchiveOffloader 3 处 + sync.Once + Done() chan |
 
 ## 4. 跨 milestone byte-identical 锁链
 
 - DL-2 #615 EventStore + EventsRetentionSweeper byte-identical 不破
 - DL-3 #618 ThresholdMonitor / EventsArchiveOffloader 字面 byte-identical (仅加 Start/Done/runOnceLog ctx-aware)
-- DL-4 #485 AgentTaskNotifier nil-safe 模式承袭
+- DL-4 #485 AgentTaskNotifier nil-safe 同模式
 - RT-3 #616 TaskLifecycleHandler 字面 byte-identical (SetPushFanout 是 setter 加, BPP-3 既有 wire 模式不破)
-- TEST-FIX-2 #608 ctx-aware shutdown 立场承袭 (反 goroutine leak)
+- TEST-FIX-2 #608 ctx-aware shutdown 同模式 (反 goroutine leak)
 - ADM-0 §1.3 admin god-mode 红线 (反 user-rail 漂)
-- post-#621 haystack gate Func=50/Pkg=70/Total=85 (TEST-FIX-3-COV 立场承袭)
+- post-#621 haystack gate Func=50/Pkg=70/Total=85 (跟 TEST-FIX-3-COV 一致)
 
 ## 5. Tests + verify
 
@@ -60,7 +60,7 @@
 - `go test -tags sqlite_fts5 -timeout=300s ./...` 25+ packages 全 PASS ✅
 - haystack gate TOTAL 85.7% / datalayer 91.4% / bpp 93.7% / 0 func<50% / exit 0 ✅
 
-## 6. 反向 grep 守门 (spec §2 6 锚)
+## 6. grep 守门 (spec §2 6 锚)
 
 - DL-2 cold consumer: `grep -cE 'NewInProcessEventBusWithStore' factory.go` ==1 + `func NewInProcessEventBus()` 0 hit (已删)
 - DL-3 offloader 真启: `grep -cE 'EventsArchiveOffloader.*Start\(' server.go` ==1
@@ -71,6 +71,6 @@
 
 ## 7. 留账 (透明)
 
-- events 接 RT-3 fanout 上游 hook (DL-2 cold → RT-3 hub.PushFrame 桥) 留 v1.x follow-up
+- events 接 RT-3 fanout 上游 hook (DL-2 cold → RT-3 hub.PushFrame 桥) 留 v1.x 后续
 - HB-2 v0(D) Borgee Helper SQLite consumer 已落 #617 (`packages/borgee-helper/internal/grants/sqlite_consumer.go`); 阈值哨 wire 留 v1.x
 - ADM-3 v1 host_bridge placeholder 真接 留 ADM-3.bis (HB-1 audit 表 v1 未落)

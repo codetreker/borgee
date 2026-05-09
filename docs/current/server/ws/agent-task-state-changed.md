@@ -2,7 +2,7 @@
 
 > RT-3 (#488) · Phase 4 · 蓝图 [`realtime.md`](../../../blueprint/current/realtime.md) §0 + §1.1 ⭐ "thinking 必须带 subject" + agent-lifecycle.md §2.3 (busy/idle source 必须 plugin 上行 frame).
 
-## 1. 立场
+## 1. 设计
 
 `AgentTaskStateChangedFrame` server→client push 来自 BPP-2.2 task_started/finished 上行 frame **server 派生** (不另起独立 source). 多端 fanout 走 `Hub.BroadcastToChannel`, 一 user 多 ws session 全收 (跟 P1MultiDeviceWebSocket #197 同源 `hub.onlineUsers map[userID]map[*Client]bool` 数据结构).
 
@@ -33,7 +33,7 @@
 - fallback-named symbol (`fallbackSubject` 等)
 - 无信息硬编码字符串 (`"thinking"` / `"AI is thinking"`)
 
-`subject` byte-identical 跟 BPP-2.2 `task_lifecycle.go::ValidateTaskStarted` 同源 — server 派生不重写, plugin 上行字面承袭.
+`subject` byte-identical 跟 BPP-2.2 `task_lifecycle.go::ValidateTaskStarted` 同源 — server 派生不重写, plugin 上行字面沿用.
 
 ## 4. Hub 推送入口
 
@@ -71,10 +71,10 @@ pfd.Register(bpp.FrameTypeBPPTaskFinished, taskLifecycleHandler.FinishedAdapter(
 
 11 TestRT3_* unit PASS (HandleStarted happy/empty + HandleFinished 4 case + 2 adapter raw decode + nil pusher panic + sentinel chain).
 
-## 6. 锚
+## 6. 相关参考
 
 - 实施: `internal/ws/agent_task_state_changed_frame.go` + `agent_task_state_changed_frame_test.go` (6 test 全绿) + `rt_3_multi_device_test.go` (live multi-device fanout) + **`internal/bpp/task_lifecycle_handler.go` + `_test.go` (RT-3.2, PR #588, 11 test 全绿)** + `internal/server/server.go` 真挂 pfd.Register 2 frame
 - spec brief: [`docs/implementation/modules/rt-3-spec.md`](../../../implementation/modules/rt-3-spec.md)
 - stance: [`docs/qa/rt-3-stance-checklist.md`](../../../qa/rt-3-stance-checklist.md)
 - acceptance: [`docs/qa/acceptance-templates/rt-3.md`](../../../qa/acceptance-templates/rt-3.md)
-- deferred (留 follow-up PR): RT-3.4 DL-4 Web Push fallback (DL-4 #490 已 merge 6/7) / RT-3.3 client UI / RT-3.5 e2e + ⭐ yema G4.x 5 张 signoff 截屏 demo
+- 留尾 (后续 PR): RT-3.4 DL-4 Web Push fallback (DL-4 #490 已 merge 6/7) / RT-3.3 client UI / RT-3.5 e2e + ⭐ yema G4.x 5 张 signoff 截屏 demo

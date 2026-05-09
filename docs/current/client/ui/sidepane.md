@@ -3,7 +3,7 @@
 > gh#682 (PR #695) — 5 个 sidepane (settings / agents / invitations / workspaces / remote-nodes) 切换从 5 boolean 合并成单 `mainView` 字符串状态机, 反 sidepane stacking bug.
 > 蓝图: `client-shape.md` § sidepane.
 
-## 1. 立场
+## 1. 设计
 
 5 个 sidepane (settings / agents / invitations / workspaces / remote-nodes) 同时只有一个能 active — 之前用 5 个独立 boolean (showSettings / showAgents / ...), 切换之间状态相互踩 (打开 settings 没关 agents → stacking bug, 显示叠 sidepane). 改成单一字符串 `mainView: MainView` 状态机, 反 stacking + 反落差 state.
 
@@ -76,7 +76,7 @@ function closeAllViews() {
 - `packages/client/src/__tests__/main-view.test.tsx` (≥6 case): mainView 默认 'channel' / requestMainView 切换 / runUnsavedGuards 拦截 / closeAllViews 回 'channel' / 反 5 boolean 同时 true / sidepane 切换 ESC 关
 - e2e: `gh-682-sidepane-mainview.spec.ts` — 真 UI 切 sidepane + dirty form 拦截 + Back 按钮回主视图
 
-## 7. 锚
+## 7. 相关参考
 
 - 蓝图: `client-shape.md` § sidepane
 - spec: 无单独 spec (gh#682 直接 PR)

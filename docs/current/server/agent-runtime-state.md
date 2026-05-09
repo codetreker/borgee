@@ -74,12 +74,12 @@ GET  /admin-api/v1/runtimes                 admin god-mode whitelist (no last_er
 
 start + stop 二次防护 = `auth.RequirePermission(s, "agent.runtime.control", nil)` middleware (acceptance §4.6 字面 grep `RequirePermission..agent\.runtime\.control` count≥2 锁两路命中)。
 
-立场反查 (al-4-spec.md §0 + acceptance §4):
+设计原则反查 (al-4-spec.md §0 + acceptance §4):
 
 - ① Borgee 不带 runtime: server 仅记 process descriptor, 不存 `llm_provider` / `model_name` / `api_key` / `prompt_template` (schema 闸位已就位 #398).
-- ② admin god-mode 元数据 only: admin endpoint 返白名单不写; `last_error_reason` raw 不返 (admin-rail 反向 grep `admin.*runtime.*start|admin.*runtime.*stop` count==0).
+- ② admin god-mode 元数据 only: admin endpoint 返白名单不写; `last_error_reason` raw 不返 (admin-rail grep 检查 `admin.*runtime.*start|admin.*runtime.*stop` count==0).
 - ③ runtime status ≠ presence: heartbeat 写 `agent_runtimes.last_heartbeat_at` 不写 `presence_sessions` (跟 AL-3 SessionsTracker 边界拆死 — schema 闸位已就位 #398, handler 不 import `internal/presence` 写表).
 - ④ status DM 文案锁 byte-identical: "{agent_name} 已启动" / "已停止" / "出错: {reason}" 跟野马 #321 三处单测同源.
 - ⑤ reason 复用 AL-1a #249 6 reason 枚举字面 + AL-4 stub fail-closed 加 `runtime_not_registered` 第 7 reason — 不另起字典 (跟 `agent/state.go Reason*` + `lib/agent-state.ts REASON_LABELS` byte-identical).
-- ⑥ 走 BPP-1 既有 frame 不裂 namespace: register / start / stop **不发** `runtime.start` / `runtime.stop` 自造 frame type (acceptance §4.4 反向 grep count==0).
+- ⑥ 走 BPP-1 既有 frame 不裂 namespace: register / start / stop **不发** `runtime.start` / `runtime.stop` 自造 frame type (acceptance §4.4 grep 检查 count==0).
 

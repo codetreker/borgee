@@ -67,9 +67,9 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 | `drawer/split/fullscreen → fullscreen` | `setFullscreen(true)` | mobile 降级; closed 态保持 closed |
 | `fullscreen → drawer` | `setFullscreen(false)` | mobile 退出全屏 |
 
-**反约束** (spec §0 立场 ②):
+**反约束** (spec §0 ②):
 - `closed → split` 直接 reject (`promoteToSplit()` 在 `mode==='closed'` 时 no-op + 返 `false`) — 必先经 drawer
-- 反向 grep 锚: `SplitView.*directOpen|artifact.*autoSplit|setMode\(['"]split['"]\)` 仅命中 ArtifactDrawer drag handler 一处
+- grep 检查: `SplitView.*directOpen|artifact.*autoSplit|setMode\(['"]split['"]\)` 仅命中 ArtifactDrawer drag handler 一处
 
 ### `open(artifactId)` 行为细则
 
@@ -98,7 +98,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 | `div[data-testid="app-shell-artifact-fullscreen"]`    | fullscreen 时挂 (`role="dialog"`) |
 | `div[data-testid="app-shell-sidebar-overlay"]`        | mobile sidebar overlay |
 
-## 反向 grep 守门
+## grep 守门
 
 | 锚 | 期望 |
 |---|---|

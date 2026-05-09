@@ -2,7 +2,7 @@
 
 > 落地: PR feat/adm-3 · ADM3.1 (server query helper + admin endpoint) + ADM3.2 (client admin UI) + ADM3.3 closure
 > 蓝图锚: admin-model.md §1.4 来源透明 (人/agent/admin/混合)
-> 立场承袭: [`adm-3-spec.md`](../../implementation/modules/adm-3-spec.md) v1 §0 ① DL-1+DL-2 + ADM-2/ADM-3 #586 audit_events byte-identical + ② 0 schema 改 + 4 source enum SSOT + ③ 0 user-rail / admin god-mode 路径独立
+> 设计沿用: [`adm-3-spec.md`](../../implementation/modules/adm-3-spec.md) v1 §0 ① DL-1+DL-2 + ADM-2/ADM-3 #586 audit_events byte-identical + ② 0 schema 改 + 4 source enum SSOT + ③ 0 user-rail / admin god-mode 路径独立
 
 ## 1. 文件清单
 
@@ -11,7 +11,7 @@
 | `internal/api/admin_audit_query.go` | 260 | 4 source enum SSOT + AdminAuditMultiSourceHandler + MultiSourceAuditQuery UNION ALL + queryAuditEvents + queryAgentEvents + sortByTSDesc |
 | `internal/api/admin_audit_query_test.go` | 250 | 9 server unit (4 source byte-identical + 4 source UNION + filter + InvalidSource + TimeRange + InvalidTimeRange + OrderTSDesc + UserCookieRejected + UnauthRejected + LimitClamp + HostBridgePlaceholder) |
 | `internal/server/server.go` 扩 | +5 | NewAdminAuditMultiSourceHandler.RegisterAdminRoutes(s.mux, adminMw) wire |
-| `internal/api/agent_log_filter_test.go` 改 | +1 allow | AL-8 既有 reverse-grep `/admin-api/v1/audit/<not-log>` 加 `/multi-source` 单一白名单 (spec §0 立场 ② 授权端点) |
+| `internal/api/agent_log_filter_test.go` 改 | +1 allow | AL-8 既有 reverse-grep `/admin-api/v1/audit/<not-log>` 加 `/multi-source` 单一白名单 (spec §0 ② 授权端点) |
 | `packages/client/src/admin/api.ts` 扩 | +35 | AUDIT_SOURCES 4-tuple + AuditSource type + MultiSourceAuditRow + fetchMultiSourceAudit |
 | `packages/client/src/admin/pages/MultiSourceAuditPage.tsx` | 150 | 4 source badge + filter dropdown + table view + DOM 锚 |
 | `packages/client/src/admin/AdminApp.tsx` 扩 | +3 | nav 加 `/admin/audit-multi-source` route |
@@ -23,7 +23,7 @@
 |---|---|---|
 | `AuditSourceServer` | `"server"` | audit_events (action 非 plugin_*) — ADM-2 #484 admin actions |
 | `AuditSourcePlugin` | `"plugin"` | audit_events (action plugin_* prefix) — BPP-8 #532 lifecycle |
-| `AuditSourceHostBridge` | `"host_bridge"` | HB-1 audit 表 (placeholder, 0 行) — 留 HB-1 follow-up 真接 |
+| `AuditSourceHostBridge` | `"host_bridge"` | HB-1 audit 表 (placeholder, 0 行) — 留 HB-1 后续 PR 真接 |
 | `AuditSourceAgent` | `"agent"` | DL-2 #615 channel_events + global_events UNION ALL |
 
 `AuditSources` slice 4-elem ordering 单源 (改 = 改 server const + client `AUDIT_SOURCES` + i18n `SOURCE_LABEL` 三处).
@@ -56,9 +56,9 @@
 - ADM-3 #586 RENAME audit_events 表 + alias view backward compat
 - BPP-8 #532 plugin lifecycle action `plugin_*` prefix (DB CHECK enum)
 - DL-2 #615 channel_events + global_events 双流 + mustPersistKinds (agent kind 走 cold consumer)
-- reasons.IsValid #496 / NAMING-1 #614 / DL-2 mustPersistKinds enum SSOT 模式
+- reasons.IsValid #496 / NAMING-1 #614 / DL-2 mustPersistKinds enum SSOT 同模式
 - ADM-0 §1.3 admin god-mode 红线 (反 user-rail 漂)
-- post-#618 haystack gate Func=50/Pkg=70/Total=85 (TEST-FIX-3-COV 立场承袭)
+- post-#618 haystack gate Func=50/Pkg=70/Total=85 (跟 TEST-FIX-3-COV 一致)
 - AL-8 既有 reverse-grep 测试加 `/multi-source` 白名单单一例外
 
 ## 6. Tests + verify
@@ -68,7 +68,7 @@
 - `pnpm exec vitest run` 99 file 655 tests 全 PASS ✅
 - haystack gate TOTAL 85.6% / 0 func<50% / exit 0 ✅
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - 4 source const SSOT: `grep AuditSource{Server,Plugin,HostBridge,Agent} admin_audit_query.go` ==4 hit
 - 0 schema 改: `git diff origin/main -- migrations/` 0 行
@@ -80,7 +80,7 @@
 
 ## 8. 留账 (透明)
 
-- HB-1 audit 表未落 v1 — host_bridge source 走 placeholder 0 行 (留 HB-1 follow-up 真接)
+- HB-1 audit 表未落 v1 — host_bridge source 走 placeholder 0 行 (留 HB-1 后续真接)
 - 跨 source 反向追溯链 (agent action → host_bridge syscall trace) 留 v3+
 - audit FTS 搜索 留 v3+ (本 v1 走 LIKE 简单 filter)
 - audit retention 跨 source 统一 留 各 source 既有阈值 (DL-2 retention sweeper / ADM-3 audit_events forward-only)

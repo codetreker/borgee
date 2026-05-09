@@ -2,7 +2,7 @@
 
 > 落地: PR feat/naming-1 · N1.1 (A 文件 + B struct/handler + C test func) + N1.2 (E modules→architecture) + N1.3 closure
 > 蓝图锚: naming convention 元 milestone (跟 REFACTOR-1/2 / INFRA-3/4 同等级)
-> 立场承袭: [`naming-1-spec.md`](../../implementation/modules/naming-1-spec.md) §0 ① 0 行为改 + ② 5 类 rename 一次全清 + ③ 0 schema/endpoint/v 号
+> 设计沿用: [`naming-1-spec.md`](../../implementation/modules/naming-1-spec.md) §0 ① 0 行为改 + ② 5 类 rename 一次全清 + ③ 0 schema/endpoint/v 号
 
 ## 1. 5 类 rename scope
 
@@ -28,7 +28,7 @@
 | 字面 | baseline | 当前 | 锚 |
 |---|---|---|---|
 | HTTP status code 字面 | byte-identical | byte-identical ✅ | rename 仅动文件路径 / 类型符号 / 测试函数名 |
-| error reason code 字面 (`layout.dm_not_grouped` ≥19 / `dm.edit_only_in_dm` 7 / `pin.dm_only_path` 等) | baseline | baseline ✅ | REFACTOR-1/2 锁链承袭 |
+| error reason code 字面 (`layout.dm_not_grouped` ≥19 / `dm.edit_only_in_dm` 7 / `pin.dm_only_path` 等) | baseline | baseline ✅ | 跟 REFACTOR-1/2 锁链一致 |
 | audit log 字段 + WS broadcast event 名 | byte-identical | byte-identical ✅ | rename 不动 audit/ws |
 | migration Version 数值 (v=1..v=45) | 不动 | 不动 ✅ | git diff origin/main -- migrations/ \| grep '^+.*Version:' 0 hit |
 | DB schema column 名 | 不动 | 不动 ✅ | rename 仅 var 名不动 column |
@@ -36,15 +36,15 @@
 
 ## 4. 跨 milestone byte-identical 锁链
 
-- INFRA-3 #594 git mv rename detection 模式 (PROGRESS 子文件迁同精神)
-- REFACTOR-1 #611 / REFACTOR-2 #613 字面 content-lock 必修条件承袭
+- INFRA-3 #594 git mv rename detection 同模式 (PROGRESS 子文件迁同精神)
+- REFACTOR-1 #611 / REFACTOR-2 #613 字面 content-lock 必修条件沿用
 - BPP-3 / reasons.IsValid SSOT 单源精神 (rename 后单源不漂)
 - TEST-FIX-3-COV #612 haystack gate 三轨 (Func=50/Pkg=70/Total=85, rename 后必过)
 - 0-行为-改 wrapper 决策树**变体** (跟 REFACTOR-1/2 / INFRA-3/4 / CV-15 / TEST-FIX-3 同源)
 
 ## 5. 留账透明
 
-- ❌ Test func collision-keep — 飞马 audit 反转: 90 处全 unique 化 (file-prefix functionality suffix, 不留 NAMING-2). 实施 commit c2d192c4: `Test<Domain>\d+_X` → `Test<FilePrefixCamel>_X` (e.g. TestCHN51_NoSchemaChange → TestChn5archived_NoSchemaChange). 反向 grep `Test(CHN|DM|RT|AL|CV|BPP|HB|AP|ADM|CM|CS|DL)[0-9]+` ==0.
+- ❌ Test func collision-keep — 飞马 audit 反转: 90 处全 unique 化 (file-prefix functionality suffix, 不留 NAMING-2). 实施 commit c2d192c4: `Test<Domain>\d+_X` → `Test<FilePrefixCamel>_X` (e.g. TestCHN51_NoSchemaChange → TestChn5archived_NoSchemaChange). grep 检查 `Test(CHN|DM|RT|AL|CV|BPP|HB|AP|ADM|CM|CS|DL)[0-9]+` ==0.
 - ❌ REFACTOR-3 (cursor envelope 深化 / messages.go 长函数拆 / store query helper 整合) — 留 REFACTOR-3 议程, 跟本 NAMING-1 不同 concern
 - ❌ DOM data-attr / CSS class 命名归一 (e.g. `data-cv7-comment-input`) — content-lock 绑, 留 v3+ 议程
 - ❌ DB column 名改 — 0 schema 改铁律
@@ -57,7 +57,7 @@
 - `go vet ./...` 0 redeclared ✅
 - post-#613 haystack gate TOTAL 85.5%, no func<50%, no pkg<70% ✅
 
-## 7. 反向 grep 守门
+## 7. grep 守门
 
 - 文件 milestone-prefix 0 残留: `find packages/server-go/internal -name '*.go' | grep -cE '/(al|chn|dm|cv|bpp|hb|rt|ap|adm|cm|cs|dl|infra|test_fix)_[0-9]'` ==0
 - struct/handler milestone-prefix 0 残留: `grep -rE 'type [A-Z]+[0-9]+[A-Z][a-zA-Z]*Handler'` 0 hit

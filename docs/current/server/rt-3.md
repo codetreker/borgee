@@ -2,7 +2,7 @@
 
 > 落地: PR feat/rt-3 · RT-3.1 server (PresenceState enum + ThinkingErrCodeSubjectRequired const) + RT-3.2 client (useRT3Presence hook + RT3PresenceDot component) + closure (REG-RT3-007/008)
 > 蓝图锚: [`realtime.md`](../../blueprint/current/realtime.md) §0 + §1.1 (thinking subject ⭐) + §1.4 (活物感 4 态)
-> 立场承袭: [`rt-3-spec.md`](../../implementation/modules/rt-3-spec.md) §0 ① DL-1+RT-1 byte-identical + ② 4 态 enum SSOT + thinking subject 必带 + ③ 0 schema/endpoint 改
+> 设计沿用: [`rt-3-spec.md`](../../implementation/modules/rt-3-spec.md) §0 ① DL-1+RT-1 byte-identical + ② 4 态 enum SSOT + thinking subject 必带 + ③ 0 schema/endpoint 改
 
 ## 1. PresenceState 4 态 enum SSOT (`internal/datalayer/presence.go`)
 
@@ -13,13 +13,13 @@
 | offline | `PresenceStateOffline = "offline"` | 0 live session | `data-rt3-presence-dot=offline` + `离线` |
 | thinking | `PresenceStateThinking = "thinking"` | agent 执行任务 (走 bpp.task_started + Subject 必带非空) | `data-rt3-presence-dot=recently-active` (subject 由 caller UI 显示) |
 
-**反约束**: 4 态封闭枚举 (反 PresenceStateTyping/Composing/Idle/Pending/Loading 漂 — 反向 grep 0 hit).
+**反约束**: 4 态封闭枚举 (反 PresenceStateTyping/Composing/Idle/Pending/Loading 漂 — grep 检查 0 hit).
 
 ## 2. thinking subject 反约束 (蓝图 §1.1 ⭐ 关键纪律)
 
 `internal/bpp/task_lifecycle.go` 加 `ThinkingErrCodeSubjectRequired = "thinking.subject_required"` wire-level reason code SSOT. server 走 `ValidateTaskStarted` SSOT (errSubjectEmpty sentinel) reject 空 subject; client 防御层 `markRT3Presence` 在 thinking 态 + 空 subject 时 drop, 反"假 loading" 漂.
 
-跟 chn-3 content-lock 5 源 byte-identical 守门模式承袭 (改 = 改三处: 此 const + acceptance §2.3 + content-lock §3).
+跟 chn-3 content-lock 5 源 byte-identical 守门同模式 (改 = 改三处: 此 const + acceptance §2.3 + content-lock §3).
 
 ## 3. client UI (`packages/client/src/`)
 
@@ -33,15 +33,15 @@
 ## 4. 跨 milestone byte-identical 锁链
 
 - **DL-1 #609** EventBus + PresenceStore interface signature 不破 (RT-3 仅扩 PresenceState enum, 不改 method 签名)
-- **RT-1 #290** cursor 协议 ULID `kind+ulid` byte-identical 承袭 (RT-3 multi-device fanout 走 hub.cursors 单源)
-- **reasons.IsValid #496** / **AP-4-enum #591** / **NAMING-1 #614** enum SSOT 模式 (PresenceState 4 态单源)
+- **RT-1 #290** cursor 协议 ULID `kind+ulid` byte-identical 沿用 (RT-3 multi-device fanout 走 hub.cursors 单源)
+- **reasons.IsValid #496** / **AP-4-enum #591** / **NAMING-1 #614** enum SSOT 同模式 (PresenceState 4 态单源)
 - **chn-3 content-lock §1** 字面锁 (thinking.subject_required 5 源 byte-identical)
-- **thought-process 5-pattern 锁链 RT-3 = 第 N+1 处延伸** (BPP-3 + CV-* + DM-* 既有锁链承袭)
+- **thought-process 5-pattern 锁链 RT-3 = 第 N+1 处延伸** (跟 BPP-3 + CV-* + DM-* 既有锁链一致)
 - **admin god-mode 不挂红线** (ADM-0 §1.3, RT-3 域不挂)
 
-## 5. 字面锚 (PR body 用)
+## 5. 字面检查项 (PR body 用)
 
-| 锚 | 期望 | 当前 |
+| 检查项 | 期望 | 当前 |
 |---|---|---|
 | `PresenceStateOnline\|Away\|Offline\|Thinking` const | 4 hit (单源) | ✅ 4 |
 | `ThinkingErrCodeSubjectRequired = "thinking.subject_required"` | 1 hit | ✅ 1 |
@@ -54,8 +54,8 @@
 ## 6. 反约束 / 不在范围
 
 - ❌ events 接 RT-3 fanout 上游 hook (留 DL-2 cold-stream wire-up — 真架构边界, 飞马 audit 接受)
-- ❌ typing-indicator 真启 (永久不挂, thought-process 5-pattern 锁链立场)
-- ❌ last-seen UI 跨设备 sync (留 RT-3.2 follow-up)
+- ❌ typing-indicator 真启 (永久不挂, 跟 thought-process 5-pattern 锁链一致)
+- ❌ last-seen UI 跨设备 sync (留 RT-3.2 后续)
 - ❌ agent presence (蓝图 §1.4 仅人类 4 态; agent 走 BPP heartbeat HB-1..6)
 - ❌ session_resume_hint (蓝图 §1.3 留 DL-5+)
 - ❌ per-channel presence 视图 (留 v3+)
