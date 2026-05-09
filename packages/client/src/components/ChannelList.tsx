@@ -100,7 +100,7 @@ export default function ChannelList({ channels, currentChannelId, onSelectChanne
 
   // CHN-3.3 — personal layout position overrides author-side sort:
   // pinned (position < 0) bubbles to top, then fall through to author
-  // ordering (chs.position localeCompare). 立场 ⑥ ordering client 端事.
+  // ordering (chs.position localeCompare). 设计 ⑥ ordering client 端事.
   const sortChannels = (chs: Channel[]) => {
     return [...chs].sort((a, b) => {
       const ap = (state.currentUser && isPinned(a.id)) ? -1 : 0;

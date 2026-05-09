@@ -6,7 +6,7 @@
 // Spec: docs/implementation/modules/adm-2-spec.md §2.2.
 //
 // DOM 锚: `[data-section="admin-actions-history"]` + 每行 `[data-action-row]`.
-// 立场 ④ user 只见自己 — 走 GET /api/v1/me/admin-actions, 反向 ?target_user_id
+// 设计 ④ user 只见自己 — 走 GET /api/v1/me/admin-actions, 反向 ?target_user_id
 // 参数 server 端被忽略.
 import { useEffect, useState } from 'react';
 

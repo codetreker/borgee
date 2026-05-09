@@ -1,11 +1,11 @@
 // DiffView — CV-4.3 client jsdiff 行级蓝绿配色 diff view.
 //
-// Spec: docs/implementation/modules/cv-4-spec.md §0 立场 ③
+// Spec: docs/implementation/modules/cv-4-spec.md §0 设计 ③
 //   (client jsdiff 不裂 server diff). 文案锁:
 //   docs/qa/cv-4-content-lock.md §1 ⑤. Acceptance: cv-4.md §3.5.
 // Stance: docs/qa/cv-4-stance-checklist.md §1 ③.
 //
-// 立场反查:
+// 设计反查:
 //   - ③ 走 client jsdiff 行级 (jsdiff diffLines), 不裂 schema 不裂 endpoint.
 //     反约束: server 不算 diff (CRDT 巨坑同源, 蓝图 §2 字面禁); 不存
 //     diff 缓存 (查时即算 ≤500ms 实测够 markdown 数 KB).
@@ -20,7 +20,7 @@
 //
 // 反约束 (本组件强制 grep 锚):
 //   - 不接 tab 文案的全名词扩展形式 (单字锁)
-//   - 不接 server diff endpoint 调用 (跟 spec §0 立场 ③ 同源)
+//   - 不接 server diff endpoint 调用 (跟 spec §0 设计 ③ 同源)
 //   - image_link kind 走 fallback 前后缩略图并排 (jsdiff 不适用)
 import { useMemo } from 'react';
 import { diffLines } from 'diff';
@@ -120,8 +120,8 @@ export default function DiffView({ newBody, newVersion, oldBody, oldVersion, kin
       <h4 className="diff-title">{`v${newVersion} ↔ v${oldVersion}`}</h4>
       <pre className="diff-pre">
         {rows.map((row, i) => {
-          // 立场 ③ a11y — 三 enum 字面 byte-identical (content-lock §1 ⑤).
-          // 反向 grep 锚: data-diff-line="add" / data-diff-line="del" /
+          // 设计 ③ a11y — 三 enum 字面 byte-identical (content-lock §1 ⑤).
+          // grep 检查项: data-diff-line="add" / data-diff-line="del" /
           // data-diff-line="context" 三 enum 各 ≥1.
           if (row.kind === 'add') {
             return (

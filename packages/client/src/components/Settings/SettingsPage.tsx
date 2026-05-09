@@ -4,7 +4,7 @@
 // Spec: docs/qa/adm-1-implementation-spec.md §1 + docs/implementation/modules/adm-2-spec.md §2
 // Acceptance: docs/qa/acceptance-templates/adm-1.md §2 + adm-2.md §4.1.c+§4.2.a
 //
-// 立场反查:
+// 设计反查:
 //   - v1 仅一个 tab "隐私" 默认展开 (反 details-element 包裹, acceptance §2.3)
 //   - 后续 tab (账号 / 通知) 留 placeholder 但不入 v1
 //   - 跟 admin SPA SettingsPage (packages/client/src/admin/pages/) 路径分叉
@@ -66,14 +66,14 @@ export default function SettingsPage({ onBack }: Props) {
         {activeTab === 'privacy' && (
           <>
             <PrivacyPromise />
-            {/* ADM-2.2 业主授权 24h impersonate (acceptance §4.2.a; 立场 ⑦ +
+            {/* ADM-2.2 业主授权 24h impersonate (acceptance §4.2.a; 设计 ⑦ +
                 content-lock §3) — 跟 PrivacyPromise 同 tab. */}
             <ImpersonateGrantSection
               fetchGrant={() => getMyImpersonateGrant().then((r) => r.grant)}
               createGrant={() => createMyImpersonateGrant().then((r) => r.grant)}
               revokeGrant={() => revokeMyImpersonateGrant()}
             />
-            {/* ADM-2.2 影响记录 (acceptance §4.1.c; 立场 ④ 只见自己 +
+            {/* ADM-2.2 影响记录 (acceptance §4.1.c; 设计 ④ 只见自己 +
                 content-lock §4 字面). */}
             <AdminActionsList
               fetchActions={() => getMyAdminActions().then((r) => r.actions)}

@@ -4,7 +4,7 @@
 //   - 文案 byte-identical: `置顶` 1 字 (未 pin) / `取消置顶` 3 字 (已 pin)
 //   - data-action="pin" / "unpin" 二态
 //   - 同义词反向 reject: 收藏/标星/star/favorite/top/顶置/钉住 0 hit
-//   - 调用 lib/api.ts::pinChannel 单源; 反向 grep components/ inline
+//   - 调用 lib/api.ts::pinChannel 单源; grep 检查 components/ inline
 //     fetch 0 hit
 import { useState } from 'react';
 import { pinChannel } from '../lib/api';

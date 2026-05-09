@@ -28,7 +28,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
   const [switching, setSwitching] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // CHN-1.3 立场 ⑤: archive UI gate. Owner-only flip; server stamps
+  // CHN-1.3 设计 ⑤: archive UI gate. Owner-only flip; server stamps
   // archived_at and emits the system DM ("channel #{name} 已被 ... 关闭于 ...").
   const [archiving, setArchiving] = useState(false);
 
@@ -130,7 +130,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
     }
   };
 
-  // CHN-1.3 立场 ⑤: archive flip. Server-stamped timestamp + fanout system DM
+  // CHN-1.3 设计 ⑤: archive flip. Server-stamped timestamp + fanout system DM
   // (channel-model.md §2 不变量 #3 — archive preserves history).
   const isArchived = (channel?.archived_at ?? null) != null;
   const handleArchive = async () => {
@@ -203,7 +203,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
                     {...(m.role === 'agent'
                       ? {
                           // CM-5.3 client SPA: agent collab hover link.
-                          // 立场 ⑤ owner-first 透明协作 — agent 跟人 path
+                          // 设计 ⑤ owner-first 透明协作 — agent 跟人 path
                           // 同源, hover 显示 "正在协作" 提示给 owner 视角
                           // 看见 agent 工作链路. 反约束: 不订阅 push frame
                           // (走 channel members 既有 lookup), 不引 ai_only

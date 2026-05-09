@@ -7,7 +7,7 @@
 // Spec: docs/implementation/modules/adm-2-spec.md §2.5.
 //
 // DOM 锚: `[data-section="impersonate-grant"]` + `[data-action="grant-impersonate"]`.
-// 立场 ⑦ 蓝图 §3 字面 "由 user 创建": 业主自己 grant; 24h 期限 server 固定.
+// 设计 ⑦ 蓝图 §3 字面 "由 user 创建": 业主自己 grant; 24h 期限 server 固定.
 import { useEffect, useState } from 'react';
 
 interface ImpersonateGrant {

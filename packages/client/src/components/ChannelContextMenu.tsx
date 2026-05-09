@@ -5,8 +5,8 @@
 // byte-identical 2 字面锁) + ⑤ (DM 行不弹 — 反约束 5 源 byte-identical
 // #366 ④ + #364 + #371 ② + #376 §3.4 + #382 ⑤).
 //
-// 立场 ③ pin = position MIN-1.0 单调小数 (server 不算, useUserLayout 算).
-// 立场 ④ DM 行 reverse-DOM omit — 不在此组件 mount; 调用方 (Sidebar)
+// 设计 ③ pin = position MIN-1.0 单调小数 (server 不算, useUserLayout 算).
+// 设计 ④ DM 行 reverse-DOM omit — 不在此组件 mount; 调用方 (Sidebar)
 // 必须按 channel.type==='dm' 守门, defense-in-depth 锁.
 //
 // DOM lock byte-identical (cv-3-content-lock.md ③ + reverse grep ≥2):
@@ -26,7 +26,7 @@ interface Props {
 }
 
 // 字面锁 byte-identical 跟 chn-3-content-lock.md ③ 同源. Drift here →
-// vitest chn-3-content-lock.test.ts 反向 grep fail.
+// vitest chn-3-content-lock.test.ts grep 检查 fail.
 export const PIN_LITERAL = '置顶';
 export const UNPIN_LITERAL = '取消置顶';
 

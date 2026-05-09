@@ -6,7 +6,7 @@
 // Stance: docs/qa/cv-12-stance-checklist.md §4.
 // Content-lock: docs/qa/cv-12-content-lock.md §1+§2.
 //
-// 立场反查:
+// 设计反查:
 //   - ① 复用既有 search endpoint 单源 (0 server code).
 //   - ④ DOM `data-cv12-search-input` + `data-cv12-search-result-id` 锚 +
 //     文案 "未找到匹配评论" byte-identical; 空 query 不调 API.
@@ -38,7 +38,7 @@ export default function ArtifactCommentSearchBox({
 
   const onSubmit = useCallback(async () => {
     const q = query.trim();
-    // 立场 ④ 空 query 不调 API.
+    // 设计 ④ 空 query 不调 API.
     if (q === '') {
       setHits(null);
       return;

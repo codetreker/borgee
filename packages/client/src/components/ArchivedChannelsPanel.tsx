@@ -8,7 +8,7 @@
 //   - DOM byte-identical: <details> + <summary>已归档频道</summary> +
 //     data-testid="archived-channels-panel" + data-archived="true" +
 //     button data-action="restore" + 文案 `恢复` 1 字 / `已归档` badge.
-//   - 同义词反向 reject: 反向 grep `存档/封存/还原/解档/重启/restore` 0 hit.
+//   - 同义词反向 reject: grep 检查 `存档/封存/还原/解档/重启/restore` 0 hit.
 //   - lib/api.ts::listArchivedChannels / archiveChannel 单源调用.
 //
 // CHN-1.3 #288 SortableChannelItem `已归档` badge 字面 byte-identical.

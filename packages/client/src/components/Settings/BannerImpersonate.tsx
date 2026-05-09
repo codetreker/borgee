@@ -9,10 +9,10 @@
 // DOM 锚 (e2e/反查): `[data-banner="impersonate-active"]` 跟 ADM-1
 // `data-row-kind` / CHN-3 `data-collapsed` 同模式 — e2e visibility lock.
 //
-// 立场反查:
-//   - 立场 ⑦ impersonate 显眼: 横幅常驻 (无 dismiss 按钮, 蓝图 R3 字面);
+// 设计反查:
+//   - 设计 ⑦ impersonate 显眼: 横幅常驻 (无 dismiss 按钮, 蓝图 R3 字面);
 //     倒计时 setInterval(1000) 重算 client 端 (反约束: server 不 push 第 5
-//     RT-1 frame, 跟 CHN-4 立场 ⑥ 同精神 — 客户端轻量 polling 即可).
+//     RT-1 frame, 跟 CHN-4 设计 ⑥ 同精神 — 客户端轻量 polling 即可).
 //   - admin_username 走 server 派生 (sanitizeImpersonateGrant 不返 raw
 //     actor_id; 此组件接收 string admin_login 走 GET 响应; 反向 ADM2-NEG-001
 //     不渲染 raw UUID).
@@ -50,7 +50,7 @@ export default function BannerImpersonate({ fetchGrant, revokeGrant }: Props) {
   const [grant, setGrant] = useState<ImpersonateGrant | null>(null);
   const [now, setNow] = useState(Date.now());
 
-  // Initial fetch + 30s 轮询 (反约束: 不依赖 ws frame, 立场 ⑥).
+  // Initial fetch + 30s 轮询 (反约束: 不依赖 ws frame, 设计 ⑥).
   useEffect(() => {
     let cancelled = false;
     const reload = () => {

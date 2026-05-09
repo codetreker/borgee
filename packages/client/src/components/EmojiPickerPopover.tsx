@@ -4,7 +4,7 @@
 // Stance: docs/qa/dm-9-stance-checklist.md §1-§5.
 // Content-lock: docs/qa/dm-9-content-lock.md §1+§2+§3 (preset + 文案 + DOM SSOT).
 //
-// 立场反查 (dm-9-spec.md §0):
+// 设计反查 (dm-9-spec.md §0):
 //   ① 0 server production code — 复用 CV-7 #535 PUT /api/v1/messages/{id}/reactions
 //      + AP-4 #551 channel-member ACL gate. 反 v=39 schema 硬锁.
 //   ② 5-emoji preset byte-identical 顺序 (👍 ❤️ 😄 🎉 🚀).

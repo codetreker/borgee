@@ -5,7 +5,7 @@
 // Acceptance: docs/qa/acceptance-templates/adm-1.md §1/§2/§3 (11 验收项)
 // 反查表: docs/qa/adm-1-privacy-promise-checklist.md (野马 #211/#228 spec)
 //
-// 立场反查 (admin-model.md §0):
+// 设计反查 (admin-model.md §0):
 //   - "强权但不窥视" — admin 是平台运维, 不是协作者
 //   - admin 看元数据不看正文 (DM body / artifact / API key 全 ❌)
 //   - impersonate 是临时 amber 态 (24h 红色横幅常驻, 可撤销)
@@ -14,7 +14,7 @@
 //   - 默认展开不可折叠 (野马 R3 反 details-element 包裹; spec §4 第 2 项)
 //   - 三色锁 byte-identical (gray / #d33 红 / #d97706 amber, 不开第 4 色)
 //   - 文案 1:1 跟 admin-model §4.1 + spec §2 同源 (drift test 双声明锁)
-//   - 反向 grep 折叠 / 展开收起 同义词 0 hit (acceptance §2.3)
+//   - grep 检查 折叠 / 展开收起 同义词 0 hit (acceptance §2.3)
 import { renderMarkdown } from '../../lib/markdown';
 
 /**
@@ -51,7 +51,7 @@ export default function PrivacyPromise() {
     <section className="privacy-promise" data-section="privacy-promise">
       <h2 className="privacy-promise-title">隐私承诺</h2>
 
-      {/* 立场 §4.1 — 三条承诺字面 1:1 (drift test 锁); 默认展开不可折叠
+      {/* 设计 §4.1 — 三条承诺字面 1:1 (drift test 锁); 默认展开不可折叠
           (野马 R3 spec §4 第 2 项, 反 details-element 包裹). */}
       <ol className="privacy-promise-list">
         {PRIVACY_PROMISES.map((promise, i) => (
@@ -59,7 +59,7 @@ export default function PrivacyPromise() {
             key={i}
             className="privacy-promise-item"
             // marked + DOMPurify 渲染 **bold** (跟 system message bubble
-            // 同 stack, 立场 ④ Markdown ONLY 同源).
+            // 同 stack, 设计 ④ Markdown ONLY 同源).
             dangerouslySetInnerHTML={{ __html: renderMarkdown(promise) }}
           />
         ))}

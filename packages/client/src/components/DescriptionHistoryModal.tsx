@@ -35,8 +35,8 @@ export function DescriptionHistoryModal({ channelID, onClose }: Props) {
       </div>
     );
   }
-  // CHN-14 立场略别于 DM-7 — empty 也渲染 modal + 显式空态文案 `暂无编辑记录`
-  // (DM-7 立场是空 → return null; CHN-14 owner-only 触发, 空也要给反馈).
+  // CHN-14 设计略别于 DM-7 — empty 也渲染 modal + 显式空态文案 `暂无编辑记录`
+  // (DM-7 设计是空 → return null; CHN-14 owner-only 触发, 空也要给反馈).
   if (history === null) {
     return null;
   }

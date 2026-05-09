@@ -8,7 +8,7 @@
 //   - 主区 → 单栏 full width
 //   - Artifact split → 全屏 modal (mode='fullscreen')
 //
-// 立场 (spec §0):
+// 设计 (spec §0):
 //   ① 三栏 byte-identical 跟蓝图 §1.2 ASCII (240px / 1fr / 380px / 768px breakpoint)
 //   ② Artifact 4 态 state machine 单源 (useArtifactPanel hook)
 //   ③ 复用既有 Sidebar / ChannelView / ArtifactPanel byte-identical (Wrapper milestone)

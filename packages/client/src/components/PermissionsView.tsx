@@ -1,6 +1,6 @@
 // AP-2 client — PermissionsView component (capability 透明 UI 无角色名).
 //
-// 立场承袭 (ap-2-spec.md §0 + content-lock §1+§2):
+// 设计沿用 (ap-2-spec.md §0 + content-lock §1+§2):
 //   - 走 capability token 字面渲染 (反 RBAC 角色名漂入 UI)
 //   - capabilityLabel SSOT 单源 (反 inline 字面散落)
 //   - DOM data-attr SSOT: data-ap2-capability-row + data-ap2-capability-token
@@ -19,11 +19,11 @@ export interface PermissionsViewProps {
 
 interface MePermissionsResponse {
   user_id: string;
-  // role: kept for legacy callers; AP-2 立场 ② UI 不显此字段 (反 role bleed).
+  // role: kept for legacy callers; AP-2 设计 ② UI 不显此字段 (反 role bleed).
   role?: string;
   permissions: string[];
   details: PermissionEntry[];
-  // AP-2 立场 ② capability 数组 (server 新加, 跟 14 const SSOT byte-identical).
+  // AP-2 设计 ② capability 数组 (server 新加, 跟 14 const SSOT byte-identical).
   capabilities?: string[];
 }
 

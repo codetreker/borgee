@@ -22,7 +22,7 @@ export function DMThread({ parentId, replies, onSubmit }: DMThreadProps) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // 立场 ①: 空 thread 不渲染 toggle (return null).
+  // 设计 ①: 空 thread 不渲染 toggle (return null).
   if (replies.length === 0) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -1,6 +1,6 @@
 // IterationTimeline.tsx — CV-4 v2: artifact iteration history timeline.
 //
-// 立场 (跟 cv-4-v2-stance-checklist.md §1+§2+§3):
+// 设计 (跟 cv-4-v2-stance-checklist.md §1+§2+§3):
 //   ① iteration history 复用 v1 GET endpoint (listIterations + ?limit
 //      query, 不另起 history endpoint / sequence).
 //   ② thumbnail history 不存 — 直接显 row.preview_url 字段值 (来自父组件
@@ -27,7 +27,7 @@ export interface IterationTimelineProps {
   /** Server-fetched iteration rows (DESC by created_at). */
   iterations: ArtifactIteration[];
   /** Map artifact_version_id → preview_url (CV-3 v2 #517 字段复用,
-   *  立场 ② thumbnail history 不存 — 由父组件从 artifact_versions list
+   *  设计 ② thumbnail history 不存 — 由父组件从 artifact_versions list
    *  反查后传入, 不在此组件缓存). */
   versionPreviewMap?: Record<string, string | null>;
   /** Click callback — jumps to artifact version detail view. */

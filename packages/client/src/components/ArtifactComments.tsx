@@ -4,7 +4,7 @@
 // comment, 不是 Miro 白板". Spec: docs/implementation/modules/cv-5-spec.md
 // §1 CV-5.2 (client). Stance: docs/qa/cv-5-stance-checklist.md.
 //
-// 立场反查:
+// 设计反查:
 //   - ① comment 走 messages 表单源 — 不写 artifact_comments 类型, 调 postArtifactComment +
 //     listArtifactComments (服务端落 messages 表 + virtual `artifact:<id>` channel).
 //   - ② frame 信号 + 增量 append — useArtifactCommentAdded 监听 WS frame, 命中
@@ -48,7 +48,7 @@ export default function ArtifactComments({ artifactId }: ArtifactCommentsProps) 
     void refetch();
   }, [refetch]);
 
-  // 立场 ② WS frame signal — refetch when frame matches current artifact.
+  // 设计 ② WS frame signal — refetch when frame matches current artifact.
   // 反约束: 不用 frame.body_preview 作渲染源 — 服务端 80-rune cap.
   useArtifactCommentAdded(
     useCallback(

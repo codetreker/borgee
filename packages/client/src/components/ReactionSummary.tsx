@@ -5,7 +5,7 @@
 // Stance: docs/qa/dm-5-stance-checklist.md §4.
 // Content-lock: docs/qa/dm-5-content-lock.md §1+§2.
 //
-// 立场反查:
+// 设计反查:
 //   - ① 复用 CV-7 reaction endpoint 单源 (0 server code).
 //   - ④ DOM `data-dm5-reaction-chip` + `data-dm5-reaction-count` +
 //     `data-dm5-reaction-mine` 锚 + 文案 `{emoji} {count}` byte-identical.
@@ -60,7 +60,7 @@ export default function ReactionSummary({
     <div className="dm5-reaction-summary" data-testid="dm5-reaction-summary">
       {reactions.map((chip) => {
         const mine = chip.user_ids.includes(currentUserId);
-        // 立场 ④ 文案 byte-identical: `{emoji} {count}` 空格分隔.
+        // 设计 ④ 文案 byte-identical: `{emoji} {count}` 空格分隔.
         const label = `${chip.emoji} ${chip.count}`;
         const dataAttrs: Record<string, string | true> = {
           'data-dm5-reaction-chip': chip.emoji,

@@ -10,7 +10,7 @@
 //   </div>
 import React, { useState } from 'react';
 
-/** 核心 agent 故障阈值 — 5 min byte-identical 跟 cs-2-spec.md §0 立场 ②. */
+/** 核心 agent 故障阈值 — 5 min byte-identical 跟 cs-2-spec.md §0 设计 ②. */
 export const CORE_AGENT_FAILURE_THRESHOLD_MS = 5 * 60 * 1000;
 
 export interface FailureBannerAgent {

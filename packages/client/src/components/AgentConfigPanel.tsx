@@ -19,10 +19,10 @@
 //     不写入则消失, 跟 server TestAL2A2_PatchAndGet 显式断言对齐).
 //
 // 反约束:
-//   - 立场 ⑤ (蓝图 §1.4): runtime-only 字段 (api_key / temperature /
+//   - 设计 ⑤ (蓝图 §1.4): runtime-only 字段 (api_key / temperature /
 //     token_limit / retry_policy) 不入此 form (server fail-closed reject,
 //     此 UI 也不渲染对应输入框 — UI 层 + server 层双层 fail-closed).
-//   - 立场 ⑥ (蓝图 §1.5): 此组件不订阅 ws push (反向 grep 锚: 无 ws hub
+//   - 设计 ⑥ (蓝图 §1.5): 此组件不订阅 ws push (grep 检查项: 无 ws hub
 //     subscription 调用,
 //     reload 走轮询 — onMount + Save 后 re-fetch).
 
@@ -37,7 +37,7 @@ import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 
 // 失败 toast 文案锁 — 跟 server-go agent_config.go const
 // agentConfigSaveErrorMsg byte-identical 同源 (al-2a-content-lock.md ①).
-// 改此字面 = 改 server const + acceptance §4.1.d follow-up.
+// 改此字面 = 改 server const + acceptance §4.1.d 后续.
 export const AGENT_CONFIG_SAVE_TOAST = 'agent 配置保存失败, 请重试';
 
 // allowedConfigKeys whitelist — 跟 server-go internal/api/agent_config.go
@@ -64,7 +64,7 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // 立场 ⑥ 轮询 reload — 加载时 GET, Save 后 re-GET (无 ws subscription).
+  // 设计 ⑥ 轮询 reload — 加载时 GET, Save 后 re-GET (无 ws subscription).
   useEffect(() => {
     let cancelled = false;
     setLoading(true);

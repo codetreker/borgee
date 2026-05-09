@@ -36,7 +36,7 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
   const unread = channel.unread_count ?? 0;
   const isPrivate = channel.visibility === "private";
   const isMember = channel.is_member !== false;
-  // CHN-1.3 立场 ⑤: archived channels render with a dimmed style + 📦 marker
+  // CHN-1.3 设计 ⑤: archived channels render with a dimmed style + 📦 marker
   // so members see closures inline. Server-side they are filtered out of the
   // public discovery list for non-members; current member rows still see them
   // (history preservation, channel-model.md §2 不变量 #3).
@@ -61,7 +61,7 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
                     aria-label="拖拽调整顺序">⋮⋮</button>.
           反约束: DM 行不渲染 (Sidebar.tsx DMItem 绕过此组件; 此 component
           只服务 channel rows). isOwner 走作者侧 ≡ handle (CHN-1 #288); 非
-          owner 也可 reorder 自己侧栏 (CHN-3 立场 ① 物理拆死作者侧 vs 个人) —
+          owner 也可 reorder 自己侧栏 (CHN-3 设计 ① 物理拆死作者侧 vs 个人) —
           但 dnd-kit useSortable 的 ordering 影响只在本人 SPA 内, 写 PUT
           /me/layout (CHN-3.2). */}
       {!isArchived && (

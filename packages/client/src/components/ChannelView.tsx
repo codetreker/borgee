@@ -19,7 +19,7 @@ interface Props {
 
 // CHN-4 (#374) — URL `?tab=` deep-link 跟 server default_tab="chat" 同源.
 // channel.type IN ('private','public') 才生效; DM 视图永不渲染 tab 切换器
-// (CHN-2 立场 ② 7 源 byte-identical 锁), 故 DM 路径不走此函数.
+// (CHN-2 设计 ② 7 源 byte-identical 锁), 故 DM 路径不走此函数.
 //
 // 反约束: 'remote' / 'canvas' 仍是 v0 既有 tab (CHN-1 #288 字面承袭),
 // 但 deep-link 仅锁 chat / workspace 二态 (CHN-4 文案锁 §1 ① + spec
@@ -34,7 +34,7 @@ function initialTabFromURL(): TabKey {
   if (raw && (VALID_DEEPLINK_TABS as readonly string[]).includes(raw)) {
     return raw as TabKey;
   }
-  // server default_tab="chat" 字面 byte-identical (#374 立场 ⑥, content-lock §1 ④).
+  // server default_tab="chat" 字面 byte-identical (#374 设计 ⑥, content-lock §1 ④).
   return 'chat';
 }
 

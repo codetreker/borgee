@@ -4,7 +4,7 @@
 // Stance: docs/qa/cv-14-stance-checklist.md §1-§5.
 // Content-lock: docs/qa/cv-14-content-lock.md §1+§2 (文案 + DOM SSOT).
 //
-// 立场反查 (cv-14-spec.md §0):
+// 设计反查 (cv-14-spec.md §0):
 //   ① 0 server production code — 客户端纯订阅 useArtifactCommentAdded
 //      (CV-5 #530 既有 WS hook).
 //   ② 跟 CV-9 ArtifactCommentsMentionBadge 共存 — CV-14 仅 filter
@@ -36,7 +36,7 @@ export default function CommentUnreadBadge({
 }: CommentUnreadBadgeProps) {
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 立场 ② — filter sender_id != currentUserId. mention 走 CV-9
+  // 设计 ② — filter sender_id != currentUserId. mention 走 CV-9
   // ArtifactCommentsMentionBadge (mention=更强 signal, unread=总览).
   useArtifactCommentAdded(
     useCallback(

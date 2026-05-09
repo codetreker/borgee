@@ -3,10 +3,10 @@
 // Spec: docs/implementation/modules/cv-6-spec.md.
 // Content lock: docs/qa/cv-6-content-lock.md §3 (单 row DOM byte-identical).
 //
-// 立场反查:
+// 设计反查:
 //   - server-side `<mark>...</mark>` 字面 byte-identical 走 client
 //     dangerouslySetInnerHTML (跟 既有 markdown sanitize path 兼容);
-//     反向 grep `react-syntax-highlighter.*search|search.*custom-marker`
+//     grep 检查 `react-syntax-highlighter.*search|search.*custom-marker`
 //     count==0.
 //   - kind dispatch — markdown/code 走 ArtifactThumbnail (CV-3 v2 #528),
 //     image_link/video_link/pdf_link 走 MediaPreview (CV-2 v2 #517).
