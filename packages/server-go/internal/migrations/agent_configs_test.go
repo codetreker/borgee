@@ -22,7 +22,7 @@ func runAL2A1(t *testing.T, db *gorm.DB) {
 
 // TestAL_CreatesAgentConfigsTable pins acceptance §数据契约 row 1: the
 // table has the contract columns (agent_id PK / schema_version int / blob
-// JSON / updated_at) with the right NOT NULL shape. Drift here breaks
+// JSON / updated_at) with the right NOT NULL shape. 脱节 here breaks
 // AL-2a.2 PATCH /api/v1/agents/:id/config or 4.1.a 并发 update schema_
 // version 严格递增 implementation. 跟 CHN-3.1 #410
 // TestCHN31_CreatesUserChannelLayoutTable 同模式.
@@ -52,17 +52,17 @@ func TestAL_CreatesAgentConfigsTable(t *testing.T) {
 		}
 	}
 
-	// PK (agent_id) — 单 agent 单 row, blob 整体替换 SSOT 设计.
+	// PK (agent_id) — 单 agent 单 row, blob 整体替换 单一来源 设计.
 	if agentIDCol := cols["agent_id"]; !agentIDCol.pk {
 		t.Error("agent_configs.agent_id must be PRIMARY KEY")
 	}
 }
 
-// TestAgentConfigs_NoDomainBleed pins acceptance §数据契约 row 2 反约束 — 列名
+// TestAgentConfigs_NoDomainBleed pins acceptance §数据契约 row 2 反向约束 — 列名
 // 反向断言: runtime-only 字段不在 schema 层 (blob TEXT JSON, runtime 校验
 // 走 AL-2a.2 server REST API 层 + 4.1.c reflect scan); cursor 不挂
 // (AL-2a 不含 BPP frame, 蓝图 §1.5); org_id 不重复持有 (走 users.org_id
-// 单源).
+// 单一来源).
 func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -70,8 +70,8 @@ func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 
 	cols := pragmaColumns(t, db, "agent_configs")
 	for _, forbidden := range []string{
-		// 蓝图 §1.4 SSOT 设计: runtime-only 字段不在 schema 层 (blob TEXT
-		// JSON, 4.1.c reflect scan fail-closed). 反向断言 schema 不裂列.
+		// 蓝图 §1.4 单一来源 设计: runtime-only 字段不在 schema 层 (blob TEXT
+		// JSON, 4.1.c reflect scan fail-closed). 反向断言 schema 不拆列.
 		"api_key",
 		"temperature",
 		"token_limit",
@@ -80,22 +80,22 @@ func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 		// schema 不挂 cursor (跟 al_3_1 / al_4_1 / cv_1_1 / cv_2_1 /
 		// dm_2_1 / cv_4_1 / chn_3_1 同模式).
 		"cursor",
-		// org 隔离走 server-side ACL (users.org_id 单源 CM-1 #176), schema
+		// org 隔离走 server-side ACL (users.org_id 单一来源 CM-1 #176), schema
 		// 不重复持有 org_id 避免双源.
 		"org_id",
-		// SSOT blob 整体替换设计: 不裂 multi-row by config_key (PK 单
+		// 单一来源 blob 整体替换设计: 不拆 multi-row by config_key (PK 单
 		// agent_id, 而非 composite (agent_id, config_key)).
 		"config_key",
 		"config_value",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("agent_configs.%s exists — 反约束 broken (acceptance §数据契约 row 2 + 蓝图 §1.4 SSOT + §1.5 BPP frame 反约束)", forbidden)
+			t.Errorf("agent_configs.%s exists — 反向约束 broken (acceptance §数据契约 row 2 + 蓝图 §1.4 单一来源 + §1.5 BPP frame 反向约束)", forbidden)
 		}
 	}
 }
 
 // TestAL_PKEnforcesSingleRowPerAgent pins acceptance §数据契约 row 1 +
-// SSOT 设计 — duplicate agent_id INSERT must reject (single row per agent,
+// 单一来源 设计 — duplicate agent_id INSERT must reject (single row per agent,
 // blob 整体替换 PATCH 语义).
 func TestAL_PKEnforcesSingleRowPerAgent(t *testing.T) {
 	t.Parallel()
@@ -114,7 +114,7 @@ func TestAL_PKEnforcesSingleRowPerAgent(t *testing.T) {
 	}
 	// Same agent_id → reject by PK.
 	if err := insert("agent-1", 2, `{"name":"Beta"}`); err == nil {
-		t.Fatal("duplicate agent_id should reject — PK violation (SSOT blob 整体替换走 UPDATE 不走 INSERT)")
+		t.Fatal("duplicate agent_id should reject — PK violation (单一来源 blob 整体替换走 UPDATE 不走 INSERT)")
 	}
 	// Different agent_id → OK.
 	if err := insert("agent-2", 1, `{"name":"Gamma"}`); err != nil {
@@ -146,7 +146,7 @@ func TestAL_AcceptsMonotonicSchemaVersion(t *testing.T) {
 
 // TestAgentConfigs_HasAgentIDIndex pins acceptance §数据契约 row 1 — 显式命名
 // idx_agent_configs_agent_id (PATCH/GET /api/v1/agents/:id/config 热路径,
-// SSOT lookup). 跟 AL-4.1 #398 TestAL41_HasAgentIDIndex / CHN-3.1 #410
+// 单一来源 lookup). 跟 AL-4.1 #398 TestAL41_HasAgentIDIndex / CHN-3.1 #410
 // TestCHN31_HasUserIDIndex 同模式.
 func TestAgentConfigs_HasAgentIDIndex(t *testing.T) {
 	t.Parallel()
