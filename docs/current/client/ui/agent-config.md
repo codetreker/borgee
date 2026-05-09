@@ -1,14 +1,14 @@
 # Agent Config Panel (AL-2a.3 client SPA, PR #447 + #480 mount)
 
-> 蓝图: `agent-lifecycle.md §2.1` (用户完全自主决定 agent 的 name/prompt/能力/model) + `plugin-protocol.md §1.4` (Borgee=SSOT 字段划界) + §1.5 (热更新分级 — server PATCH 后经 BPP frame `agent_config_update` 推送给 plugin 端 reload, 走 AL-2b #481 wire; client 端不订阅 ws — 走 PATCH/GET 同步)
-> Server 锚: `docs/current/server/README.md §Agent config SSOT (AL-2a.2)` + `docs/current/server/data-model.md::agent_configs` (v=20)
-> Component: `packages/client/src/components/AgentConfigPanel.tsx` (form, #447) + mount in `AgentManager.tsx` expanded section (#480, between RuntimeCard 和 Permissions, 标题 "Config (SSOT)")
+> 蓝图: `agent-lifecycle.md §2.1` (用户完全自主决定 agent 的 name/prompt/能力/model) + `plugin-protocol.md §1.4` (Borgee=单一来源 字段划界) + §1.5 (热更新分级 — server PATCH 后经 BPP frame `agent_config_update` 推送给 plugin 端 reload, 走 AL-2b #481 wire; client 端不订阅 ws — 走 PATCH/GET 同步)
+> Server 出处: `docs/current/server/README.md §Agent config 单一来源 (AL-2a.2)` + `docs/current/server/data-model.md::agent_configs` (v=20)
+> Component: `packages/client/src/components/AgentConfigPanel.tsx` (form, #447) + mount in `AgentManager.tsx` expanded section (#480, between RuntimeCard 和 Permissions, 标题 "Config (单一来源)")
 > API: `packages/client/src/lib/api.ts::fetchAgentConfig` + `updateAgentConfig`
 > Tests: `packages/client/src/__tests__/al-2a-content-lock.test.ts` (8 cases)
 
 ## 1. 入口与场景
 
-owner 在 agent settings 下编辑本人 agent 的配置 SSOT — name / avatar / prompt / model / capabilities / enabled / memory_ref 7 字段。Save 提交 PATCH `/api/v1/agents/{id}/config`，server schema_version 严格递增 (server-stamp monotonic UPSERT)。
+owner 在 agent settings 下编辑本人 agent 的配置单一来源 — name / avatar / prompt / model / capabilities / enabled / memory_ref 7 字段。Save 提交 PATCH `/api/v1/agents/{id}/config`，server schema_version 严格递增 (server-stamp monotonic UPSERT)。
 
 ```
 +──────────────────────────────────────────────────+
@@ -27,15 +27,15 @@ owner 在 agent settings 下编辑本人 agent 的配置 SSOT — name / avatar 
 +──────────────────────────────────────────────────+
 ```
 
-## 2. 文案锁 (byte-identical 跨层同源)
+## 2. 文案锁定 (byte-identical 跨层同源)
 
-| 文案 | 出处 | 同源锚 |
+| 文案 | 出处 | 同源出处 |
 |---|---|---|
 | `agent 配置保存失败, 请重试` | `AGENT_CONFIG_SAVE_TOAST` const | server-go `agentConfigSaveErrorMsg` const + al-2a-content-lock.test.ts case ① |
-| 加载中... | render loading state | DOM `data-agent-config="loading"` 锚 |
-| Agent 配置 / 名称 / 头像 URL / Prompt / 模型 / memory_ref / 启用 / 保存 / 保存中... | form labels | byte-identical literal 锁 in AgentConfigPanel.tsx |
+| 加载中... | render loading state | DOM `data-agent-config="loading"` 出处 |
+| Agent 配置 / 名称 / 头像 URL / Prompt / 模型 / memory_ref / 启用 / 保存 / 保存中... | form labels | byte-identical literal 锁定 in AgentConfigPanel.tsx |
 
-## 3. DOM attr 锁 (反 drift)
+## 3. DOM attr 锁定 (反脱节)
 
 - `data-agent-config="root"` — section 容器
 - `data-agent-config="loading"` — 加载态
@@ -56,9 +56,9 @@ onSave → updateAgentConfig(agentId, draft) → PATCH /api/v1/agents/{id}/confi
       → 失败: showToast(AGENT_CONFIG_SAVE_TOAST)
 ```
 
-`onMount + Save 后 re-fetch` 是 acceptance §4.1.d agent 端轮询 reload drift 锚 — 走 GET, 不订阅 WS push frame (蓝图 §1.5 BPP `agent_config_update` 留 AL-2b)。
+`onMount + Save 后 re-fetch` 是 acceptance §4.1.d agent 端轮询 reload 脱节出处 — 走 GET, 不订阅 WS push frame (蓝图 §1.5 BPP `agent_config_update` 留 AL-2b)。
 
-## 5. 反约束 (蓝图 §1.4 SSOT + §1.5 BPP frame 反约束)
+## 5. 反向约束 (蓝图 §1.4 单一来源 + §1.5 BPP frame 反向约束)
 
 UI 层 + server 层双层 fail-closed:
 - `data-agent-config-field="{api_key|temperature|token_limit|retry_policy}"` count==0 — runtime-only 字段 UI **不渲染** form input (UI 层 fail-closed); server `allowedConfigKeys` whitelist reject 400 with code `agent_config.runtime_field_rejected` (server 层 fail-closed)
@@ -69,7 +69,7 @@ UI 层 + server 层双层 fail-closed:
 
 `/admin-api/v1/agents/{id}/config` 路径**不**挂 (跟 ADM-0 §1.3 + AL-3 #303 ⑦ 同模式)。client 的 `fetchAgentConfig` / `updateAgentConfig` 只调 `/api/v1/agents/{id}/config` (owner-only ACL, server 校验 owner.id == agent.OwnerID)。Cross-owner 调用 → 403。
 
-## 7. 跟 server 字段映射 (byte-identical 锁)
+## 7. 跟 server 字段映射 (byte-identical 锁定)
 
 | client `ALLOWED_CONFIG_KEYS` | server `allowedConfigKeys` | 蓝图 §1.4 |
 |---|---|---|
@@ -79,22 +79,22 @@ UI 层 + server 层双层 fail-closed:
 | `model` | `model` | identifier 字符串 (非 LLM 调用参数) |
 | `capabilities` | `capabilities` | 能力开关 |
 | `enabled` | `enabled` | 启用状态 |
-| `memory_ref` | `memory_ref` | SSOT 一致 |
+| `memory_ref` | `memory_ref` | 单一来源一致 |
 
-改 list = 改 server map + 改 al-2a-content-lock.test.ts 字面锁 + 改 acceptance §数据契约 row 2 三处同步。
+改 list = 改 server map + 改 al-2a-content-lock.test.ts 字面锁定 + 改 acceptance §数据契约 row 2 三处同步。
 
 ## 8. 测试
 
 `packages/client/src/__tests__/al-2a-content-lock.test.ts` 9 cases:
 - ① toast 字面 byte-identical
 - ② allowedConfigKeys 7 字段
-- ③ data-agent-config-field 二态锁
+- ③ data-agent-config-field 二态锁定
 - ④ DOM root + version + save action
 - ⑤ API endpoint path + method 跟 server 同源
-- 反约束 runtime-only 4 字段不渲染
-- 反约束 不订阅 push frame
-- 反约束 toast 同义词漂移 0 hit
-- grep 检查 (gh#701 drift 修): packages/ + docs/qa/ 全树 `data-form="agent-config"` 字面 0 hit (容器是 section, 不是 form)
+- 反向约束 runtime-only 4 字段不渲染
+- 反向约束 不订阅 push frame
+- 反向约束 toast 同义词脱节 0 hit
+- grep 检查 (gh#701 脱节修): packages/ + docs/qa/ 全树 `data-form="agent-config"` 字面 0 hit (容器是 section, 不是 form)
 
 ## 9. 排版守卫 (gh#698 / PR #706)
 

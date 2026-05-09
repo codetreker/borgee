@@ -46,7 +46,7 @@
 
 ## 4f. BPP-3.2.2 — Capability grant DM 三按钮 (Phase 5)
 
-> BPP-3.2.2 (#494 后续) · 蓝图 [`auth-permissions.md`](../../../blueprint/current/auth-permissions.md) §1.3 主入口 + content-lock [`bpp-3.2-content-lock.md`](../../../qa/bpp-3.2-content-lock.md) §3 DOM 字面锁.
+> BPP-3.2.2 (#494 后续) · 蓝图 [`auth-permissions.md`](../../../blueprint/current/auth-permissions.md) §1.3 主入口 + content-lock [`bpp-3.2-content-lock.md`](../../../qa/bpp-3.2-content-lock.md) §3 DOM 字面锁定.
 
 owner 收 system DM (BPP-3.2.1 server 写) → SystemMessageBubble (`packages/client/src/components/SystemMessageBubble.tsx`) 检测 quick_action JSON 是 BPP-3.2 shape (含 `action ∈ grant/reject/snooze` + 4 必填字段) → 渲染**三按钮**:
 
@@ -58,7 +58,7 @@ owner 收 system DM (BPP-3.2.1 server 写) → SystemMessageBubble (`packages/cl
       └──────┘ └──────┘ └──────┘
 ```
 
-DOM 字面锁 byte-identical 跟 content-lock §3 (改 = 改两处: content-lock + SystemMessageBubble.tsx):
+DOM 字面锁定 byte-identical 跟 content-lock §3 (改 = 改两处: content-lock + SystemMessageBubble.tsx):
 
 | label | data-action | data-bpp32-button | 视觉 |
 |---|---|---|---|
@@ -68,7 +68,7 @@ DOM 字面锁 byte-identical 跟 content-lock §3 (改 = 改两处: content-lock
 
 点击 → `postMeGrant({...payload, action})` → POST `/api/v1/me/grants` → server 真改 user_permissions (action='grant') 或 audit-only (reject/snooze, v1 不持久化 deny list).
 
-**反约束 (content-lock §3 同义词grep 检查)**: 12 词禁出现在 button label — 批准/授予/同意/许可 (替 "授权") / 驳回/拒接/否决/不允许 (替 "拒绝") / 稍候/延后/推迟/暂缓/过会儿 (替 "稍后"). 单测 `SystemMessageBubble.bpp32.test.tsx` 守.
+**反向约束 (content-lock §3 同义词grep 检查)**: 12 词禁出现在 button label — 批准/授予/同意/许可 (替 "授权") / 驳回/拒接/否决/不允许 (替 "拒绝") / 稍候/延后/推迟/暂缓/过会儿 (替 "稍后"). 单测 `SystemMessageBubble.bpp32.test.tsx` 守.
 
 CM-onboarding 既有单按钮 (`{kind: 'button', label, action}`) 路径不变 — `isBPP32GrantPayload` type guard 区分 shape.
 
@@ -88,15 +88,15 @@ agent 翻 error 后, owner 收 system DM (AL-5.1 server 写, 后续 PR) → `Sys
       └──────┘
 ```
 
-DOM 字面锁 byte-identical 跟 spec §1 AL-5.2 (改 = 改两处: al-5-spec.md + SystemMessageBubble.tsx):
+DOM 字面锁定 byte-identical 跟 spec §1 AL-5.2 (改 = 改两处: al-5-spec.md + SystemMessageBubble.tsx):
 
 | label | data-action | data-al5-button | container marker |
 |---|---|---|---|
 | `重连` | `recover` | `recover` | `data-al5-recover="true"` |
 
-点击 → `postAgentRecover({action, agent_id, reason, request_id})` → POST `/api/v1/agents/{id}/recover` → server 走 AL-1 #492 single-gate `AppendAgentStateTransition(error→online, lastReason)`, 不裂状态机, 不另起 reason 字典.
+点击 → `postAgentRecover({action, agent_id, reason, request_id})` → POST `/api/v1/agents/{id}/recover` → server 走 AL-1 #492 single-gate `AppendAgentStateTransition(error→online, lastReason)`, 不拆状态机, 不另起 reason 字典.
 
-**反约束 (AL-5 spec §0 同义词grep 检查)**: 5 词禁出现在 button label — 重启 / reset / restart / 重新启动 / 重置 (替 "重连"). 单测 `SystemMessageBubble.al5.test.tsx::reverse — no synonym buttons` 守.
+**反向约束 (AL-5 spec §0 同义词grep 检查)**: 5 词禁出现在 button label — 重启 / reset / restart / 重新启动 / 重置 (替 "重连"). 单测 `SystemMessageBubble.al5.test.tsx::reverse — no synonym buttons` 守.
 
 `isAL5RecoverPayload` type guard 区分 shape, BPP-3.2 + AL-5 共用 SystemMessageBubble — 两 payload 都给时按 BPP-3.2 优先 (al5 ∧ ¬bpp32 才渲 重连按钮). CM-onboarding 单按钮 fallback 在两者都无时渲.
 
@@ -119,7 +119,7 @@ DOM 字面锁 byte-identical 跟 spec §1 AL-5.2 (改 = 改两处: al-5-spec.md 
 
 之前 reaction chip + add 按钮挤在 hover toolbar 里 (跟 ✏️/🗑 编辑/删除按钮同行), 视觉拥挤. PR #705 拆出 `ReactionAddButton.tsx` 独立组件 + reaction chip 移到消息下方独立行.
 
-DOM 锚:
+DOM 出处:
 - `<button data-testid="reaction-add-button" aria-label="添加 reaction">` — hover 才显示
 - `<div className="reaction-chips">` — chip 容器, 在 `.message-item` 下方独立行
 
