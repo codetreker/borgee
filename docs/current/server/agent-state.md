@@ -13,7 +13,7 @@
 | `runtime_crashed` | status ≥ 500 |
 | `runtime_timeout` | err 含 "timeout" / "deadline exceeded" |
 | `network_unreachable` | err 含 "not connected" / "connection refused" / "unreachable" |
-| `unknown` | 其它非空 err 兜底 |
+| `unknown` | 其它非空 err 保底 |
 
 **Tracker** — in-memory `map[agentID]Snapshot`, 仅存 error 行 (online/offline 由 `hub.GetPlugin` presence 推导). 不持久化, 重启全清; AL-3 Phase 4 落表的 hook 是 `Tracker` 接口形参化, 换 SQL backend 不动调用方.
 
