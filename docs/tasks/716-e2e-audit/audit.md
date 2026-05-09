@@ -52,7 +52,7 @@
 | 25 | `cv-2-3-anchor-client.spec.ts` | UI=25 | — | **PASS** | `comment-anchor-scroll.spec.ts` | 真测评论锚点滚动 |
 | 26 | `cv-3-3-deferred.spec.ts` | UI=0 | F5 (`expect(true).toBe(true)`) | **DELETE** | — | 27 行 noop 占位, 死代码 |
 | 27 | `cv-3-3-renderers.spec.ts` | UI=12 | — | **PASS** | `artifact-renderer-types.spec.ts` | 真测 artifact 渲染器 |
-| 28 | `cv-4-iterate.spec.ts` | UI=22 | F2 (1 处 page.evaluate 注 mock) | **PASS+fix** | `artifact-iterate-version.spec.ts` | UI 真但 1 处 page.evaluate 注 mock — 改成真 server 数据 seed |
+| 28 | `cv-4-iterate.spec.ts` | UI=22 | — (page.evaluate 只在注释非真代码) | **PASS** | `artifact-iterate-version.spec.ts` | 真测 iterate UI; audit 复核 page.evaluate 仅在注释 |
 | 29 | `cv-4-unfixme-followup.spec.ts` | UI=20 | — | **PASS** | `artifact-iterate-followup.spec.ts` | 真测 iterate followup |
 | 30 | `cv-5-artifact-comment.spec.ts` | UI=0 | F3 | **REWRITE** | `artifact-comment-thread.spec.ts` | 纯 REST, 改 client 真发评论 + DOM 断帖出 |
 | 31 | `cv-7-comment-edit-delete.spec.ts` | UI=0 | F3 | **REWRITE** | `comment-edit-delete-permission.spec.ts` | 纯 REST 6 case, 改 client UI 真编辑 + 真删 + 反应; 反约束 sanity 留 server 单测 |
@@ -68,18 +68,27 @@
 | 41 | `hb-1b-installer.spec.ts` | UI=0 | F1 + F4 (5 case 全 fs.readFileSync 源码 grep) | **DELETE** | — | 全 5 case 源码 grep 假装 e2e; Go unit 已锁 |
 | 42 | `hb-2-v0d.spec.ts` | UI=6 | F2 (page.evaluate WS msg inject) | **PASS+fix** | `host-bridge-daemon-handshake.spec.ts` | UI 真但 2 处 page.evaluate 注 WS — 检查能否走 server 真推; 不行就保留并加注释 |
 | 43 | `me-1-self-message-unread.spec.ts` | UI=22 | — | **PASS** | `self-message-unread-counter.spec.ts` | 真测自己消息不计未读 |
-| 44 | `rt-1-2-backfill-on-reconnect.spec.ts` | UI=4 | F2 (page.evaluate WS) | **PASS+fix** | `realtime-backfill-on-reconnect.spec.ts` | UI 弱; 改双 tab 真 disconnect/reconnect |
+| 44 | `rt-1-2-backfill-on-reconnect.spec.ts` | UI=4 | — (page.evaluate 真 WS DOM 探测, 不是 fetch 后端) | **PASS** | `realtime-backfill-on-reconnect.spec.ts` | page.evaluate 访问 window.__lastWS readyState + 真 close, 是 DOM API; 非 F2 反模式 |
 | 45 | `rt-3-presence.spec.ts` | UI=4 | F3 | **REWRITE** | `realtime-presence-broadcast.spec.ts` | UI 弱, 改双 tab 真 presence DOM 断 |
 | 46 | `smoke.spec.ts` | UI=1 | — | **PASS** | `smoke-app-loads.spec.ts` | 真打开首页 |
 
-## 汇总
+## 汇总 (audit 复核后修正)
 
-- **PASS** (留 + 重命名 + 描述 refine): 24 spec
-- **PASS+fix** (留但小改 page.evaluate 注 mock): 3 spec (cv-4-iterate / hb-2-v0d / rt-1-2-backfill)
+- **PASS** (留 + 重命名 + 描述 refine): 26 spec (含 cv-4-iterate / rt-1-2-backfill 复核改 PASS)
+- **PASS+fix** (留但小改 page.evaluate cosmetic): 1 spec (hb-2-v0d 截图 innerHTML 注入, cosmetic 可删)
 - **REWRITE** (重写真 UI): 16 spec
 - **DELETE** (死代码 / noop / 源码 grep 占位): 3 spec (cv-3-3-deferred / g2.4-adm-0-stance / hb-1b-installer)
 
-合计 46 = 24 + 3 + 16 + 3 ✅
+合计 46 = 26 + 1 + 16 + 3 ✅
+
+## 复核记录
+
+- 2026-05-09 zhanma-c: 第一轮 audit 太激进, 把 cv-4-iterate (page.evaluate 只在注释) + rt-1-2-backfill (真 WS DOM 探测, 非 fetch 后端) 误判 PASS+fix. 复核后改 PASS.
+- 反模式 F2 严格定义: 只反 `page.evaluate(() => fetch())` 走 cookie 直调后端. `page.evaluate` 访问 `window` / `document` / DOM API / localStorage / WebSocket instance 等真 DOM 行为不属 F2.
+
+## 已发现的 7 spec 走不通问题 (待 yema 拍方向)
+
+cv-5 / cv-7 / cv-8 / cv-9 / cv-10 / cv-11 / cv-12 共 7 个 REWRITE spec 的 client UI 入口 0 production mount (ArtifactComments 三组件挂在 __tests__ 单测但没接入 ChannelView / ArtifactPanel). 详 SendMessage team-lead + yema. 等拍方向 (test.skip + follow-up / 保留 REST + 注释例外 / 全 DELETE).
 
 ## 反向 grep 守卫 (合 PR 时必须 0 hit)
 
