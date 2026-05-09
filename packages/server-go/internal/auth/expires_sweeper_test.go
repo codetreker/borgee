@@ -11,7 +11,7 @@
 //   REG-AP2-002c TestAP_SystemActorByteIdentical — actor='system' byte-identical
 //   REG-AP2-002d TestAP_AuditPayloadShape — JSON 3-key shape
 //   REG-AP2-003a TestAP23_FullFlow — grant expired → revoked → HasCapability false
-//   REG-AP2-003b TestAP_ReverseGrep_5Patterns_AllZeroHit — 反约束 grep
+//   REG-AP2-003b TestAP_ReverseGrep_5Patterns_AllZeroHit — 反向约束 grep
 package auth
 
 import (
@@ -47,17 +47,17 @@ func ap2TestStore(t *testing.T) *store.Store {
 func TestAP_ReasonConstByteIdentical(t *testing.T) {
 	t.Parallel()
 	if ReasonPermissionExpired != "permission_expired" {
-		t.Errorf("ReasonPermissionExpired drift: got %q, want %q",
+		t.Errorf("ReasonPermissionExpired 脱节: got %q, want %q",
 			ReasonPermissionExpired, "permission_expired")
 	}
 }
 
 // REG-AP2-002c — actor='system' byte-identical 跟 BPP-4 watchdog 跨五
-// milestone 锁.
+// milestone 锁定.
 func TestAP_SystemActorByteIdentical(t *testing.T) {
 	t.Parallel()
 	if SystemActorID != "system" {
-		t.Errorf("SystemActorID drift: got %q, want %q",
+		t.Errorf("SystemActorID 脱节: got %q, want %q",
 			SystemActorID, "system")
 	}
 }
@@ -219,7 +219,7 @@ func TestAP_AuditPayloadShape(t *testing.T) {
 
 // REG-AP2-003a (acceptance §3.1) — full-flow: grant w/ expired → RunOnce
 // → revoked + admin_actions row + HasCapability returns false (跟 AP-1
-// SSOT 同精神, ListUserPermissions 排除 revoked rows).
+// 单一来源 同精神, ListUserPermissions 排除 revoked rows).
 func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T) {
 	t.Parallel()
 	s := ap2TestStore(t)
@@ -233,8 +233,8 @@ func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T
 	expiredAt := ms(now.Add(-1 * time.Hour))
 	mustGrant(t, s, "u-full", "channel.write", "channel:c-A", expiredAt)
 
-	// Pre-sweep: HasCapability is true (legacy AP-1 path — expires_at not
-	// yet consumed by HasCapability per AP-1.1 立场 "schema 保留 UI 不做").
+	// Pre-sweep: HasCapability is true (历史 AP-1 path — expires_at not
+	// yet consumed by HasCapability per AP-1.1 原则 "schema 保留 UI 不做").
 	ctx := context.WithValue(context.Background(), userContextKey, user)
 	if !HasCapability(ctx, s, "channel.write", "channel:c-A") {
 		t.Fatal("pre-sweep HasCapability should be true (AP-1 path active)")
@@ -247,7 +247,7 @@ func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T
 	}
 
 	// Post-sweep: revoked_at set + HasCapability false (ListUserPermissions
-	// excludes revoked rows, AP-1 SSOT 同精神 改 = 改 queries.go 一处).
+	// excludes revoked rows, AP-1 单一来源 同精神 改 = 改 queries.go 一处).
 	if HasCapability(ctx, s, "channel.write", "channel:c-A") {
 		t.Error("post-sweep HasCapability should be false (revoked row excluded)")
 	}
@@ -262,7 +262,7 @@ func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T
 	}
 }
 
-// REG-AP2-003b (acceptance §3.2 + 立场 ③) — reverse grep 5 pattern in
+// REG-AP2-003b (acceptance §3.2 + 原则 ③) — reverse grep 5 pattern in
 // internal/auth/+internal/api/+internal/migrations/ all count==0 (except
 // for sweeper file itself for the UPDATE pattern).
 func TestAP_ReverseGrep_5Patterns_AllZeroHit(t *testing.T) {
@@ -314,14 +314,14 @@ func TestAP_ReverseGrep_5Patterns_AllZeroHit(t *testing.T) {
 				return nil
 			}
 			if loc := tc.pat.FindIndex(body); loc != nil {
-				t.Errorf("反约束 broken — pattern %q hit in %s", tc.pat.String(), p)
+				t.Errorf("反向约束 broken — pattern %q hit in %s", tc.pat.String(), p)
 			}
 			return nil
 		})
 	}
 
 	// 5th pattern: hardcode "permission_expired" in handler path (反 const
-	// 单源漂移). Allowed only in const file + migration + tests.
+	// 单一来源脱节). Allowed only in const file + migration + tests.
 	hardcodePat := regexp.MustCompile(`"permission_expired"`)
 	apiDir := filepath.Join("..", "api")
 	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
@@ -333,7 +333,7 @@ func TestAP_ReverseGrep_5Patterns_AllZeroHit(t *testing.T) {
 			return nil
 		}
 		if loc := hardcodePat.FindIndex(body); loc != nil {
-			t.Errorf("反约束 broken — hardcode %q in %s (use auth.ReasonPermissionExpired const)",
+			t.Errorf("反向约束 broken — hardcode %q in %s (use auth.ReasonPermissionExpired const)",
 				`"permission_expired"`, p)
 		}
 		return nil
