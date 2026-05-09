@@ -32,7 +32,21 @@
    - `packages/e2e/tests/hb-2-v0d.spec.ts` L219 注释 "<100ms 是 release-gate 阈值" — 改注释 (e2e case 本身保留 100ms 断言, 改文字描述)
    - `docs/current/server/abac.md` + `docs/current/server/expires-sweeper.md` + `docs/current/server/data-layer.md` 提 release-gate 的段落改写 (指向行为 test 而非 yml step)
 
-5. **DL-1.2 dl1-no-direct-store**: release-gate.yml 里有一段 baseline=115 的 `internal/api 直 import internal/store 文件数 ≤ baseline`. 这是真有用的反向 grep (防 handler 绕 datalayer interface 直查 store), 把它移到 `ci.yml` 作为独立 job (或者塞 lint.yml).
+5. **DL-1.2 dl1-no-direct-store**: release-gate.yml 里有一段 baseline=115 的 `internal/api 直 import internal/store 文件数 ≤ baseline`. 这是真有用的反向 grep (防 handler 绕 datalayer interface 直查 store), 把它转成 `dl12_direct_store_baseline_test.go` 真 Go test (走 `./...` 默认覆盖).
+
+   **重要 — baseline=115 hard ratchet 透明度**: 此 baseline 是当前真量 (DL-1.2 wire-up 时定 108, 渐进调整到 115). 任何新加 1 个直 import store 的 .go 文件就立即 fail, 没缓冲. 期望模式是 ratchet 单调下降 — DL-1.3+ 渐进迁移, 想加新 handler 必须先 PR 把别处一个 handler 迁到 datalayer 把数字降 1, 才能加新的. 这是好的强制迁移, 但意味着每个新 handler PR 都要附带一次 datalayer 迁移工作量.
+
+6. **inline grep 反约束转 Go test (feima review #722 双 review 必答)**: 删 yml 里有 7 条 inline bash grep 反约束守"未来 commit drift" — 这是 constraint inequality 不是 behavior equality, `./...` 不会兜. 转 `lint_constraints_test.go` 真 Go test (跟 dl12 baseline 同模式) 守门:
+
+   - `TestLint_BPPHeartbeat30sSingleSource` — BPP-4 §3 立场 ⑤ 30s 单源 + 反 >30s drift
+   - `TestLint_ReasonChainNo7th` — AL-1.1 §1.3 6 reason 字典反 7th drift
+   - `TestLint_ReasonsSSOTExists` + `TestLint_ReasonsCrossMilestoneCoverage` — AL-1a #496 reasons SSOT 跨 milestone ≥6 hit
+   - `TestLint_AgentStateLogNoConnecting` — BPP-5 §1.4 connecting 不入持久态
+   - `TestLint_PresenceSessionsNoBusyWrite` — AL-1b §2 立场 ② presence_sessions 不写 busy 列
+   - `TestLint_ALHBStackDictIsolation` — AL stack vs HB stack audit 字典分立不 JOIN
+   - `TestLint_AuditSchema5FieldsByteIdentical` — HB-3 §1.4 audit 5 字段 byte-identical
+
+   当前 7 条都 0 drift, 转 test 后走 `./...` 默认覆盖, 长期守门.
 
 ## 不做什么
 
