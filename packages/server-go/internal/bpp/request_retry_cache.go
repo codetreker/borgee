@@ -1,28 +1,28 @@
 // Package bpp — request_retry_cache.go: BPP-3.2.3 plugin SDK in-memory
 // retry cache for permission_denied → owner grant → auto-retry flow.
 //
-// Blueprint锚: docs/blueprint/current/auth-permissions.md §1.3 主入口字面承袭
+// Blueprint出处: docs/blueprint/current/auth-permissions.md §1.3 主入口字面跟随
 // + plugin-protocol.md §1.6 失联与故障状态. Spec: bpp-3.2-spec.md §1
-// 立场 ③ + bpp-3.2-stance §3 + content-lock §4 错码字面锁.
+// 原则 ③ + bpp-3.2-stance §3 + content-lock §4 错码字面锁定.
 //
-// Behaviour contract (反约束 spec §3 #3 + content-lock §4):
+// Behaviour contract (反向约束 spec §3 #3 + content-lock §4):
 //
 //   1. TTL 5 min — entries expire on read (lazy GC); 防 cache 膨胀.
 //   2. ≤3 次重试 (MaxPermissionRetries const, 反向 grep MaxPermissionRetries.*[4-9]
 //      在 packages/plugin-sdk/ count==0).
 //   3. 30s 固定退避 (RetryBackoff const, 反向 grep `expBackoff|exponential.*retry`
-//      count==0 — 蓝图 §1.6 字面 server-side timing 单源, plugin 端不
+//      count==0 — 蓝图 §1.6 字面 server-side timing 单一来源, plugin 端不
 //      增添新 timing 信号).
 //   4. 上限超 → `bpp.retry_exhausted` 错码 byte-identical 跟 content-lock §4
 //      (改 = 改两处: content-lock + 此 const).
-//   5. 不复用 BPP-4 server-side watchdog 队列 — 拆三路径 stance §3 +
+//   5. 不复用 BPP-4 server-side watchdog 队列 — 真分清三路径 原则 §3 +
 //      spec §3 #3. CI lint reverse-grep 等价单测守 (见
 //      request_retry_cache_test.go).
 //
-// 反约束注意:
+// 反向约束注意:
 //   - Cache state lives in plugin SDK process memory; server stateless.
 //   - retry trigger: 仅 `agent_config_update` frame (BPP-2.3) → cache 扫
-//     (跟立场 ②⑧ 复用既有 frame, 不另起 capability_granted).
+//     (跟原则 ②⑧ 复用既有 frame, 不另起 capability_granted).
 //   - admin god-mode 不入此路径 (admin 不通过 plugin SDK upload semantic
 //     action).
 
@@ -35,15 +35,15 @@ import (
 )
 
 // MaxPermissionRetries is the upper bound on retry attempts per request_id
-// (content-lock §4 + bpp-3.2-spec.md §1 立场 ③). After this count is
+// (content-lock §4 + bpp-3.2-spec.md §1 原则 ③). After this count is
 // reached, the next ShouldRetry call returns ErrRetryExhausted.
 //
-// 反向 grep CI lint: `MaxPermissionRetries.*[4-9]` count==0 (锁 ≤3).
+// 反向 grep CI lint: `MaxPermissionRetries.*[4-9]` count==0 (锁定 ≤3).
 const MaxPermissionRetries = 3
 
 // RetryBackoff is the FIXED retry interval (content-lock §4 + spec §1
-// 立场 ③). Not exponential — 蓝图 plugin-protocol.md §1.6 字面
-// server-side timing 单源, plugin 端不增添新 timing 信号.
+// 原则 ③). Not exponential — 蓝图 plugin-protocol.md §1.6 字面
+// server-side timing 单一来源, plugin 端不增添新 timing 信号.
 //
 // 反向 grep CI lint: `expBackoff|exponential.*retry` count==0.
 const RetryBackoff = 30 * time.Second
@@ -75,7 +75,7 @@ func IsRetryExhausted(err error) bool {
 // RetryEntry is a single in-flight permission_denied retry record.
 // Stored in RequestRetryCache keyed by request_id (BPP-3.1 frame
 // trace UUID byte-identical 跟 PermissionDeniedFrame.RequestID +
-// CapabilityGrantPayload.RequestID 跨 PR drift 同源).
+// CapabilityGrantPayload.RequestID 跨 PR 脱节 同源).
 type RetryEntry struct {
 	RequestID    string    // BPP-3.1 frame trace UUID
 	AgentID      string    // target agent (跟 frame.AgentID 同源)
@@ -96,7 +96,7 @@ type RetryEntry struct {
 //      可重试 + AttemptCount++; (false, ErrRetryExhausted) 即上限超.
 //   3. 重试成功 → caller 调 Remove(requestID) 清 entry.
 //
-// 反约束: cache 不持久化 (server stateless 守); cache state 仅 plugin
+// 反向约束: cache 不持久化 (server stateless 守); cache state 仅 plugin
 // SDK 进程内存; 进程重启 = cache 清空 (plugin 重连后 owner 端 DM 仍
 // 有效, 用户手动重试可走新 request_id).
 type RequestRetryCache struct {
