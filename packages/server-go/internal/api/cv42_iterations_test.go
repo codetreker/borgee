@@ -1,15 +1,15 @@
 // Package api_test — cv_4_2_iterations_test.go: CV-4.2 acceptance tests
 // (#405 schema v=18 → CV-4.2 server iterate API + state machine + WS push).
 //
-// Stance pins exercised (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁
+// 原则 pins exercised (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁定
 // #380):
 //   - ① 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
 //     level CI lint, 非 unit).
-//   - ② CV-1 commit 单源 — POST /commits?iteration_id= atomic UPDATE
-//     running→completed; 反约束 不开 /iterations/:id/commit 旁路
+//   - ② CV-1 commit 单一来源 — POST /commits?iteration_id= atomic UPDATE
+//     running→completed; 反向约束 不开 /iterations/:id/commit 旁路
 //     (acceptance §2.2 + §4.1).
 //   - ③ server 不算 diff — grep 检查 CI (acceptance §2.6 + §4.4).
-//   - ④ state machine 4 态前向锁 — 反 completed→running / failed→pending
+//   - ④ state machine 4 态前向锁定 — 反 completed→running / failed→pending
 //     等回退 reject (acceptance §2.3 + §4.3).
 //   - ⑤ AL-4 stub fail-closed — agent_runtimes.status != 'running' →
 //     state='failed' + error_reason='runtime_not_registered' byte-identical
@@ -164,9 +164,9 @@ func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
 }
 
 // TestCV_CommitWithIterationIDAtomicUpdate pins acceptance §2.2 (CV-1
-// commit 单源): POST /commits?iteration_id= transitions
+// commit 单一来源): POST /commits?iteration_id= transitions
 // running→completed atomically + writes created_artifact_version_id.
-// 反约束: 不开 /iterations/:id/commit 旁路 (verified by CI grep §4.1).
+// 反向约束: 不开 /iterations/:id/commit 旁路 (verified by CI grep §4.1).
 func TestCV_CommitWithIterationIDAtomicUpdate(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, s, _, artID, agentID := cv42Setup(t)
@@ -225,7 +225,7 @@ FROM artifact_iterations WHERE id = ?`, iterationID).Scan(&row).Error; err != ni
 // TestCV_StateMachine_RejectsCommitOnFailedIteration pins acceptance
 // §2.3 反断: state machine forward-only — committing with an
 // iteration_id whose state is 'failed' (or any state != 'running') →
-// 409 conflict. 反约束: completed→running / failed→pending 等回退绝对
+// 409 conflict. 反向约束: completed→running / failed→pending 等回退绝对
 // reject (CompleteIterationOnCommit 的 WHERE state='running' clause 是
 // 唯一闸位).
 func TestCV_StateMachine_RejectsCommitOnFailedIteration(t *testing.T) {
@@ -254,8 +254,8 @@ func TestCV_StateMachine_RejectsCommitOnFailedIteration(t *testing.T) {
 }
 
 // TestCV_CommitWithoutIterationID_LegacyPathUnchanged pins acceptance
-// §2.2 反断: when ?iteration_id= absent, commit follows CV-1.2 legacy
-// behaviour exactly (反约束 旧路径不破). No iteration row is created or
+// §2.2 反断: when ?iteration_id= absent, commit follows CV-1.2 历史
+// behaviour exactly (反向约束 旧路径不破). No iteration row is created or
 // touched. 跟 cv_1_2_artifacts_test.go::TestCV12_CommitArtifact 同模式.
 func TestCV_CommitWithoutIterationID_LegacyPathUnchanged(t *testing.T) {
 	t.Parallel()
@@ -264,10 +264,10 @@ func TestCV_CommitWithoutIterationID_LegacyPathUnchanged(t *testing.T) {
 		url+"/api/v1/artifacts/"+artID+"/commits",
 		ownerTok, map[string]any{
 			"expected_version": float64(1),
-			"body":             "legacy commit",
+			"body":             "old-path commit",
 		})
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("legacy commit not 200: got %d", resp.StatusCode)
+		t.Fatalf("old-path commit not 200: got %d", resp.StatusCode)
 	}
 	// Confirm no iteration row exists.
 	var n int64
@@ -275,7 +275,7 @@ func TestCV_CommitWithoutIterationID_LegacyPathUnchanged(t *testing.T) {
 		t.Fatalf("count iterations: %v", err)
 	}
 	if n != 0 {
-		t.Errorf("legacy commit polluted artifact_iterations: %d rows", n)
+		t.Errorf("old-path commit polluted artifact_iterations: %d rows", n)
 	}
 }
 

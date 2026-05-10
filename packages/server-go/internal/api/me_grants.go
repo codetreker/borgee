@@ -11,14 +11,14 @@
 //      `{agent_id, capability, scope, request_id, action}`.
 //   3. action="grant" → Store.GrantPermission(agent_id, capability, scope);
 //      action="reject"/"snooze" → log only (v1 不持久化 deny list, spec §4
-//      留账; v2+ deny list 实施时再加).
+//      留作后续; v2+ deny list 实施时再加).
 //
-// 反约束 (bpp-3.2-stance §2):
+// 反向约束 (bpp-3.2-stance §2):
 //   - capability MUST be in auth.Capabilities (14 项 const), 字典外值 reject
 //     + log warn `bpp.grant_capability_disallowed` (跟 BPP-3.2.1 同源错码).
-//   - scope MUST ∈ v1 三层 ({*, channel:<id>, artifact:<id>}); 反约束 ⑦
-//     `workspace:` / `org:` 等漂移值 reject.
-//   - owner-only ACL: caller MUST be agent.OwnerID (反约束 ⑥ admin 不入此
+//   - scope MUST ∈ v1 三层 ({*, channel:<id>, artifact:<id>}); 反向约束 ⑦
+//     `workspace:` / `org:` 等脱节值 reject.
+//   - owner-only ACL: caller MUST be agent.OwnerID (反向约束 ⑥ admin 不入此
 //     路径; admin grant 走 /admin-api 单独 mw).
 //   - admin god-mode 不挂 — 此 endpoint 仅 user-rail 注册.
 //
@@ -47,14 +47,14 @@ const (
 	MeGrantsActionSnooze  = "snooze"
 )
 
-// validMeGrantsActions is the 3-enum membership set (反约束 content-lock §2).
+// validMeGrantsActions is the 3-enum membership set (反向约束 content-lock §2).
 var validMeGrantsActions = map[string]bool{
 	MeGrantsActionGrant:  true,
 	MeGrantsActionReject: true,
 	MeGrantsActionSnooze: true,
 }
 
-// validMeGrantsScopes / scopePrefixes are the v1 三层 scope guards (反约束 ⑦).
+// validMeGrantsScopes / scopePrefixes are the v1 三层 scope guards (反向约束 ⑦).
 // `*` is the wildcard; `channel:<id>` / `artifact:<id>` are prefix-bound.
 var validMeGrantsScopePrefixes = []string{"channel:", "artifact:"}
 
@@ -76,7 +76,7 @@ type MeGrantsHandler struct {
 }
 
 // RegisterRoutes mounts POST /api/v1/me/grants behind the user-rail authMw.
-// 反约束: not mounted on /admin-api (admin god-mode 走单独 mw, ADM-0 §1.3).
+// 反向约束: not mounted on /admin-api (admin god-mode 走单独 mw, ADM-0 §1.3).
 func (h *MeGrantsHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/me/grants", authMw(http.HandlerFunc(h.handleGrant)))
 }
@@ -113,26 +113,26 @@ func (h *MeGrantsHandler) handleGrant(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// action ∈ 3-enum (content-lock §2 + 反约束 #1 stance §2).
+	// action ∈ 3-enum (content-lock §2 + 反向约束 #1 原则 §2).
 	if !validMeGrantsActions[req.Action] {
 		h.errCode(w, http.StatusBadRequest, MeGrantsErrCodeActionUnknown,
 			fmt.Sprintf("action=%q (3-enum: grant/reject/snooze)", req.Action))
 		return
 	}
-	// capability ∈ AP-1 14 项 const (反约束 #1 + spec §3 #1, 跟 BPP-3.2.1 同源).
+	// capability ∈ AP-1 14 项 const (反向约束 #1 + spec §3 #1, 跟 BPP-3.2.1 同源).
 	if !auth.IsValidCapability(req.Capability) {
 		h.errCode(w, http.StatusBadRequest, CapabilityGrantErrCodeCapabilityDisallowed,
 			fmt.Sprintf("capability=%q (AP-1 Capabilities 14 项)", req.Capability))
 		return
 	}
-	// scope ∈ v1 三层 (反约束 ⑦ stance §2 + content-lock §2).
+	// scope ∈ v1 三层 (反向约束 ⑦ 原则 §2 + content-lock §2).
 	if !meGrantsScopeValid(req.Scope) {
 		h.errCode(w, http.StatusBadRequest, MeGrantsErrCodeScopeUnknown,
 			fmt.Sprintf("scope=%q (v1 三层: */channel:<id>/artifact:<id>)", req.Scope))
 		return
 	}
 
-	// owner-only ACL (反约束 ⑥ stance §2).
+	// owner-only ACL (反向约束 ⑥ 原则 §2).
 	agent, err := h.Store.GetUserByID(req.AgentID)
 	if err != nil {
 		h.errCode(w, http.StatusNotFound, MeGrantsErrCodeAgentNotFound,
@@ -167,7 +167,7 @@ func (h *MeGrantsHandler) handleGrant(w http.ResponseWriter, r *http.Request) {
 			"scope":      req.Scope,
 		})
 	case MeGrantsActionReject, MeGrantsActionSnooze:
-		// v1 audit-only: spec §4 留账 — 不持久化 deny list, 仅记 log
+		// v1 audit-only: spec §4 留作后续 — 不持久化 deny list, 仅记 log
 		// 供 v2+ replay. Future BPP-3.2.3 plugin retry cache 自动 abort
 		// on owner reject (BPP-3.2.3 后续 实施 trigger).
 		h.logInfo("bpp.grant."+req.Action, req, user.ID)
@@ -178,7 +178,7 @@ func (h *MeGrantsHandler) handleGrant(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// meGrantsScopeValid validates v1 三层 scope (反约束 ⑦ stance §2).
+// meGrantsScopeValid validates v1 三层 scope (反向约束 ⑦ 原则 §2).
 func meGrantsScopeValid(scope string) bool {
 	if scope == "*" {
 		return true

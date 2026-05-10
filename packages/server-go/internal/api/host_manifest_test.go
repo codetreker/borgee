@@ -8,7 +8,7 @@
 //   REG-HB1-003 TestHB_ReasonsByteIdentical
 //   REG-HB1-004 TestHB_ManifestSignatureVerify
 //   REG-HB1-005 TestHB_NoAdminPluginManifestPath
-//   REG-HB1-006 TestHB_NoPluginManifestQueue (AST 锁链延伸第 23 处)
+//   REG-HB1-006 TestHB_NoPluginManifestQueue (AST 守护链延伸第 23 处)
 //                + TestHB_PluginManifest_Returns200 (DL-4 grep 检查 → 正向)
 package api_test
 
@@ -125,15 +125,15 @@ func TestHB_ReasonsByteIdentical(t *testing.T) {
 	}
 	for i, w := range want {
 		if api.HB1AllReasons[i] != w {
-			t.Errorf("HB1AllReasons[%d]: got %q, want %q (字面 drift)", i, api.HB1AllReasons[i], w)
+			t.Errorf("HB1AllReasons[%d]: got %q, want %q (字面脱节)", i, api.HB1AllReasons[i], w)
 		}
 	}
-	// 单 const 字面也守 (drift grep 检查).
+	// 单 const 字面也守 (脱节 grep 检查).
 	if api.HB1ReasonOK != "ok" {
-		t.Errorf("HB1ReasonOK drift: %q", api.HB1ReasonOK)
+		t.Errorf("HB1ReasonOK 脱节: %q", api.HB1ReasonOK)
 	}
 	if api.HB1ReasonManifestSignatureInvalid != "manifest_signature_invalid" {
-		t.Errorf("HB1ReasonManifestSignatureInvalid drift: %q", api.HB1ReasonManifestSignatureInvalid)
+		t.Errorf("HB1ReasonManifestSignatureInvalid 脱节: %q", api.HB1ReasonManifestSignatureInvalid)
 	}
 }
 
@@ -213,7 +213,7 @@ func TestHB_NoAdminPluginManifestPath(t *testing.T) {
 	}
 }
 
-// REG-HB1-006 — AST 锁链延伸第 23 处 forbidden 3 token.
+// REG-HB1-006 — AST 守护链延伸第 23 处 forbidden 3 token.
 func TestHB_NoPluginManifestQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -232,14 +232,14 @@ func TestHB_NoPluginManifestQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 23 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 守护链延伸第 23 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
 	})
 }
 
-// REG-HB1-006 supplement — DL-4 命名拆死锚转正向: HB-1 endpoint 真返 200
+// REG-HB1-006 supplement — DL-4 命名真分清转正向: HB-1 endpoint 真返 200
 // (grep 检查 pwa_manifest_test.go::TestDL44_PWAManifest_NameNotPluginManifest
 // 既有不破; 本 test 是 HB-1 v0 上线的正向证据).
 func TestHB_PluginManifest_Returns200(t *testing.T) {
@@ -250,13 +250,13 @@ func TestHB_PluginManifest_Returns200(t *testing.T) {
 	resp, _ := testutil.JSON(t, http.MethodGet,
 		ts.URL+"/api/v1/plugin-manifest", ownerToken, nil)
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("HB-1 v0 endpoint must return 200 (DL-4 命名拆死锚 转正向): got %d",
+		t.Fatalf("HB-1 v0 endpoint must return 200 (DL-4 命名真分清 转正向): got %d",
 			resp.StatusCode)
 	}
 }
 
 // REG-HB1-005 supplement — AL-1a reason 字典分立 (HB-1 7-dict 跟 runtime
-// AL-1a 6-dict grep 检查 拆死).
+// AL-1a 6-dict grep 检查 真分清).
 func TestHB_NoAL1aDriftIntoHB1(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "..", "internal", "agent", "reasons")
@@ -270,7 +270,7 @@ func TestHB_NoAL1aDriftIntoHB1(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if loc := pat.FindIndex(body); loc != nil {
-			t.Errorf("AL-1a reason 锁链漂入 HB-1 — token %q in %s",
+			t.Errorf("AL-1a reason 守护链脱节入 HB-1 — token %q in %s",
 				body[loc[0]:loc[1]], p)
 		}
 		return nil
