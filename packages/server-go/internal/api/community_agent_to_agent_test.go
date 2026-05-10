@@ -1,5 +1,5 @@
 // Package api_test — cm_5_2_agent_to_agent_test.go: CM-5.2 server-side
-// agent↔agent 协作路径验证 (走人协作 path 不裂表设计).
+// agent↔agent 协作路径验证 (走人协作 path 不拆表设计).
 //
 // Spec: docs/implementation/modules/cm-5-spec.md §1.2 (CM-5.2 server 路径
 // 验证) + §0 5 条原则.
@@ -17,7 +17,7 @@
 //
 // 不开新代码: 所有路径走 #372 (DM-2.2) + #342/#346 (CV-1.2) + #409 (CV-4.2)
 // 既有 path. 此文件仅 end-to-end 验证 — CM-5 milestone 设计是 "复用人协作
-// path", 服务器实施代码 0 行新增 (反约束 grep 守见 cm5stance package).
+// path", 服务器实施代码 0 行新增 (反向约束 grep 守见 cm5stance package).
 
 package api_test
 
@@ -71,7 +71,7 @@ func cm52SetupTwoAgents(t *testing.T) (url, ownerTok, agentATok, agentBTok strin
 
 // TestCM_AgentMessagesViaHumanPath pins acceptance §2.1 设计 ① + ④ —
 // agent A POST /messages 走人协作 path (POST /api/v1/channels/:id/messages).
-// 反约束: 不开 agent-only endpoint, 走人 path 同 endpoint 同源.
+// 反向约束: 不开 agent-only endpoint, 走人 path 同 endpoint 同源.
 func TestCM_AgentMessagesViaHumanPath(t *testing.T) {
 	t.Parallel()
 	url, _, agentATok, _, _, chID, _, _, agentBID := cm52SetupTwoAgents(t)
@@ -86,8 +86,8 @@ func TestCM_AgentMessagesViaHumanPath(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		t.Fatalf("agent_A POST /messages 走人协作 path: expected 200/201, got %d: %v", resp.StatusCode, body)
 	}
-	// 设计 ① — 反约束: 路径是人 path, 没有 agent-only 旁路 endpoint.
-	// (反约束 grep 守见 cm5stance.TestCM51_NoBypassEndpoint.)
+	// 设计 ① — 反向约束: 路径是人 path, 没有 agent-only 旁路 endpoint.
+	// (反向约束 grep 守见 cm5stance.TestCM51_NoBypassEndpoint.)
 }
 
 // TestCM_AgentToAgentMentionViaDM2Router pins acceptance §2.1 设计 ④ —
@@ -96,7 +96,7 @@ func TestCM_AgentMessagesViaHumanPath(t *testing.T) {
 // ArtifactUpdated 7 / AnchorCommentAdded 10 / IterationStateChanged 9
 // 共 cursor sequence (BPP-1 #304 envelope CI lint reflect 自动覆盖).
 //
-// 反约束: 设计 ④ 不开 'agent_to_agent_mention' 专属 frame (反约束 grep 守
+// 反向约束: 设计 ④ 不开 'agent_to_agent_mention' 专属 frame (反向约束 grep 守
 // 见 cm5stance.TestCM51_NoBypassTable).
 func TestCM_AgentToAgentMentionViaDM2Router(t *testing.T) {
 	t.Parallel()
@@ -130,12 +130,12 @@ func TestCM_AgentToAgentMentionViaDM2Router(t *testing.T) {
 // TestCM_X2ConflictReusesCV1Lock pins acceptance §2.2 设计 ③ — 同
 // artifact 被两 agent (走 user.id 同 path) 在 30s lock 窗内同时 commit → 第二
 // 写者 409 (CV-1.2 single-doc lock + version mismatch 双重 gate 复用, 不引
-// 入新锁机制). 设计字面: X2 冲突走 CV-1.2 既有 30s lock 路径, 不开 CM-5
-// 自起新锁表 (反约束见 cm5stance.TestCM51_NoNewLockTable +
+// 入新锁定机制). 设计字面: X2 冲突走 CV-1.2 既有 30s lock 路径, 不开 CM-5
+// 自起新锁定表 (反向约束见 cm5stance.TestCM51_NoNewLockTable +
 // TestCM51_X2ConflictLiteralReuse).
 //
 // 注: CV-1 commit lock 是 user-level (LockHolderUserID); agent 也是 user
-// 行 (role='agent'), 锁路径同源. 此 test 用 agent A token + agent B token
+// 行 (role='agent'), 锁定路径同源. 此 test 用 agent A token + agent B token
 // 真触发 agent↔agent X2 冲突 (跟 owner-only commit ACL 边界: CV-1.2 commit
 // 是 channel member-allowed, agent 同 channel 走人 path. 若 commit ACL
 // 限 owner-only, fallback 用 owner + agent 触发 user-level lock 路径同源).
@@ -165,7 +165,7 @@ func TestCM_X2ConflictReusesCV1Lock(t *testing.T) {
 		})
 	// 预期: 409 (lock_held by owner + version mismatch) OR 403 (commit ACL
 	// owner-only — fallback 设计: agent 不能 commit, X2 路径退化为 owner
-	// 单源, 由 cv12 既有锁守; CV-1 既有 ACL 行为定义 cm-5.2 此 case).
+	// 单一来源, 由 cv12 既有锁定守; CV-1 既有 ACL 行为定义 cm-5.2 此 case).
 	if respSecond.StatusCode != http.StatusConflict && respSecond.StatusCode != http.StatusForbidden {
 		t.Fatalf("设计 ③ X2 冲突 broken: agent stale commit expected 409 (lock+version) or 403 (ACL gate), got %d: %v",
 			respSecond.StatusCode, body)
@@ -226,14 +226,14 @@ func TestCM_X2ConcurrentCommitOneWins(t *testing.T) {
 	if failCount != N-1 {
 		t.Errorf("设计 ③ X2 冲突 broken: expected %d non-success (409/5xx), got %d (codes: %v)", N-1, failCount, results)
 	}
-	// 反约束: 不开 CM-5 自起 X2 错码 (复用 CV-1 既有 lock conflict path,
+	// 反向约束: 不开 CM-5 自起 X2 错码 (复用 CV-1 既有 lock conflict path,
 	// 见 cm5stance.TestCM51_X2ConflictLiteralReuse).
 }
 
 // TestCM_OwnerVisibilityIterateChain pins acceptance §2.3 设计 ⑤ —
 // owner_A 触发 iterate 链, GET /api/v1/artifacts/:id/iterations 返完整链;
 // channel member 视角 (含 agent B token, 走 user 同 path) 同样可见 (走人
-// 协作 path, owner-first 透明可见, 不裂 owner_visibility scope 不引
+// 协作 path, owner-first 透明可见, 不拆 owner_visibility scope 不引
 // ai_only 隐藏字段).
 //
 // 设计 ⑤ 字面: 跟人协作产物 owner 可见同模式 — agent A iterate 由 owner_A
@@ -241,7 +241,7 @@ func TestCM_X2ConcurrentCommitOneWins(t *testing.T) {
 // 列出 (跟 mention thread / artifact view owner-first 同源).
 //
 // Cross-member 验证: agent B (channel member, 不同 user.id) 也 GET 同
-// 路径返同 chain — 设计 ⑤ 透明协作 owner-first 实证. 反约束: 不裂
+// 路径返同 chain — 设计 ⑤ 透明协作 owner-first 实证. 反向约束: 不拆
 // visibility scope, response 不挂 ai_only/visibility_scope 隐藏字段.
 func TestCM_OwnerVisibilityIterateChain(t *testing.T) {
 	t.Parallel()
@@ -278,8 +278,8 @@ func TestCM_OwnerVisibilityIterateChain(t *testing.T) {
 	if respCross.StatusCode != http.StatusOK {
 		// CV-4.2 既有 ACL 可能 owner-only — 设计 ⑤ 验证 GET endpoint 不
 		// 因 role='agent' 多增加隐藏 filter (即便 ACL gate, agent 跟人路径
-		// 同源不分叉). 真不可见时反约束体现在 ACL 层而非 visibility scope.
-		t.Logf("cross-member GET /iterations agentB: status=%d (CV-4.2 ACL gate may restrict to owner — 设计 ⑤ owner-first 设计仍守: 不裂 visibility scope)",
+		// 同源不分叉). 真不可见时反向约束体现在 ACL 层而非 visibility scope.
+		t.Logf("cross-member GET /iterations agentB: status=%d (CV-4.2 ACL gate may restrict to owner — 设计 ⑤ owner-first 设计仍守: 不拆 visibility scope)",
 			respCross.StatusCode)
 	} else {
 		// 若 GET 通, 验返链跟 owner 视角一致 (chain 长度 ≥1 同源).
@@ -293,8 +293,8 @@ func TestCM_OwnerVisibilityIterateChain(t *testing.T) {
 		}
 	}
 
-	// 反约束 — owner response 不含 'ai_only' / 'visibility_scope' 隐藏字段
-	// (设计 ⑤ 字面). 反约束 grep 守见 cm5stance.TestCM51_NoBypassTable
+	// 反向约束 — owner response 不含 'ai_only' / 'visibility_scope' 隐藏字段
+	// (设计 ⑤ 字面). 反向约束 grep 守见 cm5stance.TestCM51_NoBypassTable
 	// (covers ai_only 字符串 in code).
 	for _, it := range iterations {
 		row, _ := it.(map[string]any)

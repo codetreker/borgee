@@ -1,6 +1,6 @@
 // Package api_test — chn_9_visibility_test.go: CHN-9 channel privacy
-// 三态 + 0 schema + 三向锁 + admin god-mode 不挂 + creator_only leak 反断
-// + AST 锁链延伸第 14 处.
+// 三态 + 0 schema + 三向锁定 + admin god-mode 不挂 + creator_only leak 反断
+// + AST 守护链延伸第 14 处.
 package api_test
 
 import (
@@ -46,17 +46,17 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 	})
 }
 
-// REG-CHN9-002 — VisibilityConsts byte-identical 三向锁.
+// REG-CHN9-002 — VisibilityConsts byte-identical 三向锁定.
 func TestCHN_VisibilityConsts_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.VisibilityCreatorOnly != "creator_only" {
-		t.Errorf("VisibilityCreatorOnly drift: got %q", api.VisibilityCreatorOnly)
+		t.Errorf("VisibilityCreatorOnly 脱节: got %q", api.VisibilityCreatorOnly)
 	}
 	if api.VisibilityMembers != "private" {
-		t.Errorf("VisibilityMembers drift: got %q", api.VisibilityMembers)
+		t.Errorf("VisibilityMembers 脱节: got %q", api.VisibilityMembers)
 	}
 	if api.VisibilityOrgPublic != "public" {
-		t.Errorf("VisibilityOrgPublic drift: got %q", api.VisibilityOrgPublic)
+		t.Errorf("VisibilityOrgPublic 脱节: got %q", api.VisibilityOrgPublic)
 	}
 	if !api.IsValidVisibility("creator_only") {
 		t.Error("IsValidVisibility(creator_only): got false")
@@ -72,9 +72,9 @@ func TestCHN_VisibilityConsts_ByteIdentical(t *testing.T) {
 			t.Errorf("IsValidVisibility(%q): got true, want false", bad)
 		}
 	}
-	// VisibilityRejectMessage 单源 byte-identical.
+	// VisibilityRejectMessage 单一来源 byte-identical.
 	if api.VisibilityRejectMessage != "Visibility must be 'creator_only', 'private', or 'public'" {
-		t.Errorf("VisibilityRejectMessage drift: got %q", api.VisibilityRejectMessage)
+		t.Errorf("VisibilityRejectMessage 脱节: got %q", api.VisibilityRejectMessage)
 	}
 }
 
@@ -179,7 +179,7 @@ func TestCHN_ListChannelsFilter_ByteIdentical(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read queries.go: %v", err)
 	}
-	// Existing CHN-1.2 filter 字面 byte-identical 锁 — grep 检查
+	// Existing CHN-1.2 filter 字面 byte-identical 锁定 — grep 检查
 	// `visibility = 'public'` 必须 ≥1 hit.
 	pat := regexp.MustCompile(`visibility\s*=\s*'public'`)
 	if pat.Find(body) == nil {
@@ -235,7 +235,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 	}
 }
 
-// REG-CHN9-007 — AST 锁链延伸第 14 处.
+// REG-CHN9-007 — AST 守护链延伸第 14 处.
 func TestCHN_NoVisibilityQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -254,7 +254,7 @@ func TestCHN_NoVisibilityQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 14 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 守护链延伸第 14 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
