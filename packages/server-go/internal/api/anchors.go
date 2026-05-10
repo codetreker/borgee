@@ -17,16 +17,16 @@
 // 设计反查 (cv-2-spec.md §0):
 //
 //   - ① 锚点 = 人审 agent 产物 (人机界面, 非 agent 间通信). server kind=='agent'
-//     POST 锚 → 403 错码 `anchor.create_owner_only`. 反约束: 不开 agent → agent
+//     POST 锚 → 403 错码 `anchor.create_owner_only`. 反向约束: 不开 agent → agent
 //     锚点对话 (CV-2.2 在 reply 路径上一段同样校验 — agent 只能回复 thread 里
-//     至少有一 author_kind='human' 的锚点; 反约束 grep 0 hit).
+//     至少有一 author_kind='human' 的锚点; 反向约束 grep 0 hit).
 //   - ② 锚点挂 artifact_version 不挂 artifact. 创锚校验 version (传入或默认 head),
 //     版本 immutable 不会自动迁移 (artifact 滚下个 version 锚点不跟过去).
 //   - ③ AnchorCommentAdded 套 #237 envelope, 走 RT-1.1 #290 cursor 单调发号
-//     (10 字段 byte-identical 锁 spec v2 字面, 字段名 `author_kind` 不复用
+//     (10 字段 byte-identical 锁定 spec v2 字面, 字段名 `author_kind` 不复用
 //     `committer_kind`).
 //   - ⑦ channel 权限继承: 创/读 anchor = artifact 所属 channel 成员权限
-//     (CHN-1 双轴隔离同源, 反约束: 不另起 anchor-level 权限层).
+//     (CHN-1 双轴隔离同源, 反向约束: 不另起 anchor-level 权限层).
 //
 // admin (god-mode) cookie 不入此 rail (跟 ADM-0 §1.3 红线一致).
 package api
@@ -54,7 +54,7 @@ const (
 
 // AnchorErrCodeCreateOwnerOnly is the byte-identical error code returned
 // by the server when a role='agent' user POSTs to /anchors or /comments.
-// Pinned by cv-2-spec.md §3 反查锚 + 野马 #355 文案锁设计 ⑤. Client UI 反断
+// Pinned by cv-2-spec.md §3 反查出处 + 野马 #355 文案锁定设计 ⑤. Client UI 反断
 // 0 hit on agent path (CV-2.3).
 const AnchorErrCodeCreateOwnerOnly = "anchor.create_owner_only"
 
@@ -211,7 +211,7 @@ WHERE artifact_id = ? AND version = ?`, artifactID, version).Scan(&row)
 }
 
 // threadHasHumanAuthor returns true iff any comment in the anchor thread
-// has author_kind='human'. 设计 ① 反约束: agent reply 必须落在已含 human
+// has author_kind='human'. 设计 ① 反向约束: agent reply 必须落在已含 human
 // 的 thread, 不允许 agent 自循环新建 / 在 agent-only thread 接龙.
 //
 // The anchor itself was created by a human (server enforces 创锚 owner-only)
@@ -384,7 +384,7 @@ func (h *AnchorHandler) handleAddComment(w http.ResponseWriter, r *http.Request)
 
 	authorKind := h.authorKindForUser(user)
 
-	// 设计 ① 反约束: agent reply 只允许在 thread 已含 human author_kind 的情况下
+	// 设计 ① 反向约束: agent reply 只允许在 thread 已含 human author_kind 的情况下
 	// (防 AI 自循环). human reply 始终允许.
 	if authorKind == AnchorAuthorKindAgent {
 		hasHuman, err := h.threadHasHumanAuthor(anchor.ID, anchor.CreatedBy)

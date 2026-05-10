@@ -1,14 +1,14 @@
 // Package api — runtimes.go: AL-4.2 server registry + start/stop API +
 // heartbeat hook for agent_runtimes (process-level descriptor).
 //
-// Blueprint锚: docs/blueprint/current/agent-lifecycle.md §2.2 (默认 remote-agent +
+// Blueprint出处: docs/blueprint/current/agent-lifecycle.md §2.2 (默认 remote-agent +
 // power user 直配 plugin 双路径 + v1 务实边界 — only OpenClaw / Mac+Linux /
 // 不优化多 runtime 并行) + §2.3 (故障可解释) + §4 (remote-agent 安全模型留
 // 第 6 轮); README.md §1 设计 #7 (Borgee 不带 runtime — 走 plugin 接);
 // concept-model.md §0 (不调 LLM / 不带 runtime / 不定义角色模板).
 // Spec brief: docs/implementation/modules/al-4-spec.md (飞马 #313 v0 →
 // #379 v2, merged 962fec7) §0 设计 ①②③ + §1 拆段 AL-4.2.
-// Stance: docs/qa/al-4-stance-checklist.md (野马 #387, merged 8db1f9c).
+// 原则: docs/qa/al-4-stance-checklist.md (野马 #387, merged 8db1f9c).
 // Acceptance: docs/qa/acceptance-templates/al-4.md (#318) §2.1-§2.7 + §4.
 // Content lock: docs/qa/al-4-content-lock.md (野马 #321) status DM 文案
 // byte-identical 跟 AL-3 #305 / DM-2 #314 同模式.
@@ -38,14 +38,14 @@
 //     不写 presence_sessions (acceptance §2.4 + §4.2 grep 检查
 //     grep 检查 — schema 闸位已就位 #398, server
 //     handler 路径在此守不 import internal/presence 写 presence_sessions).
-//   - ④ status DM 文案锁 byte-identical: "{agent_name} 已启动" / "已停止" /
+//   - ④ status DM 文案锁定 byte-identical: "{agent_name} 已启动" / "已停止" /
 //     "出错: {reason}" 跟 #321 同源 (acceptance §2.7).
 //   - ⑤ reason 复用 AL-1a #249 6 reason 枚举字面: api_key_invalid /
 //     quota_exceeded / network_unreachable / runtime_crashed /
 //     runtime_timeout / unknown — 不另起字典, 跟 agent/state.go Reason* +
 //     AL-3 #305 + lib/agent-state.ts REASON_LABELS 三处 byte-identical
 //     (acceptance §2.5 + spec §0 设计 ④).
-//   - ⑥ 走 BPP-1 既有 frame 不裂 namespace: register / start / stop 不发
+//   - ⑥ 走 BPP-1 既有 frame 不拆 namespace: register / start / stop 不发
 //     'runtime.start' / 'runtime.stop' 自造 frame type (acceptance §4.4
 //     grep 检查 count==0 — 此 PR 不发 BPP frame, AL-4 真接管落 plugin 路径
 //     时复用既有 AgentRegisterFrame, 不新建).
@@ -99,8 +99,8 @@ const (
 	RuntimeProcessKindHermes   = "hermes"
 )
 
-// RuntimeStatusDMTemplate* — #321 文案锁 byte-identical (acceptance §2.7).
-// 改 = 改 #321 + 测试 byte-identical 锁两处, grep 检查 防同义词漂.
+// RuntimeStatusDMTemplate* — #321 文案锁定 byte-identical (acceptance §2.7).
+// 改 = 改 #321 + 测试 byte-identical 锁定两处, grep 检查 防同义词脱节.
 const (
 	RuntimeStatusDMTemplateStart = "%s 已启动"
 	RuntimeStatusDMTemplateStop  = "%s 已停止"
@@ -133,7 +133,7 @@ func (h *RuntimeHandler) newID() string {
 // god-mode metadata read path (`GET /admin-api/v1/runtimes`) is registered
 // separately by AdminRuntimeHandler.RegisterRoutes (admin.go-side rail).
 //
-// Defense-in-depth (acceptance §4.6 锚): start + stop wrap with
+// Defense-in-depth (acceptance §4.6 出处): start + stop wrap with
 // `auth.RequirePermission(s, "agent.runtime.control", nil)` so a future
 // GrantDefaultPermissions adjustment can narrow ownership without
 // changing this file. v0 owner check is still inline (handlers do
@@ -279,8 +279,8 @@ func (h *RuntimeHandler) handleRegister(w http.ResponseWriter, r *http.Request) 
 // via inline OwnerID check (see file-level docstring §6 — RequirePermission
 // 后续). Idempotent if already 'running'.
 //
-// 反约束 (acceptance §4.4): 不发自造 'runtime.start' BPP frame — AL-4
-// 真接管时复用既有 AgentRegisterFrame, 不裂 namespace.
+// 反向约束 (acceptance §4.4): 不发自造 'runtime.start' BPP frame — AL-4
+// 真接管时复用既有 AgentRegisterFrame, 不拆 namespace.
 func (h *RuntimeHandler) handleStart(w http.ResponseWriter, r *http.Request) {
 	_, agent, ok := h.loadOwnerCheckedAgent(w, r)
 	if !ok {
@@ -300,7 +300,7 @@ func (h *RuntimeHandler) handleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// status 转 running 仅在源态 != running 时发 system DM (idempotent —
-	// 重复 start 不重复发文案 #321 §2 反约束).
+	// 重复 start 不重复发文案 #321 §2 反向约束).
 	if rt.Status != RuntimeStatusRunning {
 		h.fanoutOwnerSystemDM(*agent.OwnerID,
 			fmt.Sprintf(RuntimeStatusDMTemplateStart, agent.DisplayName), nowMs)
@@ -349,9 +349,9 @@ func (h *RuntimeHandler) handleStop(w http.ResponseWriter, r *http.Request) {
 // ----- POST /api/v1/agents/{id}/runtime/heartbeat -----
 
 // handleHeartbeat updates agent_runtimes.last_heartbeat_at (acceptance §2.4).
-// 设计 ③ 反约束: 此 endpoint 不写 presence_sessions.last_heartbeat_at —
+// 设计 ③ 反向约束: 此 endpoint 不写 presence_sessions.last_heartbeat_at —
 // 那是 AL-3 hub WS lifecycle 路径, runtime process-level / WS session-level
-// 拆死. grep 检查 CI 守 — count==0 + 此 handler 不
+// 真分清. grep 检查 CI 守 — count==0 + 此 handler 不
 // import internal/presence.
 //
 // v0 simplify: heartbeat 走 owner cookie 兜底 — AL-4 真接管时切 plugin token
@@ -448,7 +448,7 @@ func (h *RuntimeHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 // ----- helpers -----
 
 // isValidAL1aReason — byte-identical 跟 agent/state.go Reason* + AL-3 #305
-// + lib/agent-state.ts REASON_LABELS 三处一致. 改 = 改三处单测锁 (#249 +
+// + lib/agent-state.ts REASON_LABELS 三处一致. 改 = 改三处单测锁定 (#249 +
 // AL-3 + 此). grep 检查 `last_error_reason.*=.*"[a-z_]+"` 字面校验.
 func isValidAL1aReason(reason string) bool {
 	switch reason {
@@ -464,8 +464,8 @@ func isValidAL1aReason(reason string) bool {
 }
 
 // fanoutOwnerSystemDM emits a system DM to owner only (acceptance §2.7).
-// 反约束: recipient = agent.owner_id only — channel fanout count==0;
-// payload 不含 raw runtime_id / pid / endpoint_url (#321 §3 反约束).
+// 反向约束: recipient = agent.owner_id only — channel fanout count==0;
+// payload 不含 raw runtime_id / pid / endpoint_url (#321 §3 反向约束).
 // Failures log-only (best-effort, 跟 fanoutAgentCommitMessage 同模式).
 func (h *RuntimeHandler) fanoutOwnerSystemDM(ownerID, body string, ts int64) {
 	dmCh, err := h.Store.CreateDmChannel(ownerID, "system")
@@ -521,13 +521,13 @@ func (h *RuntimeHandler) serializeRuntime(rt *runtimeRow) map[string]any {
 
 // AdminRuntimeHandler — admin god-mode rail for agent_runtimes metadata
 // reads. **Read-only** — admin never writes to agent_runtimes (acceptance
-// §4.3 反约束 grep 检查 `admin.*runtime.*start|admin.*runtime.*stop`
+// §4.3 反向约束 grep 检查 `admin.*runtime.*start|admin.*runtime.*stop`
 // count==0). 设计 ② admin 元数据 only (跟 ADM-0 §1.3 红线 + AP-0 双轨闸
 // 同模式).
 //
 // 隐私: response shape 字面排除 last_error_reason raw 文本 (acceptance
 // §2.6 + 设计 ⑦ ADM-0 同源). 反向断言: TestAdminGodModeOmitsErrorReason
-// 字面 reflect-scan 锁.
+// 字面 reflect-scan 锁定.
 type AdminRuntimeHandler struct {
 	Store  *store.Store
 	Logger *slog.Logger
@@ -551,7 +551,7 @@ FROM agent_runtimes ORDER BY created_at DESC`).Scan(&rows).Error; err != nil {
 	for _, rt := range rows {
 		// White-list: id / agent_id / endpoint_url / process_kind / status /
 		// last_heartbeat_at. last_error_reason **OMITTED** (隐私 设计 ⑦
-		// ADM-0 §1.3 红线, acceptance §2.6 字面). Reflect-scan 锁
+		// ADM-0 §1.3 红线, acceptance §2.6 字面). Reflect-scan 锁定
 		// TestAdminGodModeOmitsErrorReason byte-identical.
 		entry := map[string]any{
 			"id":           rt.ID,
