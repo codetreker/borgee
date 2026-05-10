@@ -23,7 +23,7 @@
 ## 当前在做的
 
 - [716-e2e-real-ui-audit](716-e2e-real-ui-audit/) — 全量审计 e2e case 删假 grep 充数 (P0, in-flight)
-- gh#718 — 全 repo 黑话整治 (P2, in-flight). sed 时代 12 PR (#721/#723/#725/#726/#727/#728/#729/#730/#731/#732/#733/#734) 已合, 用户拍方法学违反 issue 原文重做; v13+ 按语境读真做, 已合 27 PR / 149 文件 / 余 ~391 文件 / 估 ~65 PR. v17-v39 累计 0/872 = 0% 漏率 23 PR (含 v21 + v34 + v38 三次 conditional-then-fixed). **3 大里程碑达成** (docs/current/client/ 33 .md 文件 + docs/current/server/ ~32 文件 / 5 子目录 + packages/borgee-helper/ 24 Go 文件 production+test+e2e). Layer 7 防注意力疲劳 17 次成功. v34/v38 教训触发 Layer 7 词典扩 (single-source-of-truth + stance + SSOT + 拆死 + 二闸 + 单源 + 锁精准式). 无独立 tasks/ 目录.
+- gh#718 — 全 repo 黑话整治 (P2, in-flight). sed 时代 12 PR (#721/#723/#725/#726/#727/#728/#729/#730/#731/#732/#733/#734) 已合, 用户拍方法学违反 issue 原文重做; v13+ 按语境读真做, 已合 33 PR / 174 文件 / 余 ~366 文件 / 估 ~60 PR. v17-v44 累计 0/1188 = 0% 漏率 28 PR (含 v21 + v34 + v38 三次 conditional-then-fixed). **3 大里程碑达成** (docs/current/client/ 33 .md 文件 + docs/current/server/ ~32 文件 / 5 子目录 + packages/borgee-helper/ 24 Go 文件 production+test+e2e). Layer 7 防注意力疲劳 21 次成功. v34/v38 教训触发 Layer 7 词典扩 (single-source-of-truth + stance + SSOT + 拆死 + 二闸 + 单源 + 锁精准式). 无独立 tasks/ 目录.
 - gh#724 — 已 triage (Task / backlog / p2-normal). zhanma-c follow-up: ArtifactComments 系列 mount + ACL forbidden state UX, 留 v2 brainstorm 输入
 
 **v2 brainstorm 输入 (不是 current-iteration)**:
