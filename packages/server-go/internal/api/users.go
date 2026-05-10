@@ -14,11 +14,11 @@ import (
 // UserHandler handles user-related endpoints.
 type UserHandler struct {
 	Store *store.Store
-	// DataLayer — DL-1.2 SSOT 4-interface bundle (Storage / Presence /
-	// EventBus / 3 Repository). Optional in v1 (nil-safe; legacy paths
+	// DataLayer — DL-1.2 单一来源 4-interface bundle (Storage / Presence /
+	// EventBus / 3 Repository). Optional in v1 (nil-safe; 历史 paths
 	// still walk Store directly until ArtifactRepo + remaining surface
 	// migrate in DL-1.5+). When non-nil, prefer DL-1 Repository methods
-	// over store.Store equivalents (interface seam 锁未来换实现).
+	// over store.Store equivalents (interface seam 锁定未来换实现).
 	DataLayer *datalayer.DataLayer
 	Logger    *slog.Logger
 }
@@ -67,17 +67,17 @@ func (h *UserHandler) handleMyPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// AP-2 设计 ② — capability 透明 UI: response 加 `capabilities` 数组,
-	// 走 14 const SSOT byte-identical (`auth.ALL`). UI 走 capability token
+	// 走 14 const 单一来源 byte-identical (`auth.ALL`). UI 走 capability token
 	// 渲染, 反 role 名 (admin/editor/viewer/owner) bleed. Member humans
 	// 全权 → 全 14 const; agents/bundle-narrowed 仅 derive permissions
 	// 中已授权的 token (grep 检查 `"role":\s*"(admin|editor|viewer|owner)"`
-	// 0 hit in this response — `role` 字段保留 legacy caller 兼容, 但
-	// `capabilities` 是 AP-2 SSOT 单源).
+	// 0 hit in this response — `role` 字段保留 历史 caller 兼容, 但
+	// `capabilities` 是 AP-2 单一来源).
 	capabilities := deriveAP2Capabilities(user.Role, permissions)
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{
 		"user_id": user.ID,
-		// role kept for legacy callers; AP-2 client UI 不显此字段
+		// role kept for 历史 callers; AP-2 client UI 不显此字段
 		// (反 role bleed; 设计 ② content-lock §1).
 		"role":         user.Role,
 		"permissions":  permissions,
@@ -87,7 +87,7 @@ func (h *UserHandler) handleMyPermissions(w http.ResponseWriter, r *http.Request
 }
 
 // deriveAP2Capabilities maps user.Role + permissions[] → 14-const capability
-// tokens (AP-2 设计 ② SSOT 单源).
+// tokens (AP-2 设计 ② 单一来源).
 //
 //   - Member humans (Role=="member" + permissions=["*"]) → full 14 const
 //     (蓝图 §1.1 + AP-0 default 全权)
@@ -95,10 +95,10 @@ func (h *UserHandler) handleMyPermissions(w http.ResponseWriter, r *http.Request
 //     (走 capability part before `:` of `permissions[]` entries like
 //     `read_channel:*` or `commit_artifact:channel:abc`)
 //
-// 反约束: 不返回 role-derived 字面 (反 admin/editor/viewer/owner bleed).
+// 反向约束: 不返回 role-derived 字面 (反 admin/editor/viewer/owner bleed).
 func deriveAP2Capabilities(role string, permissions []string) []string {
 	if role == "member" && len(permissions) == 1 && permissions[0] == "*" {
-		// Full grant — return 14-const SSOT byte-identical 跟 auth.ALL.
+		// Full grant — return 14-const 单一来源 byte-identical 跟 auth.ALL.
 		out := make([]string, 0, len(auth.ALL))
 		out = append(out, auth.ALL...)
 		return out

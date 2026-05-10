@@ -3,16 +3,16 @@
 // Spec: docs/implementation/modules/adm-3-spec.md §1 ADM3.1.
 // Blueprint: admin-model.md §1.4 来源透明 (人/agent/admin/混合).
 //
-// 设计 (跟 DL-2 #615 events 双流 + ADM-2 #484 audit_events 同精神承袭):
-//   - 4 source enum SSOT (`AuditSourceServer/Plugin/HostBridge/Agent`),
-//     反 inline 字面漂 (跟 reasons.IsValid #496 / NAMING-1 / DL-2
-//     mustPersistKinds 同精神承袭).
+// 设计 (跟 DL-2 #615 events 双流 + ADM-2 #484 audit_events 同精神一致):
+//   - 4 source enum 单一来源 (`AuditSourceServer/Plugin/HostBridge/Agent`),
+//     反 inline 字面脱节 (跟 reasons.IsValid #496 / NAMING-1 / DL-2
+//     mustPersistKinds 同精神一致).
 //   - 0 schema 改 — UNION ALL 跨 4 源既有表 (audit_events / channel_events
-//     / global_events / host_bridge placeholder), query 层合并不裂表.
+//     / global_events / host_bridge placeholder), query 层合并不拆表.
 //   - admin god-mode 路径独立 — 仅 /admin-api/v1/audit/multi-source 暴露,
-//     反 user-rail 漂 (ADM-0 §1.3 红线).
+//     反 user-rail 脱节 (ADM-0 §1.3 红线).
 //   - LIMIT 100 + ORDER BY ts DESC v1 简单兜底, 反 N+1 / 反 cross-source
-//     scan 漂.
+//     scan 脱节.
 
 package api
 
@@ -26,7 +26,7 @@ import (
 	"borgee-server/internal/store"
 )
 
-// AuditSource 4 类 enum SSOT (蓝图 §1.4 来源透明 byte-identical).
+// AuditSource 4 类 enum 单一来源 (蓝图 §1.4 来源透明 byte-identical).
 // 改这里 = 改 client i18n key + content-lock §1 字面三处.
 const (
 	AuditSourceServer     = "server"
@@ -36,7 +36,7 @@ const (
 )
 
 // AuditSources is the canonical 4-element ordering used by client filters
-// + i18n. Reverse grep guard: grep `AuditSources` count==1 (单源).
+// + i18n. Reverse grep guard: grep `AuditSources` count==1 (单一来源).
 var AuditSources = []string{
 	AuditSourceServer,
 	AuditSourcePlugin,
@@ -44,11 +44,11 @@ var AuditSources = []string{
 	AuditSourceAgent,
 }
 
-// MultiSourceAuditRow 是合并后的 SSOT 响应 shape (4 字段, 跟 5-field
+// MultiSourceAuditRow 是合并后的 单一来源 响应 shape (4 字段, 跟 5-field
 // audit JSON-line schema 同精神 — actor/action/target/when/scope 蓝图
 // §1.4 byte-identical).
 type MultiSourceAuditRow struct {
-	Source    string `json:"source"`     // 4 enum 之一 (反字面漂)
+	Source    string `json:"source"`     // 4 enum 之一 (反字面脱节)
 	TS        int64  `json:"ts"`         // Unix ms epoch
 	Actor     string `json:"actor"`      // actor_id / kind / topic 来源 string
 	Action    string `json:"action"`     // action / kind 字面
@@ -72,14 +72,14 @@ type AdminAuditMultiSourceHandler struct {
 }
 
 // RegisterAdminRoutes wires GET /admin-api/v1/audit/multi-source behind adminMw.
-// 设计 ③ admin god-mode 路径独立 (反 user-rail 漂).
+// 设计 ③ admin god-mode 路径独立 (反 user-rail 脱节).
 func (h *AdminAuditMultiSourceHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/audit/multi-source", adminMw(http.HandlerFunc(h.handle)))
 }
 
 func (h *AdminAuditMultiSourceHandler) handle(w http.ResponseWriter, r *http.Request) {
 	// admin gate (走 adminMw, 此处再 read context defense-in-depth, 跟 ADM-2
-	// handleAdminAuditLog 同模式承袭).
+	// handleAdminAuditLog 同模式一致).
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {
 		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
@@ -139,7 +139,7 @@ func validAuditSource(s string) bool {
 // host_bridge — placeholder until HB-1 audit table lands (留 HB-1 后续,
 //               v1 0 行返回, 反空 UNION 跑空查反 SQL syntax err).
 //
-// 设计 ② SSOT — 单 helper, 反多处散布.
+// 设计 ② 单一来源 — 单 helper, 反多处散布.
 func MultiSourceAuditQuery(s *store.Store, f MultiSourceAuditFilter) ([]MultiSourceAuditRow, error) {
 	rows := make([]MultiSourceAuditRow, 0, f.Limit)
 	include := func(src string) bool {
@@ -178,7 +178,7 @@ func MultiSourceAuditQuery(s *store.Store, f MultiSourceAuditFilter) ([]MultiSou
 		rows = append(rows, agentRows...)
 	}
 
-	// host_bridge: HB-1 audit table 未落 v1 (留 HB-1 后续, 反约束:
+	// host_bridge: HB-1 audit table 未落 v1 (留 HB-1 后续, 反向约束:
 	// MultiSourceAuditQuery 不假设表存在). 当前 0 行, 占位反 4 源缺漏.
 	_ = include(AuditSourceHostBridge)
 
