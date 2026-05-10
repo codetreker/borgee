@@ -37,7 +37,7 @@ func TestCV_AddsThumbnailURLColumn(t *testing.T) {
 	}
 }
 
-// REG-CV3V2-001b — legacy markdown rows preserve NULL thumbnail_url
+// REG-CV3V2-001b — 历史 markdown rows preserve NULL thumbnail_url
 // (跟 preview_url 同精神, ALTER ADD COLUMN NULL 现网行为零变).
 func TestCV_LegacyRowsNullPreserved(t *testing.T) {
 	t.Parallel()
@@ -52,8 +52,8 @@ func TestCV_LegacyRowsNullPreserved(t *testing.T) {
 	}
 	if err := db.Exec(`INSERT INTO artifacts
 		(id, channel_id, type, title, body, current_version, created_at)
-		VALUES ('art-legacy', 'ch-A', 'markdown', 'Legacy', 'body', 1, 1700000000000)`).Error; err != nil {
-		t.Fatalf("seed legacy row: %v", err)
+		VALUES ('art-old', 'ch-A', 'markdown', 'Legacy', 'body', 1, 1700000000000)`).Error; err != nil {
+		t.Fatalf("seed 历史 row: %v", err)
 	}
 
 	e2 := New(db)
@@ -63,11 +63,11 @@ func TestCV_LegacyRowsNullPreserved(t *testing.T) {
 	}
 
 	var url *string
-	if err := db.Raw(`SELECT thumbnail_url FROM artifacts WHERE id='art-legacy'`).Scan(&url).Error; err != nil {
+	if err := db.Raw(`SELECT thumbnail_url FROM artifacts WHERE id='art-old'`).Scan(&url).Error; err != nil {
 		t.Fatalf("scan: %v", err)
 	}
 	if url != nil {
-		t.Errorf("legacy row thumbnail_url: got %q, want NULL (现网行为零变)", *url)
+		t.Errorf("历史 row thumbnail_url: got %q, want NULL (现网行为零变)", *url)
 	}
 }
 
@@ -91,8 +91,8 @@ func TestCV_AcceptsExplicitThumbnailURL(t *testing.T) {
 	}
 }
 
-// REG-CV3V2-001d (spec §3 反约束 + 设计 ⑧) — does NOT create separate
-// thumbnail tables (CV-3.1 设计 ① "enum 扩不裂表" 同精神).
+// REG-CV3V2-001d (spec §3 反向约束 + 设计 ⑧) — does NOT create separate
+// thumbnail tables (CV-3.1 设计 ① "enum 扩不拆表" 同精神).
 func TestCV_NoSeparateThumbnailTables(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -105,18 +105,18 @@ func TestCV_NoSeparateThumbnailTables(t *testing.T) {
 			t.Fatalf("scan %s: %v", forbidden, err)
 		}
 		if n != 0 {
-			t.Errorf("table %q exists — 反约束 broken (设计 ⑧ 不裂表)", forbidden)
+			t.Errorf("table %q exists — 反向约束 broken (设计 ⑧ 不拆表)", forbidden)
 		}
 	}
 }
 
-// REG-CV3V2-001e — registry.go 字面锁 v=31.
+// REG-CV3V2-001e — registry.go 字面锁定 v=31.
 func TestCV_RegistryHasV32(t *testing.T) {
 	t.Parallel()
 	for _, m := range All {
 		if m.Version == 32 {
 			if m.Name != "cv_3_v2_artifact_thumbnail" {
-				t.Errorf("v=31 name drift: got %q, want %q", m.Name, "cv_3_v2_artifact_thumbnail")
+				t.Errorf("v=31 name 脱节: got %q, want %q", m.Name, "cv_3_v2_artifact_thumbnail")
 			}
 			return
 		}
