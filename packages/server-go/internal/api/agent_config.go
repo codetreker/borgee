@@ -2,12 +2,12 @@
 //
 // Spec: docs/qa/acceptance-templates/al-2a.md (#264, 7 验收项).
 // Blueprint: agent-lifecycle.md §2.1 (用户完全自主决定 agent 的
-// name/prompt/能力/model) + plugin-protocol.md §1.4 (Borgee=SSOT 字段
+// name/prompt/能力/model) + plugin-protocol.md §1.4 (Borgee=单一来源 字段
 // 划界) + §1.5 (热更新分级 — 字段下发, AL-2a 不含 BPP frame, 走轮询
 // reload).
 // R3 决议: AL-2 拆 a/b — AL-2a 只落 config 表 + REST update API; agent
 // 端 reload 走轮询; BPP `agent_config_update` frame 留 AL-2b + BPP-3
-// 同合 (战马 D5 锁紧).
+// 同合 (战马 D5 锁定紧).
 //
 // Endpoint surface:
 //   - GET   /api/v1/agents/:id/config         return agent's current config
@@ -17,8 +17,8 @@
 //     末次胜出 + schema_version 严格
 //     递增 + 无丢失)
 //
-// Stance reverse-grep targets (蓝图 §1.4 SSOT + §1.5 BPP frame 反约束):
-//   - 蓝图 §1.4 SSOT 设计: blob 仅 Borgee 管字段 (name / avatar / prompt /
+// 原则 reverse-grep targets (蓝图 §1.4 单一来源 + §1.5 BPP frame 反向约束):
+//   - 蓝图 §1.4 单一来源 设计: blob 仅 Borgee 管字段 (name / avatar / prompt /
 //     model / capabilities / enabled / memory_ref). Runtime-only 字段
 //     (api_key / temperature / token_limit / retry_policy) **fail-closed**
 //     reject by allowedConfigKeys whitelist (acceptance §4.1.c reflect
@@ -49,7 +49,7 @@ import (
 // seam to keep the api package from depending on internal/ws (跟
 // IterationStatePusher / ArtifactPusher / AgentInvitationPusher 同模式).
 //
-// 反约束: AL-2a-only callers (legacy poll path) leave Pusher nil — PATCH
+// 反向约束: AL-2a-only callers (历史 poll path) leave Pusher nil — PATCH
 // handler skips fanout silently. AL-2b wire-up sets Pusher at server
 // boot, single source of truth.
 type AgentConfigPusher interface {
@@ -57,7 +57,7 @@ type AgentConfigPusher interface {
 		idempotencyKey string, createdAt int64) (cursor int64, sent bool)
 }
 
-// AgentConfigHandler handles agent config SSOT endpoints (AL-2a.2) +
+// AgentConfigHandler handles agent config 单一来源 endpoints (AL-2a.2) +
 // AL-2b BPP fanout (when Pusher is wired).
 type AgentConfigHandler struct {
 	Store  *store.Store
@@ -91,7 +91,7 @@ type agentConfigRow struct {
 	UpdatedAt     int64  `gorm:"column:updated_at"     json:"updated_at"`
 }
 
-// allowedConfigKeys is the SSOT whitelist of keys that may live in
+// allowedConfigKeys is the 单一来源 whitelist of keys that may live in
 // agent_configs.blob (蓝图 §1.4 字段划界, fail-closed).
 //
 // Reject (acceptance §4.1.c reflect scan 同源, runtime-only):
@@ -100,7 +100,7 @@ type agentConfigRow struct {
 //   - retry_policy / timeout_ms / backoff           → runtime tuning
 //   - latency_budget_ms / circuit_breaker          → runtime tuning
 //
-// 字面承袭 acceptance §4.1.c reflect scan:
+// 字面跟随 acceptance §4.1.c reflect scan:
 // `不返回 api_key/temperature/retry_policy 等 runtime-only 字段 (fail-closed)`.
 var allowedConfigKeys = map[string]bool{
 	"name":         true, // 蓝图 §1.4 "归 Borgee 管"
@@ -109,13 +109,13 @@ var allowedConfigKeys = map[string]bool{
 	"model":        true, // 蓝图 §1.4 "归 Borgee 管" (model identifier 字符串, 非 LLM 调用参数)
 	"capabilities": true, // 蓝图 §1.4 能力开关
 	"enabled":      true, // 蓝图 §1.4 启用状态
-	"memory_ref":   true, // 蓝图 §1.4 SSOT 设计
+	"memory_ref":   true, // 蓝图 §1.4 单一来源 设计
 }
 
 // ----- GET /api/v1/agents/:id/config -----
 //
 // Acceptance §4.1.d: 200 with {schema_version, blob} + agent 端轮询 reload
-// drift test 防 cache 不刷.
+// 脱节 test 防 cache 不刷.
 func (h *AgentConfigHandler) handleGetAgentConfig(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -140,14 +140,14 @@ func (h *AgentConfigHandler) handleGetAgentConfig(w http.ResponseWriter, r *http
 		return
 	}
 	if row.AgentID == "" {
-		// 无 row — 返 schema_version=0 + blob {} (空 SSOT, agent 端轮询初始).
+		// 无 row — 返 schema_version=0 + blob {} (空 单一来源, agent 端轮询初始).
 		writeJSONResponse(w, http.StatusOK, map[string]any{
 			"schema_version": int64(0),
 			"blob":           map[string]any{},
 		})
 		return
 	}
-	// Parse blob 为 map (反约束: schema 存 TEXT JSON, response 反序列化返
+	// Parse blob 为 map (反向约束: schema 存 TEXT JSON, response 反序列化返
 	// map; 不能裸返 string, 否则 client 双重解码).
 	var blobMap map[string]any
 	if err := json.Unmarshal([]byte(row.Blob), &blobMap); err != nil {
@@ -179,7 +179,7 @@ func (h *AgentConfigHandler) handleGetAgentConfig(w http.ResponseWriter, r *http
 //     白名单外字段, fail-closed reject — acceptance §4.1.c reflect scan)
 //   - 403 (cross-owner — acceptance §4.1.b)
 //   - 500 with msg "agent 配置保存失败, 请重试" (跟 layout.go 失败 toast
-//     同模式, AL-2a 文案锁待 #264 后续; 暂用此 msg).
+//     同模式, AL-2a 文案锁定待 #264 后续; 暂用此 msg).
 const agentConfigSaveErrorMsg = "agent 配置保存失败, 请重试"
 
 type agentConfigPatchRequest struct {
@@ -211,7 +211,7 @@ func (h *AgentConfigHandler) handlePatchAgentConfig(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// 蓝图 §1.4 SSOT 设计 fail-closed: blob 仅含白名单字段, runtime-only 字段
+	// 蓝图 §1.4 单一来源 设计 fail-closed: blob 仅含白名单字段, runtime-only 字段
 	// (api_key / temperature / token_limit / retry_policy) 一律 reject.
 	// acceptance §4.1.c reflect scan 同源.
 	for k := range req.Blob {
@@ -270,14 +270,14 @@ func (h *AgentConfigHandler) handlePatchAgentConfig(w http.ResponseWriter, r *ht
 	//
 	// idempotency_key 走 server-side stable derivation (agent_id +
 	// schema_version) — plugin 端按此 key 去重 reload (acceptance §2.2
-	// 字面承袭). 同 (agent_id, schema_version) 重发 N 次 → plugin reload
+	// 字面跟随). 同 (agent_id, schema_version) 重发 N 次 → plugin reload
 	// 行为只触发 1 次.
 	if h.Pusher != nil {
 		idemKey := id + ":" + strconv.FormatInt(row.SchemaVersion, 10)
 		_, sent := h.Pusher.PushAgentConfigUpdate(id, row.SchemaVersion,
 			row.Blob, idemKey, now)
 		if !sent && h.Logger != nil {
-			// plugin offline — frame dropped (反约束: 不入队列). Audit
+			// plugin offline — frame dropped (反向约束: 不入队列). Audit
 			// trail only, not an error from PATCH's POV.
 			h.Logger.Info("agent_config push skipped (plugin offline)",
 				"agent_id", id, "schema_version", row.SchemaVersion)

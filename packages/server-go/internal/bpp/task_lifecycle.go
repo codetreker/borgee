@@ -2,8 +2,8 @@
 // task_started / task_finished plugin-upstream frame validation +
 // AL-1b busy/idle state-machine source.
 //
-// busy 状态由 task_started/finished frame 单源驱动, 不开 PATCH
-// /api/v1/agents/:id/state — 跟 AL-1b #482 BPP single source 立场同源
+// busy 状态由 task_started/finished frame 单一来源驱动, 不开 PATCH
+// /api/v1/agents/:id/state — 跟 AL-1b #482 BPP single source 原则同源
 // (蓝图 §2.3 R3). online = session-level 走 WS conn lifecycle, 跟
 // task-level (busy) 正交 — 反向 grep `presence_sessions.*busy|
 // presence.*task_id` count==0 (acceptance §4.2).
@@ -13,9 +13,9 @@
 // presence push 通道把派生 state 推给 client; 不另起独立的
 // AgentTaskStateChangedFrame (frame 数量少一个 不冗余, busy/idle 是
 // task lifecycle 的算法结果不是独立信号). 因此 bppEnvelopeWhitelist
-// 留 11 frame 不动, 5-frame 共序锁字段数各 frame 自报 (各自 _test 已锁).
+// 留 11 frame 不动, 5-frame 共序锁定字段数各 frame 自报 (各自 _test 已锁定).
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 +
+// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 +
 // "工作中状态需要 plugin 主动心跳上报 — 缺心跳按未知") + §2.2 (data
 // plane Plugin → Borgee). agent-lifecycle.md §2.3 字面: "busy / idle
 // source 必须是 plugin 上行的 task_started / task_finished frame, 没
@@ -23,10 +23,10 @@
 // 条件 不准用模糊文案糊弄).
 //
 // Spec brief: docs/implementation/modules/bpp-2-spec.md (战马E #460 v0)
-// §0 立场 ② + §1 拆段 BPP-2.2.
-// Stance: docs/qa/bpp-2-stance-checklist.md §2 立场 ② 反约束 checkbox.
+// §0 原则 ② + §1 拆段 BPP-2.2.
+// 原则: docs/qa/bpp-2-stance-checklist.md §2 原则 ② 反向约束 checkbox.
 // Content lock: docs/qa/bpp-2-content-lock.md §1 ③ 3 outcome enum + §1 ④
-// 6 reason 字典字面承袭 AL-1a #249 + §1 ⑤ subject 文案锁.
+// 6 reason 字典字面跟随 AL-1a #249 + §1 ⑤ subject 文案锁定.
 //
 // What this file does:
 //   1. Validate TaskStartedFrame: subject MUST be non-empty after
@@ -37,12 +37,12 @@
 //      so the api package (or future BPP listener) can validate before
 //      side-effecting AL-1b state.
 //
-// 反约束 (acceptance §2 + content-lock §2):
+// 反向约束 (acceptance §2 + content-lock §2):
 //   - subject 必带非空 + reject 默认值 fallback — 反向 grep CI lint
 //     count==0 (acceptance §4.4).
 //   - outcome 字典外值 (中间态) reject — 反向 grep CI lint count==0
 //     (acceptance §4.8).
-//   - reason 字典字面承袭 AL-1a #249 6 项, 不另起 (改 = 改四处:
+//   - reason 字典字面跟随 AL-1a #249 6 项, 不另起 (改 = 改四处:
 //     #249 + AL-3 #305 + AL-4 #321 + #427 + BPP-2.2 = 第四+).
 package bpp
 
@@ -55,7 +55,7 @@ import (
 )
 
 // TaskOutcome enum — content-lock §1 ③ byte-identical 跟蓝图 §1.6
-// 失联与故障状态 outcome 字面承袭. 改 = 改三处: spec §0 立场 ② +
+// 失联与故障状态 outcome 字面跟随. 改 = 改三处: spec §0 原则 ② +
 // acceptance §2.2 + this enum.
 const (
 	TaskOutcomeCompleted = "completed"
@@ -72,13 +72,13 @@ var validTaskOutcomes = map[string]bool{
 	TaskOutcomeCancelled: true,
 }
 
-// validTaskReasons — REFACTOR-REASONS: SSOT 迁到 internal/agent/reasons.
+// validTaskReasons — REFACTOR-REASONS: 单一来源 迁到 internal/agent/reasons.
 // 直接调 reasons.IsValid(s); 不再 inline map. 改字面 = 改 reasons.ALL 一处
 // 即 8 处单测同步挂.
 //
 // 历史: 此处原 inline 6 字面 byte-identical 跟 agent/state.go Reason*
-// (#249/#305/#321/#380/#454/#458/#481/#492 八处单测锁链), REFACTOR-REASONS
-// 一 PR dedupe 到 internal/agent/reasons SSOT 包.
+// (#249/#305/#321/#380/#454/#458/#481/#492 八处单测守护链), REFACTOR-REASONS
+// 一 PR dedupe 到 internal/agent/reasons 单一来源 包.
 func validTaskReason(s string) bool { return reasons.IsValid(s) }
 
 // TaskErrCode* — error code literals byte-identical 跟 content-lock
@@ -92,9 +92,9 @@ const (
 	TaskErrCodeFinishedNoReason = "bpp.task_finished_no_reason"
 
 	// ThinkingErrCodeSubjectRequired — RT-3 ⭐ wire-level reason code for
-	// thinking subject 反约束 (rt-3-spec.md §0.2 + 蓝图 §1.1 ⭐). Surfaced
+	// thinking subject 反向约束 (rt-3-spec.md §0.2 + 蓝图 §1.1 ⭐). Surfaced
 	// at endpoints where thinking state is exposed to clients (跟 chn-3
-	// content-lock 5 源 byte-identical 守门模式承袭). 改 = 改三处: 此 const
+	// content-lock 5 源 byte-identical 守门模式一致). 改 = 改三处: 此 const
 	// + acceptance §2.3 + content-lock §3.
 	ThinkingErrCodeSubjectRequired = "thinking.subject_required"
 )
@@ -119,12 +119,12 @@ func IsTaskFinishedNoReason(err error) bool {
 	return errors.Is(err, errFinishedNoReason)
 }
 
-// ValidateTaskStarted enforces立场 ② subject 必带非空反约束 (蓝图 §11
+// ValidateTaskStarted enforces 原则 ② subject 必带非空反向约束 (蓝图 §11
 // 文案守 + content-lock §1 ⑤). Empty / whitespace-only Subject returns
 // errSubjectEmpty wrapped with the offending agent_id for log warn.
 //
-// Reverse grep CI lint guards the反约束 — this validator is the only
-// sanctioned path; any fallback elsewhere violates spec §0 立场 ②.
+// Reverse grep CI lint guards the反向约束 — this validator is the only
+// sanctioned path; any fallback elsewhere violates spec §0 原则 ②.
 func ValidateTaskStarted(frame TaskStartedFrame) error {
 	if strings.TrimSpace(frame.Subject) == "" {
 		return fmt.Errorf("%w: agent_id=%q task_id=%q",
@@ -133,14 +133,14 @@ func ValidateTaskStarted(frame TaskStartedFrame) error {
 	return nil
 }
 
-// ValidateTaskFinished enforces立场 ② outcome 3-态 + reason 字典承袭
+// ValidateTaskFinished enforces 原则 ② outcome 3-态 + reason 字典跟随
 // AL-1a 6 项 (content-lock §1 ③④). Validation order:
 //   1. outcome ∈ {completed, failed, cancelled} else errOutcomeUnknown.
 //   2. when outcome=='failed': reason non-empty AND in AL-1a 6 dict.
 //      Empty reason on failed → errFinishedNoReason; non-empty but
 //      字典外 → errReasonUnknown.
 //   3. when outcome ∈ {completed, cancelled}: reason MUST be empty
-//      (反约束: 不允许"跑完了但顺便报个 reason" 漏 — 字典污染防御).
+//      (反向约束: 不允许"跑完了但顺便报个 reason" 漏 — 字典污染防御).
 func ValidateTaskFinished(frame TaskFinishedFrame) error {
 	if !validTaskOutcomes[frame.Outcome] {
 		return fmt.Errorf("%w: outcome=%q (3-enum: completed/failed/cancelled)",
