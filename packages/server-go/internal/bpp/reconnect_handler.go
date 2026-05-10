@@ -2,13 +2,13 @@
 // dispatcher. Wired into the BPP-3 #489 PluginFrameDispatcher boundary
 // to handle FrameTypeBPPReconnectHandshake.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (重连恢复) +
-// §2.1 (control-plane connect 路径承袭) + RT-1.3 #296 cursor replay
+// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.6 (重连恢复) +
+// §2.1 (control-plane connect 路径一致) + RT-1.3 #296 cursor replay
 // (复用 ResolveResume incremental mode).
 // Spec: docs/implementation/modules/bpp-5-spec.md §0+§1 BPP-5.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-5.md §2.
 //
-// 立场 (跟 stance §2+§3+§4 byte-identical):
+// 原则 (跟 原则 §2+§3+§4 byte-identical):
 //   - **cursor resume 复用 RT-1.3** — 调 ResolveResume(SessionResumeRequest{
 //     Mode: ResumeModeIncremental, Since: LastKnownCursor}, …). 不另起
 //     sequence, 不另起 dictionary.
@@ -17,12 +17,12 @@
 //     即可 (因为 hub.GetPlugin(agentID) != nil 后, ResolveAgentState 自动
 //     从 error 转 online).
 //   - **不另起第 7 reason** — connecting 中间态 reason-less; AL-1a 6-dict
-//     第 10 处单测锁链承袭 (BPP-2.2 #485 第 7 + AL-2b #481 第 8 + BPP-4
+//     第 10 处单测守护链一致 (BPP-2.2 #485 第 7 + AL-2b #481 第 8 + BPP-4
 //     #499 第 9 + BPP-5 第 10).
-//   - **best-effort 不重发** (跟 BPP-4 §0.3 立场承袭) — server 端不挂
+//   - **best-effort 不重发** (跟 BPP-4 §0.3 原则一致) — server 端不挂
 //     reconnect retry queue. AST scan 反向断言 forbidden tokens 0 hit.
 //
-// 反约束 (acceptance §4):
+// 反向约束 (acceptance §4):
 //   - cross-owner reject (跟 BPP-3 / BPP-4 ACL 同模式).
 //   - cursor 倒退 trust-but-log (warn `bpp.reconnect_cursor_regression`
 //     但不 reject; 严格 reject 留 v2).
@@ -112,7 +112,7 @@ const ReconnectErrCodeCrossOwnerReject = "bpp.reconnect_cross_owner_reject"
 //     Mismatch → errReconnectCrossOwnerReject + log warn.
 //  3. cursor monotonic check (trust-but-log): if frame.LastKnownCursor
 //     > server's current high-water → log warn
-//     `bpp.reconnect_cursor_regression` (but DO NOT reject; v2 留账).
+//     `bpp.reconnect_cursor_regression` (but DO NOT reject; v2 留作后续).
 //  4. Resolve channel scope: scope.ChannelIDsForOwner(sess.OwnerUserID).
 //  5. Replay via ResolveResume(SessionResumeRequest{Mode: incremental,
 //     Since: frame.LastKnownCursor}, channelIDs, DefaultResumeLimit).
@@ -125,7 +125,7 @@ const ReconnectErrCodeCrossOwnerReject = "bpp.reconnect_cross_owner_reject"
 //
 // Returns nil on success; wrapped sentinel errors on failure
 // (callers errors.Is to map to wire-level codes). 反向 dispatch (此
-// handler 永不写持久 retry state — best-effort 立场承袭 BPP-4).
+// handler 永不写持久 retry state — best-effort 原则一致 BPP-4).
 func (h *ReconnectHandler) Dispatch(raw json.RawMessage, sess PluginSessionContext) error {
 	var frame ReconnectHandshakeFrame
 	if err := json.Unmarshal(raw, &frame); err != nil {
@@ -171,7 +171,7 @@ func (h *ReconnectHandler) Dispatch(raw json.RawMessage, sess PluginSessionConte
 	}
 
 	// 5. Replay via RT-1.3 ResolveResume (incremental mode, byte-identical
-	// 立场承袭 spec §0.2).
+	// 原则一致 spec §0.2).
 	if _, _, err := ResolveResume(h.events, SessionResumeRequest{
 		Type:  FrameTypeSessionResume,
 		Mode:  ResumeModeIncremental,
@@ -181,7 +181,7 @@ func (h *ReconnectHandler) Dispatch(raw json.RawMessage, sess PluginSessionConte
 	}
 
 	// 6. Clear agent error (AL-1 5-state error → online valid edge,
-	// agent.Tracker.Clear is the SSOT — hub.GetPlugin(agentID) != nil
+	// agent.Tracker.Clear is the 单一来源 — hub.GetPlugin(agentID) != nil
 	// + tracker.Clear → ResolveAgentState returns online).
 	h.clearer.Clear(frame.AgentID)
 

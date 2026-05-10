@@ -2,12 +2,12 @@
 // dispatcher. Wired into the BPP-3 #489 PluginFrameDispatcher boundary
 // to handle FrameTypeBPPColdStartHandshake.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 —
+// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 —
 // 进程死亡 vs 网络重连) + §2.1 control-plane handshake.
 // Spec: docs/implementation/modules/bpp-6-spec.md §0+§1 BPP-6.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-6.md §2.
 //
-// 立场 (跟 stance §2+§3+§4 byte-identical):
+// 原则 (跟 原则 §2+§3+§4 byte-identical):
 //   - **cold-start ≠ reconnect** — 字段集与 ReconnectHandshakeFrame 互斥
 //     (不带 cursor / 不 expect resume). spec §0.1.
 //   - **agent state 重新 derive** — server 收 cold_start_handshake →
@@ -16,15 +16,15 @@
 //     runtime_crashed) 翻 state-log + ③ **不重放历史 frame** (反向
 //     BPP-5: BPP-5 走增量恢复; BPP-6 fresh start). spec §0.2.
 //   - **restart count 仅 audit** — reason 复用 `runtime_crashed`
-//     byte-identical (反映上次 error → 此次复活语义). reasons SSOT #496
-//     6-dict 不扩第 7. AL-1a reason 锁链 BPP-6 = 第 11 处 (BPP-2.2 第 7
+//     byte-identical (反映上次 error → 此次复活语义). reasons 单一来源 #496
+//     6-dict 不扩第 7. AL-1a reason 守护链 BPP-6 = 第 11 处 (BPP-2.2 第 7
 //     + AL-2b 第 8 + BPP-4 第 9 + BPP-5 第 10 + BPP-6 第 11). spec §0.3.
-//   - **best-effort 不重发** (跟 BPP-4 §0.3 + BPP-5 §0.6 立场承袭) —
+//   - **best-effort 不重发** (跟 BPP-4 §0.3 + BPP-5 §0.6 原则一致) —
 //     server 端不挂 cold-start retry queue / persistent state. AST scan
 //     反向断言 forbidden tokens (pendingColdStart/coldStartQueue/
-//     deadLetterColdStart) 0 hit (锁链延伸第 3 处).
+//     deadLetterColdStart) 0 hit (守护链延伸第 3 处).
 //
-// 反约束 (acceptance §2+§3+§4):
+// 反向约束 (acceptance §2+§3+§4):
 //   - cross-owner reject (跟 BPP-3 / BPP-4 / BPP-5 ACL 同模式).
 //   - 不重放历史 — handler 不携 cursor (TestBPP6_Handler_DoesNotInvokeResolveResume
 //     AST scan 守).
@@ -114,7 +114,7 @@ const ColdStartErrCodeCrossOwnerReject = "bpp.cold_start_cross_owner_reject"
 //     ValidateTransition rejects same-state). Tracker.Clear still
 //     called to ensure in-memory state is fresh.
 //  4. Append AL-1 #492 single-gate transition any→online with reason
-//     `runtime_crashed` byte-identical (复用 6-dict, 不扩 SSOT).
+//     `runtime_crashed` byte-identical (复用 6-dict, 不扩 单一来源).
 //  5. Clear agent in-memory state: clearer.Clear(frame.AgentID).
 //
 // Returns nil on success; wrapped sentinel errors on failure
@@ -164,14 +164,14 @@ func (h *ColdStartHandler) Dispatch(raw json.RawMessage, sess PluginSessionConte
 			frame.AgentID,
 			from,
 			store.AgentStateOnline,
-			reasons.RuntimeCrashed, // AL-1a 6-dict, reasons SSOT #496 字面 byte-identical (锁链第 11 处)
+			reasons.RuntimeCrashed, // AL-1a 6-dict, reasons 单一来源 #496 字面 byte-identical (守护链第 11 处)
 			"",
 		); err != nil {
 			return fmt.Errorf("bpp.cold_start_state_append_failed: %w", err)
 		}
 	}
 
-	// 5. Clear agent in-memory state — Tracker.Clear is the SSOT
+	// 5. Clear agent in-memory state — Tracker.Clear is the 单一来源
 	// (跟 BPP-5 reconnect handler 同语义, 反向 BPP-4 SetError).
 	h.clearer.Clear(frame.AgentID)
 
