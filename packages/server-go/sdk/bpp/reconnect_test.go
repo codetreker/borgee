@@ -5,7 +5,7 @@
 //       byte-identical (reasons.RuntimeCrashed)
 //   2.2 HeartbeatInterval = 30s byte-identical
 //   2.3 GrantRetry stops after 3 attempts + backoff const reuse
-//   2.4 AST scan forbidden tokens (best-effort 锁链延伸第 4 处)
+//   2.4 AST scan forbidden tokens (best-effort 守护链延伸第 4 处)
 //   2.6 reason chain 12th link
 
 package bpp_test
@@ -33,7 +33,7 @@ import (
 // TestBPP_Reconnect_CarriesCursor — acceptance §2.1.
 //
 // Confirms the marshalled ReconnectHandshakeFrame contains last_known_cursor
-// (BPP-5 #503 字段集承袭).
+// (BPP-5 #503 字段集一致).
 func TestBPP_Reconnect_CarriesCursor(t *testing.T) {
 	frame := srvbpp.ReconnectHandshakeFrame{
 		Type:            srvbpp.FrameTypeBPPReconnectHandshake,
@@ -69,11 +69,11 @@ func TestBPP_ColdStart_NoCursor(t *testing.T) {
 }
 
 // TestBPP_ColdStart_ReasonRuntimeCrashed_ByteIdentical — acceptance §2.1+§2.6
-// AL-1a reason 锁链 BPP-7 = 第 12 处 (BPP-2.2 第 7 + AL-2b 第 8 + BPP-4
+// AL-1a reason 守护链 BPP-7 = 第 12 处 (BPP-2.2 第 7 + AL-2b 第 8 + BPP-4
 // 第 9 + BPP-5 第 10 + BPP-6 第 11 + BPP-7 第 12).
 func TestBPP_ColdStart_ReasonRuntimeCrashed_ByteIdentical(t *testing.T) {
 	if reasons.RuntimeCrashed != "runtime_crashed" {
-		t.Fatalf("reasons.RuntimeCrashed drift: got %q, want %q (AL-1a 锁链第 12 处)",
+		t.Fatalf("reasons.RuntimeCrashed 脱节: got %q, want %q (AL-1a 守护链第 12 处)",
 			reasons.RuntimeCrashed, "runtime_crashed")
 	}
 }
@@ -81,7 +81,7 @@ func TestBPP_ColdStart_ReasonRuntimeCrashed_ByteIdentical(t *testing.T) {
 // TestBPP_HeartbeatInterval_30s — acceptance §2.2.
 func TestBPP_HeartbeatInterval_30s(t *testing.T) {
 	if got, want := sdkbpp.HeartbeatInterval, 30*time.Second; got != want {
-		t.Errorf("HeartbeatInterval drift: got %v, want %v (BPP-4 #499 watchdog 周期 byte-identical)", got, want)
+		t.Errorf("HeartbeatInterval 脱节: got %v, want %v (BPP-4 #499 watchdog 周期 byte-identical)", got, want)
 	}
 }
 
@@ -110,15 +110,15 @@ func TestBPP_GrantRetry_StopsAfter3(t *testing.T) {
 // TestBPP_GrantRetry_BackoffByteIdentical — acceptance §2.3.
 func TestBPP_GrantRetry_BackoffByteIdentical(t *testing.T) {
 	if sdkbpp.MaxPermissionRetries != 3 {
-		t.Errorf("MaxPermissionRetries drift: got %d, want 3 (server const reuse)", sdkbpp.MaxPermissionRetries)
+		t.Errorf("MaxPermissionRetries 脱节: got %d, want 3 (server const reuse)", sdkbpp.MaxPermissionRetries)
 	}
 	if sdkbpp.RetryBackoff != 30*time.Second {
-		t.Errorf("RetryBackoff drift: got %v, want 30s (server const reuse)", sdkbpp.RetryBackoff)
+		t.Errorf("RetryBackoff 脱节: got %v, want 30s (server const reuse)", sdkbpp.RetryBackoff)
 	}
 }
 
 // TestBPP_NoSDKQueueOrCustomReason — acceptance §2.4 best-effort
-// 锁链延伸第 4 处 (BPP-4 dead_letter_test + BPP-5 reconnect_handler_test +
+// 守护链延伸第 4 处 (BPP-4 dead_letter_test + BPP-5 reconnect_handler_test +
 // BPP-6 cold_start_handler_test + BPP-7 sdk_test).
 func TestBPP_NoSDKQueueOrCustomReason(t *testing.T) {
 	forbidden := []string{
@@ -164,12 +164,12 @@ func TestBPP_NoSDKQueueOrCustomReason(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 stance §0.2+§0.3 broken: forbidden SDK queue / custom reason "+
-			"identifiers in sdk/bpp/ (best-effort 锁链延伸第 4 处, 跟 BPP-4/5/6 同模式): %v", hits)
+		t.Errorf("BPP-7 原则 §0.2+§0.3 broken: forbidden SDK queue / custom reason "+
+			"identifiers in sdk/bpp/ (best-effort 守护链延伸第 4 处, 跟 BPP-4/5/6 同模式): %v", hits)
 	}
 }
 
-// TestBPP_AdvanceCursor_Monotonic — RT-1.3 cursor monotonic 立场承袭.
+// TestBPP_AdvanceCursor_Monotonic — RT-1.3 cursor monotonic 原则一致.
 func TestBPP_AdvanceCursor_Monotonic(t *testing.T) {
 	c := sdkbpp.NewClient("plugin-1", "agent-1", nil)
 	c.AdvanceCursor(100)
