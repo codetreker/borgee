@@ -5,10 +5,10 @@
 > Owner-only PUT handler in `packages/server-go/internal/api/chn_10_description.go`.
 > Owner-only + admin readonly history GET handlers in
 > `packages/server-go/internal/api/chn_14_description_history.go`.
-> Wire-up at server boot via `CHN10DescriptionHandler.RegisterUserRoutes` +
+> Routes are registered at server boot via `CHN10DescriptionHandler.RegisterUserRoutes` +
 > `CHN14DescriptionHistoryHandler.RegisterUserRoutes/RegisterAdminRoutes`
 > in `packages/server-go/internal/server/server.go`.
-> Store 单一来源 wrapper `Store.UpdateChannelDescription` in
+> Store single-source entry point `Store.UpdateChannelDescription` in
 > `packages/server-go/internal/store/queries.go`.
 
 ## Why
@@ -27,13 +27,13 @@ CV-6.1+CHN-14.1). 不另起 history table (grep 检查 锁定守护).
   description_edit_history` registry 字面锁定. 老 channel 行
   byte-identical (NULL = 无历史).
 - **② UpdateChannelDescription 单一来源.** PUT /channels/:id/description 走
-  store.UpdateChannelDescription wrapper: SELECT old topic + edit_history
+  store.UpdateChannelDescription entry point: SELECT old topic + edit_history
   → JSON append `{old_content, ts, reason='unknown'}` → UPDATE atomic.
   grep 检查 `inline UPDATE channels.*topic` 在 chn_10/chn_14 之外
   production 0 hit (single-source).
-- **③ owner-only ACL 守护链第 21 处.** PUT + GET history user-rail 走
+- **③ owner-only ACL coverage item 第 21 处.** PUT + GET history user-rail 走
   `channel.CreatedBy == user.ID` 反向断言 (member-level → 403); admin-rail
-  GET history readonly (god-mode 不挂 PATCH/DELETE — ADM-0 §1.3 红线).
+  GET history readonly (admin access does not add PATCH/DELETE — ADM-0 §1.3 红线).
 - **④ 文案锁定** (chn-14-content-lock.md §1):
   - modal title `编辑历史` (跟 DM-7 #558 EditHistoryModal byte-identical
     跨 milestone)
@@ -41,10 +41,10 @@ CV-6.1+CHN-14.1). 不另起 history table (grep 检查 锁定守护).
     return null — 真分歧)
   - 行 action `: 修改了说明` (CHN-14 独有, per-edit 显式)
   - 同义词反向 reject `History/Audit/Log/记录/日志/审计/回退/恢复`
-- **⑤ AL-1a reason 守护链停在 HB-6 #19.** reason='unknown' 字面 byte-
+- **⑤ AL-1a reason coverage stops at HB-6 #19.** reason='unknown' 字面 byte-
   identical 跨 DM-7 #558 / AL-7 SweeperReason / HB-5 同源 (CHN-14 不引入
   新 reason).
-- **⑥ AST 守护链延伸第 22 处.** forbidden 3 token (`pendingDescriptionAudit
+- **⑥ AST coverage extends to 第 22 处.** forbidden 3 token (`pendingDescriptionAudit
   / descriptionHistoryQueue / deadLetterDescriptionHistory`) 0 hit.
 
 ## Schema (v=44 ALTER ADD)
@@ -84,14 +84,14 @@ Validation:
   DESCRIPTION_MAX_LENGTH 三向锁定)
 
 Side-effects on success (200):
-- `Store.UpdateChannelDescription(channelID, newDescription)` 单一来源 包装:
+- `Store.UpdateChannelDescription(channelID, newDescription)` single-source entry point:
   SELECT old topic + edit_history → JSON append `{old_content, ts,
   reason='unknown'}` → UPDATE topic + description_edit_history.
 - **idempotent** — same-content PUT 不入 history (跟 DM-7 #558 同精神).
-- 不发 system message (owner action 不污染 fanout).
+- 不发 system message (owner action 不进入 message broadcast flow).
 - 不 push WS frame (CHN-10 设计 ⑤ — client 下次 GET pull).
 
-Response body: 既有 channel JSON shape (含 topic 新值).
+Response body: existing channel JSON payload (含 topic 新值).
 
 ### GET /api/v1/channels/{channelId}/description/history (CHN-14 owner-only)
 
@@ -118,12 +118,12 @@ Response body:
 - `history` is forward-only JSON array, append-only.
 - Empty / NULL → `[]` (server-side store layer pre-normalized).
 - `reason='unknown'` byte-identical 跟 DM-7 #558 / AL-7 / HB-5 同源 (AL-1a
-  reason 守护链停在 HB-6 #19).
+  reason coverage stops at HB-6 #19).
 
 ### GET /admin-api/v1/channels/{channelId}/description/history (CHN-14 admin readonly)
 
-Same response shape as user-rail GET, no owner-only check (admin
-可见全 org). admin god-mode 不挂 PATCH/DELETE grep 守门 — admin
+Same response payload as user-rail GET, no owner-only check (admin
+可见全 org). admin access does not add PATCH/DELETE; grep 守门 — admin
 看 audit 不直接改 (ADM-0 §1.3 红线).
 
 ## 跨 milestone byte-identical 锁定
@@ -131,11 +131,11 @@ Same response shape as user-rail GET, no owner-only check (admin
 - ALTER ADD COLUMN nullable 跨八 milestone 同模式 (DM-7.1 + AL-7.1 +
   HB-5.1 + AP-1.1 + AP-3.1 + AP-2.1 + CV-6.1 + CHN-14.1).
 - UpdateChannelDescription 单一来源模式跟 DM-7 #558 UpdateMessage 单一来源 一致.
-- owner-only ACL 守护链第 21 处 (CHN-10 #20 + DM-7 #19 + ...).
+- owner-only ACL coverage item 第 21 处 (CHN-10 #20 + DM-7 #19 + ...).
 - audit inline JSON 列模式 (跟 DM-7 #558 设计 ⑤ 同精神, 不入 admin_actions).
 - 文案 `编辑历史` byte-identical 跨 DM-7 EditHistoryModal + CHN-14
   DescriptionHistoryModal (跨 modal 一致).
-- AST 守护链延伸第 22 处 forbidden 3 token 0 hit.
+- AST coverage extends to 第 22 处 forbidden 3 token 0 hit.
 
 ## 不在范围
 
@@ -143,4 +143,4 @@ Same response shape as user-rail GET, no owner-only check (admin
 - 非 description 字段 audit (CHN-2 既有 PUT /topic member-level path 不挂).
 - 跨 org admin 全局 history (留 v3 — 仅同 org admin readonly).
 - audit retention 自动清理 (留 v3 跟 AL-7 同期统一).
-- diff render 新旧字符串对比 (留 v3 — v0 仅 raw old_content snapshot).
+- diff render 新旧字符串对比 (留 v3 — v0 仅 stored `old_content` value).
