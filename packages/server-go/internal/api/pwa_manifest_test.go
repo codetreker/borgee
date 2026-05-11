@@ -7,8 +7,8 @@
 //     / start_url / display / icons)
 //   - display=standalone (蓝图 L22 字面)
 //   - 公开 endpoint (无 auth)
-//   - 反约束 endpoint 字面不含 'plugin-manifest' / 'manifest/plugins'
-//     (DL-4 vs HB-1 #491 命名拆死)
+//   - 约束 endpoint 字面不含 'plugin-manifest' / 'manifest/plugins'
+//     (DL-4 vs HB-1 #491 命名分立)
 package api_test
 
 import (
@@ -106,7 +106,7 @@ func TestDL_PWAManifest_RequiredFields(t *testing.T) {
 	}
 }
 
-// TestDL_PWAManifest_NoSecretsLeak pins 反约束 — manifest 内容不含
+// TestDL_PWAManifest_NoSecretsLeak pins 约束 — manifest 内容不含
 // secret / token / api_key / vapid 等字面 (公开 endpoint 隐私防御).
 func TestDL_PWAManifest_NoSecretsLeak(t *testing.T) {
 	t.Parallel()
@@ -137,9 +137,9 @@ func TestDL_PWAManifest_NoSecretsLeak(t *testing.T) {
 	}
 }
 
-// TestDL_PWAManifest_NameNotPluginManifest pins ⚠️ 命名拆死锚 — DL-4
+// TestDL_PWAManifest_NameNotPluginManifest pins ⚠️ 命名分立锚 — DL-4
 // endpoint 路径不含 'plugin-manifest' (HB-1 #491 独占字面). zhanma-a
-// drift audit 锚源.
+// mismatch audit 锚源.
 func TestDL_PWAManifest_NameNotPluginManifest(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -152,9 +152,9 @@ func TestDL_PWAManifest_NameNotPluginManifest(t *testing.T) {
 	defer resp.Body.Close()
 
 	// Either 404 (no such route) or 501 (placeholder). Anything 2xx
-	// means DL-4 squatted on HB-1 字面 — drift broken.
+	// means DL-4 squatted on HB-1 字面 — mismatch broken.
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		t.Errorf("/api/v1/plugin-manifest returned %d — DL-4 must not squat HB-1 字面 (zhanma-a drift audit)",
+		t.Errorf("/api/v1/plugin-manifest returned %d — DL-4 must not squat HB-1 字面 (zhanma-a mismatch audit)",
 			resp.StatusCode)
 	}
 

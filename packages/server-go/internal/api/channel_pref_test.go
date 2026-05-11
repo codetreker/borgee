@@ -1,5 +1,5 @@
 // Package api_test — chn_8_notif_pref_test.go: CHN-8 notification pref
-// REST + 0 schema + bitmap 三向锁 + admin god-mode 不挂 + AST 锁链 #13
+// REST + 0 schema + bitmap 三向锁 + admin god-mode 不挂 + AST 对齐链 #13
 // + 不 drop messages.
 package api_test
 
@@ -150,13 +150,13 @@ func TestCHN_SetPref_NonMemberRejected(t *testing.T) {
 func TestCHN_NotifPrefConsts_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.NotifPrefShift != 2 {
-		t.Errorf("NotifPrefShift drift: got %d, want 2", api.NotifPrefShift)
+		t.Errorf("NotifPrefShift mismatch: got %d, want 2", api.NotifPrefShift)
 	}
 	if api.NotifPrefMask != 3 {
-		t.Errorf("NotifPrefMask drift: got %d, want 3", api.NotifPrefMask)
+		t.Errorf("NotifPrefMask mismatch: got %d, want 3", api.NotifPrefMask)
 	}
 	if api.NotifPrefAll != 0 || api.NotifPrefMention != 1 || api.NotifPrefNone != 2 {
-		t.Errorf("NotifPref consts drift: %d/%d/%d, want 0/1/2",
+		t.Errorf("NotifPref consts mismatch: %d/%d/%d, want 0/1/2",
 			api.NotifPrefAll, api.NotifPrefMention, api.NotifPrefNone)
 	}
 	// Bitmap predicate: bits 2-3 isolation.
@@ -247,7 +247,7 @@ func TestCHN_BitmapIsolation_PreservesOtherBits(t *testing.T) {
 		t.Errorf("CHN-3 collapsed bit 0 lost: collapsed=%d", collapsed)
 	}
 	if api.GetNotifPref(collapsed) != int64(api.NotifPrefMention) {
-		t.Errorf("notif pref drift: got %d, want %d", api.GetNotifPref(collapsed), api.NotifPrefMention)
+		t.Errorf("notif pref mismatch: got %d, want %d", api.GetNotifPref(collapsed), api.NotifPrefMention)
 	}
 
 	// Step 3: change pref to none — bit 0 still preserved.
@@ -281,7 +281,7 @@ func TestCHN_NotifPrefDoesNotDropMessages(t *testing.T) {
 	}
 }
 
-// REG-CHN8-006b — AST 锁链延伸第 13 处.
+// REG-CHN8-006b — AST 对齐链延伸第 13 处.
 func TestCHN_NoNotifPrefQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -301,7 +301,7 @@ func TestCHN_NoNotifPrefQueue(t *testing.T) {
 			body, _ := os.ReadFile(p)
 			for _, tok := range forbidden {
 				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 锁链延伸第 13 处 broken — token %q in %s", tok, p)
+					t.Errorf("AST 对齐链延伸第 13 处 broken — token %q in %s", tok, p)
 				}
 			}
 			return nil
