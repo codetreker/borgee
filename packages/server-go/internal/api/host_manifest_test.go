@@ -38,7 +38,7 @@ func TestHB_PluginManifest_Returns200_WithShape(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	// Shape byte-identical 跟 content-lock §1: top-level keys.
+	// Shape 字节级一致 跟 content-lock §1: top-level keys.
 	for _, key := range []string{"manifest_version", "issued_at", "expires_at", "signature", "plugins"} {
 		if _, ok := body[key]; !ok {
 			t.Errorf("missing top-level key %q (content-lock §1 broken)", key)
@@ -51,7 +51,7 @@ func TestHB_PluginManifest_Returns200_WithShape(t *testing.T) {
 	if !ok || len(plugins) == 0 {
 		t.Fatalf("plugins field missing or empty (REG-HB1-002)")
 	}
-	// Per-plugin entry shape byte-identical.
+	// Per-plugin entry shape 字节级一致.
 	first, _ := plugins[0].(map[string]any)
 	for _, key := range []string{"id", "version", "binary_url", "sha256", "signature", "platforms"} {
 		if _, ok := first[key]; !ok {
@@ -75,7 +75,7 @@ func TestHB_PluginManifest_Unauthorized_NoToken_401(t *testing.T) {
 func TestHB_PluginEntriesConstNonEmpty(t *testing.T) {
 	t.Parallel()
 	if len(api.PluginManifestEntries) == 0 {
-		t.Fatal("PluginManifestEntries const slice is empty (设计 ②)")
+		t.Fatal("PluginManifestEntries const slice is empty (设计第 2 条)")
 	}
 	first := api.PluginManifestEntries[0]
 	if first.ID == "" {
@@ -102,15 +102,15 @@ func TestHostManifest_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "hb_1_") {
-			t.Errorf("HB-1 设计 ② broken — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
+			t.Errorf("HB-1 设计第 2 条 broken — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
 		}
 	}
 }
 
-// REG-HB1-003 — 7-reason 字典字面 byte-identical.
+// REG-HB1-003 — 7-reason 字典字面字节级一致.
 func TestHB_ReasonsByteIdentical(t *testing.T) {
 	t.Parallel()
-	// 字面 byte-identical 跟 spec brief v0 #491 §3.3 + v1 §3.2 同源.
+	// 字面字节级一致 跟 spec brief v0 #491 §3.3 + v1 §3.2 同源.
 	want := []string{
 		"ok",
 		"manifest_signature_invalid",
@@ -150,7 +150,7 @@ func TestHB_ManifestSignatureVerify(t *testing.T) {
 	}
 	sig, _ := body["signature"].(string)
 	if sig == "" {
-		t.Error("signature must be non-empty (设计 ④)")
+		t.Error("signature must be non-empty (设计第 4 条)")
 	}
 	// Verify base64 decodable.
 	if _, err := base64.StdEncoding.DecodeString(sig); err != nil {

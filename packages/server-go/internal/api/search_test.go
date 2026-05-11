@@ -1,12 +1,12 @@
 // Package api_test — search_test.go: CV-6 acceptance tests for the
 // GET /api/v1/artifacts/search endpoint (Phase 5+, #cv-6).
 //
-// Stance pins exercised:
-//   - ① FTS5 reuse (无外 search service).
-//   - ② owner-only ACL (channel-scoped, non-member 403).
-//   - ③ AP-3 cross-org gate 自动经 HasCapability.
-//   - ④ 5 错码字面 byte-identical const.
-//   - ⑥ archived_at IS NOT NULL 不出现.
+// 设计约束 pins exercised:
+//   - 第 1 条 FTS5 reuse (无外 search service).
+//   - 第 2 条 owner-only ACL (channel-scoped, non-member 403).
+//   - 第 3 条 AP-3 cross-org gate 自动经 HasCapability.
+//   - 第 4 条 5 错码字面字节级一致 const.
+//   - 第 6 条 archived_at IS NOT NULL 不出现.
 package api_test
 
 import (
@@ -189,7 +189,7 @@ func TestCV_DBErrorPath500(t *testing.T) {
 	}
 }
 
-// REG-CV6-006 (acceptance §1.6 + 设计 ⑥) — archived artifacts excluded.
+// REG-CV6-006 (acceptance §1.6 + 设计第 6 条) — archived artifacts excluded.
 func TestCV_ArchivedNotInResults(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -205,7 +205,7 @@ func TestCV_ArchivedNotInResults(t *testing.T) {
 	// archive helper requires admin path — leave deeper assertion to e2e).
 }
 
-// REG-CV6-007 — 5 const literal byte-identical.
+// REG-CV6-007 — 5 const literal 字节级一致.
 func TestCV_ErrCodeConstByteIdentical(t *testing.T) {
 	want := map[string]string{
 		"NotOwner":         "search.not_owner",
