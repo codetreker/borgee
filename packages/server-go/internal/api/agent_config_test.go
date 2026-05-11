@@ -1,17 +1,17 @@
 // Package api_test — al_2a_2_agent_config_test.go: AL-2a.2 server-side
 // agent_configs REST acceptance tests (acceptance #264 §4.1.a-d).
 //
-// Stance pins exercised:
-//   - 蓝图 §1.4 SSOT 设计 — blob 仅 Borgee 管字段 (name/avatar/prompt/model/
+// 约定 pins exercised:
+//   - 蓝图 §1.4 单一来源 设计 — blob 仅 Borgee 管字段 (name/avatar/prompt/model/
 //     capabilities/enabled/memory_ref); runtime-only 字段 (api_key/temperature/
 //     token_limit/retry_policy) fail-closed reject.
-//   - 蓝图 §1.5 BPP frame 反约束 — AL-2a 不挂 push frame, agent 端轮询
+//   - 蓝图 §1.5 BPP frame 约束 — AL-2a 不挂 push frame, agent 端轮询
 //     reload (本测试 GET 周期性, 不订阅 ws).
 //   - acceptance §4.1.a 并发 update 末次胜出 + schema_version 严格递增 +
 //     无丢失.
 //   - acceptance §4.1.b cross-owner reject 403.
 //   - acceptance §4.1.c reflect scan fail-closed (runtime-only field reject).
-//   - acceptance §4.1.d agent 端轮询 reload drift test (PATCH 后 GET 立即返
+//   - acceptance §4.1.d agent 端轮询 reload mismatch test (PATCH 后 GET 立即返
 //     新 blob + version, 无 cache 不刷).
 package api_test
 
@@ -64,7 +64,7 @@ func TestAL_GetEmpty(t *testing.T) {
 
 // TestAL_PatchAndGet pins acceptance §4.1.a + §4.1.d — PATCH writes
 // blob + bumps schema_version; subsequent GET returns the same blob
-// + monotonic version (drift test 防 cache 不刷).
+// + monotonic version (mismatch test 防 cache 不刷).
 func TestAL_PatchAndGet(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -81,7 +81,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 		t.Errorf("expected schema_version=1 after first PATCH, got %v", body1["schema_version"])
 	}
 
-	// GET returns the new state (no cache drift).
+	// GET returns the new state (no cache mismatch).
 	resp2, body2 := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", token, nil)
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("GET expected 200, got %d", resp2.StatusCode)
@@ -94,7 +94,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 		t.Errorf("blob mismatch: %v", blob)
 	}
 
-	// Second PATCH — version 1 → 2, blob replaced (整体替换 SSOT 语义).
+	// Second PATCH — version 1 → 2, blob replaced (整体替换 单一来源 语义).
 	resp3, body3 := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID+"/config", token,
 		map[string]any{"blob": map[string]any{"name": "Beta"}})
 	if resp3.StatusCode != http.StatusOK {
@@ -103,7 +103,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 	if v, _ := body3["schema_version"].(float64); v != 2 {
 		t.Errorf("expected schema_version=2 after second PATCH, got %v", body3["schema_version"])
 	}
-	// Blob is REPLACED not merged (SSOT 设计 — model 字段消失).
+	// Blob is REPLACED not merged (单一来源 设计 — model 字段消失).
 	resp4, body4 := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", token, nil)
 	if resp4.StatusCode != http.StatusOK {
 		t.Fatalf("GET2 expected 200, got %d", resp4.StatusCode)
@@ -113,7 +113,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 		t.Errorf("expected name=Beta, got %v", blob2["name"])
 	}
 	if _, has := blob2["model"]; has {
-		t.Error("blob should be replaced (SSOT), but model field still present")
+		t.Error("blob should be replaced (单一来源), but model field still present")
 	}
 }
 
@@ -225,7 +225,7 @@ func TestAL_ConcurrentLastWriteWins(t *testing.T) {
 
 // TestAL_AdminAPINotMounted pins ADM-0 §1.3 红线 — admin god-mode does
 // **not** mount agent_configs via /admin-api/* (acceptance §4.1.c implicit:
-// runtime path 与 admin path 拆死).
+// runtime path 与 admin path 分立).
 func TestAL_AdminAPINotMounted(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

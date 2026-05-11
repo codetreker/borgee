@@ -6,7 +6,7 @@
 //   2.2 capability MUST be in AP-1 auth.Capabilities (14 项 const)
 //   2.3 scope MUST ∈ v1 三层 ({*, channel:<id>, artifact:<id>})
 //   2.4 action="grant" → real GrantPermission write; reject/snooze → no-op
-//   2.5 反约束 grep — admin god-mode 不挂 /me/grants endpoint + scope 漂出
+//   2.5 约束 grep — admin god-mode 不挂 /me/grants endpoint + scope 漂出
 package api_test
 
 import (
@@ -92,7 +92,7 @@ func TestBPP_PostGrant_CapabilityWhitelistGuard(t *testing.T) {
 	ownerTok := testutil.LoginAs(t, ts.URL, *owner.Email, "password123")
 
 	for _, bad := range []string{
-		"artifact.edit_content", // AP-1 rework drift trap
+		"artifact.edit_content", // AP-1 rework mismatch trap
 		"workspace.create",      // 蓝图举例字面, 不在 14 const
 		"foo_bar",
 	} {
@@ -132,7 +132,7 @@ func TestBPP_PostGrant_ScopeWhitelistGuard(t *testing.T) {
 			t.Errorf("scope=%q expected 200, got %d", ok, resp.StatusCode)
 		}
 	}
-	// Invalid scopes — drift outside v1 三层.
+	// Invalid scopes — mismatch outside v1 三层.
 	for _, bad := range []string{"workspace:w1", "org:o1", "channel:", "artifact:", ""} {
 		resp, body := testutil.JSON(t, "POST", ts.URL+"/api/v1/me/grants", ownerTok, map[string]any{
 			"agent_id":   agent.ID,
@@ -147,7 +147,7 @@ func TestBPP_PostGrant_ScopeWhitelistGuard(t *testing.T) {
 	}
 }
 
-// REG-BPP32-010 (acceptance §2.5 + 反约束 spec §3 #5/#6/#7) —
+// REG-BPP32-010 (acceptance §2.5 + 约束 spec §3 #5/#6/#7) —
 // reject + snooze v1 仅 audit (不持久化反向 grant). admin god-mode 不挂.
 func TestBPP_PostGrant_RejectSnoozeAuditOnly(t *testing.T) {
 	t.Parallel()
@@ -170,7 +170,7 @@ func TestBPP_PostGrant_RejectSnoozeAuditOnly(t *testing.T) {
 			t.Errorf("action=%q body.granted = true, want false (v1 audit-only)", action)
 		}
 	}
-	// 反约束: reject/snooze 不写 user_permissions 行 (audit only).
+	// 约束: reject/snooze 不写 user_permissions 行 (audit only).
 	perms, _ := s.ListUserPermissions(agent.ID)
 	for _, p := range perms {
 		if p.Permission == auth.CommitArtifact {
@@ -184,21 +184,21 @@ func TestBPP_PostGrant_RejectSnoozeAuditOnly(t *testing.T) {
 		"capability": auth.CommitArtifact,
 		"scope":      "*",
 		"request_id": "r-bad",
-		"action":     "approve", // 同义词漂禁 (content-lock §3 反约束)
+		"action":     "approve", // 同义词漂禁 (content-lock §3 约束)
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("action='approve' expected 400 (3-enum strict), got %d body=%v", resp.StatusCode, body)
 	}
 }
 
-// REG-BPP32-011 (反约束 spec §3 #5+#6) — admin path 不挂 /me/grants
+// REG-BPP32-011 (约束 spec §3 #5+#6) — admin path 不挂 /me/grants
 // (admin god-mode 走 /admin-api 单独 mw); + cross-org grant grep 检查.
 func TestBPP_ReverseGrep_NoAdminPathAndNoCrossOrgGrant(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
-	// 反约束: admin handler / mw 不出现 grant endpoint
+	// 约束: admin handler / mw 不出现 grant endpoint
 	bad1 := regexp.MustCompile(`admin.*\/me\/grants|admin-api.*\/grants`)
-	// 反约束: cross-org grant via Scope (workspace: / org: 漂出 v1 三层)
+	// 约束: cross-org grant via Scope (workspace: / org: 漂出 v1 三层)
 	bad2 := regexp.MustCompile(`Scope:\s*"workspace:|Scope:\s*"org:`)
 	hits := []string{}
 	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
@@ -218,6 +218,6 @@ func TestBPP_ReverseGrep_NoAdminPathAndNoCrossOrgGrant(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 spec §3 #5+#7 broken — admin /me/grants OR scope 漂出 v1 三层 hit at: %v", hits)
+		t.Errorf("约束 spec §3 #5+#7 broken — admin /me/grants OR scope 漂出 v1 三层 hit at: %v", hits)
 	}
 }

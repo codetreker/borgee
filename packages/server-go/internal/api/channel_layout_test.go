@@ -140,7 +140,7 @@ func TestCHN_PutBatchUpsertAndGet(t *testing.T) {
 	}
 }
 
-// TestCHN_DMReject pins 设计 ④ + content-lock 反约束 — DM channel
+// TestCHN_DMReject pins 设计 ④ + content-lock 约束 — DM channel
 // PUT → 400 with code `layout.dm_not_grouped` byte-identical (5 源
 // #357/#353/#366/#402 同源).
 func TestCHN_DMReject(t *testing.T) {
@@ -275,15 +275,15 @@ func TestCHN_PerUserIsolation(t *testing.T) {
 	_, ownerBody := testutil.JSON(t, "GET", ts.URL+"/api/v1/me/layout", ownerToken, nil)
 	ownerLayout := ownerBody["layout"].([]any)
 	if len(ownerLayout) != 1 || ownerLayout[0].(map[string]any)["position"].(float64) != 1.0 {
-		t.Errorf("owner layout drift: %v", ownerLayout)
+		t.Errorf("owner layout mismatch: %v", ownerLayout)
 	}
 	_, memberBody := testutil.JSON(t, "GET", ts.URL+"/api/v1/me/layout", memberToken, nil)
 	memberLayout := memberBody["layout"].([]any)
 	if len(memberLayout) != 1 || memberLayout[0].(map[string]any)["position"].(float64) != 42.0 {
-		t.Errorf("member layout drift: %v", memberLayout)
+		t.Errorf("member layout mismatch: %v", memberLayout)
 	}
 	if memberLayout[0].(map[string]any)["collapsed"].(float64) != 1 {
-		t.Errorf("member collapsed drift: %v", memberLayout[0])
+		t.Errorf("member collapsed mismatch: %v", memberLayout[0])
 	}
 }
 
@@ -296,10 +296,10 @@ func TestCHN_ToastErrorMsgLockPin(t *testing.T) {
 	if !strings.Contains(src, `"侧栏顺序保存失败, 请重试"`) {
 		t.Fatal("toast 文案锁漂移 — 必须包含字面 '侧栏顺序保存失败, 请重试' (5 源 byte-identical)")
 	}
-	// 反约束: 不出现同义词漂.
+	// 约束: 不出现同义词漂.
 	for _, drift := range []string{"保存失败, 重试", "保存失败请重试", "Save failed", "save_failed"} {
 		if strings.Contains(src, drift) {
-			t.Errorf("toast 文案漂移 (%q) — 反约束 §1 ④", drift)
+			t.Errorf("toast 文案漂移 (%q) — 约束 §1 ④", drift)
 		}
 	}
 }
