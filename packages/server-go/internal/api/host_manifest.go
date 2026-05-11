@@ -13,7 +13,7 @@
 // 反向检查 (hb-1-spec.md §0 + content-lock §1+§2+§5):
 //   - 设计 ① owner-only Bearer api-key 鉴权 (admin god-mode 不挂; 反向
 //     grep `admin-api/v[0-9]+/.*plugin-manifest` 0 hit, ADM-0 §1.3 红线).
-//   - 设计 ② manifest data const slice (PluginManifestEntries) 单源, 0
+//   - 设计 ② manifest data const slice (PluginManifestEntries) 单一来源, 0
 //     schema 改 (grep 检查 `migrations/hb_1_\d+|ALTER.*plugin` 0 hit;
 //     v3 升级 admin DB 表留位).
 //   - 设计 ③ 7-reason 字典字面 byte-identical 跟 spec §3.2 + v0 #491.

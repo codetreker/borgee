@@ -8,7 +8,7 @@
 // REFACTOR-1 R1.1: thin wrapper 模式跟 chn_7_mute.go / chn_15_readonly.go
 // 对齐 — handlePinChannel / handleUnpinChannel ≤4 行 thin wrapper, 真活
 // 走 handlePinToggle 单 handler + requireChannelMember helper-1 单一来源
-// preamble (chn_6/7/8/15/layout 5 处 4-step preamble 单源).
+// preamble (chn_6/7/8/15/layout 5 处 4-step preamble 单一来源).
 //
 // Public surface:
 //   - (h *ChannelHandler) RegisterCHN6Routes(mux, authMw)

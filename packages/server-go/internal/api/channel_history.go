@@ -11,11 +11,11 @@
 //   - (h *ChannelDescriptionHistoryHandler) RegisterUserRoutes(mux, authMw)
 //   - (h *ChannelDescriptionHistoryHandler) RegisterAdminRoutes(mux, adminMw)
 //
-// 反约束 (chn-14-spec.md §0):
+// 反向检查 (chn-14-spec.md §0):
 //   - 设计 ③ owner-only — user-rail GET 反向断 caller == channel.CreatedBy
 //     (member 403); admin readonly admin-rail GET (admin god-mode 不挂
 //     PATCH/DELETE — ADM-0 §1.3 红线).
-//   - 设计 ⑥ AST 锁链延伸第 22 处 forbidden 3 token 0 hit.
+//   - 设计 ⑥ AST 对齐链延伸第 22 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -35,7 +35,7 @@ type ChannelDescriptionHistoryHandler struct {
 }
 
 // RegisterUserRoutes wires GET /api/v1/channels/{channelId}/description/history
-// behind authMw. user-rail owner-only (设计 ② owner-only ACL 锁链第 21 处).
+// behind authMw. user-rail owner-only (设计 ② owner-only ACL 对齐链第 21 处).
 func (h *ChannelDescriptionHistoryHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/channels/{channelId}/description/history",
 		authMw(http.HandlerFunc(h.handleUserGet)))
@@ -65,7 +65,7 @@ func (h *ChannelDescriptionHistoryHandler) handleUserGet(w http.ResponseWriter, 
 		return
 	}
 	// 设计 ② owner-only — channel.CreatedBy == user.ID 反向断 (CHN-10 #20
-	// + DM-7 #19 owner-only ACL 锁链第 21 处一致).
+	// + DM-7 #19 owner-only ACL 对齐链第 21 处一致).
 	if ch.CreatedBy != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Only the channel owner can view edit history")
 		return
@@ -85,7 +85,7 @@ func (h *ChannelDescriptionHistoryHandler) handleUserGet(w http.ResponseWriter, 
 
 // handleAdminGet — GET /admin-api/v1/channels/{channelId}/description/history.
 //
-// admin readonly. 设计 ② 反约束: 不挂 PATCH/DELETE (grep 守门).
+// admin readonly. 设计 ② 反向检查: 不挂 PATCH/DELETE (grep 守门).
 func (h *ChannelDescriptionHistoryHandler) handleAdminGet(w http.ResponseWriter, r *http.Request) {
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {
