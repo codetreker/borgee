@@ -4,7 +4,7 @@
 // 覆盖的设计约束:
 //   - 第 1 条 FTS5 reuse (无外 search service).
 //   - 第 2 条 owner-only ACL (channel-scoped, non-member 403).
-//   - 第 3 条 AP-3 cross-org gate 自动经 HasCapability.
+//   - 第 3 条 AP-3 cross-org authorization check 自动经 HasCapability.
 //   - 第 4 条 5 错码字面字节级一致 const.
 //   - 第 6 条 archived_at IS NOT NULL 不出现.
 package api_test
@@ -27,9 +27,9 @@ func searchURL(base, q, channelID string) string {
 	return base + "/api/v1/artifacts/search?" + v.Encode()
 }
 
-// REG-CV6-002 (acceptance §1.2) — happy path: insert markdown w/ "Hello world",
+// REG-CV6-002 (acceptance §1.2) — success case: insert markdown w/ "Hello world",
 // search "hello" returns 1 result with snippet `<mark>Hello</mark> world`.
-func TestCV_SearchHappyPath_MarkdownBody(t *testing.T) {
+func TestCV_SearchSuccess_MarkdownBody(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	tok := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -170,8 +170,8 @@ func TestCV_LimitClampAndParse(t *testing.T) {
 	}
 }
 
-// TestCV_DBErrorPath500 — force the FTS5 table missing path so the
-// raw query errors. Covers the 500 fallback branch in handleArtifactSearch.
+// TestCV_DBErrorPath500 — force the missing FTS5 table case so the
+// search query returns an error. Covers the 500 fallback branch in handleArtifactSearch.
 func TestCV_DBErrorPath500(t *testing.T) {
 	// Not parallel — we mutate the shared DB schema.
 	ts, s, _ := testutil.NewTestServer(t)
@@ -201,7 +201,7 @@ func TestCV_ArchivedNotInResults(t *testing.T) {
 	})
 	_ = art
 
-	// Archive via channel; for v0 just verify the basic path works (real
+	// Archive via channel; for v0 verify the archive request succeeds (real
 	// archive helper requires admin path — leave deeper assertion to e2e).
 }
 
@@ -229,7 +229,7 @@ func TestCV_ErrCodeConstByteIdentical(t *testing.T) {
 }
 
 // REG-CV6-002b — code kind body indexed too.
-func TestCV_SearchHappyPath_CodeTitle(t *testing.T) {
+func TestCV_SearchSuccess_CodeTitle(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	tok := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -255,5 +255,5 @@ func TestCV_SearchHappyPath_CodeTitle(t *testing.T) {
 	}
 }
 
-// Sanity — store unused import suppress if needed.
+// Compile-time reference for the store import when only type names are needed.
 var _ = store.User{}
