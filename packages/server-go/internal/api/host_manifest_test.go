@@ -2,14 +2,15 @@
 // server-side endpoint unit tests + grep 检查守门 (REG-HB1-001..006).
 //
 // Pins:
-//   REG-HB1-001 TestHB_PluginManifest_Returns200_WithShape +
-//                Unauthorized_NoToken_401 + PluginEntriesNonEmpty
-//   REG-HB1-002 TestHostManifest_NoSchemaChange + PluginEntriesConstNonEmpty
-//   REG-HB1-003 TestHB_ReasonsByteIdentical
-//   REG-HB1-004 TestHB_ManifestSignatureVerify
-//   REG-HB1-005 TestHB_NoAdminPluginManifestPath
-//   REG-HB1-006 TestHB_NoPluginManifestQueue (AST 守护链延伸第 23 处)
-//                + TestHB_PluginManifest_Returns200 (DL-4 grep 检查 → 正向)
+//
+//	REG-HB1-001 TestHB_PluginManifest_Returns200_WithShape +
+//	             Unauthorized_NoToken_401 + PluginEntriesNonEmpty
+//	REG-HB1-002 TestHostManifest_NoSchemaChange + PluginEntriesConstNonEmpty
+//	REG-HB1-003 TestHB_ReasonsByteIdentical
+//	REG-HB1-004 TestHB_ManifestSignatureVerify
+//	REG-HB1-005 TestHB_NoAdminPluginManifestPath
+//	REG-HB1-006 TestHB_NoPluginManifestQueue (AST 守护链延伸第 23 处)
+//	             + TestHB_PluginManifest_Returns200 (DL-4 grep 检查 → 正向)
 package api_test
 
 import (
@@ -41,7 +42,7 @@ func TestHB_PluginManifest_Returns200_WithShape(t *testing.T) {
 	// Shape 字节级一致 跟 content-lock §1: top-level keys.
 	for _, key := range []string{"manifest_version", "issued_at", "expires_at", "signature", "plugins"} {
 		if _, ok := body[key]; !ok {
-			t.Errorf("missing top-level key %q (content-lock §1 broken)", key)
+			t.Errorf("missing top-level key %q (content-lock §1 check failed)", key)
 		}
 	}
 	if v, _ := body["manifest_version"].(float64); int(v) != 1 {
@@ -55,7 +56,7 @@ func TestHB_PluginManifest_Returns200_WithShape(t *testing.T) {
 	first, _ := plugins[0].(map[string]any)
 	for _, key := range []string{"id", "version", "binary_url", "sha256", "signature", "platforms"} {
 		if _, ok := first[key]; !ok {
-			t.Errorf("missing plugin entry key %q (content-lock §1 broken)", key)
+			t.Errorf("missing plugin entry key %q (content-lock §1 check failed)", key)
 		}
 	}
 }
@@ -102,7 +103,7 @@ func TestHostManifest_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "hb_1_") {
-			t.Errorf("HB-1 设计第 2 条 broken — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
+			t.Errorf("HB-1 设计第 2 条检查失败 — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
 		}
 	}
 }
@@ -181,7 +182,7 @@ func TestHB_SignPayloadEd25519Roundtrip(t *testing.T) {
 	canonical, _ := json.Marshal(payload)
 	sig := ed25519.Sign(priv, canonical)
 	if !ed25519.Verify(pub, canonical, sig) {
-		t.Fatal("ed25519 verify failed — signing roundtrip broken")
+		t.Fatal("ed25519 verify failed — signing roundtrip check failed")
 	}
 	if len(sig) != ed25519.SignatureSize {
 		t.Errorf("signature length: got %d, want %d", len(sig), ed25519.SignatureSize)
@@ -189,7 +190,7 @@ func TestHB_SignPayloadEd25519Roundtrip(t *testing.T) {
 	_ = h
 }
 
-// REG-HB1-005 — admin god-mode 不挂 PATCH/POST/PUT/DELETE 在 admin-api/
+// REG-HB1-005 — admin 权限不挂 PATCH/POST/PUT/DELETE 在 admin-api/
 // v1/.../plugin-manifest (ADM-0 §1.3 红线).
 func TestHB_NoAdminPluginManifestPath(t *testing.T) {
 	t.Parallel()
@@ -205,7 +206,7 @@ func TestHB_NoAdminPluginManifestPath(t *testing.T) {
 			}
 			fb, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("HB-1 admin god-mode broken — admin-rail plugin-manifest path in %s: %q",
+				t.Errorf("HB-1 admin 权限检查失败 — admin-rail plugin-manifest path in %s: %q",
 					p, fb[loc[0]:loc[1]])
 			}
 			return nil
@@ -232,7 +233,7 @@ func TestHB_NoPluginManifestQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 守护链延伸第 23 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 守护链延伸第 23 处检查失败 — token %q in %s", tok, p)
 			}
 		}
 		return nil

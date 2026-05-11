@@ -1,7 +1,7 @@
 // Package api_test — search_test.go: CV-6 acceptance tests for the
 // GET /api/v1/artifacts/search endpoint (Phase 5+, #cv-6).
 //
-// 设计约束 pins exercised:
+// 覆盖的设计约束:
 //   - 第 1 条 FTS5 reuse (无外 search service).
 //   - 第 2 条 owner-only ACL (channel-scoped, non-member 403).
 //   - 第 3 条 AP-3 cross-org gate 自动经 HasCapability.
@@ -236,9 +236,9 @@ func TestCV_SearchHappyPath_CodeTitle(t *testing.T) {
 	chID := cv12General(t, ts.URL, tok)
 
 	_, art := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+chID+"/artifacts", tok, map[string]any{
-		"title": "Snippet zebrahash",
-		"type":  "code",
-		"body":  "func main() {}",
+		"title":    "Snippet zebrahash",
+		"type":     "code",
+		"body":     "func main() {}",
 		"metadata": map[string]any{"language": "go"},
 	})
 	if art["id"] == nil {

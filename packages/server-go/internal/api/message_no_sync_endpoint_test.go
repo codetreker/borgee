@@ -5,7 +5,7 @@
 //   设计第 2 条 多端走 RT-3 fan-out, 不开 dm-only frame
 //   设计第 5 条 server 0 行新增 — grep 检查 + 代码行为路径验证
 //
-// 跨 milestone 字节级一致 锁: cursor 跟 RT-1 #290 + AL-2b #481 + CV-* +
+// 跨 milestone 字节级一致要求: cursor 跟 RT-1 #290 + AL-2b #481 + CV-* +
 // BPP-3.1 #494 共一根 sequence (BPP-1 #304 envelope reflect 自动覆盖).
 
 package api_test
@@ -21,7 +21,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestDM_NoBypassEndpoint pins 设计第 1 条 — 不开 /api/v1/dm/sync 或
+// TestDM_NoBypassEndpoint 验证设计第 1 条 — 不开 /api/v1/dm/sync 或
 // /dm/cursor 旁路 endpoint. DM messages 走 channel events 同 path.
 //
 // grep 检查 在 server-go internal/api/ + internal/server/ production *.go
@@ -66,11 +66,11 @@ func TestDM_NoBypassEndpoint(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-3 设计第 1 条 broken: bypass endpoint paths found: %v", hits)
+		t.Errorf("DM-3 设计第 1 条检查失败: bypass endpoint paths found: %v", hits)
 	}
 }
 
-// TestDM_BackfillIncludesDMChannel pins 设计第 1 条 行为级 — DM channel
+// TestDM_BackfillIncludesDMChannel 验证设计第 1 条行为 — DM channel
 // (type='dm') messages 走 GET /api/v1/channels/{id}/messages?since=<cursor>
 // 同 path 跟 public channel 同源 (复用 RT-1.3 events backfill).
 func TestDM_BackfillIncludesDMChannel(t *testing.T) {
@@ -133,7 +133,7 @@ func TestDM_BackfillIncludesDMChannel(t *testing.T) {
 	}
 }
 
-// TestDM_NoBypassFrame pins 设计第 2 条 — envelope whitelist 不含 dm-only
+// TestDM_NoBypassFrame 验证设计第 2 条 — envelope 允许集合不含 dm-only
 // frames. grep 检查 production *.go.
 func TestDM_NoBypassFrame(t *testing.T) {
 	t.Parallel()
@@ -171,6 +171,6 @@ func TestDM_NoBypassFrame(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-3 设计第 2 条 broken: dm-only frame literals found: %v", hits)
+		t.Errorf("DM-3 设计第 2 条检查失败: dm-only frame literals found: %v", hits)
 	}
 }

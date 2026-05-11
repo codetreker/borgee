@@ -1,7 +1,7 @@
 // Package api_test — chn_3_2_layout_test.go: CHN-3.2 server-side
 // user_channel_layout REST acceptance tests (acceptance §2.* CHN-3.2).
 //
-// 设计约束 pins exercised:
+// 覆盖的设计约束:
 //   - 设计第 2 条 个人偏好两维 collapsed + position — GET 返本人 row;
 //     PUT 批量 upsert + ON CONFLICT 复合 PK.
 //   - 设计第 4 条 DM 永不参与分组 — DM channel_id PUT → 400
@@ -9,7 +9,7 @@
 //   - 设计第 5 条 ADM-0 红线 — admin 不入业务路径 (本测试 + reverse grep
 //     `admin.*user_channel_layout` 在 admin*.go count==0).
 //   - 设计第 6 条 ordering client 端 — server 不算 MIN-1.0; 接受任意 REAL
-//     position 值 (含负数, client pin 算法).
+//     position 值 (含负数, client 置顶算法).
 //   - 设计第 7 条 non-member channel reject 403 (CHN-1 ACL 同源).
 package api_test
 
@@ -49,7 +49,7 @@ func chn32CreateChannel(t *testing.T, ts string, token, name string) string {
 	return ch["id"].(string)
 }
 
-// TestCHN_GetEmpty pins acceptance §2.1: GET /me/layout 返空数组 if
+// TestCHN_GetEmpty 覆盖 acceptance §2.1: GET /me/layout 返空数组 if
 // 本人无任何 layout 行 (fallback ordering 是 client 端事, server 不补全).
 func TestCHN_GetEmpty(t *testing.T) {
 	t.Parallel()
@@ -69,7 +69,7 @@ func TestCHN_GetEmpty(t *testing.T) {
 	}
 }
 
-// TestCHN_PutBatchUpsertAndGet pins acceptance §2.1+§2.4 — PUT batch
+// TestCHN_PutBatchUpsertAndGet 覆盖 acceptance §2.1+§2.4 — PUT batch
 // upsert, GET returns the rows ordered by position ASC.
 func TestCHN_PutBatchUpsertAndGet(t *testing.T) {
 	t.Parallel()
@@ -140,7 +140,7 @@ func TestCHN_PutBatchUpsertAndGet(t *testing.T) {
 	}
 }
 
-// TestCHN_DMReject pins 设计第 4 条 + content-lock 约束 — DM channel
+// TestCHN_DMReject 验证设计第 4 条 + content-lock 约束 — DM channel
 // PUT → 400 with code `layout.dm_not_grouped` 字节级一致 (5 源
 // #357/#353/#366/#402 同源).
 func TestCHN_DMReject(t *testing.T) {
@@ -169,7 +169,7 @@ func TestCHN_DMReject(t *testing.T) {
 	}
 }
 
-// TestCHN_NonMemberReject pins acceptance §2.3 — non-member channel
+// TestCHN_NonMemberReject 覆盖 acceptance §2.3 — non-member channel
 // PUT → 403 (CHN-1 ACL 同源).
 func TestCHN_NonMemberReject(t *testing.T) {
 	t.Parallel()
@@ -190,7 +190,7 @@ func TestCHN_NonMemberReject(t *testing.T) {
 	}
 }
 
-// TestCHN_InvalidPayload pins acceptance §2.5 — empty body / malformed
+// TestCHN_InvalidPayload 覆盖 acceptance §2.5 — empty body / malformed
 // JSON → 400 with code `layout.invalid_payload`.
 func TestCHN_InvalidPayload(t *testing.T) {
 	t.Parallel()
@@ -217,8 +217,8 @@ func TestCHN_InvalidPayload(t *testing.T) {
 	}
 }
 
-// TestCHN_AcceptsNegativePosition pins 设计第 3+6 条 — server 接受任意
-// REAL position (含负数, client 算 MIN-1.0 pin). server 不 reject 负数.
+// TestCHN_AcceptsNegativePosition 验证设计第 3+6 条 — server 接受任意
+// REAL position (含负数, client 用 MIN-1.0 表示置顶). server 不 reject 负数.
 func TestCHN_AcceptsNegativePosition(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -237,7 +237,7 @@ func TestCHN_AcceptsNegativePosition(t *testing.T) {
 	}
 }
 
-// TestCHN_PerUserIsolation pins 设计第 2 条 — same channel, different
+// TestCHN_PerUserIsolation 验证设计第 2 条 — same channel, different
 // users → independent rows; PK (user_id, channel_id) 复合 enforces.
 func TestCHN_PerUserIsolation(t *testing.T) {
 	t.Parallel()
@@ -287,19 +287,19 @@ func TestCHN_PerUserIsolation(t *testing.T) {
 	}
 }
 
-// TestCHN_ToastErrorMsgLockPin pins acceptance §3.5 + content-lock 第 4 条
+// TestCHN_ToastErrorMsgLockPin 覆盖 acceptance §3.5 + content-lock 第 4 条
 // — failure response 文案 字节级一致 "侧栏顺序保存失败, 请重试"
 // (5 源 #371 / acceptance §3.5 / #402 第 4 条). 直接 grep 源文件锚字面.
 func TestCHN_ToastErrorMsgLockPin(t *testing.T) {
 	t.Parallel()
 	src := mustReadFile(t, "layout.go")
 	if !strings.Contains(src, `"侧栏顺序保存失败, 请重试"`) {
-		t.Fatal("toast 文案锁漂移 — 必须包含字面 '侧栏顺序保存失败, 请重试' (5 源 字节级一致)")
+		t.Fatal("toast 文案检查失败 — 必须包含字面 '侧栏顺序保存失败, 请重试' (5 源 字节级一致)")
 	}
-	// 约束: 不出现同义词漂.
+	// 约束: 不出现同义替代表达.
 	for _, bad := range []string{"保存失败, 重试", "保存失败请重试", "Save failed", "save_failed"} {
 		if strings.Contains(src, bad) {
-			t.Errorf("toast 文案漂移 (%q) — 约束 §1 第 4 条", bad)
+			t.Errorf("toast 文案出现同义替代表达 (%q) — 约束 §1 第 4 条", bad)
 		}
 	}
 }
@@ -315,13 +315,13 @@ func TestCHN_AdminAPINotMounted(t *testing.T) {
 	resp, _ := testutil.JSON(t, "GET", ts.URL+"/admin-api/v1/users/owner/layout", "", nil)
 	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusMethodNotAllowed {
 		// If the admin API ever exposes a layout path, test fails — the
-		// reverse-grep `admin.*user_channel_layout` in admin*.go should
-		// also be 0 hit. 这条测试 + reverse-grep 双闸守 ADM-0 红线.
+		// source scan `admin.*user_channel_layout` in admin*.go should
+		// also be 0 hit. 这条测试 + 源码扫描双重检查 ADM-0 红线.
 		t.Errorf("admin-api should NOT expose user_channel_layout (got %d)", resp.StatusCode)
 	}
 }
 
-// mustReadFile is a tiny helper for the toast lock-pin grep test —
+// mustReadFile is a tiny helper for the toast literal check —
 // reads the package source from filepath relative to this test file.
 func mustReadFile(t *testing.T, rel string) string {
 	t.Helper()

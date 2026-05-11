@@ -1,7 +1,7 @@
 // Package api — cv_9_mention_dispatch_test.go: CV-9 acceptance.
 //
-// 设计约束 pins (cv-9-spec.md §0):
-//   - 设计第 1 条 mention fan-out 复用 DM-2.2 既有 path (0 server production code) —
+// 覆盖的设计约束 (cv-9-spec.md §0):
+//   - 设计第 1 条 mention fan-out 复用 DM-2.2 既有路径 (0 server production code) —
 //     artifact_comment-typed message 经 MentionDispatcher 时 PushMentionPushed
 //     真触发, 跟 text-typed 等价 (反向断言 dispatch parity).
 //   - 设计第 3 条 agent + 5-pattern body even with mention → still reject (mention
@@ -17,16 +17,16 @@ import (
 	"testing"
 )
 
-// TestCV_ArtifactComment_TriggersMentionDispatch pins 设计第 1 条: artifact_comment-typed
-// message dispatch path is 字节级一致 to text-typed — same MentionDispatcher
+// TestCV_ArtifactComment_TriggersMentionDispatch 验证设计第 1 条: artifact_comment-typed
+// message dispatch 路径与 text-typed 字节级一致 — same MentionDispatcher
 // fixture proves the dispatcher itself does not branch on content_type, which
 // is exactly the "0 server production code" 设计约束: the text-path coverage
-// already pins the artifact_comment-path behavior.
+// already covers the artifact_comment-path behavior.
 //
 // (Direct verification: MentionDispatcher.Dispatch signature does NOT take
 // content_type — search internal/api/mention_dispatch.go for the function
 // signature. Therefore the same dispatch test with a body containing an
-// artifact-comment-shaped @<uuid> token 字节级一致 pins both paths.)
+// artifact-comment-shaped @<uuid> token proves both paths stay aligned.)
 func TestCV_ArtifactComment_TriggersMentionDispatch(t *testing.T) {
 	t.Parallel()
 	d, _, hub, ids := newDispatchFixture(t, map[string]bool{}, 1_700_000_000_000)
@@ -53,7 +53,7 @@ func TestCV_ArtifactComment_TriggersMentionDispatch(t *testing.T) {
 	}
 }
 
-// TestCV_AgentMentionThinking_StillReject pins 设计第 3 条: agent body 同时
+// TestCV_AgentMentionThinking_StillReject 验证设计第 3 条: agent body 同时
 // 含 mention + 5-pattern thinking sentinel 时, server 仍然 reject 400 —
 // mention 在 body 内不豁免 thinking guard. 5-pattern 第 7 处链 字节级一致.
 //
@@ -75,6 +75,6 @@ func TestCV_AgentMentionThinking_StillReject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate: got %v offender %q", err, off)
 	}
-	// dispatcher.Validate doesn't read body — sanity 反向.
+	// dispatcher.Validate doesn't read body — 反向检查.
 	// (5-pattern reject is handler-layer, covered by CV-8 messages_test.go.)
 }

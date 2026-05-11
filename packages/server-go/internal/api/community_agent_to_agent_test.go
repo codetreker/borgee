@@ -31,8 +31,9 @@ import (
 )
 
 // cm52SetupTwoAgents 构造场景 — 两 owner 各拥有一 agent, 同 channel:
-//   owner_A (= owner@test.com)        owner_B (= member@test.com, 不同 org)
-//        └─ agent_A (in #general)            └─ (created later, joined to A's channel via cross-org invite)
+//
+//	owner_A (= owner@test.com)        owner_B (= member@test.com, 不同 org)
+//	     └─ agent_A (in #general)            └─ (created later, joined to A's channel via cross-org invite)
 //
 // 简化: 两 agent 同 channel 由 ownerA, agent_A owned by ownerA, agent_B
 // owned by ownerA (同 org, 简化 cross-org 留 AP-3) — 跨 owner 责任语义靠
@@ -69,7 +70,7 @@ func cm52SetupTwoAgents(t *testing.T) (url, ownerTok, agentATok, agentBTok strin
 	return
 }
 
-// TestCM_AgentMessagesViaHumanPath pins acceptance §2.1 设计第 1+4 条 —
+// TestCM_AgentMessagesViaHumanPath 验证 acceptance §2.1 设计第 1+4 条 —
 // agent A POST /messages 走人协作 path (POST /api/v1/channels/:id/messages).
 // 反向约束: 不开 agent-only endpoint, 走人 path 同 endpoint 同源.
 func TestCM_AgentMessagesViaHumanPath(t *testing.T) {
@@ -90,7 +91,7 @@ func TestCM_AgentMessagesViaHumanPath(t *testing.T) {
 	// (反向约束 grep 守见 cm5stance.TestCM51_NoBypassEndpoint.)
 }
 
-// TestCM_AgentToAgentMentionViaDM2Router pins acceptance §2.1 设计第 4 条 —
+// TestCM_AgentToAgentMentionViaDM2Router 验证 acceptance §2.1 设计第 4 条 —
 // agent A → @agent B mention 走 DM-2.2 既有 mention parser + dispatcher
 // (走人协作 path 同 path). MentionPushedFrame 8 字段字节级一致 跟
 // ArtifactUpdated 7 / AnchorCommentAdded 10 / IterationStateChanged 9
@@ -123,11 +124,11 @@ func TestCM_AgentToAgentMentionViaDM2Router(t *testing.T) {
 		t.Fatalf("count message_mentions: %v", err)
 	}
 	if mentionCount < 1 {
-		t.Errorf("设计第 4 条 broken: agent_A → @agent_B mention 走 DM-2.2 router → message_mentions row count == %d, want ≥ 1", mentionCount)
+		t.Errorf("设计第 4 条检查失败: agent_A → @agent_B mention 走 DM-2.2 router → message_mentions row count == %d, want ≥ 1", mentionCount)
 	}
 }
 
-// TestCM_X2ConflictReusesCV1Lock pins acceptance §2.2 设计第 3 条 — 同
+// TestCM_X2ConflictReusesCV1Lock 验证 acceptance §2.2 设计第 3 条 — 同
 // artifact 被两 agent (走 user.id 同 path) 在 30s lock 窗内同时 commit → 第二
 // 写者 409 (CV-1.2 single-doc lock + version mismatch 双重 gate 复用, 不引
 // 入新锁定机制). 设计字面: X2 冲突走 CV-1.2 既有 30s lock 路径, 不开 CM-5
@@ -167,12 +168,12 @@ func TestCM_X2ConflictReusesCV1Lock(t *testing.T) {
 	// owner-only — fallback 设计: agent 不能 commit, X2 路径退化为 owner
 	// 单一来源, 由 cv12 既有锁定守; CV-1 既有 ACL 行为定义 cm-5.2 此 case).
 	if respSecond.StatusCode != http.StatusConflict && respSecond.StatusCode != http.StatusForbidden {
-		t.Fatalf("设计第 3 条 X2 冲突 broken: agent stale commit expected 409 (lock+version) or 403 (ACL gate), got %d: %v",
+		t.Fatalf("设计第 3 条 X2 冲突检查失败: agent stale commit expected 409 (lock+version) or 403 (ACL gate), got %d: %v",
 			respSecond.StatusCode, body)
 	}
 }
 
-// TestCM_X2ConcurrentCommitOneWins pins acceptance §2.2 设计第 3 条 — 真
+// TestCM_X2ConcurrentCommitOneWins 验证 acceptance §2.2 设计第 3 条 — 真
 // 并发场景: N goroutines POST /commits 同 artifact 同 expected_version,
 // 仅 1 写者成功 (200 OK + version bump), 其余全 409 (CV-1.2 lock + tx
 // re-check 双重 gate 复用, 设计字面). 验 CM-5 条原则: 不引入新机制, 走
@@ -221,16 +222,16 @@ func TestCM_X2ConcurrentCommitOneWins(t *testing.T) {
 	}
 	// CV-1.2 lock + tx UPDATE WHERE current_version=N 双重 gate 保证仅 1 胜.
 	if successCount != 1 {
-		t.Errorf("设计第 3 条 X2 冲突 broken: concurrent commits expected exactly 1 success, got %d (codes: %v)", successCount, results)
+		t.Errorf("设计第 3 条 X2 冲突检查失败: concurrent commits expected exactly 1 success, got %d (codes: %v)", successCount, results)
 	}
 	if failCount != N-1 {
-		t.Errorf("设计第 3 条 X2 冲突 broken: expected %d non-success (409/5xx), got %d (codes: %v)", N-1, failCount, results)
+		t.Errorf("设计第 3 条 X2 冲突检查失败: expected %d non-success (409/5xx), got %d (codes: %v)", N-1, failCount, results)
 	}
 	// 反向约束: 不开 CM-5 自起 X2 错码 (复用 CV-1 既有 lock conflict path,
 	// 见 cm5stance.TestCM51_X2ConflictLiteralReuse).
 }
 
-// TestCM_OwnerVisibilityIterateChain pins acceptance §2.3 设计第 5 条 —
+// TestCM_OwnerVisibilityIterateChain 验证 acceptance §2.3 设计第 5 条 —
 // owner_A 触发 iterate 链, GET /api/v1/artifacts/:id/iterations 返完整链;
 // channel member 视角 (含 agent B token, 走 user 同 path) 同样可见 (走人
 // 协作 path, owner-first 透明可见, 不拆 owner_visibility scope 不引
@@ -267,7 +268,7 @@ func TestCM_OwnerVisibilityIterateChain(t *testing.T) {
 		t.Fatalf("GET /iterations (owner): expected `iterations` array, got %v", listBody)
 	}
 	if len(iterations) < 1 {
-		t.Errorf("设计第 5 条 broken: owner GET /iterations expected ≥1 row (透明可见 owner-first), got %d", len(iterations))
+		t.Errorf("设计第 5 条检查失败: owner GET /iterations expected ≥1 row (透明可见 owner-first), got %d", len(iterations))
 	}
 
 	// Cross-member 验证 — agent B (channel member, 不同 user.id, 走人 path
@@ -288,7 +289,7 @@ func TestCM_OwnerVisibilityIterateChain(t *testing.T) {
 			t.Fatalf("cross-member GET: expected `iterations` array, got %v", crossBody)
 		}
 		if len(crossIterations) != len(iterations) {
-			t.Errorf("设计第 5 条 broken: cross-member chain length %d ≠ owner chain length %d (owner-first 透明协作)",
+			t.Errorf("设计第 5 条检查失败: cross-member chain length %d ≠ owner chain length %d (owner-first 透明协作)",
 				len(crossIterations), len(iterations))
 		}
 	}
@@ -300,7 +301,7 @@ func TestCM_OwnerVisibilityIterateChain(t *testing.T) {
 		row, _ := it.(map[string]any)
 		for _, forbidden := range []string{"ai_only", "visibility_scope", "agent_visible_only"} {
 			if _, has := row[forbidden]; has {
-				t.Errorf("设计第 5 条 broken: GET /iterations row 含禁字段 %q (透明可见 owner-first)", forbidden)
+				t.Errorf("设计第 5 条检查失败: GET /iterations row 含禁字段 %q (透明可见 owner-first)", forbidden)
 			}
 		}
 	}

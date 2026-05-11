@@ -21,7 +21,7 @@ import (
 
 // ---- ParseMentionTargets (pure, regex grammar) ---------------------
 
-// TestParseMentionTargets_HappyPath pins acceptance §1.1 — body 中
+// TestParseMentionTargets_HappyPath 覆盖 acceptance §1.1 — body 中
 // `@<uuid>` token 被抓; 设计第 1 条 UUID grammar 字面 (8-4-4-4-12 lowercase hex).
 func TestParseMentionTargets_HappyPath(t *testing.T) {
 	t.Parallel()
@@ -33,7 +33,7 @@ func TestParseMentionTargets_HappyPath(t *testing.T) {
 	}
 }
 
-// TestParseMentionTargets_DedupSameTarget pins acceptance §1.1 dedup —
+// TestParseMentionTargets_DedupSameTarget 覆盖 acceptance §1.1 dedup —
 // 同 message 同 target 多次 `@` 只一行 (UNIQUE 由 schema #361 兜, 但 parser
 // 提前 dedup 节省 O(unique) 路径).
 func TestParseMentionTargets_DedupSameTarget(t *testing.T) {
@@ -45,16 +45,16 @@ func TestParseMentionTargets_DedupSameTarget(t *testing.T) {
 	}
 }
 
-// TestParseMentionTargets_NonMentions pins acceptance §1.2 约束 — email /
+// TestParseMentionTargets_NonMentions 验证 acceptance §1.2 约束 — email /
 // 短 @name / 半段 UUID 都 NOT match. 设计第 1 条 UUID-only grammar, 防 bare
 // `@username` 误抓走 routing.
 func TestParseMentionTargets_NonMentions(t *testing.T) {
 	t.Parallel()
 	cases := []string{
 		"contact me at user@example.com",                     // email
-		"hi @joe",                                             // bare username
-		"shorty @11111111-2222-3333-4444",                     // half UUID
-		"caps @AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",          // upper hex (规约 lowercase)
+		"hi @joe",                                            // bare username
+		"shorty @11111111-2222-3333-4444",                    // half UUID
+		"caps @AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",         // upper hex (规约 lowercase)
 		"prefixed lol@11111111-2222-3333-4444-555555555555 ", // boundary tolerated; @ within word still captures (regex 不强 word-boundary 因 token 即字面 @<uuid>)
 	}
 	// First 4 expect zero matches; case 5 expects 1 (the regex deliberately
@@ -86,7 +86,7 @@ func TestParseMentionTargets_Empty(t *testing.T) {
 
 // ---- Fake hub + presence + dispatcher fixtures ---------------------
 
-// fakePresence implements presence.PresenceTracker; tests pin offline /
+// fakePresence implements presence.PresenceTracker; tests verify offline /
 // online by building the online set explicitly. Sessions() returns nil
 // (DM-2.2 dispatch never reads it).
 type fakePresence struct {
@@ -177,7 +177,7 @@ type fixtureIDs struct {
 
 // ---- Validate (cross-channel reject) -------------------------------
 
-// TestValidate_SameChannelOK pins acceptance §2 — channel members 都合法,
+// TestValidate_SameChannelOK 覆盖 acceptance §2 — channel members 都合法,
 // validate 全过.
 func TestValidate_SameChannelOK(t *testing.T) {
 	t.Parallel()
@@ -188,7 +188,7 @@ func TestValidate_SameChannelOK(t *testing.T) {
 	}
 }
 
-// TestValidate_CrossChannelRejected pins spec §2 + acceptance — target 不
+// TestValidate_CrossChannelRejected 验证 spec §2 + acceptance — target 不
 // 在 channel → ErrMentionTargetNotInChannel + offender ID 返回.
 func TestValidate_CrossChannelRejected(t *testing.T) {
 	t.Parallel()
@@ -205,7 +205,7 @@ func TestValidate_CrossChannelRejected(t *testing.T) {
 
 // ---- PersistMentions (#361 schema, UNIQUE dedup) -------------------
 
-// TestPersistMentions_WritesRows pins acceptance §1.1 — message_mentions
+// TestPersistMentions_WritesRows 覆盖 acceptance §1.1 — message_mentions
 // row 一 target 一行; created_at 跟 dispatcher.Now 来源一致.
 func TestPersistMentions_WritesRows(t *testing.T) {
 	t.Parallel()
@@ -232,7 +232,7 @@ func TestPersistMentions_WritesRows(t *testing.T) {
 	}
 }
 
-// TestPersistMentions_DedupOnRetry pins schema-level UNIQUE — second call
+// TestPersistMentions_DedupOnRetry 验证 schema-level UNIQUE — second call
 // with same (message, target) is no-op (INSERT OR IGNORE).
 func TestPersistMentions_DedupOnRetry(t *testing.T) {
 	t.Parallel()
@@ -253,7 +253,7 @@ func TestPersistMentions_DedupOnRetry(t *testing.T) {
 
 // ---- Dispatch — online → push, offline-agent → owner DM ------------
 
-// TestDispatch_OnlineTarget_PushOnly pins acceptance §2.1 — target 在线
+// TestDispatch_OnlineTarget_PushOnly 覆盖 acceptance §2.1 — target 在线
 // 时仅 push WS frame, 不触发 owner DM (owner sniff 0).
 func TestDispatch_OnlineTarget_PushOnly(t *testing.T) {
 	t.Parallel()
@@ -278,7 +278,7 @@ func TestDispatch_OnlineTarget_PushOnly(t *testing.T) {
 	}
 }
 
-// TestDispatch_OfflineAgent_OwnerDM pins acceptance §2.2 — agent 离线 →
+// TestDispatch_OfflineAgent_OwnerDM 覆盖 acceptance §2.2 — agent 离线 →
 // owner 收到 1 条 system DM, body 字节级一致 (#314 §1 第 3 条).
 func TestDispatch_OfflineAgent_OwnerDM(t *testing.T) {
 	t.Parallel()
@@ -302,11 +302,11 @@ func TestDispatch_OfflineAgent_OwnerDM(t *testing.T) {
 	}
 	want := "Helper 当前离线，#general 中有人 @ 了它，你可能需要处理"
 	if rows[0].Content != want {
-		t.Errorf("body byte-identity broken:\n got: %q\nwant: %q", rows[0].Content, want)
+		t.Errorf("body byte-identity check failed:\n got: %q\nwant: %q", rows[0].Content, want)
 	}
 }
 
-// TestDispatch_OfflineAgent_NoRawBody pins acceptance §2.4 约束 — system
+// TestDispatch_OfflineAgent_NoRawBody 验证 acceptance §2.4 约束 — system
 // DM body 不含原 message body 字符串 (隐私 §13).
 func TestDispatch_OfflineAgent_NoRawBody(t *testing.T) {
 	t.Parallel()
@@ -325,7 +325,7 @@ func TestDispatch_OfflineAgent_NoRawBody(t *testing.T) {
 	}
 }
 
-// TestDispatch_OfflineAgent_Throttled5Min pins acceptance §2.3 — 同
+// TestDispatch_OfflineAgent_Throttled5Min 覆盖 acceptance §2.3 — 同
 // (agent, channel) 5 分钟窗口内只推 1 次. 第 2 次窗口内 mention → 不再
 // 加 DM 行; 6 分钟后 mention → 加第 2 行.
 func TestDispatch_OfflineAgent_Throttled5Min(t *testing.T) {
@@ -359,7 +359,7 @@ func TestDispatch_OfflineAgent_Throttled5Min(t *testing.T) {
 	}
 }
 
-// TestDispatch_OfflineHuman_NoFallback pins spec §0 条原则 — 蓝图 §4.1 仅
+// TestDispatch_OfflineHuman_NoFallback 验证 spec §0 条原则 — 蓝图 §4.1 仅
 // agent 离线场景触发 owner DM. 人离线 mention 不触发 fallback (没有
 // owner_id, role != 'agent').
 func TestDispatch_OfflineHuman_NoFallback(t *testing.T) {

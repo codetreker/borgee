@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-// TestCHN_DMViewHasNoWorkspaceTab pins 设计第 1 条 + 7 源 字节级一致 反向锁.
+// TestCHN_DMViewHasNoWorkspaceTab 验证设计第 1 条 + 7 源字面一致性反向检查.
 // production code (server-go internal/) 必不含 dm 视图渲染 workspace tab
 // 的字面 (跟 ChannelView.tsx + chn-2-content-lock 同源).
 //
@@ -62,13 +62,13 @@ func TestCHN_DMViewHasNoWorkspaceTab(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("CHN-4 设计第 1 条 broken: dm-view-workspace-enabling identifier "+
+		t.Errorf("CHN-4 设计第 1 条检查失败: dm-view-workspace-enabling identifier "+
 			"found in production *.go (7 源 字节级一致 对齐链同根: #354 第 4 条 + "+
 			"#353 §3.1 + #357 第 2 条 + #364 + #371 + #374 + chn-4 设计约束): %v", hits)
 	}
 }
 
-// TestCHN_NoDMSyncBypassEndpoint pins 设计第 2 条 — DM 走普通 channel events
+// TestCHN_NoDMSyncBypassEndpoint 验证设计第 2 条 — DM 走普通 channel events
 // path, 不开 dm-only sync endpoint (跟 DM-3 wrapper 同精神).
 func TestCHN_NoDMSyncBypassEndpoint(t *testing.T) {
 	t.Parallel()
@@ -105,6 +105,6 @@ func TestCHN_NoDMSyncBypassEndpoint(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("CHN-4 设计第 2 条 broken: dm-only bypass endpoint paths found: %v", hits)
+		t.Errorf("CHN-4 设计第 2 条检查失败: dm-only bypass endpoint paths found: %v", hits)
 	}
 }

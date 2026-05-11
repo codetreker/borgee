@@ -87,7 +87,7 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 		hits += len(singleSrc.FindAll(b, -1))
 	}
 	if hits < 1 {
-		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计第 5 条 数字常量单一来源锁)", hits)
+		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计第 5 条 数字常量单一来源)", hits)
 	}
 
 	// 第 2 步 mismatch detection: heartbeat timeout > 30s 不允许
@@ -98,12 +98,12 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 			continue
 		}
 		if m := badPat.Find(b); m != nil {
-			t.Errorf("%s: heartbeat timeout 漂移 above 30s (matched %q; BPP-4 §3 设计第 5 条 反向断言)", f, string(m))
+			t.Errorf("%s: heartbeat timeout above 30s (matched %q; BPP-4 §3 设计第 5 条 反向断言)", f, string(m))
 		}
 	}
 }
 
-// TestLint_ReasonChainNo7th — AL-1.1 §1.3 6 reason 字典反 7th 漂移 约束.
+// TestLint_ReasonChainNo7th — AL-1.1 §1.3 6 reason 字典禁止第 7 项约束.
 // internal/ 下不允许 commit "reason.*7th" / "runtime_recovered" /
 // "reconnect_success" 字面 (新 reason 必须改 reasons 单一来源 包).
 func TestLint_ReasonChainNo7th(t *testing.T) {
@@ -137,7 +137,7 @@ func TestLint_ReasonChainNo7th(t *testing.T) {
 			if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") {
 				continue
 			}
-			t.Errorf("%s: 第 7 reason 漂移 detected (line: %q; AL-1.1 §1.3 6-dict 对齐链 约束 — 新 reason 必须改 reasons 单一来源 包)", f, line)
+			t.Errorf("%s: detected 第 7 reason (line: %q; AL-1.1 §1.3 6-dict 对齐链 约束 — 新 reason 必须改 reasons 单一来源 包)", f, line)
 		}
 	}
 }
@@ -169,7 +169,7 @@ func TestLint_ReasonsCrossMilestoneCoverage(t *testing.T) {
 		hits += len(pat.FindAll(b, -1))
 	}
 	if hits < 6 {
-		t.Errorf("reason chain coverage 漂移 — got %d source-side hits, expected ≥6 (AL-1a 单一来源 跨 milestone 应每个 reason 至少 1 hit)", hits)
+		t.Errorf("reason chain coverage insufficient — got %d source-side hits, expected ≥6 (AL-1a 单一来源 跨 milestone 应每个 reason 至少 1 hit)", hits)
 	}
 }
 
@@ -186,7 +186,7 @@ func TestLint_AgentStateLogNoConnecting(t *testing.T) {
 	}
 	pat := regexp.MustCompile(`AgentStateConnecting|state.*connecting`)
 	if m := pat.Find(b); m != nil {
-		t.Errorf("%s: connecting 持久态 漂移 (matched %q; BPP-5 §1.4 条原则 — connecting 是 transient 中间态, 不入 5-state graph)", logFile, string(m))
+		t.Errorf("%s: connecting 持久态被写入 (matched %q; BPP-5 §1.4 条原则 — connecting 是 transient 中间态, 不入 5-state graph)", logFile, string(m))
 	}
 }
 
@@ -204,7 +204,7 @@ func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: busy/idle source 漂移 (matched %q; AL-1b §2 设计第 2 条 BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
+			t.Errorf("%s: busy/idle source 写入位置不正确 (matched %q; AL-1b §2 设计第 2 条 BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
 		}
 	}
 }
@@ -223,7 +223,7 @@ func TestLint_ALHBStackDictIsolation(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: AL stack vs HB stack 字典分立 漂移 (matched %q; AL 走 agent_state_log+agent_status, HB 走 audit_log, 分立不 JOIN)", f, string(m))
+			t.Errorf("%s: AL stack vs HB stack 字典分立检查失败 (matched %q; AL 走 agent_state_log+agent_status, HB 走 audit_log, 分立不 JOIN)", f, string(m))
 		}
 	}
 }

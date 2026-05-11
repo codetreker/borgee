@@ -1,13 +1,13 @@
 // Package api_test — artifact_comments_test.go: CV-5 acceptance tests
 // (canvas-vision §0 L24 字面 "Linear issue + comment").
 //
-// 设计约束 pins exercised (cv-5-spec.md §0):
-//   - 设计第 1 条 comment 走 messages 表的单一来源 — POST 真创建 message row + virtual
+// 覆盖的设计约束 (cv-5-spec.md §0):
+//   - 设计第 1 条 comment 走 messages 表单源 — POST 真创建 message row + virtual
 //     `artifact:<id>` channel; 不开 artifact_comments 表.
 //   - 设计第 2 条 frame envelope cursor 走 hub.cursors 共序 + body_preview 80 rune cap.
-//   - 设计第 3 条 agent thinking subject 必带 — 5-pattern 约束第 4 处链.
+//   - 设计第 3 条 agent thinking subject 必带 — 5-pattern 反向检查第 4 处链.
 //   - 设计第 4 条 cross-channel reject — 非 host channel member → 403
-//     `comment.cross_channel_reject` (REG-INV-002 fail-closed).
+//     `comment.cross_channel_reject` (REG-INV-002 默认拒绝).
 package api_test
 
 import (
@@ -32,7 +32,7 @@ func cv5Setup(t *testing.T) (string, string, *store.Store, string, string) {
 	return ts.URL, ownerTok, s, chID, art["id"].(string)
 }
 
-// TestArtifactComments_HumanCreate_OK pins 设计第 1 条: human owner POSTs
+// TestArtifactComments_HumanCreate_OK 覆盖设计第 1 条: human owner POSTs
 // comment → 201, response carries comment id + sender_role='human' +
 // channel_id under `artifact:` namespace.
 func TestArtifactComments_HumanCreate_OK(t *testing.T) {
@@ -65,12 +65,12 @@ func TestArtifactComments_HumanCreate_OK(t *testing.T) {
 	var name string
 	s.DB().Raw(`SELECT name FROM channels WHERE id = ?`, chID).Scan(&name)
 	if want := "artifact:" + artID; name != want {
-		t.Errorf("channel name 字节级一致 锁失败: got %q want %q", name, want)
+		t.Errorf("channel name 字节级一致检查失败: got %q want %q", name, want)
 	}
 }
 
-// TestArtifactComments_AgentThinkingSubject_Reject pins 设计第 3 条 5-pattern
-// reverse-grep 第 4 处链. Each sub-case body matches exactly one pattern;
+// TestArtifactComments_AgentThinkingSubject_Reject 验证设计第 3 条 5-pattern
+// source-scan 第 4 处链. Each sub-case body matches exactly one pattern;
 // server rejects with 400 + code 字节级一致.
 func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
 	t.Parallel()
@@ -81,7 +81,7 @@ func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
 		name string
 		body string
 	}{
-		{"empty", "   "},                     // pattern 5: subject="" 空
+		{"empty", "   "},                      // pattern 5: subject="" 空
 		{"thinking_suffix", "agent thinking"}, // pattern 1: trailing "thinking"
 		{"defaultSubject", "defaultSubject placeholder leak"},
 		{"fallbackSubject", "wrapped fallbackSubject token"},
@@ -96,13 +96,13 @@ func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
 				t.Fatalf("agent thinking-subject body accepted: %d %v", resp.StatusCode, data)
 			}
 			if data["code"] != "comment.thinking_subject_required" {
-				t.Errorf("error code 字节级一致 锁失败: got %v want comment.thinking_subject_required", data["code"])
+				t.Errorf("error code 字节级一致检查失败: got %v want comment.thinking_subject_required", data["code"])
 			}
 		})
 	}
 }
 
-// TestArtifactComments_AgentValidSubject_OK pins 设计第 3 条 反向: agent body
+// TestArtifactComments_AgentValidSubject_OK 验证设计第 3 条的通过场景: agent body
 // 带具体 subject (无 5-pattern hit) → 201 success.
 func TestArtifactComments_AgentValidSubject_OK(t *testing.T) {
 	t.Parallel()
@@ -120,7 +120,7 @@ func TestArtifactComments_AgentValidSubject_OK(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_CrossChannelReject pins 设计第 4 条 + REG-INV-002:
+// TestArtifactComments_CrossChannelReject 验证设计第 4 条 + REG-INV-002:
 // non-member of host channel → 403 `comment.cross_channel_reject`.
 func TestArtifactComments_CrossChannelReject(t *testing.T) {
 	t.Parallel()
@@ -143,11 +143,11 @@ func TestArtifactComments_CrossChannelReject(t *testing.T) {
 		t.Fatalf("cross-channel non-member POST not 403: got %d %v", resp.StatusCode, data)
 	}
 	if data["code"] != "comment.cross_channel_reject" {
-		t.Errorf("code 字节级一致 锁失败: got %v want comment.cross_channel_reject", data["code"])
+		t.Errorf("code 字节级一致检查失败: got %v want comment.cross_channel_reject", data["code"])
 	}
 }
 
-// TestArtifactComments_TargetNotFound pins 错误码: artifact_id 不存在 → 404
+// TestArtifactComments_TargetNotFound 验证错误码: artifact_id 不存在 → 404
 // `comment.target_artifact_not_found` (跟 DM-2.2 mention.target_not_in_channel 同模式).
 func TestArtifactComments_TargetNotFound(t *testing.T) {
 	t.Parallel()
@@ -159,11 +159,11 @@ func TestArtifactComments_TargetNotFound(t *testing.T) {
 		t.Fatalf("missing artifact: %d %v", resp.StatusCode, data)
 	}
 	if data["code"] != "comment.target_artifact_not_found" {
-		t.Errorf("code 字节级一致 锁失败: got %v", data["code"])
+		t.Errorf("code 字节级一致检查失败: got %v", data["code"])
 	}
 }
 
-// TestArtifactComments_BodyPreviewCap80Rune pins 设计第 2 条 隐私 §13 cap —
+// TestArtifactComments_BodyPreviewCap80Rune 覆盖设计第 2 条 隐私 §13 cap —
 // 长 body 创建 OK, 服务端截断 body_preview 在推送路径; round-trip body
 // 仍完整保留 (full body 走授权 channel-member 拉路径).
 func TestArtifactComments_BodyPreviewCap80Rune(t *testing.T) {
@@ -181,7 +181,7 @@ func TestArtifactComments_BodyPreviewCap80Rune(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_ListRoundTrip pins 设计第 1 条 + GET endpoint.
+// TestArtifactComments_ListRoundTrip 覆盖设计第 1 条 + GET endpoint.
 func TestArtifactComments_ListRoundTrip(t *testing.T) {
 	t.Parallel()
 	url, tok, _, _, artID := cv5Setup(t)
