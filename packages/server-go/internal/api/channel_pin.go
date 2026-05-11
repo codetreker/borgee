@@ -7,20 +7,20 @@
 //
 // REFACTOR-1 R1.1: thin wrapper 模式跟 chn_7_mute.go / chn_15_readonly.go
 // 对齐 — handlePinChannel / handleUnpinChannel ≤4 行 thin wrapper, 真活
-// 走 handlePinToggle 单 handler + requireChannelMember helper-1 SSOT
-// preamble (chn_6/7/8/15/layout 5 处 4-step preamble 单源).
+// 走 handlePinToggle 单 handler + requireChannelMember helper-1 单一来源
+// preamble (chn_6/7/8/15/layout 5 处 4-step preamble 单一来源).
 //
 // Public surface:
 //   - (h *ChannelHandler) RegisterCHN6Routes(mux, authMw)
 //
-// 反约束 (chn-6-spec.md §0 + refactor-1-spec.md §0):
+// 反向检查 (chn-6-spec.md §0 + refactor-1-spec.md §0):
 //   - 设计 ② owner-only — POST/DELETE /api/v1/channels/{channelId}/pin
 //     user-rail authMw 必经; admin god-mode 不挂 (grep 检查
 //     `admin.*pin\|/admin-api/.*pin` 在 admin*.go 0 hit) — owner-only ACL
-//     锁链第 14 处.
+//     对齐链第 14 处.
 //   - 设计 ③ pin 状态双源 — server PinThreshold=0 const + client
 //     POSITION_PIN_THRESHOLD=0 byte-identical 双向锁.
-//   - 设计 ⑥ AST 锁链延伸第 11 处 forbidden 3 token 0 hit.
+//   - 设计 ⑥ AST 对齐链延伸第 11 处 forbidden 3 token 0 hit.
 package api
 
 import (
@@ -65,7 +65,7 @@ func (h *ChannelHandler) handleUnpinChannel(w http.ResponseWriter, r *http.Reque
 }
 
 // handlePinToggle — pin/unpin 单 handler, 跟 chn_7 handleMuteToggle /
-// chn_15 handleReadonlyToggle 同模式承袭 (REFACTOR-1 R1.1).
+// chn_15 handleReadonlyToggle 同模式 (REFACTOR-1 R1.1).
 //
 // 设计 ② owner-only: 走 requireChannelMember helper-1 (RejectDM=true +
 // member-only) — DM-gate 字面 byte-identical 跟 CHN-3.2 / CHN-7 / CHN-8
