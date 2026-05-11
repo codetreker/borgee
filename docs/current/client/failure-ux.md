@@ -9,14 +9,14 @@
 export const FAILURE_TRI_STATE = ['online', 'error', 'offline'] as const;
 ```
 
-byte-identical 跟既有 `<PresenceDot data-presence>` enum + AL-3 守护链. AL-1b
-busy/idle 真分清锁定 (BPP progress frame 真实施时 v2 才加第 4 态).
+该枚举与既有 `<PresenceDot data-presence>` enum + AL-3 守护链保持一致。AL-1b
+busy/idle 与 CS-2 故障三态明确区分；只有 BPP progress frame 真实施时，v2 才增加第 4 态。
 
-`IsFailureState(s)` helper 跟 reasons.IsValid #496 单一来源包同模式.
+`IsFailureState(s)` helper 使用与 reasons.IsValid #496 相同的集中校验模式。
 
 ## plain language 6-dict (lib/cs2-failure-labels.ts)
 
-| reason key | label 模板 byte-identical |
+| reason key | label 模板 |
 |---|---|
 | `api_key_invalid` | `API key 已失效, 需要重新填写` |
 | `quota_exceeded` | `{agent_name} 的配额已用完` |
@@ -25,11 +25,13 @@ busy/idle 真分清锁定 (BPP progress frame 真实施时 v2 才加第 4 态).
 | `runtime_timeout` | `{agent_name} 响应超时` |
 | `unknown` | `{agent_name} 出错, 请查日志` |
 
-`formatFailureLabel(reason, agentName)` 替换 `{agent_name}` 占位符. 字面 byte-identical
-跟 reasons.IsValid #496 + AL-4 #321 — 改 = 改三处 (server reasons.go + client
-cs2-failure-labels.ts + content-lock §1).
+`formatFailureLabel(reason, agentName)` 替换 `{agent_name}` 占位符。label 字面必须与 reasons.IsValid #496 + AL-4 #321 保持一致。
 
-## 4 层 UX 呈现 (蓝图 §1.3 表 byte-identical)
+| 改动点 | 必须同步 |
+|---|---|
+| failure reason / label 字面变化 | server reasons.go + client cs2-failure-labels.ts + content-lock §1 |
+
+## 4 层 UX 呈现 (与蓝图 §1.3 表保持一致)
 
 | 层 | 组件 | DOM 出处 | 触发 |
 |---|---|---|---|
@@ -44,38 +46,45 @@ cs2-failure-labels.ts + content-lock §1).
 export type FailureRepairAction = 'reconnect' | 'refill_api_key' | 'view_logs';
 ```
 
-3 action 占位 — v0 stub 返 `status: 'pending'` + 占位 message. v1 真路径接:
-- `reconnect` → BPP-3 force-reconnect frame
-- `refill_api_key` → AL-2a config update PATCH
-- `view_logs` → plugin SDK log stream
+3 个 action 当前为占位。v0 stub 返回 `status: 'pending'` + 占位 message；v1 接入真实路径。
 
-蓝图字面 "inline 修复, 不跳设置页" — grep 检查 `navigate.*\/settings` 在
-`components/Failure*.tsx` count==0.
+| action | v1 接入路径 |
+|---|---|
+| `reconnect` | BPP-3 force-reconnect frame |
+| `refill_api_key` | AL-2a config update PATCH |
+| `view_logs` | plugin SDK log stream |
 
-## 反向约束守门
+蓝图字面要求为 "inline 修复, 不跳设置页"。grep 检查 `navigate.*\/settings` 在
+`components/Failure*.tsx` count==0。
 
-- 三态真分清: `'busy'|'idle'|'standby'` 在 `cs-2-*` 0 hit
-- 4 层不脱节第 5 层: `toast.*failure|FailureModal|FailureInlineError` 0 hit
-- 同义词脱节禁: `故障了|挂了|不可用|服务异常|崩了|掉线` 0 hit
-- raw error code 不暴: `401 Unauthorized|connection refused|invalid_token|openclaw://` 0 hit
-- admin god-mode 不挂 (ADM-0 §1.3 红线): `admin.*failure-ux|admin.*FailureCenter` 0 hit
-- 0 server prod: `git diff origin/main -- packages/server-go/` 0 行
-- 0 schema 改: `migrations/cs_2|cs2.*api|cs2.*server` 0 hit
+## 禁止行为 / QA 检查
 
-## 跨 milestone byte-identical 锁定
+| 约束 | 检查 |
+|---|---|
+| 三态与 busy/idle/standby 状态保持独立 | `'busy'|'idle'|'standby'` 在 `cs-2-*` 无匹配 |
+| 不新增第 5 层故障 UI | `toast.*failure|FailureModal|FailureInlineError` 无匹配 |
+| 禁止引入未锁定的故障文案 | `故障了|挂了|不可用|服务异常|崩了|掉线` 无匹配 |
+| raw error code 不暴露 | `401 Unauthorized|connection refused|invalid_token|openclaw://` 无匹配 |
+| 不提供管理端故障 UX 入口 (ADM-0 §1.3 红线) | `admin.*failure-ux|admin.*FailureCenter` 无匹配 |
+| 0 server prod | `git diff origin/main -- packages/server-go/` 0 行 |
+| 0 schema 改 | `migrations/cs_2|cs2.*api|cs2.*server` 无匹配 |
 
-- AL-3 PresenceDot data-presence enum (CS-2 三态 byte-identical)
-- AL-1b 5-state 拆分 (CS-2 三态真分清 vs AL-1b 5-state, BPP progress 真实施时 v2 合)
-- reasons.IsValid #496 单一来源 6-dict (改 = 改三处)
-- AL-4 #321 system DM 文案锁定 (reason text byte-identical)
-- 蓝图 client-shape.md §1.3 plain language 字面对账
-- ADM-0 §1.3 admin god-mode 不挂
+## 跨 milestone 一致性要求
+
+| 来源 | 锁定点 |
+|---|---|
+| AL-3 PresenceDot data-presence enum | CS-2 三态保持一致 |
+| AL-1b 5-state 拆分 | CS-2 三态与 AL-1b 5-state 保持独立；BPP progress 真实施时 v2 合 |
+| reasons.IsValid #496 集中 6-dict | 改 = 改三处 |
+| AL-4 #321 system DM 文案锁定 | reason text 保持一致 |
+| 蓝图 client-shape.md §1.3 | plain language 字面对账 |
+| ADM-0 §1.3 | 不提供管理端故障 UX 入口 |
 
 ## 不在范围
 
-- 第 4 态 busy/idle (留 AL-1b §2.3 BPP progress frame)
-- inline 修复真路径 (留 plugin SDK + AL-2a / HB-3)
-- IndexedDB 乐观缓存 (留 CS-4)
-- Tauri 壳 / PWA install / Web Push (留 HB-2 / CS-3)
-- admin god-mode 故障 UX (永久不挂 ADM-0 §1.3)
-- 桌面通知 / 故障声音 (留 DL-4)
+- 第 4 态 busy/idle；留 AL-1b §2.3 BPP progress frame
+- inline 修复真实路径；留 plugin SDK + AL-2a / HB-3
+- IndexedDB 乐观缓存；留 CS-4
+- Tauri 壳 / PWA install / Web Push；留 HB-2 / CS-3
+- 管理端故障 UX；永久不挂 ADM-0 §1.3
+- 桌面通知 / 故障声音；留 DL-4
