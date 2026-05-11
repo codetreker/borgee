@@ -1,12 +1,12 @@
 // Package api_test — artifact_comments_test.go: CV-5 acceptance tests
 // (canvas-vision §0 L24 字面 "Linear issue + comment").
 //
-// Stance pins exercised (cv-5-spec.md §0):
-//   - ① comment 走 messages 表单源 — POST 真创建 message row + virtual
+// 设计约束 pins exercised (cv-5-spec.md §0):
+//   - 设计第 1 条 comment 走 messages 表的单一来源 — POST 真创建 message row + virtual
 //     `artifact:<id>` channel; 不开 artifact_comments 表.
-//   - ② frame envelope cursor 走 hub.cursors 共序 + body_preview 80 rune cap.
-//   - ③ agent thinking subject 必带 — 5-pattern 反约束第 4 处链.
-//   - ④ cross-channel reject — 非 host channel member → 403
+//   - 设计第 2 条 frame envelope cursor 走 hub.cursors 共序 + body_preview 80 rune cap.
+//   - 设计第 3 条 agent thinking subject 必带 — 5-pattern 约束第 4 处链.
+//   - 设计第 4 条 cross-channel reject — 非 host channel member → 403
 //     `comment.cross_channel_reject` (REG-INV-002 fail-closed).
 package api_test
 
@@ -32,7 +32,7 @@ func cv5Setup(t *testing.T) (string, string, *store.Store, string, string) {
 	return ts.URL, ownerTok, s, chID, art["id"].(string)
 }
 
-// TestArtifactComments_HumanCreate_OK pins 设计 ①: human owner POSTs
+// TestArtifactComments_HumanCreate_OK pins 设计第 1 条: human owner POSTs
 // comment → 201, response carries comment id + sender_role='human' +
 // channel_id under `artifact:` namespace.
 func TestArtifactComments_HumanCreate_OK(t *testing.T) {
@@ -54,24 +54,24 @@ func TestArtifactComments_HumanCreate_OK(t *testing.T) {
 	if id, _ := data["id"].(string); id == "" {
 		t.Error("id missing in response")
 	}
-	// 设计 ① — message row landed in messages table with content_type 'artifact_comment'.
+	// 设计第 1 条 — message row landed in messages table with content_type 'artifact_comment'.
 	chID, _ := data["channel_id"].(string)
 	var count int64
 	s.DB().Raw(`SELECT COUNT(*) FROM messages WHERE channel_id = ? AND content_type = 'artifact_comment'`, chID).Scan(&count)
 	if count != 1 {
 		t.Errorf("expected 1 message row in artifact: namespace channel, got %d", count)
 	}
-	// channel name must be `artifact:<artID>` (设计 ① grep 检查项).
+	// channel name must be `artifact:<artID>` (设计第 1 条 grep 检查项).
 	var name string
 	s.DB().Raw(`SELECT name FROM channels WHERE id = ?`, chID).Scan(&name)
 	if want := "artifact:" + artID; name != want {
-		t.Errorf("channel name byte-identical 锁失败: got %q want %q", name, want)
+		t.Errorf("channel name 字节级一致 锁失败: got %q want %q", name, want)
 	}
 }
 
-// TestArtifactComments_AgentThinkingSubject_Reject pins 设计 ③ 5-pattern
+// TestArtifactComments_AgentThinkingSubject_Reject pins 设计第 3 条 5-pattern
 // reverse-grep 第 4 处链. Each sub-case body matches exactly one pattern;
-// server rejects with 400 + code byte-identical.
+// server rejects with 400 + code 字节级一致.
 func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
 	t.Parallel()
 	url, _, s, chID, artID := cv5Setup(t)
@@ -96,13 +96,13 @@ func TestArtifactComments_AgentThinkingSubject_Reject(t *testing.T) {
 				t.Fatalf("agent thinking-subject body accepted: %d %v", resp.StatusCode, data)
 			}
 			if data["code"] != "comment.thinking_subject_required" {
-				t.Errorf("error code byte-identical 锁失败: got %v want comment.thinking_subject_required", data["code"])
+				t.Errorf("error code 字节级一致 锁失败: got %v want comment.thinking_subject_required", data["code"])
 			}
 		})
 	}
 }
 
-// TestArtifactComments_AgentValidSubject_OK pins 设计 ③ 反向: agent body
+// TestArtifactComments_AgentValidSubject_OK pins 设计第 3 条 反向: agent body
 // 带具体 subject (无 5-pattern hit) → 201 success.
 func TestArtifactComments_AgentValidSubject_OK(t *testing.T) {
 	t.Parallel()
@@ -120,7 +120,7 @@ func TestArtifactComments_AgentValidSubject_OK(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_CrossChannelReject pins 设计 ④ + REG-INV-002:
+// TestArtifactComments_CrossChannelReject pins 设计第 4 条 + REG-INV-002:
 // non-member of host channel → 403 `comment.cross_channel_reject`.
 func TestArtifactComments_CrossChannelReject(t *testing.T) {
 	t.Parallel()
@@ -143,7 +143,7 @@ func TestArtifactComments_CrossChannelReject(t *testing.T) {
 		t.Fatalf("cross-channel non-member POST not 403: got %d %v", resp.StatusCode, data)
 	}
 	if data["code"] != "comment.cross_channel_reject" {
-		t.Errorf("code byte-identical 锁失败: got %v want comment.cross_channel_reject", data["code"])
+		t.Errorf("code 字节级一致 锁失败: got %v want comment.cross_channel_reject", data["code"])
 	}
 }
 
@@ -159,11 +159,11 @@ func TestArtifactComments_TargetNotFound(t *testing.T) {
 		t.Fatalf("missing artifact: %d %v", resp.StatusCode, data)
 	}
 	if data["code"] != "comment.target_artifact_not_found" {
-		t.Errorf("code byte-identical 锁失败: got %v", data["code"])
+		t.Errorf("code 字节级一致 锁失败: got %v", data["code"])
 	}
 }
 
-// TestArtifactComments_BodyPreviewCap80Rune pins 设计 ② 隐私 §13 cap —
+// TestArtifactComments_BodyPreviewCap80Rune pins 设计第 2 条 隐私 §13 cap —
 // 长 body 创建 OK, 服务端截断 body_preview 在推送路径; round-trip body
 // 仍完整保留 (full body 走授权 channel-member 拉路径).
 func TestArtifactComments_BodyPreviewCap80Rune(t *testing.T) {
@@ -181,7 +181,7 @@ func TestArtifactComments_BodyPreviewCap80Rune(t *testing.T) {
 	}
 }
 
-// TestArtifactComments_ListRoundTrip pins 设计 ① + GET endpoint.
+// TestArtifactComments_ListRoundTrip pins 设计第 1 条 + GET endpoint.
 func TestArtifactComments_ListRoundTrip(t *testing.T) {
 	t.Parallel()
 	url, tok, _, _, artID := cv5Setup(t)
