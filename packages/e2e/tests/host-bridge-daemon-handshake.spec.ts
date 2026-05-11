@@ -1,24 +1,30 @@
-// tests/hb-2-v0d.spec.ts — HB-2 v0(D) Playwright e2e (acceptance §1+§2).
+// tests/host-bridge-daemon-handshake.spec.ts — Host bridge v0(D) e2e (覆盖 HB-2 验收 §1+§2).
 //
-// 闭环 hb-2-v0d-e2e-spec.md §1 真补 (post-#622 liema CONDITIONAL LGTM):
-//   case-1 daemon source 真启 (Go integration 留 server-go unit; Playwright
-//          走 binary build smoke + binary 真生成证明)
-//   case-2 IPC handshake source-level smoke (UDS protocol 真测留 Go integ;
-//          Playwright 走 manifest endpoint Bearer 鉴权 真测)
-//   case-3 sandbox build tag matrix 守门 (Playwright 走 platform reverse-grep)
-//   case-4 ⭐ ed25519 manifest 验签 真测 (HB-1 #491 endpoint 真调 + signature
-//          shape + base64 解码 + 反向 anonymous reject)
-//   case-5 ⭐ SQLite consumer 撤销 <100ms 真测 (HB-3 #520 host_grants 表 POST
-//          create → DELETE → revoked_at 真落 + latency 真测)
+// 测试范围 (6 case):
+//   case-1: daemon 源码层启动检查 (Playwright 端走 binary 构建 smoke + binary 真生成证据;
+//           真 Go integration 留 server-go 单元测试)
+//   case-2: IPC 握手源码层 smoke (UDS protocol 真测留 Go integration; Playwright 端验
+//           manifest endpoint Bearer 鉴权真生效)
+//   case-3: sandbox build tag 矩阵守门 (Playwright 端走 platform 反查)
+//   case-4: ed25519 manifest 签名验证 (HB-1 endpoint 真调 + signature shape 检查 +
+//           base64 解码 + 反向 anonymous 请求拒绝)
+//   case-5: SQLite consumer 撤销 <100ms 真测 (HB-3 host_grants 表 POST create →
+//           DELETE → revoked_at 真落 + latency 真测)
+//   case-6: client URL 真活检查 (反 webServer dangle)
 //
-// 立场反查 (HB-4 §1.5 release gate 第 5 行 撤销 <100ms + ADM-0 §1.3 admin
-// god-mode 路径独立 + HB-1 §1 ed25519 signed manifest):
-//   - 0 production code 改 (post-#617 + post-#491 + post-#520 byte-identical)
-//   - 5 screenshot 入 docs/evidence/g4-exit/ 真锚 yema G4.x signoff
-//   - admin god-mode 不挂 plugin-manifest / host-grants (反向断 reject)
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/host-bridge.md §1 (ed25519 signed manifest)
+//   - 验收: docs/qa/acceptance-templates/hb-2.md §1+§2
+//   - 出口闸: HB-4 §1.5 release gate 第 5 行 (撤销 <100ms 真测)
+//   - 红线: ADM-0 §1.3 admin god-mode 路径独立 (admin-api 不挂 plugin-manifest / host-grants)
 //
-// 实现策略: REST-driven anchor (跟 ap-2-bundle.spec.ts + adm-3-audit-events.spec.ts
-// 同模式承袭) + page screenshot 真渲染 anchor.
+// 实施约束:
+//   - 0 production code 改动 (此 spec 仅 e2e 层验已 ship 行为)
+//   - 5 张证据截图入 docs/evidence/g4-exit/ 给 PM (G4.x signoff 用)
+//   - admin god-mode 不挂 plugin-manifest / host-grants (反向请求验 404)
+//   - REST seed 拉 user/admin context (admin login + invite + register), 验证主体走业务 endpoint 真调
+//   - 2 处 page.evaluate 仅做截图美化 (document.body.innerHTML 注入 pre 块格式化 JSON),
+//     非走 fetch 后端 (不属 #716 §3 反模式 F2). 截图证据是 PM signoff 的产物锚.
 
 import {
   test,
@@ -178,7 +184,9 @@ test.describe('HB-2 v0(D) Playwright e2e — acceptance §1+§2 真补 (post-#62
     const adminTry = await adminCtx.get('/admin-api/v1/plugin-manifest');
     expect(adminTry.status(), 'admin-api/.../plugin-manifest 不存在 (ADM-0 §1.3 红线)').toBe(404);
 
-    // Screenshot evidence — yema G4.x signoff anchor.
+    // 截图证据 — 给 PM 出口闸 (G4.x signoff) 用. page.evaluate 仅做美化注入
+    // (document.body.innerHTML 改写为 pre 块格式化 JSON), 不是 fetch 后端调用,
+    // 非 #716 §3 反模式 F2.
     await page.goto(`${SERVER_URL}/health`);
     await page.evaluate((data: string) => {
       document.body.innerHTML = `<pre style="font:14px monospace;padding:20px;white-space:pre-wrap;">${data}</pre>`;
@@ -230,7 +238,7 @@ test.describe('HB-2 v0(D) Playwright e2e — acceptance §1+§2 真补 (post-#62
     const adminTry = await adminCtx.get('/admin-api/v1/host-grants');
     expect(adminTry.status(), 'admin-api/host-grants 不存在 (用户主权)').toBe(404);
 
-    // Screenshot evidence — revoke latency anchor.
+    // 截图证据 — 撤销延迟数据给 PM 看. page.evaluate 同上是美化注入, 非 fetch 后端.
     await page.goto(`${SERVER_URL}/health`);
     const evidence = `host_grant create + revoke roundtrip\nid: ${grantID}\nrevoke latency: ${elapsedMs}ms (HB-4 §1.5 第 5 行 < 100ms)\nadmin god-mode reject: 404 (ADM-0 §1.3 红线)`;
     await page.evaluate((data: string) => {
@@ -245,7 +253,7 @@ test.describe('HB-2 v0(D) Playwright e2e — acceptance §1+§2 真补 (post-#62
     await adminCtx.dispose();
   });
 
-  // CLIENT_URL anchor — 反 silent unused (跟 dm-3-multi-device-sync.spec.ts 同模式).
+  // case-6: client URL 真活检查 (反 webServer dangle, 跟 direct-message-multi-device-sync.spec.ts 同款).
   test('case-6 client URL 真活 anchor (反 webServer dangle)', async ({ page }) => {
     await page.goto(CLIENT_URL);
     expect(page.url()).toContain('127.0.0.1');
