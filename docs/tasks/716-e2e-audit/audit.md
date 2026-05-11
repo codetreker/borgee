@@ -44,7 +44,7 @@
 | 3 | `adm-3-audit-events.spec.ts` | UI=5 | — | **PASS** | `admin-audit-event-stream.spec.ts` | 真测 audit 事件流 UI |
 | 4 | `al-3-3-presence-dot.spec.ts` | UI=7 | — | **PASS** | `agent-list-presence-indicator.spec.ts` | 真测 agent 列表在线点 |
 | 5 | `al-4-acceptance-followup.spec.ts` | UI=25 | — | **PASS** | `agent-list-followup.spec.ts` | 真测 agent 列表多场景 (yema 建议: 去 acceptance- 内部话) |
-| 6 | `ap-2-bundle.spec.ts` | UI=3 | F3 | **REWRITE-UI** | `agent-permission-bundle.spec.ts` | UI 信号少多 case 是 REST 直调, 改走 client 设置页真点击 |
+| 6 | `ap-2-bundle.spec.ts` | UI=3 | F3 | **SKIP+followup** | `agent-permission-bundle.spec.ts` | client UI 0 production mount (BundleSelector / PermissionsView 仅单测无 mount). 2026-05-11 真验发现, 跟 cv-5+ 同类型. 改 test.describe.skip + 引 gh#724 §1. v2 mount 落地后 unskip 改真 UI 设置页路径. |
 | 7 | `ap-4-reactions-acl.spec.ts` | UI=0 | F3 | **REWRITE-NAV** | `reactions-cross-channel-permission.spec.ts` | ACL 越权: page.goto user A private channel URL + 真断 message list 0 hit / reaction button 不渲染 / fallback redirect. 不允许 REST 直调. 立 follow-up gh#724 §2 (client forbidden state UX) |
 | 8 | `ap-5-messages-acl-matrix.spec.ts` | UI=0 | F3 | **REWRITE-NAV** | `message-permission-matrix.spec.ts` | ACL 矩阵简化 ≤3 关键 case + 全部走 URL navigate + DOM 真断 cross-user edit/delete/react 不可达. **不允许砍 cross-user IDOR case 数**. 立 follow-up gh#724 §2 |
 | 9 | `chn-1-3-channel-list.spec.ts` | UI=18 | — | **PASS** | `channel-list-sidebar.spec.ts` | 真测 channel sidebar |
@@ -83,19 +83,21 @@
 | 42 | `hb-2-v0d.spec.ts` | UI=6 | F2 (cosmetic, 截图 innerHTML) | **PASS+fix** | `host-bridge-daemon-handshake.spec.ts` | UI 真, 2 处 page.evaluate 改 document.body.innerHTML 为截图美化, cosmetic 可删可保留, 加注释 |
 | 43 | `me-1-self-message-unread.spec.ts` | UI=22 | — | **PASS** | `self-message-unread-counter.spec.ts` | 真测自己消息不计未读 |
 | 44 | `rt-1-2-backfill-on-reconnect.spec.ts` | UI=4 | — (复核: page.evaluate 是 window.__lastWS 真 DOM 探测, 非 fetch) | **PASS** | `realtime-backfill-on-reconnect.spec.ts` | 复核改 PASS (从 PASS+fix), F2 不命中 (F2 严格指 page.evaluate(()=>fetch()) cookie 直调, 非真 DOM 探测) |
-| 45 | `rt-3-presence.spec.ts` | UI=4 | F3 | **REWRITE-UI** | `realtime-presence-broadcast.spec.ts` | UI 弱, 改双 tab 真 presence DOM 断 (RT3PresenceDot production 已 mount) |
+| 45 | `rt-3-presence.spec.ts` | UI=4 | F3 | **SKIP+followup** | `realtime-presence-broadcast.spec.ts` | client UI 0 production mount (RT3PresenceDot 仅单测; 老 PresenceDot 4 态 enum SSOT 跟 RT-3 spec 立场冲突). 2026-05-11 真验发现, 跟 cv-5+ 同类型. 改 test.describe.skip + 引 gh#724 §1. v2 mount 落地后 unskip 改双 tab 真 presence DOM 断. |
 | 46 | `smoke.spec.ts` | UI=1 | — | **PASS** | `smoke-app-loads.spec.ts` | 真打开首页 |
 
-## 汇总 (复核 + 4 reviewer 反馈后)
+## 汇总 (2026-05-11 复核更新)
 
 - **PASS** (留 + 重命名 + 描述去黑话): 26 spec
-- **PASS+fix** (真 UI 主体, 局部 cosmetic): 1 spec (hb-2-v0d)
-- **REWRITE-UI** (改真 UI happy path): 8 spec (ap-2 / cm-4-realtime / cm-5 / cm-onboarding-bug-030 ✅done / dm-3 happy / dm-5 / rt-3 + 1 done)
+- **PASS+fix** (真 UI 主体, 局部 cosmetic): 1 spec (host-bridge-daemon-handshake, ✅ done b0fd4cb)
+- **REWRITE-UI** (改真 UI happy path): 5 spec total (cm-onboarding-bug-030 ✅ done 10e2319 + dm-5-reaction-summary ✅ done b0fd4cb + 剩 3: cm-4-realtime / cm-5-x2-collab / dm-3 happy)
 - **REWRITE-NAV** (ACL navigate, heima 拍): 3 spec (ap-4 / ap-5 / dm-3 cross-leak 部分)
-- **SKIP+followup** (client UI 0 mount, yema 拍 A): 7 spec (cv-5 / cv-7 / cv-8 / cv-9 / cv-10 / cv-11 / cv-12)
-- **DELETE** (死代码): 3 spec ✅done (cv-3-3-deferred / g2.4-adm-0-stance / hb-1b-installer)
+- **SKIP+followup** (client UI 0 mount, yema 拍 A): 9 spec (cv-5/7/8/9/10/11/12 ✅ done abc7394 + ap-2 ✅ done 552e4a8 + rt-3 ✅ done 552e4a8)
+- **DELETE** (死代码): 3 spec ✅ done 508067d (cv-3-3-deferred / g2.4-adm-0-stance / hb-1b-installer)
 
-合计 46 = 26 + 1 + 8 + 3 + 7 + 3 ≈ 48? 复核: REWRITE-UI 含 cm-onboarding-bug-030 (已 done) = 7 个未做 + 1 done. dm-3 cross-leak 部分既 REWRITE-UI 又 REWRITE-NAV (拆 case) 算 1 spec. 重新算: 26 PASS + 1 PASS+fix + (7 REWRITE-UI 未做 + 1 done) + 3 REWRITE-NAV (ap-4/ap-5/dm-3 cross-leak 算独立 case 不独立 spec) + 7 SKIP + 3 DELETE = 26+1+8+3-1+7+3 = 47, 因为 dm-3 同时算两类 -1 重复. 最终 46 ✓.
+合计 46 = 26 PASS + 1 PASS+fix + 5 REWRITE-UI + 3 REWRITE-NAV + 9 SKIP + 3 DELETE - 1 dm-3 重复 (cross-leak 部分跟 happy 同 spec) = 46 ✓
+
+剩待做: 3 REWRITE-UI (cm-4/cm-5/dm-3 happy) + 3 REWRITE-NAV (ap-4/ap-5/dm-3 cross-leak).
 
 ## 反向 grep 守卫 (PR 合前必须满足, 含 liema Q1 + yema PM 必改 2 + 复核扩 docs/current/)
 
@@ -141,6 +143,7 @@ ls packages/e2e/tests/ | grep -E "^[a-z]{2}-[0-9]" -E "^gh-[0-9]+-" -E "^g[0-9]"
 - 2026-05-09 heima ACL review: ap-4/ap-5/cv-7 §3.4/dm-3 cross-leak 部分原标 REWRITE 改 REWRITE-NAV (page.goto + DOM 反向证, 不开 F3 例外).
 - 2026-05-09 yema PM review: cv-5/7/8/9/10/11/12 改 SKIP+followup (client UI 0 production mount, 立 gh#724 §1).
 - 2026-05-09 yema 重命名建议: al-4 / chn-4-followup / cv-4-unfixme-followup 仍带内部话 (followup / unfixme / acceptance), 改成功能描述.
+- 2026-05-11 zhanma-c 第二轮 mount 真验: ap-2-bundle (BundleSelector / PermissionsView 0 mount) + rt-3-presence (RT3PresenceDot 0 mount) 也改 SKIP+followup. gh#724 §1 受影响 spec 从 7 → 9 (9 spec / 5 组件 / 3 cluster: ArtifactComments / AP-2 / RT-3).
 - 反模式 F2 严格定义: 仅反 `page.evaluate(() => fetch())` 走 cookie 直调后端. `page.evaluate` 访问 `window` / `document` / DOM API / localStorage / WebSocket instance 等真 DOM 行为不属 F2.
 
 ## 边界
