@@ -5,7 +5,7 @@
 ## 0. 设计沿用
 
 - **ADM-0 §1.3 admin god-mode 路径独立** — 4 page 仅访问 `/admin-api/*`, 不串 user-rail
-- **shape SSOT byte-identical 跟 server** — TS interface 字段名+类型跟 server JSON struct tag byte-identical (改 = 改两处)
+- **shape 单一来源 byte-identical 跟 server** — TS interface 字段名+类型跟 server JSON struct tag byte-identical (改 = 改两处)
 - **admin-spa-ui-coverage 第一波 #639** — `data-asuc-*` 模式沿用 → `data-asuc2-*`
 - **readonly admin god-mode** — 4 page 仅 GET, 0 mutation (server 都 readonly)
 
@@ -48,7 +48,7 @@
 grep -E "fetch\(['\"]\/api\/v1" packages/client/src/admin/pages/{Runtimes,HeartbeatLag,ArchivedChannels,ChannelDescriptionHistory}Page.tsx  # 0 hit
 grep -E "from ['\"]\.\.\/\.\.\/lib\/api['\"]" packages/client/src/admin/pages/{Runtimes,HeartbeatLag,ArchivedChannels,ChannelDescriptionHistory}Page.tsx  # 0 hit
 
-# REG-ASUC2-002 — shape SSOT 字段 byte-identical
+# REG-ASUC2-002 — shape 单一来源 字段 byte-identical
 grep -cE "p50_ms|p95_ms|p99_ms|threshold_ms|at_risk" packages/client/src/admin/api.ts  # ≥5 hit
 ```
 

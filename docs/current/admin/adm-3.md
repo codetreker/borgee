@@ -8,12 +8,12 @@
 
 | 文件 | 行 | 角色 |
 |---|---|---|
-| `packages/client/src/admin/api.ts` 扩 | +35 | AUDIT_SOURCES 4-tuple SSOT + AuditSource type + MultiSourceAuditRow + fetchMultiSourceAudit |
+| `packages/client/src/admin/api.ts` 扩 | +35 | AUDIT_SOURCES 4-tuple 单一来源 + AuditSource type + MultiSourceAuditRow + fetchMultiSourceAudit |
 | `packages/client/src/admin/pages/MultiSourceAuditPage.tsx` | 150 | 4 source badge + filter dropdown + table view + DOM 锚 |
 | `packages/client/src/admin/AdminApp.tsx` 扩 | +3 | nav 加 `/admin/audit-multi-source` route |
 | `packages/client/src/__tests__/MultiSourceAuditPage.test.tsx` | 130 | 7 vitest (DOM 锚 + filter + 反同义词 reject) |
 
-## 2. 4 source enum SSOT (跨层锁)
+## 2. 4 source enum 单一来源 (跨层对齐)
 
 `AUDIT_SOURCES = ['server', 'plugin', 'host_bridge', 'agent']` byte-identical 跟 server const + i18n SOURCE_LABEL 三处. 改 = 改三处.
 
