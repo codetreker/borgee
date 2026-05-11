@@ -2,9 +2,10 @@
 // PermissionDeniedFrame only from the server to the target agent's plugin
 // connection.
 //
-// Blueprint reference: docs/blueprint/current/auth-permissions.md §2 invariant
-// "Permission denied 走 BPP — 不靠 HTTP 错误码, 由协议层路由到 owner DM" +
-// §4.1 row listing the exact frame fields (`attempted_action`,
+// Blueprint reference: docs/blueprint/current/auth-permissions.md §2 invariant:
+// permission denial is sent through BPP rather than HTTP error codes, and the
+// protocol layer routes it to the owner DM. Also see §4.1 row listing the
+// exact frame fields (`attempted_action`,
 // `required_capability`, `current_scope`).
 // Spec: docs/implementation/modules/bpp-3.1-spec.md.
 //
@@ -23,7 +24,8 @@
 //      reflection lint covers this order in CI.
 //   4. Drop the frame when the plugin is offline, matching
 //      PushAgentConfigUpdate. Do not queue it; after reconnect, the plugin
-//      must pull state with GET. This follows blueprint §1.5 "runtime 不缓存".
+//      must pull state with GET. This follows blueprint §1.5: the runtime
+//      must not cache it.
 //
 // Constraints (spec §2):
 //   - Admin callers must not invoke this method; ADM-0 §1.3 keeps admin flows
