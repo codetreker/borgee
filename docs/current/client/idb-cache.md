@@ -97,5 +97,5 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 - typing / presence-realtime 入 IDB (蓝图 §1.4)
 - Service Worker offline page (由 CS-3 PWA + sw.js DL-4 覆盖)
 - 跨设备同步 (server cursor 为权威来源)
-- 管理端 IDB inspect 入口 (不纳入本范围)
+- 管理端 IDB inspect 入口 (管理端 / god-mode 路由不得暴露或挂载该入口)
 - IDB cleanup goroutine / scheduled job (由 v1 用户 logout 流程清理)

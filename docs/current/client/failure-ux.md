@@ -86,5 +86,5 @@ export type FailureRepairAction = 'reconnect' | 'refill_api_key' | 'view_logs';
 - 页面内修复真实路径；由 plugin SDK + AL-2a / HB-3 覆盖
 - IndexedDB 乐观缓存；由 CS-4 覆盖
 - Tauri 壳 / PWA install / Web Push；由 HB-2 / CS-3 覆盖
-- 管理端故障 UX；不纳入本范围，见 ADM-0 §1.3
+- 管理端故障 UX；管理端 / god-mode 路由不得暴露或挂载该 UX，见 ADM-0 §1.3
 - 桌面通知 / 故障声音；由 DL-4 覆盖
