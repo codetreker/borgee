@@ -1,21 +1,21 @@
-// tests/channel-collab-tabs.spec.ts — channel 协作场双 tab 骨架 + URL deep-link + G3.4 截屏.
+// tests/channel-collab-tabs.spec.ts — channel collaboration tabs + URL deep-link + G3.4 screenshots.
 //
 // 测试范围:
-//   - 双 tab DOM data-tab="chat" / data-tab="workspace", 文案锁中文 "聊天" / "工作区"
+//   - 双 tab DOM data-tab="chat" / data-tab="workspace", with exact Chinese labels "聊天" / "工作区"
 //   - URL ?tab= 参数生效, 无参数时落 server default_tab="chat"
-//   - DM 视图反向断: 永不含 workspace tab (跟 chn-2 视觉拆死同源)
+//   - DM view negative check: workspace tab is never present (same UI boundary as chn-2)
 //   - 双 tab 不交叉: chat tab 不渲染 artifact body
-//   - G3.4 退出门槛截屏归档 g3.4-chn4-chat.png + g3.4-chn4-workspace.png
+//   - G3.4 required screenshots archived as g3.4-chn4-chat.png + g3.4-chn4-workspace.png
 //
 // 关联文档:
 //   - 验收: docs/_archive/qa/acceptance-templates/chn-4.md §1-§6
 //   - 上游: PR #411 (CHN-4.1+4.3 client wiring + 双 tab 截屏)
 //
 // 实施约束:
-//   - 真 UI 走浏览器 (真 tab 切换 + URL 验证 + DOM 断)
-//   - 真 server-go(4901) + vite(5174), 不 mock 4901
+//   - Browser-driven UI path (tab switching + URL validation + DOM assertions)
+//   - 真 server-go(4901) + vite(5174), do not mock port 4901
 //   - CV-4 runtime stub: 走 owner direct commit (不是 server mock)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / empty placeholder tests
 import {
   test,
   expect,
@@ -127,15 +127,15 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
     const page = await ctx.newPage();
     await gotoChannel(page, chName);
 
-    // 立场 ② — 双 tab DOM byte-identical (data-tab="chat" + "workspace" 各 ≥1).
+    // Acceptance point 2 — both tab DOM markers exist (data-tab="chat" + "workspace" each appear at least once).
     await expect(page.locator('button[data-tab="chat"]')).toBeVisible();
     await expect(page.locator('button[data-tab="workspace"]')).toBeVisible();
 
-    // 文案锁 byte-identical (中文 2 字面: "聊天" / "工作区").
+    // Exact Chinese labels: "聊天" / "工作区".
     await expect(page.locator('button[data-tab="chat"]')).toHaveText('聊天');
     await expect(page.locator('button[data-tab="workspace"]')).toHaveText('工作区');
 
-    // 立场 ⑥ default_tab="chat" — 进入无 URL ?tab 时, chat 是 active.
+    // Acceptance point 6: without URL ?tab, default_tab="chat" makes chat active.
     await expect(page.locator('button[data-tab="chat"]')).toHaveClass(/active/);
 
     // URL deep-link — 点 workspace tab 后 URL 写 ?tab=workspace.
@@ -149,9 +149,9 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
   });
 
   test.skip('§5 DM 视图永不含 workspace tab — 7 源 byte-identical 反向断言', async ({ browser }) => {
-    // FIXME(team-lead): chn-4 §5 timing flake 反复卡 critical path (3+ 反复 fail in #490/#502/#505/#506/#507/#508).
-    // Server-side 反约束 grep CI 已守 7 源 byte-identical 立场 (#354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + chn-4 stance),
-    // e2e 是冗余 secondary 守门. 待 CHN-4 wrapper milestone fixture-based 重写 (zhanma-d feat/chn-4-wrapper).
+    // FIXME(team-lead): chn-4 §5 timing flake repeatedly blocked delivery (3+ repeated failures in #490/#502/#505/#506/#507/#508).
+    // Server-side negative constraint grep CI already enforces the 7-source invariant (#354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + chn-4 stance),
+    // so this e2e check is redundant. Rewrite with a fixture-based CHN-4 wrapper milestone (zhanma-d feat/chn-4-wrapper).
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -178,27 +178,25 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
     if (await dmByName.count() > 0) {
       await dmByName.click();
     } else {
-      // fallback — direct URL navigation if sidebar list 渲染 lag.
+      // fallback — direct URL navigation if sidebar list render is delayed.
       await dmItem.click({ trial: true }).catch(() => {});
     }
 
-    // 立场 ④ — DM 视图 DOM `[data-tab="workspace"]` count==0
-    // (7 源 byte-identical 跟 #354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + 本 stance).
-    // 立场 ④ — DM 视图 DOM `[data-tab="workspace"]` count==0
-    // (7 源 byte-identical 跟 #354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + 本 stance).
+    // Acceptance point 4: DM view DOM has zero `[data-tab="workspace"]` elements.
+    // This matches the 7-source invariant from #354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + this stance.
     //
     // Flake fix (#505 / CHN-4 wrapper #510): 之前 `await page.waitForTimeout(500)`
-    // 死等 500ms 让 DM 视图稳定, CI 慢机器不够时间 → assertion fail. 改用
+    // Fixed 500ms wait let the DM view settle locally, but slow CI machines still failed. Use
     // Playwright `expect.toHaveCount(0, {timeout})` 内置 retry — 反复 poll
     // 直到 count==0 或超时 (跟 toHaveText / toBeVisible 同 retry 模式),
-    // 不再需要 waitForTimeout 死等. 协议: 等 DOM 状态而非时钟.
-    // 跟 RT-1.2 #292 latency CI 时序敏感修法同精神.
+    // waitForTimeout is no longer needed. The contract is to wait for DOM state, not the clock.
+    // This follows the same timing-sensitive CI approach as RT-1.2 #292 latency.
     await expect(
       page.locator('button[data-tab="workspace"]'),
       'DM 视图永不含 workspace tab'
     ).toHaveCount(0, { timeout: 5000 });
 
-    // 反向断言 — 无 anchor / iterate / artifact 入口
+    // Negative assertion: no anchor / iterate / artifact entry points.
     // (跟 stance ④ "DM 是 1v1 私聊不是协作场" 同源).
     await expect(
       page.locator('button[data-tab="canvas"]'),
@@ -222,14 +220,14 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
     const page = await ctx.newPage();
     await gotoChannel(page, chName);
 
-    // chat 截屏 — "聊天" tab active 字面验.
+    // chat screenshot: verify the "聊天" tab is active.
     await expect(page.locator('button[data-tab="chat"]')).toHaveClass(/active/);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-chat.png'),
       fullPage: false,
     });
 
-    // workspace 截屏 — "工作区" tab active 字面验.
+    // workspace screenshot: verify the "工作区" tab is active.
     await page.locator('button[data-tab="workspace"]').click();
     await expect(page.locator('button[data-tab="workspace"]')).toHaveClass(/active/);
     await page.screenshot({
