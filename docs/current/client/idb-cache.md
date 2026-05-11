@@ -3,7 +3,7 @@
 > 出处: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque) + `docs/implementation/modules/cs-4-spec.md` v0
 > 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
-## IDB wrapper 单一来源 (lib/cs4-idb.ts)
+## IDB wrapper 定义 (lib/cs4-idb.ts)
 
 ```ts
 const DB_NAME = 'borgee-cs4';
@@ -14,13 +14,13 @@ export const STORE_LAST_READ_AT = 'last_read_at'; // keyPath=channel_id
 export const STORE_AGENT_STATE = 'agent_state';   // keyPath=agent_id
 ```
 
-3 个 store 与蓝图 §1.4 表 byte-identical。
+3 个 store 与蓝图 §1.4 表保持一致。
 
 | 数据域 | 存储策略 | 约束来源 |
 |---|---|---|
 | messages / last_read_at / agent_state | 写入 CS-4 IndexedDB stores | 蓝图 §1.4 表 |
-| typing / presence-realtime | 必须从 server 实时拉取，不入 IDB | 蓝图字面真分清 |
-| artifact 内容 / DM body / 草稿 | 继续走 CV-10 localStorage 既有路径 | 与 CS-4 缓存域真分清 |
+| typing / presence-realtime | 必须从 server 实时拉取，不入 IDB | 蓝图明确要求与缓存域区分 |
+| artifact 内容 / DM body / 草稿 | 继续走 CV-10 localStorage 既有路径 | 与 CS-4 缓存域明确区分 |
 
 API: `openCS4DB()` / `cs4Get` / `cs4Put` / `cs4Delete` / `clearStaleEntries(maxAgeMs)`.
 
@@ -39,7 +39,7 @@ export const SYNC_STATE_LABELS: Record<SyncState, string> = {
 export const SYNCING_LABEL_DELAY_MS = 3000;
 ```
 
-这些 label 与蓝图 §1.4 字面 byte-identical。**改 = 改两处 + content-lock §1**。
+这些 label 必须与蓝图 §1.4 字面一致。**改 = 改两处 + content-lock §1**。
 
 ## useFirstPaintCache hook (lib/use_first_paint_cache.ts)
 
@@ -68,27 +68,27 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 | `syncing` ≤3s | `return null`；沉默胜于假 loading，与 RT-1 §1.1 一致 |
 | `syncing` ≥3s | 显示 `同步中…` |
 
-## 反向约束 / QA 守门
+## 禁止行为 / QA 检查
 
 | 约束 | 检查 |
 |---|---|
-| typing/presence-realtime 不入 IDB | `idb.*put.*typing|idb.*put.*presence_realtime` 0 hit |
-| artifact / DM body 不入 IDB | `idb.*put.*artifact_content|idb.*put.*dm_body` 0 hit |
-| 不复用 RT-1 之外 cursor helper | `cs4.*newCursor|CS4CursorHelper` 0 hit |
-| 同义词脱节禁 | `本地缓存|离线缓存|已加载|加载完成|准备中` 0 hit |
-| admin god-mode 不挂 (ADM-0 §1.3) | `admin.*idb|admin.*indexedDB` 0 hit |
+| typing/presence-realtime 不入 IDB | `idb.*put.*typing|idb.*put.*presence_realtime` 无匹配 |
+| artifact / DM body 不入 IDB | `idb.*put.*artifact_content|idb.*put.*dm_body` 无匹配 |
+| 不复用 RT-1 之外 cursor helper | `cs4.*newCursor|CS4CursorHelper` 无匹配 |
+| 禁止引入未锁定的缓存状态文案 | `本地缓存|离线缓存|已加载|加载完成|准备中` 无匹配 |
+| 不提供管理端 IDB 查看入口 (ADM-0 §1.3) | `admin.*idb|admin.*indexedDB` 无匹配 |
 | 0 server prod | `git diff origin/main -- packages/server-go/` 0 行 |
-| 0 schema 改 | `migrations/cs_4|cs4.*api|cs4.*server` 0 hit |
+| 0 schema 改 | `migrations/cs_4|cs4.*api|cs4.*server` 无匹配 |
 
-## 跨 milestone byte-identical 锁定
+## 跨 milestone 一致性要求
 
 | 来源 | 锁定点 |
 |---|---|
 | RT-1 #290 cursor opaque | CS-4 `IDB.put` cursor key 跟 server `?cursor=` 同源 |
 | DM-3 useDMSync | 既有 client cursor 同步同模式 |
-| CV-10 草稿 localStorage | 真分清；CS-4 不入草稿域 |
+| CV-10 草稿 localStorage | 明确区分；CS-4 不入草稿域 |
 | CS-2 #595 故障三态联动 | failed 时 IDB cache hit + offline label graceful fallback |
-| ADM-0 §1.3 | admin god-mode 不挂 |
+| ADM-0 §1.3 | 不提供管理端 IDB 查看入口 |
 
 ## 不在范围
 
@@ -97,5 +97,5 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 - typing / presence-realtime 入 IDB (蓝图 §1.4)
 - Service Worker offline page (留 CS-3 PWA + sw.js DL-4)
 - 跨设备同步 (server cursor 是真相)
-- admin god-mode IDB inspect (永久不挂)
+- 管理端 IDB inspect 入口 (永久不挂)
 - IDB cleanup goroutine / scheduled job (留 v1 用户 logout 时清)
