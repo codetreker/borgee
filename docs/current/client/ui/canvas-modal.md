@@ -92,13 +92,13 @@ page.on('dialog', async (dialog) => {
 expect(dialogTriggered, '系统弹窗不应触发 — 应走 InlineConfirmModal').toBe(false);
 ```
 
-cv-1-3-canvas-modal-a11y / cv-2-3-anchor-client / cv-3-3-deferred / cv-4-iterate / cv-4-unfixme-followup 5 spec 全部转 flag-based.
+canvas-modal-accessibility / comment-anchor-scroll / artifact-renderer-types / cv-4-iterate / artifact-iterate-edge-cases 5 spec 全部转 flag-based.
 
 ## 7. 测试
 
 - `packages/client/src/__tests__/InlineConfirmModal.test.tsx` (≥6 case): 渲染 / a11y attrs / autoFocus / ESC 关 / focus return / variant=danger 红色按钮
 - `packages/client/src/__tests__/InlineInputModal.test.tsx`: + IME composition Enter swallow + onSubmit 调用
-- `packages/e2e/tests/cv-1-3-canvas-modal-a11y.spec.ts`: 真 UI input/click + flag-based dialog listener
+- `packages/e2e/tests/canvas-modal-accessibility.spec.ts`: 真 UI input/click + flag-based dialog listener
 
 ## 8. 出处
 

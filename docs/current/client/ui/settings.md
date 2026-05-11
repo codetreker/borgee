@@ -56,7 +56,7 @@
 7. API key 原值 → ❌ deny
 8. 授权 impersonate 后 24h 实时入站 → ✅ (临时) impersonate
 
-DOM：`<tr className={'privacy-row-' + row.kind} data-row-kind={row.kind}>` — `data-row-kind` 属性是 e2e 反查出处，跟 `chn-3-3-sidebar-reorder.spec.ts` `data-collapsed` / `data-sortable-handle` 同模式。
+DOM：`<tr className={'privacy-row-' + row.kind} data-row-kind={row.kind}>` — `data-row-kind` 属性是 e2e 反查出处，跟 `channel-sidebar-reorder.spec.ts` `data-collapsed` / `data-sortable-handle` 同模式。
 
 ### 3.3 脱节 test (doc-as-truth)
 
@@ -73,7 +73,7 @@ DOM：`<tr className={'privacy-row-' + row.kind} data-row-kind={row.kind}>` — 
 
 - `<details>` 元素：源码 0 hit（`SettingsPage.test.tsx::querySelectorAll('details')` count==0 + e2e `page.locator('details').count()` count==0）。
 - 折叠 / collapse / 展开收起 同义词：`PrivacyPromise.tsx` 字面 0 hit（注释里的反向约束说明不计 — 字面用全角逗号或换写避碰 grep）。
-- admin/user 路径分叉：用户 cookie 调 `/admin-api/auth/me` → 401/403（e2e `adm-1-privacy-promise.spec.ts::§4` 反向断言, 跟 REG-ADM0-001/002 共享底线）。
+- admin/user 路径分叉：用户 cookie 调 `/admin-api/auth/me` → 401/403（e2e `admin-privacy-promise-banner.spec.ts::§4` 反向断言, 跟 REG-ADM0-001/002 共享底线）。
 
 ## 5. 测试
 
@@ -81,7 +81,7 @@ DOM：`<tr className={'privacy-row-' + row.kind} data-row-kind={row.kind}>` — 
   - `PrivacyPromise.test.tsx` 9 cases — 三承诺字面 + 八行 byte-identical + 三色锁定 + 反向约束
   - `PrivacyPromise.drift.test.ts` — doc-as-truth (vite `?raw` import)
   - `SettingsPage.test.tsx` 4 cases — privacy tab 默认 active + back button + 反 `<details>`
-- e2e（`packages/e2e/tests/adm-1-privacy-promise.spec.ts`，3 passed in 5.8s chromium）：
+- e2e（`packages/e2e/tests/admin-privacy-promise-banner.spec.ts`，3 passed in 5.8s chromium）：
   - §1+§2: 三承诺 6 fragment + 八行 byte-identical + 三色锁定 + G4.1 双截屏（`docs/qa/screenshots/g4.1-adm1-{privacy-promise,privacy-table}.png`）
   - §2 反向约束: details count==0
   - §4 反向断言: admin/user 路径分叉

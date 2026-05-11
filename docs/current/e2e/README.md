@@ -23,15 +23,15 @@ packages/e2e/
 │   └── stopwatch.ts          # G2.4 ≤ 3s latency 测量 + HTML 报告附件
 └── tests/
     ├── smoke.spec.ts                     # 3 条: server health / client title / vite proxy
-    ├── cm-onboarding.spec.ts             # CM-onboarding 注册→Welcome 流
-    ├── cm-4-realtime.spec.ts             # CM-4 邀请审批 / 离线 fallback
-    ├── rt-1-2-backfill-on-reconnect.spec.ts  # RT-1.2 断线后 backfill
-    ├── chn-1-3-channel-list.spec.ts      # CHN-1.3 频道列表 DnD
-    ├── al-3-3-presence-dot.spec.ts       # AL-3.3 agent 在线点
-    └── cv-1-3-canvas.spec.ts             # CV-1.3 Canvas tab markdown+WS push (§3.1-§3.3)
+    ├── chat-first-time-onboarding.spec.ts             # CM-onboarding 注册→Welcome 流
+    ├── chat-realtime-message-fanout.spec.ts             # CM-4 邀请审批 / 离线 fallback
+    ├── realtime-backfill-on-reconnect.spec.ts  # RT-1.2 断线后 backfill
+    ├── channel-list-sidebar.spec.ts      # CHN-1.3 频道列表 DnD
+    ├── agent-list-presence-indicator.spec.ts       # AL-3.3 agent 在线点
+    └── canvas-modal-open-close.spec.ts             # CV-1.3 Canvas tab markdown+WS push (§3.1-§3.3)
 ```
 
-`cv-1-3-canvas.spec.ts` 闭环 cv-1.md §3 acceptance: markdown-ONLY 渲染 (设计 ④), rollback owner-only DOM 闸 + label byte-identical `"v{N+1} (rollback from v{M})"` (设计 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (设计 ②⑤)。两条 test 共 ~3.7s, 真 server-go + vite, REST 驱动 other-user commit 触发 push。
+`canvas-modal-open-close.spec.ts` 闭环 cv-1.md §3 acceptance: markdown-ONLY 渲染 (设计 ④), rollback owner-only DOM 闸 + label byte-identical `"v{N+1} (rollback from v{M})"` (设计 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (设计 ②⑤)。两条 test 共 ~3.7s, 真 server-go + vite, REST 驱动 other-user commit 触发 push。
 
 ## 3. 双 server 编排
 

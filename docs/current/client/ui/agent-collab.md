@@ -4,7 +4,7 @@
 > Spec: `docs/implementation/modules/cm-5-spec.md` (5 设计原则 + 3 拆段)
 > Server 出处: `docs/current/server/cm-5.md` (CM-5.1 反向约束 + CM-5.2 server 路径验证)
 > Client lib: `packages/client/src/lib/cm5-toast.ts` (X2 conflict toast + DOM attr 锁定)
-> Tests: `packages/client/src/__tests__/cm-5-content-lock.test.ts` (6 cases) + `packages/e2e/tests/cm-5-x2-collab.spec.ts`
+> Tests: `packages/client/src/__tests__/cm-5-content-lock.test.ts` (6 cases) + `packages/e2e/tests/chat-two-user-collab.spec.ts`
 
 ## 1. 入口与场景
 
@@ -63,4 +63,4 @@ CM-5 不开新 endpoint, 走既有 channel members + artifacts API. admin god-mo
 - ⑤ 反向约束 X2 错码同义词 0 hit
 - toast 同义词脱节反断
 
-`packages/e2e/tests/cm-5-x2-collab.spec.ts` 1 case 综合: 双 agent 同 channel + members modal hover anchor 锁定 + X2 stale commit 409 + screenshot `docs/qa/screenshots/cm-5-x2-conflict.png`.
+`packages/e2e/tests/chat-two-user-collab.spec.ts` 1 case 综合: 双 agent 同 channel + members modal hover anchor 锁定 + X2 stale commit 409 + screenshot `docs/qa/screenshots/cm-5-x2-conflict.png`.

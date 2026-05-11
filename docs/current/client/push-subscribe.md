@@ -42,6 +42,6 @@ DL-4 PWA endpoint `/api/v1/pwa/manifest` (公开 install prompt 用) 跟 HB-1 #4
 
 - 实施: `packages/client/public/sw.js` (push event handler) + `packages/client/src/lib/pushSubscribe.ts` (8 export)
 - 单测: `packages/client/src/__tests__/pushSubscribe.test.ts` 6 vitest (jsdom feature detect + W3C 编码 4 sub-case)
-- e2e: `packages/e2e/tests/dl-4-pwa-subscribe.spec.ts` 3 case (manifest W3C real fetch + 命名真分清 + sw.js push handler text-scan)
+- e2e: `packages/e2e/tests/pwa-push-notification-subscribe.spec.ts` 3 case (manifest W3C real fetch + 命名真分清 + sw.js push handler text-scan)
 - spec brief: [`docs/implementation/modules/dl-4-spec.md`](../../implementation/modules/dl-4-spec.md) §1 DL-4.5
 - server 端: [`docs/current/server/push.md`](../server/push.md)
