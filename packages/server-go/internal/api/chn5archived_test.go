@@ -2,12 +2,13 @@
 // 列表 + admin readonly + unarchive system DM 互补二式 acceptance.
 //
 // Pins:
-//   REG-CHN5-001 TestChn5archived_NoSchemaChange — migrations/ 0 新文件
-//   REG-CHN5-002 TestCHN52_ListMyArchived_* — owner-only GET 用户路由
-//   REG-CHN5-003 TestCHN52_AdminListArchived_* — admin readonly
-//   REG-CHN5-004 TestCHN52_UnarchiveFanouts* — unarchive 互补二式
-//   REG-CHN5-005 TestCHN_NoAdminPatchPath — admin god-mode 不挂 PATCH
-//   REG-CHN5-006 TestCHN_NoChannelArchiveQueue — AST 对齐链 #10
+//
+//	REG-CHN5-001 TestChn5archived_NoSchemaChange — migrations/ 0 新文件
+//	REG-CHN5-002 TestCHN52_ListMyArchived_* — owner-only GET 用户路由
+//	REG-CHN5-003 TestCHN52_AdminListArchived_* — admin readonly
+//	REG-CHN5-004 TestCHN52_UnarchiveFanouts* — unarchive 互补二式
+//	REG-CHN5-005 TestCHN_NoAdminPatchPath — admin override 不挂 PATCH
+//	REG-CHN5-006 TestCHN_NoChannelArchiveQueue — AST 对齐链 #10
 package api_test
 
 import (
@@ -36,14 +37,14 @@ func TestChn5archived_NoSchemaChange(t *testing.T) {
 		}
 		base := filepath.Base(p)
 		if pat.MatchString(base) {
-			t.Errorf("CHN-5 设计第 1 条 broken — new schema migration file %s", p)
+			t.Errorf("CHN-5 设计第 1 条 violation — new schema migration file %s", p)
 		}
 		return nil
 	})
 }
 
-// REG-CHN5-002a — owner-only happy path.
-func TestCHN_ListMyArchived_HappyPath(t *testing.T) {
+// REG-CHN5-002a — owner-only success case.
+func TestCHN_ListMyArchived_Success(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -98,8 +99,8 @@ func TestCHN_ListMyArchived_Unauthorized(t *testing.T) {
 	}
 }
 
-// REG-CHN5-003a — admin readonly happy path.
-func TestCHN_AdminListArchived_HappyPath(t *testing.T) {
+// REG-CHN5-003a — admin readonly success case.
+func TestCHN_AdminListArchived_Success(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -126,13 +127,13 @@ func TestCHN_AdminListArchived_RejectsUserRail(t *testing.T) {
 	userToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	resp, _ := testutil.JSON(t, http.MethodGet, ts.URL+"/admin-api/v1/channels/archived", userToken, nil)
 	if resp.StatusCode == http.StatusOK {
-		t.Errorf("user-rail should not pass admin gate, got 200")
+		t.Errorf("user token should not pass admin authorization check, got 200")
 	}
 }
 
-// REG-CHN5-004 — unarchive fanout system DM 互补二式 字节级一致 跟
+// REG-CHN5-004 — unarchive system DM notification 互补二式 字节级一致 跟
 // content-lock §1 (`channel #{name} 已被 {owner} 恢复于 {ts}`).
-func TestCHN_UnarchiveFanoutsSystemMessage(t *testing.T) {
+func TestCHN_UnarchiveSystemMessageNotification(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -172,15 +173,15 @@ func TestCHN_UnarchiveFanoutsSystemMessage(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("CHN-5 设计第 3 条: unarchive fanout DM not found (text-lock prefix=%q infix=%q) in %v",
+		t.Errorf("CHN-5 设计第 3 条: unarchive system DM not found (text-lock prefix=%q infix=%q) in %v",
 			wantPrefix, wantInfix, list)
 	}
 }
 
-// REG-CHN5-005 — admin god-mode 不挂 PATCH path 反向断言.
+// REG-CHN5-005 — admin override 不挂 PATCH path 反向断言.
 //
 // grep 检查 `mux\.Handle\("(PATCH|PUT|DELETE).*admin-api/v1/channels/archived`
-// 在 internal/api/+server/ 0 hit (admin god-mode ADM-0 §1.3 红线 — admin
+// 在 internal/api/+server/ 0 hit (admin override ADM-0 §1.3 红线 — admin
 // 看不能改).
 func TestCHN_NoAdminPatchPath(t *testing.T) {
 	t.Parallel()
@@ -196,7 +197,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 设计第 2 条 broken — admin PATCH/PUT/DELETE path in %s: %q",
+				t.Errorf("CHN-5 设计第 2 条 violation — admin PATCH/PUT/DELETE path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -211,7 +212,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 设计第 2 条 broken — admin archive-channel symbol in %s: %q",
+				t.Errorf("CHN-5 设计第 2 条 violation — admin archive-channel symbol in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -238,15 +239,15 @@ func TestCHN_NoChannelArchiveQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐链延伸第 10 处 broken — forbidden token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 10 处 violation — forbidden token %q in %s", tok, p)
 			}
 		}
 		return nil
 	})
 }
 
-// REG-CHN5-cov — admin list happy path with seeded archived rows (covers
-// handleAdminListArchivedChannels through-path) + multi-archived listing.
+// REG-CHN5-cov — admin list success case with seeded archived rows (covers
+// handleAdminListArchivedChannels success path) + multi-archived listing.
 func TestCHN_AdminListArchived_MultipleArchived(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -299,7 +300,7 @@ func itoaCHN5(i int) string {
 	return fmt.Sprintf("%d", i)
 }
 
-var _ = itoaCHN5 // referenced by fmt.Sprintf usage above; avoid unused-warn
+var _ = itoaCHN5 // referenced by fmt.Sprintf usage above; keep compile-time reference
 
 // REG-CHN5-cov — admin endpoint with no archived (covers 200 + empty list).
 func TestCHN_AdminListArchived_NoArchived(t *testing.T) {
@@ -328,9 +329,9 @@ func TestCHN_AdminListArchived_NoToken(t *testing.T) {
 	}
 }
 
-// REG-CHN5-cov-bump — extra HappyPath repetitions to ensure cov hits all
+// REG-CHN5-coverage — extra success repetitions to ensure coverage hits all
 // reachable statements deterministically (race-detector flake mitigation).
-func TestCHN_ListMyArchived_RepeatedHappyPath(t *testing.T) {
+func TestCHN_ListMyArchived_RepeatedSuccess(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -353,7 +354,6 @@ func TestCHN_ListMyArchived_RepeatedHappyPath(t *testing.T) {
 		}
 	}
 }
-
 
 // TestCHN_ListMyArchived_StoreError covers the 500 error path —
 // dropping the channels table makes the underlying SELECT fail, the

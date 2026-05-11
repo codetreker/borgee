@@ -1,10 +1,10 @@
 // Package api — messages_acl_audit_test.go: AP-5 unit tests for
-// post-removal ACL gate on PUT/DELETE /api/v1/messages/{id} +
+// post-removal ACL checks on PUT/DELETE /api/v1/messages/{id} +
 // PATCH /api/v1/channels/{id}/messages/{id} (DM-4).
 //
-// Stance lock (跟 docs/implementation/modules/ap-5-spec.md §0):
-//  ① 3 handler 各加 IsChannelMember + CanAccessChannel gate (post-removal
-//    fail-closed).
+// AP-5 assertions (跟 docs/implementation/modules/ap-5-spec.md §0):
+//  ① 3 handler 各加 IsChannelMember + CanAccessChannel membership checks
+//    after removal.
 //  ② cross-org 403 先于 channel-member 404 (TestCrossOrgRead403 lock).
 //  ③ 既有 sender_id check 不破 (member-but-non-sender 仍 403).
 //  ④ 0 schema 改 + 0 新错码 — 复用 messages.go 既有 "Channel not found".
@@ -20,7 +20,7 @@ import (
 )
 
 // TestAP_PutMessage_PostRemovalReject — sender removed from public channel
-// can no longer PUT-edit own message there. Expect 404 fail-closed.
+// can no longer PUT-edit own message there. Expect 404.
 func TestAP_PutMessage_PostRemovalReject(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := setupFullTestServer(t)
@@ -47,7 +47,7 @@ func TestAP_PutMessage_PostRemovalReject(t *testing.T) {
 }
 
 // TestAP_DeleteMessage_PostRemovalReject — sender removed from channel
-// can no longer DELETE own message. 404 fail-closed.
+// can no longer DELETE own message. Expect 404.
 func TestAP_DeleteMessage_PostRemovalReject(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := setupFullTestServer(t)
@@ -112,7 +112,7 @@ func TestAP_NonSenderMember_403(t *testing.T) {
 	msgID := msg["id"].(string)
 
 	// member is in channel but is NOT the sender → existing sender_id
-	// check fires → 403 (post AP-5 channel-member gate which would
+	// check returns 403 (post AP-5 channel-member check which would
 	// pass since member is in channel).
 	resp, body := jsonReq(t, "PUT", ts.URL+"/api/v1/messages/"+msgID, memberToken, map[string]string{"content": "x"})
 	if resp.StatusCode != http.StatusForbidden {
@@ -126,7 +126,7 @@ func TestAP_NonSenderMember_403(t *testing.T) {
 }
 
 // TestAP_PatchDM_PostRemovalReject — DM-4 PATCH endpoint after sender
-// removed from DM channel returns 404 (channel-member gate, 跟 messages
+// removed from DM channel returns 404 (channel-member check, 跟 messages
 // PUT/DELETE 同模式).
 func TestAP_PatchDM_PostRemovalReject(t *testing.T) {
 	t.Parallel()

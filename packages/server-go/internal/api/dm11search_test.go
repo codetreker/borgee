@@ -53,8 +53,8 @@ func dm11Setup(t *testing.T) (string, string, string, *store.Store, string, stri
 	return ts.URL, ownerTok, memberTok, s, chID, content
 }
 
-// TestDM_Search_HappyPath — owner搜索 member 在 DM 发的消息.
-func TestDM_Search_HappyPath(t *testing.T) {
+// TestDM_Search_Success — owner searches messages posted by a DM member.
+func TestDM_Search_Success(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, _, _, _, _ := dm11Setup(t)
 	resp, body := testutil.JSON(t, "GET",
@@ -169,7 +169,7 @@ func TestDM_Search_DMOnly_ExcludesPublicChannel(t *testing.T) {
 		mm, _ := m.(map[string]any)
 		c, _ := mm["content"].(string)
 		if c == "needle in public channel" {
-			t.Fatalf("DM search leaked public channel message: %q", c)
+			t.Fatalf("DM search returned public channel message: %q", c)
 		}
 	}
 }
@@ -191,7 +191,7 @@ func TestDM_Search_NonMember_NoLeak(t *testing.T) {
 		}
 	}
 	if thirdEmail == "" {
-		t.Skip("no third user")
+		t.Skip("missing non-member fixture user")
 	}
 	thirdTok := testutil.LoginAs(t, url, thirdEmail, "password123")
 	resp, body := testutil.JSON(t, "GET",
@@ -201,15 +201,15 @@ func TestDM_Search_NonMember_NoLeak(t *testing.T) {
 	}
 	count, _ := body["count"].(float64)
 	if count != 0 {
-		t.Errorf("non-member leaked %v results from DM (ACL JOIN broken)", count)
+		t.Errorf("non-member received %v DM results; ACL JOIN did not exclude them", count)
 	}
 }
 
-// TestDM_Search_LimitClamp — limit=999 → clamped to 50.
+// TestDM_Search_LimitClamp — limit=999 is clamped to 50.
 func TestDM_Search_LimitClamp(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, _, _, _, _ := dm11Setup(t)
-	// Just verify the request succeeds — limit clamp is enforced server-side.
+	// Verify the request succeeds; limit clamp is enforced server-side.
 	v := url + "/api/v1/dm/search?q=needle&limit=999"
 	resp, body := testutil.JSON(t, "GET", v, ownerTok, nil)
 	if resp.StatusCode != http.StatusOK {
@@ -218,8 +218,7 @@ func TestDM_Search_LimitClamp(t *testing.T) {
 }
 
 // TestDM_Search_DeletedMessageHidden — soft-deleted DM message NOT
-// returned by search (maskDeletedMessages helper, fail-closed before
-// leak).
+// returned by search (maskDeletedMessages helper excludes it before response).
 func TestDM_Search_DeletedMessageHidden(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, chID, _ := dm11Setup(t)
@@ -246,7 +245,7 @@ func TestDM_Search_DeletedMessageHidden(t *testing.T) {
 		mm, _ := m.(map[string]any)
 		c, _ := mm["content"].(string)
 		if c == "ephemeral haystack" {
-			t.Fatalf("deleted message leaked in search: %q", c)
+			t.Fatalf("deleted message returned in search: %q", c)
 		}
 	}
 }
