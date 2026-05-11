@@ -59,7 +59,7 @@ func (m *MemoryConsumer) Put(g Grant) {
 	m.rows[g.AgentID+"|"+g.Scope] = g
 }
 
-// Delete removes a mock grant; HB-3 production revoke uses SQL DELETE plus audit.
+// Delete removes a mock grant; HB-3 production revoke stamps revoked_at plus audit.
 func (m *MemoryConsumer) Delete(agentID, scope string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

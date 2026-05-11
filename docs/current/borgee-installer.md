@@ -58,7 +58,7 @@ packages/borgee-installer/
 | macOS  | `sudo /usr/sbin/installer -pkg ... -target /` | `/Library/LaunchDaemons/cloud.borgee.host-bridge.plist`              |
 | Windows | (留 v2)                                    | (留 v2)                                                              |
 
-OS user/group: Linux `borgee-helper` / macOS `_borgee` (blueprint §1.4
+OS user/group: Linux `borgee-helper` / macOS `_borgee-helper` (blueprint §1.4
 literal "独立 OS user/group, 反 root 跑 host-bridge").
 
 ## ed25519 verify gate
@@ -93,8 +93,8 @@ must perform all six deletion steps:
 1. 二进制 (`/usr/local/bin/borgee-helper` / `/Applications/Borgee Helper.app`)
 2. 配置 / 状态 (`~/.config/borgee-helper/`)
 3. Installed runtimes
-4. Borgee server 注册记录 (DELETE host_grants WHERE user_id=…)
-5. OS user/group (`borgee-helper` / `_borgee`)
+4. Borgee server registration records (stamp `revoked_at` on matching host_grants rows)
+5. OS user/group (`borgee-helper` / `_borgee-helper`)
 6. service unit (`borgee-helper.service` / `cloud.borgee.host-bridge.plist`)
 
 These six items stay byte-identical with blueprint §1.2. Any change must update
