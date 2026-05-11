@@ -3,7 +3,7 @@
 > **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/cv_3_v2_artifact_thumbnail.go`
 > (v=31). Handler in `packages/server-go/internal/api/thumbnail.go`.
-> Wire-up via existing `ArtifactHandler.RegisterRoutes`. Sister endpoint:
+> Route registration via existing `ArtifactHandler.RegisterRoutes`. Related endpoint:
 > CV-2 v2 `/preview` (`packages/server-go/internal/api/preview.go`) for
 > media kinds — 二端互斥.
 
@@ -11,16 +11,16 @@
 
 CV-3 #408 closes the three kind enum (markdown/code/image_link). CV-2 v2
 #517 closes media-kind preview thumbnails (image/video/pdf →
-`preview_url`). CV-3 v2 closes the **text-kind** thumbnail loop —
+`preview_url`). CV-3 v2 adds the **text-kind** thumbnail endpoint —
 markdown/code artifacts get a server-recorded `thumbnail_url` for list /
 侧边栏 首屏快读 ("首屏快读不是浏览器内全量解码", 蓝图 §1.4). Server is a
-瘦记录中转; real CDN worker (syntax highlighting / markdown
+record-only URL handoff; real CDN worker (syntax highlighting / markdown
 render → 256x256 PNG) integration deferred to v1+.
 
 ## 原则 (cv-3-v2-spec.md §0)
 
 - **① server CDN thumbnail 不 inline** — handler accepts pre-computed
-  URL from worker (跟 CV-2 v2 preview.go 同瘦记录中转模式).
+  URL from worker (跟 CV-2 v2 preview.go 同 record-only URL handoff 模式).
 - **② thumbnail_url MUST be https** — 复用 `auth.ValidateImageLinkURL`
   XSS 红线第一道 (跟 CV-2 v2 设计 ② + CV-3 #400 同 helper).
 - **③ thumbnail_url 跟 preview_url 字段拆 (二端互斥)** —
@@ -33,13 +33,13 @@ render → 256x256 PNG) integration deferred to v1+.
 
 `ALTER TABLE artifacts ADD COLUMN thumbnail_url TEXT` (nullable; not FK
 to anything — 跟 preview_url + AP-1.1 expires_at + AP-3 org_id + AP-2
-revoked_at **五连 ALTER ADD COLUMN NULL** 模式同精神). Migration is
+revoked_at **五连 ALTER ADD COLUMN NULL** 模式保持同一设计约束). Migration is
 forward-only via `schema_migrations`. Existing rows preserve
 `thumbnail_url = NULL` (历史数据 / 未生成 — server worker generates lazily
 on owner POST).
 
 Index: none (thumbnail_url 不参与查询过滤路径; client GET /artifacts/:id
-拉时一起带回; 跟 preview_url 同精神).
+拉时一起带回; 跟 preview_url 保持同一设计约束).
 
 ## Endpoint
 
@@ -53,9 +53,9 @@ Content-Type: application/json
 }
 ```
 
-ACL (反向约束 ① owner-only):
+ACL (owner-only 约束 ①):
 
-- No auth user → **401 Unauthorized** (admin god-mode 不入此 path, ADM-0
+- No auth user → **401 Unauthorized** (admin routes do not enter this path, ADM-0
   §1.3 红线).
 - Authenticated non-owner (channel.created_by != user.ID) →
   **403 `thumbnail.not_owner`** (跟 CV-1.2 rollback + CV-2 v2 设计 ⑦
@@ -64,7 +64,7 @@ ACL (反向约束 ① owner-only):
   **403 `thumbnail.not_owner`**.
 - Artifact missing → **404 `thumbnail.artifact_not_found`**.
 
-Validation gates:
+Validation rules:
 
 - Artifact kind ∉ `{markdown, code}` (= `ThumbnailableKinds` slice) →
   **400 `thumbnail.kind_not_thumbnailable`**. image_link/video_link/
@@ -78,7 +78,7 @@ Side-effects on success (200):
 
 - `UPDATE artifacts SET thumbnail_url = ? WHERE id = ?` (overwrite
   接受).
-- 不写 system message + 不 push WS frame (跟 CV-2 v2 preview.go 同精神
+- 不写 system message + 不 push WS frame (跟 CV-2 v2 preview.go 保持同一设计约束
   — thumbnail 静态 CDN; client 下次 GET pull).
 
 Response body:
@@ -93,7 +93,7 @@ Response body:
 ## GET 回填 (CV-1.2 既有 endpoint)
 
 `GET /api/v1/artifacts/{artifactId}` 响应 body 携带 `thumbnail_url` 字段
-(omitempty when NULL, 跟 `preview_url` 字段同精神); client
+(omitempty when NULL, 跟 `preview_url` 字段保持同一设计约束); client
 `ArtifactThumbnail` component 用作 lazy `<img>` src.
 
 ## 错码字面单一来源 (跟 PreviewErrCode* + AP-1/AP-2/AP-3 const 同模式)
@@ -115,13 +115,13 @@ ThumbnailErrCodeArtifactNotFound    = "thumbnail.artifact_not_found"
   video_link, pdf_link}` (五 kind 全覆盖)
 
 跨 endpoint reject (`TestCV3V22_KindNotThumbnailable_ImageLink` +
-`TestCV3V22_KindNotThumbnailable_VideoAndPDF`) byte-identical 守 client
-路径不脱节.
+`TestCV3V22_KindNotThumbnailable_VideoAndPDF`) byte-identical, keeping
+client 路径保持一致.
 
 ## 跨 milestone byte-identical 锁定
 
-- 跟 CV-2 v2 #517 server CDN thumbnail 瘦记录中转 + ValidateImageLinkURL
-  XSS 红线 + ACL gate (channel.created_by) **同模式** (改 = 改
+- 跟 CV-2 v2 #517 server CDN thumbnail record-only URL handoff + ValidateImageLinkURL
+  XSS 红线 + ACL check (channel.created_by) **同模式** (改 = 改
   thumbnail.go + preview.go 两处, helper 单一来源不拆).
 - 跟 CV-3 #408 三 kind enum byte-identical (CV-3 v2 不扩 kind, 仅扩
   thumbnail 路径).
@@ -132,8 +132,8 @@ ThumbnailErrCodeArtifactNotFound    = "thumbnail.artifact_not_found"
 ## 不在范围
 
 - Server-side CDN 工人 (shiki / markdown-it server-side render) — handler
-  v0 是瘦记录中转; 真 CDN 集成留 v1+ (跟 CV-2 v2 同精神).
+  v0 只记录 URL; 真 CDN 集成留 v1+ (跟 CV-2 v2 保持同一设计约束).
 - thumbnail 实时刷新 (commit/rollback 后自动重建) — v1+ 留遗留项 (静态 CDN).
-- thumbnail GC / multi-size / diff 视图 thumbnail — 留 v2+.
+- thumbnail garbage collection / multi-size / diff 视图 thumbnail — 留 v2+.
 - image_link / video_link / pdf_link thumbnail — 走 CV-2 v2 `/preview`
   既有路径 (二端互斥).
