@@ -1,7 +1,7 @@
 // chn-3-content-lock.test.ts — CHN-3.3 client SPA 文案 + DOM attr lock.
 //
 // Pins the 6 byte-identical literals + DOM attrs from
-// docs/qa/chn-3-content-lock.md so drift in SortableChannelItem.tsx /
+// docs/qa/chn-3-content-lock.md so mismatch in SortableChannelItem.tsx /
 // GroupHeader.tsx / ChannelContextMenu.tsx / useUserLayout.ts is caught
 // pre-merge instead of post-merge by reverse grep.
 //
@@ -14,7 +14,7 @@
 //     / 本 client useUserLayout LAYOUT_SAVE_TOAST)
 //   - 右键菜单 "置顶" / "取消置顶" (双菜单项 字面锁)
 //   - data-collapsed 二态锁 (group header)
-//   - DM 行反约束 (5 源 byte-identical, ChannelList 不为 DM 渲染 —
+//   - DM 行约束 (5 源 byte-identical, ChannelList 不为 DM 渲染 —
 //     DM 走 Sidebar.MergedDmList 完全独立路径)
 
 import { describe, it, expect } from 'vitest';
@@ -74,37 +74,37 @@ describe('CHN-3 content-lock literals + DOM attrs', () => {
     expect(useLayout).toContain("'侧栏顺序保存失败, 请重试'");
   });
 
-  it('反约束: drag handle 同义词漂移 0 hit (sortableItem)', () => {
+  it('约束: drag handle 同义词漂移 0 hit (sortableItem)', () => {
     for (const forbidden of ['"Drag"', '"拖动"', '"排序"', '"移动"', '"Move"']) {
       expect(sortableItem).not.toContain(forbidden);
     }
   });
 
-  it('反约束: group folding 同义词漂移 0 hit (groupHeader)', () => {
+  it('约束: group folding 同义词漂移 0 hit (groupHeader)', () => {
     for (const forbidden of ['"Collapse"', '"Expand"', '"收起"', '"展开"']) {
       expect(groupHeader).not.toContain(forbidden);
     }
   });
 
-  it('反约束: pin 同义词漂移 0 hit (contextMenu)', () => {
+  it('约束: pin 同义词漂移 0 hit (contextMenu)', () => {
     for (const forbidden of ['"Pin"', '"Unpin"', '"固定"', '"取消固定"', '"Stick"']) {
       expect(contextMenu).not.toContain(forbidden);
     }
   });
 
-  it('反约束: failure toast 同义词漂移 0 hit (useLayout)', () => {
+  it('约束: failure toast 同义词漂移 0 hit (useLayout)', () => {
     for (const forbidden of ['"保存失败"', '"Save failed"', '"请稍后重试"', '"网络错误"']) {
       expect(useLayout).not.toContain(forbidden);
     }
   });
 
-  it('反约束: pinned BOOL 列名 0 hit — pin 走 position 单调小数 (#366 设计 ③)', () => {
-    // 这道反约束守 schema 反向 — server v=19 不应有 pinned 列, 但 client
+  it('约束: pinned BOOL 列名 0 hit — pin 走 position 单调小数 (#366 设计 ③)', () => {
+    // 这道约束守 schema 反向 — server v=19 不应有 pinned 列, 但 client
     // 也不能引入 pinned 字段. useUserLayout / api 层无 'pinned' 字面.
     expect(useLayout).not.toMatch(/pinned\s*[:=]\s*(true|false)/);
   });
 
-  it('反约束: LayoutChangedFrame push frame 不存在 (设计 ⑥ + 文案锁 ⑥)', () => {
+  it('约束: LayoutChangedFrame push frame 不存在 (设计 ⑥ + 文案锁 ⑥)', () => {
     expect(useLayout).not.toContain('LayoutChangedFrame');
     expect(useLayout).not.toContain('UserChannelLayoutChanged');
     // useUserLayout 不订阅 ws frame — 仅 GET /me/layout once + PUT debounce.
