@@ -22,7 +22,7 @@
 //        默认 'grant', client UI 渲染三按钮);
 //      - INSERT message (sender_id='system', quick_action=JSON).
 //
-// 反约束 (bpp-3.2-stance §1):
+// 反向检查 (bpp-3.2-stance §1):
 //   - DM 走 DM-2 messages + quick_action 既有 path, 不开新 channel 类型 /
 //     不写新 system_message_kind enum (grep 检查 守).
 //   - capability 必走 auth.Capabilities const, 不 hardcode 字面 (跟 AP-1
@@ -84,8 +84,8 @@ func IsCapabilityDisallowed(err error) bool {
 // Field semantics:
 //   - AgentID: 触发 frame 的 agent UUID
 //   - AttemptedAction: AP-1 abac.go 403 body 字段 byte-identical (e.g.
-//     "artifact.commit"); 跨 PR drift 守 (改 = 改五处, content-lock §5)
-//   - RequiredCapability: ∈ auth.Capabilities 14 项 const (反约束: 字面
+//     "artifact.commit"); 跨 PR mismatch 守 (改 = 改五处, content-lock §5)
+//   - RequiredCapability: ∈ auth.Capabilities 14 项 const (反向检查: 字面
 //     hardcode 0 hit, 跟 AP-1 反约束 #1 同源)
 //   - CurrentScope: ∈ {*, channel:<id>, artifact:<id>} v1 三层
 //   - RequestID: AP-1 调用方 trace UUID, plugin 端按此 key 做 retry cache
