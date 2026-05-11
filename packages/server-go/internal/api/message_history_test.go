@@ -1,6 +1,6 @@
 // Package api_test — dm_7_edit_history_test.go: DM-7 server tests for
-// edit history (UpdateMessage SSOT + GET endpoints + admin readonly +
-// AST 锁链 #16 + reason byte-identical).
+// edit history (UpdateMessage 单一来源 + GET endpoints + admin readonly +
+// AST 对齐链 #16 + reason byte-identical).
 package api_test
 
 import (
@@ -39,7 +39,7 @@ func TestDM_UpdateMessage_AppendsEditHistory(t *testing.T) {
 
 	msgID := sendDM(t, ts.URL, ownerToken, dm.ID, "first version")
 
-	// Edit message via store SSOT (DM-4 既有 path 不变).
+	// Edit message via store 单一来源 (DM-4 既有 path 不变).
 	if _, err := s.UpdateMessage(msgID, "second version"); err != nil {
 		t.Fatalf("UpdateMessage: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestDM_UpdateMessage_AppendsEditHistory(t *testing.T) {
 		t.Errorf("old_content: got %v, want first version", arr[0]["old_content"])
 	}
 	if arr[0]["reason"] != "unknown" {
-		t.Errorf("reason: got %v, want 'unknown' (AL-1a 锁链第 18 处)", arr[0]["reason"])
+		t.Errorf("reason: got %v, want 'unknown' (AL-1a 对齐链第 18 处)", arr[0]["reason"])
 	}
 }
 
@@ -239,11 +239,11 @@ func TestDM_DM4ProductionByteIdentical(t *testing.T) {
 		t.Fatalf("read dm_4: %v", err)
 	}
 	if regexp.MustCompile(`dm_?7\b`).Find(body) != nil {
-		t.Error("DM-4 production drift — dm_7 reference in dm_4_message_edit.go")
+		t.Error("DM-4 production mismatch — dm_7 reference in dm_4_message_edit.go")
 	}
 }
 
-// REG-DM7-006 — AST 锁链延伸第 16 处.
+// REG-DM7-006 — AST 对齐链延伸第 16 处.
 func TestDM_NoEditHistoryQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -262,7 +262,7 @@ func TestDM_NoEditHistoryQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 16 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 16 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
