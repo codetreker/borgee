@@ -1,23 +1,22 @@
-// tests/cm-4-realtime.spec.ts — RT-0 (#40) latency gate.
+// tests/chat-realtime-message-fanout.spec.ts — agent 邀请实时推送 owner 端 latency 守门 (≤ 3s).
 //
-// 野马 G2.4 hardline: 邀请发出 → owner 端收到通知 latency MUST ≤ 3s.
-// 60s polling does not satisfy. Acceptance evidence is a stopwatch-
-// attached HTML report (see fixtures/stopwatch.ts) plus a pinned
-// screenshot at docs/qa/screenshots/g2.4-realtime-latency.png.
+// 测试范围 (1 case):
+//   - requester POST /api/v1/agent_invitations 创建邀请
+//   - owner 浏览器 sidebar bell badge 从 0 个变为可见 (websocket 推 agent_invitation_pending 帧 → dispatchInvitationPending → Sidebar listener)
+//   - latency 实测 ≤ 3s (硬性指标, 60s 轮询不算)
+//   - 截图证据存 docs/qa/screenshots/g2.4-realtime-latency.png 供 PM 出口闸用
 //
-// 烈马 R3 加补: latency 验收必须用 Playwright (vitest 跑不了真 ws +
-// UI 时序), INFRA-2 (#39) 是这条 spec 的前置依赖, 已 merged.
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/realtime.md (websocket push 走 agent_invitation_pending 帧)
+//   - 验收: docs/_archive/qa/acceptance-templates/cm-4.md (REG-RT0-008 / G2.4 latency proof)
+//   - 单测: server-side push hub (internal/ws/hub.go) Go 单元测覆盖路由逻辑
+//   - 客户端: useWebSocket switch + dispatchInvitationPending → Sidebar bell re-fetch
 //
-// What this spec proves:
-//   t=0  : requester POST /api/v1/agent_invitations
-//   t=Δ  : owner page's bell badge becomes visible (DOM mutation
-//          driven by the new agent_invitation_pending frame on /ws,
-//          surfaced via dispatchInvitationPending → Sidebar listener)
-//   assert Δ ≤ 3000ms.
-//
-// Status: live since #237 merged the server-side push half. Client
-// side already shipped (#218): useWebSocket switch arms dispatch
-// the new frames → window CustomEvent → Sidebar bell re-fetches.
+// 实施约束:
+//   - 真 UI: owner page.goto + page.locator('[data-testid=invitation-bell-badge]') + waitFor visible 是真浏览器路径
+//   - REST seed: requester 端创建邀请没有 production UI 入口 (createAgentInvitation 仅在 lib/api.ts, 反向 grep 0 production caller), 用 REST 直调合规作 seed
+//   - INFRA-2 依赖: 双 server 编排 (server-go + vite) 已 ship
+//   - 不允许 fs.* / page.evaluate(fetch) / noop
 
 import { test, expect, request as apiRequest } from '@playwright/test';
 import { stopwatch } from '../fixtures/stopwatch';
