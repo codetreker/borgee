@@ -87,9 +87,9 @@ func TestADM_AcceptsAll5Actions(t *testing.T) {
 	}
 }
 
-// TestADM_RejectsUnknownAction pins acceptance §数据契约 row 2 反约束 —
+// TestADM_RejectsUnknownAction pins acceptance §数据契约 row 2 约束 —
 // 同义词 / 大小写漂移 / 字典外值 / 空字符串 全 reject. 跟 CV-4.1 #405
-// TestCV41_RejectsUnknownState 12 反约束值同模式.
+// TestCV41_RejectsUnknownState 12 约束值同模式.
 func TestADM_RejectsUnknownAction(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -128,14 +128,14 @@ func TestADM_RejectsUnknownAction(t *testing.T) {
 			id = "rej-row-empty"
 		}
 		if err := insert(id, a); err == nil {
-			t.Errorf("row %d action=%q should reject — CHECK 反约束 broken", i, a)
+			t.Errorf("row %d action=%q should reject — CHECK 约束 broken", i, a)
 		}
 	}
 }
 
-// TestAdminActions_NoDomainBleed pins admin-model.md §1.4 反约束 — 列名反向断言
+// TestAdminActions_NoDomainBleed pins admin-model.md §1.4 约束 — 列名反向断言
 // 'updated_at' (audit 不可改写) / 'org_id' (派生不冗余) / 'session_id'
-// (impersonate 走单独表) 全无. 字面承袭 #366 黑名单同模式.
+// (impersonate 走单独表) 全无. 字面跟 #366 黑名单同模式.
 func TestAdminActions_NoDomainBleed(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -156,13 +156,13 @@ func TestAdminActions_NoDomainBleed(t *testing.T) {
 		"session_id",
 		"grant_id",
 		"expires_at",
-		// 反约束: 不挂 RT-1 envelope cursor (跟 al_3_1 / al_4_1 / cv_1_1 /
+		// 约束: 不挂 RT-1 envelope cursor (跟 al_3_1 / al_4_1 / cv_1_1 /
 		// cv_2_1 / dm_2_1 / cv_4_1 / chn_3_1 同模式 — frame 路径不下沉
 		// schema).
 		"cursor",
 	} {
 		if _, has := cols[forbidden]; has {
-			t.Errorf("admin_actions.%s exists — 反约束 broken (acceptance §数据契约 + admin-model.md §1.4 红线 + §2 不变量)", forbidden)
+			t.Errorf("admin_actions.%s exists — 约束 broken (acceptance §数据契约 + admin-model.md §1.4 红线 + §2 不变量)", forbidden)
 		}
 	}
 }

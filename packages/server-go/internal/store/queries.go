@@ -363,7 +363,7 @@ func (s *Store) AddUserToPublicChannels(userID string) error {
 	// Route through AddChannelMember so the agent-default silent stamp
 	// (concept-model §1.4) is applied uniformly. CHN-1.3 e2e regression:
 	// raw db.FirstOrCreate bypassed the silent fan-out and broke the
-	// "agent silent default = true" 立场 in PR #288.
+	// "agent silent default = true" 约定 in PR #288.
 	for _, ch := range channels {
 		_ = s.AddChannelMember(&ChannelMember{ChannelID: ch.ID, UserID: userID})
 	}
@@ -847,12 +847,12 @@ func (s *Store) ListChannelsPublic() ([]ChannelWithCounts, error) {
 // out unless the user is still a member, so a creator who archives a
 // channel can still see it but org peers stop seeing it.
 //
-// CHN-13 立场 ②: optional `q` filter — 空 q 走原 SQL byte-identical;
+// CHN-13 设计 ②: optional `q` filter — 空 q 走原 SQL byte-identical;
 // q != "" 加 `AND c.name LIKE '%' || ? || '%' COLLATE NOCASE` 子串
 // 大小写不敏感. 既有 ordering (position ASC, created_at ASC) 不变.
 func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, error) {
 	var results []ChannelWithCounts
-	// CHN-13 立场 ④: 空 q 路径 byte-identical 跟既有 SQL 同源.
+	// CHN-13 设计 ④: 空 q 路径 byte-identical 跟既有 SQL 同源.
 	if q == "" {
 		err := s.db.Raw(`
 			SELECT c.*,
@@ -876,7 +876,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 		`, userID, userID, userID, userID).Scan(&results).Error
 		return results, err
 	}
-	// CHN-13 立场 ②: q != "" 加 LIKE 子句 (COLLATE NOCASE 大小写不敏感).
+	// CHN-13 设计 ②: q != "" 加 LIKE 子句 (COLLATE NOCASE 大小写不敏感).
 	err := s.db.Raw(`
 		SELECT c.*,
 			(SELECT COUNT(*) FROM channel_members cm2 WHERE cm2.channel_id = c.id) AS member_count,
@@ -903,7 +903,7 @@ func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, e
 
 // SetMuteBit toggles a single bit in user_channel_layout.collapsed for
 // (user, channel) without disturbing other bits. Returns the new
-// collapsed value so handlers can echo it. CHN-7 立场 ① (0 schema 改).
+// collapsed value so handlers can echo it. CHN-7 设计 ① (0 schema 改).
 //
 // bitMask is normally CHN-7 api.MuteBit (=2); other bits (CHN-3 collapse
 // state at bit 0) are preserved. Caller validates membership/DM in
@@ -944,7 +944,7 @@ func (s *Store) SetMuteBit(userID, channelID string, bitMask int64, set bool) (i
 // SetNotifPrefBits writes the notification preference for (user, channel)
 // into user_channel_layout.collapsed bits at the given shift/mask, while
 // preserving every other bit. Returns the new collapsed value so handlers
-// can echo it. CHN-8 立场 ① + ③.
+// can echo it. CHN-8 设计 ① + ③.
 //
 // Caller validates membership/DM in the handler layer.
 func (s *Store) SetNotifPrefBits(userID, channelID string, shift, mask, pref int64) (int64, error) {
@@ -977,7 +977,7 @@ func (s *Store) SetNotifPrefBits(userID, channelID string, shift, mask, pref int
 
 // IsMutedForUser reports whether (user, channel) has the CHN-7 mute bit
 // set. Used by DL-4 push notifier (best-effort skip) — not by RT-3
-// fan-out / WS frame / messages 表 (立场 ③ mute 不 drop messages).
+// fan-out / WS frame / messages 表 (设计 ③ mute 不 drop messages).
 //
 // MuteBit is sourced from internal/api package to avoid a cycle; caller
 // must pass the const literal value (= 2 byte-identical 跟 client).
@@ -1017,7 +1017,7 @@ func (s *Store) ListArchivedChannelsForUser(userID string) ([]ChannelWithCounts,
 }
 
 // ListAllArchivedChannelsForAdmin returns every archived channel across
-// all orgs — admin-rail readonly 视图 (CHN-5 立场 ④). No PATCH/PUT/DELETE
+// all orgs — admin-rail readonly 视图 (CHN-5 设计 ④). No PATCH/PUT/DELETE
 // path on admin handler — admin god-mode 不挂直接改 (ADM-0 §1.3 红线).
 func (s *Store) ListAllArchivedChannelsForAdmin() ([]ChannelWithCounts, error) {
 	var results []ChannelWithCounts
@@ -1078,7 +1078,7 @@ func (s *Store) UnpinChannelLayout(userID, channelID string, nowMs int64) (float
 }
 
 // GetNotifPrefForUser returns the current notification preference for
-// (user, channel) as a int (0/1/2). Used by DL-4 push notifier (立场 ③
+// (user, channel) as a int (0/1/2). Used by DL-4 push notifier (设计 ③
 // best-effort skip). No row → returns 0 (NotifPrefAll = 现网行为零变).
 func (s *Store) GetNotifPrefForUser(userID, channelID string, shift, mask int64) (int64, error) {
 	var collapsed int64
