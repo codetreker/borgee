@@ -3,18 +3,18 @@
 // through §2.5 + §4 反查锚 in unit form. e2e (§3) is client-side and
 // out of scope for this PR.
 //
-// Stance pins exercised:
-//   - ① channel-scoped (cross-channel / cross-org → 403).
-//   - ② 30s TTL lazy-expire lock (T+0 acquire / T+29s held / T+30s steal).
-//   - ③ linear versioning enforced by UNIQUE(artifact_id, version) +
+// 设计约束 pins exercised:
+//   - 设计第 1 条 channel-scoped (cross-channel / cross-org → 403).
+//   - 设计第 2 条 30s TTL lazy-expire lock (T+0 acquire / T+29s held / T+30s steal).
+//   - 设计第 3 条 linear versioning enforced by UNIQUE(artifact_id, version) +
 //     transactional bump (concurrent commits race detector).
-//   - ④ Markdown ONLY (HTTP layer rejects non-markdown type before
+//   - 设计第 4 条 Markdown ONLY (HTTP layer rejects non-markdown type before
 //     hitting CHECK constraint).
-//   - ⑤ ArtifactUpdated frame goes through ArtifactPusher (no body
+//   - 设计第 5 条 ArtifactUpdated frame goes through ArtifactPusher (no body
 //     leakage; committer info pulled separately via GET).
-//   - ⑥ committer_kind 'agent'|'human' inferred from user.Role + agent
-//     commit fanouts the byte-identical system message.
-//   - ⑦ rollback owner-only — non-owner 403, prior-version body cloned
+//   - 设计第 6 条 committer_kind 'agent'|'human' inferred from user.Role + agent
+//     commit fanouts the 字节级一致 system message.
+//   - 设计第 7 条 rollback owner-only — non-owner 403, prior-version body cloned
 //     into new row with rolled_back_from_version stamped.
 package api_test
 
@@ -131,7 +131,7 @@ func TestCV_CreateArtifactInChannel(t *testing.T) {
 	}
 }
 
-// TestCV_RejectsNonMarkdownType pins 设计 ④ at HTTP layer (schema
+// TestCV_RejectsNonMarkdownType pins 设计第 4 条 at HTTP layer (schema
 // CHECK is the final gate, but we should fail-fast at 400 not 500).
 func TestCV_RejectsNonMarkdownType(t *testing.T) {
 	t.Parallel()
@@ -148,7 +148,7 @@ func TestCV_RejectsNonMarkdownType(t *testing.T) {
 	}
 }
 
-// TestCanvasArtifacts_CrossChannel403 pins 设计 ① + acceptance §2.1: a non-member
+// TestCanvasArtifacts_CrossChannel403 pins 设计第 1 条 + acceptance §2.1: a non-member
 // cannot create artifacts in another user's private channel. We use a
 // fresh private channel owned by member; admin (also member-rail) is
 // not added → POST should 403.
@@ -178,7 +178,7 @@ func TestCanvasArtifacts_CrossChannel403(t *testing.T) {
 	}
 }
 
-// TestCV_CommitBumpsVersion pins 设计 ③: commit creates a new
+// TestCV_CommitBumpsVersion pins 设计第 3 条: commit creates a new
 // artifact_versions row with version=N+1 + bumps artifacts.current_version.
 func TestCV_CommitBumpsVersion(t *testing.T) {
 	t.Parallel()
@@ -211,7 +211,7 @@ func TestCV_CommitBumpsVersion(t *testing.T) {
 		t.Errorf("current_version != 2: %v", head["current_version"])
 	}
 
-	// versions list shows both rows linearly (设计 ③).
+	// versions list shows both rows linearly (设计第 3 条).
 	_, vlist := testutil.JSON(t, "GET", ts.URL+"/api/v1/artifacts/"+id+"/versions", tok, nil)
 	versions := vlist["versions"].([]any)
 	if len(versions) != 2 {
@@ -219,7 +219,7 @@ func TestCV_CommitBumpsVersion(t *testing.T) {
 	}
 }
 
-// TestCV_CommitVersionMismatch409 pins 设计 ② version mismatch path
+// TestCV_CommitVersionMismatch409 pins 设计第 2 条 version mismatch path
 // (a stale client trying to commit on top of an already-bumped head
 // gets 409 + reload hint).
 func TestCV_CommitVersionMismatch409(t *testing.T) {
@@ -245,7 +245,7 @@ func TestCV_CommitVersionMismatch409(t *testing.T) {
 	}
 }
 
-// TestCV_LockTTL30sBoundary pins 设计 ② lazy expire boundary on the
+// TestCV_LockTTL30sBoundary pins 设计第 2 条 lazy expire boundary on the
 // handler directly with an injected fake clock. We exercise:
 //
 //   - T+0: user A acquires lock via commit
@@ -294,7 +294,7 @@ func TestCV_LockTTL30sBoundary(t *testing.T) {
 	}
 }
 
-// TestCV_RollbackOwnerOnly pins 设计 ⑦ three-way reverse assertion:
+// TestCV_RollbackOwnerOnly pins 设计第 7 条 three-way reverse assertion:
 //
 //   - admin cookie → 401 (no user-rail auth, admin rail forbidden)
 //   - non-owner member → 403
@@ -340,11 +340,11 @@ func TestCV_RollbackOwnerOnly(t *testing.T) {
 	if rf, ok := last["rolled_back_from_version"].(float64); !ok || int64(rf) != 1 {
 		t.Errorf("last version rolled_back_from_version missing or wrong: %v", last["rolled_back_from_version"])
 	}
-	// Body of the rolled-back-to row is byte-identical with v1.
+	// Body of the rolled-back-to row is 字节级一致 with v1.
 	if last["body"] != "v1" {
 		t.Errorf("rollback body mismatch (want 'v1', got %v)", last["body"])
 	}
-	// Old versions are NOT deleted (设计 ③ 不删中间版本).
+	// Old versions are NOT deleted (设计第 3 条 不删中间版本).
 	if len(versions) != 4 {
 		t.Errorf("expected 4 version rows after rollback, got %d", len(versions))
 	}
@@ -352,7 +352,7 @@ func TestCV_RollbackOwnerOnly(t *testing.T) {
 
 // TestCV_RollbackProducesNewVersionNotDelete pins acceptance §2.3
 // 反约束: rollback inserts a new row, never deletes intermediate
-// versions (设计 ③ + ⑦).
+// versions (设计第 3+7 条).
 func TestCV_RollbackProducesNewVersionNotDelete(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -372,9 +372,9 @@ func TestCV_RollbackProducesNewVersionNotDelete(t *testing.T) {
 	}
 }
 
-// TestCV_AgentCommitSystemMessage pins 设计 ⑥: when the committer is
+// TestCV_AgentCommitSystemMessage pins 设计第 6 条: when the committer is
 // an agent (Role='agent'), the handler emits a system message with the
-// byte-identical文案 锁: "{agent_name} 更新 {artifact_name} v{n}".
+// 字节级一致文案 锁: "{agent_name} 更新 {artifact_name} v{n}".
 //
 // Reverse assertion: for a human committer, NO such system message is
 // emitted (silent for humans, only agents fanout).
@@ -414,7 +414,7 @@ func TestCV_AgentCommitSystemMessage(t *testing.T) {
 	id := art["id"].(string)
 	// AP-1.2: agent ABAC capability gate requires explicit
 	// (commit_artifact, artifact:<id>) grant — owner-issued per-artifact
-	// (蓝图 §1.4 设计沿用). Default [message.send, message.read] is not
+	// (跟蓝图 §1.4 一致). Default [message.send, message.read] is not
 	// enough for artifact write.
 	if err := s.GrantPermission(&store.UserPermission{
 		UserID: agent.ID, Permission: auth.CommitArtifact, Scope: "artifact:" + id,
@@ -429,14 +429,14 @@ func TestCV_AgentCommitSystemMessage(t *testing.T) {
 	}
 
 	// Read back system messages on the channel — there must be exactly
-	// one with the byte-identical fanout content.
+	// one with the 字节级一致 fanout content.
 	want := "AgentX 更新 Plan v2"
 	if !channelHasSystemMessage(t, s, chID, want) {
 		t.Errorf("agent commit fanout message missing: want %q", want)
 	}
 }
 
-// TestCV_HumanCommitNoSystemMessage pins the reverse of ⑥: a human
+// TestCV_HumanCommitNoSystemMessage pins the reverse of 设计第 6 条: a human
 // committer doesn't fanout (silence by default, only agent commits
 // trigger the system message).
 func TestCV_HumanCommitNoSystemMessage(t *testing.T) {
@@ -456,7 +456,7 @@ func TestCV_HumanCommitNoSystemMessage(t *testing.T) {
 	}
 }
 
-// TestCV_PushFrameOnCreateAndCommit pins 设计 ⑤: every successful
+// TestCV_PushFrameOnCreateAndCommit pins 设计第 5 条: every successful
 // create / commit / rollback hits the ArtifactPusher exactly once with
 // (id, version, channel_id, ts, kind). We bypass the live server's
 // production hub by constructing a standalone handler with a recording
