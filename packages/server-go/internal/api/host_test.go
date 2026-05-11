@@ -36,12 +36,12 @@ func TestHost_NoSchemaChange(t *testing.T) {
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, "hb_6_") {
-			t.Errorf("HB-6 设计 ① broken — found schema migration file %q (must be 0 schema)", name)
+			t.Errorf("HB-6 设计第 1 条 broken — found schema migration file %q (must be 0 schema)", name)
 		}
 	}
 }
 
-// REG-HB6-001b — WindowSeconds byte-identical 跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
+// REG-HB6-001b — WindowSeconds 字节级一致 跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
 func TestHB_WindowSecondsByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.WindowSeconds != 30 {
@@ -75,9 +75,9 @@ func TestHB_AggregateLag_PercentileCorrect(t *testing.T) {
 	if !snap.AtRisk {
 		t.Errorf("at_risk: got %v, want true (P95>%d threshold)", snap.AtRisk, api.LagThresholdMs)
 	}
-	// REG-HB6-005 — at_risk reason byte-identical 跟 reasons.NetworkUnreachable.
+	// REG-HB6-005 — at_risk reason 字节级一致 跟 reasons.NetworkUnreachable.
 	if snap.ReasonIfAtRisk != "network_unreachable" {
-		t.Errorf("reason_if_at_risk: got %q, want 'network_unreachable' (AL-1a 锁链第 19 处)", snap.ReasonIfAtRisk)
+		t.Errorf("reason_if_at_risk: got %q, want 'network_unreachable' (AL-1a 对齐链第 19 处)", snap.ReasonIfAtRisk)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestHB_AdminHappyPath(t *testing.T) {
 			t.Errorf("missing key %q in response: %v", k, body)
 		}
 	}
-	// window_seconds = 30 byte-identical.
+	// window_seconds = 30 字节级一致.
 	if got, ok := body["window_seconds"].(float64); !ok || int(got) != 30 {
 		t.Errorf("window_seconds: got %v, want 30", body["window_seconds"])
 	}
@@ -215,7 +215,7 @@ func TestHB_NoUserRailPath(t *testing.T) {
 	}
 }
 
-// REG-HB6-005 — at-risk reason 字面 byte-identical via end-to-end (seed
+// REG-HB6-005 — at-risk reason 字面字节级一致 via end-to-end (seed
 // agent_runtimes 让 P95 > LagThresholdMs, 验证 reason='network_unreachable').
 func TestHB_AtRiskReasonByteIdentical(t *testing.T) {
 	t.Parallel()
@@ -243,7 +243,7 @@ func TestHB_AtRiskReasonByteIdentical(t *testing.T) {
 		t.Errorf("at_risk: got %v, want true", body["at_risk"])
 	}
 	if body["reason_if_at_risk"] != "network_unreachable" {
-		t.Errorf("reason_if_at_risk: got %v, want 'network_unreachable' (AL-1a 锁链第 19 处)",
+		t.Errorf("reason_if_at_risk: got %v, want 'network_unreachable' (AL-1a 对齐链第 19 处)",
 			body["reason_if_at_risk"])
 	}
 }
@@ -263,7 +263,7 @@ func TestHB_NoAdminWritePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("HB-6 设计 ③ broken — admin write on heartbeat-lag in %s: %q",
+				t.Errorf("HB-6 设计第 3 条 broken — admin write on heartbeat-lag in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -271,7 +271,7 @@ func TestHB_NoAdminWritePath(t *testing.T) {
 	}
 }
 
-// REG-HB6-006b — AST 锁链延伸第 16 处 forbidden 3 token.
+// REG-HB6-006b — AST 对齐链延伸第 16 处 forbidden 3 token.
 func TestHB_NoLagSampleQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -290,7 +290,7 @@ func TestHB_NoLagSampleQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 16 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 16 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
@@ -315,7 +315,7 @@ func TestHB_NoClientUIv1(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("HB-6 设计 ⑥ broken — client UI v1 token %q in %s", tok, p)
+				t.Errorf("HB-6 设计第 6 条 broken — client UI v1 token %q in %s", tok, p)
 			}
 		}
 		return nil

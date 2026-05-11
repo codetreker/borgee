@@ -31,7 +31,7 @@ func TestDM_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("DM-6 设计 ① broken — new schema migration file %s", p)
+			t.Errorf("DM-6 设计第 1 条 broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -42,7 +42,7 @@ func TestDM_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("DM-6 设计 ① broken — messages reply ALTER in %s", p)
+			t.Errorf("DM-6 设计第 1 条 broken — messages reply ALTER in %s", p)
 		}
 		return nil
 	})
@@ -66,7 +66,7 @@ func TestDM_NoServerProductionCode(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("DM-6 设计 ① broken — dm_6 production reference in %s: %q",
+				t.Errorf("DM-6 设计第 1 条 broken — dm_6 production reference in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			_ = base
@@ -99,12 +99,12 @@ func TestDM_ReplyToIDColumnExists(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("DM-6 设计 ① broken — messages.reply_to_id column missing (CHN-1 既有 schema 漂移)")
+		t.Error("DM-6 设计第 1 条 broken — messages.reply_to_id column missing (CHN-1 既有 schema 漂移)")
 	}
 }
 
 // REG-DM6-004 — DM thread reply HappyPath: POST DM channel message with
-// reply_to_id → 200 + persisted (走既有 path byte-identical).
+// reply_to_id → 200 + persisted (走既有 path 字节级一致).
 func TestDM_DMThreadReply_HappyPath(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -144,9 +144,9 @@ func TestDM_DMThreadReply_HappyPath(t *testing.T) {
 	}
 }
 
-// REG-DM6-005 — thinking 5-pattern 锁链第 9 处 — grep 检查 在 dm_6
+// REG-DM6-005 — thinking 5-pattern 对齐链第 9 处 — grep 检查 在 dm_6
 // production 0 hit (DM-5 第 8 处 + DM-4 第 7 处 + DM-3 第 6 处 + RT-3
-// 第 5 处承袭).
+// 第 5 处).
 func TestDM_NoThinkingPatternInProduction(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
@@ -161,13 +161,13 @@ func TestDM_NoThinkingPatternInProduction(t *testing.T) {
 				return nil
 			}
 			// Only inspect dm_6_* production files (we add 0 today, so this
-			// is reverse守门 against future drift).
+			// is reverse 守门 against future mismatch).
 			if !strings.HasPrefix(base, "dm_6") {
 				return nil
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("DM-6 设计 ③ broken — thinking pattern in %s: %q",
+				t.Errorf("DM-6 设计第 3 条 broken — thinking pattern in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -175,7 +175,7 @@ func TestDM_NoThinkingPatternInProduction(t *testing.T) {
 	}
 }
 
-// REG-DM6-006 — AST 锁链延伸第 15 处.
+// REG-DM6-006 — AST 对齐链延伸第 15 处.
 func TestDM_NoDMThreadQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -194,7 +194,7 @@ func TestDM_NoDMThreadQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 15 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 15 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
