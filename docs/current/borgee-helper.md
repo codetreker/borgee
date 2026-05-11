@@ -30,9 +30,9 @@
 | 子包 | 路径 | 角色 |
 |---|---|---|
 | `acl` | `internal/acl/acl.go` (135) + `_test.go` (118) | Gates action, agent IDs, normalized scope, and grant lookup; grant_type selection stays outside helper ACL |
-| `audit` | `internal/audit/audit.go` (48) + `_test.go` (61) | Five-field audit log (`actor / action / target / when / scope`), byte-identical with HB-1, BPP-4 #499, and HB-3 |
+| `audit` | `internal/audit/audit.go` (48) + `_test.go` (61) | Five-field audit log (`actor / action / target / when / scope`), aligned with HB-1, BPP-4 #499, and HB-3 |
 | `fileio` | `internal/fileio/file_actions.go` (119) + `_test.go` (105) | File read/list proxy actions guarded by both sandbox and acl; write-class IPC is rejected by ACL |
-| `grants` | `internal/grants/grants.go` (97) + `sqlite_consumer.go` (112) + 2 `_test.go` | Read-only SQLite consumer for HB-3 `host_grants`, using exact helper scope values such as `fs:<path>` / `egress:<host>` with SELECT WHERE `agent_id = ? AND scope = ? AND revoked_at IS NULL`; expiration is checked afterward in Go, and revoked rows are treated as not found |
+| `grants` | `internal/grants/grants.go` (97) + `sqlite_consumer.go` (110) + 2 `_test.go` | Read-only SQLite consumer for HB-3 `host_grants`, using exact helper scope values such as `fs:<path>` / `egress:<host>` with SELECT WHERE `agent_id = ? AND scope = ? AND revoked_at IS NULL`; expiration is checked afterward in Go, and revoked rows are treated as not found |
 | `ipc` | `internal/ipc/ipc.go` (181) + `_test.go` (147) | IPC frame server and handshake/routing layer; runtime listener is Unix socket on Linux/macOS |
 | `reasons` | `internal/reasons/reasons.go` (27) + `_test.go` (51) | Denial reason enum (`path_outside_grants` / `grant_expired` / `grant_not_found` 等) shared with locked UI copy |
 | `sandbox` | `internal/sandbox/sandbox_{linux,darwin,windows,other}.go` + `_test.go` | Platform sandbox apply path: Linux Landlock, macOS Seatbelt, Windows AppContainer placeholder |
@@ -45,12 +45,12 @@
 | `e2e/ipc_handshake_test.go` | 167 | Client IPC connection, handshake, and unauthorized caller rejection |
 | `e2e/sandbox_apply_test.go` | 75 | Real sandbox apply coverage through platform build tags |
 
-## 4. 关键产品原则字面 (跟蓝图 byte-identical)
+## 4. 关键产品原则
 
 - **常驻无 sudo** (蓝图 §1.3) — The daemon runs as the dedicated OS user/group `borgee-helper`; install/`borgee-helper.service` keeps the literal `User=borgee-helper Group=borgee-helper`.
 - **forward-only revoke** (蓝图 §2 信任五支柱第 3 条 "可逆卸载"; HB-3 #520 server-go 唯一写路径 stamp `revoked_at` forward-only) — `internal/grants/sqlite_consumer.go` uses one SELECT, and the daemon does not INSERT/UPDATE/DELETE `host_grants`. The only write path is server-go `internal/api/host_grants.go`, documented with [`server/api/host-grants.md`](server/api/host-grants.md) §1.
 - **撤销 < 100ms** (蓝图 host-bridge §1.5 第 5 行 + HB-4 §1.5 release gate 第 5 行) — Grant state is not cached; each file action reads SQLite directly, covered by e2e `sandbox_apply_test.go`.
-- **审计 5 字段同源** (HB-4 §1.5 release gate 第 4 行) — `internal/audit/audit.go` JSON schema fields are byte-identical with HB-1 install audit, BPP-4 dead-letter audit, and HB-3 host-IPC audit. Any schema change must update the four-test alignment chain.
+- **审计 5 字段同源** (HB-4 §1.5 release gate 第 4 行) — `internal/audit/audit.go` JSON schema fields stay aligned with HB-1 install audit, BPP-4 dead-letter audit, and HB-3 host-IPC audit. Any schema change must update the four-test alignment chain.
 
 ## 5. grep 守门 (CI lint)
 

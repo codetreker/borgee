@@ -19,7 +19,7 @@
 //
 // 原则 pins (跟 原则 §0+§1+§2+§3 byte-identical):
 //   - 设计 ① schema 单一来源 — server-go 唯一 INSERT/UPDATE/DELETE 路径; HB-2
-//     daemon (Rust crate) read-only.
+//     daemon (Go module packages/borgee-helper) read-only.
 //   - 设计 ② 字典分立 — 不复用 user_permissions schema (host vs runtime);
 //     grep 检查 `host_grants.*JOIN.*user_permissions` 0 hit.
 //   - 设计 ⑤ ttl_kind 2-enum byte-identical 跟弹窗 UX 字面 (one_shot/always
