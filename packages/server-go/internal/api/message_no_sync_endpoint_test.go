@@ -1,11 +1,11 @@
 // Package api_test — DM-3.1 server cursor sync (复用 RT-1.3, 0 行新增).
 //
 // 设计反查 (跟 dm-3-stance-checklist.md §1):
-//   ① DM cursor 复用 RT-1.3 既有 mechanism, 不开 /dm/sync 旁路 endpoint
-//   ② 多端走 RT-3 fan-out, 不开 dm-only frame
-//   ⑤ server 0 行新增 — grep 检查 + 真路径验证
+//   设计第 1 条 DM cursor 复用 RT-1.3 既有 mechanism, 不开 /dm/sync 旁路 endpoint
+//   设计第 2 条 多端走 RT-3 fan-out, 不开 dm-only frame
+//   设计第 5 条 server 0 行新增 — grep 检查 + 代码行为路径验证
 //
-// 跨 milestone byte-identical 锁: cursor 跟 RT-1 #290 + AL-2b #481 + CV-* +
+// 跨 milestone 字节级一致 锁: cursor 跟 RT-1 #290 + AL-2b #481 + CV-* +
 // BPP-3.1 #494 共一根 sequence (BPP-1 #304 envelope reflect 自动覆盖).
 
 package api_test
@@ -21,11 +21,11 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestDM_NoBypassEndpoint pins 设计 ① — 不开 /api/v1/dm/sync 或
+// TestDM_NoBypassEndpoint pins 设计第 1 条 — 不开 /api/v1/dm/sync 或
 // /dm/cursor 旁路 endpoint. DM messages 走 channel events 同 path.
 //
 // grep 检查 在 server-go internal/api/ + internal/server/ production *.go
-// (除 _test.go), 设计 ⑤ server 0 行新增 守门.
+// (除 _test.go), 设计第 5 条 server 0 行新增 守门.
 func TestDM_NoBypassEndpoint(t *testing.T) {
 	t.Parallel()
 	forbiddenPaths := []string{
@@ -66,11 +66,11 @@ func TestDM_NoBypassEndpoint(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-3 设计 ① broken: bypass endpoint paths found: %v", hits)
+		t.Errorf("DM-3 设计第 1 条 broken: bypass endpoint paths found: %v", hits)
 	}
 }
 
-// TestDM_BackfillIncludesDMChannel pins 设计 ① 行为级 — DM channel
+// TestDM_BackfillIncludesDMChannel pins 设计第 1 条 行为级 — DM channel
 // (type='dm') messages 走 GET /api/v1/channels/{id}/messages?since=<cursor>
 // 同 path 跟 public channel 同源 (复用 RT-1.3 events backfill).
 func TestDM_BackfillIncludesDMChannel(t *testing.T) {
@@ -109,7 +109,7 @@ func TestDM_BackfillIncludesDMChannel(t *testing.T) {
 	_ = s.AddChannelMember(&store.ChannelMember{ChannelID: dm.ID, UserID: agent.ID})
 
 	// Owner posts a message to the DM channel — uses the same channel-messages
-	// endpoint as a public channel. This is the key 设计 ① invariant: no
+	// endpoint as a public channel. This is the key 设计第 1 条 invariant: no
 	// dm-only POST endpoint.
 	resp, body := testutil.JSON(t, "POST",
 		ts.URL+"/api/v1/channels/"+dm.ID+"/messages", ownerToken,
@@ -120,7 +120,7 @@ func TestDM_BackfillIncludesDMChannel(t *testing.T) {
 	}
 
 	// GET /api/v1/channels/{dmID}/messages?since=0 — same backfill path as
-	// public channels. 设计 ① 复用 RT-1.3 cursor sequence.
+	// public channels. 设计第 1 条 复用 RT-1.3 cursor sequence.
 	resp2, body2 := testutil.JSON(t, "GET",
 		ts.URL+"/api/v1/channels/"+dm.ID+"/messages?since=0", ownerToken, nil)
 	if resp2.StatusCode != http.StatusOK {
@@ -133,7 +133,7 @@ func TestDM_BackfillIncludesDMChannel(t *testing.T) {
 	}
 }
 
-// TestDM_NoBypassFrame pins 设计 ② — envelope whitelist 不含 dm-only
+// TestDM_NoBypassFrame pins 设计第 2 条 — envelope whitelist 不含 dm-only
 // frames. grep 检查 production *.go.
 func TestDM_NoBypassFrame(t *testing.T) {
 	t.Parallel()
@@ -171,6 +171,6 @@ func TestDM_NoBypassFrame(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-3 设计 ② broken: dm-only frame literals found: %v", hits)
+		t.Errorf("DM-3 设计第 2 条 broken: dm-only frame literals found: %v", hits)
 	}
 }
