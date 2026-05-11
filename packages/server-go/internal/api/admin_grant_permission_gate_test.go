@@ -6,7 +6,7 @@
 //   1. valid dot-notation (channel.read 等 14 capability 之一) → 200 grant persisted
 //   2. legacy snake_case (read_channel) → 400 invalid_capability (reject)
 //   3. invalid custom literal (admin.god_mode 等) → 400
-//   4. admin god-mode/bypass guard (permission check must use IsValidCapability)
+//   4. capability literal validation is enforced by IsValidCapability
 //
 // Cross-milestone coverage: CAPABILITY-DOT #628 protects backfilled data;
 // this check protects the admin-rail entry point alongside user-rail validation

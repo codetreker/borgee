@@ -2,15 +2,18 @@
 // post-removal ACL checks on PUT/DELETE /api/v1/messages/{id} +
 // PATCH /api/v1/channels/{id}/messages/{id} (DM-4).
 //
-// AP-5 assertions (跟 docs/implementation/modules/ap-5-spec.md §0):
-//  ① 3 handler 各加 IsChannelMember + CanAccessChannel membership checks
+// AP-5 assertions (see docs/implementation/modules/ap-5-spec.md §0):
+//  ① The 3 handlers run IsChannelMember + CanAccessChannel membership checks
 //    after removal.
-//  ② cross-org 403 先于 channel-member 404 (TestCrossOrgRead403 lock).
-//  ③ 既有 sender_id check 不破 (member-but-non-sender 仍 403).
-//  ④ 0 schema 改 + 0 新错码 — 复用 messages.go 既有 "Channel not found".
+//  ② Cross-org access returns 403 before channel membership can return 404
+//    (TestCrossOrgRead403 lock).
+//  ③ The existing sender_id check still rejects member-but-non-sender writes
+//    with 403.
+//  ④ The change reuses the existing schema and the existing messages.go
+//    "Channel not found" error.
 //
-// 跟 AP-4 reactions_acl_test.go 同模式 (AP-4 #551 reactions ACL gap 闭合
-// → AP-5 #553 messages 三 endpoint 闭合).
+// This mirrors the AP-4 reactions_acl_test.go membership coverage: AP-4 #551
+// covered the reactions ACL gap, and AP-5 #553 covers the 3 message endpoints.
 
 package api
 
@@ -72,13 +75,13 @@ func TestAP_DeleteMessage_PostRemovalReject(t *testing.T) {
 }
 
 // TestAP_Member_PutDelete_OK — channel member sender can still
-// PUT/DELETE own message (既有行为不破).
+// PUT/DELETE own message using the existing behavior.
 func TestAP_Member_PutDelete_OK(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := setupFullTestServer(t)
 	adminToken := loginAs(t, ts.URL, "owner@test.com", "password123")
 
-	ch := createCh(t, ts.URL, adminToken, "ap5-member-flow", "public")
+	ch := createCh(t, ts.URL, adminToken, "ap5-sanity", "public")
 	chID := ch["id"].(string)
 	msg := postMsg(t, ts.URL, adminToken, chID, "owned")
 	msgID := msg["id"].(string)
@@ -96,7 +99,7 @@ func TestAP_Member_PutDelete_OK(t *testing.T) {
 
 // TestAP_NonSenderMember_403 — channel member who is NOT the
 // sender still gets 403 from existing sender_id check (sender-only ACL
-// 不破; matches existing PUT/DELETE messages behavior).
+// stays in place and matches existing PUT/DELETE messages behavior).
 func TestAP_NonSenderMember_403(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := setupFullTestServer(t)
@@ -127,7 +130,7 @@ func TestAP_NonSenderMember_403(t *testing.T) {
 
 // TestAP_PatchDM_PostRemovalReject — DM-4 PATCH endpoint after sender
 // removed from DM channel returns 404 (channel-member check, 跟 messages
-// PUT/DELETE 同模式).
+// PUT/DELETE behavior).
 func TestAP_PatchDM_PostRemovalReject(t *testing.T) {
 	t.Parallel()
 	ts, st, _ := setupFullTestServer(t)

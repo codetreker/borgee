@@ -1,14 +1,14 @@
 // Package api_test — chn_5_archived_test.go: CHN-5 channel archived UI
-// 列表 + admin readonly + unarchive system DM 互补二式 acceptance.
+// list behavior, admin readonly behavior, and unarchive system DM acceptance.
 //
 // Pins:
 //
 //	REG-CHN5-001 TestChn5archived_NoSchemaChange — migrations/ 0 新文件
 //	REG-CHN5-002 TestCHN52_ListMyArchived_* — owner-only GET 用户路由
 //	REG-CHN5-003 TestCHN52_AdminListArchived_* — admin readonly
-//	REG-CHN5-004 TestCHN52_UnarchiveFanouts* — unarchive 互补二式
-//	REG-CHN5-005 TestCHN_NoAdminPatchPath — admin god-mode has no PATCH path
-//	REG-CHN5-006 TestCHN_NoChannelArchiveQueue — AST 对齐链 #10
+//	REG-CHN5-004 TestCHN52_UnarchiveFanouts* — unarchive system DM notification
+//	REG-CHN5-005 TestCHN_NoAdminPatchPath — admin API has no PATCH path
+//	REG-CHN5-006 TestCHN_NoChannelArchiveQueue — no archive queue tokens
 package api_test
 
 import (
@@ -26,7 +26,7 @@ import (
 // REG-CHN5-001 — schema unchanged: migrations/ 不出现新 chn_5_*
 // migration file (跟 chn-5-spec.md §1 设计第 1 条 字面单一来源). channels.archived_at
 // 列由 CHN-1.1 #267 既有 (chn_1_1_channels_org_scoped.go) — 此 test 仅守
-// 新增 chn_5_* 文件 0 hit (复用既有列).
+// no new chn_5_* files because the existing column is reused.
 func TestChn5archived_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -131,8 +131,8 @@ func TestCHN_AdminListArchived_RejectsUserRail(t *testing.T) {
 	}
 }
 
-// REG-CHN5-004 — unarchive system DM notification 互补二式 字节级一致 跟
-// content-lock §1 (`channel #{name} 已被 {owner} 恢复于 {ts}`).
+// REG-CHN5-004 — unarchive system DM notification keeps the existing
+// content-lock §1 format (`channel #{name} 已被 {owner} 恢复于 {ts}`).
 func TestCHN_UnarchiveSystemMessageNotification(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -155,7 +155,7 @@ func TestCHN_UnarchiveSystemMessageNotification(t *testing.T) {
 		t.Errorf("expected archived_at nil after unarchive, got %v", updated["archived_at"])
 	}
 
-	// Verify the unarchive system DM emitted with the互补二式 text-lock.
+	// Verify the unarchive system DM emitted with the expected text format.
 	resp, msgs := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+chID+"/messages?limit=10", ownerToken, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list messages: %d", resp.StatusCode)
@@ -178,10 +178,10 @@ func TestCHN_UnarchiveSystemMessageNotification(t *testing.T) {
 	}
 }
 
-// REG-CHN5-005 — admin god-mode has no PATCH path.
+// REG-CHN5-005 — admin API has no PATCH path.
 //
 // grep 检查 `mux\.Handle\("(PATCH|PUT|DELETE).*admin-api/v1/channels/archived`
-// 在 internal/api/+server/ 0 hit (ADM-0 §1.3: admin can read but not modify).
+// must not match in internal/api or internal/server (ADM-0 §1.3: admin can read but not modify).
 func TestCHN_NoAdminPatchPath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
@@ -219,7 +219,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 	}
 }
 
-// REG-CHN5-006 — AST 对齐链延伸第 10 处 forbidden token 0 hit.
+// REG-CHN5-006 — production API code must not introduce archive queue tokens.
 func TestCHN_NoChannelArchiveQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -238,7 +238,7 @@ func TestCHN_NoChannelArchiveQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐链延伸第 10 处 violation — forbidden token %q in %s", tok, p)
+				t.Errorf("archive queue token violation — forbidden token %q in %s", tok, p)
 			}
 		}
 		return nil
