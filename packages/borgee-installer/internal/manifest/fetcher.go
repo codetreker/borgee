@@ -1,14 +1,16 @@
-// Package manifest — HB-1B-INSTALLER manifest fetcher + ed25519 verify.
+// Package manifest - HB-1B-INSTALLER manifest fetcher and ed25519 verifier.
 //
 // Contract: GET HB-1 server endpoint `/api/v1/plugin-manifest` (server-side
-// PluginManifestEntries const slice, hb_1_plugin_manifest.go SSOT) + 真
-// ed25519 detached signature 验签 (反 v0(C) skip).
+// PluginManifestEntries const slice, hb_1_plugin_manifest.go source of truth)
+// and verify the ed25519 detached signature.
 //
-// 7-reason 字典 byte-identical 跟 server-side HB1AllReasons 同源 (跨层
-// 字面拆死 — 改 = 改 server hb_1_plugin_manifest.go + 此 fetcher.go +
-// installer/cmd/* 三处). Drift 守门见 manifest_test.go 反向 grep.
+// The 7-reason dictionary must stay byte-identical with server-side
+// HB1AllReasons. Changes must update server hb_1_plugin_manifest.go, this
+// fetcher.go file, and installer/cmd/* together. manifest_test.go contains the
+// reverse-grep drift check.
 //
-// 反约束: ed25519.Verify 必真, 反 silent skip; bad sig → ReasonManifestSignatureInvalid.
+// Signature verification invariant: ed25519.Verify must run. Bad signatures return
+// ReasonManifestSignatureInvalid instead of being skipped.
 package manifest
 
 import (
@@ -23,8 +25,9 @@ import (
 	"time"
 )
 
-// 7-reason 字典 byte-identical 跟 server-side HB1AllReasons (hb_1_plugin_manifest.go).
-// 跨层 drift 守门: 此 7 字面 + server 7 字面 + REG-HB1B-002 reverse grep test.
+// The 7-reason dictionary must match server-side HB1AllReasons byte-for-byte
+// (hb_1_plugin_manifest.go). REG-HB1B-002 reverse-grep tests cover these 7
+// literals and the server-side 7 literals.
 const (
 	ReasonOK                       = "ok"
 	ReasonManifestSignatureInvalid = "manifest_signature_invalid"
@@ -35,7 +38,7 @@ const (
 	ReasonUnknownPlugin            = "unknown_plugin"
 )
 
-// AllReasons 7-tuple 用于 reverse-grep drift 守门.
+// AllReasons lists the 7 values used by the reverse-grep drift check.
 var AllReasons = []string{
 	ReasonOK,
 	ReasonManifestSignatureInvalid,
@@ -80,8 +83,8 @@ func (e *FetchError) Error() string {
 
 func (e *FetchError) Unwrap() error { return e.Err }
 
-// Fetch performs HTTP GET against HB-1 server endpoint + decodes envelope.
-// Returns 7-dict ReasonManifestFetchFailed on transport / decode error.
+// Fetch performs HTTP GET against the HB-1 server endpoint and decodes the
+// envelope. It returns ReasonManifestFetchFailed on transport or decode errors.
 func Fetch(ctx context.Context, client *http.Client, endpoint, bearerToken string) (*Envelope, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
@@ -116,9 +119,9 @@ func Fetch(ctx context.Context, client *http.Client, endpoint, bearerToken strin
 }
 
 // CanonicalSignedBytes returns the byte sequence that the server signs:
-// JSON of {entries, signed_at} byte-identical with server canonicalization
-// (sort entries by ID + json.Marshal stable). 跟 server hb_1_plugin_manifest.go
-// SignManifestPayload 同源.
+// JSON of {entries, signed_at}, matching server canonicalization byte-for-byte
+// (entries sorted by ID and stable json.Marshal output). Keep this in sync with
+// server hb_1_plugin_manifest.go SignManifestPayload.
 func CanonicalSignedBytes(env *Envelope) ([]byte, error) {
 	type signedShape struct {
 		Entries  []PluginEntry `json:"entries"`
@@ -127,8 +130,8 @@ func CanonicalSignedBytes(env *Envelope) ([]byte, error) {
 	return json.Marshal(signedShape{Entries: env.Entries, SignedAt: env.SignedAt})
 }
 
-// Verify 验 ed25519 detached signature against public key.
-// Bad sig → FetchError{Reason: ReasonManifestSignatureInvalid}. 反 v0(C) skip.
+// Verify checks the ed25519 detached signature against the public key. Bad
+// signatures return FetchError{Reason: ReasonManifestSignatureInvalid}.
 func Verify(env *Envelope, pubKey ed25519.PublicKey) error {
 	if env == nil {
 		return &FetchError{Reason: ReasonManifestSignatureInvalid, Err: errors.New("nil envelope")}

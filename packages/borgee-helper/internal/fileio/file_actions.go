@@ -1,12 +1,15 @@
-// Package fileio — HB-2 v0(D) 真 IO actions (read_file / list_files).
-// 替代 v0(C) 仅 ACL 决策 stub. landlock LSM 守门 (Linux) 已限路径白名单,
-// 越界 read open() 真 EACCES; 此层仅做 max_bytes 限 + JSON-friendly 序列化.
+// Package fileio - HB-2 v0(D) real IO actions (read_file / list_files).
+// It replaces the v0(C) ACL-only placeholder. On Linux, Landlock LSM already
+// limits access to the allowed path list, so out-of-scope reads fail at open()
+// with EACCES. This layer only enforces max_bytes and JSON-friendly
+// serialization.
 //
-// hb-2-v0d-spec.md §0.2: read_file 真走 os.ReadFile (max_bytes 限);
-// list_files 真走 os.ReadDir (entry 数限).
+// hb-2-v0d-spec.md §0.2: read_file uses real file reads with a max_bytes
+// limit; list_files uses os.ReadDir with an entry-count limit.
 //
-// 反向约束: grep 检查 `os\.WriteFile|os\.Create|os\.Remove` 在本包 0 hit
-// (read-only domain, 写类 100% reject 由 ACL 层 + landlock 双守).
+// Read-only invariant: grep must find no `os\.WriteFile|os\.Create|os\.Remove` matches
+// in this package. This is a read-only domain; write attempts are rejected by
+// the ACL layer and Landlock.
 
 package fileio
 
@@ -17,38 +20,38 @@ import (
 	"os"
 )
 
-// ReadFileResult is read_file action 返回数据.
+// ReadFileResult is the result returned by the read_file action.
 type ReadFileResult struct {
-	Bytes     []byte `json:"bytes"`     // raw file content (max_bytes 截断)
-	Truncated bool   `json:"truncated"` // 是否被 max_bytes 截断
-	Size      int64  `json:"size"`      // 真文件大小 (caller 决定要不要重读)
+	Bytes     []byte `json:"bytes"`     // raw file content, capped by max_bytes
+	Truncated bool   `json:"truncated"` // true when max_bytes capped the content
+	Size      int64  `json:"size"`      // real file size; caller decides whether to retry
 }
 
-// ListFilesResult is list_files action 返回数据.
+// ListFilesResult is the result returned by the list_files action.
 type ListFilesResult struct {
 	Entries   []DirEntry `json:"entries"`
-	Truncated bool       `json:"truncated"` // 是否被 max_entries 截断
+	Truncated bool       `json:"truncated"` // true when max_entries capped the list
 }
 
-// DirEntry 是 list_files 单条记录.
+// DirEntry is one list_files result entry.
 type DirEntry struct {
 	Name  string `json:"name"`
 	IsDir bool   `json:"is_dir"`
 	Size  int64  `json:"size"`
 }
 
-// MaxReadBytes 是 read_file 单 call 上限 (反 DoS, daemon 内存膨胀).
+// MaxReadBytes is the per-call read_file limit, preventing excessive daemon memory use.
 const MaxReadBytes = 16 * 1024 * 1024 // 16 MiB
 
-// MaxListEntries 是 list_files 单 call 上限.
+// MaxListEntries is the per-call list_files entry limit.
 const MaxListEntries = 1000
 
-// ErrPathDenied — 路径被 sandbox/landlock reject (caller 走 IO_FAILED reason).
+// ErrPathDenied means the sandbox or Landlock denied the path.
 var ErrPathDenied = errors.New("path denied by sandbox")
 
-// ReadFile 真读 absolute path. caller 应保证 ACL gate 已 pass (此层不重做 ACL).
-// max_bytes 0 表用 MaxReadBytes default; 超过 MaxReadBytes 的 max_bytes 也被
-// 截到 MaxReadBytes (反 caller 绕过限).
+// ReadFile reads an absolute path. The caller must already have passed the ACL
+// check; this layer does not repeat it. max_bytes 0 uses MaxReadBytes, and any
+// value above MaxReadBytes is capped to MaxReadBytes.
 func ReadFile(path string, maxBytes int64) (*ReadFileResult, error) {
 	if maxBytes == 0 || maxBytes > MaxReadBytes {
 		maxBytes = MaxReadBytes
@@ -86,7 +89,7 @@ func ReadFile(path string, maxBytes int64) (*ReadFileResult, error) {
 	}, nil
 }
 
-// ListFiles 真读 directory. caller 应保证 ACL gate 已 pass.
+// ListFiles reads a directory. The caller must already have passed the ACL check.
 func ListFiles(path string) (*ListFilesResult, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {

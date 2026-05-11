@@ -1,13 +1,13 @@
-// Package dialog — HB-1B-INSTALLER permission popup UX.
+// Package dialog - HB-1B-INSTALLER permission dialog UX.
 //
-// Per hb-1b-installer-spec §0.2 必修-3: 4 grant_type 字面 byte-identical
-// 跟 HB-3 #520 host_grants schema CHECK enum (read/write/exec/network).
-// 改 = 改 server migration host_grants v=24 CHECK constraint + 此 GrantTypes
-// 单源.
+// Per hb-1b-installer-spec §0.2 required item 3: the 4 grant_type literals must
+// stay byte-identical with the HB-3 #520 host_grants schema CHECK enum
+// (read/write/exec/network). Any change must also update the server migration
+// host_grants v=24 CHECK constraint and this GrantTypes source.
 //
-// 真 dialog 路径走 platform-native (Linux: zenity / kdialog, macOS: osascript)
-// — 走 os/exec 弹窗. 单元测试走 Confirm io.Reader/Writer 注入 seam (反 GUI
-// 阻塞).
+// Real dialog paths use platform-native tools through os/exec: zenity or kdialog
+// on Linux, and osascript on macOS. Unit tests use Confirm with injected
+// io.Reader/io.Writer values so they do not block on GUI prompts.
 package dialog
 
 import (
@@ -17,8 +17,9 @@ import (
 	"strings"
 )
 
-// GrantTypes 4-tuple SSOT byte-identical 跟 HB-3 #520 host_grants CHECK enum.
-// 改 = 改 server migrations + 此 slice + REG-HB1B-005 reverse grep.
+// GrantTypes is the four-value source of truth matching the HB-3 #520
+// host_grants CHECK enum byte-for-byte. Changes must update server migrations,
+// this slice, and the REG-HB1B-005 reverse-grep check.
 var GrantTypes = []string{
 	"read",
 	"write",
@@ -26,9 +27,10 @@ var GrantTypes = []string{
 	"network",
 }
 
-// PromptText 渲染 native dialog body — 列 4 grant_type + 用户 explicit confirm.
-// reverse-grep `grant_type.*read|grant_type.*write|grant_type.*exec|grant_type.*network`
-// 在 dialog.go ≥4 hit (REG-HB1B-005).
+// PromptText renders the native dialog body with all 4 grant_type values and an
+// explicit user confirmation. REG-HB1B-005 reverse-grep checks for
+// `grant_type.*read|grant_type.*write|grant_type.*exec|grant_type.*network` in
+// dialog.go.
 func PromptText() string {
 	var b strings.Builder
 	b.WriteString("Borgee Helper 安装 — 权限确认\n\n")
@@ -49,8 +51,9 @@ func PromptText() string {
 	return b.String()
 }
 
-// Confirm 走 io.Reader/Writer seam — 真 installer cmd/* 走 os.Stdin/Stdout
-// 包 native dialog wrapper. 单元测试走 strings.Reader 注入.
+// Confirm uses injected io.Reader/io.Writer values. Real installer cmd/* paths
+// pass os.Stdin/Stdout through the native dialog wrapper, while unit tests pass
+// strings.Reader values.
 func Confirm(in io.Reader, out io.Writer) (bool, error) {
 	if _, err := fmt.Fprint(out, PromptText()); err != nil {
 		return false, err
