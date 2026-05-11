@@ -2,7 +2,7 @@
 
 // TEST-FIX-3 race_heavy build tag isolation:
 //
-// 为何走 build tag (而不是默认跑 / 不拆独立 package):
+// 为何使用 build tag (而不是默认跑 / 不拆独立 package):
 //
 //  1. race-heavy serialize 长 — TestClosedStoreInternalErrorBranches 11 sub-test
 //     各自启 in-memory sqlite + httptest server + migrate (本地 race 5-7s,
@@ -14,8 +14,8 @@
 //     (AdminHandler / AgentHandler / ChannelHandler ... 11 个) 都是
 //     同 package 不导出, 拆 package 需大量 export 改 (违封装, drift 风险).
 //
-//  3. 不全局 bump 主 race timeout 180s — 全局 bump 是 mask, 真因
-//     (race-heavy sub-test 集中) 应隔离不应吞下. 保留主路径 90s 严格阈值
+//  3. 不全局 bump 主 race timeout 180s — 全局 bump 只会掩盖问题, 根因
+//     (race-heavy sub-test 集中) 应隔离处理. 保留主路径 90s 严格阈值
 //     是 race regression 早期信号 (新 leak 出现立即 timeout 暴露).
 //
 // 跑法:
@@ -25,10 +25,10 @@
 // CI sub-job (.github/workflows/ci.yml::go-test-race-heavy) 单独跑此 tag,
 // 跟主 race job 并行 (不互拖). 跟主 race job 加起来覆盖度等同既有.
 //
-// 跨 milestone 锁链:
+// 跨 milestone 对齐点:
 //   - 复用 TEST-FIX-2 #608 既有 server.New(ctx) ctor (ctx-aware shutdown)
 //   - 复用 testfixture_test.go 共享 fixture (newClosedStoreTestServer helper)
-//   - byte-identical 迁移 (从 error_branches_test.go 整段挪来, 0 行为改)
+//   - 整段迁移自 error_branches_test.go, 0 行为改
 
 package api
 
@@ -92,8 +92,8 @@ func TestClosedStoreInternalErrorBranches(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc // capture loop var for parallel sub-test
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel() // TEST-FIX-2: 11 sub-test 各启独立 in-memory store + httptest, 互不依赖, 走 parallel 把 race 总耗时从 ~30s 串行降到 ~3s 并发 (CI runner 慢需要双重加速). 跟 TEST-FIX-1 #596 同精神, 与 ctx-aware leak fix 互补.
-			// TEST-FIX-3 设计 ②: 走 SSOT helper newTestServerWithClosedStore
+			t.Parallel() // TEST-FIX-2: 11 sub-test 各启独立 in-memory store + httptest, 互不依赖, 用 parallel 把 race 总耗时从 ~30s 串行降到 ~3s 并发 (CI runner 慢需要双重加速). 跟 TEST-FIX-1 #596 同一思路, 与 ctx-aware leak fix 互补.
+			// TEST-FIX-3 设计 ②: 使用 SSOT helper newTestServerWithClosedStore
 			// (testfixture_test.go) 替代 inline boilerplate; helper 内置 ctx-aware
 			// 双保险 (t.Context() + WithCancel + t.Cleanup), 反 #608 leak 复发.
 			_, ts, s, cfg := newTestServerWithClosedStore(t)

@@ -9,7 +9,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestAL_GetStateLog_OwnerSeesAgentHistory pins acceptance §read path —
+// TestAL_GetStateLog_OwnerSeesAgentHistory 覆盖 acceptance §read path —
 // owner GET returns DESC ts ordered transitions for own agent.
 func TestAL_GetStateLog_OwnerSeesAgentHistory(t *testing.T) {
 	t.Parallel()
@@ -67,7 +67,7 @@ func TestAL_GetStateLog_OwnerSeesAgentHistory(t *testing.T) {
 	_ = owner
 }
 
-// TestAL_GetStateLog_NonOwnerRejected pins 设计 ① owner-only ACL — non-owner
+// TestAL_GetStateLog_NonOwnerRejected 验证设计 ① owner-only ACL — non-owner
 // → 403.
 func TestAL_GetStateLog_NonOwnerRejected(t *testing.T) {
 	t.Parallel()
@@ -92,7 +92,7 @@ func TestAL_GetStateLog_NonOwnerRejected(t *testing.T) {
 	_ = s
 }
 
-// TestAL_GetStateLog_UnauthenticatedReturns401 pins user-rail auth gate.
+// TestAL_GetStateLog_UnauthenticatedReturns401 验证 user-rail auth gate.
 func TestAL_GetStateLog_UnauthenticatedReturns401(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -104,7 +104,7 @@ func TestAL_GetStateLog_UnauthenticatedReturns401(t *testing.T) {
 	}
 }
 
-// TestAL_GetStateLog_AgentNotFound pins 404 path.
+// TestAL_GetStateLog_AgentNotFound 验证 404 path.
 func TestAL_GetStateLog_AgentNotFound(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -117,7 +117,7 @@ func TestAL_GetStateLog_AgentNotFound(t *testing.T) {
 	}
 }
 
-// TestAL_GetStateLog_NonAgentRejected pins 设计 ① — calling state-log
+// TestAL_GetStateLog_NonAgentRejected 验证设计 ① — calling state-log
 // on a non-agent user (e.g., another human) → 404 (we treat as not-found
 // rather than leak that the id is a user).
 func TestAL_GetStateLog_NonAgentRejected(t *testing.T) {

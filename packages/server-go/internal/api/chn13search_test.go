@@ -1,13 +1,13 @@
 // Package api_test — chn_13_search_test.go: CHN-13 server search filter
-// + grep 检查守门 (CHN-13 仅 server LIKE filter + client SPA; 0 schema 改).
+// + grep 检查 (CHN-13 仅 server LIKE filter + client SPA; 0 schema 改).
 //
-// Pins:
+// 覆盖的检查点:
 //   REG-CHN13-001 TestChn13search_NoSchemaChange (filepath.Walk migrations/)
-//   REG-CHN13-002 TestCHN_ListChannelsWithQuery (q="" byte-identical
+//   REG-CHN13-002 TestCHN_ListChannelsWithQuery (q="" 与既有响应一致
 //                  + q="match" 子串过滤)
 //   REG-CHN13-003 TestCHN_QueryCaseInsensitive + QuerySubstringMatch
-//   REG-CHN13-004 TestCHN_NoSearchQueue (AST 锁链延伸第 21 处)
-//   REG-CHN13-005 TestCHN_NoAdminSearchPath (admin god-mode 不挂)
+//   REG-CHN13-004 TestCHN_NoSearchQueue (AST 对齐检查第 21 处)
+//   REG-CHN13-005 TestCHN_NoAdminSearchPath (admin 权限不挂)
 package api_test
 
 import (
@@ -33,12 +33,12 @@ func TestChn13search_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "chn_13_") {
-			t.Errorf("CHN-13 设计 ① broken — found schema migration %q (must be 0 schema, 复用 channels 既有表)", e.Name())
+			t.Errorf("CHN-13 设计 ①检查失败 — found schema migration %q (must be 0 schema, 复用 channels 既有表)", e.Name())
 		}
 	}
 }
 
-// REG-CHN13-002 — GET /api/v1/channels?q= happy + 空 q byte-identical.
+// REG-CHN13-002 — GET /api/v1/channels?q= happy + 空 q 与既有响应一致.
 func TestCHN_ListChannelsWithQuery(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -60,7 +60,7 @@ func TestCHN_ListChannelsWithQuery(t *testing.T) {
 		}
 	}
 
-	// Empty q — full list (byte-identical 跟既有 path).
+	// Empty q — full list (跟既有 path 响应一致).
 	resp, body := testutil.JSON(t, http.MethodGet,
 		ts.URL+"/api/v1/channels", ownerToken, nil)
 	if resp.StatusCode != http.StatusOK {
@@ -150,7 +150,7 @@ func TestCHN_QuerySubstringMatch(t *testing.T) {
 	}
 }
 
-// REG-CHN13-004 — AST 锁链延伸第 21 处 forbidden 3 token.
+// REG-CHN13-004 — AST 对齐检查第 21 处 forbidden 3 token.
 func TestCHN_NoSearchQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -169,14 +169,14 @@ func TestCHN_NoSearchQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 21 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐检查第 21 处失败 — token %q in %s", tok, p)
 			}
 		}
 		return nil
 	})
 }
 
-// REG-CHN13-005 — admin god-mode 不挂 search ?q= path (ADM-0 §1.3 红线;
+// REG-CHN13-005 — admin 权限不挂 search ?q= path (ADM-0 §1.3 限制;
 // search 是 user-rail filter, admin /admin-api/v1/channels 既有列表已含
 // 全 org, 不需要另外 search).
 func TestCHN_NoAdminSearchPath(t *testing.T) {
@@ -193,7 +193,7 @@ func TestCHN_NoAdminSearchPath(t *testing.T) {
 			}
 			fb, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("CHN-13 admin god-mode broken — admin-rail search path in %s: %q",
+				t.Errorf("CHN-13 admin 权限检查失败 — admin-rail search path in %s: %q",
 					p, fb[loc[0]:loc[1]])
 			}
 			return nil

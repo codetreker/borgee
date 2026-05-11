@@ -11,9 +11,9 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestAL_Recover_Owner_HappyPath pins acceptance §2.1 — owner POST recovers
+// TestAL_Recover_Owner_HappyPath 覆盖 acceptance §2.1 — owner POST recovers
 // agent from error → online via AL-1 #492 single-gate helper, returns 200
-// with reason carried forward (REFACTOR-REASONS #496 SSOT 同源).
+// with reason carried forward (REFACTOR-REASONS #496 SSOT 同一设计).
 func TestAL_Recover_Owner_HappyPath(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -63,7 +63,7 @@ func TestAL_Recover_Owner_HappyPath(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_NonOwnerRejected pins 设计 ② owner-only ACL — non-owner → 403.
+// TestAL_Recover_NonOwnerRejected 验证设计 ② owner-only ACL — non-owner → 403.
 func TestAL_Recover_NonOwnerRejected(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -86,7 +86,7 @@ func TestAL_Recover_NonOwnerRejected(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_Unauthenticated401 pins user-rail auth gate.
+// TestAL_Recover_Unauthenticated401 验证 user-rail auth gate.
 func TestAL_Recover_Unauthenticated401(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -97,7 +97,7 @@ func TestAL_Recover_Unauthenticated401(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_AgentNotFound pins 404 path (跟 AL-1 #492 state-log endpoint 同).
+// TestAL_Recover_AgentNotFound 验证 404 path (跟 AL-1 #492 state-log endpoint 同).
 func TestAL_Recover_AgentNotFound(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -109,7 +109,7 @@ func TestAL_Recover_AgentNotFound(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_NotInErrorStateConflict pins 设计 ② state machine gate —
+// TestAL_Recover_NotInErrorStateConflict 验证设计 ② state machine gate —
 // agent must currently be in `error` state to recover; otherwise 409.
 func TestAL_Recover_NotInErrorStateConflict(t *testing.T) {
 	t.Parallel()
@@ -137,7 +137,7 @@ func TestAL_Recover_NotInErrorStateConflict(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_NoStateLogConflict pins behavior — agent without any
+// TestAL_Recover_NoStateLogConflict 验证 behavior — agent without any
 // state-log history cannot recover (no error to recover from); 409.
 func TestAL_Recover_NoStateLogConflict(t *testing.T) {
 	t.Parallel()
@@ -159,8 +159,8 @@ func TestAL_Recover_NoStateLogConflict(t *testing.T) {
 	}
 }
 
-// TestAL_Recover_AdminAPINotMounted pins ADM-0 §1.3 红线 — admin god-mode
-// 不挂业务 recovery 路径 (跟 AL-2a admin path 同精神).
+// TestAL_Recover_AdminAPINotMounted 验证 ADM-0 §1.3 限制 — admin 权限
+// 不挂业务 recovery 路径 (跟 AL-2a admin path 同一检查思路).
 func TestAL_Recover_AdminAPINotMounted(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -170,6 +170,6 @@ func TestAL_Recover_AdminAPINotMounted(t *testing.T) {
 	// Either 404 (route not mounted) or 401/403 — anything but 200 confirms
 	// the admin rail does NOT mount this endpoint.
 	if resp.StatusCode == http.StatusOK {
-		t.Errorf("admin-api MUST NOT mount /recover (ADM-0 §1.3 红线): got 200")
+		t.Errorf("admin-api MUST NOT mount /recover (ADM-0 §1.3 限制): got 200")
 	}
 }

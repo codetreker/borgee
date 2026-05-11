@@ -1,12 +1,12 @@
 // Package api_test — adm_2_2_endpoints_test.go: ADM-2.2 user-rail audit list
 // + impersonate grant CRUD + admin-rail audit log endpoints.
 //
-// Acceptance pins:
+// 覆盖的验收项:
 //   - §行为不变量 4.1.c — user 只见自己 (跨业主 inject 防线: ?target_user_id 忽略)
 //   - §行为不变量 4.1.d — admin 之间互可见; user cookie 调 admin-api 401
 //   - §impersonate 红横幅 4.2.a — GET / POST / DELETE /me/impersonation-grant
 //     语义 + 24h cooldown reject duplicate
-//   - 设计 ⑤ forward-only — audit 不可改写 (CI grep 锁; 测试不直接打 SQL)
+//   - 设计 ⑤ forward-only — audit 不可改写 (CI grep 检查; 测试不直接打 SQL)
 package api_test
 
 import (
@@ -29,7 +29,7 @@ func seedADM2(t *testing.T, s *store.Store, actorID, targetUserID, action string
 	return id
 }
 
-// TestADM_GetMyAdminActions_ScopedToTargetUser pins acceptance 4.1.c — user
+// TestADM_GetMyAdminActions_ScopedToTargetUser 覆盖 acceptance 4.1.c — user
 // 调 GET /me/admin-actions 只见自己 (target_user_id == current).
 func TestADM_GetMyAdminActions_ScopedToTargetUser(t *testing.T) {
 	t.Parallel()
@@ -64,12 +64,12 @@ func TestADM_GetMyAdminActions_ScopedToTargetUser(t *testing.T) {
 		// user-rail must NOT expose actor_id raw (sanitizeAdminAction
 		// admin_view=false omits actor_id).
 		if _, has := row["actor_id"]; has {
-			t.Error("user-rail GET should not expose raw actor_id (反约束 ADM2-NEG-001)")
+			t.Error("user-rail GET should not expose raw actor_id (反向检查 ADM2-NEG-001)")
 		}
 	}
 }
 
-// TestADM_GetMyAdminActions_IgnoresTargetUserIDInjection pins acceptance
+// TestADM_GetMyAdminActions_IgnoresTargetUserIDInjection 覆盖 acceptance
 // §行为不变量 4.1.c 反向: ?target_user_id=other 参数被忽略, 只见自己.
 func TestADM_GetMyAdminActions_IgnoresTargetUserIDInjection(t *testing.T) {
 	t.Parallel()
@@ -94,7 +94,7 @@ func TestADM_GetMyAdminActions_IgnoresTargetUserIDInjection(t *testing.T) {
 	_ = owner
 }
 
-// TestADM_GetAdminAuditLog_FullVisibility pins acceptance 4.1.d — admin
+// TestADM_GetAdminAuditLog_FullVisibility 覆盖 acceptance 4.1.d — admin
 // /admin-api/v1/audit-log 互可见 (所有 admin 行).
 func TestADM_GetAdminAuditLog_FullVisibility(t *testing.T) {
 	t.Parallel()
@@ -123,7 +123,7 @@ func TestADM_GetAdminAuditLog_FullVisibility(t *testing.T) {
 	}
 }
 
-// TestADM_GetAdminAuditLog_FilterByActor pins ?actor_id=foo filter
+// TestADM_GetAdminAuditLog_FilterByActor 覆盖 ?actor_id=foo filter
 // (admin SPA UI 收敛, 不影响设计 ③ 互可见默认).
 func TestADM_GetAdminAuditLog_FilterByActor(t *testing.T) {
 	t.Parallel()
@@ -144,8 +144,8 @@ func TestADM_GetAdminAuditLog_FilterByActor(t *testing.T) {
 	}
 }
 
-// TestADM_AdminAuditLog_UserCookieRejected pins REG-ADM0-002 共享底线 +
-// 设计 ⑥ admin/user 二轨拆死: user cookie 调 /admin-api/v1/audit-log → 401.
+// TestADM_AdminAuditLog_UserCookieRejected 覆盖 REG-ADM0-002 共享底线 +
+// 设计 ⑥ admin/user 二轨严格分离: user cookie 调 /admin-api/v1/audit-log → 401.
 func TestADM_AdminAuditLog_UserCookieRejected(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -157,8 +157,8 @@ func TestADM_AdminAuditLog_UserCookieRejected(t *testing.T) {
 	}
 }
 
-// TestADM_GetMyImpersonateGrant_NoneReturnsNullGrant pins acceptance
-// §4.2.a — 无 grant GET 返 200 + grant=null (client BannerImpersonate 走此
+// TestADM_GetMyImpersonateGrant_NoneReturnsNullGrant 覆盖 acceptance
+// §4.2.a — 无 grant GET 返 200 + grant=null (client BannerImpersonate 使用此
 // 决定不渲染红横幅).
 func TestADM_GetMyImpersonateGrant_NoneReturnsNullGrant(t *testing.T) {
 	t.Parallel()
@@ -174,7 +174,7 @@ func TestADM_GetMyImpersonateGrant_NoneReturnsNullGrant(t *testing.T) {
 	}
 }
 
-// TestADM_PostImpersonateGrant_24hExpiry pins acceptance §4.2.a — POST 创
+// TestADM_PostImpersonateGrant_24hExpiry 覆盖 acceptance §4.2.a — POST 创
 // 24h grant, expires_at - granted_at = 24h ms.
 func TestADM_PostImpersonateGrant_24hExpiry(t *testing.T) {
 	t.Parallel()
@@ -197,7 +197,7 @@ func TestADM_PostImpersonateGrant_24hExpiry(t *testing.T) {
 	}
 }
 
-// TestADM_PostImpersonateGrant_RejectsActiveDuplicate pins 设计 ⑦ 业主
+// TestADM_PostImpersonateGrant_RejectsActiveDuplicate 验证设计 ⑦ 业主
 // cooldown — 24h 期内 grant 已存在 → 409 grant_already_active.
 func TestADM_PostImpersonateGrant_RejectsActiveDuplicate(t *testing.T) {
 	t.Parallel()
@@ -214,7 +214,7 @@ func TestADM_PostImpersonateGrant_RejectsActiveDuplicate(t *testing.T) {
 	}
 }
 
-// TestADM_DeleteImpersonateGrant_RevokesActiveGrant pins acceptance §4.2.a
+// TestADM_DeleteImpersonateGrant_RevokesActiveGrant 覆盖 acceptance §4.2.a
 // 业主撤销路径.
 func TestADM_DeleteImpersonateGrant_RevokesActiveGrant(t *testing.T) {
 	t.Parallel()
@@ -246,7 +246,7 @@ func TestADM_DeleteImpersonateGrant_RevokesActiveGrant(t *testing.T) {
 	}
 }
 
-// TestADM_AdminActions_UserUnauthenticatedReturns401 pins user-rail auth
+// TestADM_AdminActions_UserUnauthenticatedReturns401 验证 user-rail auth
 // gate — 无 cookie GET 返 401.
 func TestADM_AdminActions_UserUnauthenticatedReturns401(t *testing.T) {
 	t.Parallel()

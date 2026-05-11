@@ -1,11 +1,11 @@
 // Package api_test — preview_test.go: CV-2 v2 acceptance tests for the
 // POST /api/v1/artifacts/:id/preview endpoint (Phase 5, #cv-2-v2).
 //
-// Stance pins exercised:
+// 覆盖的设计约束:
 //   - ① owner-only ACL (admin → 401, non-owner → 403).
-//   - ② preview_url MUST be https — XSS 红线第一道, 反约束 javascript: /
+//   - ② preview_url MUST be https — XSS 第一层检查, 反向检查 javascript: /
 //     data: / http: / file: 全 reject.
-//   - ③ kind 闸 — 仅 image_link / video_link / pdf_link 才能 generate
+//   - ③ kind 检查 — 仅 image_link / video_link / pdf_link 才能 generate
 //     preview; markdown / code → 400 preview.kind_not_previewable.
 package api_test
 
@@ -111,7 +111,7 @@ func TestCV_PreviewNonOwner403(t *testing.T) {
 	}
 }
 
-// REG-CV2V2-004 (acceptance §1.3 https-only XSS 红线) — non-https
+// REG-CV2V2-004 (acceptance §1.3 https-only XSS 检查) — non-https
 // schemes rejected: javascript: / data: / http: / file: / scheme-relative.
 func TestCV_PreviewURLHttpsOnly(t *testing.T) {
 	t.Parallel()
