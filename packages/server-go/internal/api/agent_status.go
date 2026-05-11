@@ -51,7 +51,7 @@ import (
 // Explicit non-goals:
 //   - Do not expose PATCH /status. Design ② makes BPP the only write source;
 //     admins cannot bypass it. This matches the AL-4.2 admin restriction and
-//     ADM-0 ⑦ boundary.
+//     the invariant that admins must not bypass BPP-driven status updates.
 //   - Do not return a raw `last_error_reason` field. Admin responses also
 //     return only the short reason code, matching AL-4.1 schema
 //     NoLLMOrPresenceColumns.

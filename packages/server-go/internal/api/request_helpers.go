@@ -6,7 +6,7 @@
 // reason codes (agent_config / chn_8 / layout / host_grants /
 // push_subscriptions / chn_10) keep their inline form because those reason
 // codes are part of the public contract and must remain byte-identical
-// (non-goal §0 #1).
+// with their existing API responses.
 //
 // Caller list for the canonical response shape only:
 //   - auth.go (login/register/recover password — "Invalid JSON")
@@ -15,7 +15,8 @@
 //
 // Search checks after the refactor:
 //   - `decodeJSON(` has exactly one definition in this file.
-//   - the canonical response shape has zero remaining inline call sites.
+//   - `writeJSONError(w, http.StatusBadRequest, "Invalid JSON")` has zero
+//     remaining inline call sites outside request_helpers.go.
 
 package api
 
