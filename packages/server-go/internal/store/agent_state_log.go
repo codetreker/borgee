@@ -4,7 +4,7 @@
 // idle / error). 跟 AL-1a #249 三态 stub + AL-1b #453/#457 5-state busy/idle
 // 同源 — 此模块是 server reducer + audit log 真接管.
 //
-// State graph (蓝图 §2.3 字面 + AL-1b 立场 ② state machine 单源):
+// State graph (蓝图 §2.3 字面 + AL-1b 设计 ② state machine 单一来源):
 //
 //   ''        ──→ online           (首次 presence track)
 //   ''        ──→ offline          (首次 presence offline, e.g. seed)
@@ -22,7 +22,7 @@
 //   error     ──→ offline          (presence offline 错误清不掉)
 //   offline   ──→ online           (presence track online recovery)
 //
-// 反向 (invalid):
+// 禁止 (invalid):
 //   - online ↛ online (no-op transition rejected)
 //   - busy ↛ online (must go through idle/error/offline first; busy 是
 //     task-bound, 不能直接掉回 online without state lifecycle)
@@ -30,14 +30,14 @@
 //   - error → busy/idle (must Clear → online first)
 //   - offline → busy/idle/error (presence-gated; must online first)
 //
-// 立场 ① forward-only — log 不可改写 (UPDATE/DELETE 路径不存在); 错误录入
-// 只能再写新行. 跟 admin_actions ADM-2.1 立场 ⑤ 同精神.
-// 立场 ② state machine 单源 — ValidateTransition 是唯一 gate, 不开
+// 约束 ① forward-only — log 不可改写 (UPDATE/DELETE 路径不存在); 错误录入
+// 只能再写新行. 跟 admin_actions ADM-2.1 约束 ⑤ 同精神.
+// 约束 ② state machine 单一来源 — ValidateTransition 是唯一 gate, 不开
 // `setState(any, any)` 旁路 (反向 grep `agent_state_log.*INSERT.*VALUES`
 // 在非 helper 路径 count==0).
-// 立场 ③ task-driven — busy/idle 转移必带 task_id (蓝图 §2.3 row 2 字面);
+// 约束 ③ task-driven — busy/idle 转移必带 task_id (蓝图 §2.3 row 2 字面);
 // presence 转移 (online/offline/error) task_id 留空.
-// 立场 ④ reason 复用 AL-1a 6 字面 — 此模块是第 8 处单测锁链 (#249 + #305 +
+// 约束 ④ reason 复用 AL-1a 6 字面 — 此模块是第 8 处单测对齐位 (#249 + #305 +
 // #321 + #380 + #454 + #458 + #481 + 此).
 package store
 
@@ -92,7 +92,7 @@ var validTransitions = map[AgentState]map[AgentState]bool{
 	},
 }
 
-// AL-1a 6 reason byte-identical (改 = 改 8 处单测锁链同源, 跟
+// AL-1a 6 reason byte-identical (改 = 改 8 处单测对齐位同源, 跟
 // internal/agent/state.go::Reason* 字面). 此模块是第 8 处.
 var validReasons = map[string]bool{
 	"api_key_invalid":     true,
@@ -106,13 +106,13 @@ var validReasons = map[string]bool{
 // ValidateTransition is the single gate for agent state transitions.
 // Returns nil if (from, to) is in the valid graph; otherwise descriptive error.
 //
-// 立场 ② state machine 单源 — 所有 server-side state set must go through
+// 设计 ② state machine 单一来源 — 所有 server-side state set must go through
 // this function (反向: 调 SetAgentState* 旁路写 log 不通过此 validator
 // 是 bug, CI grep `agent_state_log.*INSERT` 应仅在 helper 路径).
 func ValidateTransition(from, to AgentState, reason string) error {
 	// Same-state → reject (lossy/duplicate).
 	if from == to {
-		return fmt.Errorf("invalid transition: same state %q (no-op rejected, 立场 ②)", from)
+		return fmt.Errorf("invalid transition: same state %q (no-op rejected, 规则 ②)", from)
 	}
 	allowed, ok := validTransitions[from]
 	if !ok {
@@ -121,16 +121,16 @@ func ValidateTransition(from, to AgentState, reason string) error {
 	if !allowed[to] {
 		return fmt.Errorf("invalid transition: %q ↛ %q (蓝图 §2.3 state graph 拒)", from, to)
 	}
-	// error transition must carry valid reason (立场 ④ AL-1a 6 字面).
+	// error transition must carry valid reason (规则 ④ AL-1a 6 字面).
 	if to == AgentStateError {
 		if reason == "" {
 			return errors.New("transition to 'error' requires reason (蓝图 §2.3 故障可解释)")
 		}
 		if !validReasons[reason] {
-			return fmt.Errorf("invalid reason %q (立场 ④ — AL-1a 6 字面: api_key_invalid|quota_exceeded|network_unreachable|runtime_crashed|runtime_timeout|unknown)", reason)
+			return fmt.Errorf("invalid reason %q (规则 ④ — AL-1a 6 字面: api_key_invalid|quota_exceeded|network_unreachable|runtime_crashed|runtime_timeout|unknown)", reason)
 		}
 	}
-	// busy/idle transitions should carry task_id (立场 ③ task-driven; this
+	// busy/idle transitions should carry task_id (约定 ③ task-driven; this
 	// is a soft gate at validator — caller is responsible).
 	return nil
 }
@@ -152,9 +152,9 @@ func (AgentStateLogRow) TableName() string { return "agent_state_log" }
 // AppendAgentStateTransition writes one row to agent_state_log AFTER
 // validating the transition. Returns the inserted row id.
 //
-// 立场 ② single gate — server callers must use this helper, not raw INSERT.
-// 立场 ③ task-driven — caller passes taskID (empty for presence transitions).
-// 立场 ④ reason — error transitions require reason ∈ AL-1a 6 字面.
+// 设计 ② single gate — server callers must use this helper, not raw INSERT.
+// 设计 ③ task-driven — caller passes taskID (empty for presence transitions).
+// 设计 ④ reason — error transitions require reason ∈ AL-1a 6 字面.
 func (s *Store) AppendAgentStateTransition(agentID string, from, to AgentState, reason, taskID string) (int64, error) {
 	if agentID == "" {
 		return 0, errors.New("agent_id required")
@@ -179,7 +179,7 @@ func (s *Store) AppendAgentStateTransition(agentID string, from, to AgentState, 
 // ListAgentStateLog returns the most recent transitions for an agent
 // (DESC ts). Used by GET /api/v1/agents/:id/state-log (owner-only).
 //
-// 立场 ① forward-only — read-only path; UPDATE/DELETE not exposed.
+// 设计 ① forward-only — read-only path; UPDATE/DELETE not exposed.
 func (s *Store) ListAgentStateLog(agentID string, limit int) ([]AgentStateLogRow, error) {
 	if agentID == "" {
 		return nil, errors.New("agent_id required")

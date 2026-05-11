@@ -1,5 +1,5 @@
 // Package auth — audit_retention_sweeper_test.go: AL-7.2 sweeper unit
-// tests + reverse grep 反约束 守 (跟 ap-2 expires_sweeper_test.go 同模式).
+// tests + reverse grep 约束 守 (跟 ap-2 expires_sweeper_test.go 同模式).
 //
 // Pins:
 //   REG-AL7-001 TestAL_RunOnceArchivesExpired — 3 expired + 2 fresh → archived count=3
@@ -78,7 +78,7 @@ func TestAL_RunOnceArchivesExpired(t *testing.T) {
 }
 
 // REG-AL7-002 — soft-archive: row stays in table, archived_at set;
-// not real DELETE. 立场 ①.
+// not real DELETE. 约束 ①.
 func TestAL_RunOnceSoftArchiveNotRealDelete(t *testing.T) {
 	t.Parallel()
 	s := al7TestStore(t)
@@ -154,27 +154,27 @@ func TestAL_NilSafeCtor(t *testing.T) {
 }
 
 // REG-AL7-006 — SweeperReason byte-identical 跟 reasons.Unknown 同源.
-// AL-1a reason 锁链第 15 处 (改 = 改 reasons.go + 此处 + 14 处 byte-
+// AL-1a reason 对齐第 15 处 (改 = 改 reasons.go + 此处 + 14 处 byte-
 // identical 站点).
 func TestAL_SweeperReason_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if SweeperReason != reasons.Unknown {
-		t.Errorf("SweeperReason drift: got %q, want %q (= reasons.Unknown)",
+		t.Errorf("SweeperReason mismatch: got %q, want %q (= reasons.Unknown)",
 			SweeperReason, reasons.Unknown)
 	}
 	if SweeperReason != "unknown" {
-		t.Errorf("SweeperReason 字面 drift: got %q, want %q", SweeperReason, "unknown")
+		t.Errorf("SweeperReason 字面 mismatch: got %q, want %q", SweeperReason, "unknown")
 	}
 	if RetentionDays != 14 {
-		t.Errorf("RetentionDays drift: got %d, want 14 (蓝图 admin-model.md §3 字面单源)", RetentionDays)
+		t.Errorf("RetentionDays mismatch: got %d, want 14 (蓝图 admin-model.md §3 字面单一来源)", RetentionDays)
 	}
 	if ActionAuditRetentionOverride != "audit_retention_override" {
-		t.Errorf("ActionAuditRetentionOverride drift: got %q, want %q",
+		t.Errorf("ActionAuditRetentionOverride mismatch: got %q, want %q",
 			ActionAuditRetentionOverride, "audit_retention_override")
 	}
 }
 
-// REG-AL7-007 — 立场 ④ + 立场 ⑤ 反向 grep: cron framework + retention
+// REG-AL7-007 — 约束 ④ + 约束 ⑤ 反向 grep: cron framework + retention
 // queue tokens 0 hit in this file.
 func TestAL_NoCronFrameworkImport(t *testing.T) {
 	t.Parallel()
@@ -188,12 +188,12 @@ func TestAL_NoCronFrameworkImport(t *testing.T) {
 		`gocron.`,
 	} {
 		if regexp.MustCompile(pat).Match(body) {
-			t.Errorf("反约束 broken — cron import %q in audit_retention_sweeper.go", pat)
+			t.Errorf("约束 broken — cron import %q in audit_retention_sweeper.go", pat)
 		}
 	}
 }
 
-// REG-AL7-008 — 立场 ⑤ AST 锁链延伸第 7 处 forbidden-token 0 hit.
+// REG-AL7-008 — 约束 ⑤ AST 对齐链延伸第 7 处 forbidden-token 0 hit.
 //
 // Scans internal/auth + internal/api production *.go (excluding tests)
 // for retention-queue / dead-letter tokens (跟 BPP-4/5/6/7/8 + HB-3 v2
@@ -223,7 +223,7 @@ func TestAL_NoRetentionQueueOrCronImport(t *testing.T) {
 			}
 			for _, tok := range forbidden {
 				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 锁链延伸第 7 处 broken — forbidden token %q in %s", tok, p)
+					t.Errorf("AST 对齐链延伸第 7 处 broken — forbidden token %q in %s", tok, p)
 				}
 			}
 			return nil
