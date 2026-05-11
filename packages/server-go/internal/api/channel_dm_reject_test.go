@@ -1,10 +1,10 @@
 // Package api_test — chn_2_1_dm_reject_test.go: CHN-2.1 server-side DM
 // reject paths (acceptance §1.2/§1.3/§2.3, content-lock 第 4 条).
 //
-// 设计约束 pins exercised:
+// 覆盖的设计约束:
 //   - 设计第 2 条 DM 永远 2 人 — POST /channels/:id/members on type='dm' → 400
 //     "Cannot add members to DM channels" (既有 channels.go:522 实施,
-//     本测试 lock-pin 防漂; 同源 Cannot join/leave/delete DM 同模式).
+//     本测试用固定字面防止意外改动; 同源 Cannot join/leave/delete DM 同模式).
 //   - 设计第 3 条 DM 没 workspace — POST /channels/:id/artifacts on type='dm'
 //     → 403 with code "dm.workspace_not_supported" (蓝图 §1.2 字面禁;
 //     本 PR 加守门, artifacts.go handleCreate 增 ch.Type=='dm' gate).
@@ -81,7 +81,7 @@ func TestCHN_DMArtifactReject(t *testing.T) {
 	})
 }
 
-// TestCHN_DMAddMemberReject — re-pins the existing 设计第 2 条 约束 (DM
+// TestCHN_DMAddMemberReject — 重新验证既有设计第 2 条约束 (DM
 // 永远 2 人, channels.go:522 既有 400). Test exists today as part of
 // channel tests — duplicate here as CHN-2.1 设计约束 lock so 重构 误删
 // 守门时 grep 锚明确归属 CHN-2.1.

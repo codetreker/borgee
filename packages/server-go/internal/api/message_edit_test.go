@@ -266,7 +266,7 @@ func TestDM_NoThinkingPatternInBody(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-4 设计第 3 条 broken: thinking 5-pattern literal in dm_4*.go production: %v", hits)
+		t.Errorf("DM-4 设计第 3 条检查失败: thinking 5-pattern literal in dm_4*.go production: %v", hits)
 	}
 }
 
@@ -391,7 +391,7 @@ func TestDM_MessageInOtherChannel(t *testing.T) {
 	}
 }
 
-// TestDM_CrossOrg403 — handleEdit step 6: REG-INV-002 fail-closed
+// TestDM_CrossOrg403 — handleEdit step 6: REG-INV-002 默认拒绝
 // cross-org reject. Foreign-org caller logs in, finds DM in their own org
 // is impossible — so we instead place a message owned by a foreign-org
 // user in the owner DM via direct store insert (CrossOrg branch).

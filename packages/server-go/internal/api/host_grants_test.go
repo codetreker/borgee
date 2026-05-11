@@ -178,7 +178,7 @@ func TestHB_DELETE_RevokeStampsRevokedAt(t *testing.T) {
 
 func TestHB_DELETE_CrossUser403(t *testing.T) {
 	t.Parallel()
-	// 设计约束 §0 设计第 7 条 admin god-mode 不入 + cross-user reject 403
+	// 设计约束 §0 设计第 7 条 admin 权限不入 + cross-user reject 403
 	// (anchor #360 同模式).
 	ts, _, _ := testutil.NewTestServer(t)
 	token := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -279,7 +279,7 @@ func TestHB_NoGrantQueueInAPIPackage(t *testing.T) {
 	}
 }
 
-// TestHB_AuditLogSchema5FieldsByteIdentical pins 设计约束 §0 设计第 3 条 —
+// TestHB_AuditLogSchema5FieldsByteIdentical 验证设计约束 §0 设计第 3 条 —
 // audit log 5 字段 (actor/action/target/when/scope) 字节级一致 跟
 // BPP-4 #499 DeadLetterAuditEntry + HB-1/HB-2 audit 跨四 milestone
 // 同源. 此 test 验证 host_grants.go 真用 5 个 key 写 log.

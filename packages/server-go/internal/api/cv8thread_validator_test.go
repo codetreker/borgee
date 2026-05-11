@@ -2,11 +2,11 @@
 // validator unit tests (5-pattern 第 6 处链 + 1-level depth gate +
 // reply target type gate).
 //
-// 设计约束 pins (cv-8-spec.md §0):
+// 覆盖的设计约束 (cv-8-spec.md §0):
 //   - 设计第 3 条 agent reply on artifact_comment must pass 5-pattern (4 sub-case)
 //   - 设计第 4 条 depth 1 强制 — reply on reply rejected
 //   - 设计第 4 条 reply target must be 'artifact_comment'
-//   - 设计第 2 条 human reply skips validator (sanity)
+//   - 设计第 2 条 human reply skips validator
 package api_test
 
 import (
@@ -24,7 +24,7 @@ func cv8PostMsg(t *testing.T, url, tok, chID string, body map[string]any) (int, 
 	return resp.StatusCode, data
 }
 
-// TestCV_HumanReplyOnComment_OK pins 设计第 2 条 sanity: human reply on an
+// TestCV_HumanReplyOnComment_OK 验证设计第 2 条: human reply on an
 // artifact_comment-typed parent → 201, parent.reply_to_id linkage written.
 func TestCV_HumanReplyOnComment_OK(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestCV_HumanReplyOnComment_OK(t *testing.T) {
 	}
 }
 
-// TestCV_AgentReplyThinking_Reject pins 设计第 3 条 4-pattern reject 字节级一致
+// TestCV_AgentReplyThinking_Reject 验证设计第 3 条 4-pattern reject 字节级一致
 // CV-5/CV-7 errcode (`comment.thinking_subject_required`).
 func TestCV_AgentReplyThinking_Reject(t *testing.T) {
 	t.Parallel()
@@ -91,12 +91,12 @@ func TestCV_AgentReplyThinking_Reject(t *testing.T) {
 				t.Fatalf("expected 400, got %d (%v)", st, d)
 			}
 			if d["code"] != "comment.thinking_subject_required" {
-				t.Errorf("errcode 字节级一致 锁失败: got %v want comment.thinking_subject_required", d["code"])
+				t.Errorf("errcode 字节级一致检查失败: got %v want comment.thinking_subject_required", d["code"])
 			}
 		})
 	}
 
-	// Sanity: agent with concrete subject succeeds.
+	// Cross-check: agent with concrete subject succeeds.
 	ok, _ := cv8PostMsg(t, ts.URL, agentTok, chID, map[string]any{
 		"content": "Section 2 tightening proposal v2.", "content_type": "artifact_comment", "reply_to_id": parentID,
 	})
@@ -105,7 +105,7 @@ func TestCV_AgentReplyThinking_Reject(t *testing.T) {
 	}
 }
 
-// TestCV_ReplyOnReply_Reject pins 设计第 4 条: depth 2 → 400 thread_depth_exceeded.
+// TestCV_ReplyOnReply_Reject 验证设计第 4 条: depth 2 → 400 thread_depth_exceeded.
 func TestCV_ReplyOnReply_Reject(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -126,11 +126,11 @@ func TestCV_ReplyOnReply_Reject(t *testing.T) {
 		t.Fatalf("expected 400, got %d (%v)", st, d)
 	}
 	if d["code"] != "comment.thread_depth_exceeded" {
-		t.Errorf("errcode 字节级一致 锁失败: got %v want comment.thread_depth_exceeded", d["code"])
+		t.Errorf("errcode 字节级一致检查失败: got %v want comment.thread_depth_exceeded", d["code"])
 	}
 }
 
-// TestCV_ReplyOnNonComment_Reject pins 设计第 4 条: reply target 必须 artifact_comment 类型.
+// TestCV_ReplyOnNonComment_Reject 验证设计第 4 条: reply target 必须 artifact_comment 类型.
 func TestCV_ReplyOnNonComment_Reject(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -148,7 +148,7 @@ func TestCV_ReplyOnNonComment_Reject(t *testing.T) {
 		t.Fatalf("expected 400, got %d (%v)", st, d)
 	}
 	if d["code"] != "comment.reply_target_invalid" {
-		t.Errorf("errcode 字节级一致 锁失败: got %v want comment.reply_target_invalid", d["code"])
+		t.Errorf("errcode 字节级一致检查失败: got %v want comment.reply_target_invalid", d["code"])
 	}
 }
 

@@ -1,4 +1,4 @@
-// AP-4-enum.2 reverse-grep tests — handler 路径 helper 单一来源 + Capabilities
+// AP-4-enum.2 source-scan tests — handler 路径 helper 单一来源 + Capabilities
 // 字面禁 (spec §0 设计第 2 条 + 第 3 条).
 //
 // 3 unit (跟 acceptance template 设计第 2 条 2.1-2.3 + 设计第 3 条 3.3 同源):
@@ -8,7 +8,7 @@
 //
 // 历史 TestAP_CIWorkflowStepExists 锚 release-gate.yml 字面 step name 的
 // case 已删 (#717 — release-gate.yml 整文件随同删除, 字符串 grep 锁文本
-// 替为本文件 3 个真 AST grep 行为 test).
+// 替为本文件 3 个真 AST 扫描行为 test).
 package api
 
 import (
@@ -79,7 +79,7 @@ func TestAP_HandlerHelperOnly(t *testing.T) {
 }
 
 // TestAP_ReverseGrep_HardcodeCapability — handler 不准 hardcode capability
-// 字面 (走 const, 设计第 2 条). 测试文件白名单允许.
+// 字面 (走 const, 设计第 2 条). 测试文件允许出现这些固定字面.
 func TestAP_ReverseGrep_HardcodeCapability(t *testing.T) {
 	t.Parallel()
 	root := repoRoot(t)

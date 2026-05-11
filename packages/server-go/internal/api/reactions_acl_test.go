@@ -2,12 +2,12 @@
 // 3 handler (PUT/DELETE/GET) MUST require channel membership (CV-7 #535
 // gap fix; DM-5 #549 REG-DM5-005 documented and now closed).
 //
-// 设计约束 pin (ap-4-spec.md §0):
+// 覆盖的设计约束 (ap-4-spec.md §0):
 //   - 设计第 1 条 3 handler 加 ACL gate (Store.IsChannelMember + CanAccessChannel)
-//   - 设计第 2 条 admin god-mode 不挂 (sanity)
-//   - 设计第 3 条 REG-INV-002 fail-closed — non-member 三动作全 reject 404
+//   - 设计第 2 条 admin 权限不接入本路径
+//   - 设计第 3 条 REG-INV-002 默认拒绝 — non-member 三动作全 reject 404
 //     字节级一致 "Channel not found" 跟 messages.go 既有同字符
-//   - 设计第 4 条 既有 member OK path 不破 (反向 sanity)
+//   - 设计第 4 条 既有 member OK 路径保持不变
 
 package api_test
 
@@ -40,39 +40,39 @@ func ap4Setup(t *testing.T) (string, string, string, string, string) {
 	return ts.URL, ownerTok, memberTok, chID, msgID
 }
 
-// TestAP_PutReaction_NonMember404 pins 设计第 3 条: non-member PUT → 404.
+// TestAP_PutReaction_NonMember404 验证设计第 3 条: non-member PUT → 404.
 func TestAP_PutReaction_NonMember404(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, msgID := ap4Setup(t)
 	resp, _ := testutil.JSON(t, "PUT", url+"/api/v1/messages/"+msgID+"/reactions", memberTok,
 		map[string]string{"emoji": "👍"})
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("expected 404 fail-closed, got %d", resp.StatusCode)
+		t.Fatalf("expected default-deny 404, got %d", resp.StatusCode)
 	}
 }
 
-// TestAP_DeleteReaction_NonMember404 pins 设计第 3 条: non-member DELETE → 404.
+// TestAP_DeleteReaction_NonMember404 验证设计第 3 条: non-member DELETE → 404.
 func TestAP_DeleteReaction_NonMember404(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, msgID := ap4Setup(t)
 	resp, _ := testutil.JSON(t, "DELETE", url+"/api/v1/messages/"+msgID+"/reactions", memberTok,
 		map[string]string{"emoji": "👍"})
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("expected 404 fail-closed, got %d", resp.StatusCode)
+		t.Fatalf("expected default-deny 404, got %d", resp.StatusCode)
 	}
 }
 
-// TestAP_GetReactions_NonMember404 pins 设计第 3 条: non-member GET → 404.
+// TestAP_GetReactions_NonMember404 验证设计第 3 条: non-member GET → 404.
 func TestAP_GetReactions_NonMember404(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, msgID := ap4Setup(t)
 	resp, _ := testutil.JSON(t, "GET", url+"/api/v1/messages/"+msgID+"/reactions", memberTok, nil)
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("expected 404 fail-closed, got %d", resp.StatusCode)
+		t.Fatalf("expected default-deny 404, got %d", resp.StatusCode)
 	}
 }
 
-// TestAP_Member_AllOK pins 设计第 4 条 反向 sanity: channel member 三动作 (PUT/GET/DELETE)
+// TestAP_Member_AllOK 验证设计第 4 条: channel member 三动作 (PUT/GET/DELETE)
 // 全 200 字节级一致 既有行为不破.
 func TestAP_Member_AllOK(t *testing.T) {
 	t.Parallel()
@@ -103,7 +103,7 @@ func TestAP_Member_AllOK(t *testing.T) {
 	}
 }
 
-// TestAP_GetReactions_Unauth401 pins 设计第 1 条 — pre-AP-4 GET handler skipped
+// TestAP_GetReactions_Unauth401 验证设计第 1 条 — pre-AP-4 GET handler skipped
 // the user==nil check entirely; AP-4 fixes by emitting 401 on unauth.
 //
 // Note: middleware authMw should already block unauth requests at the
@@ -113,11 +113,11 @@ func TestAP_GetReactions_Unauth401(t *testing.T) {
 	t.Parallel()
 	url, _, _, _, msgID := ap4Setup(t)
 	// Send GET without token — server's authMw will reject with 401 before
-	// the handler runs, so we get 401 from the framework. This test pins
+	// the handler runs, so we get 401 from the framework. This test verifies
 	// the bare-minimum guarantee that unauth never reads reactions.
 	resp, _ := testutil.JSON(t, "GET", url+"/api/v1/messages/"+msgID+"/reactions", "", nil)
 	if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("expected 401 or 404 (fail-closed) on unauth, got %d", resp.StatusCode)
+		t.Fatalf("expected 401 or default-deny 404 on unauth, got %d", resp.StatusCode)
 	}
 }
 

@@ -1,7 +1,7 @@
 // Package api_test — cv_4_2_iterations_test.go: CV-4.2 acceptance tests
 // (#405 schema v=18 → CV-4.2 server iterate API + state machine + WS push).
 //
-// 设计约束 pins exercised (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁定
+// 覆盖的设计约束 (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁定
 // #380):
 //   - 设计第 1 条 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
 //     level CI lint, 非 unit).
@@ -11,7 +11,7 @@
 //   - 设计第 3 条 server 不算 diff — grep 检查 CI (acceptance §2.6 + §4.4).
 //   - 设计第 4 条 state machine 4 态前向锁定 — 反 completed→running / failed→pending
 //     等回退 reject (acceptance §2.3 + §4.3).
-//   - 设计第 5 条 AL-4 stub fail-closed — agent_runtimes.status != 'running' →
+//   - 设计第 5 条 AL-4 stub 默认拒绝 — agent_runtimes.status != 'running' →
 //     state='failed' + error_reason='runtime_not_registered' 字节级一致
 //     跟 AL-1a #249 6 reason 同源 (acceptance §2.5).
 //   - 设计第 6 条 owner-only — non-owner POST /iterate → 403 (acceptance §2.1).
@@ -51,9 +51,9 @@ func cv42Setup(t *testing.T) (url string, ownerTok string, s *store.Store, chID 
 	return
 }
 
-// TestCV_IterateOwnerOnly pins acceptance §2.1: only the channel owner
+// TestCV_IterateOwnerOnly 覆盖 acceptance §2.1: only the channel owner
 // (channel.created_by) may POST /iterate. Non-owner = 403 — admin
-// god-mode does not enter this rail (ADM-0 §1.3, anchors / artifacts 同
+// admin 权限 does not enter this rail (ADM-0 §1.3, anchors / artifacts 同
 // rail 隔离).
 func TestCV_IterateOwnerOnly(t *testing.T) {
 	t.Parallel()
@@ -82,7 +82,7 @@ func TestCV_IterateOwnerOnly(t *testing.T) {
 	}
 }
 
-// TestCV_AL4StubFailClosed_RuntimeNotRegistered pins acceptance §2.5:
+// TestCV_AL4StubFailClosed_RuntimeNotRegistered 覆盖 acceptance §2.5:
 // when no agent_runtimes row with status='running' exists, iteration
 // transitions pending→failed atomically with error_reason 字节级一致
 // 'runtime_not_registered' (AL-1a #249 6 reason 同源 不另起字典).
@@ -98,15 +98,15 @@ func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 		t.Fatalf("iterate stub-fail not 201: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["state"] != api.IterationStateFailed {
-		t.Errorf("state 字节级一致 lock failed: got %v, want %q", data["state"], api.IterationStateFailed)
+		t.Errorf("state 字节级一致检查失败: got %v, want %q", data["state"], api.IterationStateFailed)
 	}
 	if data["error_reason"] != api.IterationErrorReasonRuntimeNotRegistered {
-		t.Errorf("error_reason 字节级一致 lock failed: got %v, want %q",
+		t.Errorf("error_reason 字节级一致检查失败: got %v, want %q",
 			data["error_reason"], api.IterationErrorReasonRuntimeNotRegistered)
 	}
 }
 
-// TestCV_AL4Live_StateRunning pins acceptance §2.5 second branch: when
+// TestCV_AL4Live_StateRunning 覆盖 acceptance §2.5 second branch: when
 // agent_runtimes row exists with status='running', AL-4 stub treats this
 // as "live" and persists state='running' (real plugin dispatch lands
 // when AL-4 runtime hub plugin path is wired — out of scope CV-4.2,
@@ -131,11 +131,11 @@ func TestCV_AL4Live_StateRunning(t *testing.T) {
 		t.Fatalf("iterate live not 201: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["state"] != api.IterationStateRunning {
-		t.Errorf("state 字节级一致 lock failed: got %v, want %q", data["state"], api.IterationStateRunning)
+		t.Errorf("state 字节级一致检查失败: got %v, want %q", data["state"], api.IterationStateRunning)
 	}
 }
 
-// TestCV_TargetAgentMustBeChannelMember pins acceptance §2.1 反断:
+// TestCV_TargetAgentMustBeChannelMember 验证 acceptance §2.1 反向场景:
 // target_agent_id 不是 channel member → 400 字节级一致 error code
 // 'iteration.target_not_in_channel'.
 func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
@@ -158,12 +158,12 @@ func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
 		t.Fatalf("non-member target not 400: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["code"] != api.IterationErrCodeTargetNotInChannel {
-		t.Errorf("error code 字节级一致 lock failed: got %v, want %q",
+		t.Errorf("error code 字节级一致检查失败: got %v, want %q",
 			data["code"], api.IterationErrCodeTargetNotInChannel)
 	}
 }
 
-// TestCV_CommitWithIterationIDAtomicUpdate pins acceptance §2.2 (CV-1
+// TestCV_CommitWithIterationIDAtomicUpdate 覆盖 acceptance §2.2 (CV-1
 // commit 单一来源): POST /commits?iteration_id= transitions
 // running→completed atomically + writes created_artifact_version_id.
 // 反向约束: 不开 /iterations/:id/commit 旁路 (verified by CI grep §4.1).
@@ -222,7 +222,7 @@ FROM artifact_iterations WHERE id = ?`, iterationID).Scan(&row).Error; err != ni
 	}
 }
 
-// TestCV_StateMachine_RejectsCommitOnFailedIteration pins acceptance
+// TestCV_StateMachine_RejectsCommitOnFailedIteration 覆盖 acceptance
 // §2.3 反断: state machine forward-only — committing with an
 // iteration_id whose state is 'failed' (or any state != 'running') →
 // 409 conflict. 反向约束: completed→running / failed→pending 等回退绝对
@@ -253,7 +253,7 @@ func TestCV_StateMachine_RejectsCommitOnFailedIteration(t *testing.T) {
 	}
 }
 
-// TestCV_CommitWithoutIterationID_LegacyPathUnchanged pins acceptance
+// TestCV_CommitWithoutIterationID_LegacyPathUnchanged 覆盖 acceptance
 // §2.2 反断: when ?iteration_id= absent, commit follows CV-1.2 历史
 // behaviour exactly (反向约束 旧路径不破). No iteration row is created or
 // touched. 跟 cv_1_2_artifacts_test.go::TestCV12_CommitArtifact 同模式.
@@ -279,7 +279,7 @@ func TestCV_CommitWithoutIterationID_LegacyPathUnchanged(t *testing.T) {
 	}
 }
 
-// TestCV_ListIterationsHistory pins GET history shape (ORDER BY
+// TestCV_ListIterationsHistory 覆盖 GET history shape (ORDER BY
 // created_at DESC + intent_text 含 — channel-member rail; admin path
 // 不入 acceptance §2.7 反断 是 admin*.go 责任, 此 endpoint 在
 // channel-member rail intent_text 必须返).
@@ -288,7 +288,7 @@ func TestCV_ListIterationsHistory(t *testing.T) {
 	url, ownerTok, _, _, artID, agentID := cv42Setup(t)
 	for i := 0; i < 2; i++ {
 		_, _ = testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/iterate", ownerTok, map[string]any{
-			"intent_text":     "iter" ,
+			"intent_text":     "iter",
 			"target_agent_id": agentID,
 		})
 	}
@@ -300,7 +300,7 @@ func TestCV_ListIterationsHistory(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("expected 2 history rows, got %d", len(rows))
 	}
-	// Shape sanity: intent_text returned (channel-member rail).
+	// Shape check: intent_text returned (channel-member rail).
 	row0 := rows[0].(map[string]any)
 	if row0["intent_text"] != "iter" {
 		t.Errorf("intent_text not returned on member rail: %v", row0["intent_text"])
@@ -369,7 +369,7 @@ func TestCV_Iterate_ErrorPaths(t *testing.T) {
 		t.Errorf("human target 400 expected, got %d", respHuman.StatusCode)
 	}
 	if dataHuman["code"] != api.IterationErrCodeTargetNotInChannel {
-		t.Errorf("human target error code 字节级一致 lock failed: got %v", dataHuman["code"])
+		t.Errorf("human target error code 字节级一致检查失败: got %v", dataHuman["code"])
 	}
 }
 

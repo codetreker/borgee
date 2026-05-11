@@ -1,9 +1,9 @@
 // Package api — cv_3_2_artifact_validation_test.go: CV-3.2 (#363/#397)
 // server validation acceptance tests.
 //
-// Pins:
-//   - acceptance §1.3 — code MUST carry metadata.language ∈ 11 项白名单
-//     + 'text' fallback (12 项); 约束 短码唯一不接全名同义词
+// 覆盖的检查点:
+//   - acceptance §1.3 — code MUST carry metadata.language ∈ 11 项允许集合
+//   - 'text' fallback (12 项); 约束 短码唯一不接全名同义词
 //     ('golang'/'typescript'/'python'/'shell'/'bash'/'plaintext') (#370 §1 第 2 条).
 //   - acceptance §1.4 — image_link MUST carry metadata.kind ∈ ('image',
 //     'link') + URL 必 https; 约束 javascript:/data:/data:image/http:/
@@ -39,16 +39,16 @@ func TestIsValidCodeLanguage_11WhitelistPlusText(t *testing.T) {
 	t.Parallel()
 	want := []string{"go", "ts", "js", "py", "md", "sh", "sql", "yaml", "json", "html", "css", "text"}
 	if len(ValidCodeLanguages) != 12 {
-		t.Fatalf("ValidCodeLanguages length: got %d, want 12 (11 项白名单 + text fallback)", len(ValidCodeLanguages))
+		t.Fatalf("ValidCodeLanguages length: got %d, want 12 (11 项允许集合 + text fallback)", len(ValidCodeLanguages))
 	}
 	for _, lang := range want {
 		if !IsValidCodeLanguage(lang) {
-			t.Errorf("language=%q rejected — should be in 12 项白名单", lang)
+			t.Errorf("language=%q rejected — should be in 12 项允许集合", lang)
 		}
 	}
 }
 
-// TestIsValidCodeLanguage_RejectsFullNameSynonyms pins #370 §1 第 2 条 约束
+// TestIsValidCodeLanguage_RejectsFullNameSynonyms 验证 #370 §1 第 2 条约束
 // — 短码唯一: 不接 'golang' / 'typescript' / 'python' / 'shell' /
 // 'bash' / 'plaintext' 全名同义词 (跟 acceptance §4.4 grep 检查 同源).
 func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
@@ -56,16 +56,16 @@ func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 	for _, bad := range []string{
 		// 全名同义词 — 约束闸 (#370 §1 第 2 条).
 		"golang", "typescript", "python", "shell", "bash", "plaintext",
-		// 大小写漂移 — 短码 ASCII case-sensitive.
+		// 大小写变化 — 短码 ASCII case-sensitive.
 		"GO", "TS", "Py", "MD",
-		// spec 外语言 — 白名单收窄 (跟 spec §3 grep 检查 同精神).
+		// spec 外语言 — 允许集合收窄 (跟 spec §3 grep 检查 同精神).
 		"rust", "c", "cpp", "java", "kotlin", "swift", "ruby", "php",
 		"yml", // 'yaml' 已收, 'yml' 不接 (短码唯一)
 		// 空字串.
 		"",
 	} {
 		if IsValidCodeLanguage(bad) {
-			t.Errorf("language=%q accepted — should NOT be in whitelist (#370 §1 第 2 条 短码唯一)", bad)
+			t.Errorf("language=%q accepted — should NOT be in allowed language set (#370 §1 第 2 条 短码唯一)", bad)
 		}
 	}
 }
@@ -87,7 +87,7 @@ func TestValidateImageLinkURL_AcceptsHttpsAbsolute(t *testing.T) {
 	}
 }
 
-// TestValidateImageLinkURL_RejectsNonHttpsSchemes pins #370 §1 第 4 条 XSS 红线
+// TestValidateImageLinkURL_RejectsNonHttpsSchemes 验证 #370 §1 第 4 条 XSS 红线
 // 第一道 — javascript: / data: / data:image / http: / file: / chrome: 全
 // reject (跟 spec §3 grep 检查 + acceptance §4.2 同源).
 func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
@@ -111,7 +111,7 @@ func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
 		"ftp://files.example.com/x.zip",
 	} {
 		if err := ValidateImageLinkURL(bad); err == nil {
-			t.Errorf("url=%q accepted — XSS 红线 broken (#370 §1 第 4 条)", bad)
+			t.Errorf("url=%q accepted — XSS 红线检查失败 (#370 §1 第 4 条)", bad)
 		}
 	}
 }
@@ -119,12 +119,12 @@ func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
 func TestValidateImageLinkURL_RejectsMalformed(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{
-		"",                       // empty
-		"  ",                     // whitespace
-		"example.com/x",          // no scheme
-		"//example.com/x",        // scheme-relative — inherits page's scheme, bypasses gate
-		"https://",               // no host
-		"https:///nohost",        // empty host
+		"",                // empty
+		"  ",              // whitespace
+		"example.com/x",   // no scheme
+		"//example.com/x", // scheme-relative — inherits page's scheme, bypasses gate
+		"https://",        // no host
+		"https:///nohost", // empty host
 	} {
 		if err := ValidateImageLinkURL(bad); err == nil {
 			t.Errorf("url=%q accepted — malformed should reject", bad)
@@ -134,7 +134,7 @@ func TestValidateImageLinkURL_RejectsMalformed(t *testing.T) {
 
 // ---- ValidateArtifactMetadata per-kind contract --------------------
 
-// TestValidateArtifactMetadata_Markdown_NoContract pins CV-1 v1 path —
+// TestValidateArtifactMetadata_Markdown_NoContract 验证 CV-1 v1 path —
 // markdown kind has no per-kind metadata contract; empty / arbitrary
 // metadata both pass (forward-compat for future markdown-specific fields).
 func TestValidateArtifactMetadata_Markdown_NoContract(t *testing.T) {
@@ -147,7 +147,7 @@ func TestValidateArtifactMetadata_Markdown_NoContract(t *testing.T) {
 	}
 }
 
-// TestValidateArtifactMetadata_Code_RequiresLanguage pins acceptance §1.3 —
+// TestValidateArtifactMetadata_Code_RequiresLanguage 验证 acceptance §1.3 —
 // code MUST carry metadata.language; missing → 400 artifact.invalid_language.
 func TestValidateArtifactMetadata_Code_RequiresLanguage(t *testing.T) {
 	t.Parallel()
@@ -163,7 +163,7 @@ func TestValidateArtifactMetadata_Code_RequiresLanguage(t *testing.T) {
 		{"text fallback OK", ArtifactMetadata{Language: "text"}, true, ""},
 		{"golang full-name reject", ArtifactMetadata{Language: "golang"}, false, "must be one of"},
 		{"typescript reject", ArtifactMetadata{Language: "typescript"}, false, "must be one of"},
-		{"rust outside whitelist", ArtifactMetadata{Language: "rust"}, false, "must be one of"},
+		{"rust outside allowed set", ArtifactMetadata{Language: "rust"}, false, "must be one of"},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -188,7 +188,7 @@ func TestValidateArtifactMetadata_Code_RequiresLanguage(t *testing.T) {
 	}
 }
 
-// TestValidateArtifactMetadata_ImageLink_RequiresHttpsOnly pins
+// TestValidateArtifactMetadata_ImageLink_RequiresHttpsOnly 验证
 // acceptance §1.4 + #370 §1 第 4 条 — image_link MUST carry metadata.kind ∈
 // ('image','link') + URL 必 https.
 func TestValidateArtifactMetadata_ImageLink_RequiresHttpsOnly(t *testing.T) {
@@ -249,12 +249,12 @@ func TestValidateArtifactMetadata_ImageLink_RequiresHttpsOnly(t *testing.T) {
 	}
 }
 
-// TestValidateArtifactMetadata_UnknownKind pins fail-loud guard — if a
+// TestValidateArtifactMetadata_UnknownKind 验证未知类型必须显式报错 — if a
 // future caller forgets the IsValidArtifactKind gate, ValidateArtifactMetadata
 // MUST surface the unknown kind rather than silently passing.
 func TestValidateArtifactMetadata_UnknownKind(t *testing.T) {
 	t.Parallel()
 	if err := ValidateArtifactMetadata("pdf", ArtifactMetadata{}); err == nil {
-		t.Error("unknown kind 'pdf' accepted — should fail-loud")
+		t.Error("unknown kind 'pdf' accepted — should fail explicitly")
 	}
 }

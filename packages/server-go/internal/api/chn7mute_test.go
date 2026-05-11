@@ -1,5 +1,5 @@
 // Package api_test — chn_7_mute_test.go: CHN-7 mute/unmute REST + 0
-// schema 改 + bitmap + admin god-mode 不挂 + AST 对齐链延伸第 12 处 + mute
+// schema 改 + bitmap + admin 权限不挂 + AST 对齐链延伸第 12 处 + mute
 // 不 drop messages best-effort.
 package api_test
 
@@ -25,7 +25,7 @@ func TestChn7mute_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-7 设计第 1 条 broken — new schema migration file %s", p)
+			t.Errorf("CHN-7 设计第 1 条检查失败 — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -36,7 +36,7 @@ func TestChn7mute_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-7 设计第 1 条 broken — muted column ALTER in %s", p)
+			t.Errorf("CHN-7 设计第 1 条检查失败 — muted column ALTER in %s", p)
 		}
 		return nil
 	})
@@ -186,7 +186,7 @@ func TestCHN_MuteBit_ByteIdentical(t *testing.T) {
 	}
 }
 
-// REG-CHN7-005 — admin god-mode 不挂 反向断言.
+// REG-CHN7-005 — admin 权限不挂 反向断言.
 func TestCHN_NoAdminMutePath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
@@ -201,7 +201,7 @@ func TestCHN_NoAdminMutePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 设计第 2 条 broken — admin mute path in %s: %q",
+				t.Errorf("CHN-7 设计第 2 条检查失败 — admin mute path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -220,7 +220,7 @@ func TestCHN_NoAdminMutePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 设计第 2 条 broken — admin mute handler in %s: %q",
+				t.Errorf("CHN-7 设计第 2 条检查失败 — admin mute handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -244,7 +244,7 @@ func TestCHN_MuteDoesNotDropMessages(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 设计第 3 条 broken — mute drops messages in %s: %q",
+				t.Errorf("CHN-7 设计第 3 条检查失败 — mute drops messages in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -272,7 +272,7 @@ func TestCHN_NoChannelMuteQueue(t *testing.T) {
 			body, _ := os.ReadFile(p)
 			for _, tok := range forbidden {
 				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 对齐链延伸第 12 处 broken — token %q in %s", tok, p)
+					t.Errorf("AST 对齐链延伸第 12 处检查失败 — token %q in %s", tok, p)
 				}
 			}
 			return nil

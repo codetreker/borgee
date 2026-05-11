@@ -1,5 +1,5 @@
 // Package api_test — chn_9_visibility_test.go: CHN-9 channel privacy
-// 三态 + 0 schema + 三向锁定 + admin god-mode 不挂 + creator_only leak 反断
+// 三态 + 0 schema + 三向锁定 + admin 权限不挂 + creator_only leak 反断
 // + AST 守护链延伸第 14 处.
 package api_test
 
@@ -25,7 +25,7 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-9 设计第 1 条 broken — new schema migration file %s", p)
+			t.Errorf("CHN-9 设计第 1 条检查失败 — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -40,7 +40,7 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-9 设计第 1 条 broken — visibility ALTER in %s", p)
+			t.Errorf("CHN-9 设计第 1 条检查失败 — visibility ALTER in %s", p)
 		}
 		return nil
 	})
@@ -164,7 +164,7 @@ func TestCHN_CreatorOnlyChannel_NotLeakedToOrgPeers(t *testing.T) {
 	for _, raw := range channels {
 		c, _ := raw.(map[string]any)
 		if c["id"] == chID {
-			t.Errorf("CHN-9 设计第 3 条 broken — creator_only channel leaked to non-creator: %v", c)
+			t.Errorf("CHN-9 设计第 3 条检查失败 — creator_only channel leaked to non-creator: %v", c)
 		}
 	}
 }
@@ -183,17 +183,17 @@ func TestCHN_ListChannelsFilter_ByteIdentical(t *testing.T) {
 	// `visibility = 'public'` 必须 ≥1 hit.
 	pat := regexp.MustCompile(`visibility\s*=\s*'public'`)
 	if pat.Find(body) == nil {
-		t.Error("CHN-9 设计第 3 条 broken — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
+		t.Error("CHN-9 设计第 3 条检查失败 — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
 	}
 	// 反向断言: 不出现 `visibility = 'creator_only'` 在 SQL 显式 filter
 	// (creator_only 走 IsChannelMember + creator-only ACL, 不走 SQL filter).
 	pat2 := regexp.MustCompile(`visibility\s*=\s*'creator_only'`)
 	if pat2.Find(body) != nil {
-		t.Error("CHN-9 设计第 3 条 broken — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
+		t.Error("CHN-9 设计第 3 条检查失败 — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
 	}
 }
 
-// REG-CHN9-006 — admin god-mode 不挂 visibility PATCH 反向断言.
+// REG-CHN9-006 — admin 权限不挂 visibility PATCH 反向断言.
 func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
@@ -208,7 +208,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 设计第 3 条 broken — admin visibility path in %s: %q",
+				t.Errorf("CHN-9 设计第 3 条检查失败 — admin visibility path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -227,7 +227,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 设计第 3 条 broken — admin visibility handler in %s: %q",
+				t.Errorf("CHN-9 设计第 3 条检查失败 — admin visibility handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -254,7 +254,7 @@ func TestCHN_NoVisibilityQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 守护链延伸第 14 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 守护链延伸第 14 处检查失败 — token %q in %s", tok, p)
 			}
 		}
 		return nil

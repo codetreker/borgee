@@ -12,13 +12,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// CHN-1.2 acceptance suite — locks the 7 条原则 from #265:
+// CHN-1.2 acceptance suite — verifies the seven principles from #265:
 //
 //   设计第 1 条 POST /channels: creator-only default member (count == 1)
 //   设计第 2 条 Per-org name uniqueness — two orgs may both create #release without conflict
 //   设计第 3 条 Cross-org GET isolation — public channel in orgA invisible to orgB caller
 //   设计第 4 条 Non-owner PATCH 403
-//   设计第 5 条 PATCH archived: true → archived_at stamped + system DM with text-lock
+//   设计第 5 条 PATCH archived: true → archived_at stamped + system DM with exact text
 //      "channel #{name} 已被 {owner_name} 关闭于 {ts}"
 //   设计第 6 条 Agent-add → silent flag = true on channel_members + system message
 //      "{agent_name} joined"
@@ -61,7 +61,7 @@ func seedAgentInOrg(t *testing.T, s *store.Store, displayName, email, orgID, own
 	return u
 }
 
-// TestCHN_CreatorOnlyDefaultMember locks 设计第 1 条.
+// TestCHN_CreatorOnlyDefaultMember 验证设计第 1 条.
 func TestCHN_CreatorOnlyDefaultMember(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -76,11 +76,11 @@ func TestCHN_CreatorOnlyDefaultMember(t *testing.T) {
 	}
 	members, _ := data["members"].([]any)
 	if len(members) != 1 {
-		t.Fatalf("CHN-1.2 设计第 2 条: expected creator-only (1 member), got %d", len(members))
+		t.Fatalf("CHN-1.2 设计第 1 条: expected creator-only (1 member), got %d", len(members))
 	}
 }
 
-// TestCHN_CrossOrgSameNameOK locks 设计第 2 条 — per-org name uniqueness.
+// TestCHN_CrossOrgSameNameOK 验证设计第 2 条 — per-org name uniqueness.
 func TestCHN_CrossOrgSameNameOK(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -105,7 +105,7 @@ func TestCHN_CrossOrgSameNameOK(t *testing.T) {
 	}
 }
 
-// TestCHN_CrossOrgPublicGETIsolation locks 设计第 3 条.
+// TestCHN_CrossOrgPublicGETIsolation 验证设计第 3 条.
 func TestCHN_CrossOrgPublicGETIsolation(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -136,7 +136,7 @@ func TestCHN_CrossOrgPublicGETIsolation(t *testing.T) {
 	}
 }
 
-// TestCHN_NonOwnerPATCH403 locks 设计第 4 条.
+// TestCHN_NonOwnerPATCH403 验证设计第 4 条.
 func TestCHN_NonOwnerPATCH403(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -151,7 +151,7 @@ func TestCHN_NonOwnerPATCH403(t *testing.T) {
 		"visibility": "private",
 	})
 	// AP-0 default grants member (*, *), so AP-1/AP-3 will need to narrow
-	// this back. For now we lock that owner != member triggered an
+	// this back. For now we verify that owner != member triggered an
 	// auditable update path (200 is acceptable under AP-0; 403 will be the
 	// post-AP-1 expectation). Guard against silent 500s.
 	if resp.StatusCode >= 500 {
@@ -159,7 +159,7 @@ func TestCHN_NonOwnerPATCH403(t *testing.T) {
 	}
 }
 
-// TestCHN_ArchiveFanoutSystemDM locks 设计第 5 条.
+// TestCHN_ArchiveFanoutSystemDM 验证设计第 5 条.
 func TestCHN_ArchiveFanoutSystemDM(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -181,7 +181,7 @@ func TestCHN_ArchiveFanoutSystemDM(t *testing.T) {
 		t.Fatalf("expected archived_at non-null after PATCH archived: true, got %v", updated)
 	}
 
-	// Verify the system DM was emitted with the text-lock format.
+	// Verify the system DM was emitted with the expected text format.
 	resp, msgs := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+chID+"/messages?limit=10", ownerToken, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list messages: %d", resp.StatusCode)
@@ -199,12 +199,12 @@ func TestCHN_ArchiveFanoutSystemDM(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("CHN-1.2 设计第 5 条: archive fanout DM not found (text-lock prefix=%q infix=%q) in %v", wantPrefix, wantInfix, list)
+		t.Fatalf("CHN-1.2 设计第 5 条: archive system DM not found (prefix=%q infix=%q) in %v", wantPrefix, wantInfix, list)
 	}
 }
 
-// TestCHN_AgentJoinSystemMessage locks 设计第 6 条 — agent-add → silent member +
-// system message text-lock "{agent_name} joined".
+// TestCHN_AgentJoinSystemMessage 验证设计第 6 条 — agent-add → silent member +
+// exact system message "{agent_name} joined".
 func TestCHN_AgentJoinSystemMessage(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -226,7 +226,7 @@ func TestCHN_AgentJoinSystemMessage(t *testing.T) {
 		t.Fatalf("add agent member: %d %v", resp.StatusCode, data)
 	}
 
-	// Assert system message text-lock.
+	// Assert exact system message text.
 	resp, msgs := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+chID+"/messages?limit=10", ownerToken, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list messages: %d", resp.StatusCode)
