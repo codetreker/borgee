@@ -20,10 +20,10 @@
 //      UNIQUE 由 schema 兜 dedup, 设计 ⑥ user / agent 同表同语义.
 //      Cross-channel reject 在 dispatcher 入口前置 (api 层 400) 而非这里.
 //   3. Dispatch: per-target — IsOnline true → PushMentionPushed (target-only
-//      WS, 反约束: 不抄送 owner); IsOnline false → enqueueOwnerSystemDM
+//      WS, 反向检查: 不抄送 owner); IsOnline false → enqueueOwnerSystemDM
 //      with 5min/(agent,channel) throttle + body 文案锁 (#314 §1 ③).
 //
-// 反约束 (spec §0 + §3 + acceptance §2.4 + 野马 #314 ③):
+// 反向检查 (spec §0 + §3 + acceptance §2.4 + 野马 #314 ③):
 //   - enqueueOwnerSystemDM payload MUST NOT contain raw message body —
 //     文案 byte-identical `{agent_name} 当前离线，#{channel} 中有人 @ 了它，
 //     你可能需要处理` 仅 `{agent_name}` / `{channel}` 占位; sniff DM
@@ -95,7 +95,7 @@ type MentionFrameBroadcaster interface {
 // 模式). Implemented by *push.Gateway in production; tests inject a
 // recording fake to assert call invocation.
 //
-// 反约束 (DL-4 spec §0 设计 ②): push fire-and-forget — Notify 返回
+// 反向检查 (DL-4 spec §0 设计 ②): push fire-and-forget — Notify 返回
 // attempts count 仅 observability, 不 error 语义.
 type MentionPushNotifier interface {
 	NotifyMention(targetUserID, senderID, channelName, bodyPreview string, createdAt int64) int
@@ -178,7 +178,7 @@ var ErrMentionTargetNotInChannel = errors.New("mention.target_not_in_channel")
 // targetIDs come from ParseMentionTargets. Returns the offending target
 // ID (for the 400 body's debugging hint) on first failure, or "" on OK.
 //
-// 反约束 (acceptance §2.5 + spec §2): 跨 org agent mention is legal at
+// 反向检查 (acceptance §2.5 + spec §2): 跨 org agent mention is legal at
 // this layer (§4 蓝图字面 — agent 代表自己). The cross-org block lives
 // at the channel-membership query: an agent that's not a member of the
 // channel fails here regardless of org_id. CHN-2 邀请审批承担 cross-org
@@ -299,7 +299,7 @@ func (d *MentionDispatcher) acquireThrottle(agentID, channelID string) bool {
 // content_type: 'text'. quick_action 不挂 (留 owner 自己回复 agent —
 // fallback 是 nudge 不是 action).
 //
-// 反约束 (野马 #314 §1 ③): payload 仅 {agent_name} + {channel_name}
+// 反向检查 (野马 #314 §1 ③): payload 仅 {agent_name} + {channel_name}
 // 占位, 不含 raw message body 字符串.
 func (d *MentionDispatcher) enqueueOwnerSystemDM(ownerID, agentDisplayName, channelName string) error {
 	dmCh, err := d.Store.CreateDmChannel(ownerID, "system")
