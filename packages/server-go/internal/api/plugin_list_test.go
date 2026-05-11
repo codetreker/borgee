@@ -1,5 +1,5 @@
 // Package api_test — bpp_8_lifecycle_list_test.go: BPP-8.2 GET endpoint
-// tests + AST scan AdminGodMode 反断.
+// tests + AST scan admin 权限反向检查.
 
 package api_test
 
@@ -161,7 +161,7 @@ func TestBPP_LifecycleList_NonPluginActionsExcluded(t *testing.T) {
 	}
 }
 
-// TestBPP_NoAdminLifecyclePath — acceptance §3.2 设计 ⑦ ADM-0 §1.3 红线.
+// TestBPP_NoAdminLifecyclePath — acceptance §3.2 设计 ⑦ ADM-0 §1.3 限制.
 func TestBPP_NoAdminLifecyclePath(t *testing.T) {
 	t.Parallel()
 	dir := "../api"
@@ -200,6 +200,6 @@ func TestBPP_NoAdminLifecyclePath(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-8 设计 ⑦ broken — admin god-mode references plugin lifecycle (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("BPP-8 设计 ⑦检查失败 — admin 权限 references plugin lifecycle (ADM-0 §1.3 限制): %v", hits)
 	}
 }

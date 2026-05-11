@@ -33,8 +33,8 @@ func cv15SeedArtifactComment(t *testing.T, tsURL, ownerTok string) (string, stri
 	return chID, id
 }
 
-// TestCV_ErrCode_ByteIdentical pins the 3 const literals.
-func TestCV_ErrCode_ByteIdentical(t *testing.T) {
+// TestCV_ErrCode_ExactLiterals verifies the 3 const literals.
+func TestCV_ErrCode_ExactLiterals(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
 		"NotArtifactComment": "comment.not_artifact_comment",
@@ -53,7 +53,7 @@ func TestCV_ErrCode_ByteIdentical(t *testing.T) {
 	}
 }
 
-// TestCanvasEditHistory_NoSchemaChange — 0 schema 改 反向断言.
+// TestCanvasEditHistory_NoSchemaChange — 0 schema 改反向检查.
 func TestCanvasEditHistory_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	root := cv15RepoRoot(t)
@@ -223,7 +223,7 @@ func TestCV_GetAdminHistory_HappyPath(t *testing.T) {
 }
 
 // TestCV_NoAdminPatchDeletePath — admin-rail does NOT mount any
-// PATCH/DELETE/PUT for comment-edit-history. Reverse-grep.
+// PATCH/DELETE/PUT for comment-edit-history. Source scan.
 func TestCV_NoAdminPatchDeletePath(t *testing.T) {
 	t.Parallel()
 	root := cv15RepoRoot(t)
@@ -231,7 +231,7 @@ func TestCV_NoAdminPatchDeletePath(t *testing.T) {
 	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)\s+/admin-api/v[0-9]+/[^"]*comment-edit-history`)
 	hits := cv15GrepCount(t, dir, pat)
 	if hits != 0 {
-		t.Errorf("admin-rail PATCH/DELETE/PUT comment-edit-history: got %d, want 0 (admin god-mode 不挂 设计 ②)", hits)
+		t.Errorf("admin-rail PATCH/DELETE/PUT comment-edit-history: got %d, want 0 (admin 权限不挂 设计 ②)", hits)
 	}
 }
 

@@ -1,7 +1,7 @@
 // Package api_test — al_7_audit_retention_override_test.go: AL-7.2
 // admin-rail override endpoint acceptance §2.2.
 //
-// Pins:
+// 覆盖的检查点:
 //   REG-AL7-007 TestAL_OverrideEndpointWritesAudit — POST writes admin_actions row
 //   REG-AL7-008 TestAL_OverrideRejectsUserRail — user cookie 401
 //   REG-AL7-009 TestAL_OverrideClampsRetention — 0/-5/999 reject 400
@@ -15,7 +15,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestAL_OverrideEndpointWritesAudit pins acceptance §2.2 — admin POST
+// TestAL_OverrideEndpointWritesAudit 覆盖 acceptance §2.2 — admin POST
 // writes one admin_actions row with action='audit_retention_override'.
 func TestAL_OverrideEndpointWritesAudit(t *testing.T) {
 	t.Parallel()
@@ -33,7 +33,7 @@ func TestAL_OverrideEndpointWritesAudit(t *testing.T) {
 		t.Errorf("recorded: got %v, want true", body["recorded"])
 	}
 
-	// Audit row written 跟 ADM-0 §1.3 红线: admin 操作必留痕.
+	// Audit row written 跟 ADM-0 §1.3 限制一致: admin 操作必留痕.
 	var rows []store.AdminAction
 	s.DB().Where("action = ?", "audit_retention_override").Find(&rows)
 	if len(rows) != 1 {
@@ -45,7 +45,7 @@ func TestAL_OverrideEndpointWritesAudit(t *testing.T) {
 	}
 }
 
-// TestAL_OverrideRejectsUserRail pins 设计 ③ admin-rail only — user
+// TestAL_OverrideRejectsUserRail 验证设计 ③ admin-rail only — user
 // cookie 调 admin-api 必 401 (admin.RequireAdmin middleware).
 func TestAL_OverrideRejectsUserRail(t *testing.T) {
 	t.Parallel()
@@ -61,7 +61,7 @@ func TestAL_OverrideRejectsUserRail(t *testing.T) {
 	}
 }
 
-// TestAL_OverrideClampsRetention pins 设计 ⑥ — clamp 1..365.
+// TestAL_OverrideClampsRetention 验证设计 ⑥ — clamp 1..365.
 //
 // 0 / -5 / 999 / missing field (decoder 默认 0) 全 reject 400.
 func TestAL_OverrideClampsRetention(t *testing.T) {
