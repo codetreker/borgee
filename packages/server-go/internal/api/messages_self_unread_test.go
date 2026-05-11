@@ -17,7 +17,7 @@
 // 4. TestMarkReadFailureLayer2Fallback — liema QA review 加的 三层 in-depth
 //    独立性验证: 强制把 owner 在 channel A 的 last_read_at 退回到很早 (模拟
 //    Layer 1 没更新 / 旧客户端刷新 / 多设备 race), Layer 2 SQL `m.sender_id != ?`
-//    仍兜底 — owner 自己发的消息不算 unread. 反约束: 三层不是名义上分层
+//    仍兜底 — owner 自己发的消息不算 unread. 约束: 三层不是名义上分层
 //    实际耦合, 每层都能独立兜.
 
 package api_test
@@ -31,7 +31,7 @@ import (
 )
 
 // findChannelByID extracts a single channel from `GET /api/v1/channels`
-// response. 返 nil 没找到; 反约束: 不 t.Fatal 让 caller 决定怎么报错
+// response. 返 nil 没找到; 约束: 不 t.Fatal 让 caller 决定怎么报错
 // (不同 case 想要不同的失败信息).
 func findChannelByID(channels []any, id string) map[string]any {
 	for _, raw := range channels {
@@ -181,7 +181,7 @@ func TestOwnMessageDoesNotMarkOtherChannel(t *testing.T) {
 // 拉 channel 列表 — Layer 2 `m.sender_id != ?` 仍应过滤 own message.
 //
 // 这个 case 直接戳数据库降级 last_read_at, 不依赖 mock store, 比 mock 更
-// 真 (反约束: mock 容易跟 production 行为脱节, 直接 SQL 降级模拟 race
+// 真 (约束: mock 容易跟 production 行为脱节, 直接 SQL 降级模拟 race
 // / fail 的真实落点).
 func TestMarkReadFailureLayer2Fallback(t *testing.T) {
 	t.Parallel()
