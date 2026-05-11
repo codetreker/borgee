@@ -1,12 +1,12 @@
 // DM-4.2 — useDMEdit hook
 //
 // 立场 (跟 dm-4-stance-checklist.md §1+§2+§3):
-//   ① 复用 RT-3 既有 fan-out — 调 PATCH /api/v1/channels/{dmID}/messages/{id},
-//      events 表 INSERT op="edit" 触发 useDMSync (DM-3 #508) 客户端订阅
-//      channel events backfill 自动多端 derive.
+//   ① Reuse the existing RT-3 fan-out path: call PATCH /api/v1/channels/{dmID}/messages/{id},
+//      events 表 INSERT op="edit" is delivered through channel events backfill;
+//      useDMSync (DM-3 #508) applies it on other devices.
 //   ② edit 是 cursor 子集 — useDMEdit 仅做 PATCH + optimistic update;
 //      cursor 进展全归 useDMSync (反向不写独立 sessionStorage cursor).
-//   ③ thinking 5-pattern 反约束延伸第 3 处 — agent edit 是机械修订,
+//   ③ thinking 5-pattern 反约束延伸第 3 处 — agent edit is a content revision,
 //      hook 不暴露 reasoning 字面.
 //
 // 反约束: 不订阅 dm-only frame, 不写 borgee.dm4.cursor:* sessionStorage
@@ -30,12 +30,12 @@ export interface UseDMEditResult {
 
 /**
  * useDMEdit returns a stable callback for editing DM messages. Cursor
- * progress is intentionally NOT tracked here — useDMSync (DM-3 #508)
+ * progress is intentionally not tracked here: useDMSync (DM-3 #508)
  * already subscribes to channel events backfill which carries
  * `message_edited` events emitted by the server PATCH path.
  *
  * 立场 ② 反向断言: this hook never reads/writes `borgee.dm4.cursor:*`
- * sessionStorage. Cursor monotonic invariant is preserved by useDMSync.
+ * sessionStorage. Cursor ordering is preserved by useDMSync.
  */
 export function useDMEdit(dmChannelID: string): UseDMEditResult {
   const [isEditing, setIsEditing] = useState(false);

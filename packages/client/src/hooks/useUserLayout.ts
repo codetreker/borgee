@@ -1,11 +1,11 @@
 // useUserLayout.ts — CHN-3.3 client SPA personal layout hook.
 //
 // Spec: docs/implementation/modules/chn-3-spec.md §1 CHN-3.3 段 + §0
-// 立场 ⑥ "ordering 是 client 端事" + #366 立场 ⑥ "GET-PUT 拉取不进 push".
+// 立场 ⑥ "ordering 是 client 端事" + #366 立场 ⑥ "GET-PUT loading is separate from push".
 // Server: packages/server-go/internal/api/layout.go (#412, stacked off
 // CHN-3.1 schema v=19).
 // Content lock: docs/qa/chn-3-content-lock.md §1 ④ (failure toast 文案
-// "侧栏顺序保存失败, 请重试" 5 源 byte-identical) + ⑥ (GET pull 拉, 不挂
+// "侧栏顺序保存失败, 请重试" 5 源 byte-identical) + ⑥ (GET pull only, no
 // push frame).
 //
 // Behavior:
@@ -21,24 +21,24 @@
 //      Layout state rolled back to last server-confirmed snapshot.
 //
 // 反约束:
-//   - 不挂 push frame subscription (#366 立场 ⑥ + #371 立场
+//   - Do not subscribe to a push frame (#366 立场 ⑥ + #371 立场
 //     ③ + 文案锁 ⑥; reverse grep frame name in ws/ count==0).
 //   - 不缓存到 IndexedDB (v3+ 留账; #366 立场 ⑥ + 文案锁 ⑥).
-//   - pin 算 client side: position = MIN(已有 position) - 1.0 单调
-//     小数 (立场 ③ + 文案锁 ③; server 不算 MIN-1.0 反约束 #412 注释).
+//   - pin is computed client-side: position = MIN(已有 position) - 1.0, using
+//     a smaller numeric position each time (立场 ③ + 文案锁 ③; server 不算 MIN-1.0 反约束 #412 注释).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, type LayoutRow, getMyLayout, putMyLayout } from '../lib/api';
 import { useToast } from '../components/Toast';
 
 // 文案锁 byte-identical 跟 #371 / acceptance §3.5 / #402 ④ / #412 server
-// 5 源. Drift here breaks reverse grep guard (anchor-content-lock 同模式).
+// 5 源. Changing this string breaks the reverse grep guard (anchor-content-lock 同模式).
 export const LAYOUT_SAVE_TOAST = '侧栏顺序保存失败, 请重试';
 
 const PUT_DEBOUNCE_MS = 200;
 
 export interface UserLayout {
-  /** Map keyed by channel_id; absent key = fallback 作者顺序 (立场 ②). */
+  /** Map keyed by channel_id; an absent key falls back to 作者顺序 (立场 ②). */
   byChannel: Map<string, LayoutRow>;
   loaded: boolean;
 }
@@ -49,7 +49,7 @@ export function useUserLayout() {
     byChannel: new Map(),
     loaded: false,
   }));
-  // last-server-confirmed snapshot for rollback on PUT failure.
+  // Last server-confirmed snapshot for rollback on PUT failure.
   const confirmedRef = useRef<Map<string, LayoutRow>>(new Map());
   // Pending dirty rows queued for next PUT.
   const dirtyRef = useRef<Map<string, LayoutRow>>(new Map());
@@ -66,7 +66,7 @@ export function useUserLayout() {
         confirmedRef.current = new Map(m);
         setLayout({ byChannel: m, loaded: true });
       } catch (err) {
-        // 401 / network — 不显 toast (initial load 静默 fallback 作者侧顺序).
+        // 401 / network: no toast; initial load silently falls back to 作者侧顺序.
         if (cancelled) return;
         setLayout({ byChannel: new Map(), loaded: true });
       }
@@ -86,7 +86,7 @@ export function useUserLayout() {
       // Persist to confirmed snapshot.
       for (const r of dirty) confirmedRef.current.set(r.channel_id, r);
     } catch (err) {
-      // 立场 ⑥ — 失败 toast 字面 byte-identical, 状态回滚.
+      // 立场 ⑥: failure toast must stay byte-identical, then roll back state.
       // ApiError carries status — we don't show raw error.message (隐私 +
       // UX 反约束 文案锁 ④).
       const _ = err instanceof ApiError ? err.status : 0;
@@ -123,7 +123,7 @@ export function useUserLayout() {
         const row: LayoutRow = {
           channel_id: channelId,
           collapsed: collapsed ? 1 : 0,
-          // Default position = 0 if no prior row (server still UPSERTs OK;
+          // Default position = 0 if no prior row (server still accepts the UPSERT;
           // 作者侧 fallback ordering 由 channel_groups.position 决定).
           position: existing?.position ?? 0,
         };
@@ -136,9 +136,9 @@ export function useUserLayout() {
   );
 
   /**
-   * pinChannel — 立场 ③ + 文案锁 ③: position = MIN(已有 position) - 1.0
-   * 单调小数, 把 channel 顶到当前 layout 最前. 多次 pin 不限数量
-   * (#366 立场 ③ "个人 pin 数量不限"). 反约束: 不裂 pinned BOOL 双源
+   * pinChannel — 立场 ③ + 文案锁 ③: position = MIN(已有 position) - 1.0,
+   * using a smaller numeric position each time. This moves the channel to the front of the current layout.
+   * Multiple pins are allowed (#366 立场 ③ "个人 pin 数量不限"). 反约束: 不裂 pinned BOOL 双源
    * 排序 (反向 grep `pinned\s+BOOL` 0 hit).
    */
   const pinChannel = useCallback(
@@ -165,8 +165,8 @@ export function useUserLayout() {
   );
 
   /**
-   * unpinChannel — 反向 pin: position 重置到当前 MAX + 1.0 (放到末尾,
-   * 作者侧 fallback 重新接管). 文案锁 ③ "取消置顶" 字面 byte-identical.
+   * unpinChannel — reverse pin: reset position to current MAX + 1.0 (move to the end,
+   * 作者侧 fallback applies again). 文案锁 ③ "取消置顶" 字面 byte-identical.
    */
   const unpinChannel = useCallback(
     (channelId: string) => {
