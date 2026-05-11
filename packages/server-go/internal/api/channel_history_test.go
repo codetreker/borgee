@@ -53,7 +53,7 @@ func TestCHN_UpdateChannelDescription_Behaviors(t *testing.T) {
 			t.Errorf("old_content: got %q, want v1", got)
 		}
 		if got, _ := hist[0]["reason"].(string); got != "unknown" {
-			t.Errorf("reason: got %q, want unknown (AL-1a 对齐链停在 HB-6 #19)", got)
+			t.Errorf("reason: got %q, want unknown (AL-1a alignment stops at HB-6 checkpoint 19)", got)
 		}
 	})
 
