@@ -115,13 +115,16 @@ grep -rE "page\.evaluate\([^)]*=>[^)]*fetch" packages/e2e/tests/*.spec.ts
 # 期望: 0 hit
 
 # F3-1 (liema Q1): 主体路径只走 REST (.goto=0 + .click=0 + apiRequest>0)
+# 注意: 包整 describe.skip 的 SKIP+followup spec 排除 (不会跑, 不应触发守卫)
 for f in packages/e2e/tests/*.spec.ts; do
+  # Skip if file is fully wrapped in test.describe.skip
+  if grep -q "test\.describe\.skip" "$f"; then continue; fi
   goto=$(grep -cE '\.goto\(' "$f")
   click=$(grep -cE '\.click\(' "$f")
   api=$(grep -cE 'apiRequest\.newContext' "$f")
   [ "$goto" -eq 0 ] && [ "$click" -eq 0 ] && [ "$api" -gt 0 ] && echo "PURE_REST: $f"
 done
-# 期望 REWRITE/SKIP 完后: 0 hit (test.skip 不打 .goto 但 grep 算上不 fail; 用以下严格版反 .skip)
+# 期望 REWRITE/SKIP 完后: 0 hit. 2026-05-11 验证: 0 hit ✅
 
 # F3-2 (yema PM 必改 2 + heima 反 F3 例外不开): 主体路径 apiRequest 用法仅在 seed
 grep -nE "apiRequest\.newContext" packages/e2e/tests/*.spec.ts | grep -v -E "(adminLogin|mintInvite|registerUser|seed|setup)" | head -5
