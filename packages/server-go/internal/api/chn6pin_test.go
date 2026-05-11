@@ -1,6 +1,6 @@
 // Package api_test — chn_6_pin_test.go: CHN-6 channel pin/unpin REST
 // endpoints + 0 schema 改 + owner-only ACL + admin god-mode 不挂 + AST
-// 锁链延伸第 11 处.
+// 对齐链延伸第 11 处.
 //
 // Pins:
 //   REG-CHN6-001 TestChn6pin_NoSchemaChange — migrations/ 0 新文件
@@ -8,7 +8,7 @@
 //   REG-CHN6-003 TestCHN61_UnpinChannel_* — DELETE /pin idempotent
 //   REG-CHN6-004 TestCHN_PinThreshold_ByteIdentical — 双向锁
 //   REG-CHN6-005 TestCHN_NoAdminPinPath — admin 不挂
-//   REG-CHN6-006 TestCHN_NoChannelPinQueue — AST 锁链
+//   REG-CHN6-006 TestCHN_NoChannelPinQueue — AST 对齐链
 package api_test
 
 import (
@@ -142,11 +142,11 @@ func TestCHN_UnpinChannel_Idempotent(t *testing.T) {
 	}
 }
 
-// REG-CHN6-004 — PinThreshold byte-identical 双向锁 + IsPinned 谓词单源.
+// REG-CHN6-004 — PinThreshold byte-identical 双向锁 + IsPinned 谓词单一来源.
 func TestCHN_PinThreshold_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.PinThreshold != 0.0 {
-		t.Errorf("PinThreshold drift: got %v, want 0.0 (双向锁跟 client POSITION_PIN_THRESHOLD)", api.PinThreshold)
+		t.Errorf("PinThreshold mismatch: got %v, want 0.0 (双向锁跟 client POSITION_PIN_THRESHOLD)", api.PinThreshold)
 	}
 	if !api.IsPinned(-1.0) {
 		t.Error("IsPinned(-1.0): got false, want true")
@@ -204,7 +204,7 @@ func TestCHN_NoAdminPinPath(t *testing.T) {
 	}
 }
 
-// REG-CHN6-006 — AST 锁链延伸第 11 处.
+// REG-CHN6-006 — AST 对齐链延伸第 11 处.
 func TestCHN_NoChannelPinQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -223,7 +223,7 @@ func TestCHN_NoChannelPinQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 11 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 11 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil

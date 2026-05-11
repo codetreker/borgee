@@ -45,7 +45,7 @@ func al8SeedAction(t *testing.T, s *store.Store, actorID, targetUserID, action s
 }
 
 // REG-AL8-001 — 0 schema 改反向断言: migrations/ 不出现新 ALTER admin_actions
-// 或 al_8_* migration file (跟 al-8-spec.md §1 AL-8.1 字面单源).
+// 或 al_8_* migration file (跟 al-8-spec.md §1 AL-8.1 字面单一来源).
 func TestAL_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -59,14 +59,14 @@ func TestAL_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat.Find(body) != nil {
-			t.Errorf("AL-8 设计 ① broken — schema drift in %s", p)
+			t.Errorf("AL-8 设计 ① broken — schema mismatch in %s", p)
 		}
 		return nil
 	})
 }
 
 // REG-AL8-002 — 0 新 endpoint 反向断言: internal/api/ 除 ADM-2.2 既有
-// /admin-api/v1/audit-log 单源外, 不出现新 audit-log path. ADM-3 multi-source
+// /admin-api/v1/audit-log 单一来源外, 不出现新 audit-log path. ADM-3 multi-source
 // audit query (`/admin-api/v1/audit/multi-source`) 是 spec §0 设计 ② 授权
 // 端点 (蓝图 admin-model.md §1.4 来源透明), 单一允许例外.
 func TestAL_NoNewEndpoint(t *testing.T) {
@@ -339,7 +339,7 @@ func TestAL_RejectsUserRail(t *testing.T) {
 	}
 }
 
-// REG-AL8-006b — AL-1a reason 锁链第 16 处不漂 (复用 reasons.Unknown).
+// REG-AL8-006b — AL-1a reason 对齐链第 16 处不漂 (复用 reasons.Unknown).
 func TestAL_ReasonChain_NotExpanded(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "auth"), filepath.Join("..", "api")}
@@ -354,14 +354,14 @@ func TestAL_ReasonChain_NotExpanded(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("AL-1a 锁链漂移 — pattern hit in %s", p)
+				t.Errorf("AL-1a 对齐链漂移 — pattern hit in %s", p)
 			}
 			return nil
 		})
 	}
 }
 
-// REG-AL8-006c — AST 锁链延伸第 8 处 forbidden token 0 hit.
+// REG-AL8-006c — AST 对齐链延伸第 8 处 forbidden token 0 hit.
 func TestAL_NoAuditQueryQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -381,7 +381,7 @@ func TestAL_NoAuditQueryQueue(t *testing.T) {
 			body, _ := os.ReadFile(p)
 			for _, tok := range forbidden {
 				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 锁链延伸第 8 处 broken — token %q in %s", tok, p)
+					t.Errorf("AST 对齐链延伸第 8 处 broken — token %q in %s", tok, p)
 				}
 			}
 			return nil

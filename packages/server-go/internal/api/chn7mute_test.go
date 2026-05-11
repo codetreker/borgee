@@ -1,5 +1,5 @@
 // Package api_test — chn_7_mute_test.go: CHN-7 mute/unmute REST + 0
-// schema 改 + bitmap + admin god-mode 不挂 + AST 锁链延伸第 12 处 + mute
+// schema 改 + bitmap + admin god-mode 不挂 + AST 对齐链延伸第 12 处 + mute
 // 不 drop messages best-effort.
 package api_test
 
@@ -166,11 +166,11 @@ func TestCHN_UnmuteChannel_PreservesCollapsedBit(t *testing.T) {
 	}
 }
 
-// REG-CHN7-004 — MuteBit byte-identical 双向锁 + IsMuted 谓词单源.
+// REG-CHN7-004 — MuteBit byte-identical 双向锁 + IsMuted 谓词单一来源.
 func TestCHN_MuteBit_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.MuteBit != 2 {
-		t.Errorf("MuteBit drift: got %d, want 2 (双向锁跟 client MUTE_BIT)", api.MuteBit)
+		t.Errorf("MuteBit mismatch: got %d, want 2 (双向锁跟 client MUTE_BIT)", api.MuteBit)
 	}
 	if api.IsMuted(0) {
 		t.Error("IsMuted(0): got true, want false")
@@ -228,7 +228,7 @@ func TestCHN_NoAdminMutePath(t *testing.T) {
 	}
 }
 
-// REG-CHN7-006a — mute 不 drop messages 反向断言 + AST 锁链延伸第 12 处.
+// REG-CHN7-006a — mute 不 drop messages 反向断言 + AST 对齐链延伸第 12 处.
 //
 // 设计 ③: mute 仅 DL-4 push notifier skip — CreateMessage / RT-3 fan-out
 // / WS frame 全 byte-identical. grep 检查 `mute.*skip.*broadcast\|
@@ -252,7 +252,7 @@ func TestCHN_MuteDoesNotDropMessages(t *testing.T) {
 	}
 }
 
-// REG-CHN7-006b — AST 锁链延伸第 12 处.
+// REG-CHN7-006b — AST 对齐链延伸第 12 处.
 func TestCHN_NoChannelMuteQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -272,7 +272,7 @@ func TestCHN_NoChannelMuteQueue(t *testing.T) {
 			body, _ := os.ReadFile(p)
 			for _, tok := range forbidden {
 				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 锁链延伸第 12 处 broken — token %q in %s", tok, p)
+					t.Errorf("AST 对齐链延伸第 12 处 broken — token %q in %s", tok, p)
 				}
 			}
 			return nil
