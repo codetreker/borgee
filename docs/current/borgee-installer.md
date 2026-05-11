@@ -88,7 +88,7 @@ the schema CHECK and content-lock §1.①.
 ## Uninstall (信任底线, 蓝图 §1.2 字面 6 项)
 
 `borgee-installer-uninstall` (deferred to a follow-up PR after the v1 release)
-must perform all six deletion steps:
+tracks these uninstall responsibilities:
 
 1. 二进制 (`/usr/local/bin/borgee-helper` / `/Applications/Borgee Helper.app`)
 2. 配置 / 状态 (`~/.config/borgee-helper/`)
@@ -97,8 +97,8 @@ must perform all six deletion steps:
 5. OS user/group (`borgee-helper` / `_borgee-helper`)
 6. service unit (`borgee-helper.service` / `cloud.borgee.host-bridge.plist`)
 
-These six items stay byte-identical with blueprint §1.2. Any change must update
-both the blueprint and this doc.
+This list mirrors blueprint §1.2. Any change should update both the blueprint
+and this doc.
 
 ## CI build matrix
 
