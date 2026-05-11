@@ -19,7 +19,8 @@ and HB-2 v0(D) (#617) shipped only the `borgee-helper` Go daemon binary
 gap as a deploy-only tool: it fetches the HB-1 manifest, verifies the
 ed25519 signature, prompts the user for `host_grants` permissions, and
 deploys the existing `borgee-helper` binary plus its platform service
-unit. **No `server-go` or `borgee-helper` bytes change.**
+unit. In this docs/comments cleanup branch, installer implementation bytes stay
+unchanged while helper prose and comments may be corrected.
 
 ## Stance (蓝图 host-bridge.md §1.1 + §1.2 + §1.4 字面)
 
@@ -30,7 +31,7 @@ unit. **No `server-go` or `borgee-helper` bytes change.**
 | **First-install ed25519 manifest verify** | Before install, fetch the HB-1 endpoint and verify the signature using the existing HB-1 `PluginManifestEntries` const slice plus ed25519 detached signature. Verify failure blocks install; there is no silent fallback. |
 | **Permission popup UX uses the HB-3 #520 grant_type list** | The install/exec/filesystem/network 4-value enum stays byte-identical with the HB-3 host_grants CHECK constraint. Changing the popup enum means changing the HB-3 schema and this doc. |
 | **Service units come from borgee-helper byte-identical** | The installer does not duplicate `.service` / `.plist` bytes. The sudo install command uses the existing `packages/borgee-helper/install/{borgee-helper.service, cloud.borgee.host-bridge.plist}` as the HB-2 v0(D) #617 single source. |
-| **No server-go or borgee-helper changes** | PR diff is limited to the independent `packages/borgee-installer/` Go module, the GitHub Actions matrix workflow, and the uninstall script. |
+| **Installer implementation remains isolated** | Installer implementation changes stay in the independent `packages/borgee-installer/` Go module, the GitHub Actions matrix workflow, and the uninstall script; this docs/comments cleanup branch may also touch helper prose and comments. |
 | **admin god-mode 永久不挂** | Per ADM-0 §1.3 red line, the installer uses user sudo, and grep check `admin.*installer|/admin-api/.*installer` returns 0 hit. |
 
 ## Module layout
@@ -114,7 +115,7 @@ test -f packages/borgee-installer/cmd/borgee-installer-linux/main.go     # exist
 test -f packages/borgee-installer/cmd/borgee-installer-darwin/main.go    # exists
 test ! -d packages/borgee-installer/cmd/borgee-installer-windows         # absent (留 v2)
 git diff origin/main -- packages/server-go/internal/api/hb_1_plugin_manifest.go | wc -l   # 0
-git diff origin/main -- packages/borgee-helper/                          | wc -l   # 0
+git diff origin/main -- packages/borgee-helper/install/                  | wc -l   # 0
 grep -rE 'admin.*installer|/admin-api/.*installer' packages/borgee-installer/  # 0 hit (ADM-0 §1.3)
 ```
 

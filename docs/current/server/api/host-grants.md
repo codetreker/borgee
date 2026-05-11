@@ -110,14 +110,13 @@ HB-2 host-bridge daemon (Go module `packages/borgee-helper/`, #617 merged)
 uses one SELECT:
 
 ```sql
-SELECT scope, expires_at FROM host_grants
-WHERE user_id = ? AND agent_id = ? AND grant_type = ?
-  AND revoked_at IS NULL
-  AND (expires_at IS NULL OR expires_at > strftime('%s','now') * 1000)
-LIMIT 1;
+SELECT id, scope, expires_at, granted_at, revoked_at
+FROM host_grants
+WHERE agent_id = ? AND scope = ? AND revoked_at IS NULL
+ORDER BY granted_at DESC LIMIT 1;
 ```
 
-Daemon does not write or cache. CI lint reverse-grep for
+Expiration is checked afterward in Go. Daemon does not write or cache. CI lint reverse-grep for
 `host_grants.*INSERT|host_grants.*UPDATE` in `packages/borgee-helper/`
 must find no matches. Package entry point → [`../../borgee-helper.md`](../../borgee-helper.md).
 
@@ -129,6 +128,6 @@ must find no matches. Package entry point → [`../../borgee-helper.md`](../../b
    ALTERs (forward-only).
 3. Update `hostGrantTypeWhitelist` in `host_grants.go`.
 4. Update `actionLabel` map in `HostGrantsPanel.tsx`.
-5. Update content-lock §1 + spec §1 + acceptance §1.2 byte-identical.
+5. Update content-lock §1 + spec §1 + acceptance §1.2 in sync.
 6. CI lint catches divergence through reflect (existing PRAGMA test) +
    reverse-grep (`TestHB31_GrantTypeEnumReject` enumerates 4-list).
