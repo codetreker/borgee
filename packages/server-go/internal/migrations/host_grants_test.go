@@ -19,7 +19,7 @@ func runHB31(t *testing.T, db *gorm.DB) {
 }
 
 // TestHB_CreatesHostGrantsTable pins acceptance §1.1 — 表 9 列 byte-
-// identical 跟 hb-3-spec.md §1 BPP-3.1 + stance §1 设计 ① schema SSOT.
+// identical 跟 hb-3-spec.md §1 BPP-3.1 + 约定 §1 设计 ① schema 单一来源.
 func TestHB_CreatesHostGrantsTable(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -67,7 +67,7 @@ func TestHB_CreatesHostGrantsTable(t *testing.T) {
 		"revoked_at": {"INTEGER", 0, 0},
 	}
 	if len(cols) != len(want) {
-		t.Fatalf("column count drift: got %d, want %d (HB-3.1 schema 9 列)",
+		t.Fatalf("column count mismatch: got %d, want %d (HB-3.1 schema 9 列)",
 			len(cols), len(want))
 	}
 	for _, c := range cols {
@@ -133,7 +133,7 @@ func TestHB_TtlKindEnumReject(t *testing.T) {
 	}
 }
 
-// TestHB_NoDomainBleed pins stance §2 设计 ② 字典分立 (host vs runtime),
+// TestHB_NoDomainBleed pins 约束 §2 设计 ② 字典分立 (host vs runtime),
 // 反向断言 schema 不挂 user_permissions / runtime / cursor / org_id 等
 // 跨域字段 (跟 al_2a_1_agent_configs_test::TestAL2A1_NoDomainBleed 同模式).
 func TestHB_NoDomainBleed(t *testing.T) {
@@ -144,9 +144,9 @@ func TestHB_NoDomainBleed(t *testing.T) {
 	forbidden := []string{
 		"permission",         // user_permissions schema 复用反断
 		"is_admin",           // admin god-mode 反断 (ADM-0 §1.3)
-		"cursor",             // RT-1 envelope cursor 拆死
-		"org_id",             // org 隔离走 users.org_id 单源
-		"source",             // BPP 单源跟 AL-1b 同模式
+		"cursor",             // RT-1 envelope cursor 边界明确
+		"org_id",             // org 隔离走 users.org_id 唯一来源
+		"source",             // BPP 唯一来源跟 AL-1b 同模式
 		"set_by",             // 反人工伪造
 		"runtime_id",         // host vs runtime 字典分立
 	}
@@ -177,7 +177,7 @@ func TestHB_NoDomainBleed(t *testing.T) {
 	}
 	for _, f := range forbidden {
 		if have[f] {
-			t.Errorf("forbidden column %q present (字典分立反约束 — host vs runtime)", f)
+			t.Errorf("forbidden column %q present (字典分立约束 — host vs runtime)", f)
 		}
 	}
 }
@@ -206,7 +206,7 @@ func TestHB_HasIndexes(t *testing.T) {
 	}
 }
 
-// TestHostGrants_Idempotent pins forward-only stance — re-running the migration
+// TestHostGrants_Idempotent pins forward-only 路线 — re-running the migration
 // must not error (IF NOT EXISTS guards). 跟 al_2a_1_agent_configs_test
 // idempotency 同模式.
 func TestHostGrants_Idempotent(t *testing.T) {
@@ -217,7 +217,7 @@ func TestHostGrants_Idempotent(t *testing.T) {
 	e := New(db)
 	e.Register(hostGrants)
 	if err := e.Run(0); err != nil {
-		t.Errorf("re-run should be idempotent (forward-only stance): %v", err)
+		t.Errorf("re-run should be idempotent (forward-only 模式): %v", err)
 	}
 }
 
