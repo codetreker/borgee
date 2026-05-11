@@ -66,8 +66,8 @@ func (m *MemoryConsumer) Delete(agentID, scope string) {
 	delete(m.rows, agentID+"|"+scope)
 }
 
-// Lookup checks (agent_id, scope). An expired TTL returns (zero, false) for the
-// allowed flag; callers that need not_found vs expired use the ACL gate reason path.
+// Lookup checks (agent_id, scope). An expired TTL returns allowed=false;
+// callers that need not_found vs expired use the ACL gate reason path.
 func (m *MemoryConsumer) Lookup(_ context.Context, agentID, scope string) (Grant, bool, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
