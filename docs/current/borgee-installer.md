@@ -53,7 +53,7 @@ packages/borgee-installer/
 
 ## Per-platform deploy contract
 
-| 平台   | 安装命令                                    | service unit source from `packages/borgee-helper/install/` |
+| 平台   | 安装命令                                    | installed service unit path |
 |--------|---------------------------------------------|----------------------------------------------------------------------|
 | Linux  | `sudo apt install ./borgee-helper.deb`      | `/lib/systemd/system/borgee-helper.service`                          |
 | macOS  | `sudo /usr/sbin/installer -pkg ... -target /` | `/Library/LaunchDaemons/cloud.borgee.host-bridge.plist`              |

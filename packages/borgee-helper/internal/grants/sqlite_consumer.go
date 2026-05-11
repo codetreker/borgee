@@ -5,7 +5,7 @@
 // HB-3 spec §1.4 "daemon 不缓存; revoked_at IS NULL 谓词单一来源". grep 检查
 // `grantsCache|cachedGrants` 0 hit (反向约束 §1.3).
 //
-// 读: SELECT id, scope, expires_at, revoked_at FROM host_grants
+// 读: SELECT id, scope, expires_at, granted_at, revoked_at FROM host_grants
 //      WHERE agent_id = ? AND scope = ? AND revoked_at IS NULL
 //      ORDER BY granted_at DESC LIMIT 1
 //
@@ -75,7 +75,8 @@ func (c *SQLiteConsumer) Lookup(ctx context.Context, agentID, scope string) (Gra
 	return g, true, nil
 }
 
-// LookupRaw 区分 not_found / expired / revoked (caller 决定 reason 字典).
+// LookupRaw distinguishes not_found from expired. Revoked rows are filtered by
+// revoked_at IS NULL and therefore appear as not_found to helper lookup.
 func (c *SQLiteConsumer) LookupRaw(ctx context.Context, agentID, scope string) (Grant, bool, bool, error) {
 	const q = `SELECT id, scope, expires_at, granted_at, revoked_at
 		FROM host_grants

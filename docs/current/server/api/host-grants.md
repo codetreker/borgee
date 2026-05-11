@@ -60,7 +60,7 @@ POST body:
 {
   "agent_id": "<uuid>",        // optional; install/exec is user-level
   "grant_type": "filesystem",  // install | exec | filesystem | network
-  "scope": "/home/user/code",  // JSON-opaque, daemon interprets
+  "scope": "/home/user/code",  // server example may use a raw scope value
   "ttl_kind": "always"         // one_shot | always
 }
 ```
@@ -107,7 +107,8 @@ Regression rows: `REG-HB3-001..011` in
 ## HB-2 daemon read-path contract (Go, packages/borgee-helper/, #617 merged)
 
 HB-2 host-bridge daemon (Go module `packages/borgee-helper/`, #617 merged)
-uses one SELECT:
+looks up the exact scoped value passed by helper ACL, such as `fs:<path>` or
+`egress:<host>`, and uses one SELECT:
 
 ```sql
 SELECT id, scope, expires_at, granted_at, revoked_at
@@ -116,7 +117,9 @@ WHERE agent_id = ? AND scope = ? AND revoked_at IS NULL
 ORDER BY granted_at DESC LIMIT 1;
 ```
 
-Expiration is checked afterward in Go. Daemon does not write or cache. CI lint reverse-grep for
+Expiration is checked afterward in Go. Revoked rows are filtered out by
+`revoked_at IS NULL`, so helper lookup treats them as not found; server revoke
+still stamps `revoked_at`. Daemon does not write or cache. CI lint reverse-grep for
 `host_grants.*INSERT|host_grants.*UPDATE` in `packages/borgee-helper/`
 must find no matches. Package entry point → [`../../borgee-helper.md`](../../borgee-helper.md).
 

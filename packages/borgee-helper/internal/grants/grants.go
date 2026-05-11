@@ -18,7 +18,7 @@ import (
 type Grant struct {
 	AgentID   string // agent that holds the grant (source for cross-agent ACL)
 	Scope     string // e.g. "fs:/Users/me/projects" or "egress:api.example.com"
-	TTLUntil  int64  // unix millis; 0 means no TTL (permanent, unsupported in v1)
+	TTLUntil  int64  // unix millis; 0 means no expiration (ttl_kind=always)
 	GrantedAt int64  // unix millis
 }
 
