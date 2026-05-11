@@ -1,14 +1,13 @@
 # HB-1B-INSTALLER install assets
 
-> hb-1b-installer-spec §0.2: per-platform install assets are reused **byte-identical** from
+> hb-1b-installer-spec §0.2: per-platform install assets are sourced from
 > `packages/borgee-helper/install/` (HB-2 v0(D) #617). The installer (`cmd/borgee-installer-{linux,darwin}`)
 > deploys these unit files; this README enumerates the contract so reverse-grep守门 finds
 > them on the canonical path.
 >
-> **0 server-go diff + 0 borgee-helper diff** (反约束 hb-1b-installer-spec §0.2 #3) — the
-> installer **invokes** `sudo apt install` / `sudo /usr/sbin/installer` which install the
-> existing `.service` / `.plist` from the borgee-helper module. We do **not** duplicate
-> their bytes here.
+> The installer **invokes** `sudo apt install` / `sudo /usr/sbin/installer` which install
+> the existing `.service` / `.plist` from the borgee-helper module. We do **not** duplicate
+> those unit files here.
 
 ## Linux: systemd unit
 
@@ -26,4 +25,4 @@ Installer step: `sudo launchctl load /Library/LaunchDaemons/cloud.borgee.host-br
 ## Windows: 留 v2
 
 Per user dispatch hint: "Linux .deb + macOS .pkg, Windows v2 留账". Windows MSI + Windows
-Service registration deferred. Reverse grep `borgee-installer-windows` returns 0 hit in v1.
+Service registration deferred. The v1 installer does not include a `borgee-installer-windows` command.

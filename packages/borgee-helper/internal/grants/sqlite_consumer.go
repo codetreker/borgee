@@ -1,16 +1,16 @@
-// Package grants — SQLite consumer (v0(D) 真启). 替代 v0(C) MemoryConsumer
-// mock. 走 read-only sqlite3 driver 真接 HB-3 #520 host_grants 表.
+// Package grants provides the SQLite-backed consumer for HB-3 #520 host_grants.
+// It is used for production reads in place of the in-memory test consumer.
 //
-// hb-2-v0d-spec.md §0.2: 撤销 <100ms 真守 — 每次 IPC call 重查 (反 cache),
-// HB-3 spec §1.4 "daemon 不缓存; revoked_at IS NULL 谓词单一来源". grep 检查
-// `grantsCache|cachedGrants` 0 hit (反向约束 §1.3).
+// hb-2-v0d-spec.md §0.2 requires revoke <100ms. Each IPC call re-queries the
+// read-only database with the HB-3 spec §1.4 `revoked_at IS NULL` predicate;
+// grant state is not cached.
 //
-// 读: SELECT id, scope, expires_at, revoked_at FROM host_grants
+// 读: SELECT id, scope, expires_at, granted_at, revoked_at FROM host_grants
 //      WHERE agent_id = ? AND scope = ? AND revoked_at IS NULL
 //      ORDER BY granted_at DESC LIMIT 1
 //
-// HB-3 schema 9 字段 (id/user_id/agent_id/grant_type/scope/ttl_kind/
-// granted_at/expires_at/revoked_at). HB-2 v0(D) 仅消费 read-only.
+// HB-3 schema has 9 fields (id/user_id/agent_id/grant_type/scope/ttl_kind/
+// granted_at/expires_at/revoked_at). The helper consumes it read-only.
 
 package grants
 
@@ -23,15 +23,14 @@ import (
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 )
 
-// SQLiteConsumer 是 read-only HB-3 host_grants consumer (drop-in 替
-// MemoryConsumer).
+// SQLiteConsumer is the read-only HB-3 host_grants consumer.
 type SQLiteConsumer struct {
 	db    *sql.DB
 	nowFn func() int64
 }
 
 // NewSQLiteConsumer opens host_grants DB (read-only mode, mode=ro).
-// dsn 是 sqlite3 connection string e.g. "file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000".
+// dsn is a sqlite3 connection string, for example "file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000".
 func NewSQLiteConsumer(dsn string) (*SQLiteConsumer, error) {
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
@@ -51,10 +50,10 @@ func NewSQLiteConsumer(dsn string) (*SQLiteConsumer, error) {
 	}, nil
 }
 
-// SetNowFn 注入时间源 (单测 TTL 边界用).
+// SetNowFn injects a clock for TTL boundary tests.
 func (c *SQLiteConsumer) SetNowFn(f func() int64) { c.nowFn = f }
 
-// Close 关闭 DB.
+// Close closes the DB.
 func (c *SQLiteConsumer) Close() error {
 	if c.db == nil {
 		return nil
@@ -62,11 +61,10 @@ func (c *SQLiteConsumer) Close() error {
 	return c.db.Close()
 }
 
-// Lookup — Consumer interface 实现.
+// Lookup implements Consumer.
 //
-// 反向约束 §1.3 不缓存: 每次 call SELECT 真走 SQL (撤销 <100ms 真守, 由
-// internal/api/host_grants_test.go::TestHB_DELETE_RevokeStampsRevokedAt
-// 行为 test 守门).
+// Each call executes a SELECT against the read-only DB, with no grant-state
+// cache, so revoke visibility follows the per-call lookup path.
 func (c *SQLiteConsumer) Lookup(ctx context.Context, agentID, scope string) (Grant, bool, error) {
 	g, exists, expired, err := c.LookupRaw(ctx, agentID, scope)
 	if err != nil || !exists || expired {
@@ -75,7 +73,8 @@ func (c *SQLiteConsumer) Lookup(ctx context.Context, agentID, scope string) (Gra
 	return g, true, nil
 }
 
-// LookupRaw 区分 not_found / expired / revoked (caller 决定 reason 字典).
+// LookupRaw distinguishes not_found from expired. Revoked rows are filtered by
+// revoked_at IS NULL and therefore appear as not_found to helper lookup.
 func (c *SQLiteConsumer) LookupRaw(ctx context.Context, agentID, scope string) (Grant, bool, bool, error) {
 	const q = `SELECT id, scope, expires_at, granted_at, revoked_at
 		FROM host_grants
@@ -83,11 +82,11 @@ func (c *SQLiteConsumer) LookupRaw(ctx context.Context, agentID, scope string) (
 		ORDER BY granted_at DESC LIMIT 1`
 	row := c.db.QueryRowContext(ctx, q, agentID, scope)
 	var (
-		id         string
-		dbScope    string
-		expiresAt  sql.NullInt64
-		grantedAt  int64
-		revokedAt  sql.NullInt64
+		id        string
+		dbScope   string
+		expiresAt sql.NullInt64
+		grantedAt int64
+		revokedAt sql.NullInt64
 	)
 	if err := row.Scan(&id, &dbScope, &expiresAt, &grantedAt, &revokedAt); err != nil {
 		if err == sql.ErrNoRows {

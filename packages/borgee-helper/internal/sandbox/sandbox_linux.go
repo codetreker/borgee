@@ -1,14 +1,14 @@
 //go:build linux
 
-// Package sandbox — Linux landlock LSM sandbox (v0(D) 真启). 替代 v0(C)
-// stub. 走 raw syscall (SYS_LANDLOCK_CREATE_RULESET=444, SYS_LANDLOCK_ADD_RULE=445,
+// Package sandbox applies the Linux Landlock LSM sandbox. It uses raw syscalls
+// (SYS_LANDLOCK_CREATE_RULESET=444, SYS_LANDLOCK_ADD_RULE=445,
 // SYS_LANDLOCK_RESTRICT_SELF=446) 不依赖 landlock-lsm/go-landlock 第三方包
 // — golang.org/x/sys/unix 提供 LANDLOCK_* 常量足够.
 //
-// hb-2-v0d-spec.md §0.2: kernel ≥5.13 真 landlock; <5.13 fallback no-op
+// hb-2-v0d-spec.md §0.2: kernel ≥5.13 applies Landlock; <5.13 fallback no-op
 // + warn (生产 daemon 启动时 main.go 检 sandbox.Apply 错误决是否 abort).
 //
-// 反向约束 (grep 检查 0 hit): cgroups, cgroupv2 — landlock 限 path 已足.
+// This layer uses Landlock path restrictions, not cgroups.
 
 package sandbox
 
@@ -37,7 +37,7 @@ const (
 	// LANDLOCK_RULE_PATH_BENEATH = 1 (kernel 5.13).
 	landlockRulePathBeneath = 1
 
-	// 全 read 类访问 (HB-2 v0(D) 仅 read scope, 反向约束 §1.1 写类 100% reject).
+	// 全 read 类访问 (helper reads only; write-class IPC is rejected by ACL).
 	allowedReadAccess = unix.LANDLOCK_ACCESS_FS_READ_FILE |
 		unix.LANDLOCK_ACCESS_FS_READ_DIR
 )
@@ -45,15 +45,15 @@ const (
 // Apply 应用 Profile 走 landlock LSM 限制 daemon 真路径访问.
 //
 // 流程 (kernel man landlock):
-//   1. landlock_create_ruleset(attr, sizeof(attr), 0) → ruleset_fd
-//   2. for each path: open(path, O_PATH) → fd; landlock_add_rule(ruleset_fd, ...)
-//   3. landlock_restrict_self(ruleset_fd, 0)
-//   4. close(ruleset_fd)
+//  1. landlock_create_ruleset(attr, sizeof(attr), 0) → ruleset_fd
+//  2. for each path: open(path, O_PATH) → fd; landlock_add_rule(ruleset_fd, ...)
+//  3. landlock_restrict_self(ruleset_fd, 0)
+//  4. close(ruleset_fd)
 //
 // 错误处理: ENOSYS (kernel <5.13) → return nil + 调用方记 warn; 其他 errno → return err.
 func Apply(p Profile) error {
 	if len(p.ReadPaths) == 0 {
-		// 无 grant 时 fail-closed 起 — 反向约束 deny-by-default.
+		// No grants means deny-by-default.
 		return restrictEmptyRuleset()
 	}
 
@@ -146,9 +146,9 @@ func restrictEmptyRuleset() error {
 	return nil
 }
 
-// Profile 描述 sandbox 配置 (跨平台 byte-identical struct).
+// Profile describes the sandbox configuration.
 type Profile struct {
-	ReadPaths    []string // grants 注入 (host_grants.path 真接)
+	ReadPaths    []string // derived from exact host_grants.scope values such as fs:<path>
 	AuditLogPath string   // daemon 唯一允许写 (走 OS perms; landlock 限 read 已足)
 	TmpCachePath string   // 临时缓存
 }

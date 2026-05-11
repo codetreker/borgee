@@ -3,12 +3,12 @@
 // Package main — borgee-installer-darwin: HB-1B-INSTALLER macOS .pkg installer.
 //
 // hb-1b-installer-spec §0.2: 真 ed25519 manifest verify + permission popup
-// + sudo /usr/sbin/installer + launchd unit 部署 (跟 borgee-helper.plist
-// byte-identical 承袭).
+// + sudo /usr/sbin/installer + launchd unit deployment from borgee-helper install assets.
 //
 // CLI mirror borgee-installer-linux 但 .pkg 走 /usr/sbin/installer + launchctl.
 //
-// 反约束: 0 server-go 改 + 0 borgee-helper 改 + admin god-mode 永久不挂.
+// Boundary: installer implementation stays in this module and uses user sudo;
+// it does not add an installer admin API path.
 package main
 
 import (
