@@ -19,7 +19,7 @@ without polluting the platform-level permission schema.
 
 | Constraint | Contract |
 |---|---|
-| Schema source | HB-3 owns the schema. HB-2 daemon (Go module `packages/borgee-helper/`, #617 merged) and install-butler are read-only consumers. server-go `internal/api/host_grants.go` is the only INSERT/UPDATE/DELETE path. |
+| Schema source | HB-3 owns the schema. HB-2 daemon (Go module `packages/borgee-helper/`) and install-butler are read-only consumers. server-go `internal/api/host_grants.go` is the only INSERT/UPDATE/DELETE path. |
 | Separate dictionaries (host vs runtime) | `host_grants` and AP-1 `user_permissions` have disjoint field sets. AST scan check: the handler must not reference the `user_permissions` identifier; the schema must not add `permission` / `is_admin` / `cursor` / `org_id` / `runtime_id` columns. |
 | Audit log 5-field source | `actor / action / target / when / scope` must stay aligned with HB-1 install audit, HB-2 host-IPC audit, and BPP-4 #499 dead-letter. A schema change must update related tests for HB-1, HB-2, BPP-4, and HB-3. This matches the HB-4 §1.5 release criteria line 4 check for the audit-log JSON schema. |
 | Revoke < 100ms | HB-4 §1.5 release criteria line 5. v1 implementation: REST DELETE sets `revoked_at` NOT NULL, and the daemon rechecks on every SELECT with no cache. This follows the HB-1 manifest no-cache and HB-2 §4.3 pattern. |
@@ -99,14 +99,14 @@ HB-1/HB-2/BPP-4 audit schema.
   audit 5-field).
 - `packages/client/src/__tests__/HostGrantsPanel.test.tsx` — 5
   vitest cases (data-action + hb3-button + button text alignment
-  + actionLabel 4-enum + synonym 0 occurrence + three-value onDecide).
+  + actionLabel 4-enum + synonym absence + three-value onDecide).
 
 Regression rows: `REG-HB3-001..011` in
 `docs/qa/regression-registry.md`.
 
-## HB-2 daemon read-path contract (Go, packages/borgee-helper/, #617 merged)
+## HB-2 daemon read-path contract (Go, packages/borgee-helper/)
 
-HB-2 host-bridge daemon (Go module `packages/borgee-helper/`, #617 merged)
+HB-2 host-bridge daemon (Go module `packages/borgee-helper/`)
 looks up the exact scoped value stored in `host_grants.scope`. The server treats
 `scope` as opaque data, but helper lookup expects values such as `fs:<path>` or
 `egress:<host>` and uses one SELECT:
@@ -120,7 +120,7 @@ ORDER BY granted_at DESC LIMIT 1;
 
 Expiration is checked afterward in Go. Revoked rows are filtered out by
 `revoked_at IS NULL`, so helper lookup treats them as not found; server revoke
-still stamps `revoked_at`. Daemon does not write or cache. CI lint reverse-grep for
+still stamps `revoked_at`. Daemon does not write or cache. CI expects
 `host_grants.*INSERT|host_grants.*UPDATE` in `packages/borgee-helper/`
 must find no matches. Package entry point → [`../../borgee-helper.md`](../../borgee-helper.md).
 
@@ -133,5 +133,5 @@ must find no matches. Package entry point → [`../../borgee-helper.md`](../../b
 3. Update `hostGrantTypeWhitelist` in `host_grants.go`.
 4. Update `actionLabel` map in `HostGrantsPanel.tsx`.
 5. Update server prose, spec §1, and acceptance §1.2 in sync.
-6. CI lint catches divergence through reflect (existing PRAGMA test) +
-   reverse-grep (`TestHB31_GrantTypeEnumReject` enumerates 4-list).
+6. CI catches divergence through reflect (existing PRAGMA test) and enum
+   coverage (`TestHB31_GrantTypeEnumReject` enumerates 4-list).

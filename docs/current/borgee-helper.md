@@ -62,5 +62,5 @@
 ## 6. 留账 (透明)
 
 - HB-1 install-butler short-lived privileged daemon is tracked separately (acceptance `hb-1.md` item 5).
-- Real Windows AppContainer sandbox implementation remains for a follow-up PR; `sandbox_windows.go` is currently a placeholder.
-- HB-2 e2e cross-platform CI matrix is in place through `hb20-ipc-prereq` on ubuntu/macos/windows.
+- Real Windows AppContainer sandbox implementation is tracked separately; `sandbox_windows.go` is currently a placeholder.
+- HB-2 e2e cross-platform CI runs on ubuntu/macos/windows.
