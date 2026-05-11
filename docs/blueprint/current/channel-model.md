@@ -3,7 +3,7 @@
 > Borgee 的 channel 不是单纯聊天容器，是"协作场"。本文是对 channel/DM/workspace 三件套的形状层规范。
 > 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)。
 
-## 1. 目标态（Should-be）— 四条立场
+## 1. 目标态（Should-be）— 四条约定
 
 ### 1.1 Channel = 协作场（聊天 + 共享工作空间）
 

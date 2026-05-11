@@ -33,7 +33,7 @@
 | [`_meta/r3-decisions.md`](_meta/r3-decisions.md) | R3 review 7 条决策结论 (含 R3-4/5/7 Phase 4 同期) |
 | [`_meta/r4-review-trigger.md`](_meta/r4-review-trigger.md) | R4 review 触发条件 (Phase 2 退出 + Phase 3 启动) |
 | [`_meta/blueprint-audit-rotation.md`](_meta/blueprint-audit-rotation.md) | 蓝图 audit 轮换协议 (反实施漂蓝图) |
-| [`_meta/phase-2-stance-vs-impl.md`](_meta/phase-2-stance-vs-impl.md) | Phase 2 立场 vs 实施落差表 |
+| [`_meta/phase-2-stance-vs-impl.md`](_meta/phase-2-stance-vs-impl.md) | Phase 2 约定 vs 实施落差表 |
 | [`_meta/phase-3-4-vision.md`](_meta/phase-3-4-vision.md) | Phase 3+4 主线方向 (R4 anchor) |
 | [`_meta/phase-3-trigger-conditions.md`](_meta/phase-3-trigger-conditions.md) | Phase 3 启动触发条件 |
 
@@ -60,9 +60,9 @@
 
 ## 文档导航
 
-> 11 模型 + 6 meta 完整索引见上面 [蓝图状态机](#蓝图状态机-按-blueprintflow-blueprint-iteration-skill) 段. 下面是核心立场.
+> 11 模型 + 6 meta 完整索引见上面 [蓝图状态机](#蓝图状态机-按-blueprintflow-blueprint-iteration-skill) 段. 下面是核心约定.
 
-## 14 条核心立场(从 11 篇提炼)
+## 14 条核心约定(从 11 篇提炼)
 
 ### 身份
 1. **个人即组织** — 1 org = 1 人 + N agent, UI 永久不暴露 org
@@ -77,7 +77,7 @@
 ### 平台
 7. **Borgee 不带 runtime** — 通过 plugin 接 OpenClaw / Hermes
 8. **BPP 中立协议** — OpenClaw plugin 是 reference impl
-9. **Borgee 是 agent 配置面 SSOT** — Schema-driven blob, 热更新立即生效
+9. **Borgee 是 agent 配置面单一来源** — Schema-driven blob, 热更新立即生效
 10. **remote-agent 升级为安装管家** — 一份 SPA + Tauri 壳 + 信任五支柱
 
 ### 守则

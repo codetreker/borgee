@@ -68,7 +68,7 @@
 
 | 表/列 | 来源 | 备注 |
 |-------|------|------|
-| `agent_config`（含 schema-driven blob） | [plugin-protocol §1.4](plugin-protocol.md) | Borgee 是 SSOT |
+| `agent_config`（含 schema-driven blob） | [plugin-protocol §1.4](plugin-protocol.md) | Borgee 是单一来源 |
 | `plugin_connections` | plugin-protocol §1.1 | 一 plugin = 一 runtime |
 | `runtime_schemas` | plugin-protocol §1.4 | runtime 上报，Borgee 渲染 |
 | `agent_invitations(channel_id, agent_id, requested_by, state)` | [concept-model §4.2](concept-model.md) | 跨 org 审批 |

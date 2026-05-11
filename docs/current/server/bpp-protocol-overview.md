@@ -18,7 +18,7 @@
 **协议要点**:
 - WebSocket 单向 server→client (`/ws` 已有, `/ws/plugin` runtime 端).
 - Reverse channel: client→server 走 `POST /ws/upstream` (REST shim, BPP-2 升 WS bidirectional).
-- frame schema 锁定: byte-identical between blueprint §schemas + `internal/ws/event_schemas.go` + `packages/client/src/types/ws-frames.ts`. CI lint G2.6 (Phase 4 加) catch drift.
+- frame schema 锁定: byte-identical between blueprint §schemas + `internal/ws/event_schemas.go` + `packages/client/src/types/ws-frames.ts`. CI lint G2.6 (Phase 4 加) catch mismatch.
 
 **不带 migration** — BPP 是协议层, 不动 schema. AL-3 落表是分开的 task (state 持久化 hook 已在 #249 Tracker 接口形参化).
 

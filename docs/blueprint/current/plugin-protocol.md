@@ -5,11 +5,11 @@
 
 ## 0. 一句话定义
 
-> **BPP 是 Borgee 与 runtime（OpenClaw / Hermes / 自建）之间的协议契约。Borgee 是 agent 的控制面 SSOT，runtime 是执行面。**
+> **BPP 是 Borgee 与 runtime（OpenClaw / Hermes / 自建）之间的协议契约。Borgee 是 agent 的控制面单一来源，runtime 是执行面。**
 
 ---
 
-## 1. 目标态（Should-be）— 六条立场
+## 1. 目标态（Should-be）— 六条约定
 
 ### 1.1 Plugin 实例 = runtime 实例（B 主 + A 兼容）
 
@@ -60,7 +60,7 @@ request_clarification    # 跟某个 user 索要更多信息
 - server 统一在 dispatch 层做权限检查（依据 [concept-model](concept-model.md) 的 user/agent permission 系统）
 - 不允许 plugin "下穿"语义层直调 REST——这是协议红线
 
-### 1.4 Borgee 是 agent 配置面的 SSOT
+### 1.4 Borgee 是 agent 配置面的单一来源
 
 **按"用户做选择 vs 系统调优"划界**：
 
@@ -159,7 +159,7 @@ request_clarification    # 跟某个 user 索要更多信息
 | 一 plugin 管多 agent | OpenClaw plugin 已支持 multi-account，但仍是一对一 connection | 协议层加多 agent 注册接口 |
 | BPP 中立协议 | 私有 OpenClaw SDK 协议 | 抽规范文档 + 重构 plugin 端代码作 reference impl |
 | 语义动作层 | plugin 通过 WS `api_request` 直调 REST | 新增高级动作 API + dispatch 层 + 权限收敛 |
-| Borgee 配置 SSOT | `users` 表里 agent 行只有 name/role/owner_id | **大改**：加 `agent_config` 表（含 schema-driven blob）、配置 UI、`agent_config_update` BPP 接口 |
+| Borgee 配置单一来源 | `users` 表里 agent 行只有 name/role/owner_id | **大改**：加 `agent_config` 表（含 schema-driven blob）、配置 UI、`agent_config_update` BPP 接口 |
 | 热更新分级 | 没有"立即生效"机制 | plugin 端实现幂等 reload；runtime 不缓存 |
 | 故障态分类 | 仅 online/offline | 状态机加 reason code，plugin 主动心跳 |
 

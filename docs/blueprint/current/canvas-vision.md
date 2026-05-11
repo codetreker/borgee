@@ -7,7 +7,7 @@
 
 > **每个 channel 里，AI 团队和人围绕一组 artifact（PRD、代码、设计稿、测试用例…）协作；artifact 既是产物又是讨论锚点。**
 
-## 1. 目标态（Should-be）— 五条立场
+## 1. 目标态（Should-be）— 五条约定
 
 ### 1.1 用户场景：个人 + AI 团队
 

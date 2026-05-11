@@ -355,7 +355,7 @@ Hub 维护 `onlineUsers map[userId]map[*Client]bool` 支持多端在线。Heartb
 - `internal/admin/auth.go::CookieName` const = `"borgee_admin_session"` 字面不动
 - `loginRequest{Login, Password}` 字段名不动
 - `handleMe` + `handleLogin` writeJSON shape `{id, login}` 不动
-- 0 endpoint URL / 0 routes.go / 0 migration v 号 / 0 admin_actions.action CHECK enum drift
+- 0 endpoint URL / 0 routes.go / 0 migration v 号 / 0 admin_actions.action CHECK enum mismatch
 
 **测试**:
 - `internal/api/admin_grant_permission_gate_test.go` 4 case PASS (valid dot 200 / 历史 snake 400 / typo 400 / empty 400)
