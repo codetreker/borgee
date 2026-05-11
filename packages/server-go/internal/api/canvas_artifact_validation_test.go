@@ -4,11 +4,11 @@
 // Pins:
 //   - acceptance §1.3 — code MUST carry metadata.language ∈ 11 项白名单
 //     + 'text' fallback (12 项); 约束 短码唯一不接全名同义词
-//     ('golang'/'typescript'/'python'/'shell'/'bash'/'plaintext') (#370 §1 ②).
+//     ('golang'/'typescript'/'python'/'shell'/'bash'/'plaintext') (#370 §1 第 2 条).
 //   - acceptance §1.4 — image_link MUST carry metadata.kind ∈ ('image',
 //     'link') + URL 必 https; 约束 javascript:/data:/data:image/http:/
-//     file: 全 reject (XSS 红线第一道, #370 §1 ④).
-//   - 约束 — CV-1.2 设计 ④ 旧 400 文案 'type must be markdown (v1)'
+//     file: 全 reject (XSS 红线第一道, #370 §1 第 4 条).
+//   - 约束 — CV-1.2 设计第 4 条 旧 400 文案 'type must be markdown (v1)'
 //     已删 (spec #397 mismatch 3 字面).
 package api
 
@@ -33,7 +33,7 @@ func TestIsValidArtifactKind(t *testing.T) {
 	}
 }
 
-// ---- IsValidCodeLanguage 11 项 + text (#370 §1 ②) ------------------
+// ---- IsValidCodeLanguage 11 项 + text (#370 §1 第 2 条) ------------------
 
 func TestIsValidCodeLanguage_11WhitelistPlusText(t *testing.T) {
 	t.Parallel()
@@ -48,13 +48,13 @@ func TestIsValidCodeLanguage_11WhitelistPlusText(t *testing.T) {
 	}
 }
 
-// TestIsValidCodeLanguage_RejectsFullNameSynonyms pins #370 §1 ② 约束
+// TestIsValidCodeLanguage_RejectsFullNameSynonyms pins #370 §1 第 2 条 约束
 // — 短码唯一: 不接 'golang' / 'typescript' / 'python' / 'shell' /
 // 'bash' / 'plaintext' 全名同义词 (跟 acceptance §4.4 grep 检查 同源).
 func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{
-		// 全名同义词 — 约束闸 (#370 §1 ②).
+		// 全名同义词 — 约束闸 (#370 §1 第 2 条).
 		"golang", "typescript", "python", "shell", "bash", "plaintext",
 		// 大小写漂移 — 短码 ASCII case-sensitive.
 		"GO", "TS", "Py", "MD",
@@ -65,12 +65,12 @@ func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 		"",
 	} {
 		if IsValidCodeLanguage(bad) {
-			t.Errorf("language=%q accepted — should NOT be in whitelist (#370 §1 ② 短码唯一)", bad)
+			t.Errorf("language=%q accepted — should NOT be in whitelist (#370 §1 第 2 条 短码唯一)", bad)
 		}
 	}
 }
 
-// ---- ValidateImageLinkURL — XSS 红线第一道 (#370 §1 ④) -----------
+// ---- ValidateImageLinkURL — XSS 红线第一道 (#370 §1 第 4 条) -----------
 
 func TestValidateImageLinkURL_AcceptsHttpsAbsolute(t *testing.T) {
 	t.Parallel()
@@ -87,7 +87,7 @@ func TestValidateImageLinkURL_AcceptsHttpsAbsolute(t *testing.T) {
 	}
 }
 
-// TestValidateImageLinkURL_RejectsNonHttpsSchemes pins #370 §1 ④ XSS 红线
+// TestValidateImageLinkURL_RejectsNonHttpsSchemes pins #370 §1 第 4 条 XSS 红线
 // 第一道 — javascript: / data: / data:image / http: / file: / chrome: 全
 // reject (跟 spec §3 grep 检查 + acceptance §4.2 同源).
 func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
@@ -111,7 +111,7 @@ func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
 		"ftp://files.example.com/x.zip",
 	} {
 		if err := ValidateImageLinkURL(bad); err == nil {
-			t.Errorf("url=%q accepted — XSS 红线 broken (#370 §1 ④)", bad)
+			t.Errorf("url=%q accepted — XSS 红线 broken (#370 §1 第 4 条)", bad)
 		}
 	}
 }
@@ -189,7 +189,7 @@ func TestValidateArtifactMetadata_Code_RequiresLanguage(t *testing.T) {
 }
 
 // TestValidateArtifactMetadata_ImageLink_RequiresHttpsOnly pins
-// acceptance §1.4 + #370 §1 ④ — image_link MUST carry metadata.kind ∈
+// acceptance §1.4 + #370 §1 第 4 条 — image_link MUST carry metadata.kind ∈
 // ('image','link') + URL 必 https.
 func TestValidateArtifactMetadata_ImageLink_RequiresHttpsOnly(t *testing.T) {
 	t.Parallel()

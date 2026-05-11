@@ -2,7 +2,7 @@
 // tests + 字典分立 / audit schema / AST scan 约束.
 //
 // Acceptance: docs/qa/acceptance-templates/hb-3.md §1.
-// Stance: docs/qa/hb-3-stance-checklist.md §1+§2+§3.
+// 设计约束: docs/qa/hb-3-stance-checklist.md §1+§2+§3.
 package api_test
 
 import (
@@ -178,7 +178,7 @@ func TestHB_DELETE_RevokeStampsRevokedAt(t *testing.T) {
 
 func TestHB_DELETE_CrossUser403(t *testing.T) {
 	t.Parallel()
-	// Stance §0 设计 ⑦ admin god-mode 不入 + cross-user reject 403
+	// 设计约束 §0 设计第 7 条 admin god-mode 不入 + cross-user reject 403
 	// (anchor #360 同模式).
 	ts, _, _ := testutil.NewTestServer(t)
 	token := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
@@ -207,7 +207,7 @@ func TestHB_DELETE_CrossUser403(t *testing.T) {
 
 func TestHB_NoUserPermissionsJoin(t *testing.T) {
 	t.Parallel()
-	// Stance §0 设计 ② 字典分立: host_grants 不 JOIN user_permissions.
+	// 设计约束 §0 设计第 2 条 字典分立: host_grants 不 JOIN user_permissions.
 	dir := "."
 	entries, err := filepath.Glob(filepath.Join(dir, "host_grants*.go"))
 	if err != nil {
@@ -229,7 +229,7 @@ func TestHB_NoUserPermissionsJoin(t *testing.T) {
 			}
 			if strings.Contains(strings.ToLower(ident.Name), "userpermission") ||
 				strings.Contains(strings.ToLower(ident.Name), "user_permission") {
-				t.Errorf("HB-3 stance §0 设计 ② 字典分立: forbidden user_permissions reference in %s: %s",
+				t.Errorf("HB-3 设计约束 §0 设计第 2 条 字典分立: forbidden user_permissions reference in %s: %s",
 					path, ident.Name)
 			}
 			return true
@@ -239,7 +239,7 @@ func TestHB_NoUserPermissionsJoin(t *testing.T) {
 
 func TestHB_NoGrantQueueInAPIPackage(t *testing.T) {
 	t.Parallel()
-	// 约定 §0 设计 ⑧ best-effort 设计沿用 BPP-4/5 — AST scan 对齐链延伸第 3 处.
+	// 设计约束 §0 设计第 8 条 best-effort 跟蓝图一致 BPP-4/5 — AST scan 对齐链延伸第 3 处.
 	forbidden := []string{
 		"pendingGrants",
 		"grantQueue",
@@ -275,12 +275,12 @@ func TestHB_NoGrantQueueInAPIPackage(t *testing.T) {
 	}
 	sort.Strings(hits)
 	if len(hits) > 0 {
-		t.Errorf("HB-3 约定 §0 设计 ⑧ 约束 (best-effort, BPP-4/5 对齐链延伸第 3 处): %v", hits)
+		t.Errorf("HB-3 设计约束 §0 设计第 8 条 约束 (best-effort, BPP-4/5 对齐链延伸第 3 处): %v", hits)
 	}
 }
 
-// TestHB_AuditLogSchema5FieldsByteIdentical pins stance §0 设计 ③ —
-// audit log 5 字段 (actor/action/target/when/scope) byte-identical 跟
+// TestHB_AuditLogSchema5FieldsByteIdentical pins 设计约束 §0 设计第 3 条 —
+// audit log 5 字段 (actor/action/target/when/scope) 字节级一致 跟
 // BPP-4 #499 DeadLetterAuditEntry + HB-1/HB-2 audit 跨四 milestone
 // 同源. 此 test 验证 host_grants.go 真用 5 个 key 写 log.
 func TestHB_AuditLogSchema5FieldsByteIdentical(t *testing.T) {
@@ -327,8 +327,8 @@ func TestHB_AuditLogSchema5FieldsByteIdentical(t *testing.T) {
 	})
 	// Two log call sites: granted + revoked. Both should have all 5 keys.
 	if loggerInfoCallsHaveAllKeys < 2 {
-		t.Errorf("HB-3 约定 §0 设计 ③ audit schema mismatch: expected ≥2 logger.Info calls "+
-			"with all 5 keys (actor/action/target/when/scope) byte-identical 跟 HB-1/HB-2/"+
+		t.Errorf("HB-3 设计约束 §0 设计第 3 条 audit schema mismatch: expected ≥2 logger.Info calls "+
+			"with all 5 keys (actor/action/target/when/scope) 字节级一致 跟 HB-1/HB-2/"+
 			"BPP-4 dead-letter 跨四 milestone 同源, found %d", loggerInfoCallsHaveAllKeys)
 	}
 }

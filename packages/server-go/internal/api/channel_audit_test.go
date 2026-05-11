@@ -1,10 +1,10 @@
 // Package api_test — CHN-4 wrapper grep audit.
 //
-// 设计 ① — 7 源 byte-identical 反向断言不破:
-//   #354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + chn-4 stance
+// 设计第 1 条 — 7 源 字节级一致 反向断言不破:
+//   #354 第 4 条 + #353 §3.1 + #357 第 2 条 + #364 + #371 + #374 + chn-4 设计约束
 //   "DM 视图永不含 workspace tab" 7 源同根锁
 //
-// 设计 ④ — server production 0 行变更, 仅加 _test.go grep audit hook
+// 设计第 4 条 — server production 0 行变更, 仅加 _test.go grep audit hook
 //
 // Note: 当 PERF-AST-LINT #506 (astscan helper) 合入 main 后, 此 test 应改
 // 调 `astscan.AssertNoForbiddenIdentifiers` 替代 inline grep — REG-CHN4-004
@@ -19,12 +19,12 @@ import (
 	"testing"
 )
 
-// TestCHN_DMViewHasNoWorkspaceTab pins 设计 ① + 7 源 byte-identical 反向锁.
+// TestCHN_DMViewHasNoWorkspaceTab pins 设计第 1 条 + 7 源 字节级一致 反向锁.
 // production code (server-go internal/) 必不含 dm 视图渲染 workspace tab
 // 的字面 (跟 ChannelView.tsx + chn-2-content-lock 同源).
 //
-// 此处扫 server side production *.go 反向断言 — 客户端 7 源 byte-identical
-// 锁链由 client vitest 守 (chn-2-content-lock.test.ts 等).
+// 此处扫 server side production *.go 反向断言 — 客户端 7 源 字节级一致
+// 对齐链由 client vitest 守 (chn-2-content-lock.test.ts 等).
 func TestCHN_DMViewHasNoWorkspaceTab(t *testing.T) {
 	t.Parallel()
 	// 反向 forbidden identifiers — 7 源同根锁的硬条件.
@@ -62,13 +62,13 @@ func TestCHN_DMViewHasNoWorkspaceTab(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("CHN-4 设计 ① broken: dm-view-workspace-enabling identifier "+
-			"found in production *.go (7 源 byte-identical 锁链同根: #354 ④ + "+
-			"#353 §3.1 + #357 ② + #364 + #371 + #374 + chn-4 stance): %v", hits)
+		t.Errorf("CHN-4 设计第 1 条 broken: dm-view-workspace-enabling identifier "+
+			"found in production *.go (7 源 字节级一致 对齐链同根: #354 第 4 条 + "+
+			"#353 §3.1 + #357 第 2 条 + #364 + #371 + #374 + chn-4 设计约束): %v", hits)
 	}
 }
 
-// TestCHN_NoDMSyncBypassEndpoint pins 设计 ② — DM 走普通 channel events
+// TestCHN_NoDMSyncBypassEndpoint pins 设计第 2 条 — DM 走普通 channel events
 // path, 不开 dm-only sync endpoint (跟 DM-3 wrapper 同精神).
 func TestCHN_NoDMSyncBypassEndpoint(t *testing.T) {
 	t.Parallel()
@@ -105,6 +105,6 @@ func TestCHN_NoDMSyncBypassEndpoint(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("CHN-4 设计 ② broken: dm-only bypass endpoint paths found: %v", hits)
+		t.Errorf("CHN-4 设计第 2 条 broken: dm-only bypass endpoint paths found: %v", hits)
 	}
 }
