@@ -53,6 +53,8 @@ Dev 跑 audit → 标 46 spec 6 类 → 一 PR 内并行做:
 
 无 API 改动. 改的是 e2e 怎么测 API + UI. server endpoint 不动.
 
+本 PR 0 API 改动; SKIP+followup 7 spec 的 v1 → v2 unskip 路径走 gh#724 §1 client UI mount (ArtifactComments 系列从 0 mount → mount), 由 architect 在 wave HB-7 mount 落地时回此 e2e cluster 真 unskip. (feima review 加分项 建议落)
+
 ## §4 边界 / 错误处理
 
 | 场景 | 处理 |
