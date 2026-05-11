@@ -1,4 +1,4 @@
-// tests/smoke-app-loads.spec.ts — 双服务 (server-go + vite) harness smoke (INFRA-2).
+// tests/smoke-app-loads.spec.ts — dual-service (server-go + vite) smoke check (INFRA-2).
 //
 // 测试范围:
 //   - server-go /health endpoint 返回 200 (Go 二进制启动成功)
@@ -12,9 +12,9 @@
 //   - 验收: INFRA-2 spec (双服务 harness CI 跑通)
 //
 // 实施约束:
-//   - 真 UI 走浏览器 (request.get + page.goto)
-//   - smoke fail 必须是基础设施问题 (端口冲突 / server crash / proxy 配置错), 不是产品 bug
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API 不开浏览器 / noop
+//   - Browser-driven path (request.get + page.goto)
+//   - Smoke failures should indicate infrastructure issues (port conflict / server crash / proxy misconfiguration), not product bugs
+//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API 不开浏览器 / empty placeholder tests
 import { test, expect } from '@playwright/test';
 
 test.describe('INFRA-2 smoke', () => {
