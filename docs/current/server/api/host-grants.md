@@ -4,7 +4,7 @@
 > `packages/server-go/internal/migrations/hb_3_1_host_grants.go` (v=27).
 > REST endpoints in `packages/server-go/internal/api/host_grants.go`.
 > Client SPA in `packages/client/src/components/HostGrantsPanel.tsx`.
-> Wire-up at server boot in
+> Route registration at server boot in
 > `packages/server-go/internal/server/server.go`.
 
 ## Why
@@ -27,20 +27,20 @@ without polluting the platform-level permission schema.
   / `cursor` / `org_id` / `runtime_id` 列.
 - **audit log 5 字段跨四 milestone 同源.** `actor / action / target /
   when / scope` byte-identical 跟 HB-1 install audit + HB-2 host-IPC
-  audit + BPP-4 #499 dead-letter. 改 = 改四处单测守护链 (HB-1 + HB-2 +
-  BPP-4 + HB-3 = 第 4 道守护链). 跟 HB-4 §1.5 release gate 第 4
-  行 "审计日志格式锁定 JSON schema" 守门同源.
-- **撤销 < 100ms** (HB-4 §1.5 release gate 第 5 行) — v1 实现:
+  audit + BPP-4 #499 dead-letter. 改 = 改四处单测锁定 (HB-1 + HB-2 +
+  BPP-4 + HB-3 = 第 4 处锁定). 跟 HB-4 §1.5 release criteria 第 4
+  行 "审计日志格式锁定 JSON schema" 检查同源.
+- **撤销 < 100ms** (HB-4 §1.5 release criteria 第 5 行) — v1 实现:
   REST DELETE → `revoked_at` NOT NULL + daemon 每次 SELECT 守
   (不缓存; 跟 HB-1 manifest 不缓存 + HB-2 §4.3 同模式).
 - **forward-only revoke.** DELETE 不真删行 — stamp `revoked_at` 留作
   audit (蓝图 §2 信任五支柱第 3 条).
-- **admin god-mode 不入** — 用户授权是用户主权 (蓝图 §1.3 + ADM-0 §1.3
+- **admin-wide access 不入** — 用户授权是用户主权 (蓝图 §1.3 + ADM-0 §1.3
   红线). grep 检查 `admin.*host_grant` 0 hit.
-- **best-effort, no retry queue** (跟 BPP-4 #499 §0.3 设计沿用). AST
-  scan reverse-grep 守门 forbids `pendingGrants` / `grantQueue` /
-  `deadLetterGrants` (守护链延伸第 3 处, 跟 BPP-4 dead_letter_test +
-  BPP-5 reconnect_handler_test 守护链同源).
+- **attempt once, no retry queue** (跟 BPP-4 #499 §0.3 设计沿用). AST
+  scan reverse-grep 检查 forbids `pendingGrants` / `grantQueue` /
+  `deadLetterGrants` (第 3 处相关锁定, 跟 BPP-4 dead_letter_test +
+  BPP-5 reconnect_handler_test 测试约束同源).
 
 ## Schema (migration v=27)
 
@@ -105,9 +105,9 @@ byte-identical with HB-1/HB-2/BPP-4 audit schema.
 ## Tests
 
 - `internal/migrations/hb_3_1_host_grants_test.go` — 7 unit tests
-  (table shape + 4-enum CHECK + 2-enum CHECK + no-domain-bleed +
+  (table shape + 4-enum CHECK + 2-enum CHECK + no platform-domain columns +
   indexes + idempotent + version=27).
-- `internal/api/host_grants_test.go` — 8 unit tests (POST happy path
+- `internal/api/host_grants_test.go` — 8 unit tests (POST success
   filesystem + one_shot expires_at + grant_type/ttl_kind reject +
   GET list + DELETE revoke + cross-user 403 + AST scan
   user_permissions 0 hit + AST scan grant-queue 0 hit + AST scan
@@ -145,5 +145,5 @@ must be 0 hit. 真包入口 → [`../../borgee-helper.md`](../../borgee-helper.m
 3. Update `hostGrantTypeWhitelist` in `host_grants.go`.
 4. Update `actionLabel` map in `HostGrantsPanel.tsx`.
 5. Update content-lock §1 + spec §1 + acceptance §1.2 byte-identical.
-6. CI lint catches 脱节 via reflect (existing PRAGMA test) +
+6. CI lint catches divergence via reflect (existing PRAGMA test) +
    reverse-grep (`TestHB31_GrantTypeEnumReject` enumerates 4-list).

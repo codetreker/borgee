@@ -3,7 +3,7 @@
 > **单一来源 pointer.** Code at
 > `packages/server-go/internal/api/message_search.go` (handler) +
 > `packages/server-go/internal/store/dm_11_search_queries.go` (store
-> helper). Wire-up at server boot in
+> helper). Route registration at server boot in
 > `packages/server-go/internal/server/server.go`.
 > Spec brief at
 > [`docs/implementation/modules/dm-11-spec.md`](../../implementation/modules/dm-11-spec.md).
@@ -14,10 +14,10 @@
 Blueprint
 [`channel-model.md`](../../blueprint/current/channel-model.md) §1.2 + §3.2
 mark DM as a concept that **reuses the channel table** (`type='dm'`) but
-must stay UX-isolated. DM-11 closes the user-rail gap: cross-DM message
+must stay UX-isolated. DM-11 adds user-scoped cross-DM message
 search via `LIKE %q%` over `messages.content`. The implementation
 reuses the `messages.content` column (no new schema) and stays scoped
-to DM-only channels with channel-member ACL — admin god-mode is
+to DM-only channels with channel-member ACL — admin-wide access is
 permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
 
 ## 原则 (蓝图 channel-model.md §1.2 + §3.2 原文)
@@ -28,16 +28,16 @@ permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
   复杂度).
 - **DM-only scope** — store helper `SearchDMMessages` JOIN
   `channels ON c.type='dm'` 强制过滤; 反 cross-channel leak (跟
-  DM-10 #597 + dm_4_message_edit.go #549 DM-only path 同精神).
+  DM-10 #597 + dm_4_message_edit.go #549 DM-only path 保持同一设计约束).
 - **channel-member ACL 复用 AP-4 + AP-5 模式** — store helper JOIN
   `channel_members ON cm.user_id = caller` (反 cross-user DM leak,
   AP-4 #551 reactions ACL + AP-5 #555 messages ACL 设计沿用).
 - **q query param 反 DoS** — q trim + min 2 char + max 200 char;
-  3 字面错码守门; limit clamp default 30 / max 50.
-- **admin god-mode 永久不挂** — grep 检查
+  3 个字面错码检查; limit clamp default 30 / max 50.
+- **admin-wide cross-user search 永久不注册** — grep 检查
   `admin.*dm.*search|/admin-api/.*dm/search` in `admin*.go` 0 hit
-  (ADM-0 §1.3 红线; cross-user DM search 永久不挂 admin, 跟 DM-10 +
-  DM-7 edit history admin god-mode 红线 一致沿用).
+  (ADM-0 §1.3 红线; cross-user DM search 不注册 admin route, 跟 DM-10 +
+  DM-7 edit history admin-wide access 红线 一致沿用).
 - **不返 deleted_at IS NOT NULL 行** — `maskDeletedMessages` helper 守
   (反 deleted leak).
 
@@ -45,7 +45,7 @@ permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
 
 | Method | Path                              | Purpose                         | ACL                  |
 |--------|-----------------------------------|---------------------------------|----------------------|
-| GET    | `/api/v1/dm/search?q=<q>&limit=N` | Cross-DM message search         | user-rail (auth Mw)  |
+| GET    | `/api/v1/dm/search?q=<q>&limit=N` | Cross-DM message search         | authenticated user (auth middleware) |
 
 Query params:
 
@@ -54,7 +54,7 @@ Query params:
 | `q`     | yes      | trim → `2 ≤ len ≤ 200` (`dm11MinQueryLen` / `dm11MaxQueryLen` const)            |
 | `limit` | no       | default 30, clamped to max 50 (`dm11DefaultLimit` / `dm11MaxLimit` const)       |
 
-## Response shape
+## Response body
 
 ```
 200 {"messages": [...], "count": N}
@@ -78,7 +78,7 @@ content-lock §1).
 
 ## Validation order (handler)
 
-1. Auth — `mustUser(w, r)` (auth Mw 守 401).
+1. Auth — `mustUser(w, r)` (auth middleware returns 401).
 2. q query param required + 2..200 char (反 DoS, 反空查询全表扫).
 3. limit clamp default 30 / max 50.
 4. `Store.SearchDMMessages(user.ID, q, limit)` — DM-only + channel-
@@ -95,10 +95,10 @@ git diff origin/main -- packages/server-go/internal/migrations/ | grep -c '^\+' 
 
 ## Tests
 
-- `internal/api/dm11search_test.go` — 10 unit tests (happy /
-  q-required / q-too-short / q-too-long / unauthorized / no-match /
+- `internal/api/dm11search_test.go` — 10 unit tests (success /
+  q-required / q-too-short / q-too-long / unauthorized / no results /
   dm-only-excludes-public / non-member-no-leak / limit-clamp /
-  deleted-hidden).
+  deleted messages hidden).
 - `internal/store/dm_11_search_queries_test.go` (sibling) — store
   helper level: DM-only JOIN + channel-member ACL + ORDER BY
   `created_at DESC` + maskDeletedMessages.
@@ -111,8 +111,8 @@ Regression rows: `REG-DM11-001..006` in
 - ❌ FTS5 走 `artifacts_fts` 模式 — 留 v2 (DM 消息量增长后再考虑跨表
   join 复杂度).
 - ❌ Sort by relevance — 留 v2 (现版 `ORDER BY created_at DESC` 单一来源,
-  跟 messages search #467 同精神).
-- ❌ Admin god-mode cross-user search — 永久不挂 (ADM-0 §1.3 红线).
+  跟 messages search #467 保持同一设计约束).
+- ❌ Admin-wide cross-user search — 永久不注册 (ADM-0 §1.3 红线).
 - ❌ Cross-org search — 留 AP-3 同期 (复用 store.CrossOrg 既有).
 - ❌ Search history persistence — 留 v3.
 - ❌ Per-DM channel filter (`?channel_id=`) — 留 v2 (现版跨所有 user's

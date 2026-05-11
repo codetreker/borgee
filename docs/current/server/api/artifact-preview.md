@@ -5,17 +5,17 @@
 > Handler in `packages/server-go/internal/api/preview.go`.
 > Kind enum const + validation in
 > `packages/server-go/internal/api/cv_3_2_artifact_validation.go`.
-> Wire-up at server boot via existing `ArtifactHandler.RegisterRoutes`
+> Route registration at server boot via existing `ArtifactHandler.RegisterRoutes`
 > in `packages/server-go/internal/server/server.go`.
 
 ## Why
 
 CV-1 ships markdown-only artifacts; CV-3 extends the kind enum to
-markdown / code / image_link. CV-2 v2 closes the multimedia preview
-loop — `video_link` and `pdf_link` kinds plus a server-recorded
+markdown / code / image_link. CV-2 v2 adds the multimedia preview
+endpoint surface — `video_link` and `pdf_link` kinds plus a server-recorded
 `preview_url` thumbnail / poster surface — without dragging in heavy
 inline render libraries (no video.js / hls.js / pdf.js). Server keeps
-the https-only XSS gate; client renders with HTML5 native primitives.
+the https-only XSS validation; client renders with HTML5 native primitives.
 
 ## 原则 (cv-2-v2-media-preview-spec.md §0 原文)
 
@@ -60,14 +60,14 @@ Content-Type: application/json
 
 ACL (反向约束 ① owner-only):
 
-- No auth user → **401 Unauthorized** (admin god-mode 不入此 path, ADM-0
-  §1.3 红线; admin 走 `/admin-api/*` 单独 mw).
+- No auth user → **401 Unauthorized** (admin routes do not enter this path, ADM-0
+  §1.3 红线; admin 走 `/admin-api/*` 单独 middleware).
 - Authenticated non-owner (channel.created_by != user.ID) →
   **403 `preview.not_owner`** (跟 CV-1.2 rollback 设计 ⑦ 同 path).
 - Channel access defense-in-depth (`canAccessChannel`) → **403 `preview.not_owner`**.
 - Artifact missing → **404 `preview.artifact_not_found`**.
 
-Validation gates:
+Validation rules:
 
 - Artifact kind ∉ `{image_link, video_link, pdf_link}` (= `PreviewableKinds`
   slice) → **400 `preview.kind_not_previewable`**. markdown / code 走
@@ -83,7 +83,7 @@ Side-effects on success (200):
 - `UPDATE artifacts SET preview_url = ? WHERE id = ?` (overwrite
   接受 — owner 可重发).
 - 不写 system message (跟 CV-1.2 rollback 设计 ⑦ "system message 不发"
-  同精神, owner action 不污染 fanout).
+  保持同一设计约束, owner action 不产生广播事件).
 - 不 push WS frame (preview_url 静态 CDN; client 下次 GET
   `/api/v1/artifacts/:id` 拉 — spec §3 不在范围 "实时刷新").
 
@@ -112,7 +112,7 @@ PreviewErrCodeKindNotPreviewable = "preview.kind_not_previewable"
 PreviewErrCodeArtifactNotFound  = "preview.artifact_not_found"
 ```
 
-Drift between these consts and handler hardcoded strings is caught at
+Mismatch between these consts and handler inline strings is caught at
 test-time via `preview_test.go` substring asserts (`preview.url_` 前缀 +
 `preview.not_owner` / `preview.kind_not_previewable` byte-identical).
 
@@ -126,12 +126,12 @@ test-time via `preview_test.go` substring asserts (`preview.url_` 前缀 +
 - https-only XSS 红线第一道 byte-identical 跟 CV-3.2 #400
   `ValidateImageLinkURL` 同源.
 - Owner-only ACL byte-identical 跟 CV-1.2 #342 rollback 设计 ⑦
-  channel.created_by gate.
+  channel.created_by check.
 
 ## 不在范围
 
 - Server-side CDN 工人 (ffmpeg / ImageMagick / pdf2image) — handler 是
-  瘦记录中转 接 client / 工人 post 来的 URL; 真 CDN 集成留 v1+.
+  只记录 URL 的中转层, 接 client / 工人 post 来的 URL; 真 CDN 集成留 v1+.
 - WS push 实时刷新 preview_url (preview_url 静态 CDN, 不订阅 frame).
-- preview 历史审计 UI (跟 admin god-mode 同精神, 走 ADM-2 既有
+- preview 历史审计 UI (跟 admin-wide access 保持同一约束, 走 ADM-2 既有
   admin_actions 路径).

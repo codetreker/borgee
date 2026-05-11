@@ -3,15 +3,15 @@
 > **单一来源 pointer.** Schema in
 > `packages/server-go/internal/migrations/cv_6_1_artifacts_fts.go`
 > (v=34). Handler in `packages/server-go/internal/api/search.go`.
-> Wire-up via existing `ArtifactHandler.RegisterRoutes`.
+> Route registration via existing `ArtifactHandler.RegisterRoutes`.
 
 ## Why
 
-CV-1 / CV-3 / CV-2 v2 / CV-3 v2 close the artifact CRUD + 5-kind enum +
-preview/thumbnail loop. Once owners accumulate dozens / hundreds of
-artifacts in a channel, 侧边栏 scroll alone won't cut it — they need a
+CV-1 / CV-3 / CV-2 v2 / CV-3 v2 cover artifact CRUD + 5-kind enum +
+preview/thumbnail endpoints. Once owners accumulate dozens / hundreds of
+artifacts in a channel, sidebar scrolling is insufficient — they need a
 search input. CV-6 closes that gap with **SQLite FTS5** (built-in,
-zero-extra-process); no elasticsearch / opensearch / typesense /
+no extra process); no elasticsearch / opensearch / typesense /
 meilisearch / sonic / bleve.
 
 ## 原则 (cv-6-spec.md §0)
@@ -74,7 +74,7 @@ Bounds:
 - `channel_id` required v0 (跨 channel 全局 search 留 v2+).
 - `limit` optional, default 50, max 200.
 
-ACL gates:
+ACL checks:
 
 - No auth user → **401 Unauthorized**.
 - `q` empty → **400 `search.query_empty`**.
@@ -119,16 +119,16 @@ SearchErrCodeQueryTooLong     = "search.query_too_long"
 SearchErrCodeCrossOrgDenied   = "search.cross_org_denied"
 ```
 
-Drift caught by content-lock §4 双向 grep + 验收 §1.7 unit.
+Mismatch caught by content-lock §4 双向 grep + 验收 §1.7 unit.
 
 ## 跨 milestone byte-identical 锁定
 
 - 跟 CV-1 #348 / CV-3 #408 / CV-2 v2 #517 / CV-3 v2 #528 五 kind enum +
   artifacts 单一来源 同源 (FTS5 contentless 不拆表, 不动既有 schema).
 - 跟 CV-1.2 #342 + CV-2 v2 + CV-3 v2 + CV-4 + AL-5 + AP-3 cross-org **6
-  处 owner-only ACL** 同精神.
-- 跟 AP-1 #493 `HasCapability` 单一来源 + AP-3 #521 cross-org gate 同源
-  (search 路径自动经 cross-org gate).
+  处 owner-only ACL** 保持同一设计约束.
+- 跟 AP-1 #493 `HasCapability` 单一来源 + AP-3 #521 cross-org check 同源
+  (search 路径自动经 cross-org check).
 - 错码字面单一来源 + content-lock 双向 docs 同模式 (跟 CV-2 v2 / CV-3 v2).
 
 ## 不在范围
