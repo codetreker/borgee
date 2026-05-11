@@ -25,7 +25,7 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 			return nil
 		}
 		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-9 设计 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-9 设计第 1 条 broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -40,13 +40,13 @@ func TestChn9visibility_NoSchemaChange(t *testing.T) {
 		}
 		body, _ := os.ReadFile(p)
 		if pat2.Find(body) != nil {
-			t.Errorf("CHN-9 设计 ① broken — visibility ALTER in %s", p)
+			t.Errorf("CHN-9 设计第 1 条 broken — visibility ALTER in %s", p)
 		}
 		return nil
 	})
 }
 
-// REG-CHN9-002 — VisibilityConsts byte-identical 三向锁定.
+// REG-CHN9-002 — VisibilityConsts 字节级一致 三向锁定.
 func TestCHN_VisibilityConsts_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.VisibilityCreatorOnly != "creator_only" {
@@ -72,7 +72,7 @@ func TestCHN_VisibilityConsts_ByteIdentical(t *testing.T) {
 			t.Errorf("IsValidVisibility(%q): got true, want false", bad)
 		}
 	}
-	// VisibilityRejectMessage 单一来源 byte-identical.
+	// VisibilityRejectMessage 单一来源 字节级一致.
 	if api.VisibilityRejectMessage != "Visibility must be 'creator_only', 'private', or 'public'" {
 		t.Errorf("VisibilityRejectMessage 脱节: got %q", api.VisibilityRejectMessage)
 	}
@@ -98,7 +98,7 @@ func TestCHN_PatchVisibility_CreatorOnly_HappyPath(t *testing.T) {
 	}
 }
 
-// REG-CHN9-003b — backcompat: existing public/private PATCH 仍 OK byte-identical.
+// REG-CHN9-003b — backcompat: existing public/private PATCH 仍 OK 字节级一致.
 func TestCHN_PatchVisibility_BackcompatPublicPrivate(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -120,7 +120,7 @@ func TestCHN_PatchVisibility_BackcompatPublicPrivate(t *testing.T) {
 	}
 }
 
-// REG-CHN9-004 — PATCH spec 外值 → 400 byte-identical reject message.
+// REG-CHN9-004 — PATCH spec 外值 → 400 字节级一致 reject message.
 func TestCHN_PatchVisibility_RejectsInvalidValue(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -164,12 +164,12 @@ func TestCHN_CreatorOnlyChannel_NotLeakedToOrgPeers(t *testing.T) {
 	for _, raw := range channels {
 		c, _ := raw.(map[string]any)
 		if c["id"] == chID {
-			t.Errorf("CHN-9 设计 ③ broken — creator_only channel leaked to non-creator: %v", c)
+			t.Errorf("CHN-9 设计第 3 条 broken — creator_only channel leaked to non-creator: %v", c)
 		}
 	}
 }
 
-// REG-CHN9-005b — ListChannelsWithUnread filter byte-identical 不动.
+// REG-CHN9-005b — ListChannelsWithUnread filter 字节级一致 不动.
 //
 // 反向断言 SQL `visibility = 'public'` 字面跟 CHN-1.2 既有同源 (creator_only
 // 不入 org-public preview filter).
@@ -179,17 +179,17 @@ func TestCHN_ListChannelsFilter_ByteIdentical(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read queries.go: %v", err)
 	}
-	// Existing CHN-1.2 filter 字面 byte-identical 锁定 — grep 检查
+	// Existing CHN-1.2 filter 字面 字节级一致 锁定 — grep 检查
 	// `visibility = 'public'` 必须 ≥1 hit.
 	pat := regexp.MustCompile(`visibility\s*=\s*'public'`)
 	if pat.Find(body) == nil {
-		t.Error("CHN-9 设计 ③ broken — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
+		t.Error("CHN-9 设计第 3 条 broken — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
 	}
 	// 反向断言: 不出现 `visibility = 'creator_only'` 在 SQL 显式 filter
 	// (creator_only 走 IsChannelMember + creator-only ACL, 不走 SQL filter).
 	pat2 := regexp.MustCompile(`visibility\s*=\s*'creator_only'`)
 	if pat2.Find(body) != nil {
-		t.Error("CHN-9 设计 ③ broken — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
+		t.Error("CHN-9 设计第 3 条 broken — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
 	}
 }
 
@@ -208,7 +208,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 设计 ③ broken — admin visibility path in %s: %q",
+				t.Errorf("CHN-9 设计第 3 条 broken — admin visibility path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -227,7 +227,7 @@ func TestCHN_NoAdminVisibilityPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 设计 ③ broken — admin visibility handler in %s: %q",
+				t.Errorf("CHN-9 设计第 3 条 broken — admin visibility handler in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
