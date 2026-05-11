@@ -1,5 +1,5 @@
 // Package api_test — host_grants_test.go: HB-3.1 REST CRUD acceptance
-// tests + 字典分立 / audit schema / AST scan 反约束.
+// tests + 字典分立 / audit schema / AST scan 约束.
 //
 // Acceptance: docs/qa/acceptance-templates/hb-3.md §1.
 // Stance: docs/qa/hb-3-stance-checklist.md §1+§2+§3.
@@ -203,7 +203,7 @@ func TestHB_DELETE_CrossUser403(t *testing.T) {
 	}
 }
 
-// ---- §3 反约束 — host vs runtime 字典分立 + AST scan ----
+// ---- §3 约束 — host vs runtime 字典分立 + AST scan ----
 
 func TestHB_NoUserPermissionsJoin(t *testing.T) {
 	t.Parallel()
@@ -239,7 +239,7 @@ func TestHB_NoUserPermissionsJoin(t *testing.T) {
 
 func TestHB_NoGrantQueueInAPIPackage(t *testing.T) {
 	t.Parallel()
-	// Stance §0 设计 ⑧ best-effort 设计沿用 BPP-4/5 — AST scan 锁链延伸第 3 处.
+	// 约定 §0 设计 ⑧ best-effort 设计沿用 BPP-4/5 — AST scan 对齐链延伸第 3 处.
 	forbidden := []string{
 		"pendingGrants",
 		"grantQueue",
@@ -275,7 +275,7 @@ func TestHB_NoGrantQueueInAPIPackage(t *testing.T) {
 	}
 	sort.Strings(hits)
 	if len(hits) > 0 {
-		t.Errorf("HB-3 stance §0 设计 ⑧ 反约束 (best-effort, BPP-4/5 锁链延伸第 3 处): %v", hits)
+		t.Errorf("HB-3 约定 §0 设计 ⑧ 约束 (best-effort, BPP-4/5 对齐链延伸第 3 处): %v", hits)
 	}
 }
 
@@ -327,7 +327,7 @@ func TestHB_AuditLogSchema5FieldsByteIdentical(t *testing.T) {
 	})
 	// Two log call sites: granted + revoked. Both should have all 5 keys.
 	if loggerInfoCallsHaveAllKeys < 2 {
-		t.Errorf("HB-3 stance §0 设计 ③ audit schema drift: expected ≥2 logger.Info calls "+
+		t.Errorf("HB-3 约定 §0 设计 ③ audit schema mismatch: expected ≥2 logger.Info calls "+
 			"with all 5 keys (actor/action/target/when/scope) byte-identical 跟 HB-1/HB-2/"+
 			"BPP-4 dead-letter 跨四 milestone 同源, found %d", loggerInfoCallsHaveAllKeys)
 	}
