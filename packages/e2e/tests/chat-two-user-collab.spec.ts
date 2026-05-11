@@ -1,24 +1,20 @@
-// tests/cm-5-x2-collab.spec.ts — CM-5.3 e2e agent↔agent X2 协作场景.
+// tests/chat-two-user-collab.spec.ts — agent↔agent 双 agent 同 channel 透明协作 + X2 commit 冲突.
 //
-// Spec: docs/implementation/modules/cm-5-spec.md §1.3 + acceptance §3.3.
-// Blueprint: concept-model.md §1.3 §185 (透明协作 + agent↔agent 立场).
+// 测试范围 (1 case 综合):
+//   - owner 真 UI 打开 channel 进入 members modal, 验证 agent 行带 data-cm5-collab-link hover anchor (透明协作可见)
+//   - X2 commit 冲突: owner POST artifact → 第一次 commit OK → 第二次 stale commit (expected_version=1, head=2) → 409 (CV-1.2 single-doc lock + version mismatch 双 gate)
+//   - 截图 docs/qa/screenshots/cm-5-x2-conflict.png 给 PM 出口闸用
 //
-// 闭环 cm-5.md §3 acceptance items:
-//   §3.1 channel agent 列表 hover "正在协作" 显示 (data-cm5-collab-link)
-//   §3.2 X2 conflict toast 文案锁 "正在被 agent {name} 处理" (lib const)
-//   §3.3 双 agent commit 同 artifact 触发 409 + screenshot 入 git
-//   §3.4 反约束 不订阅 push frame (走人协作 path)
+// 关联文档:
+//   - 蓝图: docs/blueprint/current/concept-model.md §1.3 (透明协作 + agent↔agent 走人路径)
+//   - 验收: docs/_archive/qa/acceptance-templates/cm-5.md §3
+//   - 单测: server-side cm-5 X2 lock 走 Go 单元测覆盖 (TestCM52_X2ConcurrentCommitOneWins)
+//   - 客户端单测: vitest cm-5-content-lock.test.ts (DOM 文案锁 + 反 BPP frame 订阅)
 //
-// 立场反查 (cm-5-spec.md §0):
-//   ① agent↔agent 走人 path 不裂 endpoint
-//   ② 责任 owner-first
-//   ③ X2 冲突 复用 CV-1.2 single-doc lock + version mismatch 双重 gate
-//   ④ mention 走 DM-2 router
-//   ⑤ 透明 owner-first 可见
-//
-// 实施说明: CM-5 立场 ① 走人 path 不开新 endpoint, e2e 主走 API 路径 +
-// channel members modal hover anchor DOM 锁守. X2 真实场景 (双 agent
-// commit) 走 owner ACL gate + CV-1.2 lock 双重 gate (跟 #476 server 同源).
+// 实施约束:
+//   - 真 UI: owner page.goto + page.click sidebar channel + page.click members modal button + screenshot (production UI 路径有)
+//   - REST seed: admin login + invite + register + agent + channel + members + artifact + commit (X2 stale commit 没真 UI 触发, REST 直调合规作 stale 模拟)
+//   - 反约束 §3.4 (不订阅 agent_config_update BPP frame) 走 vitest content-lock 单测覆盖, e2e 不深扫 ws stream
 
 import {
   test,
