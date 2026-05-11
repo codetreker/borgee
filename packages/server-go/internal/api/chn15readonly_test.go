@@ -2,9 +2,9 @@
 //
 // Acceptance pins (docs/qa/acceptance-templates/chn-15.md):
 //   - 1.1 0 schema 改 反向断言
-//   - 1.2 ReadonlyBit byte-identical + IsReadonly truth table
+//   - 1.2 ReadonlyBit 字节级一致 + IsReadonly truth table
 //   - 2.1-2.6 endpoints owner-only + send gate + admin not mounted +
-//     错码 byte-identical
+//     错码字节级一致
 package api_test
 
 import (
@@ -23,7 +23,7 @@ import (
 func TestCHN_ReadonlyBit_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.ReadonlyBit != 16 {
-		t.Errorf("ReadonlyBit drift: got %d, want 16 (双向锁 跟 client READONLY_BIT)", api.ReadonlyBit)
+		t.Errorf("ReadonlyBit mismatch: got %d, want 16 (双向锁 跟 client READONLY_BIT)", api.ReadonlyBit)
 	}
 	cases := []struct {
 		collapsed int64
@@ -48,7 +48,7 @@ func TestCHN_ReadonlyBit_ByteIdentical(t *testing.T) {
 }
 
 // TestChn15readonly_NoSchemaChange — filepath.Walk migrations/ grep 检查
-// chn_15_\d+ 0 hit + sqlite_master 反向. 设计 ①.
+// chn_15_\d+ 0 hit + sqlite_master 反向. 设计第 1 条.
 func TestChn15readonly_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	root := chn15RepoRoot(t)
@@ -56,7 +56,7 @@ func TestChn15readonly_NoSchemaChange(t *testing.T) {
 	pat := regexp.MustCompile(`chn_15_\d+|ALTER TABLE channels.*readonly|channel_readonly_states|read_only_channels`)
 	hits := chn15GrepCount(t, migDir, pat)
 	if hits != 0 {
-		t.Errorf("expected 0 schema hit, got %d (设计 ① 0 schema 改)", hits)
+		t.Errorf("expected 0 schema hit, got %d (设计第 1 条 0 schema 改)", hits)
 	}
 }
 
@@ -193,7 +193,7 @@ func TestCHN_NoAdminReadonlyPath(t *testing.T) {
 	pat := regexp.MustCompile(`/admin-api/v[0-9]+/channels/[^/"]*/readonly|RegisterCHN15.*adminMw`)
 	hits := chn15GrepCount(t, dir, pat)
 	if hits != 0 {
-		t.Errorf("admin-rail CHN-15 readonly endpoint grep: got %d, want 0 (admin god-mode 不挂 设计 ②)", hits)
+		t.Errorf("admin-rail CHN-15 readonly endpoint grep: got %d, want 0 (admin god-mode 不挂 设计第 2 条)", hits)
 	}
 }
 
