@@ -69,20 +69,20 @@ func TestHB_DeriveDecayState_NilSafe(t *testing.T) {
 	}
 }
 
-// TestHB_ConstThresholdsByteIdentical — acceptance §2.3 立场 ⑥.
+// TestHB_ConstThresholdsByteIdentical — acceptance §2.3 设计 ⑥.
 // StaleThreshold byte-identical 跟 BPP-4 watchdog 30s + BPP-7 SDK
 // HeartbeatInterval 30s 同源.
 func TestHB_ConstThresholdsByteIdentical(t *testing.T) {
 	t.Parallel()
 	if StaleThreshold != 30*time.Second {
-		t.Errorf("StaleThreshold drift: got %v, want 30s (BPP-4 watchdog + BPP-7 SDK 同源)", StaleThreshold)
+		t.Errorf("StaleThreshold mismatch: got %v, want 30s (BPP-4 watchdog + BPP-7 SDK 同源)", StaleThreshold)
 	}
 	if DeadThreshold != 60*time.Second {
-		t.Errorf("DeadThreshold drift: got %v, want 60s", DeadThreshold)
+		t.Errorf("DeadThreshold mismatch: got %v, want 60s", DeadThreshold)
 	}
 }
 
-// TestHB_NoSchemaChange — acceptance §1.2 立场 ① 反断.
+// TestHB_NoSchemaChange — acceptance §1.2 设计 ① 反断.
 //
 // Reverse-grep production migrations + bpp/api packages for forbidden
 // HB-3 v2 decay table / schema literals.
@@ -123,11 +123,11 @@ func TestHB_NoSchemaChange(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("HB-3 v2 立场 ① broken: forbidden decay table / schema literals: %v", hits)
+		t.Errorf("HB-3 v2 规则 ① broken: forbidden decay table / schema literals: %v", hits)
 	}
 }
 
-// TestHB_DecayState_LiteralSingleSource — acceptance §2.3 立场 ④.
+// TestHB_DecayState_LiteralSingleSource — acceptance §2.3 设计 ④.
 //
 // hardcode "fresh"/"stale"/"dead" literals in production *.go MUST
 // only appear in heartbeat_decay.go (source of truth). envelope.go
@@ -172,11 +172,11 @@ func TestHB_DecayState_LiteralSingleSource(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("HB-3 v2 立场 ④ broken: DecayState literals outside heartbeat_decay.go: %v", hits)
+		t.Errorf("HB-3 v2 规则 ④ broken: DecayState literals outside heartbeat_decay.go: %v", hits)
 	}
 }
 
-// TestHB_NoStaleSidePath — acceptance §2.1 立场 ②.
+// TestHB_NoStaleSidePath — acceptance §2.1 设计 ②.
 // 反向 grep `RecordHeartbeatStale\|LifecycleAuditor.*Stale` 0 hit
 // (复用 BPP-8 RecordHeartbeatTimeout, 不另开 Stale 旁路).
 func TestHB_NoStaleSidePath(t *testing.T) {
@@ -214,12 +214,12 @@ func TestHB_NoStaleSidePath(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("HB-3 v2 立场 ② broken: forbidden Stale side-path identifiers (复用 BPP-8 RecordHeartbeatTimeout): %v", hits)
+		t.Errorf("HB-3 v2 规则 ② broken: forbidden Stale side-path identifiers (复用 BPP-8 RecordHeartbeatTimeout): %v", hits)
 	}
 }
 
-// TestHB_NoDecayQueueOrSchema — acceptance §3.1 立场 ⑤
-// best-effort 锁链延伸第 6 处.
+// TestHB_NoDecayQueueOrSchema — acceptance §3.1 设计 ⑤
+// best-effort 延伸第 6 处.
 func TestHB_NoDecayQueueOrSchema(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -264,7 +264,7 @@ func TestHB_NoDecayQueueOrSchema(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("HB-3 v2 立场 ⑤ broken: forbidden decay-queue identifiers (best-effort 锁链延伸第 6 处, BPP-4/5/6/7/8 + HB-3 v2): %v", hits)
+		t.Errorf("HB-3 v2 规则 ⑤ broken: forbidden decay-queue identifiers (best-effort 延伸第 6 处, BPP-4/5/6/7/8 + HB-3 v2): %v", hits)
 	}
 }
 
@@ -279,7 +279,7 @@ type HeartbeatTimeoutAuditor interface {
 }
 
 // BucketAuditTrigger encapsulates the cross-bucket transition rule
-// (立场 ⑦): only fire BPP-8 audit on cross-bucket transitions
+// (设计 ⑦): only fire BPP-8 audit on cross-bucket transitions
 // (fresh→stale / stale→dead / etc), same-bucket is no-op.
 type BucketAuditTrigger struct {
 	auditor HeartbeatTimeoutAuditor
@@ -295,7 +295,7 @@ func NewBucketAuditTrigger(auditor HeartbeatTimeoutAuditor) *BucketAuditTrigger 
 }
 
 // MaybeFire — fires RecordHeartbeatTimeout iff cross-bucket transition
-// (立场 ⑦). Same-bucket is no-op.
+// (设计 ⑦). Same-bucket is no-op.
 func (b *BucketAuditTrigger) MaybeFire(from, to DecayState, pluginID, agentID string) {
 	if !IsCrossBucketTransition(from, to) {
 		return
@@ -326,7 +326,7 @@ func TestHB_CrossBucket_TriggersAudit(t *testing.T) {
 	}
 }
 
-// TestHB_SameBucket_NoAuditCall — acceptance §2.1 立场 ⑦.
+// TestHB_SameBucket_NoAuditCall — acceptance §2.1 设计 ⑦.
 func TestHB_SameBucket_NoAuditCall(t *testing.T) {
 	t.Parallel()
 	st := &stubBucketAuditor{}
@@ -385,6 +385,6 @@ func TestHB_AdminGodModeNotMounted(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("HB-3 v2 立场 ③ broken: admin god-mode references heartbeat-decay (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("HB-3 v2 规则 ③ broken: admin god-mode references heartbeat-decay (ADM-0 §1.3 红线): %v", hits)
 	}
 }

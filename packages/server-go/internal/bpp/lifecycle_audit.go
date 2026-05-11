@@ -4,31 +4,31 @@
 // cold_start / heartbeat_timeout) into the existing admin_actions table
 // with `actor_id="system"` and `action="plugin_<event>"`. Reuses the
 // ADM-2.1 #484 admin_actions audit table — does NOT introduce a separate
-// `plugin_lifecycle_events` table (立场 ①).
+// `plugin_lifecycle_events` table (设计 ①).
 //
 // Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 + §3 plugin lifecycle.
-// Spec: docs/implementation/modules/bpp-8-spec.md §0 立场 ①+②+③ + §1
+// Spec: docs/implementation/modules/bpp-8-spec.md §0 设计 ①+②+③ + §1
 // 拆段 BPP-8.2.
 //
-// 立场 (跟 stance §1+§2+§3+§4 byte-identical):
+// 设计 (跟 约定 §1+§2+§3+§4 byte-identical):
 //
 //   - **① 复用 admin_actions 表** — auditor 调 Store.InsertAdminAction
 //     with actor='system', action='plugin_<event>', target=<agent_id>,
 //     metadata=JSON{plugin_id, reason, ...}. audit forward-only 跟
-//     ADM-2.1 + AP-2 + BPP-4 watchdog 跨四 milestone 同精神 (锁链第 5 处).
+//     ADM-2.1 + AP-2 + BPP-4 watchdog 跨四 milestone 同精神 (对齐位第 5 处).
 //   - **② reason 复用 AL-1a 6-dict** — heartbeat_timeout reason=
 //     reasons.NetworkUnreachable; cold_start reason=reasons.RuntimeCrashed
-//     byte-identical 跟 BPP-6 #522 + BPP-7 SDK 同源. AL-1a reason 锁链
+//     byte-identical 跟 BPP-6 #522 + BPP-7 SDK 同源. AL-1a reason 对齐链
 //     BPP-8 = 第 13 处.
 //   - **④ single-gate** — 5 method 全走此 auditor; 反向 grep
 //     `InsertAdminAction.*"plugin_` 在 lifecycle_audit.go 外 0 hit.
 //   - **⑥ best-effort** — fire-and-forget (log.Warn on InsertAdminAction
 //     error, 不 fail handler); 无 retry queue / 无持久化 deferred audit
-//     (跟 BPP-4/5/6/7 best-effort 立场承袭, AST 锁链延伸第 5 处).
+//     (跟 BPP-4/5/6/7 best-effort 设计跟历史一致, AST 延伸第 5 处).
 //   - **⑦ actor='system' byte-identical** — 跟 BPP-4 watchdog + AP-2
 //     sweeper actor='system' 跨五 milestone 同源.
 //
-// 反约束 (acceptance §3):
+// 约束 (acceptance §3):
 //   - admin god-mode 不挂 SDK 路径 (ADM-0 §1.3 红线, lifecycle GET endpoint
 //     在 internal/api/bpp_8_lifecycle_list.go owner-only, admin-api 不挂).
 //   - AST scan forbidden: `pendingLifecycleAudit\|lifecycleQueue\|
@@ -45,7 +45,7 @@ import (
 )
 
 // LifecycleSystemActor — actor_id 字面 byte-identical 跟 BPP-4 watchdog +
-// AP-2 sweeper actor='system' 跨五 milestone 同源 (立场 ⑦). 改 = 改 BPP-4
+// AP-2 sweeper actor='system' 跨五 milestone 同源 (设计 ⑦). 改 = 改 BPP-4
 // + AP-2 同步.
 const LifecycleSystemActor = "system"
 
@@ -103,7 +103,7 @@ func NewAdminActionsLifecycleAuditor(store LifecycleAuditStore, logger *slog.Log
 
 // recordEvent — internal helper, single insert path. Marshals metadata
 // to JSON; on InsertAdminAction error logs.Warn and returns
-// (best-effort 立场 ⑥, fire-and-forget).
+// (best-effort 设计 ⑥, fire-and-forget).
 func (a *AdminActionsLifecycleAuditor) recordEvent(action, agentID string, metadata map[string]any) {
 	mdJSON, err := json.Marshal(metadata)
 	if err != nil {
@@ -142,9 +142,9 @@ func (a *AdminActionsLifecycleAuditor) RecordReconnect(pluginID, agentID string,
 
 // RecordColdStart — BPP-6 #522 cold_start_handler.go hook.
 //
-// 立场 ② reason 复用 AL-1a 6-dict — caller passes restartReason (typically
+// 设计 ② reason 复用 AL-1a 6-dict — caller passes restartReason (typically
 // reasons.RuntimeCrashed byte-identical 跟 BPP-6 + BPP-7 SDK 同源, AL-1a
-// reason 锁链第 13 处). 反向断言: caller 必走 reasons.* const 不
+// reason 对齐位第 13 处). 反向断言: caller 必走 reasons.* const 不
 // hardcode "runtime_crashed" 字符串.
 func (a *AdminActionsLifecycleAuditor) RecordColdStart(pluginID, agentID, restartReason string) {
 	a.recordEvent(LifecycleActionColdStart, agentID, map[string]any{
@@ -155,17 +155,17 @@ func (a *AdminActionsLifecycleAuditor) RecordColdStart(pluginID, agentID, restar
 
 // RecordHeartbeatTimeout — BPP-4 #499 watchdog hook.
 //
-// 立场 ② reason 字面 byte-identical=reasons.NetworkUnreachable (跟 BPP-4
-// watchdog SetError reason byte-identical, AL-1a 锁链第 13 处).
+// 设计 ② reason 字面 byte-identical=reasons.NetworkUnreachable (跟 BPP-4
+// watchdog SetError reason byte-identical, AL-1a 对齐位第 13 处).
 func (a *AdminActionsLifecycleAuditor) RecordHeartbeatTimeout(pluginID, agentID string) {
 	a.recordEvent(LifecycleActionHeartbeatTimeout, agentID, map[string]any{
 		"plugin_id": pluginID,
-		"reason":    reasons.NetworkUnreachable, // AL-1a 锁链第 13 处 byte-identical
+		"reason":    reasons.NetworkUnreachable, // AL-1a 对齐位第 13 处 byte-identical
 	})
 }
 
 // Compile-time assertion that AdminActionsLifecycleAuditor implements
-// LifecycleAuditor (reverse-grep guard for interface drift).
+// LifecycleAuditor (reverse-grep guard for interface mismatch).
 var _ LifecycleAuditor = (*AdminActionsLifecycleAuditor)(nil)
 
 // formatColdStartReason — convenience for callers: returns
