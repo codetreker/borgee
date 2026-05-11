@@ -6,7 +6,7 @@
 //   REG-AP3-002c — cross-org agent → false (BPP-1 #304 org sandbox 同源)
 //   REG-AP3-002d — NULL org_id legacy 路径 (跟 AP-1 现网行为零变)
 //   REG-AP3-002e — admin god-mode 不入此路径 (反向 grep)
-//   REG-AP3-001 — ErrCodeCrossOrgDenied 字面单源
+//   REG-AP3-001 — ErrCodeCrossOrgDenied 字面单一来源
 //   REG-AP3-003 — 反向 grep cross-org bypass count==0
 package auth
 
@@ -22,11 +22,11 @@ import (
 )
 
 // REG-AP3-001 (acceptance §1.3) — ErrCodeCrossOrgDenied byte-identical
-// 字面单源 (跟 AP-1 const 同模式, 改 = 改 const 一处).
+// 字面单一来源 (跟 AP-1 const 同模式, 改 = 改 const 一处).
 func TestAP_ErrCodeCrossOrgDeniedConst(t *testing.T) {
 	t.Parallel()
 	if ErrCodeCrossOrgDenied != "abac.cross_org_denied" {
-		t.Errorf("ErrCodeCrossOrgDenied drift: got %q, want %q",
+		t.Errorf("ErrCodeCrossOrgDenied mismatch: got %q, want %q",
 			ErrCodeCrossOrgDenied, "abac.cross_org_denied")
 	}
 }
@@ -98,7 +98,7 @@ func TestAP_CrossOrg_WildcardDoesNotShortCircuit(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), userContextKey, user)
 	if HasCapability(ctx, s, "channel.write", "channel:ch-A") {
-		t.Error("cross-org (*,*) 不应短路 — org gate 高于 wildcard (立场 ①)")
+		t.Error("cross-org (*,*) 不应短路 — org gate 高于 wildcard (设计 ①)")
 	}
 }
 
@@ -140,7 +140,7 @@ func TestAP_CrossOrgAgent_Rejected(t *testing.T) {
 	}
 }
 
-// REG-AP3-002d (acceptance §2.4 + 立场 ⑥) — legacy NULL/empty org_id
+// REG-AP3-002d (acceptance §2.4 + 设计 ⑥) — legacy NULL/empty org_id
 // 走 AP-1 既有路径, 行为零变.
 func TestAP_LegacyNullOrgID_FallsThroughToAP1(t *testing.T) {
 	t.Parallel()
@@ -156,12 +156,12 @@ func TestAP_LegacyNullOrgID_FallsThroughToAP1(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), userContextKey, user)
 	if !HasCapability(ctx, s, "channel.write", "channel:ch-legacy") {
-		t.Error("legacy NULL org_id 应走 AP-1 路径 = true (现网行为零变, 立场 ⑥)")
+		t.Error("legacy NULL org_id 应走 AP-1 路径 = true (现网行为零变, 设计 ⑥)")
 	}
 }
 
 // REG-AP3-002d'' — wildcard scope skips org gate entirely (no resource
-// bound to compare against, 立场 ① 高于 wildcard 仅当有 resource 时 enforce).
+// bound to compare against, 设计 ① 高于 wildcard 仅当有 resource 时 enforce).
 func TestAP_WildcardScope_SkipsOrgGate(t *testing.T) {
 	t.Parallel()
 	s := ap3TestStore(t)
@@ -177,7 +177,7 @@ func TestAP_WildcardScope_SkipsOrgGate(t *testing.T) {
 }
 
 // REG-AP3-002d' — user.OrgID NULL but channel.OrgID set — also legacy
-// (任一 NULL 走 legacy, 立场 ⑥).
+// (任一 NULL 走 legacy, 设计 ⑥).
 func TestAP_UserNullOrgID_FallsThroughToAP1(t *testing.T) {
 	t.Parallel()
 	s := ap3TestStore(t)
@@ -191,11 +191,11 @@ func TestAP_UserNullOrgID_FallsThroughToAP1(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), userContextKey, user)
 	if !HasCapability(ctx, s, "channel.write", "channel:ch-A") {
-		t.Error("user.OrgID NULL 应走 AP-1 legacy 路径 (任一 NULL = legacy, 立场 ⑥)")
+		t.Error("user.OrgID NULL 应走 AP-1 legacy 路径 (任一 NULL = legacy, 设计 ⑥)")
 	}
 }
 
-// REG-AP3-002e (acceptance §2.5 + 立场 ⑤) — admin god-mode 不入此路径.
+// REG-AP3-002e (acceptance §2.5 + 设计 ⑤) — admin god-mode 不入此路径.
 // 反向 grep filepath.Walk 扫 internal/api/ count==0 含 admin.*HasCapability
 // .*org / HasCapability(.*admin_ 模式.
 func TestAP_AdminGodMode_NotInThisPath(t *testing.T) {
@@ -225,13 +225,13 @@ func TestAP_AdminGodMode_NotInThisPath(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 立场 ⑤ broken — admin god-mode in HasCapability path, hits: %v", hits)
+		t.Errorf("约束 设计 ⑤ broken — admin god-mode in HasCapability path, hits: %v", hits)
 	}
 }
 
-// REG-AP3-003 (acceptance §3.2 + 立场 ③) — reverse grep cross-org bypass
-// in internal/api/ count==0 (跟 AP-1 #493 5 grep 反约束同模式守 future
-// drift).
+// REG-AP3-003 (acceptance §3.2 + 设计 ③) — reverse grep cross-org bypass
+// in internal/api/ count==0 (跟 AP-1 #493 5 grep 约束同模式守 future
+// mismatch).
 func TestAP_ReverseGrep_NoCrossOrgBypass(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
@@ -262,12 +262,12 @@ func TestAP_ReverseGrep_NoCrossOrgBypass(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 立场 ③ broken — cross-org bypass found, hits: %v", hits)
+		t.Errorf("约束 设计 ③ broken — cross-org bypass found, hits: %v", hits)
 	}
 }
 
 // REG-AP3-003' — reverse grep migrations/ has no FK org_id REFERENCES
-// organizations (立场 ② + spec §3 反约束 #4).
+// organizations (设计 ② + spec §3 约束 #4).
 func TestAP_ReverseGrep_NoFKOrganizations(t *testing.T) {
 	t.Parallel()
 	migDir := filepath.Join("..", "migrations")
@@ -290,6 +290,6 @@ func TestAP_ReverseGrep_NoFKOrganizations(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反约束 立场 ② broken — user_permissions FK organizations, hits: %v", hits)
+		t.Errorf("约束 设计 ② broken — user_permissions FK organizations, hits: %v", hits)
 	}
 }
