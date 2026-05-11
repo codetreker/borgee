@@ -6,7 +6,7 @@
 ## 1. 设计
 
 Messages sent by the current user use three safeguards so they do not count as unread for that same user:
-- **Layer 1 (server/API after-send fallback)**: `CreateMessageFull` accepts the message, then best-effort calls `MarkChannelRead(channelID, user.ID)` for the sender. This covers the after-send window before the next channel aggregation response; failure is logged and does not block message creation.
+- **Layer 1 (server/API after-send fallback)**: the API handler `handleCreateMessage` calls store method `h.Store.CreateMessageFull(...)`, then immediately best-effort calls `h.Store.MarkChannelRead(channelID, user.ID)` for the sender. This covers the after-send window before the next channel aggregation response; failure is logged and does not block message creation.
 - **Layer 2 (server SQL)**: `GetChannelsForUser` 聚合 unread_count 时用 `WHERE m.sender_id != ?` 只统计其他用户发来的消息. Prevents server unread aggregation from counting the sender's own messages in multi-device scenarios.
 - **Layer 3 (client reducer)**: ws push frame 来时 reducer 判 `if (frame.sender_id === currentUser.id) return; // skip bump` — prevents sidebar unread increments when another device receives a message from the current user.
 
@@ -20,7 +20,8 @@ Required constraints:
 
 | Scope | Location | Behavior | Failure semantics |
 |---|---|---|---|
-| Server/API after-send fallback | `packages/server-go/internal/api/messages.go::CreateMessageFull` | Calls `MarkChannelRead(channelID, user.ID)` after message creation for the sender. | Logs the failure and still returns the created message. |
+| API handler fallback | `packages/server-go/internal/api/messages.go::handleCreateMessage` | Calls `h.Store.MarkChannelRead(channelID, user.ID)` immediately after `h.Store.CreateMessageFull(...)` returns the created message. | Logs the failure and still returns the created message. |
+| Store message creation | `packages/server-go/internal/store/queries.go::CreateMessageFull` | Persists the message and related store-side records. | Not the fallback location; the API handler performs the after-send mark-read call. |
 
 Client `markChannelRead(channelId)` remains a channel selection/open behavior in
 `packages/client/src/context/AppContext.tsx`; it is not an after-send safeguard.
@@ -28,7 +29,10 @@ Client `markChannelRead(channelId)` remains a channel selection/open behavior in
 `POST /api/v1/channels/:id/messages` 路径:
 
 ```go
-// CreateMessageFull 写消息后, server/API 端尽力 mark current channel read for the sender.
+msg, err := h.Store.CreateMessageFull(channelID, user.ID, content, ct, body.ReplyToID, body.Mentions)
+...
+
+// API handler 写消息后, server/API 端尽力 mark current channel read for the sender.
 // 避免下一次 channel 聚合返回前, sender 自己发的消息短暂显示 unread.
 if mrErr := h.Store.MarkChannelRead(channelID, user.ID); mrErr != nil {
   // 不阻塞消息创建 — 失败仅 log; Layer 2 SQL 和 Layer 3 reducer 继续保底.
