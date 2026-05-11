@@ -29,10 +29,10 @@
 
 | 子包 | 路径 | 角色 |
 |---|---|---|
-| `acl` | `internal/acl/acl.go` (128) + `_test.go` (118) | Path allowlist and grant_type validation; shares the HB-3 grant_type 4-value enum source |
+| `acl` | `internal/acl/acl.go` (135) + `_test.go` (118) | Path allowlist and grant_type validation; shares the HB-3 grant_type 4-value enum source |
 | `audit` | `internal/audit/audit.go` (48) + `_test.go` (61) | Five-field audit log (`actor / action / target / when / scope`), byte-identical with HB-1, BPP-4 #499, and HB-3 |
-| `fileio` | `internal/fileio/file_actions.go` (119) + `_test.go` (105) | File read/write proxy actions guarded by both sandbox and acl |
-| `grants` | `internal/grants/grants.go` (94) + `sqlite_consumer.go` (110) + 2 `_test.go` | Read-only SQLite consumer for HB-3 `host_grants`, using the single SELECT WHERE `agent_id = ? AND scope = ? AND revoked_at IS NULL`; expiration is checked afterward in Go |
+| `fileio` | `internal/fileio/file_actions.go` (119) + `_test.go` (105) | File read/list proxy actions guarded by both sandbox and acl; write-class IPC is rejected by ACL |
+| `grants` | `internal/grants/grants.go` (97) + `sqlite_consumer.go` (111) + 2 `_test.go` | Read-only SQLite consumer for HB-3 `host_grants`, using the single SELECT WHERE `agent_id = ? AND scope = ? AND revoked_at IS NULL`; expiration is checked afterward in Go |
 | `ipc` | `internal/ipc/ipc.go` (181) + `_test.go` (147) | IPC server (unix socket on Linux/macOS, named pipe on Windows; handshake + frame routing) |
 | `reasons` | `internal/reasons/reasons.go` (27) + `_test.go` (51) | Denial reason enum (`path_outside_grants` / `grant_expired` / `grant_not_found` 等) shared with locked UI copy |
 | `sandbox` | `internal/sandbox/sandbox_{linux,darwin,windows,other}.go` + `_test.go` | Platform sandbox apply path: Linux Landlock, macOS Seatbelt, Windows AppContainer placeholder |
