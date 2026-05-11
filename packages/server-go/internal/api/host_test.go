@@ -2,12 +2,13 @@
 // monitor acceptance §1+§2+§3.
 //
 // Pins:
-//   REG-HB6-001 TestHost_NoSchemaChange + WindowSecondsByteIdentical
-//   REG-HB6-002 TestHB_AggregateLag_PercentileCorrect
-//   REG-HB6-003 TestHB_WindowCutoffExcludesStale
-//   REG-HB6-004 TestHB_AdminHappyPath + _NonAdmin401 + _NoUserRailPath
-//   REG-HB6-005 TestHB_AtRiskReasonByteIdentical
-//   REG-HB6-006 TestHB_NoAdminWritePath + _NoLagSampleQueue (AST scan)
+//
+//	REG-HB6-001 TestHost_NoSchemaChange + WindowSecondsByteIdentical
+//	REG-HB6-002 TestHB_AggregateLag_PercentileCorrect
+//	REG-HB6-003 TestHB_WindowCutoffExcludesStale
+//	REG-HB6-004 TestHB_AdminHappyPath + _NonAdmin401 + _NoUserRailPath
+//	REG-HB6-005 TestHB_AtRiskReasonByteIdentical
+//	REG-HB6-006 TestHB_NoAdminWritePath + _NoLagSampleQueue (AST scan)
 package api_test
 
 import (
@@ -25,7 +26,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-HB6-001 — 0 schema 改 (grep 检查 migrations/hb_6_).
+// REG-HB6-001 — no schema changes (grep check for migrations/hb_6_).
 func TestHost_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -36,24 +37,24 @@ func TestHost_NoSchemaChange(t *testing.T) {
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, "hb_6_") {
-			t.Errorf("HB-6 设计第 1 条 broken — found schema migration file %q (must be 0 schema)", name)
+			t.Errorf("HB-6 design item 1 broken — found schema migration file %q (must be 0 schema)", name)
 		}
 	}
 }
 
-// REG-HB6-001b — WindowSeconds 字节级一致 跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
+// REG-HB6-001b — WindowSeconds is byte-identical with BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
 func TestHB_WindowSecondsByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.WindowSeconds != 30 {
-		t.Errorf("WindowSeconds: got %d, want 30 (跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS 同源)", api.WindowSeconds)
+		t.Errorf("WindowSeconds: got %d, want 30 (same source as BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS)", api.WindowSeconds)
 	}
-	// grep 检查 BPP-4 watchdog source — 锁 30 字面.
+	// Grep-check BPP-4 watchdog source — lock the 30 literal.
 	body, err := os.ReadFile(filepath.Join("..", "bpp", "heartbeat_watchdog.go"))
 	if err != nil {
 		t.Fatalf("read bpp watchdog: %v", err)
 	}
 	if !strings.Contains(string(body), "BPP_HEARTBEAT_TIMEOUT_SECONDS = 30") {
-		t.Error("BPP-4 watchdog 30s 字面漂移 — HB-6 WindowSeconds 双向锁 broken")
+		t.Error("BPP-4 watchdog 30s literal drifted — HB-6 WindowSeconds bidirectional lock broken")
 	}
 }
 
@@ -75,9 +76,9 @@ func TestHB_AggregateLag_PercentileCorrect(t *testing.T) {
 	if !snap.AtRisk {
 		t.Errorf("at_risk: got %v, want true (P95>%d threshold)", snap.AtRisk, api.LagThresholdMs)
 	}
-	// REG-HB6-005 — at_risk reason 字节级一致 跟 reasons.NetworkUnreachable.
+	// REG-HB6-005 — at_risk reason matches reasons.NetworkUnreachable byte-for-byte.
 	if snap.ReasonIfAtRisk != "network_unreachable" {
-		t.Errorf("reason_if_at_risk: got %q, want 'network_unreachable' (AL-1a 对齐链第 19 处)", snap.ReasonIfAtRisk)
+		t.Errorf("reason_if_at_risk: got %q, want 'network_unreachable' (AL-1a alignment checkpoint 19)", snap.ReasonIfAtRisk)
 	}
 }
 
@@ -183,7 +184,7 @@ func TestHB_AdminHappyPath(t *testing.T) {
 			t.Errorf("missing key %q in response: %v", k, body)
 		}
 	}
-	// window_seconds = 30 字节级一致.
+	// window_seconds = 30 byte-for-byte.
 	if got, ok := body["window_seconds"].(float64); !ok || int(got) != 30 {
 		t.Errorf("window_seconds: got %v, want 30", body["window_seconds"])
 	}
@@ -215,8 +216,8 @@ func TestHB_NoUserRailPath(t *testing.T) {
 	}
 }
 
-// REG-HB6-005 — at-risk reason 字面字节级一致 via end-to-end (seed
-// agent_runtimes 让 P95 > LagThresholdMs, 验证 reason='network_unreachable').
+// REG-HB6-005 — at-risk reason literal is byte-for-byte via end-to-end coverage (seed
+// agent_runtimes so P95 > LagThresholdMs, then verify reason='network_unreachable').
 func TestHB_AtRiskReasonByteIdentical(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -243,12 +244,12 @@ func TestHB_AtRiskReasonByteIdentical(t *testing.T) {
 		t.Errorf("at_risk: got %v, want true", body["at_risk"])
 	}
 	if body["reason_if_at_risk"] != "network_unreachable" {
-		t.Errorf("reason_if_at_risk: got %v, want 'network_unreachable' (AL-1a 对齐链第 19 处)",
+		t.Errorf("reason_if_at_risk: got %v, want 'network_unreachable' (AL-1a alignment checkpoint 19)",
 			body["reason_if_at_risk"])
 	}
 }
 
-// REG-HB6-006a — admin god-mode 不挂 PATCH/POST/PUT/DELETE 在 admin-api/v1/heartbeat-lag.
+// REG-HB6-006a — admin god-mode does not mount PATCH/POST/PUT/DELETE on admin-api/v1/heartbeat-lag.
 func TestHB_NoAdminWritePath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
@@ -263,7 +264,7 @@ func TestHB_NoAdminWritePath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("HB-6 设计第 3 条 broken — admin write on heartbeat-lag in %s: %q",
+				t.Errorf("HB-6 design item 3 broken — admin write on heartbeat-lag in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -271,7 +272,7 @@ func TestHB_NoAdminWritePath(t *testing.T) {
 	}
 }
 
-// REG-HB6-006b — AST 对齐链延伸第 16 处 forbidden 3 token.
+// REG-HB6-006b — AST alignment chain extension checkpoint 16 forbids three tokens.
 func TestHB_NoLagSampleQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -290,14 +291,14 @@ func TestHB_NoLagSampleQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐链延伸第 16 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST alignment chain extension checkpoint 16 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
 	})
 }
 
-// REG-HB6-006c — 0 client UI v1 (grep 检查 client/src/).
+// REG-HB6-006c — zero client UI v1 surface (grep check client/src/).
 func TestHB_NoClientUIv1(t *testing.T) {
 	t.Parallel()
 	clientDir := filepath.Join("..", "..", "..", "client", "src")
@@ -315,7 +316,7 @@ func TestHB_NoClientUIv1(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("HB-6 设计第 6 条 broken — client UI v1 token %q in %s", tok, p)
+				t.Errorf("HB-6 design item 6 broken — client UI v1 token %q in %s", tok, p)
 			}
 		}
 		return nil

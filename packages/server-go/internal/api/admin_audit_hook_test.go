@@ -4,9 +4,9 @@
 // via PATCH password / change_role via PATCH role).
 //
 // Acceptance pins:
-//   - §行为不变量 4.1.a — 每种 admin action 类型 → 自动写一行 admin_actions
-//   - §行为不变量 4.1.b — 受影响者必收 system DM (body 字节级一致 跟
-//     content-lock §1, admin_username 非 raw UUID)
+//   - Behavioral invariant §4.1.a — each admin action type automatically writes one admin_actions row
+//   - Behavioral invariant §4.1.b — affected users receive a system DM (body is byte-identical with
+//     content-lock §1, admin_username is not a raw UUID)
 package api_test
 
 import (
@@ -19,7 +19,7 @@ import (
 )
 
 // TestADM_ForceDeleteChannel_WritesAuditAndSystemDM pins acceptance
-// 4.1.a (audit row written) + 4.1.b (system DM body 字节级一致).
+// 4.1.a (audit row written) + 4.1.b (system DM body is byte-identical).
 func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -33,7 +33,7 @@ func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 		t.Fatalf("seed welcome channel: %v", err)
 	}
 
-	// owner creates a channel.
+	// Owner creates a channel.
 	resp, body := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels", ownerToken,
 		map[string]any{"name": "doomed-channel", "visibility": "private"})
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
@@ -41,7 +41,7 @@ func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 	}
 	channelID := body["channel"].(map[string]any)["id"].(string)
 
-	// admin force-deletes.
+	// Admin force-deletes it.
 	resp2, body2 := testutil.JSON(t, "DELETE",
 		ts.URL+"/admin-api/v1/channels/"+channelID+"/force", adminToken, nil)
 	if resp2.StatusCode != http.StatusOK {
@@ -81,8 +81,8 @@ func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 		t.Errorf("expected 1 system DM in owner's #welcome containing 'doomed-channel', got %d", msgCount)
 	}
 
-	// 反向断言: DM body 不含 raw UUID-looking actor_id (设计第 2 条
-	// ADM2-NEG-001 — admin_username 必须是具体名).
+	// Reverse assertion: DM body must not include a raw UUID-looking actor_id
+	// (design item 2, ADM2-NEG-001 — admin_username must be a concrete name).
 	var bodies []string
 	s.DB().Raw(`SELECT m.content FROM messages m
 		JOIN channels c ON c.id = m.channel_id
@@ -184,8 +184,9 @@ func TestADM_PatchUserPassword_WritesResetPasswordAudit(t *testing.T) {
 }
 
 // TestADM_AuditRowMetadataNoBodyContent pins stance §3 cross-milestone
-// 共享底线 (ADM-0 §1.3 god-mode 仅元数据): 反向断言 audit row metadata JSON
-// 不含 channel content / DM body / artifact 内容 (admin 不读用户内容).
+// shared baseline (ADM-0 §1.3 god-mode is metadata-only): reverse assertion that
+// audit row metadata JSON excludes channel content / DM body / artifact content
+// (admin does not read user content).
 func TestADM_AuditRowMetadataNoBodyContent(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -207,7 +208,7 @@ func TestADM_AuditRowMetadataNoBodyContent(t *testing.T) {
 		t.Fatal("no audit row")
 	}
 	for _, r := range rows {
-		// metadata 不应含字段 body/content/text/artifact (ADM-0 §1.3 god-mode 仅元数据)
+		// Metadata must not include body/content/text/artifact fields (ADM-0 §1.3 god-mode is metadata-only).
 		for _, forbidden := range []string{
 			`"body"`, `"content"`, `"text"`, `"artifact"`,
 		} {
