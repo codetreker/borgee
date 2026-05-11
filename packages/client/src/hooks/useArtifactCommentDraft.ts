@@ -1,4 +1,4 @@
-// useArtifactCommentDraft — CV-10.1 client hook for unsaved comment-draft
+// useArtifactCommentDraft — CV-10.1 client hook for unsaved comment draft
 // persistence across page reloads. Pure localStorage (反约束 0 server code).
 //
 // Spec: docs/implementation/modules/cv-10-spec.md §0 立场 ①.
@@ -8,12 +8,12 @@
 // 立场反查:
 //   - ① localStorage 单源, key namespace `borgee.cv10.comment-draft:<artifactId>`
 //     byte-identical (跟 DM-4 既有 `borgee.dm.draft:` 同模式).
-//   - ② save 是 debounced (500ms) — 避免每按键都写 localStorage; clear()
+//   - ② save is debounced (500ms), avoiding a localStorage write on every keystroke; clear()
 //     是 submit 后调用 (移除 key, getItem 返回 null).
 //
 // 反约束:
 //   - 不用 sessionStorage (要跨 reload)
-//   - 0 server fetch (反向 grep 见 cv-10-content-lock §4)
+//   - No server fetch (反向 grep 见 cv-10-content-lock §4)
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -31,7 +31,7 @@ export interface UseArtifactCommentDraftResult {
   setDraft: (value: string) => void;
   /** Remove the localStorage entry (call after successful submit). */
   clear: () => void;
-  /** True iff a draft existed in localStorage at mount. */
+  /** True if and only if a draft existed in localStorage at mount. */
   restored: boolean;
 }
 
@@ -47,7 +47,7 @@ export function useArtifactCommentDraft(artifactId: string): UseArtifactCommentD
   const [restored] = useState(initial !== '');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced write — avoid pounding localStorage on every keystroke.
+  // Debounced write: avoid writing to localStorage on every keystroke.
   const setDraft = useCallback(
     (value: string) => {
       setDraftState(value);
