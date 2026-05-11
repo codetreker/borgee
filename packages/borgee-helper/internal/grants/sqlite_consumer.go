@@ -1,5 +1,5 @@
 // Package grants provides the SQLite-backed consumer for HB-3 #520 host_grants.
-// It replaces the v0(C) MemoryConsumer mock for production reads.
+// It is used for production reads in place of the in-memory test consumer.
 //
 // hb-2-v0d-spec.md §0.2 requires revoke <100ms. Each IPC call re-queries the
 // read-only database with the HB-3 spec §1.4 `revoked_at IS NULL` predicate;
@@ -10,7 +10,7 @@
 //      ORDER BY granted_at DESC LIMIT 1
 //
 // HB-3 schema has 9 fields (id/user_id/agent_id/grant_type/scope/ttl_kind/
-// granted_at/expires_at/revoked_at). HB-2 v0(D) consumes it read-only.
+// granted_at/expires_at/revoked_at). The helper consumes it read-only.
 
 package grants
 
@@ -82,11 +82,11 @@ func (c *SQLiteConsumer) LookupRaw(ctx context.Context, agentID, scope string) (
 		ORDER BY granted_at DESC LIMIT 1`
 	row := c.db.QueryRowContext(ctx, q, agentID, scope)
 	var (
-		id         string
-		dbScope    string
-		expiresAt  sql.NullInt64
-		grantedAt  int64
-		revokedAt  sql.NullInt64
+		id        string
+		dbScope   string
+		expiresAt sql.NullInt64
+		grantedAt int64
+		revokedAt sql.NullInt64
 	)
 	if err := row.Scan(&id, &dbScope, &expiresAt, &grantedAt, &revokedAt); err != nil {
 		if err == sql.ErrNoRows {

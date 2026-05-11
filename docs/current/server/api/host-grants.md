@@ -21,11 +21,11 @@ without polluting the platform-level permission schema.
 |---|---|
 | Schema source | HB-3 owns the schema. HB-2 daemon (Go module `packages/borgee-helper/`, #617 merged) and install-butler are read-only consumers. server-go `internal/api/host_grants.go` is the only INSERT/UPDATE/DELETE path. |
 | Separate dictionaries (host vs runtime) | `host_grants` and AP-1 `user_permissions` have disjoint field sets. AST scan check: the handler must not reference the `user_permissions` identifier; the schema must not add `permission` / `is_admin` / `cursor` / `org_id` / `runtime_id` columns. |
-| Audit log 5-field source across four milestones | `actor / action / target / when / scope` must stay aligned with HB-1 install audit, HB-2 host-IPC audit, and BPP-4 #499 dead-letter. A change updates four unit-test locks (HB-1 + HB-2 + BPP-4 + HB-3). This matches the HB-4 §1.5 release criteria line 4 check for the locked audit-log JSON schema. |
+| Audit log 5-field source | `actor / action / target / when / scope` must stay aligned with HB-1 install audit, HB-2 host-IPC audit, and BPP-4 #499 dead-letter. A schema change must update related tests for HB-1, HB-2, BPP-4, and HB-3. This matches the HB-4 §1.5 release criteria line 4 check for the audit-log JSON schema. |
 | Revoke < 100ms | HB-4 §1.5 release criteria line 5. v1 implementation: REST DELETE sets `revoked_at` NOT NULL, and the daemon rechecks on every SELECT with no cache. This follows the HB-1 manifest no-cache and HB-2 §4.3 pattern. |
 | Forward-only revoke | DELETE does not hard-delete rows. It stamps `revoked_at` for audit retention, matching host-bridge.md §2 trust pillar 3. |
-| No admin-wide access | User authorization remains user-sovereign (host-bridge.md §1.3 + ADM-0 §1.3 guardrail). Grep check for `admin.*host_grant` must find no matches. |
-| Attempt once, no retry queue | Follow BPP-4 #499 §0.3. AST scan / reverse-grep forbids `pendingGrants` / `grantQueue` / `deadLetterGrants`; this is the third related lock and shares constraints with BPP-4 dead_letter_test and BPP-5 reconnect_handler_test. |
+| No admin-wide access | User authorization remains user-sovereign (host-bridge.md §1.3 + ADM-0 §1.3 guardrail). Handler code must not add admin host-grant paths. |
+| Attempt once, no retry queue | Follow BPP-4 #499 §0.3. The grant path must not add `pendingGrants` / `grantQueue` / `deadLetterGrants`; it shares constraints with BPP-4 dead_letter_test and BPP-5 reconnect_handler_test. |
 
 ## Schema (migration v=27)
 
@@ -65,7 +65,7 @@ POST body:
 }
 ```
 
-## DOM ↔ DB enum bidirectional lock (content-lock §1.①)
+## DOM ↔ DB Enum Mapping
 
 | Button label | data-action          | data-hb3-button | DB ttl_kind |
 |--------------|----------------------|-----------------|-------------|
@@ -75,7 +75,7 @@ POST body:
 
 DOM data-action values map to enum literals directly: `grant_one_shot` ↔
 `one_shot`, `grant_always` ↔ `always`. A frontend change also requires a schema
-CHECK change and content-lock §1.①+§1.② updates (three unit-test locks).
+CHECK change and related content-rule updates.
 
 ## Audit log keys
 
@@ -95,7 +95,7 @@ HB-1/HB-2/BPP-4 audit schema.
 - `internal/api/host_grants_test.go` — 8 unit tests (POST success
   filesystem + one_shot expires_at + grant_type/ttl_kind reject +
   GET list + DELETE revoke + cross-user 403 + AST scan
-  user_permissions 0 hit + AST scan grant-queue 0 hit + AST scan
+  user_permissions absence + AST scan grant-queue absence + AST scan
   audit 5-field).
 - `packages/client/src/__tests__/HostGrantsPanel.test.tsx` — 5
   vitest cases (data-action + hb3-button + button text alignment
@@ -126,12 +126,12 @@ must find no matches. Package entry point → [`../../borgee-helper.md`](../../b
 
 ## Adding a new grant_type
 
-1. Update content-lock §1.① actionLabel map (server prose).
+1. Update the actionLabel map in server prose.
 2. Update CHECK constraint in `hb_3_1_host_grants.go` migration —
    actually NO, migration is immutable; ship a new migration that
    ALTERs (forward-only).
 3. Update `hostGrantTypeWhitelist` in `host_grants.go`.
 4. Update `actionLabel` map in `HostGrantsPanel.tsx`.
-5. Update content-lock §1 + spec §1 + acceptance §1.2 in sync.
+5. Update server prose, spec §1, and acceptance §1.2 in sync.
 6. CI lint catches divergence through reflect (existing PRAGMA test) +
    reverse-grep (`TestHB31_GrantTypeEnumReject` enumerates 4-list).

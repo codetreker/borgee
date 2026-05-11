@@ -17,16 +17,14 @@
 //                                              release gate 第 5 行
 //                                              撤销 < 100ms 真测)
 //
-// 原则 pins (跟 原则 §0+§1+§2+§3 byte-identical):
+// Design constraints (原则 §0+§1+§2+§3):
 //   - 设计 ① schema 单一来源 — server-go 唯一 INSERT/UPDATE/DELETE 路径; HB-2
 //     daemon (Go module packages/borgee-helper) read-only.
 //   - 设计 ② 字典分立 — 不复用 user_permissions schema (host vs runtime);
-//     grep 检查 `host_grants.*JOIN.*user_permissions` 0 hit.
-//   - 设计 ⑤ ttl_kind 2-enum byte-identical 跟弹窗 UX 字面 (one_shot/always
-//     ↔ data-action="grant_one_shot"/"grant_always"); content-lock §1.②
-//     双向锁定.
-//   - 设计 ⑦ admin god-mode 不入 — 用户主权 (蓝图 §1.3 + ADM-0 §1.3 红线);
-//     grep 检查 `admin.*host_grant` 0 hit.
+//     handler code must not join `host_grants` to `user_permissions`.
+//   - 设计 ⑤ ttl_kind 2-enum matches permission UX values (one_shot/always
+//     ↔ data-action="grant_one_shot"/"grant_always").
+//   - 设计 ⑦ no admin-wide host grant path — 用户主权 (蓝图 §1.3 + ADM-0 §1.3 红线).
 
 package api
 
@@ -80,10 +78,8 @@ type hostGrantRow struct {
 
 func (hostGrantRow) TableName() string { return "host_grants" }
 
-// hostGrantTypeWhitelist — 4-enum byte-identical 跟蓝图 §1.3 字面
-// + DB CHECK constraint + content-lock §1.① 三处单测锁定.
-//
-// **改 = 改三处**: 此 map + migration CHECK + content-lock §1.①.
+// hostGrantTypeWhitelist lists the 4 grant_type values from blueprint §1.3 and
+// the DB CHECK constraint. Keep this map, migration CHECK, and UI content rules aligned.
 var hostGrantTypeWhitelist = map[string]bool{
 	"install":    true, // 装机时授权 (Helper 装/卸 runtime 二进制)
 	"exec":       true, // 装机时授权 (启动 runtime 进程)
@@ -91,16 +87,14 @@ var hostGrantTypeWhitelist = map[string]bool{
 	"network":    true, // 触发时授权 (agent 出站非 Borgee 域)
 }
 
-// hostGrantTtlWhitelist — 2-enum byte-identical 跟弹窗 UX 字面 (跟
-// content-lock §1.② data-action 双向锁定: one_shot ↔ grant_one_shot,
-// always ↔ grant_always).
+// hostGrantTtlWhitelist lists the 2 ttl_kind values used by the permission UX:
+// one_shot ↔ grant_one_shot, always ↔ grant_always.
 var hostGrantTtlWhitelist = map[string]bool{
 	"one_shot": true, // "仅这一次" — expires_at = now + 1h
 	"always":   true, // "始终允许" — expires_at NULL
 }
 
-// oneShotTtlMs — "仅这一次" 实际 TTL 1h (跟蓝图 §1.3 弹窗 UX 字面同模式;
-// 改 = 改两处, 此常量 + content-lock §1.②).
+// oneShotTtlMs is the 1h TTL for "仅这一次"; keep it aligned with the permission UX.
 const oneShotTtlMs int64 = 60 * 60 * 1000
 
 const hostGrantSaveErrorMsg = "host grant 保存失败, 请重试"
@@ -112,8 +106,8 @@ type hostGrantPostRequest struct {
 	TtlKind   string `json:"ttl_kind"`
 }
 
-// handlePost — POST /api/v1/host-grants. Owner-only (caller writes own
-// grants; admin god-mode 不入路径 — 设计 ⑦).
+// handlePost — POST /api/v1/host-grants. Owner-only; callers write their own
+// grants and there is no admin-wide host grant path.
 func (h *HostGrantsHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -162,8 +156,7 @@ func (h *HostGrantsHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.Logger != nil {
-		// HB-3 audit log: 5 字段 byte-identical 跟 HB-1 / HB-2 / BPP-4
-		// dead-letter 同源 (改 = 改四处单测守护链).
+		// HB-3 audit log: 5 fields aligned with HB-1 / HB-2 / BPP-4 dead-letter audit.
 		h.Logger.Info("host_grants.granted",
 			"actor", user.ID,
 			"action", "grant",
@@ -202,7 +195,7 @@ func (h *HostGrantsHandler) handleList(w http.ResponseWriter, r *http.Request) {
 //
 // HB-4 §1.5 release gate 第 5 行: 撤销 → daemon 立即拒绝 < 100ms. v1
 // 实现 = REST DELETE → revoked_at NOT NULL + daemon 每次 IPC 重查
-// (grep 检查 `cachedGrants` 0 hit).
+// daemon rechecks on every IPC call; it does not cache grant state.
 func (h *HostGrantsHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -243,7 +236,7 @@ func (h *HostGrantsHandler) handleDelete(w http.ResponseWriter, r *http.Request)
 	}
 
 	if h.Logger != nil {
-		// HB-3 audit log: 5 字段 byte-identical 跟 HB-1 / HB-2 / BPP-4 同源.
+		// HB-3 audit log: 5 fields aligned with HB-1 / HB-2 / BPP-4 audit.
 		h.Logger.Info("host_grants.revoked",
 			"actor", user.ID,
 			"action", "revoke",
