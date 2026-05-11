@@ -53,7 +53,7 @@ Content-Type: application/json
 }
 ```
 
-ACL (反向约束 ① owner-only):
+ACL (owner-only 约束 ①):
 
 - No auth user → **401 Unauthorized** (admin routes do not enter this path, ADM-0
   §1.3 红线).
@@ -115,8 +115,8 @@ ThumbnailErrCodeArtifactNotFound    = "thumbnail.artifact_not_found"
   video_link, pdf_link}` (五 kind 全覆盖)
 
 跨 endpoint reject (`TestCV3V22_KindNotThumbnailable_ImageLink` +
-`TestCV3V22_KindNotThumbnailable_VideoAndPDF`) byte-identical 守 client
-路径保持一致.
+`TestCV3V22_KindNotThumbnailable_VideoAndPDF`) byte-identical, keeping
+client 路径保持一致.
 
 ## 跨 milestone byte-identical 锁定
 

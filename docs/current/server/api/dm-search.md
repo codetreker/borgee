@@ -27,19 +27,19 @@ permanently off (蓝图 §1.2 + ADM-0 §1.3 红线).
   CV-6 #531 落 `artifacts_fts` 表但**不复用** — 留 v2 (避免跨表 join
   复杂度).
 - **DM-only scope** — store helper `SearchDMMessages` JOIN
-  `channels ON c.type='dm'` 强制过滤; 反 cross-channel leak (跟
+  `channels ON c.type='dm'` 强制过滤; 防止 cross-channel leak (跟
   DM-10 #597 + dm_4_message_edit.go #549 DM-only path 保持同一设计约束).
 - **channel-member ACL 复用 AP-4 + AP-5 模式** — store helper JOIN
-  `channel_members ON cm.user_id = caller` (反 cross-user DM leak,
+  `channel_members ON cm.user_id = caller` (防止 cross-user DM leak,
   AP-4 #551 reactions ACL + AP-5 #555 messages ACL 设计沿用).
-- **q query param 反 DoS** — q trim + min 2 char + max 200 char;
+- **q query param DoS 防护** — q trim + min 2 char + max 200 char;
   3 个字面错码检查; limit clamp default 30 / max 50.
 - **admin-wide cross-user search 永久不注册** — grep 检查
   `admin.*dm.*search|/admin-api/.*dm/search` in `admin*.go` 0 hit
   (ADM-0 §1.3 红线; cross-user DM search 不注册 admin route, 跟 DM-10 +
   DM-7 edit history admin-wide access 红线 一致沿用).
-- **不返 deleted_at IS NOT NULL 行** — `maskDeletedMessages` helper 守
-  (反 deleted leak).
+- **排除 deleted_at IS NOT NULL 行** — `maskDeletedMessages` helper
+  enforces this (防止 deleted leak).
 
 ## Endpoint
 
@@ -79,12 +79,12 @@ content-lock §1).
 ## Validation order (handler)
 
 1. Auth — `mustUser(w, r)` (auth middleware returns 401).
-2. q query param required + 2..200 char (反 DoS, 反空查询全表扫).
+2. q query param required + 2..200 char (DoS 防护, 避免空查询全表扫描).
 3. limit clamp default 30 / max 50.
 4. `Store.SearchDMMessages(user.ID, q, limit)` — DM-only + channel-
    member ACL JOIN.
 
-## Reverse-grep 反查 (DM-11 实施 PR 必跑)
+## Reverse-grep checks (DM-11 实施 PR 必跑)
 
 ```
 git grep -nE 'dm_search_index|dm_search_table|dm_11_search_log' packages/server-go/internal/  # 0 hit (单一来源 messages.content 列)

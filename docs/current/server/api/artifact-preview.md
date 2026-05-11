@@ -11,11 +11,11 @@
 ## Why
 
 CV-1 ships markdown-only artifacts; CV-3 extends the kind enum to
-markdown / code / image_link. CV-2 v2 adds the multimedia preview
-endpoint surface — `video_link` and `pdf_link` kinds plus a server-recorded
-`preview_url` thumbnail / poster surface — without dragging in heavy
-inline render libraries (no video.js / hls.js / pdf.js). Server keeps
-the https-only XSS validation; client renders with HTML5 native primitives.
+markdown / code / image_link. CV-2 v2 adds multimedia previews for
+`video_link` and `pdf_link` kinds plus a server-recorded `preview_url`
+used for thumbnails and video posters, without dragging in heavy inline
+render libraries (no video.js / hls.js / pdf.js). Server keeps the
+https-only XSS validation; client renders with HTML5 native primitives.
 
 ## 原则 (cv-2-v2-media-preview-spec.md §0 原文)
 
@@ -29,8 +29,8 @@ the https-only XSS validation; client renders with HTML5 native primitives.
 - **③ kind enum 跟 CV-3 共 schema 单一来源.** v=28 12 步重建表
   扩 `markdown/code/image_link/video_link/pdf_link`, schema CHECK +
   `ValidArtifactKinds` slice + client `ArtifactKind` 三处 byte-identical
-  (改 = 改三处). 反向约束: 不拆表 (artifact_video / artifact_pdf 反向
-  sqlite_master 0 hit).
+  (改 = 改三处). 设计约束: 不拆表 (`artifact_video` / `artifact_pdf`
+  sqlite_master 检查应为 0 hit).
 
 ## Schema (v=28)
 
@@ -58,7 +58,7 @@ Content-Type: application/json
 }
 ```
 
-ACL (反向约束 ① owner-only):
+ACL (owner-only 约束 ①):
 
 - No auth user → **401 Unauthorized** (admin routes do not enter this path, ADM-0
   §1.3 红线; admin 走 `/admin-api/*` 单独 middleware).
@@ -75,7 +75,7 @@ Validation rules:
 - `preview_url` empty / unparseable / scheme ∉ {`https`} →
   **400 `preview.url_must_be_https`** (scheme 不匹配) or
   **400 `preview.url_invalid`** (其他错). 复用 `ValidateImageLinkURL`
-  XSS 红线 #1 同源 (反向约束 javascript:/data:/data:image/http:/file:/
+  XSS 红线 #1 同源 (javascript:/data:/data:image/http:/file:/
   scheme-relative `//host` / 空 全 reject).
 
 Side-effects on success (200):

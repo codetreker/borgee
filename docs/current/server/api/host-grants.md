@@ -22,7 +22,7 @@ without polluting the platform-level permission schema.
   read-only consumer. server-go `internal/api/host_grants.go` 是唯一
   INSERT/UPDATE/DELETE 路径.
 - **字典分立 (host vs runtime).** `host_grants` 跟 AP-1
-  `user_permissions` 字段集不交. AST scan反向断言: handler 不引用
+  `user_permissions` 字段集不交. AST scan check: handler 不引用
   `user_permissions` identifier; schema 不挂 `permission` / `is_admin`
   / `cursor` / `org_id` / `runtime_id` 列.
 - **audit log 5 字段跨四 milestone 同源.** `actor / action / target /
@@ -31,7 +31,7 @@ without polluting the platform-level permission schema.
   BPP-4 + HB-3 = 第 4 处锁定). 跟 HB-4 §1.5 release criteria 第 4
   行 "审计日志格式锁定 JSON schema" 检查同源.
 - **撤销 < 100ms** (HB-4 §1.5 release criteria 第 5 行) — v1 实现:
-  REST DELETE → `revoked_at` NOT NULL + daemon 每次 SELECT 守
+  REST DELETE → `revoked_at` NOT NULL + daemon 每次 SELECT 都重新检查
   (不缓存; 跟 HB-1 manifest 不缓存 + HB-2 §4.3 同模式).
 - **forward-only revoke.** DELETE 不真删行 — stamp `revoked_at` 留作
   audit (蓝图 §2 信任五支柱第 3 条).

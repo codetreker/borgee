@@ -23,7 +23,7 @@ meilisearch / sonic / bleve.
 - **② search owner-only** — channel-scoped (channel_id required); non
   member → 403 `search.channel_not_member`; cross-org → 403
   `search.cross_org_denied` (走 AP-3 `auth.HasCapability` 自动 enforce).
-- **③ 反向: 不另建 search_index_table** — FTS5 contentless 跟 artifacts 单一来源;
+- **③ 不另建 search_index_table** — FTS5 contentless 跟 artifacts 单一来源;
   no separate schema, no cron reindex.
 
 ## Schema (v=34)
@@ -70,7 +70,7 @@ Authorization: <session cookie>
 
 Bounds:
 
-- `q` required, 1..256 chars (反 DoS 提前 reject 在 FTS5 之前).
+- `q` required, 1..256 chars (DoS 防护, 在 FTS5 之前提前 reject).
 - `channel_id` required v0 (跨 channel 全局 search 留 v2+).
 - `limit` optional, default 50, max 200.
 
