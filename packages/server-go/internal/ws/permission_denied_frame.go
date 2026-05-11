@@ -12,18 +12,18 @@
 // / PushAgentConfigUpdate 5-frame 共序模式:
 //
 //   1. Cursor 走 hub.cursors.NextCursor() 单调发号, 跟 RT-1/CV-2/DM-2/CV-4/
-//      AL-2b 共一根 sequence (反约束: 不另起 plugin-only 推送通道).
+//      AL-2b 共一根 sequence (约束: 不另起 plugin-only 推送通道).
 //      BPP-3.1 是第 6 个共序 frame.
 //   2. Direction lock = server→plugin; 只发给目标 agent 的 PluginConn
 //      (h.plugins[agentID]), 不 broadcast.
 //   3. 字段顺序锁: type/cursor/agent_id/request_id/attempted_action/
 //      required_capability/current_scope/denied_at — 跟 BPP-1 #304 envelope
 //      CI lint reflect 自动覆盖.
-//   4. plugin 离线 frame 丢弃 (跟 PushAgentConfigUpdate 同模式 — 反约束:
+//   4. plugin 离线 frame 丢弃 (跟 PushAgentConfigUpdate 同模式 — 约束:
 //      不入队列, plugin 重连后 GET 主动拉; 蓝图 §1.5 字面 "runtime 不缓存"
 //      同精神).
 //
-// 反约束 (spec §2):
+// 约束 (spec §2):
 //   - admin god-mode 不调此方法 (ADM-0 §1.3 红线 — admin 不入业务路径).
 //     调用方 (AP-1 abac.go::HasCapability false 路径) 必须先确认 user.Role
 //     != "admin"; 此方法不做 ACL — 跟 PushArtifactUpdated 同模式.
@@ -66,17 +66,17 @@ type PermissionDeniedPusher interface {
 //     no allocator / channel buffer full).
 //
 // Frame field assignment is byte-identical with bpp.PermissionDeniedFrame
-// (spec §1 立场 ① 8 字段); reordering arguments here without updating the
+// (spec §1 设计 ① 8 字段); reordering arguments here without updating the
 // frame struct is a CI red caught by frame_schemas_test.go reflect lint.
 //
 // Caller responsibilities:
 //   - requestID: AP-1 调用方生成的 trace UUID, plugin 端按此 key 关联
 //     owner DM 推审批通知 + retry (BPP-3.2 follow-up).
 //   - attemptedAction: ∈ BPP-2.1 7 op 白名单 (`bpp.SemanticOp*` const)
-//     或 REST endpoint 名; 反约束: v2+ 枚举外值不入此路径.
+//     或 REST endpoint 名; 约束: v2+ 枚举外值不入此路径.
 //   - requiredCapability / currentScope: byte-identical 跟 AP-1 abac.go
 //     403 body (改 = 改三处 — 蓝图 §4.1 + AP-1 + BPP-3.1, 双向 grep 守).
-//   - deniedAt: Unix ms 语义戳 (反约束: cursor 才是排序源).
+//   - deniedAt: Unix ms 语义戳 (约束: cursor 才是排序源).
 func (h *Hub) PushPermissionDenied(
 	agentID string,
 	requestID string,

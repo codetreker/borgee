@@ -4,7 +4,7 @@
 //
 // 锚: docs/qa/acceptance-templates/al-2b.md §2.1 (delivery latency
 // hard-line ≤1s + cursor 共序) + §2.2 (幂等 reload — 同 idempotency_key
-// 重发 plugin 端 dedup, server stateless 反约束).
+// 重发 plugin 端 dedup, server stateless 约束).
 package ws_test
 
 import (
@@ -68,7 +68,7 @@ func TestAL_PushAgentConfigUpdateBasic(t *testing.T) {
 
 // TestAL_PushAgentConfigUpdate_PluginOffline pins acceptance §2.1
 // fail-graceful path — plugin not registered → sent=false, cursor still
-// allocated (蓝图 §1.5 反约束 "runtime 不缓存": frame dropped, plugin
+// allocated (蓝图 §1.5 约束 "runtime 不缓存": frame dropped, plugin
 // 重连后 GET /agents/:id/config 主动拉; server 不入队列).
 func TestAL_PushAgentConfigUpdate_PluginOffline(t *testing.T) {
 	t.Parallel()
@@ -91,7 +91,7 @@ func TestAL_PushAgentConfigUpdate_PluginOffline(t *testing.T) {
 
 // TestAL_PushAgentConfigUpdate_CursorMonotonic pins acceptance §2.1
 // cursor 共序 — N 次 push cursor 严格递增, 跟 RT-1 PushArtifactUpdated
-// 共一根 sequence (反约束: 不另起 plugin-only 通道).
+// 共一根 sequence (约束: 不另起 plugin-only 通道).
 func TestAL_PushAgentConfigUpdate_CursorMonotonic(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -111,9 +111,9 @@ func TestAL_PushAgentConfigUpdate_CursorMonotonic(t *testing.T) {
 }
 
 // TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1 pins acceptance
-// §2.1 立场 ① cursor 共序 — AL-2b push 跟 RT-1.1 PushArtifactUpdated
+// §2.1 设计 ① cursor 共序 — AL-2b push 跟 RT-1.1 PushArtifactUpdated
 // 共一根 sequence (跟 anchor_comment_frame_test / iteration_state_changed_
-// frame_test 同模式 — 反约束: 不另起 channel).
+// frame_test 同模式 — 约束: 不另起 channel).
 func TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -130,7 +130,7 @@ func TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1(t *testing.T) {
 		t.Fatal("AL-2b push failed")
 	}
 	if c2 <= c1 {
-		t.Errorf("AL-2b cursor must be strictly above prior RT-1 cursor; c1=%d c2=%d (反约束 共一根 sequence)", c1, c2)
+		t.Errorf("AL-2b cursor must be strictly above prior RT-1 cursor; c1=%d c2=%d (约束 共一根 sequence)", c1, c2)
 	}
 
 	// Push another RT-1 frame — must continue from c2, not reset.
@@ -145,7 +145,7 @@ func TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1(t *testing.T) {
 
 // TestAL_PushAgentConfigUpdate_FieldByteIdentity pins acceptance §2.1
 // + #472 §1.1 — wire JSON 跟 BPP envelope reflect lint byte-identical
-// (filled + zero-tail 双 snapshot — 反约束 不挂 omitempty).
+// (filled + zero-tail 双 snapshot — 约束 不挂 omitempty).
 func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -153,7 +153,7 @@ func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 	pc := ws.NewTestPluginConn("agent-Z")
 	hub.RegisterPlugin("agent-Z", pc)
 
-	// Empty blob + zero schema_version — 反约束: 7 字段全序列化.
+	// Empty blob + zero schema_version — 约束: 7 字段全序列化.
 	cur, sent := hub.PushAgentConfigUpdate("agent-Z", 0, "", "idem-empty", 0)
 	if !sent {
 		t.Fatal("zero-tail push must succeed")
@@ -167,10 +167,10 @@ func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 	if wire != want {
 		t.Fatalf("zero-tail wire byte-identity broken:\n got: %s\nwant: %s", wire, want)
 	}
-	// 反约束: 7 keys (始终序列化, 不挂 omitempty).
+	// 约束: 7 keys (始终序列化, 不挂 omitempty).
 	count := strings.Count(wire, ":")
 	if count < 7 {
-		t.Errorf("wire must serialize all 7 fields; saw %d ':' (omitempty drift)", count)
+		t.Errorf("wire must serialize all 7 fields; saw %d ':' (omitempty mismatch)", count)
 	}
 }
 
