@@ -6,8 +6,13 @@
 // - §1 picker 锚定: 末尾的 ➕ 由 <ReactionAddButton variant="inline-pill" />
 //   统一管, picker state 跟 .message-actions 工具栏的 ReactionAddButton
 //   实例各自独立, 不串扰
+// - §4 #11 乐观渲染: pill click toggle 走 ADD/REMOVE_REACTION_OPTIMISTIC
+//   dispatch, 跟 ReactionAddButton 同款 — server PUT/DELETE 之前 client 立刻
+//   更新 reactions array, isActive 立刻翻转 (反 e2e WS push race 不稳, 修
+//   gh#716 PR #794 真 fail 真因: 完全靠 WS 整列替换 round-trip 才更新 active class)
 import React from 'react';
 import * as api from '../lib/api';
+import { useAppContext } from '../context/AppContext';
 import ReactionAddButton from './ReactionAddButton';
 
 interface Reaction {
@@ -25,17 +30,38 @@ interface Props {
 }
 
 export default function ReactionBar({ reactions, channelId, messageId, currentUserId, userMap }: Props) {
+  const { dispatch } = useAppContext();
+
   const handleToggle = async (emoji: string) => {
+    if (!currentUserId) return; // 反 anonymous toggle, optimistic 需 user id 才能 dispatch
     const reaction = reactions.find(r => r.emoji === emoji);
-    const hasReacted = reaction?.user_ids.includes(currentUserId ?? '');
+    const hasReacted = reaction?.user_ids.includes(currentUserId);
+    // ① 乐观 dispatch — 立刻在 UI 翻转 active state + count, 不等 WS round-trip
+    //   (跟 ReactionAddButton §4 #11 同款乐观渲染策略; 反 e2e PR #794 真 race fail)
+    dispatch({
+      type: hasReacted ? 'REMOVE_REACTION_OPTIMISTIC' : 'ADD_REACTION_OPTIMISTIC',
+      channelId,
+      messageId,
+      emoji,
+      userId: currentUserId,
+    });
     try {
+      // ② await 服务器
       if (hasReacted) {
         await api.removeReaction(messageId, emoji);
       } else {
         await api.addReaction(messageId, emoji);
       }
+      // ③ 成功 — 服务器 ack 后 WS 推 UPDATE_REACTIONS 整列替换, 不会重复
     } catch {
-      // ignore — server 端会推 UPDATE_REACTIONS 走 WS, client 自正
+      // ④ 失败 — 撤回乐观 dispatch (按 user_id 撤, 反 race 误删别人)
+      dispatch({
+        type: hasReacted ? 'ADD_REACTION_OPTIMISTIC' : 'REMOVE_REACTION_OPTIMISTIC',
+        channelId,
+        messageId,
+        emoji,
+        userId: currentUserId,
+      });
     }
   };
 
