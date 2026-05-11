@@ -150,7 +150,7 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
 
   test.skip('§5 DM 视图永不含 workspace tab — 7 源 byte-identical 反向断言', async ({ browser }) => {
     // FIXME(team-lead): chn-4 §5 timing flake repeatedly blocked delivery (3+ repeated failures in #490/#502/#505/#506/#507/#508).
-    // Server-side negative constraint grep CI already enforces the 7-source invariant (#354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + chn-4 stance),
+    // CI grep already checks this rule across seven sources (#354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + CHN-4),
     // so this e2e check is redundant. Rewrite with a fixture-based CHN-4 wrapper milestone (zhanma-d feat/chn-4-wrapper).
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
@@ -183,7 +183,7 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
     }
 
     // Acceptance point 4: DM view DOM has zero `[data-tab="workspace"]` elements.
-    // This matches the 7-source invariant from #354 ④ + #353 §3.1 + #357 ② + #364 + #371 + #374 + this stance.
+    // This matches the rule that DM views must not expose a workspace tab.
     //
     // Flake fix (#505 / CHN-4 wrapper #510): 之前 `await page.waitForTimeout(500)`
     // Fixed 500ms wait let the DM view settle locally, but slow CI machines still failed. Use
