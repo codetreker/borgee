@@ -1,16 +1,16 @@
 // admin_grant_permission_gate_test.go — ADMIN-SPA-SHAPE-FIX REG-ASF-D6
 // admin-rail handleGrantPermission IsValidCapability behavior test.
 //
-// 设计: spec §0.3 + content-lock §1 — admin cURL 塞任意 capability 字面 →
-// 反向 reject 400 "invalid_capability". 4 validation cases:
-//   1. valid dot-notation (channel.read 等 14 capability 之一) → 200 grant 真挂
+// Design: spec §0.3 + content-lock §1 — admin cURL with an arbitrary
+// capability literal is rejected with 400 "invalid_capability". 4 validation cases:
+//   1. valid dot-notation (channel.read 等 14 capability 之一) → 200 grant persisted
 //   2. legacy snake_case (read_channel) → 400 invalid_capability (reject)
 //   3. invalid custom literal (admin.god_mode 等) → 400
-//   4. 反 admin privilege override (确保 permission check 走 IsValidCapability 不 skip validation)
+//   4. admin god-mode/bypass guard (permission check must use IsValidCapability)
 //
-// 跨 milestone 锁链: CAPABILITY-DOT #628 backfill 守存量 + 此 check 守入口
-// (user-rail 4 处全验是 ap-2 / capability_grant / users / me_grants 同源,
-// admin-rail 是第 5 处链 SSOT 守).
+// Cross-milestone coverage: CAPABILITY-DOT #628 protects backfilled data;
+// this check protects the admin-rail entry point alongside user-rail validation
+// in ap-2 / capability_grant / users / me_grants.
 
 package api_test
 

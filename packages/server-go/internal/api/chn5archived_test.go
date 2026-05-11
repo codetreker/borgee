@@ -7,7 +7,7 @@
 //	REG-CHN5-002 TestCHN52_ListMyArchived_* — owner-only GET 用户路由
 //	REG-CHN5-003 TestCHN52_AdminListArchived_* — admin readonly
 //	REG-CHN5-004 TestCHN52_UnarchiveFanouts* — unarchive 互补二式
-//	REG-CHN5-005 TestCHN_NoAdminPatchPath — admin override 不挂 PATCH
+//	REG-CHN5-005 TestCHN_NoAdminPatchPath — admin god-mode has no PATCH path
 //	REG-CHN5-006 TestCHN_NoChannelArchiveQueue — AST 对齐链 #10
 package api_test
 
@@ -23,7 +23,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-CHN5-001 — 0 schema 改 反向断言: migrations/ 不出现新 chn_5_*
+// REG-CHN5-001 — schema unchanged: migrations/ 不出现新 chn_5_*
 // migration file (跟 chn-5-spec.md §1 设计第 1 条 字面单一来源). channels.archived_at
 // 列由 CHN-1.1 #267 既有 (chn_1_1_channels_org_scoped.go) — 此 test 仅守
 // 新增 chn_5_* 文件 0 hit (复用既有列).
@@ -178,11 +178,10 @@ func TestCHN_UnarchiveSystemMessageNotification(t *testing.T) {
 	}
 }
 
-// REG-CHN5-005 — admin override 不挂 PATCH path 反向断言.
+// REG-CHN5-005 — admin god-mode has no PATCH path.
 //
 // grep 检查 `mux\.Handle\("(PATCH|PUT|DELETE).*admin-api/v1/channels/archived`
-// 在 internal/api/+server/ 0 hit (admin override ADM-0 §1.3 红线 — admin
-// 看不能改).
+// 在 internal/api/+server/ 0 hit (ADM-0 §1.3: admin can read but not modify).
 func TestCHN_NoAdminPatchPath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}

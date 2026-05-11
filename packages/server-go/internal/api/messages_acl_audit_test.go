@@ -71,14 +71,14 @@ func TestAP_DeleteMessage_PostRemovalReject(t *testing.T) {
 	}
 }
 
-// TestAP_Member_PutDelete_OK — sanity: channel member sender can still
+// TestAP_Member_PutDelete_OK — channel member sender can still
 // PUT/DELETE own message (既有行为不破).
 func TestAP_Member_PutDelete_OK(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := setupFullTestServer(t)
 	adminToken := loginAs(t, ts.URL, "owner@test.com", "password123")
 
-	ch := createCh(t, ts.URL, adminToken, "ap5-sanity", "public")
+	ch := createCh(t, ts.URL, adminToken, "ap5-member-flow", "public")
 	chID := ch["id"].(string)
 	msg := postMsg(t, ts.URL, adminToken, chID, "owned")
 	msgID := msg["id"].(string)
@@ -94,9 +94,9 @@ func TestAP_Member_PutDelete_OK(t *testing.T) {
 	}
 }
 
-// TestAP_NonSenderMember_403 — sanity: channel member who is NOT the
+// TestAP_NonSenderMember_403 — channel member who is NOT the
 // sender still gets 403 from existing sender_id check (sender-only ACL
-// 不破, 跟 既有 PUT/DELETE messages 同源).
+// 不破; matches existing PUT/DELETE messages behavior).
 func TestAP_NonSenderMember_403(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := setupFullTestServer(t)

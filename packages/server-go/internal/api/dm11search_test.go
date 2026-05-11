@@ -103,7 +103,7 @@ func TestDM_Search_QTooShort(t *testing.T) {
 	}
 }
 
-// TestDM_Search_QTooLong — q > 200 char → 400 dm_search.q_too_long (反 DoS).
+// TestDM_Search_QTooLong — q > 200 char → 400 dm_search.q_too_long (query length guard).
 func TestDM_Search_QTooLong(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, _, _, _, _ := dm11Setup(t)
