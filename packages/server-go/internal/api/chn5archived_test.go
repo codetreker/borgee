@@ -7,7 +7,7 @@
 //   REG-CHN5-003 TestCHN52_AdminListArchived_* — admin readonly
 //   REG-CHN5-004 TestCHN52_UnarchiveFanouts* — unarchive 互补二式
 //   REG-CHN5-005 TestCHN_NoAdminPatchPath — admin god-mode 不挂 PATCH
-//   REG-CHN5-006 TestCHN_NoChannelArchiveQueue — AST 锁链 #10
+//   REG-CHN5-006 TestCHN_NoChannelArchiveQueue — AST 对齐链 #10
 package api_test
 
 import (
@@ -23,7 +23,7 @@ import (
 )
 
 // REG-CHN5-001 — 0 schema 改 反向断言: migrations/ 不出现新 chn_5_*
-// migration file (跟 chn-5-spec.md §1 设计 ① 字面单源). channels.archived_at
+// migration file (跟 chn-5-spec.md §1 设计第 1 条 字面单一来源). channels.archived_at
 // 列由 CHN-1.1 #267 既有 (chn_1_1_channels_org_scoped.go) — 此 test 仅守
 // 新增 chn_5_* 文件 0 hit (复用既有列).
 func TestChn5archived_NoSchemaChange(t *testing.T) {
@@ -36,7 +36,7 @@ func TestChn5archived_NoSchemaChange(t *testing.T) {
 		}
 		base := filepath.Base(p)
 		if pat.MatchString(base) {
-			t.Errorf("CHN-5 设计 ① broken — new schema migration file %s", p)
+			t.Errorf("CHN-5 设计第 1 条 broken — new schema migration file %s", p)
 		}
 		return nil
 	})
@@ -130,7 +130,7 @@ func TestCHN_AdminListArchived_RejectsUserRail(t *testing.T) {
 	}
 }
 
-// REG-CHN5-004 — unarchive fanout system DM 互补二式 byte-identical 跟
+// REG-CHN5-004 — unarchive fanout system DM 互补二式 字节级一致 跟
 // content-lock §1 (`channel #{name} 已被 {owner} 恢复于 {ts}`).
 func TestCHN_UnarchiveFanoutsSystemMessage(t *testing.T) {
 	t.Parallel()
@@ -172,7 +172,7 @@ func TestCHN_UnarchiveFanoutsSystemMessage(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("CHN-5 设计 ③: unarchive fanout DM not found (text-lock prefix=%q infix=%q) in %v",
+		t.Errorf("CHN-5 设计第 3 条: unarchive fanout DM not found (text-lock prefix=%q infix=%q) in %v",
 			wantPrefix, wantInfix, list)
 	}
 }
@@ -196,7 +196,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 设计 ② broken — admin PATCH/PUT/DELETE path in %s: %q",
+				t.Errorf("CHN-5 设计第 2 条 broken — admin PATCH/PUT/DELETE path in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -211,7 +211,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 			}
 			body, _ := os.ReadFile(p)
 			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 设计 ② broken — admin archive-channel symbol in %s: %q",
+				t.Errorf("CHN-5 设计第 2 条 broken — admin archive-channel symbol in %s: %q",
 					p, body[loc[0]:loc[1]])
 			}
 			return nil
@@ -219,7 +219,7 @@ func TestCHN_NoAdminPatchPath(t *testing.T) {
 	}
 }
 
-// REG-CHN5-006 — AST 锁链延伸第 10 处 forbidden token 0 hit.
+// REG-CHN5-006 — AST 对齐链延伸第 10 处 forbidden token 0 hit.
 func TestCHN_NoChannelArchiveQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -238,7 +238,7 @@ func TestCHN_NoChannelArchiveQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 10 处 broken — forbidden token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 10 处 broken — forbidden token %q in %s", tok, p)
 			}
 		}
 		return nil
