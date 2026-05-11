@@ -1,18 +1,18 @@
-// lint_constraints_test.go — 7 条 inline grep 反约束转 Go 行为 test.
+// lint_constraints_test.go — 7 条 inline grep 约束转 Go 行为 test.
 //
 // 历史 .github/workflows/release-gate.yml + al-release-gate.yml 里有 7 条
-// inline bash grep 反约束守"未来不许 commit drift" (heartbeat 30s 单源 /
+// inline bash grep 约束守"未来不许 commit mismatch" (heartbeat 30s 单一来源 /
 // reason 字典 6 不变 / agent_state_log 不写 connecting 持久态 /
 // presence_sessions 不写 busy 列 / agent_state_log 跟 audit_log 不 JOIN /
-// audit 5 字段 byte-identical / reasons SSOT 跨 milestone ≥6 hit). #717
+// audit 5 字段 byte-identical / reasons 单一来源 跨 milestone ≥6 hit). #717
 // 删两 yml 后, 这 7 条搬这里转 Go test (跟 dl12_direct_store_baseline_test.go
 // 同模式 — 真行为 test 替 yaml grep). 走 go-test-cov / go-test-race ./...
 // 默认覆盖, 不需要单挑 step.
 //
 // 对账 feima review (#722 comment):
-//   - 7 条 inline grep 反约束未来 drift 防御不可丢
+//   - 7 条 inline grep 约束未来 mismatch 防御不可丢
 //   - 跟 dl12_direct_store_baseline_test.go ratchet 同模式
-//   - 当前 7 条都 0 drift, 转 test 守门
+//   - 当前 7 条都 0 mismatch, 转 test 守门
 package api_test
 
 import (
@@ -69,14 +69,14 @@ func walkGoSources(t *testing.T, dir string, excludeTests bool) []string {
 }
 
 // TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 设计 ⑤ heartbeat 30s
-// 数字常量单源锁. internal/bpp/ 下 BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
+// 数字常量单一来源锁. internal/bpp/ 下 BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
 // 单点定义, 不许涨到 30s 以上.
 func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
 	bppDir := filepath.Join(root, "packages", "server-go", "internal", "bpp")
 
-	// ① 单源存在
+	// ① 单一来源存在
 	singleSrc := regexp.MustCompile(`BPP_HEARTBEAT_TIMEOUT_SECONDS\s*=\s*30\b`)
 	hits := 0
 	for _, f := range walkGoSources(t, bppDir, true) {
@@ -87,10 +87,10 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 		hits += len(singleSrc.FindAll(b, -1))
 	}
 	if hits < 1 {
-		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计 ⑤ 数字常量单源锁)", hits)
+		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计 ⑤ 数字常量单一来源锁)", hits)
 	}
 
-	// ② drift detection: heartbeat timeout > 30s 不允许
+	// ② mismatch detection: heartbeat timeout > 30s 不允许
 	driftPat := regexp.MustCompile(`heartbeat.*timeout.*[5-9][0-9]+s|heartbeatTimeout.*=.*[1-9][0-9]{2,}`)
 	for _, f := range walkGoSources(t, bppDir, true) {
 		b, err := os.ReadFile(f)
@@ -98,14 +98,14 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 			continue
 		}
 		if m := driftPat.Find(b); m != nil {
-			t.Errorf("%s: heartbeat timeout drifted above 30s (matched %q; BPP-4 §3 设计 ⑤ 反向断言)", f, string(m))
+			t.Errorf("%s: heartbeat timeout 漂移 above 30s (matched %q; BPP-4 §3 设计 ⑤ 反向断言)", f, string(m))
 		}
 	}
 }
 
-// TestLint_ReasonChainNo7th — AL-1.1 §1.3 6 reason 字典反 7th drift 反约束.
+// TestLint_ReasonChainNo7th — AL-1.1 §1.3 6 reason 字典反 7th 漂移 约束.
 // internal/ 下不允许 commit "reason.*7th" / "runtime_recovered" /
-// "reconnect_success" 字面 (新 reason 必须改 reasons SSOT 包).
+// "reconnect_success" 字面 (新 reason 必须改 reasons 单一来源 包).
 func TestLint_ReasonChainNo7th(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
@@ -117,7 +117,7 @@ func TestLint_ReasonChainNo7th(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		// 排除字面提到此反约束的注释行
+		// 排除字面提到此约束的注释行
 		txt := string(b)
 		if !pat.MatchString(txt) {
 			continue
@@ -137,23 +137,23 @@ func TestLint_ReasonChainNo7th(t *testing.T) {
 			if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") {
 				continue
 			}
-			t.Errorf("%s: 第 7 reason drift detected (line: %q; AL-1.1 §1.3 6-dict 锁链反约束 — 新 reason 必须改 reasons SSOT 包)", f, line)
+			t.Errorf("%s: 第 7 reason 漂移 detected (line: %q; AL-1.1 §1.3 6-dict 对齐链 约束 — 新 reason 必须改 reasons 单一来源 包)", f, line)
 		}
 	}
 }
 
-// TestLint_ReasonsSSOTExists — reasons SSOT 包文件存在.
-func TestLint_ReasonsSSOTExists(t *testing.T) {
+// TestLint_ReasonsSingleSourceExists — reasons 单一来源 包文件存在.
+func TestLint_ReasonsSingleSourceExists(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
 	ssot := filepath.Join(root, "packages", "server-go", "internal", "agent", "reasons", "reasons.go")
 	if _, err := os.Stat(ssot); err != nil {
-		t.Errorf("reasons SSOT 包丢失 %s: %v (AL-1a #496 SSOT 单源锁链)", ssot, err)
+		t.Errorf("reasons 单一来源 包丢失 %s: %v (AL-1a #496 单一来源 对齐链)", ssot, err)
 	}
 }
 
 // TestLint_ReasonsCrossMilestoneCoverage — 6 reason 跨 milestone ≥6 hit
-// (AL-1a SSOT 跟实施同步, 至少每个 reason 1 次源端引用).
+// (AL-1a 单一来源 跟实施同步, 至少每个 reason 1 次源端引用).
 func TestLint_ReasonsCrossMilestoneCoverage(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
@@ -169,7 +169,7 @@ func TestLint_ReasonsCrossMilestoneCoverage(t *testing.T) {
 		hits += len(pat.FindAll(b, -1))
 	}
 	if hits < 6 {
-		t.Errorf("reason chain coverage drift — got %d source-side hits, expected ≥6 (AL-1a SSOT 跨 milestone 应每个 reason 至少 1 hit)", hits)
+		t.Errorf("reason chain coverage 漂移 — got %d source-side hits, expected ≥6 (AL-1a 单一来源 跨 milestone 应每个 reason 至少 1 hit)", hits)
 	}
 }
 
@@ -186,7 +186,7 @@ func TestLint_AgentStateLogNoConnecting(t *testing.T) {
 	}
 	pat := regexp.MustCompile(`AgentStateConnecting|state.*connecting`)
 	if m := pat.Find(b); m != nil {
-		t.Errorf("%s: connecting 持久态 drift (matched %q; BPP-5 §1.4 条原则 — connecting 是 transient 中间态, 不入 5-state graph)", logFile, string(m))
+		t.Errorf("%s: connecting 持久态 漂移 (matched %q; BPP-5 §1.4 条原则 — connecting 是 transient 中间态, 不入 5-state graph)", logFile, string(m))
 	}
 }
 
@@ -204,13 +204,13 @@ func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: busy/idle source drift (matched %q; AL-1b §2 设计 ② BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
+			t.Errorf("%s: busy/idle source 漂移 (matched %q; AL-1b §2 设计 ② BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
 		}
 	}
 }
 
 // TestLint_ALHBStackDictIsolation — AL stack vs HB stack audit 字典分立.
-// AL 走 agent_state_log + agent_status, HB 走 audit_log; 拆死不 JOIN.
+// AL 走 agent_state_log + agent_status, HB 走 audit_log; 分立不 JOIN.
 func TestLint_ALHBStackDictIsolation(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
@@ -223,7 +223,7 @@ func TestLint_ALHBStackDictIsolation(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: AL stack vs HB stack 字典分立 drift (matched %q; AL 走 agent_state_log+agent_status, HB 走 audit_log, 拆死不 JOIN)", f, string(m))
+			t.Errorf("%s: AL stack vs HB stack 字典分立 漂移 (matched %q; AL 走 agent_state_log+agent_status, HB 走 audit_log, 分立不 JOIN)", f, string(m))
 		}
 	}
 }
@@ -253,7 +253,7 @@ func TestLint_AuditSchema5FieldsByteIdentical(t *testing.T) {
 		for _, k := range keys {
 			pat := regexp.MustCompile(`"` + k + `"`)
 			if !pat.MatchString(txt) {
-				t.Errorf("%s: audit schema 字段 %q missing (HB-3 §1.4 5 字段 byte-identical 锁链)", src, k)
+				t.Errorf("%s: audit schema 字段 %q missing (HB-3 §1.4 5 字段 byte-identical 对齐链)", src, k)
 			}
 		}
 	}

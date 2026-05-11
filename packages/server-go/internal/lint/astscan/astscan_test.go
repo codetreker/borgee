@@ -92,7 +92,7 @@ func TestAssertNoForbiddenIdentifiers_IgnoresStrings(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "prod.go", `package fixture
 
-var note = "discussion of pendingAcks 反约束"
+var note = "discussion of pendingAcks 约束"
 `)
 	ft := &fakeT{}
 	AssertNoForbiddenIdentifiers(ft, dir, []ForbiddenIdentifier{

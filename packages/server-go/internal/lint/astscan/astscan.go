@@ -1,15 +1,15 @@
 // Package astscan — reusable AST identifier scan helper for test
-// 反约束 (anti-constraint) assertions. PERF-AST-LINT spec brief by 飞马
+// 约束 (anti-constraint) assertions. PERF-AST-LINT spec brief by 飞马
 // 2026-04-29 (`docs/implementation/modules/perf-ast-lint-spec.md`).
 //
-// 立场:
-//   ① AST scan 单源 — 不再每 milestone 写 inline ast.Walk + parser.ParseFile;
+// 设计:
+//   ① AST scan 单一来源 — 不再每 milestone 写 inline ast.Walk + parser.ParseFile;
 //   ② 比 grep 狠 — 默认仅扫 *ast.Ident.Name (production identifier),
 //      跳过 comment + string literal (避免 false positive);
 //   ③ production-side 0 import — 只 _test.go import; production binary
 //      不连此包 (反 `go tool nm` 验证).
 //
-// 跨 milestone 锁:
+// 跨 milestone 对齐链:
 //   - BPP-4 #499 TestBPP4_NoRetryQueueInBPPPackage (4 forbidden id) — first
 //     落, 重构后调 AssertNoForbiddenIdentifiers 替代 inline ast.Inspect;
 //   - BPP-5 #503 (规划) TestBPP5_NoReconnectQueueInBPPPackage — 同模式 reuse;
@@ -37,13 +37,13 @@ import (
 
 // ForbiddenIdentifier names a token that must not appear in production
 // identifiers within the scanned package. Reason is surfaced in the failure
-// message so reviewers know which 立场 the constraint protects.
+// message so reviewers know which 约束 the constraint protects.
 type ForbiddenIdentifier struct {
 	// Name is the substring to match against *ast.Ident.Name. The check is
 	// strings.Contains (not equals) to catch derived names like
 	// `pendingAcksMu` or `retryQueueLen` that share the forbidden root.
 	Name string
-	// Reason is the acceptance / 立场 anchor surfaced on hit. Required.
+	// Reason is the acceptance / 约束 anchor surfaced on hit. Required.
 	Reason string
 }
 
@@ -51,11 +51,11 @@ type ForbiddenIdentifier struct {
 // (production identifiers only, skip _test.go).
 type ScanOpts struct {
 	// IncludeStrings — also scan string literals (*ast.BasicLit Kind=STRING).
-	// Default false (立场 ② — comments + strings 不算 production identifier).
+	// Default false (设计 ② — comments + strings 不算 production identifier).
 	IncludeStrings bool
 	// IncludeComments — also scan comment text (*ast.Comment.Text). Default
 	// false; comments are typically where the forbidden token is **discussed**
-	// (反约束 narrative requires them).
+	// (约束 narrative requires them).
 	IncludeComments bool
 	// SkipFiles is a list of basename patterns (filepath.Match) to exclude.
 	// `_test.go` suffix is **always** skipped (tests legally mention the
@@ -103,7 +103,7 @@ func AssertNoForbiddenIdentifiers(t TestingT, pkgDir string, forbidden []Forbidd
 			continue
 		}
 		if strings.HasSuffix(e.Name(), "_test.go") {
-			continue // 立场 ① — tests legally mention forbidden tokens.
+			continue // 设计 ① — tests legally mention forbidden tokens.
 		}
 		if matchesAny(e.Name(), opts.SkipFiles) {
 			continue
@@ -116,7 +116,7 @@ func AssertNoForbiddenIdentifiers(t TestingT, pkgDir string, forbidden []Forbidd
 			t.Fatalf("astscan: parse %s: %v", path, err)
 		}
 
-		// Identifier scan — always on (the primary 立场).
+		// Identifier scan — always on (the primary 设计).
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.Ident:
