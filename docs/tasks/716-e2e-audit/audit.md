@@ -54,8 +54,8 @@
 | 13 | `chn-4-followup.spec.ts` | UI=6 | — | **PASS** | `channel-collab-edge-cases.spec.ts` | 真测协作场 dm/cross-org 边界 (yema 建议: 去 followup 内部话) |
 | 14 | `chn-4-screenshots-followup.spec.ts` | UI=12 / FS=1 | F1 (§4§5 已注释删) | **PASS** | `channel-collab-screenshots.spec.ts` | §1-§3 真截图; §4§5 fs.stat 注释已清 |
 | 15 | `cm-4-bug-029-name-display-regression.spec.ts` | UI=6 | — | **PASS** | `chat-name-display-regression.spec.ts` | 真测姓名展示回归 |
-| 16 | `cm-4-realtime.spec.ts` | UI=0 (复核 .goto/.click/.fill/getBy 全 0, 仅 1 处 locator() 不 click) | F3 | **REWRITE-UI** | `chat-realtime-message-fanout.spec.ts` | 改双 tab UI 真发互收, happy path 真路径有 (MessageList production mount). feima Q5 提 cm-4-realtime UI=1 误判, 复核改 UI=0 |
-| 17 | `cm-5-x2-collab.spec.ts` | UI=4 | F3 | **REWRITE-UI** | `chat-two-user-collab.spec.ts` | UI 弱, 改双 page click 真发. 真路径有 |
+| 16 | `cm-4-realtime.spec.ts` | UI=0 (复核 .goto/.click/.fill/getBy 全 0, 仅 1 处 locator() 不 click) | F3 | **PASS** (2026-05-11 二次复核改判) | `chat-realtime-message-fanout.spec.ts` | owner page bell badge 是真 UI 路径 (page.goto + locator + waitFor visible), requester 端无 production UI 用 REST seed 合规. ✅ done 78f3fa4 |
+| 17 | `cm-5-x2-collab.spec.ts` | UI=4 | F3 | **PASS** (2026-05-11 复核改判) | `chat-two-user-collab.spec.ts` | UI 主体真 (page.goto + locator filter + click members 按钮 + screenshot), X2 stale commit 没真 UI 触发只能 REST seed 合规. ✅ done 0f2a79e |
 | 18 | `cm-onboarding-bug-030-regression.spec.ts` | UI=0 | F3 | **REWRITE-UI** ✅ done (commit 10e2319) | `welcome-channel-per-user-isolation.spec.ts` | 已 REWRITE 1/16: register UI 真填表 + sidebar DOM 断 cross-leak |
 | 19 | `cm-onboarding.spec.ts` | UI=5 | — | **PASS** | `chat-first-time-onboarding.spec.ts` | 真测新用户 onboarding 流 |
 | 20 | `cv-1-3-canvas-modal-a11y.spec.ts` | UI=26 | — | **PASS** | `canvas-modal-accessibility.spec.ts` | 真测 canvas modal 无障碍 |
@@ -86,14 +86,18 @@
 | 45 | `rt-3-presence.spec.ts` | UI=4 | F3 | **SKIP+followup** | `realtime-presence-broadcast.spec.ts` | client UI 0 production mount (RT3PresenceDot 仅单测; 老 PresenceDot 4 态 enum SSOT 跟 RT-3 spec 立场冲突). 2026-05-11 真验发现, 跟 cv-5+ 同类型. 改 test.describe.skip + 引 gh#724 §1. v2 mount 落地后 unskip 改双 tab 真 presence DOM 断. |
 | 46 | `smoke.spec.ts` | UI=1 | — | **PASS** | `smoke-app-loads.spec.ts` | 真打开首页 |
 
-## 汇总 (2026-05-11 复核更新)
+## 汇总 (2026-05-11 12 件 REWRITE 全完工)
 
-- **PASS** (留 + 重命名 + 描述去黑话): 26 spec
+- **PASS** (留 + 重命名 + 描述去黑话): 28 spec (含 2 件复核改 PASS: cm-4-realtime 78f3fa4 + cm-5-x2-collab 0f2a79e)
 - **PASS+fix** (真 UI 主体, 局部 cosmetic): 1 spec (host-bridge-daemon-handshake, ✅ done b0fd4cb)
-- **REWRITE-UI** (改真 UI happy path): 5 spec total (cm-onboarding-bug-030 ✅ done 10e2319 + dm-5-reaction-summary ✅ done b0fd4cb + 剩 3: cm-4-realtime / cm-5-x2-collab / dm-3 happy)
-- **REWRITE-NAV** (ACL navigate, heima 拍): 3 spec (ap-4 / ap-5 / dm-3 cross-leak 部分)
-- **SKIP+followup** (client UI 0 mount, yema 拍 A): 9 spec (cv-5/7/8/9/10/11/12 ✅ done abc7394 + ap-2 ✅ done 552e4a8 + rt-3 ✅ done 552e4a8)
+- **REWRITE-UI** (改真 UI happy path): 3 spec ✅ done (welcome-channel-per-user-isolation 10e2319 / direct-message-reaction-summary b0fd4cb / direct-message-multi-device-sync 619b001 happy 部分)
+- **REWRITE-NAV** (ACL navigate, heima 拍): 3 spec ✅ done (reactions-cross-channel-permission 5587bdc / message-permission-matrix 9eb356d / direct-message-multi-device-sync cross-leak ceb5e0d)
+- **SKIP+followup** (client UI 0 mount, yema 拍 A): 9 spec ✅ done (cv-5/7/8/9/10/11/12 abc7394 + ap-2 + rt-3 552e4a8)
 - **DELETE** (死代码): 3 spec ✅ done 508067d (cv-3-3-deferred / g2.4-adm-0-stance / hb-1b-installer)
+
+合计 46 - 3 DELETE = 43 active spec on disk. 全 12 件 REWRITE 真做完, 待 testing 真验 + PR 开.
+
+剩工: testing 真验 (Deploy Test workflow) + acceptance/regression/progress flip + teamlead 开 PR.
 
 合计 46 = 26 PASS + 1 PASS+fix + 5 REWRITE-UI + 3 REWRITE-NAV + 9 SKIP + 3 DELETE - 1 dm-3 重复 (cross-leak 部分跟 happy 同 spec) = 46 ✓
 
