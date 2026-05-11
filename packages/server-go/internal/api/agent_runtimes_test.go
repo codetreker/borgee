@@ -2,17 +2,17 @@
 // (#398 schema v=16 → AL-4.2 server registry + start/stop API + heartbeat
 // hook).
 //
-// Stance pins exercised (al-4-spec.md §0 + acceptance §2 + #321 文案锁):
-//   - ① Borgee 不带 runtime — schema 闸 #398 已守, 此 PR 反向断言 server
+// 设计约束 exercised (al-4-spec.md §0 + acceptance §2 + #321 文案锁):
+//   - 设计第 1 条 Borgee 不带 runtime — schema 闸 #398 已守, 此 PR 反向断言 server
 //     handler 不写 llm_provider / model_name 等列 (acceptance §1.5 + §4.1).
-//   - ② admin god-mode 元数据 only — admin endpoint read 不返
+//   - 设计第 2 条 admin god-mode 元数据 only — admin endpoint read 不返
 //     last_error_reason raw, 不开 admin start/stop endpoint (acceptance
 //     §2.6 + §4.3).
-//   - ③ runtime status ≠ presence — heartbeat 写 agent_runtimes 不写
+//   - 设计第 3 条 runtime status ≠ presence — heartbeat 写 agent_runtimes 不写
 //     presence_sessions (acceptance §2.4 反向断言两表两路径).
-//   - ④ status DM 文案锁 byte-identical (#321 §1) — start "已启动" / stop
+//   - 设计第 4 条 status DM 文案锁 字节级一致 (#321 §1) — start "已启动" / stop
 //     "已停止" / error "出错: {reason}" (acceptance §2.7).
-//   - ⑤ reason 复用 AL-1a #249 6 reason 枚举字面 byte-identical
+//   - 设计第 5 条 reason 复用 AL-1a #249 6 reason 枚举字面字节级一致
 //     (acceptance §2.5 — 改 = 改三处单测锁).
 package api_test
 
@@ -100,7 +100,7 @@ func TestAL_RegisterRejectsInvalidProcessKind(t *testing.T) {
 	}
 }
 
-// TestAL_RegisterDuplicateRejected pins UNIQUE(agent_id) — 设计 ①
+// TestAL_RegisterDuplicateRejected pins UNIQUE(agent_id) — 设计第 1 条
 // v1 不优化多 runtime 并行 (蓝图 §2.2 字面). Second register on same
 // agent → 409.
 func TestAL_RegisterDuplicateRejected(t *testing.T) {
@@ -117,7 +117,7 @@ func TestAL_RegisterDuplicateRejected(t *testing.T) {
 
 // TestAL_StartTransitionsRunning pins acceptance §2.1 + §2.7: start
 // transitions status → running + emits owner system DM "BotZ 已启动"
-// byte-identical (#321 §1 文案锁). Idempotent re-call does NOT spam DM.
+// 字节级一致 (#321 §1 文案锁). Idempotent re-call does NOT spam DM.
 func TestAL_StartTransitionsRunning(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, s, agentID := al42Setup(t)
@@ -131,7 +131,7 @@ func TestAL_StartTransitionsRunning(t *testing.T) {
 		t.Errorf("status not 'running': got %v", data["status"])
 	}
 	// Verify system DM owner-only fanout — find owner DM channel + check
-	// most recent system message body byte-identical.
+	// most recent system message body 字节级一致.
 	owner, _ := s.GetUserByEmail("owner@test.com")
 	dmCh, err := s.CreateDmChannel(owner.ID, "system")
 	if err != nil {
@@ -145,7 +145,7 @@ func TestAL_StartTransitionsRunning(t *testing.T) {
 		t.Fatalf("expected 1 system DM after start, got %d", len(msgs))
 	}
 	if msgs[0].Content != "BotZ 已启动" {
-		t.Errorf("start DM byte-identical lock failed: got %q, want %q",
+		t.Errorf("start DM 字节级一致 lock failed: got %q, want %q",
 			msgs[0].Content, "BotZ 已启动")
 	}
 
@@ -203,7 +203,7 @@ func TestAL_StopIdempotent(t *testing.T) {
 }
 
 // TestAL_HeartbeatUpdatesRuntimeNotPresence pins acceptance §2.4: 设计
-// ③ heartbeat 写 agent_runtimes.last_heartbeat_at, 不写
+// 第 3 条 heartbeat 写 agent_runtimes.last_heartbeat_at, 不写
 // presence_sessions.last_heartbeat_at (那是 AL-3 hub WS lifecycle).
 func TestAL_HeartbeatUpdatesRuntimeNotPresence(t *testing.T) {
 	t.Parallel()
@@ -229,16 +229,16 @@ func TestAL_HeartbeatUpdatesRuntimeNotPresence(t *testing.T) {
 	if rt.LastHeartbeatAt == nil || *rt.LastHeartbeatAt == 0 {
 		t.Error("agent_runtimes.last_heartbeat_at not updated")
 	}
-	// Reverse-assert: presence_sessions row count unchanged (反约束 设计 ③).
+	// Reverse-assert: presence_sessions row count unchanged (约束 设计第 3 条).
 	var presAfter int64
 	_ = s.DB().Raw(`SELECT COUNT(*) FROM presence_sessions WHERE user_id = ?`, agentID).Scan(&presAfter).Error
 	if presAfter != presBefore {
-		t.Errorf("heartbeat polluted presence_sessions (设计 ③ 反约束): before=%d after=%d", presBefore, presAfter)
+		t.Errorf("heartbeat polluted presence_sessions (设计第 3 条 约束): before=%d after=%d", presBefore, presAfter)
 	}
 }
 
 // TestAL_ErrorReasonsMatchAL1aEnum pins acceptance §2.5: 6 reason
-// 枚举字面 byte-identical 跟 agent/state.go Reason* 同源. 反断: 字典外
+// 枚举字面 字节级一致 跟 agent/state.go Reason* 同源. 反向断言: 字典外
 // reason → 400.
 func TestAL_ErrorReasonsMatchAL1aEnum(t *testing.T) {
 	t.Parallel()
@@ -260,7 +260,7 @@ func TestAL_ErrorReasonsMatchAL1aEnum(t *testing.T) {
 			t.Errorf("AL-1a reason=%q rejected: %d (%v)", reason, resp.StatusCode, data)
 		}
 		if data["last_error_reason"] != reason {
-			t.Errorf("reason byte-identical lock failed: got %v, want %q", data["last_error_reason"], reason)
+			t.Errorf("reason 字节级一致 lock failed: got %v, want %q", data["last_error_reason"], reason)
 		}
 	}
 	// Out-of-dict → 400.
@@ -273,7 +273,7 @@ func TestAL_ErrorReasonsMatchAL1aEnum(t *testing.T) {
 }
 
 // TestAL_ErrorEmitsSystemDMByteIdentical pins acceptance §2.7 文案锁
-// "{agent_name} 出错: {reason}" byte-identical 跟 #321 §1 同源.
+// "{agent_name} 出错: {reason}" 字节级一致 跟 #321 §1 同源.
 func TestAL_ErrorEmitsSystemDMByteIdentical(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, s, agentID := al42Setup(t)
@@ -295,13 +295,13 @@ func TestAL_ErrorEmitsSystemDMByteIdentical(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("error DM byte-identical lock failed: want %q in %v", want, msgsContents(msgs))
+		t.Errorf("error DM 字节级一致 lock failed: want %q in %v", want, msgsContents(msgs))
 	}
 }
 
 // TestAL_AdminGodModeOmitsErrorReason pins acceptance §2.6 + §4.3:
 // admin god-mode read endpoint white-list 不返 last_error_reason raw
-// 文本 (隐私 设计 ⑦ ADM-0 §1.3 红线). 跟 REG-ADM0-003 同模式.
+// 文本 (隐私 设计第 7 条 ADM-0 §1.3 红线). 跟 REG-ADM0-003 同模式.
 func TestAL_AdminGodModeOmitsErrorReason(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, _, agentID := al42Setup(t)
@@ -322,7 +322,7 @@ func TestAL_AdminGodModeOmitsErrorReason(t *testing.T) {
 	for _, r := range rows {
 		entry := r.(map[string]any)
 		if _, has := entry["last_error_reason"]; has {
-			t.Errorf("admin god-mode leaked last_error_reason raw (隐私 设计 ⑦ ADM-0 §1.3): %v", entry["last_error_reason"])
+			t.Errorf("admin god-mode leaked last_error_reason raw (隐私 设计第 7 条 ADM-0 §1.3): %v", entry["last_error_reason"])
 		}
 		// Whitelist sanity: required fields present.
 		for _, must := range []string{"id", "agent_id", "endpoint_url", "process_kind", "status"} {
@@ -344,7 +344,7 @@ func TestAL_AdminCannotStartStop(t *testing.T) {
 	adminTok := testutil.LoginAsAdmin(t, url)
 	resp, _ := testutil.AdminJSON(t, "POST", url+"/admin-api/v1/runtimes/start", adminTok, nil)
 	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("admin start endpoint accessible (acceptance §4.3 反约束): got %d", resp.StatusCode)
+		t.Errorf("admin start endpoint accessible (acceptance §4.3 约束): got %d", resp.StatusCode)
 	}
 }
 
@@ -541,7 +541,7 @@ func TestAL_AdminListReturnsEmptyAndPopulated(t *testing.T) {
 		t.Error("admin row last_heartbeat_at should be populated post-heartbeat")
 	}
 	if _, has := row["last_error_reason"]; has {
-		t.Errorf("admin god-mode leaked last_error_reason: %v (反约束 ADM-0 §1.3)", row["last_error_reason"])
+		t.Errorf("admin god-mode leaked last_error_reason: %v (约束 ADM-0 §1.3)", row["last_error_reason"])
 	}
 }
 

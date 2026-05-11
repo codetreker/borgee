@@ -4,7 +4,7 @@
 // Spec: docs/implementation/modules/adm-3-spec.md §1 ADM3.1.
 //
 // Pins:
-//   - 4 source enum SSOT byte-identical (server/plugin/host_bridge/agent)
+//   - 4 source enum 单一来源 字节级一致 (server/plugin/host_bridge/agent)
 //   - UNION ALL across audit_events + channel_events + global_events
 //   - admin-rail only (user cookie → 401, ADM-0 §1.3 红线)
 //   - source filter / since-until time range / limit
@@ -32,10 +32,10 @@ func TestADM3_AuditSources_ByteIdentical(t *testing.T) {
 			t.Errorf("AuditSources[%d] = %q, want %q", i, api.AuditSources[i], v)
 		}
 	}
-	// Const SSOT byte-identical.
+	// Const 单一来源 字节级一致.
 	if api.AuditSourceServer != "server" || api.AuditSourcePlugin != "plugin" ||
 		api.AuditSourceHostBridge != "host_bridge" || api.AuditSourceAgent != "agent" {
-		t.Errorf("source const drift: %s/%s/%s/%s",
+		t.Errorf("source const mismatch: %s/%s/%s/%s",
 			api.AuditSourceServer, api.AuditSourcePlugin, api.AuditSourceHostBridge, api.AuditSourceAgent)
 	}
 }
@@ -92,10 +92,10 @@ func TestADM3_MultiSource_AllSources(t *testing.T) {
 	if gotSources["agent"] < 2 {
 		t.Errorf("agent expected 2 (channel+global), got %d", gotSources["agent"])
 	}
-	// sources field byte-identical (4 enum 顺序).
+	// sources field 字节级一致 (4 enum 顺序).
 	if srcs, ok := body["sources"].([]any); ok {
 		if len(srcs) != 4 || srcs[0] != "server" || srcs[3] != "agent" {
-			t.Errorf("sources field drift: %v", srcs)
+			t.Errorf("sources field mismatch: %v", srcs)
 		}
 	}
 }

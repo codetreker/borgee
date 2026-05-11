@@ -1,5 +1,5 @@
 // Package api_test — rt_4_presence_test.go: RT-4 channel presence
-// indicator member-only GET + 反约束守门.
+// indicator member-only GET + 约束守门.
 //
 // Pins:
 //   REG-RT4-001 TestRT_NoSchemaChange
@@ -33,12 +33,12 @@ func TestRT_NoSchemaChange(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "rt_4_") {
-			t.Errorf("RT-4 设计 ① broken — found schema migration %q (must be 0 schema)", e.Name())
+			t.Errorf("RT-4 设计第 1 条 broken — found schema migration %q (must be 0 schema)", e.Name())
 		}
 	}
 }
 
-// REG-RT4-003 — 既有 RT-2 typing WS path byte-identical — ws/client.go
+// REG-RT4-003 — 既有 RT-2 typing WS path 字节级一致 — ws/client.go
 // `case "typing":` block 不漂入 rt_4 字面.
 func TestRT_TypingPathByteIdentical(t *testing.T) {
 	t.Parallel()
@@ -58,7 +58,7 @@ func TestRT_TypingPathByteIdentical(t *testing.T) {
 	block := src[idx:end]
 	for _, tok := range []string{"rt_4", "RT4", "rt4"} {
 		if strings.Contains(block, tok) {
-			t.Errorf("既有 typing path 漂入 RT-4 — token %q 在 client.go::typing block (RT-4 边界 ④ broken)", tok)
+			t.Errorf("既有 typing path 漂入 RT-4 — token %q 在 client.go::typing block (RT-4 边界第 4 条 broken)", tok)
 		}
 	}
 }
@@ -158,7 +158,7 @@ func TestRT_NoAdminPresencePath(t *testing.T) {
 			}
 			fb, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("RT-4 设计 ③ broken — admin-rail presence path in %s: %q",
+				t.Errorf("RT-4 设计第 3 条 broken — admin-rail presence path in %s: %q",
 					p, fb[loc[0]:loc[1]])
 			}
 			return nil
@@ -166,7 +166,7 @@ func TestRT_NoAdminPresencePath(t *testing.T) {
 	}
 }
 
-// REG-RT4-005 — AST 锁链延伸第 18 处 forbidden 3 token.
+// REG-RT4-005 — AST 对齐链延伸第 18 处 forbidden 3 token.
 func TestRT_NoPresenceQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -185,7 +185,7 @@ func TestRT_NoPresenceQueue(t *testing.T) {
 		fb, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(fb), tok) {
-				t.Errorf("AST 锁链延伸第 18 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 18 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
@@ -213,7 +213,7 @@ func TestRT_NoNewPresenceFrame(t *testing.T) {
 			fb, _ := os.ReadFile(p)
 			for _, tok := range forbidden {
 				if strings.Contains(string(fb), tok) {
-					t.Errorf("RT-4 设计 ② broken — token %q in %s (no new WS frame allowed)", tok, p)
+					t.Errorf("RT-4 设计第 2 条 broken — token %q in %s (no new WS frame allowed)", tok, p)
 				}
 			}
 			return nil
