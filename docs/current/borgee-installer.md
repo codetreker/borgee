@@ -33,12 +33,12 @@ unit. **No `server-go` or `borgee-helper` bytes change.**
   + 验签 (复用 HB-1 既有 `PluginManifestEntries` const slice + ed25519
   detached signature). verify 失败 → 安装阻塞 (反 silent fallback).
 - **permission popup UX 4 grant_type byte-identical 跟 HB-3 #520** —
-  install/exec/filesystem/network 4 enum 字面承袭 HB-3 host_grants
+  install/exec/filesystem/network 4 enum 字面跟 HB-3 host_grants 一致
   CHECK 约束, 改 = 改 HB-3 schema = 改本文.
 - **service unit 复用 borgee-helper byte-identical** — installer 不
   duplicate `.service` / `.plist` 字节; sudo install 命令调既有
   `packages/borgee-helper/install/{borgee-helper.service,
-  cloud.borgee.host-bridge.plist}` (HB-2 v0(D) #617 SSOT).
+  cloud.borgee.host-bridge.plist}` (HB-2 v0(D) #617 单一来源).
 - **0 server-go 改 + 0 borgee-helper 改** — PR diff 仅
   `packages/borgee-installer/` 独立 Go module + GitHub Actions matrix
   workflow + uninstall 脚本.

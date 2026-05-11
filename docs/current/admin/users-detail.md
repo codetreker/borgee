@@ -5,8 +5,8 @@
 ## 0. 设计沿用
 
 - **ADM-0 §1.3 admin god-mode 路径独立** — UserDetailPage 仅访问 `/admin-api/*` 走 admin api 模块, 不串 user-rail (`/api/v1/`) + 不 import user-rail `lib/api`
-- **CAPABILITY-DOT #628 14 const SSOT byte-identical** — UserDetailPage 走 `lib/capabilities::CAPABILITY_TOKENS` 单源, 不准 hardcode 字面散落
-- **ADMIN-SPA-SHAPE-FIX #633 D6 server gate + 本 milestone client UI dropdown** — server `auth.IsValidCapability` 守入口, client dropdown 限定 14 dot-notation, 双侧守门 SSOT
+- **CAPABILITY-DOT #628 14 const 单一来源 byte-identical** — UserDetailPage 走 `lib/capabilities::CAPABILITY_TOKENS` 单一来源, 不准 hardcode 字面散落
+- **ADMIN-SPA-SHAPE-FIX #633 D6 server gate + 本 milestone client UI dropdown** — server `auth.IsValidCapability` 守入口, client dropdown 限定 14 dot-notation, 双侧守门同源校验
 
 ## 1. 文件 + 范围
 
@@ -18,7 +18,7 @@
 ## 2. UI 段 (4 段)
 
 1. **账号操作** (`data-asuc-account-actions`): 重置密码 input + 改角色 select (member/agent) + 启停账号 toggle button — 走 `patchUser({password|role|disabled})`
-2. **能力授权** (`data-asuc-grant-form`): capability dropdown (14 const SSOT, 不 hardcode) + scope input (默认 `*`) + 授予 button — 走 `grantUserPermission(id, permission, scope)`
+2. **能力授权** (`data-asuc-grant-form`): capability dropdown (14 const 字面对齐, 不 hardcode) + scope input (默认 `*`) + 授予 button — 走 `grantUserPermission(id, permission, scope)`
 3. **当前授权** (`data-asuc-permissions-list`): table row 列 (能力 label / token / scope / 授予时间 / 撤销 button); 空态 `暂无授权` — 走 `fetchUserPermissions(id).details` + `revokeUserPermission(id, permission, scope)`
 4. **Agents** (既有不动)
 
@@ -38,7 +38,7 @@
 ## 5. grep 检查项 (REG-ASUC-001..007)
 
 ```bash
-# REG-ASUC-006 — 反 hardcode 14 const 字面 (CAPABILITY-DOT SSOT)
+# REG-ASUC-006 — 反 hardcode 14 const 字面 (CAPABILITY-DOT 单一来源)
 grep -E "'channel\.read'|'artifact\.commit'|'user\.mention'" packages/client/src/admin/pages/UserDetailPage.tsx  # 0 hit
 
 # REG-ASUC-007 — admin god-mode 路径独立 (ADM-0 §1.3 红线)
