@@ -1,6 +1,6 @@
-# HB-3 — host_grants schema 单一来源 + 情境化授权
+# HB-3 — host_grants schema source + contextual authorization
 
-> **单一来源 pointer.** Schema in
+> **Source-of-truth pointer.** Schema in
 > `packages/server-go/internal/migrations/hb_3_1_host_grants.go` (v=27).
 > REST endpoints in `packages/server-go/internal/api/host_grants.go`.
 > Client SPA in `packages/client/src/components/HostGrantsPanel.tsx`.
@@ -10,37 +10,22 @@
 ## Why
 
 Plugin runtime needs OS-level resources (filesystem read, network egress)
-that platform权限 (`user_permissions`) doesn't model. HB-3 ships
-`host_grants` — a separate 单一来源 for host-level授权 — so daemon
-(install-butler + host-bridge) consumers have a single read-only path
+that platform permissions (`user_permissions`) do not model. HB-3 ships
+`host_grants` as a separate source for host-level authorization, so daemon
+(install-butler + host-bridge) consumers have one read-only path
 without polluting the platform-level permission schema.
 
-## 原则 (蓝图 host-bridge.md §1.3 + §1.5 + §2 原文)
+## Principles (host-bridge.md §1.3 + §1.5 + §2)
 
-- **schema 单一来源.** HB-3 持 ownership; HB-2 daemon (Go module
-  `packages/borgee-helper/`, #617 已 merged) + install-butler
-  read-only consumer. server-go `internal/api/host_grants.go` 是唯一
-  INSERT/UPDATE/DELETE 路径.
-- **字典分立 (host vs runtime).** `host_grants` 跟 AP-1
-  `user_permissions` 字段集不交. AST scan check: handler 不引用
-  `user_permissions` identifier; schema 不挂 `permission` / `is_admin`
-  / `cursor` / `org_id` / `runtime_id` 列.
-- **audit log 5 字段跨四 milestone 同源.** `actor / action / target /
-  when / scope` byte-identical 跟 HB-1 install audit + HB-2 host-IPC
-  audit + BPP-4 #499 dead-letter. 改 = 改四处单测锁定 (HB-1 + HB-2 +
-  BPP-4 + HB-3 = 第 4 处锁定). 跟 HB-4 §1.5 release criteria 第 4
-  行 "审计日志格式锁定 JSON schema" 检查同源.
-- **撤销 < 100ms** (HB-4 §1.5 release criteria 第 5 行) — v1 实现:
-  REST DELETE → `revoked_at` NOT NULL + daemon 每次 SELECT 都重新检查
-  (不缓存; 跟 HB-1 manifest 不缓存 + HB-2 §4.3 同模式).
-- **forward-only revoke.** DELETE 不真删行 — stamp `revoked_at` 留作
-  audit (蓝图 §2 信任五支柱第 3 条).
-- **admin-wide access 不入** — 用户授权是用户主权 (蓝图 §1.3 + ADM-0 §1.3
-  红线). grep 检查 `admin.*host_grant` 0 hit.
-- **attempt once, no retry queue** (跟 BPP-4 #499 §0.3 设计沿用). AST
-  scan reverse-grep 检查 forbids `pendingGrants` / `grantQueue` /
-  `deadLetterGrants` (第 3 处相关锁定, 跟 BPP-4 dead_letter_test +
-  BPP-5 reconnect_handler_test 测试约束同源).
+| Constraint | Contract |
+|---|---|
+| Schema source | HB-3 owns the schema. HB-2 daemon (Go module `packages/borgee-helper/`, #617 merged) and install-butler are read-only consumers. server-go `internal/api/host_grants.go` is the only INSERT/UPDATE/DELETE path. |
+| Separate dictionaries (host vs runtime) | `host_grants` and AP-1 `user_permissions` have disjoint field sets. AST scan check: the handler must not reference the `user_permissions` identifier; the schema must not add `permission` / `is_admin` / `cursor` / `org_id` / `runtime_id` columns. |
+| Audit log 5-field source across four milestones | `actor / action / target / when / scope` must stay byte-identical with HB-1 install audit, HB-2 host-IPC audit, and BPP-4 #499 dead-letter. A change updates four unit-test locks (HB-1 + HB-2 + BPP-4 + HB-3). This matches the HB-4 §1.5 release criteria line 4 check for the locked audit-log JSON schema. |
+| Revoke < 100ms | HB-4 §1.5 release criteria line 5. v1 implementation: REST DELETE sets `revoked_at` NOT NULL, and the daemon rechecks on every SELECT with no cache. This follows the HB-1 manifest no-cache and HB-2 §4.3 pattern. |
+| Forward-only revoke | DELETE does not hard-delete rows. It stamps `revoked_at` for audit retention, matching host-bridge.md §2 trust pillar 3. |
+| No admin-wide access | User authorization remains user-sovereign (host-bridge.md §1.3 + ADM-0 §1.3 guardrail). Grep check for `admin.*host_grant` must find no matches. |
+| Attempt once, no retry queue | Follow BPP-4 #499 §0.3. AST scan / reverse-grep forbids `pendingGrants` / `grantQueue` / `deadLetterGrants`; this is the third related lock and shares constraints with BPP-4 dead_letter_test and BPP-5 reconnect_handler_test. |
 
 ## Schema (migration v=27)
 
@@ -80,7 +65,7 @@ POST body:
 }
 ```
 
-## DOM ↔ DB enum 双向锁定 (content-lock §1.①)
+## DOM ↔ DB enum bidirectional lock (content-lock §1.①)
 
 | Button label | data-action          | data-hb3-button | DB ttl_kind |
 |--------------|----------------------|-----------------|-------------|
@@ -88,9 +73,9 @@ POST body:
 | 仅这一次     | `grant_one_shot`     | `primary`       | `one_shot`  |
 | 始终允许     | `grant_always`       | `primary`       | `always`    |
 
-DOM data-action map to enum literal byte-identical: `grant_one_shot` ↔
-`one_shot`, `grant_always` ↔ `always`. 改前端 = 改 schema CHECK = 改
-content-lock §1.①+§1.② (三处单测锁定).
+DOM data-action values map to enum literals byte-identically: `grant_one_shot` ↔
+`one_shot`, `grant_always` ↔ `always`. A frontend change also requires a schema
+CHECK change and content-lock §1.①+§1.② updates (three unit-test locks).
 
 ## Audit log keys
 
@@ -114,15 +99,15 @@ byte-identical with HB-1/HB-2/BPP-4 audit schema.
   audit 5-field).
 - `packages/client/src/__tests__/HostGrantsPanel.test.tsx` — 5
   vitest cases (data-action + hb3-button + button text byte-identical
-  + actionLabel 4-enum + 同义词 0 occurrence + onDecide 三值).
+  + actionLabel 4-enum + synonym 0 occurrence + three-value onDecide).
 
 Regression rows: `REG-HB3-001..011` in
 `docs/qa/regression-registry.md`.
 
 ## HB-2 daemon read-path contract (Go, packages/borgee-helper/, #617 merged)
 
-HB-2 host-bridge daemon (Go module `packages/borgee-helper/`, #617 已 merged)
-走单一 SELECT:
+HB-2 host-bridge daemon (Go module `packages/borgee-helper/`, #617 merged)
+uses one SELECT:
 
 ```sql
 SELECT scope, expires_at FROM host_grants
@@ -132,9 +117,9 @@ WHERE user_id = ? AND agent_id = ? AND grant_type = ?
 LIMIT 1;
 ```
 
-Daemon 不写, 不缓存. CI lint reverse-grep
+Daemon does not write or cache. CI lint reverse-grep for
 `host_grants.*INSERT|host_grants.*UPDATE` in `packages/borgee-helper/`
-must be 0 hit. 真包入口 → [`../../borgee-helper.md`](../../borgee-helper.md).
+must find no matches. Package entry point → [`../../borgee-helper.md`](../../borgee-helper.md).
 
 ## Adding a new grant_type
 
@@ -145,5 +130,5 @@ must be 0 hit. 真包入口 → [`../../borgee-helper.md`](../../borgee-helper.m
 3. Update `hostGrantTypeWhitelist` in `host_grants.go`.
 4. Update `actionLabel` map in `HostGrantsPanel.tsx`.
 5. Update content-lock §1 + spec §1 + acceptance §1.2 byte-identical.
-6. CI lint catches divergence via reflect (existing PRAGMA test) +
+6. CI lint catches divergence through reflect (existing PRAGMA test) +
    reverse-grep (`TestHB31_GrantTypeEnumReject` enumerates 4-list).
