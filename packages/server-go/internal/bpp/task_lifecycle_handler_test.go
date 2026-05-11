@@ -1,5 +1,5 @@
 // Package bpp — task_lifecycle_handler_test.go: RT-3 server派生 hook
-// unit tests. Covers立场 ②+③:
+// unit tests. Covers设计 ②+③:
 //
 //   - HandleStarted: empty subject → errSubjectEmpty (反 fallback push)
 //   - HandleStarted: valid → pusher receives state='busy' + subject 透传
@@ -54,7 +54,7 @@ func TestRT_HandleStarted_EmptySubjectRejected(t *testing.T) {
 		t.Fatalf("expected errSubjectEmpty, got %v", err)
 	}
 	if len(p.calls) != 0 {
-		t.Errorf("立场 ② fail-closed broken — pusher got %d calls on subject empty (expected 0)", len(p.calls))
+		t.Errorf("规则 ② fail-closed broken — pusher got %d calls on subject empty (expected 0)", len(p.calls))
 	}
 }
 
@@ -73,7 +73,7 @@ func TestRT_HandleStarted_HappyPath_BusyFanout(t *testing.T) {
 	c := p.calls[0]
 	if c.AgentID != "a1" || c.ChannelID != "c1" || c.State != "busy" ||
 		c.Subject != "正在分析订单数据" || c.Reason != "" || c.ChangedAt != 1700000000000 {
-		t.Errorf("push args drift: %+v", c)
+		t.Errorf("push args mismatch: %+v", c)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestRT_HandleFinished_Completed_IdleFanout(t *testing.T) {
 	}
 	c := p.calls[0]
 	if c.State != "idle" || c.Subject != "" || c.Reason != "" {
-		t.Errorf("idle fanout drift: %+v", c)
+		t.Errorf("idle fanout mismatch: %+v", c)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestRT_HandleFinished_Failed_ReasonTransparent(t *testing.T) {
 		t.Fatalf("unexpected err: %v", err)
 	}
 	if len(p.calls) != 1 || p.calls[0].State != "idle" || p.calls[0].Reason != "runtime_crashed" {
-		t.Errorf("failed reason fanout drift: %+v", p.calls)
+		t.Errorf("failed reason fanout mismatch: %+v", p.calls)
 	}
 }
 
@@ -150,7 +150,7 @@ func TestRT_StartedAdapter_RawDecode_Dispatch(t *testing.T) {
 		t.Fatalf("dispatch err: %v", err)
 	}
 	if len(p.calls) != 1 || p.calls[0].State != "busy" || p.calls[0].Subject != "分析中" {
-		t.Errorf("StartedAdapter dispatch drift: %+v", p.calls)
+		t.Errorf("StartedAdapter dispatch mismatch: %+v", p.calls)
 	}
 }
 
@@ -162,7 +162,7 @@ func TestRT_FinishedAdapter_RawDecode_Dispatch(t *testing.T) {
 		t.Fatalf("dispatch err: %v", err)
 	}
 	if len(p.calls) != 1 || p.calls[0].State != "idle" {
-		t.Errorf("FinishedAdapter dispatch drift: %+v", p.calls)
+		t.Errorf("FinishedAdapter dispatch mismatch: %+v", p.calls)
 	}
 }
 
@@ -198,6 +198,6 @@ func TestRT_StartedAdapter_EmptySubject_PreservesSentinelChain(t *testing.T) {
 		t.Errorf("errors.Is sanity")
 	}
 	if !bpp.IsTaskSubjectEmpty(err) {
-		t.Errorf("立场 ② sentinel chain broken: %v", err)
+		t.Errorf("规则 ② sentinel chain broken: %v", err)
 	}
 }
