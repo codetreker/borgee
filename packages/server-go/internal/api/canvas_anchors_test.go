@@ -1,14 +1,16 @@
 // Package api_test — cv_2_2_anchors_test.go: CV-2.2 acceptance tests
 // (#359 schema v=14 → CV-2.2 server API + WS push).
 //
-// Stance pins exercised (cv-2-spec.md §0):
-//   - ① 锚点 = 人审 — agent 创锚 → 403 + 错码 anchor.create_owner_only;
-//     agent 在 agent-only thread 接龙 reply → 同 403; 人 reply 始终允许.
-//   - ② 锚点挂 artifact_version — 创锚 version != head 接受 (immutable),
-//     artifact 滚下个 version 老 anchor 不动 (反约束 不跨版本迁移).
-//   - ③ AnchorCommentAdded envelope 走 RT-1.1 cursor 单调发号, 10 字段
-//     byte-identical 套 spec v2 字面.
-//   - ⑦ channel-scope ACL — 非成员 GET → 404 / POST → 403.
+// 设计约束 exercised (cv-2-spec.md §0):
+//   - 设计第 1 条 anchor 创建 = 人审 — agent 创 anchor → 403 + 错码
+//     anchor.create_owner_only; agent 在 agent-only thread 接龙 reply
+//     → 同 403; 人 reply 始终允许.
+//   - 设计第 2 条 anchor 挂 artifact_version — 创 anchor version != head
+//     接受 (immutable), artifact 滚下个 version 老 anchor 不动 (约束:
+//     不跨版本迁移).
+//   - 设计第 3 条 AnchorCommentAdded envelope 走 RT-1.1 cursor 单调发号,
+//     10 字段跟 spec v2 字面字节级一致.
+//   - 设计第 7 条 channel-scope ACL — 非成员 GET → 404 / POST → 403.
 //   - resolve owner / creator only — 第三方 → 403.
 package api_test
 
@@ -46,7 +48,7 @@ func cv22Setup(t *testing.T) (url string, ownerTok string, s *store.Store, chID 
 	return
 }
 
-// TestCV_CreateAnchorOnHead pins 设计 ② default-version path: omitted
+// TestCV_CreateAnchorOnHead pins 设计第 2 条 default-version path: omitted
 // `version` defaults to head (current_version), anchor row written.
 func TestCV_CreateAnchorOnHead(t *testing.T) {
 	t.Parallel()
@@ -87,9 +89,9 @@ func TestCV_CreateAnchor_RejectInvertedRange(t *testing.T) {
 	}
 }
 
-// TestCV_AgentCannotCreateAnchor pins 设计 ① 反约束三连之一: agent role
-// POST /anchors → 403 + 错码 byte-identical "anchor.create_owner_only".
-// 反查 grep: server kind='agent' 0 hit.
+// TestCV_AgentCannotCreateAnchor pins 设计第 1 条 约束三连之一: agent role
+// POST /anchors → 403 + 错码字节级一致 "anchor.create_owner_only".
+// 反向 grep: server kind='agent' 0 hit.
 func TestCV_AgentCannotCreateAnchor(t *testing.T) {
 	t.Parallel()
 	url, _, s, chID, artID := cv22Setup(t)
@@ -103,11 +105,11 @@ func TestCV_AgentCannotCreateAnchor(t *testing.T) {
 		t.Fatalf("agent anchor create not 403: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["code"] != "anchor.create_owner_only" {
-		t.Errorf("error code byte-identical 锁失败: got %v, want anchor.create_owner_only", data["code"])
+		t.Errorf("error code 字节级一致检查失败: got %v, want anchor.create_owner_only", data["code"])
 	}
 }
 
-// TestCanvasAnchors_CrossChannel403 pins 设计 ⑦: a non-member of the artifact's
+// TestCanvasAnchors_CrossChannel403 pins 设计第 7 条: a non-member of the artifact's
 // channel cannot create / list anchors.
 func TestCanvasAnchors_CrossChannel403(t *testing.T) {
 	t.Parallel()
@@ -134,7 +136,7 @@ func TestCanvasAnchors_CrossChannel403(t *testing.T) {
 	}
 }
 
-// TestCV_AnchorPinnedToVersion_Immutable pins 设计 ② 反约束: artifact
+// TestCV_AnchorPinnedToVersion_Immutable pins 设计第 2 条 约束: artifact
 // rolls forward to v=2, the anchor created on v=1 STILL references the
 // v=1 artifact_version_id (does not auto-migrate).
 func TestCV_AnchorPinnedToVersion_Immutable(t *testing.T) {
@@ -165,7 +167,7 @@ func TestCV_AnchorPinnedToVersion_Immutable(t *testing.T) {
 	}
 }
 
-// TestCV_AddCommentPushesFrame pins 设计 ③: AddComment hits the
+// TestCV_AddCommentPushesFrame pins 设计第 3 条: AddComment hits the
 // AnchorCommentPusher with the 10-field tuple. We use a recording pusher
 // via standalone AnchorHandler since the live mux's hub already pushes
 // to ws clients (and we can't observe the internal tuple from the HTTP
@@ -194,12 +196,12 @@ func TestCV_AddCommentPushesFrame(t *testing.T) {
 	}
 }
 
-// TestCV22_AgentCannotReplyOnAgentOnlyThread pins 设计 ① 反约束 (agent
+// TestCV22_AgentCannotReplyOnAgentOnlyThread pins 设计第 1 条 约束 (agent
 // → agent thread 0 hit). Setup: human creates anchor (server enforces
 // human-only create), agent reply OK because anchor creator is human.
 // Negative path: re-test the helper directly using thread without human
 // (impossible via real API since create is human-locked) — this test
-// 反断 the positive path: an agent CAN reply iff anchor creator is human.
+// 反向断言 the positive path: an agent CAN reply iff anchor creator is human.
 func TestCV_AgentCanReplyAfterHumanCreate(t *testing.T) {
 	t.Parallel()
 	url, tok, s, chID, artID := cv22Setup(t)

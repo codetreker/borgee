@@ -1,5 +1,5 @@
 // Package api_test — chn_10_description_test.go: CHN-10 owner-only PUT
-// /api/v1/channels/{channelId}/description endpoint + 反约束守门.
+// /api/v1/channels/{channelId}/description endpoint + 约束守门.
 //
 // Pins:
 //   REG-CHN10-001 TestChn10description_NoSchemaChange (filepath.Walk migrations/)
@@ -36,12 +36,12 @@ func TestChn10description_NoSchemaChange(t *testing.T) {
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, "chn_10_") {
-			t.Errorf("CHN-10 设计 ① broken — found schema migration %q (must be 0 schema)", name)
+			t.Errorf("CHN-10 设计第 1 条 broken — found schema migration %q (must be 0 schema)", name)
 		}
 	}
-	// DescriptionMaxLength byte-identical 跟 channels.topic GORM size:500.
+	// DescriptionMaxLength 字节级一致 跟 channels.topic GORM size:500.
 	if api.DescriptionMaxLength != 500 {
-		t.Errorf("DescriptionMaxLength: got %d, want 500 (byte-identical 跟 channels.topic GORM size:500)", api.DescriptionMaxLength)
+		t.Errorf("DescriptionMaxLength: got %d, want 500 (字节级一致 跟 channels.topic GORM size:500)", api.DescriptionMaxLength)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestCHN_PutDescription_OwnerHappyPath(t *testing.T) {
 	}
 }
 
-// REG-CHN10-002b — non-owner member 403 (设计 ② owner-only).
+// REG-CHN10-002b — non-owner member 403 (设计第 2 条 owner-only).
 func TestCHN_PutDescription_NonOwnerRejected(t *testing.T) {
 	t.Parallel()
 	url, _, memberToken, channelID, _ := setupCHN10(t)
@@ -124,7 +124,7 @@ func TestCHN_PutDescription_NonOwnerRejected(t *testing.T) {
 		url+"/api/v1/channels/"+channelID+"/description", memberToken,
 		map[string]any{"description": "非 owner 不能改"})
 	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("non-owner: got %d, want 403 (owner-only ACL 锁链第 20 处)", resp.StatusCode)
+		t.Errorf("non-owner: got %d, want 403 (owner-only ACL 对齐链第 20 处)", resp.StatusCode)
 	}
 }
 
@@ -165,7 +165,7 @@ func TestCHN_PutDescription_LengthCap500(t *testing.T) {
 	}
 }
 
-// REG-CHN10-004 — 既有 PUT /topic byte-identical 不变 — handleSetTopic
+// REG-CHN10-004 — 既有 PUT /topic 字节级一致 不变 — handleSetTopic
 // block 内grep 检查 `chn_10|description` 0 hit (CHN-10 不漂入既有 path).
 func TestCHN_TopicPathByteIdentical(t *testing.T) {
 	t.Parallel()
@@ -186,7 +186,7 @@ func TestCHN_TopicPathByteIdentical(t *testing.T) {
 	block := src[idx:end]
 	for _, tok := range []string{"chn_10", "DescriptionMaxLength", "/description"} {
 		if strings.Contains(block, tok) {
-			t.Errorf("既有 PUT /topic block 漂移 — token %q 在 handleSetTopic block (CHN-10 设计 ④ broken)", tok)
+			t.Errorf("既有 PUT /topic block 漂移 — token %q 在 handleSetTopic block (CHN-10 设计第 4 条 broken)", tok)
 		}
 	}
 }
@@ -240,7 +240,7 @@ func TestCHN_NoAdminDescriptionPath(t *testing.T) {
 			}
 			fb, _ := os.ReadFile(p)
 			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("CHN-10 设计 ② broken — admin description path in %s: %q",
+				t.Errorf("CHN-10 设计第 2 条 broken — admin description path in %s: %q",
 					p, fb[loc[0]:loc[1]])
 			}
 			return nil
@@ -248,7 +248,7 @@ func TestCHN_NoAdminDescriptionPath(t *testing.T) {
 	}
 }
 
-// REG-CHN10-006 — AST 锁链延伸第 17 处 forbidden 3 token.
+// REG-CHN10-006 — AST 对齐链延伸第 17 处 forbidden 3 token.
 func TestCHN_NoDescriptionQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -267,7 +267,7 @@ func TestCHN_NoDescriptionQueue(t *testing.T) {
 		fb, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(fb), tok) {
-				t.Errorf("AST 锁链延伸第 17 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 17 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil

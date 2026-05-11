@@ -1,10 +1,10 @@
 // AP-2 server — capability 透明 UI response shape unit tests.
 //
 // 设计沿用 (ap-2-spec.md §0):
-//   - 设计 ② response 加 `capabilities` 数组 (14 const SSOT 单源)
-//   - 设计 ② 反向断言 response 不暴露 RBAC role 字面 admin/editor/viewer/owner
-//     (反 role bleed); `role` 字段仅 legacy caller 兼容, UI 不显
-//   - 设计 ① AP-1 14 const + AP-4-enum reflect-lint byte-identical 不破
+//   - 设计第 2 条 response 加 `capabilities` 数组 (14 const 单一来源)
+//   - 设计第 2 条 反向断言 response 不暴露 RBAC role 字面 admin/editor/viewer/owner
+//     (RBAC role 字段不应泄露到响应); `role` 字段仅为兼容老调用方保留, UI 不显
+//   - 设计第 1 条 AP-1 14 const + AP-4-enum reflect-lint 字节级一致 不破
 
 package api
 
@@ -22,10 +22,10 @@ func TestAP2_DeriveCapabilities_MemberFullGrant(t *testing.T) {
 	if len(got) != len(auth.ALL) {
 		t.Fatalf("member 全权 want %d capabilities, got %d", len(auth.ALL), len(got))
 	}
-	// byte-identical 顺序 (跟 auth.ALL).
+	// 字节级一致 顺序 (跟 auth.ALL).
 	for i, tok := range got {
 		if tok != auth.ALL[i] {
-			t.Errorf("capability order drift @%d: want %q got %q", i, auth.ALL[i], tok)
+			t.Errorf("capability order mismatch @%d: want %q got %q", i, auth.ALL[i], tok)
 		}
 	}
 }
@@ -61,17 +61,17 @@ func TestAP2_DeriveCapabilities_AgentNoGrant(t *testing.T) {
 }
 
 func TestAP2_DeriveCapabilities_OnlyKnownTokens(t *testing.T) {
-	// 反向断言: derive 输出全在 14 const 内 (反 role 字面 leak).
+	// 反向断言: derive 输出全在 14 const 内 (不允许 role 字面泄漏).
 	all := deriveAP2Capabilities("member", []string{"*"})
 	for _, tok := range all {
 		if !auth.IsValidCapability(tok) {
-			t.Errorf("derive leaked unknown token %q (反 14 const SSOT 闸)", tok)
+			t.Errorf("derive leaked unknown token %q (反 14 const 单一来源 闸)", tok)
 		}
 		// 反向断言 — 不含 RBAC role 字面.
 		lower := strings.ToLower(tok)
 		for _, role := range []string{"admin", "editor", "viewer", "owner"} {
 			if lower == role {
-				t.Errorf("设计 ② 反 role bleed — token %q 命中 RBAC role 字面", tok)
+				t.Errorf("设计第 2 条 — token %q 命中 RBAC role 字面 (RBAC role 字段不应泄露)", tok)
 			}
 		}
 	}
@@ -83,7 +83,7 @@ func TestAP2_NoRoleNamesInResponseShape_MemberPath(t *testing.T) {
 	caps := deriveAP2Capabilities("member", []string{"*"})
 	resp := map[string]any{
 		"user_id":      "u-1",
-		"role":         "member", // legacy caller field — value is the user's
+		"role":         "member", // 为兼容老调用方保留 — value is the user's
 		"permissions":  []string{"*"},
 		"details":      []map[string]any{},
 		"capabilities": caps,
@@ -102,13 +102,13 @@ func TestAP2_NoRoleNamesInResponseShape_MemberPath(t *testing.T) {
 		`"role":"owner"`,
 	} {
 		if strings.Contains(body, bad) {
-			t.Errorf("设计 ② 反 RBAC role bleed — response 含 %q (UI 不应显此值)", bad)
+			t.Errorf("设计第 2 条 RBAC role 字段不应泄露 — response 含 %q (UI 不应显此值)", bad)
 		}
 	}
 
-	// `capabilities` 字段必存在 (AP-2 SSOT 单源).
+	// `capabilities` 字段必存在 (AP-2 单一来源).
 	if !strings.Contains(body, `"capabilities"`) {
-		t.Error("AP-2 设计 ② — response 缺 `capabilities` 字段")
+		t.Error("AP-2 设计第 2 条 — response 缺 `capabilities` 字段")
 	}
 
 	// JSON parse round-trip — capabilities 是数组.

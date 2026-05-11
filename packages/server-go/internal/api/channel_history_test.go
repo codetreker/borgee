@@ -6,7 +6,7 @@
 //   REG-CHN14-003 TestCHN142_GetHistory_HappyPath + NonOwnerRejected + EmptyHistory + Unauthorized
 //   REG-CHN14-004 TestCHN_GetHistoryAdmin_HappyPath + NoAdminPatchDeletePath
 //   REG-CHN14-005 TestCHN_CHN10HandlePutByteIdentical
-//   REG-CHN14-006 TestCHN_NoDescriptionHistoryQueue (AST 锁链延伸第 22 处)
+//   REG-CHN14-006 TestCHN_NoDescriptionHistoryQueue (AST 对齐链延伸第 22 处)
 package api_test
 
 import (
@@ -52,7 +52,7 @@ func TestCHN_UpdateChannelDescription_Behaviors(t *testing.T) {
 			t.Errorf("old_content: got %q, want v1", got)
 		}
 		if got, _ := hist[0]["reason"].(string); got != "unknown" {
-			t.Errorf("reason: got %q, want unknown (AL-1a 锁链停在 HB-6 #19)", got)
+			t.Errorf("reason: got %q, want unknown (AL-1a 对齐链停在 HB-6 #19)", got)
 		}
 	})
 
@@ -230,9 +230,9 @@ func TestCHN_NoAdminPatchDeletePath(t *testing.T) {
 	}
 }
 
-// REG-CHN14-005 — CHN-10 #561 chn_10_description.go::handlePut byte-identical
-// (owner-only ACL + length cap 500 + 5 既有锚 must-contain; UpdateChannel 改
-// UpdateChannelDescription 包装单字符串改, 其它 byte-identical).
+// REG-CHN14-005 — CHN-10 #561 chn_10_description.go::handlePut 字节级一致
+// (owner-only ACL + length cap 500 + 5 个既有字面 must-contain; UpdateChannel 改
+// UpdateChannelDescription 包装单字符串改, 其它字节级一致).
 func TestCHN_CHN10HandlePutByteIdentical(t *testing.T) {
 	t.Parallel()
 	body, err := os.ReadFile(filepath.Join("..", "api", "channel_description.go"))
@@ -242,14 +242,14 @@ func TestCHN_CHN10HandlePutByteIdentical(t *testing.T) {
 	src := string(body)
 	idx := strings.Index(src, "func (h *ChannelDescriptionHandler) handlePut")
 	if idx < 0 {
-		t.Fatalf("既有 chn_10 handlePut 不存在 — 边界 ④ broken")
+		t.Fatalf("既有 chn_10 handlePut 不存在 — 边界第 4 条 broken")
 	}
 	end := idx + 2500
 	if end > len(src) {
 		end = len(src)
 	}
 	block := src[idx:end]
-	// 5 既有锚 must-contain (CHN-10 #561 byte-identical).
+	// 5 个既有字面 must-contain (CHN-10 #561 字节级一致).
 	for _, must := range []string{
 		"channelId",
 		"DescriptionMaxLength",
@@ -258,18 +258,18 @@ func TestCHN_CHN10HandlePutByteIdentical(t *testing.T) {
 		"UpdateChannelDescription", // CHN-14 包装替换 UpdateChannel
 	} {
 		if !strings.Contains(block, must) {
-			t.Errorf("chn_10 handlePut block 漂走既有锚 %q", must)
+			t.Errorf("chn_10 handlePut block 漂走既有字面 %q", must)
 		}
 	}
 	// chn_14 字面 0 hit (CHN-14 是 wrapper 在 store 层, 不在 handler 内).
 	for _, tok := range []string{"chn_14", "chn14", "CHN14"} {
 		if strings.Contains(block, tok) {
-			t.Errorf("chn_10 handlePut 漂入 chn_14 — token %q (边界 ④ broken)", tok)
+			t.Errorf("chn_10 handlePut 漂入 chn_14 — token %q (边界第 4 条 broken)", tok)
 		}
 	}
 }
 
-// REG-CHN14-006 — AST 锁链延伸第 22 处 forbidden 3 token.
+// REG-CHN14-006 — AST 对齐链延伸第 22 处 forbidden 3 token.
 func TestCHN_NoDescriptionHistoryQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -288,7 +288,7 @@ func TestCHN_NoDescriptionHistoryQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 锁链延伸第 22 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST 对齐链延伸第 22 处 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil
