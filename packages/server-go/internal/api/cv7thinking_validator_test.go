@@ -1,10 +1,10 @@
 // Package api_test — cv_7_thinking_validator_test.go: CV-7 thinking-subject
 // 5-pattern reject 单测 (PUT /api/v1/messages/{id} edit path, 5-pattern 第 5 处链).
 //
-// Stance pins (cv-7-spec.md §0):
-//   - ③ agent edit on content_type=='artifact_comment' must re-pass 5-pattern
-//   - ② human edit not subject to validator
-//   - ① 0 new endpoint — uses existing PUT /api/v1/messages/{id}
+// 设计约束 pins (cv-7-spec.md §0):
+//   - 设计第 3 条 agent edit on content_type=='artifact_comment' must re-pass 5-pattern
+//   - 设计第 2 条 human edit not subject to validator
+//   - 设计第 1 条 0 new endpoint — uses existing PUT /api/v1/messages/{id}
 package api_test
 
 import (
@@ -15,9 +15,9 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// TestCV_AgentEditArtifactComment_ThinkingReject pins 设计 ③ integration:
+// TestCV_AgentEditArtifactComment_ThinkingReject pins 设计第 3 条 integration:
 // agent (role=='agent') edits a message with content_type=='artifact_comment'
-// to a 5-pattern body → 400 `comment.thinking_subject_required` byte-identical
+// to a 5-pattern body → 400 `comment.thinking_subject_required` 字节级一致
 // (跟 CV-5 #530 同字符串).
 func TestCV_AgentEditArtifactComment_ThinkingReject(t *testing.T) {
 	t.Parallel()
@@ -44,7 +44,7 @@ func TestCV_AgentEditArtifactComment_ThinkingReject(t *testing.T) {
 
 	// Note: pattern 5 (empty/whitespace) is rejected earlier by the
 	// existing "Content is required" guard (messages.go:313); the 4
-	// non-empty patterns alone are the byte-identical lock-chain set
+	// non-empty patterns alone are the 字节级一致 lock-chain set
 	// reachable through PUT (the empty case is a guard upstream).
 	bodies := []string{
 		"agent thinking",
@@ -61,7 +61,7 @@ func TestCV_AgentEditArtifactComment_ThinkingReject(t *testing.T) {
 				t.Fatalf("expected 400 for body %q: got %d (%v)", b, resp.StatusCode, data)
 			}
 			if data["code"] != "comment.thinking_subject_required" {
-				t.Errorf("error code byte-identical 锁失败: got %v want comment.thinking_subject_required", data["code"])
+				t.Errorf("error code 字节级一致 锁失败: got %v want comment.thinking_subject_required", data["code"])
 			}
 		})
 	}
@@ -74,7 +74,7 @@ func TestCV_AgentEditArtifactComment_ThinkingReject(t *testing.T) {
 		t.Fatalf("valid agent edit rejected: %d", ok.StatusCode)
 	}
 
-	// 反约束: 非 artifact_comment 类型的 message 不走此 validator.
+	// 约束: 非 artifact_comment 类型的 message 不走此 validator.
 	textMsg := &store.Message{
 		ChannelID:   chID,
 		SenderID:    agent.ID,
@@ -93,7 +93,7 @@ func TestCV_AgentEditArtifactComment_ThinkingReject(t *testing.T) {
 	}
 }
 
-// TestCV_HumanEditArtifactComment_AnyBodyOK pins 设计 ② sanity: human-sender
+// TestCV_HumanEditArtifactComment_AnyBodyOK pins 设计第 2 条 sanity: human-sender
 // comment edit is NOT subject to validator (any body OK).
 func TestCV_HumanEditArtifactComment_AnyBodyOK(t *testing.T) {
 	t.Parallel()
