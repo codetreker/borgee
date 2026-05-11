@@ -14,38 +14,39 @@
 ## Why
 
 CHN-10 #561 ships owner-only channel description (= channels.topic 列, 复
-用 CHN-2 既有列 byte-identical). CHN-14 续 — forward-only audit history
+用 CHN-2 既有列). CHN-14 续 — forward-only audit history
 JSON array on the same row (channels.description_edit_history TEXT NULL),
 reusing the nullable `ALTER ADD COLUMN` pattern already used by eight
 milestones: AL-7.1, HB-5.1, AP-1.1, AP-3.1, AP-2.1, DM-7.1, CV-6.1, and
-CHN-14.1. 不另起 history table (grep 检查 锁定守护).
+CHN-14.1. 不另起 history table.
 
-## 原则 (chn-10-spec.md §0 + chn-14-spec.md §0 原文)
+## 原则 (chn-10-spec.md §0 + chn-14-spec.md §0)
 
 - **① schema v=44 ALTER ADD nullable.** description_edit_history TEXT
   NULL on channels (no separate table). Migration `chn_14_1_channels_
-  description_edit_history` registry 字面锁定. 老 channel 行
-  byte-identical (NULL = 无历史).
+  description_edit_history` registry name is part of the migration contract.
+  老 channel 行保持原值; `NULL` means no history.
 - **② UpdateChannelDescription 单一来源.** PUT /channels/:id/description 走
   store.UpdateChannelDescription entry point: SELECT old topic + edit_history
   → JSON append `{old_content, ts, reason='unknown'}` → UPDATE atomic.
-  grep 检查 `inline UPDATE channels.*topic` 在 chn_10/chn_14 之外
-  production 0 hit (single-source).
-- **③ owner-only ACL 的第 21 个覆盖点.** PUT + GET history user-rail 走
-  `channel.CreatedBy == user.ID` regression assertion (member-level → 403); admin-rail
-  GET history readonly (admin access does not add PATCH/DELETE — ADM-0 §1.3 红线).
-- **④ 文案锁定** (chn-14-content-lock.md §1):
-  - modal title `编辑历史` (跟 DM-7 #558 EditHistoryModal byte-identical
+  Production writes to `channels.topic` for this API should stay behind that
+  entry point; see QA notes for repository-search coverage.
+- **③ owner-only ACL.** PUT + GET history user-rail 走
+  `channel.CreatedBy == user.ID` authorization rule (member-level → 403); admin-rail
+  GET history readonly (admin access does not add PATCH/DELETE; ADM-0 §1.3).
+- **④ UI copy contract** (chn-14-content-lock.md §1):
+  - modal title `编辑历史` (matches DM-7 #558 EditHistoryModal
     跨 milestone)
   - empty state `暂无编辑记录` (CHN-14 设计 ⑥ 显式空态; DM-7 设计是空
     return null — 真分歧)
   - 行 action `: 修改了说明` (CHN-14 独有, per-edit 显式)
   - reject 同义词 `History/Audit/Log/记录/日志/审计/回退/恢复`
-- **⑤ AL-1a reason coverage stops at HB-6 #19.** reason='unknown' 字面 byte-
-  identical with DM-7 #558 / AL-7 SweeperReason / HB-5, so CHN-14 does not
+- **⑤ Reason value compatibility.** `reason='unknown'` uses the same literal
+  value as DM-7 #558 / AL-7 SweeperReason / HB-5, so CHN-14 does not
   introduce a new reason value.
-- **⑥ AST coverage also includes the 22nd checkpoint.** forbidden 3 token (`pendingDescriptionAudit
-  / descriptionHistoryQueue / deadLetterDescriptionHistory`) 0 hit.
+- **⑥ No async audit queue for this API.** `pendingDescriptionAudit`,
+  `descriptionHistoryQueue`, and `deadLetterDescriptionHistory` are not part
+  of the design; see QA notes for repository-search coverage.
 
 ## Schema (v=44 ALTER ADD)
 
@@ -53,7 +54,7 @@ CHN-14.1. 不另起 history table (grep 检查 锁定守护).
 |---|---|---|
 | ... existing columns ... | (CHN-1.1 + CM-1 + CHN-3.1 + ...) | unchanged |
 | `topic` | `TEXT NOT NULL DEFAULT '' size:500` | CHN-2 既有 — 实际持有 description (CHN-10 写, CHN-2 既有 PUT /topic member-level path 不动) |
-| `description_edit_history` | `TEXT NULL` | CHN-14.1 v=44 — JSON array `[{old_content, ts, reason}]`; NULL = 无历史 / 老行 byte-identical |
+| `description_edit_history` | `TEXT NULL` | CHN-14.1 v=44 — JSON array `[{old_content, ts, reason}]`; NULL = 无历史 / existing rows keep their prior data |
 
 Migration is forward-only, idempotent via `hasColumn` guard. Existing rows
 preserve verbatim with `description_edit_history=NULL`.
@@ -81,7 +82,7 @@ ACL:
 Validation:
 - `description.length > 500` → **400** `Description must be 500 characters
   or less` (DescriptionMaxLength const + GORM size:500 + client
-  DESCRIPTION_MAX_LENGTH 三向锁定)
+  DESCRIPTION_MAX_LENGTH share the same 500-character limit)
 
 Side-effects on success (200):
 - `Store.UpdateChannelDescription(channelID, newDescription)` single-source entry point:
@@ -117,25 +118,34 @@ Response body:
 
 - `history` is forward-only JSON array, append-only.
 - Empty / NULL → `[]` (server-side store layer pre-normalized).
-- `reason='unknown'` stays byte-identical with DM-7 #558 / AL-7 / HB-5
-  (AL-1a reason coverage stops at HB-6 #19).
+- `reason='unknown'` stays unchanged from DM-7 #558 / AL-7 / HB-5.
 
 ### GET /admin-api/v1/channels/{channelId}/description/history (CHN-14 admin readonly)
 
 Same response payload as user-rail GET, no owner-only check (admin
-可见全 org). admin access does not add PATCH/DELETE; grep 守门 — admin
-看 audit 不直接改 (ADM-0 §1.3 红线).
+可见全 org). Admin access does not add PATCH/DELETE; admin can view audit
+history but cannot directly modify it through this API (ADM-0 §1.3).
 
-## 跨 milestone byte-identical 锁定
+## Cross-Milestone Compatibility
 
 - ALTER ADD COLUMN nullable follows the same pattern across eight milestones
   (DM-7.1 + AL-7.1 + HB-5.1 + AP-1.1 + AP-3.1 + AP-2.1 + CV-6.1 + CHN-14.1).
 - UpdateChannelDescription 单一来源模式跟 DM-7 #558 UpdateMessage 单一来源 一致.
-- owner-only ACL covers the 21st checkpoint (CHN-10 #20 + DM-7 #19 + ...).
+- owner-only ACL follows the same channel-owner authorization pattern as
+  CHN-10 #20 + DM-7 #19.
 - audit inline JSON 列模式 (跟 DM-7 #558 设计 ⑤ 同精神, 不入 admin_actions).
-- 文案 `编辑历史` byte-identical 跨 DM-7 EditHistoryModal + CHN-14
+- 文案 `编辑历史` matches DM-7 EditHistoryModal + CHN-14
   DescriptionHistoryModal (跨 modal 一致).
-- AST coverage also includes the 22nd checkpoint: forbidden 3 token 0 hit.
+
+## QA Notes
+
+- Repository search should show no production `inline UPDATE channels.*topic`
+  writes outside the CHN-10/CHN-14 single-source path.
+- Repository search should show no production references to
+  `pendingDescriptionAudit`, `descriptionHistoryQueue`, or
+  `deadLetterDescriptionHistory`.
+- Admin API coverage should verify GET-only behavior for description history;
+  PATCH/DELETE routes remain out of scope.
 
 ## 不在范围
 
