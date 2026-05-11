@@ -1,16 +1,16 @@
 // Package api_test — chn_3_2_layout_test.go: CHN-3.2 server-side
 // user_channel_layout REST acceptance tests (acceptance §2.* CHN-3.2).
 //
-// Stance pins exercised:
-//   - 设计 ② 个人偏好两维 collapsed + position — GET 返本人 row;
+// 设计约束 pins exercised:
+//   - 设计第 2 条 个人偏好两维 collapsed + position — GET 返本人 row;
 //     PUT 批量 upsert + ON CONFLICT 复合 PK.
-//   - 设计 ④ DM 永不参与分组 — DM channel_id PUT → 400
-//     `layout.dm_not_grouped` byte-identical (5 源 #357/#353/#366/#402).
-//   - 设计 ⑤ ADM-0 红线 — admin 不入业务路径 (本测试 + reverse grep
+//   - 设计第 4 条 DM 永不参与分组 — DM channel_id PUT → 400
+//     `layout.dm_not_grouped` 字节级一致 (5 源 #357/#353/#366/#402).
+//   - 设计第 5 条 ADM-0 红线 — admin 不入业务路径 (本测试 + reverse grep
 //     `admin.*user_channel_layout` 在 admin*.go count==0).
-//   - 设计 ⑥ ordering client 端 — server 不算 MIN-1.0; 接受任意 REAL
+//   - 设计第 6 条 ordering client 端 — server 不算 MIN-1.0; 接受任意 REAL
 //     position 值 (含负数, client pin 算法).
-//   - 设计 ⑦ non-member channel reject 403 (CHN-1 ACL 同源).
+//   - 设计第 7 条 non-member channel reject 403 (CHN-1 ACL 同源).
 package api_test
 
 import (
@@ -140,8 +140,8 @@ func TestCHN_PutBatchUpsertAndGet(t *testing.T) {
 	}
 }
 
-// TestCHN_DMReject pins 设计 ④ + content-lock 约束 — DM channel
-// PUT → 400 with code `layout.dm_not_grouped` byte-identical (5 源
+// TestCHN_DMReject pins 设计第 4 条 + content-lock 约束 — DM channel
+// PUT → 400 with code `layout.dm_not_grouped` 字节级一致 (5 源
 // #357/#353/#366/#402 同源).
 func TestCHN_DMReject(t *testing.T) {
 	t.Parallel()
@@ -165,7 +165,7 @@ func TestCHN_DMReject(t *testing.T) {
 		t.Fatalf("expected 400 DM reject, got %d: %v", resp.StatusCode, body)
 	}
 	if code, _ := body["code"].(string); code != "layout.dm_not_grouped" {
-		t.Fatalf("expected code layout.dm_not_grouped (5 源 byte-identical), got %v", body["code"])
+		t.Fatalf("expected code layout.dm_not_grouped (5 源 字节级一致), got %v", body["code"])
 	}
 }
 
@@ -217,7 +217,7 @@ func TestCHN_InvalidPayload(t *testing.T) {
 	}
 }
 
-// TestCHN_AcceptsNegativePosition pins 设计 ③ + ⑥ — server 接受任意
+// TestCHN_AcceptsNegativePosition pins 设计第 3+6 条 — server 接受任意
 // REAL position (含负数, client 算 MIN-1.0 pin). server 不 reject 负数.
 func TestCHN_AcceptsNegativePosition(t *testing.T) {
 	t.Parallel()
@@ -237,7 +237,7 @@ func TestCHN_AcceptsNegativePosition(t *testing.T) {
 	}
 }
 
-// TestCHN_PerUserIsolation pins 设计 ② — same channel, different
+// TestCHN_PerUserIsolation pins 设计第 2 条 — same channel, different
 // users → independent rows; PK (user_id, channel_id) 复合 enforces.
 func TestCHN_PerUserIsolation(t *testing.T) {
 	t.Parallel()
@@ -287,25 +287,25 @@ func TestCHN_PerUserIsolation(t *testing.T) {
 	}
 }
 
-// TestCHN_ToastErrorMsgLockPin pins acceptance §3.5 + content-lock ④
-// — failure response 文案 byte-identical "侧栏顺序保存失败, 请重试"
-// (5 源 #371 / acceptance §3.5 / #402 ④). 直接 grep 源文件锚字面.
+// TestCHN_ToastErrorMsgLockPin pins acceptance §3.5 + content-lock 第 4 条
+// — failure response 文案 字节级一致 "侧栏顺序保存失败, 请重试"
+// (5 源 #371 / acceptance §3.5 / #402 第 4 条). 直接 grep 源文件锚字面.
 func TestCHN_ToastErrorMsgLockPin(t *testing.T) {
 	t.Parallel()
 	src := mustReadFile(t, "layout.go")
 	if !strings.Contains(src, `"侧栏顺序保存失败, 请重试"`) {
-		t.Fatal("toast 文案锁漂移 — 必须包含字面 '侧栏顺序保存失败, 请重试' (5 源 byte-identical)")
+		t.Fatal("toast 文案锁漂移 — 必须包含字面 '侧栏顺序保存失败, 请重试' (5 源 字节级一致)")
 	}
 	// 约束: 不出现同义词漂.
-	for _, drift := range []string{"保存失败, 重试", "保存失败请重试", "Save failed", "save_failed"} {
-		if strings.Contains(src, drift) {
-			t.Errorf("toast 文案漂移 (%q) — 约束 §1 ④", drift)
+	for _, bad := range []string{"保存失败, 重试", "保存失败请重试", "Save failed", "save_failed"} {
+		if strings.Contains(src, bad) {
+			t.Errorf("toast 文案漂移 (%q) — 约束 §1 第 4 条", bad)
 		}
 	}
 }
 
 // TestCHN_AdminAPINotMounted ensures admin-api server doesn't expose
-// /me/layout (设计 ⑤ ADM-0 §1.3 红线 — admin 不读业务数据).
+// /me/layout (设计第 5 条 ADM-0 §1.3 红线 — admin 不读业务数据).
 func TestCHN_AdminAPINotMounted(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

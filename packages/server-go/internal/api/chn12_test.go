@@ -14,15 +14,15 @@ import (
 
 // CHN-1.2 acceptance suite — locks the 7 条原则 from #265:
 //
-//   ① POST /channels: creator-only default member (count == 1)
-//   ② Per-org name uniqueness — two orgs may both create #release without conflict
-//   ③ Cross-org GET isolation — public channel in orgA invisible to orgB caller
-//   ④ Non-owner PATCH 403
-//   ⑤ PATCH archived: true → archived_at stamped + system DM with text-lock
+//   设计第 1 条 POST /channels: creator-only default member (count == 1)
+//   设计第 2 条 Per-org name uniqueness — two orgs may both create #release without conflict
+//   设计第 3 条 Cross-org GET isolation — public channel in orgA invisible to orgB caller
+//   设计第 4 条 Non-owner PATCH 403
+//   设计第 5 条 PATCH archived: true → archived_at stamped + system DM with text-lock
 //      "channel #{name} 已被 {owner_name} 关闭于 {ts}"
-//   ⑥ Agent-add → silent flag = true on channel_members + system message
+//   设计第 6 条 Agent-add → silent flag = true on channel_members + system message
 //      "{agent_name} joined"
-//   ⑦ Soft-delete (DELETE) preserves Channel row (deleted_at non-null) — already
+//   设计第 7 条 Soft-delete (DELETE) preserves Channel row (deleted_at non-null) — already
 //      covered by TestP0ChannelLifecycle, but verified here in conjunction with
 //      archive to keep the two paths distinct.
 //
@@ -61,7 +61,7 @@ func seedAgentInOrg(t *testing.T, s *store.Store, displayName, email, orgID, own
 	return u
 }
 
-// TestCHN_CreatorOnlyDefaultMember locks 设计 ①.
+// TestCHN_CreatorOnlyDefaultMember locks 设计第 1 条.
 func TestCHN_CreatorOnlyDefaultMember(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -76,11 +76,11 @@ func TestCHN_CreatorOnlyDefaultMember(t *testing.T) {
 	}
 	members, _ := data["members"].([]any)
 	if len(members) != 1 {
-		t.Fatalf("CHN-1.2 设计 ②: expected creator-only (1 member), got %d", len(members))
+		t.Fatalf("CHN-1.2 设计第 2 条: expected creator-only (1 member), got %d", len(members))
 	}
 }
 
-// TestCHN_CrossOrgSameNameOK locks 设计 ② — per-org name uniqueness.
+// TestCHN_CrossOrgSameNameOK locks 设计第 2 条 — per-org name uniqueness.
 func TestCHN_CrossOrgSameNameOK(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -105,7 +105,7 @@ func TestCHN_CrossOrgSameNameOK(t *testing.T) {
 	}
 }
 
-// TestCHN_CrossOrgPublicGETIsolation locks 设计 ③.
+// TestCHN_CrossOrgPublicGETIsolation locks 设计第 3 条.
 func TestCHN_CrossOrgPublicGETIsolation(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -119,7 +119,7 @@ func TestCHN_CrossOrgPublicGETIsolation(t *testing.T) {
 	// Direct GET on the foreign-org channel must NOT 200.
 	resp, _ := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+chAID, foreignToken, nil)
 	if resp.StatusCode == http.StatusOK {
-		t.Fatalf("CHN-1.2 设计 ③: cross-org public must NOT be visible (got 200)")
+		t.Fatalf("CHN-1.2 设计第 3 条: cross-org public must NOT be visible (got 200)")
 	}
 
 	// LIST channels for the foreign user must not surface the orgA channel.
@@ -131,12 +131,12 @@ func TestCHN_CrossOrgPublicGETIsolation(t *testing.T) {
 	for _, raw := range channels {
 		c, _ := raw.(map[string]any)
 		if c["id"] == chAID {
-			t.Fatalf("CHN-1.2 设计 ③: orgA channel leaked into orgB list")
+			t.Fatalf("CHN-1.2 设计第 3 条: orgA channel leaked into orgB list")
 		}
 	}
 }
 
-// TestCHN_NonOwnerPATCH403 locks 设计 ④.
+// TestCHN_NonOwnerPATCH403 locks 设计第 4 条.
 func TestCHN_NonOwnerPATCH403(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -155,11 +155,11 @@ func TestCHN_NonOwnerPATCH403(t *testing.T) {
 	// auditable update path (200 is acceptable under AP-0; 403 will be the
 	// post-AP-1 expectation). Guard against silent 500s.
 	if resp.StatusCode >= 500 {
-		t.Fatalf("CHN-1.2 设计 ④: PATCH must not 5xx, got %d", resp.StatusCode)
+		t.Fatalf("CHN-1.2 设计第 4 条: PATCH must not 5xx, got %d", resp.StatusCode)
 	}
 }
 
-// TestCHN_ArchiveFanoutSystemDM locks 设计 ⑤.
+// TestCHN_ArchiveFanoutSystemDM locks 设计第 5 条.
 func TestCHN_ArchiveFanoutSystemDM(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -199,11 +199,11 @@ func TestCHN_ArchiveFanoutSystemDM(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("CHN-1.2 设计 ⑤: archive fanout DM not found (text-lock prefix=%q infix=%q) in %v", wantPrefix, wantInfix, list)
+		t.Fatalf("CHN-1.2 设计第 5 条: archive fanout DM not found (text-lock prefix=%q infix=%q) in %v", wantPrefix, wantInfix, list)
 	}
 }
 
-// TestCHN_AgentJoinSystemMessage locks 设计 ⑥ — agent-add → silent member +
+// TestCHN_AgentJoinSystemMessage locks 设计第 6 条 — agent-add → silent member +
 // system message text-lock "{agent_name} joined".
 func TestCHN_AgentJoinSystemMessage(t *testing.T) {
 	t.Parallel()
@@ -244,7 +244,7 @@ func TestCHN_AgentJoinSystemMessage(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("CHN-1.2 设计 ⑥: agent-join system message %q (sender=system) not found in %v", want, list)
+		t.Fatalf("CHN-1.2 设计第 6 条: agent-join system message %q (sender=system) not found in %v", want, list)
 	}
 
 	// Assert the channel_members row has silent=true (concept-model §1.4).
@@ -257,6 +257,6 @@ func TestCHN_AgentJoinSystemMessage(t *testing.T) {
 		t.Fatalf("read channel_members row: %v", err)
 	}
 	if !cm.Silent {
-		t.Fatalf("CHN-1.2 设计 ⑥: agent member must have silent=true, got false")
+		t.Fatalf("CHN-1.2 设计第 6 条: agent member must have silent=true, got false")
 	}
 }
