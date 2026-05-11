@@ -1,13 +1,13 @@
 // Package api_test — al_1b_2_status_test.go: AL-1b.2 acceptance tests
 // (#453 schema v=21 → AL-1b.2 server endpoint + state machine).
 //
-// 原则 pins exercised (al-1b-spec.md §0 + acceptance §2):
-//   - ① 真分清三路径 — busy/idle 跟 AL-3 presence + AL-4 runtime 真分清, 此 spec
-//     5-state 合并仅在 API 层 (本 handler), schema 三表独立 (acceptance §2.1).
-//   - ② BPP 单一来源 — PATCH /status 405 reject (admin god-mode 也拒绝, ADM-0 ⑦
-//     red-line 同源, acceptance §2.5).
-//   - ③ 文案三态 — schema 仅 2 态, API 暴露 5 态, client UI 进一步合并显示
-//     (本 PR server-side 暴露 5 态 byte-identical 跟 acceptance §2.1 字面对齐).
+// 设计约束 pins exercised (al-1b-spec.md §0 + acceptance §2):
+//   - 设计第 1 条 分清三路径 — busy/idle 跟 AL-3 presence + AL-4 runtime 分清,
+//     此 spec 5-state 合并仅在 API 层 (本 handler), schema 三表独立 (acceptance §2.1).
+//   - 设计第 2 条 BPP 单一来源 — PATCH /status 405 reject (admin god-mode 也拒绝,
+//     ADM-0 第 7 条 red-line 同源, acceptance §2.5).
+//   - 设计第 3 条 文案三态 — schema 仅 2 态, API 暴露 5 态, client UI 进一步合并显示
+//     (本 PR server-side 暴露 5 态字节级一致 跟 acceptance §2.1 字面对齐).
 //
 // 5-state 合并优先级 (acceptance §2.1):
 //
@@ -45,7 +45,7 @@ func al1b2Setup(t *testing.T) (url string, ownerTok string, s *store.Store, agen
 
 // TestAL_GetStatus_NoRowFallsBackToOnlineOffline pins acceptance §2.1
 // priority step 3 — 没有 BPP frame 上行过的 agent (agent_status 无 row)
-// 走 AL-1a online/offline 退化 (Snapshot 默认 offline). 设计 ① 真分清三路径
+// 走 AL-1a online/offline 退化 (Snapshot 默认 offline). 设计第 1 条 分清三路径
 // — busy/idle 须显式 row, 不假装.
 func TestAL_GetStatus_NoRowFallsBackToOnlineOffline(t *testing.T) {
 	t.Parallel()
@@ -69,7 +69,7 @@ func TestAL_GetStatus_NoRowFallsBackToOnlineOffline(t *testing.T) {
 
 // TestAL_GetStatus_BusyFromAgentStatusRow pins acceptance §2.1 step 2
 // + §2.2: BPP `task_started` frame 触发 SetAgentTaskStarted → state='busy'
-// + last_task_id + last_task_started_at; GET /status 返 byte-identical.
+// + last_task_id + last_task_started_at; GET /status 返字节级一致.
 func TestAL_GetStatus_BusyFromAgentStatusRow(t *testing.T) {
 	t.Parallel()
 	url, tok, st, agentID := al1b2Setup(t)
@@ -127,9 +127,9 @@ func TestAL_GetStatus_IdleFromAgentStatusRow(t *testing.T) {
 	}
 }
 
-// TestAL_PatchStatusReturns405 pins acceptance §2.5 + 设计 ② BPP 单一来源
+// TestAL_PatchStatusReturns405 pins acceptance §2.5 + 设计第 2 条 BPP 单一来源
 // — PATCH /status 405 reject for owner. Admin god-mode 同样 reject 跟
-// AL-4.2 admin god-mode 反向约束同源 (ADM-0 ⑦ red-line).
+// AL-4.2 admin god-mode 反向约束同源 (ADM-0 第 7 条 red-line).
 func TestAL_PatchStatusReturns405(t *testing.T) {
 	t.Parallel()
 	url, tok, _, agentID := al1b2Setup(t)
@@ -160,7 +160,7 @@ func TestAL_PatchStatusAdminAlsoRejected(t *testing.T) {
 		"state": "idle",
 	})
 	if resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("admin PATCH /status: status=%d, want 405 (god-mode also rejected, 设计 ② BPP 单一来源)", resp.StatusCode)
+		t.Errorf("admin PATCH /status: status=%d, want 405 (god-mode also rejected, 设计第 2 条 BPP 单一来源)", resp.StatusCode)
 	}
 }
 
@@ -221,8 +221,8 @@ func TestAL_ReapStaleBusyToIdle(t *testing.T) {
 	}
 }
 
-// TestAL_NoDomainBleed_Response pins acceptance §1.5 + spec §0 设计 ①
-// 反向约束 — 5-state 合并响应不泄漏 schema 内列名 (反断 server 不返
+// TestAL_NoDomainBleed_Response pins acceptance §1.5 + spec §0 设计第 1 条
+// 反向约束 — 5-state 合并响应不泄漏 schema 内列名 (反向断言 server 不返
 // is_online / endpoint_url / process_kind / last_error_reason raw 文本).
 // 跟 al_4_2 admin god-mode reason raw 反向约束同源.
 func TestAL_NoDomainBleed_Response(t *testing.T) {
@@ -244,7 +244,7 @@ func TestAL_NoDomainBleed_Response(t *testing.T) {
 		"source", "set_by",
 	} {
 		if _, has := data[forbidden]; has {
-			t.Errorf("response leaks forbidden field %q (反向约束 broken, acceptance §1.5 + spec §0 设计 ①②)", forbidden)
+			t.Errorf("response leaks forbidden field %q (反向约束 broken, acceptance §1.5 + spec §0 设计第 1+2 条)", forbidden)
 		}
 	}
 }

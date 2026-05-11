@@ -5,7 +5,7 @@
 //
 // Acceptance pins:
 //   - §行为不变量 4.1.a — 每种 admin action 类型 → 自动写一行 admin_actions
-//   - §行为不变量 4.1.b — 受影响者必收 system DM (body byte-identical 跟
+//   - §行为不变量 4.1.b — 受影响者必收 system DM (body 字节级一致 跟
 //     content-lock §1, admin_username 非 raw UUID)
 package api_test
 
@@ -19,7 +19,7 @@ import (
 )
 
 // TestADM_ForceDeleteChannel_WritesAuditAndSystemDM pins acceptance
-// 4.1.a (audit row written) + 4.1.b (system DM body byte-identical).
+// 4.1.a (audit row written) + 4.1.b (system DM body 字节级一致).
 func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -81,7 +81,7 @@ func TestADM_ForceDeleteChannel_WritesAuditAndSystemDM(t *testing.T) {
 		t.Errorf("expected 1 system DM in owner's #welcome containing 'doomed-channel', got %d", msgCount)
 	}
 
-	// 反向断言: DM body 不含 raw UUID-looking actor_id (设计 ②
+	// 反向断言: DM body 不含 raw UUID-looking actor_id (设计第 2 条
 	// ADM2-NEG-001 — admin_username 必须是具体名).
 	var bodies []string
 	s.DB().Raw(`SELECT m.content FROM messages m
