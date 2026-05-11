@@ -1,13 +1,13 @@
 // DM-3.2 — useDMSync hook
 //
-// 立场 (跟 dm-3-stance-checklist.md §1):
+// DM sync rules (from dm-3-stance-checklist.md §1):
 //   ① DM cursor 复用 RT-1.3 既有 sequence
 //   ② 多端走 RT-3 fan-out, 不订阅 dm-only frame
 //   ④ 复用 useArtifactUpdated / lastSeenCursor 模式 — sessionStorage
 //      `dm:<channelID>:cursor` round-trip
 //
-// 反约束: 不订阅 `borgee:dm-sync` 等 dm-only frame, 不开 dmSubscribe API
-// (DM 视角的多端同步走普通 channel push 同 path).
+// Do not subscribe to dm-only frames such as `borgee:dm-sync`, and do not
+// add a dmSubscribe API. DM multi-device sync uses the normal channel push path.
 //
 // API:
 //   const { lastSeenCursor, markSeen } = useDMSync(dmChannelID);
@@ -69,7 +69,7 @@ export function __resetDMCursorForTests(dmChannelID: string): void {
 /**
  * useDMSync — React hook for tracking the high-water cursor of a DM
  * channel across tabs / page reloads. Pure client behavior; no WS subscription
- * (立场 ② — DM frames flow through the existing per-channel push path).
+ * (rule ② — DM frames flow through the existing per-channel push path).
  *
  * Returns:
  *   lastSeenCursor — current persisted value (initial render reads sessionStorage)

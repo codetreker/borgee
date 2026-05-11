@@ -100,7 +100,7 @@ export function useInvitationFrames(handlers: {
 // Same precedent as invitation frames: useWebSocket.ts decodes the frame
 // then calls dispatchArtifactUpdated; ArtifactPanel listens via
 // useArtifactUpdated(handler) — handler decides whether to re-fetch
-// (cheap + authoritative). 立场 ⑤: envelope is signal-only, body comes
+// (cheap + authoritative). Rule ⑤: envelope is signal-only, body comes
 // from GET /api/v1/artifacts/:id (the handler call).
 
 export function dispatchArtifactUpdated(frame: ArtifactUpdatedFrame): void {
@@ -126,9 +126,9 @@ export function useArtifactUpdated(
 // Same precedent as artifact_updated: useWebSocket.ts decodes the frame
 // then calls dispatchMentionPushed; MessageList listens via
 // useMentionPushed(handler) — handler decides whether to refetch
-// channel messages (cheap + authoritative). 立场 ② envelope is
+// channel messages (cheap + authoritative). Rule ② envelope is
 // signal-only — client MUST NOT use body_preview as message body
-// (反约束: server has truncated to 80 runes for privacy §13; full body
+// (server has truncated to 80 runes for privacy §13; full body
 // arrives via the existing message backfill path).
 
 export function dispatchMentionPushed(frame: MentionPushedFrame): void {
@@ -156,8 +156,8 @@ export function useMentionPushed(
 // AnchorThreadPanel listens via useAnchorCommentAdded(handler) — handler
 // decides whether to refetch the anchor thread via GET
 // /api/v1/artifacts/:id/anchors + comments (cheap + authoritative).
-// 立场 ③ envelope is signal-only — frame carries no body. body arrives
-// via the existing REST pull path (反约束: client must NOT use
+// Rule ③ envelope is signal-only — frame carries no body. body arrives
+// via the existing REST pull path (client must NOT use
 // AnchorCommentAddedFrame to render comment text — it has no `body`).
 
 export function dispatchAnchorCommentAdded(frame: AnchorCommentAddedFrame): void {
@@ -185,8 +185,8 @@ export function useAnchorCommentAdded(
 // listens via useIterationStateChanged(handler) — handler decides whether
 // to refetch the iteration via GET /api/v1/artifacts/:id/iterations/:iid
 // or splice locally on state change. envelope is signal-only — frame
-// carries no intent_text (privacy constraint ADM-0 §1.3, intent_text 走 GET
-// 拉, push 仅 state 信号).
+// carries no intent_text (privacy constraint ADM-0 §1.3; intent_text is
+// fetched via GET, push only carries the state signal).
 
 export function dispatchIterationStateChanged(
   frame: IterationStateChangedFrame,
@@ -216,7 +216,7 @@ export function useIterationStateChanged(
 // useArtifactCommentAdded(handler) and refetches via GET
 // /api/v1/artifacts/:id/comments (cheap + authoritative).
 //
-// 立场 ② envelope is signal-only — full body arrives via REST
+// Rule ② envelope is signal-only — full body arrives via REST
 // pull (channel-member ACL). body_preview 80 rune (隐私 §13)
 // is for badge/toast preview only, NOT the rendered comment text.
 
