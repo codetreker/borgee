@@ -1,17 +1,18 @@
 # Canvas Modal (gh#691) — implementation note
 
-> gh#691 (PR #699) — 替换 canvas 路径上的 `window.confirm` / `window.prompt` 系统弹窗.
+> gh#691 — 替换 canvas 路径上的 `window.confirm` / `window.prompt` 系统弹窗.
 > 蓝图: `canvas-vision.md` §1.1 (canvas 是 artifact 工作面) + §1.6 (canvas modal a11y).
 
 ## 1. 设计
 
-canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window.confirm` / `window.prompt` 浏览器原生弹窗 (UX 跟 borgee 整体设计风格不一致, 移动端 web view 弹窗样式难看, 不可定制). 改成应用内 `InlineConfirmModal`.
+canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window.confirm` / `window.prompt` 浏览器原生弹窗. Native browser dialogs do not match the Borgee UI, are not customizable, and render inconsistently in mobile web views. These flows use the in-app `InlineConfirmModal` instead.
 
-反向约束:
-- ① canvas 路径grep 检查 `window.confirm` / `window.prompt` 命中 0 (反系统弹窗回潮)
-- ② 不引第三方 modal 库 (react-modal / radix-ui) — 走自家 InlineConfirmModal 跟 borgee 整体视觉一致
-- ③ a11y 完整 (role=dialog + aria-modal + aria-labelledby + autoFocus + focus return)
-- ④ mobile / IME 守卫 (form onSubmit + onKeyDown isComposing 反中文输入法 Enter 误触)
+Negative constraints:
+
+- ① canvas path grep for `window.confirm` / `window.prompt` returns 0 hits (prevents native dialogs from being reintroduced)
+- ② no third-party modal library (react-modal / radix-ui); use `InlineConfirmModal` so the UI remains consistent
+- ③ complete a11y behavior (role=dialog + aria-modal + aria-labelledby + autoFocus + focus return)
+- ④ mobile / IME guards (form onSubmit + onKeyDown isComposing prevents accidental submit from Chinese IME Enter)
 
 ## 2. Component (`packages/client/src/components/InlineConfirmModal.tsx`)
 
@@ -29,13 +30,14 @@ canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window
 ```
 
 a11y 出处:
+
 - `role="dialog"`
 - `aria-modal="true"`
 - `aria-labelledby={titleId}` — 关到 `<h3 id={titleId}>` title 节点
 - 打开时 `autoFocus` 落在主按钮 (confirm)
 - 关闭时 focus 返回触发按钮 (`useEffect` 存 `previouslyFocused = document.activeElement`)
-- ESC 关闭 走 `onCancel`
-- 反 click outside 关闭 (反误关丢用户输入)
+- ESC closes through `onCancel`
+- outside click does not close the modal, preventing accidental loss of user input
 
 ## 3. Inline prompt 模式 (替 window.prompt)
 
@@ -52,36 +54,40 @@ a11y 出处:
 />
 ```
 
-IME 守卫 (中文输入法 Enter 选词时不应触发提交):
-- `<form onSubmit={handleSubmit}>` 包裹 — 反 button onClick 直接调 (Enter 在 input 触发 form submit, 但 IME composition 期间浏览器 swallow Enter, 不传到 submit 路径)
-- `onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit(); }}` 保底 (反某些浏览器/IME 不 swallow Enter)
+IME guard (Chinese IME Enter selects text and should not submit):
 
-## 4. Mobile 守卫
+- `<form onSubmit={handleSubmit}>` wrapper: Enter in the input triggers form submit, while browsers usually suppress Enter during IME composition.
+- `onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit(); }}` is the fallback for browsers/IME combinations that do not suppress Enter.
 
-mobile 路径 (`<480px viewport`):
+## 4. Mobile checks
+
+mobile path (`<480px viewport`):
+
 - modal 全屏 (`position: fixed; inset: 0`)
-- 输入字段自动 focus (反 mobile 软键盘不弹)
-- 反 sidebar overlay 撞 modal — modal `z-index: 1000` 高于 sidebar overlay 100
+- input field auto-focuses so the mobile keyboard opens
+- modal `z-index: 1000` stays above sidebar overlay `z-index: 100`
 
-## 5. 替换路径真量
+## 5. Replacement coverage
 
 `packages/client/src/components/CanvasView.tsx` + `ArtifactDrawer.tsx` 等 canvas 路径:
 
-| 之前 | 之后 |
-|---|---|
-| `if (window.confirm('删除?')) { ... }` | `<InlineConfirmModal variant="danger" .../>` |
-| `const name = window.prompt('新名字'); if (name) { ... }` | `<InlineInputModal .../>` |
-| `alert('保存失败')` | `showToast('保存失败')` (跟 #710 / #708 复用 Toast 同 stack) |
+| 之前                                                      | 之后                                                         |
+| --------------------------------------------------------- | ------------------------------------------------------------ |
+| `if (window.confirm('删除?')) { ... }`                    | `<InlineConfirmModal variant="danger" .../>`                 |
+| `const name = window.prompt('新名字'); if (name) { ... }` | `<InlineInputModal .../>`                                    |
+| `alert('保存失败')`                                       | `showToast('保存失败')` (跟 #710 / #708 复用 Toast 同 stack) |
 
 grep 检查:
+
 - canvas 路径 `window.confirm` / `window.prompt` 命中 0
 - canvas 路径 `alert(` 命中 0 (走 Toast)
 - `<InlineConfirmModal` / `<InlineInputModal` 命中 ≥1 (替换真有)
 
-## 6. e2e 守卫 pattern (#691 design v2 升级)
+## 6. e2e guard pattern (#691 design v2 upgrade)
 
-之前用 Playwright `page.on('dialog')` listener throw 抓系统弹窗 — 但 throw 在 listener 是异步 unhandled rejection, 不 fail 步, 测试假绿. 改 flag-based:
+Earlier tests used a Playwright `page.on('dialog')` listener that threw when a native dialog appeared. That throw became an asynchronous unhandled rejection and did not fail the test step reliably. The guard now uses a flag-based pattern:
 
+<!-- prettier-ignore -->
 ```ts
 let dialogTriggered = false;
 page.on('dialog', async (dialog) => {
@@ -104,4 +110,3 @@ canvas-modal-accessibility / comment-anchor-scroll / artifact-renderer-types / c
 
 - 蓝图: `canvas-vision.md` §1.1 (canvas artifact 工作面) + §1.6 (a11y)
 - design: `docs/implementation/design/691-canvas-modal-replace-system-dialogs.md`
-- PR: #699 (Closes gh#691)
