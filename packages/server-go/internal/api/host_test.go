@@ -2,12 +2,13 @@
 // monitor acceptance §1+§2+§3.
 //
 // Pins:
-//   REG-HB6-001 TestHost_NoSchemaChange + WindowSecondsByteIdentical
-//   REG-HB6-002 TestHB_AggregateLag_PercentileCorrect
-//   REG-HB6-003 TestHB_WindowCutoffExcludesStale
-//   REG-HB6-004 TestHB_AdminHappyPath + _NonAdmin401 + _NoUserRailPath
-//   REG-HB6-005 TestHB_AtRiskReasonByteIdentical
-//   REG-HB6-006 TestHB_NoAdminWritePath + _NoLagSampleQueue (AST scan)
+//
+//	REG-HB6-001 TestHost_NoSchemaChange + WindowSecondsByteIdentical
+//	REG-HB6-002 TestHB_AggregateLag_PercentileCorrect
+//	REG-HB6-003 TestHB_WindowCutoffExcludesStale
+//	REG-HB6-004 TestHB_AdminHappyPath + _NonAdmin401 + _NoUserRailPath
+//	REG-HB6-005 TestHB_AtRiskReasonByteIdentical
+//	REG-HB6-006 TestHB_NoAdminWritePath + _NoLagSampleQueue (AST scan)
 package api_test
 
 import (
@@ -25,7 +26,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-HB6-001 — 0 schema 改 (grep 检查 migrations/hb_6_).
+// REG-HB6-001 — no schema changes (grep check for migrations/hb_6_).
 func TestHost_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -36,24 +37,24 @@ func TestHost_NoSchemaChange(t *testing.T) {
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasPrefix(name, "hb_6_") {
-			t.Errorf("HB-6 设计第 1 条 broken — found schema migration file %q (must be 0 schema)", name)
+			t.Errorf("HB-6 design item 1 broken — found schema migration file %q (must be 0 schema)", name)
 		}
 	}
 }
 
-// REG-HB6-001b — WindowSeconds 字节级一致 跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
+// REG-HB6-001b — WindowSeconds is byte-identical with BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
 func TestHB_WindowSecondsByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.WindowSeconds != 30 {
-		t.Errorf("WindowSeconds: got %d, want 30 (跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS 同源)", api.WindowSeconds)
+		t.Errorf("WindowSeconds: got %d, want 30 (same source as BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS)", api.WindowSeconds)
 	}
-	// grep 检查 BPP-4 watchdog source — 锁 30 字面.
+	// Grep-check BPP-4 watchdog source — lock the 30 literal.
 	body, err := os.ReadFile(filepath.Join("..", "bpp", "heartbeat_watchdog.go"))
 	if err != nil {
 		t.Fatalf("read bpp watchdog: %v", err)
 	}
 	if !strings.Contains(string(body), "BPP_HEARTBEAT_TIMEOUT_SECONDS = 30") {
-		t.Error("BPP-4 watchdog 30s 字面漂移 — HB-6 WindowSeconds 双向锁 broken")
+		t.Error("BPP-4 watchdog 30s literal drifted — HB-6 WindowSeconds bidirectional lock broken")
 	}
 }
 

@@ -1,12 +1,13 @@
 // Package api_test — chn_14_description_history_test.go: CHN-14 server
-// description edit history audit unit tests + grep 检查守门.
+// description edit history audit unit tests + grep guard checks.
 //
 // Pins:
-//   REG-CHN14-002 TestCHN142_UpdateChannelDescription_AppendsHistory + MultipleEdits + SameContent_NoAppend
-//   REG-CHN14-003 TestCHN142_GetHistory_HappyPath + NonOwnerRejected + EmptyHistory + Unauthorized
-//   REG-CHN14-004 TestCHN_GetHistoryAdmin_HappyPath + NoAdminPatchDeletePath
-//   REG-CHN14-005 TestCHN_CHN10HandlePutByteIdentical
-//   REG-CHN14-006 TestCHN_NoDescriptionHistoryQueue (AST 对齐链延伸第 22 处)
+//
+//	REG-CHN14-002 TestCHN142_UpdateChannelDescription_AppendsHistory + MultipleEdits + SameContent_NoAppend
+//	REG-CHN14-003 TestCHN142_GetHistory_HappyPath + NonOwnerRejected + EmptyHistory + Unauthorized
+//	REG-CHN14-004 TestCHN_GetHistoryAdmin_HappyPath + NoAdminPatchDeletePath
+//	REG-CHN14-005 TestCHN_CHN10HandlePutByteIdentical
+//	REG-CHN14-006 TestCHN_NoDescriptionHistoryQueue (AST alignment chain extension #22)
 package api_test
 
 import (
@@ -23,7 +24,7 @@ import (
 
 // REG-CHN14-002a/b/c — UpdateChannelDescription store-layer behaviors.
 // Consolidated into one parent test sharing one fixture server (reduces
-// race-detector load: 3 servers → 1; 团队 race budget 优化).
+// race-detector load: 3 servers -> 1; team race budget optimization).
 func TestCHN_UpdateChannelDescription_Behaviors(t *testing.T) {
 	t.Parallel()
 	_, s, _ := testutil.NewTestServer(t)
@@ -104,7 +105,7 @@ func TestCHN_UpdateChannelDescription_Behaviors(t *testing.T) {
 }
 
 // REG-CHN14-003 GET endpoints — consolidated into one parent server
-// (4 servers → 1 server; 减 race-detector 重复 setup 负担).
+// (4 servers -> 1 server; reduces repeated race-detector setup cost).
 func TestCHN_GetHistory_Endpoints(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -207,7 +208,7 @@ func TestCHN_GetHistoryAdmin_HappyPath(t *testing.T) {
 	}
 }
 
-// REG-CHN14-004b — admin god-mode 不挂 PATCH/DELETE grep 守门.
+// REG-CHN14-004b — admin god-mode does not mount PATCH/DELETE; grep guard.
 func TestCHN_NoAdminPatchDeletePath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
@@ -230,9 +231,9 @@ func TestCHN_NoAdminPatchDeletePath(t *testing.T) {
 	}
 }
 
-// REG-CHN14-005 — CHN-10 #561 chn_10_description.go::handlePut 字节级一致
-// (owner-only ACL + length cap 500 + 5 个既有字面 must-contain; UpdateChannel 改
-// UpdateChannelDescription 包装单字符串改, 其它字节级一致).
+// REG-CHN14-005 — CHN-10 #561 chn_10_description.go::handlePut is byte-identical
+// (owner-only ACL + length cap 500 + five existing literals must-contain; UpdateChannel
+// changes only to the UpdateChannelDescription wrapper string, all other bytes match).
 func TestCHN_CHN10HandlePutByteIdentical(t *testing.T) {
 	t.Parallel()
 	body, err := os.ReadFile(filepath.Join("..", "api", "channel_description.go"))
@@ -242,34 +243,34 @@ func TestCHN_CHN10HandlePutByteIdentical(t *testing.T) {
 	src := string(body)
 	idx := strings.Index(src, "func (h *ChannelDescriptionHandler) handlePut")
 	if idx < 0 {
-		t.Fatalf("既有 chn_10 handlePut 不存在 — 边界第 4 条 broken")
+		t.Fatalf("existing chn_10 handlePut is missing — boundary item 4 broken")
 	}
 	end := idx + 2500
 	if end > len(src) {
 		end = len(src)
 	}
 	block := src[idx:end]
-	// 5 个既有字面 must-contain (CHN-10 #561 字节级一致).
+	// Five existing literals must-contain (CHN-10 #561 byte-identical guard).
 	for _, must := range []string{
 		"channelId",
 		"DescriptionMaxLength",
 		"500 characters",
 		"Only the channel owner",
-		"UpdateChannelDescription", // CHN-14 包装替换 UpdateChannel
+		"UpdateChannelDescription", // CHN-14 wrapper replaces UpdateChannel.
 	} {
 		if !strings.Contains(block, must) {
-			t.Errorf("chn_10 handlePut block 漂走既有字面 %q", must)
+			t.Errorf("chn_10 handlePut block lost existing literal %q", must)
 		}
 	}
-	// chn_14 字面 0 hit (CHN-14 是 wrapper 在 store 层, 不在 handler 内).
+	// chn_14 literals must have 0 hits (CHN-14 wrapper is in the store layer, not the handler).
 	for _, tok := range []string{"chn_14", "chn14", "CHN14"} {
 		if strings.Contains(block, tok) {
-			t.Errorf("chn_10 handlePut 漂入 chn_14 — token %q (边界第 4 条 broken)", tok)
+			t.Errorf("chn_10 handlePut drifted into chn_14 — token %q (boundary item 4 broken)", tok)
 		}
 	}
 }
 
-// REG-CHN14-006 — AST 对齐链延伸第 22 处 forbidden 3 token.
+// REG-CHN14-006 — AST alignment chain extension #22 forbids three tokens.
 func TestCHN_NoDescriptionHistoryQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -288,7 +289,7 @@ func TestCHN_NoDescriptionHistoryQueue(t *testing.T) {
 		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
 			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐链延伸第 22 处 broken — token %q in %s", tok, p)
+				t.Errorf("AST alignment chain extension #22 broken — token %q in %s", tok, p)
 			}
 		}
 		return nil

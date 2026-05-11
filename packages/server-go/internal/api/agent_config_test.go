@@ -1,18 +1,18 @@
 // Package api_test — al_2a_2_agent_config_test.go: AL-2a.2 server-side
 // agent_configs REST acceptance tests (acceptance #264 §4.1.a-d).
 //
-// 约定 pins exercised:
-//   - 蓝图 §1.4 单一来源 设计 — blob 仅 Borgee 管字段 (name/avatar/prompt/model/
-//     capabilities/enabled/memory_ref); runtime-only 字段 (api_key/temperature/
+// Contract pins exercised:
+//   - Blueprint §1.4 single source of truth — blob only stores Borgee-owned fields (name/avatar/prompt/model/
+//     capabilities/enabled/memory_ref); runtime-only fields (api_key/temperature/
 //     token_limit/retry_policy) fail-closed reject.
-//   - 蓝图 §1.5 BPP frame 约束 — AL-2a 不挂 push frame, agent 端轮询
-//     reload (本测试 GET 周期性, 不订阅 ws).
-//   - acceptance §4.1.a 并发 update 末次胜出 + schema_version 严格递增 +
-//     无丢失.
+//   - Blueprint §1.5 BPP frame constraint — AL-2a does not mount a push frame;
+//     agent-side reloads are polling-based (this test uses GET, not ws subscription).
+//   - acceptance §4.1.a concurrent update last-write-wins + strictly increasing
+//     schema_version + no lost writes.
 //   - acceptance §4.1.b cross-owner reject 403.
 //   - acceptance §4.1.c reflect scan fail-closed (runtime-only field reject).
-//   - acceptance §4.1.d agent 端轮询 reload mismatch test (PATCH 后 GET 立即返
-//     新 blob + version, 无 cache 不刷).
+//   - acceptance §4.1.d agent-side polling reload mismatch test (GET immediately
+//     after PATCH returns the new blob + version, with no stale cache).
 package api_test
 
 import (
@@ -64,14 +64,14 @@ func TestAL_GetEmpty(t *testing.T) {
 
 // TestAL_PatchAndGet pins acceptance §4.1.a + §4.1.d — PATCH writes
 // blob + bumps schema_version; subsequent GET returns the same blob
-// + monotonic version (mismatch test 防 cache 不刷).
+// + monotonic version (mismatch test prevents stale cache reads).
 func TestAL_PatchAndGet(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	token := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	agentID := al2a2CreateAgent(t, ts.URL, token, "AL2A2-PatchGet")
 
-	// First PATCH — schema_version 0 → 1.
+	// First PATCH — schema_version 0 -> 1.
 	resp1, body1 := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID+"/config", token,
 		map[string]any{"blob": map[string]any{"name": "Alpha", "model": "claude-3"}})
 	if resp1.StatusCode != http.StatusOK {
@@ -94,7 +94,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 		t.Errorf("blob mismatch: %v", blob)
 	}
 
-	// Second PATCH — version 1 → 2, blob replaced (整体替换 单一来源 语义).
+	// Second PATCH — version 1 -> 2, blob replaced (whole-blob single-source semantics).
 	resp3, body3 := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID+"/config", token,
 		map[string]any{"blob": map[string]any{"name": "Beta"}})
 	if resp3.StatusCode != http.StatusOK {
@@ -103,7 +103,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 	if v, _ := body3["schema_version"].(float64); v != 2 {
 		t.Errorf("expected schema_version=2 after second PATCH, got %v", body3["schema_version"])
 	}
-	// Blob is REPLACED not merged (单一来源 设计 — model 字段消失).
+	// Blob is REPLACED, not merged (single-source design — model field disappears).
 	resp4, body4 := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", token, nil)
 	if resp4.StatusCode != http.StatusOK {
 		t.Fatalf("GET2 expected 200, got %d", resp4.StatusCode)
@@ -113,7 +113,7 @@ func TestAL_PatchAndGet(t *testing.T) {
 		t.Errorf("expected name=Beta, got %v", blob2["name"])
 	}
 	if _, has := blob2["model"]; has {
-		t.Error("blob should be replaced (单一来源), but model field still present")
+		t.Error("blob should be replaced as the single source, but model field is still present")
 	}
 }
 
@@ -126,12 +126,12 @@ func TestAL_CrossOwnerReject(t *testing.T) {
 	memberToken := testutil.LoginAs(t, ts.URL, "member@test.com", "password123")
 	agentID := al2a2CreateAgent(t, ts.URL, ownerToken, "AL2A2-Owned")
 
-	// Member tries GET → 403.
+	// Member tries GET -> 403.
 	respGet, _ := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", memberToken, nil)
 	if respGet.StatusCode != http.StatusForbidden {
 		t.Errorf("cross-owner GET: expected 403, got %d", respGet.StatusCode)
 	}
-	// Member tries PATCH → 403.
+	// Member tries PATCH -> 403.
 	respPatch, _ := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID+"/config", memberToken,
 		map[string]any{"blob": map[string]any{"name": "Hijack"}})
 	if respPatch.StatusCode != http.StatusForbidden {
@@ -152,7 +152,7 @@ func TestAL_RuntimeFieldRejected(t *testing.T) {
 		t.Run(forbidden, func(t *testing.T) {
 			resp, body := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID+"/config", token,
 				map[string]any{"blob": map[string]any{
-					"name":     "OK",
+					"name":    "OK",
 					forbidden: "should-reject",
 				}})
 			if resp.StatusCode != http.StatusBadRequest {
@@ -185,7 +185,7 @@ func TestAL_InvalidPayload(t *testing.T) {
 }
 
 // TestAL_ConcurrentLastWriteWins pins acceptance §4.1.a — concurrent
-// PATCH 并发 → no rows lost + schema_version monotonic + final state
+// concurrent PATCH calls -> no rows lost + schema_version monotonic + final state
 // from one of the writers (last-write-wins).
 func TestAL_ConcurrentLastWriteWins(t *testing.T) {
 	t.Parallel()
@@ -206,7 +206,7 @@ func TestAL_ConcurrentLastWriteWins(t *testing.T) {
 	wg.Wait()
 
 	// Final state — schema_version must equal exactly N (no lost writes,
-	// monotonic increment per UPSERT). One of the N writers' name字段 wins.
+	// monotonic increment per UPSERT). One of the N writers' name fields wins.
 	resp, body := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", token, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET after concurrent PATCH: %d", resp.StatusCode)
@@ -223,16 +223,16 @@ func TestAL_ConcurrentLastWriteWins(t *testing.T) {
 	}
 }
 
-// TestAL_AdminAPINotMounted pins ADM-0 §1.3 红线 — admin god-mode does
+// TestAL_AdminAPINotMounted pins ADM-0 §1.3 boundary — admin god-mode does
 // **not** mount agent_configs via /admin-api/* (acceptance §4.1.c implicit:
-// runtime path 与 admin path 分立).
+// runtime path remains separate from the admin path).
 func TestAL_AdminAPINotMounted(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	token := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	agentID := al2a2CreateAgent(t, ts.URL, token, "AL2A2-Admin")
 
-	// /admin-api/v1/agents/:id/config 路径不存在 (404 by mux).
+	// /admin-api/v1/agents/:id/config is not mounted (404 by mux).
 	resp, _ := testutil.JSON(t, "GET", ts.URL+"/admin-api/v1/agents/"+agentID+"/config", token, nil)
 	if resp.StatusCode == http.StatusOK {
 		t.Errorf("admin-api/agent_config should NOT be mounted, got 200")
@@ -240,7 +240,7 @@ func TestAL_AdminAPINotMounted(t *testing.T) {
 }
 
 // TestAL_AgentNotFound covers GET/PATCH 404 path — bogus agent_id
-// 返 404 Not Found (uncovered branch, coverage 后续).
+// returns 404 Not Found (previously uncovered branch).
 func TestAL_AgentNotFound(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -259,14 +259,14 @@ func TestAL_AgentNotFound(t *testing.T) {
 }
 
 // TestAL_UnauthorizedNoToken covers GET/PATCH 401 path — no auth token
-// 返 401 (uncovered auth branch, coverage 后续).
+// returns 401 (previously uncovered auth branch).
 func TestAL_UnauthorizedNoToken(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 	token := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	agentID := al2a2CreateAgent(t, ts.URL, token, "AL2A2-NoAuth")
 
-	// 无 token (空字符串) — auth middleware reject 401.
+	// No token (empty string) — auth middleware rejects with 401.
 	respGet, _ := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/config", "", nil)
 	if respGet.StatusCode != http.StatusUnauthorized {
 		t.Errorf("GET no-token: expected 401, got %d", respGet.StatusCode)
@@ -279,7 +279,7 @@ func TestAL_UnauthorizedNoToken(t *testing.T) {
 }
 
 // TestAL_PatchInvalidJSON covers JSON parse failure path — malformed
-// JSON body 触发 decoder error → 400 invalid_payload (uncovered edge).
+// JSON body triggers a decoder error -> 400 invalid_payload (edge coverage).
 func TestAL_PatchInvalidJSON(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -321,7 +321,7 @@ func TestAL_GetCorruptBlob(t *testing.T) {
 }
 
 // TestAL_HandlerNowInjection pins now() injectable clock branch (66.7%
-// → 100%) — handler with custom Now func returns deterministic timestamp.
+// -> 100%) — handler with custom Now func returns deterministic timestamp.
 // Direct unit test on the handler struct, not via HTTP.
 func TestAL_HandlerNowInjection(t *testing.T) {
 	t.Parallel()
