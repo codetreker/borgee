@@ -1,25 +1,25 @@
-// ws-frames.ts — RT-0 (#40) client-side TypeScript interfaces for the
+// ws-frames.ts — RT-0 (#40) client TypeScript interfaces for the
 // agent invitation push frames defined in docs/blueprint/current/realtime.md §2.3.
 //
 // Phase 2 路线: server pushes these via the existing /ws hub; Phase 4 BPP
 // will swap the wire layer without changing the schema. The CI lint
 // (frame_schemas.go vs ws/event_schemas.go byte-identical) is the hard
 // guarantee — these TS interfaces mirror that lock so client handler
-// stays 0-改 across the swap.
+// remains unchanged across the swap.
 //
 // 字段顺序保留 (跟 server Go struct 字面对得上):
 //   pending : invitation_id, requester_user_id, agent_id, channel_id,
 //             created_at, expires_at
 //   decided : invitation_id, state, decided_at
 //
-// Out of scope here: server-side push impl, BPP frame envelope. The
+// Out of scope here: server push implementation, BPP frame envelope. The
 // dispatcher consumes these via useWebSocket's existing `data.type`
 // switch — see hooks/useWsHubFrames.ts for the listener side.
 
 /**
- * `agent_invitation_pending` — owner 端收到的"有人想拉你的 agent 进
- * channel"通知。Replaces the 60s polling on the bell badge per 野马
- * G2.4 hardline (latency ≤ 3s).
+ * `agent_invitation_pending` — owner receives a notification that another
+ * user requested adding the owner's agent to a channel. Replaces the 60s
+ * polling on the bell badge per G2.4 latency requirement (latency ≤ 3s).
  */
 export interface AgentInvitationPendingFrame {
   type: 'agent_invitation_pending';
@@ -34,8 +34,8 @@ export interface AgentInvitationPendingFrame {
 }
 
 /**
- * `agent_invitation_decided` — 跨 client 同步邀请状态变更 (owner 在
- * 另一端点了同意/拒绝, 或 server 因过期标记 expired)。
+ * `agent_invitation_decided` — synchronizes invitation state across clients
+ * when the owner approves/rejects elsewhere, or the server marks it expired.
  */
 export interface AgentInvitationDecidedFrame {
   type: 'agent_invitation_decided';
@@ -56,7 +56,7 @@ export type AgentInvitationFrame =
  * to drop their poll loops.
  *
  * Naming follows the existing `commands_updated` precedent in
- * useWebSocket — namespace prefix `borgee:` to avoid clash with native
+ * useWebSocket — namespace prefix `borgee:` to avoid conflicts with native
  * browser events.
  */
 export const INVITATION_PENDING_EVENT = 'borgee:invitation-pending';
@@ -97,22 +97,22 @@ export type ArtifactUpdatedEvent = CustomEvent<ArtifactUpdatedFrame>;
 
 // ─── DM-2.2 MentionPushed frame (#372 envelope) ─────────────
 //
-// Spec: docs/implementation/modules/dm-2.3-spec.md §0 立场 ②③ + 飞马
+// Spec: docs/implementation/modules/dm-2.3-spec.md §0 立场 ②③ +
 // #362 8-field envelope.
 // 锁: server 端 internal/ws/mention_pushed_frame.go::MentionPushedFrame
 // — 8 字段顺序 byte-identical:
 //   {type, cursor, message_id, channel_id, sender_id,
 //    mention_target_id, body_preview, created_at}
 // body_preview is rune-truncated to 80 chars server-side
-// (TruncateBodyPreview); client must NOT re-parse it (反约束: 显示
-// 即真值, 隐私 §13 红线).
+// (TruncateBodyPreview); client must NOT re-parse it (反约束: display
+// exactly as provided, privacy §13 constraint).
 
 /**
  * `mention_pushed` — server → client push fired when a message body
  * `@<target_user_id>` token resolves to an online target. Target-only
- * BroadcastToUser (反约束: 不抄送 owner; offline owner-fallback uses
+ * BroadcastToUser (反约束: owner is not copied; offline owner fallback uses
  * a system DM, not this envelope). MessageList listens via
- * useMentionPushed → actions.loadMessages 触发重渲.
+ * useMentionPushed → actions.loadMessages to trigger a rerender.
  */
 export interface MentionPushedFrame {
   type: 'mention_pushed';
@@ -122,7 +122,7 @@ export interface MentionPushedFrame {
   channel_id: string;
   sender_id: string;
   mention_target_id: string;
-  /** Server-truncated to 80 runes (UTF-8 rune-safe). 立场 ②: 不重解析. */
+  /** Server-truncated to 80 runes (UTF-8 rune-safe). 立场 ②: do not re-parse. */
   body_preview: string;
   /** Unix ms — 仅展示, 不可作排序键 (反约束: server cursor 唯一可信序). */
   created_at: number;
@@ -133,7 +133,7 @@ export type MentionPushedEvent = CustomEvent<MentionPushedFrame>;
 
 // ─── CV-2.2 AnchorCommentAdded frame (#360 envelope) ────────
 //
-// Spec: docs/implementation/modules/cv-2-spec.md §0 立场 ③ + 飞马 v3 字段锁.
+// Spec: docs/implementation/modules/cv-2-spec.md §0 立场 ③ + v3 field lock.
 // Server lock: packages/server-go/internal/ws/anchor_comment_frame.go
 //   AnchorCommentAddedFrame — 10 字段 byte-identical:
 //   {type, cursor, anchor_id, comment_id, artifact_id,
@@ -179,7 +179,7 @@ export type AnchorCommentAddedEvent = CustomEvent<AnchorCommentAddedFrame>;
 //    error_reason, created_artifact_version_id, completed_at}
 //
 // Push 仅信号 (跟 ArtifactUpdated/AnchorComment/MentionPushed 同模式):
-// 不带 intent_text (admin god-mode 字段白名单不含 intent_text — ADM-0
+// 不带 intent_text (admin privileged field whitelist excludes intent_text — ADM-0
 // §1.3 红线 + AL-3 #303 ⑦ + AL-4 #379 v2 同源); body 走 GET
 // /api/v1/artifacts/:id/iterations/:iid 拉.
 //

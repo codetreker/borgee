@@ -12,8 +12,8 @@
 // API:
 //   const { lastSeenCursor, markSeen } = useDMSync(dmChannelID);
 //
-// markSeen(cursor) 仅 monotonic 推进 (cursor > lastSeen 才存), 跟
-// lastSeenCursor.ts persistLastSeenCursor 同精神.
+// markSeen(cursor) advances monotonically: it only stores cursor values
+// greater than lastSeen, matching lastSeenCursor.ts persistLastSeenCursor.
 
 import { useCallback, useEffect, useState } from 'react';
 
@@ -55,7 +55,7 @@ export function persistDMCursor(dmChannelID: string, cursor: number): number {
   const current = loadDMCursor(dmChannelID);
   if (cursor <= current) return current;
   const s = safeStorage();
-  if (!s) return cursor; // best-effort; in-memory fallback omitted for simplicity
+  if (!s) return cursor; // Best effort; in-memory fallback omitted for simplicity.
   s.setItem(storageKey(dmChannelID), String(cursor));
   return cursor;
 }
@@ -68,12 +68,12 @@ export function __resetDMCursorForTests(dmChannelID: string): void {
 
 /**
  * useDMSync — React hook for tracking the high-water cursor of a DM
- * channel across tabs / page reloads. Pure client-side; no WS subscription
+ * channel across tabs / page reloads. Pure client behavior; no WS subscription
  * (立场 ② — DM frames flow through the existing per-channel push path).
  *
  * Returns:
  *   lastSeenCursor — current persisted value (initial render reads sessionStorage)
- *   markSeen(cursor) — monotonic-advance the persisted value
+ *   markSeen(cursor) — advance the persisted value monotonically
  */
 export function useDMSync(dmChannelID: string): {
   lastSeenCursor: number;
@@ -83,7 +83,7 @@ export function useDMSync(dmChannelID: string): {
     loadDMCursor(dmChannelID),
   );
 
-  // Re-load on dmChannelID change (switching DM panes).
+  // Reload on dmChannelID change (switching DM panes).
   useEffect(() => {
     setLastSeenCursor(loadDMCursor(dmChannelID));
   }, [dmChannelID]);

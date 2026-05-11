@@ -8,14 +8,14 @@
 // Why CustomEvent and not a context store: the existing precedent in
 // useWebSocket is `case 'commands_updated': window.dispatchEvent(...)`.
 // InvitationsInbox + Sidebar both already manage their own local
-// state via REST fetch — the simplest "drop the poll, react to push"
-// surgery is "fire an event, they re-fetch". Avoids touching the
+// state via REST fetch — the smallest "drop the poll, react to push"
+// change is "fire an event, they re-fetch". Avoids touching the
 // AppContext reducer for a Phase 2 transitional path that BPP will
 // replace anyway.
 //
 // Phase 2 → Phase 4 contract: when BPP takes over (#40 Phase 4),
-// the server-side change is `hub.Broadcast → bpp.SendFrame`; the
-// client-side handler here stays 0-改 because the schema is locked
+// the server change is `hub.Broadcast → bpp.SendFrame`; the
+// client handler here remains unchanged because the schema is locked
 // byte-identical (see frame_schemas.go CI lint).
 //
 // Wiring: useWebSocket.ts's handleMessage switch adds two cases that
@@ -185,7 +185,7 @@ export function useAnchorCommentAdded(
 // listens via useIterationStateChanged(handler) — handler decides whether
 // to refetch the iteration via GET /api/v1/artifacts/:id/iterations/:iid
 // or splice locally on state change. envelope is signal-only — frame
-// carries no intent_text (privacy red-line ADM-0 §1.3, intent_text 走 GET
+// carries no intent_text (privacy constraint ADM-0 §1.3, intent_text 走 GET
 // 拉, push 仅 state 信号).
 
 export function dispatchIterationStateChanged(
