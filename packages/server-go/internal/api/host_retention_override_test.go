@@ -19,7 +19,7 @@ import (
 
 // TestHB_OverrideEndpointWritesAudit pins acceptance §2.2 — admin POST
 // writes one admin_actions row with action='audit_retention_override'
-// (复用 AL-7 既有 action) + metadata.target='heartbeat'.
+// (reusing the existing AL-7 action) + metadata.target='heartbeat'.
 func TestHB_OverrideEndpointWritesAudit(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -39,7 +39,7 @@ func TestHB_OverrideEndpointWritesAudit(t *testing.T) {
 		t.Errorf("target: got %v, want %q", body["target"], "heartbeat")
 	}
 
-	// Audit row written 复用 AL-7 既有 action + metadata.target='heartbeat'.
+	// Audit row reuses the existing AL-7 action + metadata.target='heartbeat'.
 	var rows []store.AdminAction
 	s.DB().Where("action = ?", "audit_retention_override").Find(&rows)
 	if len(rows) != 1 {
@@ -54,11 +54,11 @@ func TestHB_OverrideEndpointWritesAudit(t *testing.T) {
 		t.Fatalf("metadata not valid JSON: %v", err)
 	}
 	if meta["target"] != "heartbeat" {
-		t.Errorf("metadata.target: got %v, want %q (HB-5 设计 ②)", meta["target"], "heartbeat")
+		t.Errorf("metadata.target: got %v, want %q (HB-5 design item 2)", meta["target"], "heartbeat")
 	}
 }
 
-// TestHB_OverrideRejectsUserRail — 设计 ③ admin-rail only.
+// TestHB_OverrideRejectsUserRail covers design item 3: admin-rail only.
 func TestHB_OverrideRejectsUserRail(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -72,8 +72,8 @@ func TestHB_OverrideRejectsUserRail(t *testing.T) {
 	}
 }
 
-// TestHB_OverrideClampsRetention — 设计 ⑥ clamp 1..365 (复用 auth pkg
-// const 跟 AL-7 同源).
+// TestHB_OverrideClampsRetention covers design item 6: clamp to 1..365,
+// reusing the auth package constant shared with AL-7.
 func TestHB_OverrideClampsRetention(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -157,4 +157,3 @@ func TestHB_Override_WithTargetUserID(t *testing.T) {
 		t.Errorf("with target: got %d, want 200", resp.StatusCode)
 	}
 }
-

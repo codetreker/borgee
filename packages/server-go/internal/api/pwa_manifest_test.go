@@ -2,13 +2,13 @@
 // endpoint tests.
 //
 // Pins:
-//   - Content-Type "application/manifest+json" (W3C 标准 MIME)
+//   - Content-Type "application/manifest+json" (W3C standard MIME)
 //   - Required fields per W3C App Manifest spec subset (name / short_name
 //     / start_url / display / icons)
-//   - display=standalone (蓝图 L22 字面)
-//   - 公开 endpoint (无 auth)
-//   - 约束 endpoint 字面不含 'plugin-manifest' / 'manifest/plugins'
-//     (DL-4 vs HB-1 #491 命名分立)
+//   - display=standalone (blueprint L22 literal)
+//   - Public endpoint (no auth)
+//   - Endpoint naming stays separate from 'plugin-manifest' / 'manifest/plugins'
+//     (DL-4 vs HB-1 #491)
 package api_test
 
 import (
@@ -21,7 +21,7 @@ import (
 )
 
 // TestDL_PWAManifest_PublicEndpoint pins acceptance — GET /api/v1/pwa/manifest
-// 不需 auth (浏览器 install prompt 在 login 前 fetch).
+// requires no auth so browser install prompts can fetch before login.
 func TestDL_PWAManifest_PublicEndpoint(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -38,7 +38,7 @@ func TestDL_PWAManifest_PublicEndpoint(t *testing.T) {
 }
 
 // TestDL_PWAManifest_ContentType pins W3C MIME — Content-Type:
-// application/manifest+json (浏览器 install prompt trigger 识别).
+// application/manifest+json, which browser install prompts recognize.
 func TestDL_PWAManifest_ContentType(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -79,15 +79,15 @@ func TestDL_PWAManifest_RequiredFields(t *testing.T) {
 		}
 	}
 
-	// display=standalone 蓝图 L22 字面
+	// display=standalone is the blueprint L22 literal.
 	if d, _ := m["display"].(string); d != "standalone" {
-		t.Errorf("display = %q, want %q (蓝图 L22 字面)", d, "standalone")
+		t.Errorf("display = %q, want %q (blueprint L22 literal)", d, "standalone")
 	}
 
-	// icons 至少 1 个 + 含 192x192 / 512x512 W3C 推荐基线
+	// Icons include at least the W3C-recommended 192x192 and 512x512 sizes.
 	icons, _ := m["icons"].([]any)
 	if len(icons) < 2 {
-		t.Errorf("icons count = %d, want ≥2 (192x192 + 512x512 W3C 基线)", len(icons))
+		t.Errorf("icons count = %d, want >=2 (192x192 + 512x512 W3C baseline)", len(icons))
 	}
 	hasSize := func(target string) bool {
 		for _, i := range icons {
@@ -99,15 +99,15 @@ func TestDL_PWAManifest_RequiredFields(t *testing.T) {
 		return false
 	}
 	if !hasSize("192x192") {
-		t.Error("icons missing 192x192 (W3C 基线)")
+		t.Error("icons missing 192x192 (W3C baseline)")
 	}
 	if !hasSize("512x512") {
-		t.Error("icons missing 512x512 (W3C 基线)")
+		t.Error("icons missing 512x512 (W3C baseline)")
 	}
 }
 
-// TestDL_PWAManifest_NoSecretsLeak pins 约束 — manifest 内容不含
-// secret / token / api_key / vapid 等字面 (公开 endpoint 隐私防御).
+// TestDL_PWAManifest_NoSecretsLeak pins the privacy constraint: manifest
+// content must not contain secret / token / api_key / vapid literals.
 func TestDL_PWAManifest_NoSecretsLeak(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -132,19 +132,18 @@ func TestDL_PWAManifest_NoSecretsLeak(t *testing.T) {
 		"borgee_token", "borgee_admin_session",
 	} {
 		if strings.Contains(bodyStr, strings.ToLower(forbidden)) {
-			t.Errorf("manifest leaks forbidden substring %q (公开 endpoint 隐私防御 broken)", forbidden)
+			t.Errorf("manifest leaks forbidden substring %q (public endpoint privacy guard broken)", forbidden)
 		}
 	}
 }
 
-// TestDL_PWAManifest_NameNotPluginManifest pins ⚠️ 命名分立锚 — DL-4
-// endpoint 路径不含 'plugin-manifest' (HB-1 #491 独占字面). zhanma-a
-// mismatch audit 锚源.
+// TestDL_PWAManifest_NameNotPluginManifest pins the naming split: the DL-4
+// endpoint path must not use 'plugin-manifest' (reserved by HB-1 #491).
 func TestDL_PWAManifest_NameNotPluginManifest(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
 
-	// Verify the WRONG path (HB-1 字面) returns 404 — DL-4 不冒充该 endpoint.
+	// Verify the wrong HB-1 path returns 404, so DL-4 does not impersonate it.
 	resp, err := http.Get(ts.URL + "/api/v1/plugin-manifest")
 	if err != nil {
 		t.Fatal(err)
@@ -152,9 +151,9 @@ func TestDL_PWAManifest_NameNotPluginManifest(t *testing.T) {
 	defer resp.Body.Close()
 
 	// Either 404 (no such route) or 501 (placeholder). Anything 2xx
-	// means DL-4 squatted on HB-1 字面 — mismatch broken.
+	// means DL-4 used the HB-1 literal.
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		t.Errorf("/api/v1/plugin-manifest returned %d — DL-4 must not squat HB-1 字面 (zhanma-a mismatch audit)",
+		t.Errorf("/api/v1/plugin-manifest returned %d — DL-4 must not use the HB-1 literal",
 			resp.StatusCode)
 	}
 
@@ -165,7 +164,7 @@ func TestDL_PWAManifest_NameNotPluginManifest(t *testing.T) {
 	}
 	defer resp2.Body.Close()
 	if resp2.StatusCode >= 200 && resp2.StatusCode < 300 {
-		t.Errorf("/api/v1/manifest/plugins returned %d — old DL-4 命名应回退 (Option A 改名后)",
+		t.Errorf("/api/v1/manifest/plugins returned %d — legacy DL-4 naming should stay retired",
 			resp2.StatusCode)
 	}
 }
