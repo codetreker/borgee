@@ -1,20 +1,20 @@
 // Package api_test — cv_4_2_iterations_test.go: CV-4.2 acceptance tests
 // (#405 schema v=18 → CV-4.2 server iterate API + state machine + WS push).
 //
-// 原则 pins exercised (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁定
+// 设计约束 pins exercised (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁定
 // #380):
-//   - ① 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
+//   - 设计第 1 条 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
 //     level CI lint, 非 unit).
-//   - ② CV-1 commit 单一来源 — POST /commits?iteration_id= atomic UPDATE
+//   - 设计第 2 条 CV-1 commit 单一来源 — POST /commits?iteration_id= atomic UPDATE
 //     running→completed; 反向约束 不开 /iterations/:id/commit 旁路
 //     (acceptance §2.2 + §4.1).
-//   - ③ server 不算 diff — grep 检查 CI (acceptance §2.6 + §4.4).
-//   - ④ state machine 4 态前向锁定 — 反 completed→running / failed→pending
+//   - 设计第 3 条 server 不算 diff — grep 检查 CI (acceptance §2.6 + §4.4).
+//   - 设计第 4 条 state machine 4 态前向锁定 — 反 completed→running / failed→pending
 //     等回退 reject (acceptance §2.3 + §4.3).
-//   - ⑤ AL-4 stub fail-closed — agent_runtimes.status != 'running' →
-//     state='failed' + error_reason='runtime_not_registered' byte-identical
+//   - 设计第 5 条 AL-4 stub fail-closed — agent_runtimes.status != 'running' →
+//     state='failed' + error_reason='runtime_not_registered' 字节级一致
 //     跟 AL-1a #249 6 reason 同源 (acceptance §2.5).
-//   - ⑥ owner-only — non-owner POST /iterate → 403 (acceptance §2.1).
+//   - 设计第 6 条 owner-only — non-owner POST /iterate → 403 (acceptance §2.1).
 package api_test
 
 import (
@@ -84,7 +84,7 @@ func TestCV_IterateOwnerOnly(t *testing.T) {
 
 // TestCV_AL4StubFailClosed_RuntimeNotRegistered pins acceptance §2.5:
 // when no agent_runtimes row with status='running' exists, iteration
-// transitions pending→failed atomically with error_reason byte-identical
+// transitions pending→failed atomically with error_reason 字节级一致
 // 'runtime_not_registered' (AL-1a #249 6 reason 同源 不另起字典).
 func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 	t.Parallel()
@@ -98,10 +98,10 @@ func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 		t.Fatalf("iterate stub-fail not 201: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["state"] != api.IterationStateFailed {
-		t.Errorf("state byte-identical lock failed: got %v, want %q", data["state"], api.IterationStateFailed)
+		t.Errorf("state 字节级一致 lock failed: got %v, want %q", data["state"], api.IterationStateFailed)
 	}
 	if data["error_reason"] != api.IterationErrorReasonRuntimeNotRegistered {
-		t.Errorf("error_reason byte-identical lock failed: got %v, want %q",
+		t.Errorf("error_reason 字节级一致 lock failed: got %v, want %q",
 			data["error_reason"], api.IterationErrorReasonRuntimeNotRegistered)
 	}
 }
@@ -131,12 +131,12 @@ func TestCV_AL4Live_StateRunning(t *testing.T) {
 		t.Fatalf("iterate live not 201: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["state"] != api.IterationStateRunning {
-		t.Errorf("state byte-identical lock failed: got %v, want %q", data["state"], api.IterationStateRunning)
+		t.Errorf("state 字节级一致 lock failed: got %v, want %q", data["state"], api.IterationStateRunning)
 	}
 }
 
 // TestCV_TargetAgentMustBeChannelMember pins acceptance §2.1 反断:
-// target_agent_id 不是 channel member → 400 byte-identical error code
+// target_agent_id 不是 channel member → 400 字节级一致 error code
 // 'iteration.target_not_in_channel'.
 func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
 	t.Parallel()
@@ -158,7 +158,7 @@ func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
 		t.Fatalf("non-member target not 400: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["code"] != api.IterationErrCodeTargetNotInChannel {
-		t.Errorf("error code byte-identical lock failed: got %v, want %q",
+		t.Errorf("error code 字节级一致 lock failed: got %v, want %q",
 			data["code"], api.IterationErrCodeTargetNotInChannel)
 	}
 }
@@ -369,7 +369,7 @@ func TestCV_Iterate_ErrorPaths(t *testing.T) {
 		t.Errorf("human target 400 expected, got %d", respHuman.StatusCode)
 	}
 	if dataHuman["code"] != api.IterationErrCodeTargetNotInChannel {
-		t.Errorf("human target error code byte-identical lock failed: got %v", dataHuman["code"])
+		t.Errorf("human target error code 字节级一致 lock failed: got %v", dataHuman["code"])
 	}
 }
 
@@ -396,7 +396,7 @@ func TestCV_ListIterations_NotFoundOrCrossChannel(t *testing.T) {
 	}
 }
 
-// TestCV_Iterate_NonOwner_403 — 设计 ⑥ owner-only (acceptance §2.1) — a
+// TestCV_Iterate_NonOwner_403 — 设计第 6 条 owner-only (acceptance §2.1) — a
 // channel member who is not the owner gets 403 (handler runs after
 // canAccessChannel passes). Different from TestCV_IterateOwnerOnly which
 // covers the *non-owner channel-member* 403 path; this extra case exercises
@@ -498,7 +498,7 @@ func TestCV_ListAnchorComments_Coverage(t *testing.T) {
 
 // TestCV42_HandleListIterations_PathValueEmpty covers the canAccessChannel
 // false branch of handleListIterations — outsider with no channel access
-// gets 404 (404 not 403 to not leak existence per设计 ⑦ defense). This
+// gets 404 (404 not 403 to not leak existence per 设计第 7 条 defense). This
 // exercises a branch the happy-path test in TestCV_ListIterationsHistory
 // doesn't reach.
 func TestCV_HandleListIterations_NonMember404(t *testing.T) {

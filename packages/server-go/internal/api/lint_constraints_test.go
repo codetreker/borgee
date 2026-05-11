@@ -4,9 +4,9 @@
 // inline bash grep 约束守"未来不许 commit mismatch" (heartbeat 30s 单一来源 /
 // reason 字典 6 不变 / agent_state_log 不写 connecting 持久态 /
 // presence_sessions 不写 busy 列 / agent_state_log 跟 audit_log 不 JOIN /
-// audit 5 字段 byte-identical / reasons 单一来源 跨 milestone ≥6 hit). #717
+// audit 5 字段字节级一致 / reasons 单一来源 跨 milestone ≥6 hit). #717
 // 删两 yml 后, 这 7 条搬这里转 Go test (跟 dl12_direct_store_baseline_test.go
-// 同模式 — 真行为 test 替 yaml grep). 走 go-test-cov / go-test-race ./...
+// 同模式 — 代码行为 test 替 yaml grep). 走 go-test-cov / go-test-race ./...
 // 默认覆盖, 不需要单挑 step.
 //
 // 对账 feima review (#722 comment):
@@ -68,7 +68,7 @@ func walkGoSources(t *testing.T, dir string, excludeTests bool) []string {
 	return out
 }
 
-// TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 设计 ⑤ heartbeat 30s
+// TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 设计第 5 条 heartbeat 30s
 // 数字常量单一来源锁. internal/bpp/ 下 BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
 // 单点定义, 不许涨到 30s 以上.
 func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
@@ -76,7 +76,7 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 	root := repoRootForLint(t)
 	bppDir := filepath.Join(root, "packages", "server-go", "internal", "bpp")
 
-	// ① 单一来源存在
+	// 第 1 步 单一来源存在
 	singleSrc := regexp.MustCompile(`BPP_HEARTBEAT_TIMEOUT_SECONDS\s*=\s*30\b`)
 	hits := 0
 	for _, f := range walkGoSources(t, bppDir, true) {
@@ -87,18 +87,18 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 		hits += len(singleSrc.FindAll(b, -1))
 	}
 	if hits < 1 {
-		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计 ⑤ 数字常量单一来源锁)", hits)
+		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计第 5 条 数字常量单一来源锁)", hits)
 	}
 
-	// ② mismatch detection: heartbeat timeout > 30s 不允许
-	driftPat := regexp.MustCompile(`heartbeat.*timeout.*[5-9][0-9]+s|heartbeatTimeout.*=.*[1-9][0-9]{2,}`)
+	// 第 2 步 mismatch detection: heartbeat timeout > 30s 不允许
+	badPat := regexp.MustCompile(`heartbeat.*timeout.*[5-9][0-9]+s|heartbeatTimeout.*=.*[1-9][0-9]{2,}`)
 	for _, f := range walkGoSources(t, bppDir, true) {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			continue
 		}
-		if m := driftPat.Find(b); m != nil {
-			t.Errorf("%s: heartbeat timeout 漂移 above 30s (matched %q; BPP-4 §3 设计 ⑤ 反向断言)", f, string(m))
+		if m := badPat.Find(b); m != nil {
+			t.Errorf("%s: heartbeat timeout 漂移 above 30s (matched %q; BPP-4 §3 设计第 5 条 反向断言)", f, string(m))
 		}
 	}
 }
@@ -190,7 +190,7 @@ func TestLint_AgentStateLogNoConnecting(t *testing.T) {
 	}
 }
 
-// TestLint_PresenceSessionsNoBusyWrite — AL-1b §2 设计 ② BPP frame 是
+// TestLint_PresenceSessionsNoBusyWrite — AL-1b §2 设计第 2 条 BPP frame 是
 // busy/idle 唯一 source, presence_sessions 不写 busy 列.
 func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 	t.Parallel()
@@ -204,7 +204,7 @@ func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: busy/idle source 漂移 (matched %q; AL-1b §2 设计 ② BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
+			t.Errorf("%s: busy/idle source 漂移 (matched %q; AL-1b §2 设计第 2 条 BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
 		}
 	}
 }
@@ -229,7 +229,7 @@ func TestLint_ALHBStackDictIsolation(t *testing.T) {
 }
 
 // TestLint_AuditSchema5FieldsByteIdentical — HB-3 §1.4 audit schema 5 字段
-// (actor / action / target / when / scope) byte-identical 跨 audit source.
+// (actor / action / target / when / scope) 字节级一致 跨 audit source.
 // 当前 source: host_grants.go + dead_letter.go (HB-1 + HB-2 Go binary 实施
 // PR 加 install-butler/audit.go + host-bridge/audit.go 时, sources 列表扩
 // 4, 此 test 同步扩).
@@ -253,7 +253,7 @@ func TestLint_AuditSchema5FieldsByteIdentical(t *testing.T) {
 		for _, k := range keys {
 			pat := regexp.MustCompile(`"` + k + `"`)
 			if !pat.MatchString(txt) {
-				t.Errorf("%s: audit schema 字段 %q missing (HB-3 §1.4 5 字段 byte-identical 对齐链)", src, k)
+				t.Errorf("%s: audit schema 字段 %q missing (HB-3 §1.4 5 字段 字节级一致 对齐链)", src, k)
 			}
 		}
 	}
