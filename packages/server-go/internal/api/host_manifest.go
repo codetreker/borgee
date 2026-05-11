@@ -10,7 +10,7 @@
 //   - PluginManifestEntries (const slice — 0 schema 设计 ②)
 //   - HB1Reason* 7 字面 const (跟 spec §3.2 byte-identical)
 //
-// 反约束 (hb-1-spec.md §0 + content-lock §1+§2+§5):
+// 反向检查 (hb-1-spec.md §0 + content-lock §1+§2+§5):
 //   - 设计 ① owner-only Bearer api-key 鉴权 (admin god-mode 不挂; 反向
 //     grep `admin-api/v[0-9]+/.*plugin-manifest` 0 hit, ADM-0 §1.3 红线).
 //   - 设计 ② manifest data const slice (PluginManifestEntries) 单源, 0
@@ -19,10 +19,10 @@
 //   - 设计 ③ 7-reason 字典字面 byte-identical 跟 spec §3.2 + v0 #491.
 //   - 设计 ④ ed25519 detached signature non-empty (HB-1 v0 简化, sequoia/
 //     openpgp 双签 留 HB-1b Rust client 实施).
-//   - 设计 ⑤ AL-1a reason 锁链不漂 — HB-1 7-dict 跟 runtime AL-1a 6-dict
+//   - 设计 ⑤ AL-1a reason 对齐链不漂 — HB-1 7-dict 跟 runtime AL-1a 6-dict
 //     字典分立 (grep 检查 `hb1.*reason\|plugin.*reason` 在 internal/agent/
-//     reasons/ 0 hit, 锁链停在 HB-6 #19).
-//   - 设计 ⑥ AST 锁链延伸第 23 处 forbidden 3 token 0 hit.
+//     reasons/ 0 hit, 对齐链停在 HB-6 #19).
+//   - 设计 ⑥ AST 对齐链延伸第 23 处 forbidden 3 token 0 hit.
 //
 // ⚠️ 命名拆死锚 — 跟 DL-4 #485 `GET /api/v1/pwa/manifest` 拆开:
 //   - 本 endpoint: install-butler binary plugin manifest (双签必需, 蓝图
@@ -58,7 +58,7 @@ const (
 )
 
 // HB1AllReasons — 7-tuple grep 守门用 (TestHB1_ReasonsByteIdentical
-// 反向断 7 字面 byte-identical, drift 守门).
+// 反向断 7 字面 byte-identical, mismatch 守门).
 var HB1AllReasons = []string{
 	HB1ReasonOK,
 	HB1ReasonManifestSignatureInvalid,
