@@ -1,15 +1,15 @@
-// presence-reverse-grep.test.ts — AL-3.3 (#R3 Phase 2) 反约束 grep 守.
+// presence-reverse-grep.test.ts — AL-3.3 (#R3 Phase 2) 约束 grep 守.
 //
 // 等价于 al-3.md acceptance §5.1 + §3.2 spec lint job 的 client 侧:
-//   - §5.1 phase 2 阶段反约束: busy / idle / 忙 / 空闲 不准在 presence
+//   - §5.1 phase 2 阶段约束: busy / idle / 忙 / 空闲 不准在 presence
 //     相关源 (因 phase 2 仅承诺 online/offline/error). **AL-1b (Phase 4)
 //     落地后此条解封** — busy/idle 走 AL-1b describeAgentState() 合法
 //     字面, 此 PR 仅守剩余字面 (StateBusy / StateIdle 等 server 侧名称
-//     若误漂入 client 仍反约束).
+//     若误漂入 client 仍约束).
 //   - §3.2 PresenceDot / usePresence 调用面只允许在 agent 相关 UI — 反查
 //     `import` 语句, 不是字面提及 (允许注释里说 "PresenceDot 在 ... 用").
 //
-// 跟 server 侧 hub_presence_grep_test.go 同形 — 目标都是 "不允许"反约束.
+// 跟 server 侧 hub_presence_grep_test.go 同形 — 目标都是 "不允许"约束.
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — node:module 没 @types/node, 但 vitest node 上下文可达.
 import { createRequire } from 'module';
@@ -46,7 +46,7 @@ const PRESENCE_FILES: string[] = [
   nodePath.join(SRC_ROOT, 'lib', 'agent-state.ts'),
 ];
 
-describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
+describe('AL-3.3 约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
   it('§5.1 presence 相关文件不出现 server-side state name leak (StateBusy / StateIdle); busy/idle 字面 AL-1b Phase 4 已合法解封', () => {
     // AL-1b Phase 4 解封 busy/idle/忙/空闲 — 这些字面现在是 AL-1b 合法
     // describeAgentState() output 跟 PresenceDot data-task-state attr 字面.
@@ -58,7 +58,7 @@ describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
       const lines = (fs.readFileSync(f, 'utf8') as string).split('\n');
       lines.forEach((line: string, i: number) => {
         const trimmed = line.trim();
-        // 跳块/行注释 (反约束注释里要写出禁词字面).
+        // 跳块/行注释 (约束注释里要写出禁词字面).
         if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
         const codePart = line.replace(/\/\/.*$/, '');
         for (const re of banned) {
@@ -68,7 +68,7 @@ describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
     }
     if (hits.length > 0) {
       throw new Error(
-        'AL-3.3 §5.1 反约束: presence 文件禁 leak server-side state enum 名. 命中:\n' + hits.join('\n'),
+        'AL-3.3 §5.1 约束: presence 文件禁 leak server-side state enum 名. 命中:\n' + hits.join('\n'),
       );
     }
   });
@@ -88,7 +88,7 @@ describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
       if (!importRe.test(content)) continue;
       if (!allowed.has(base)) {
         throw new Error(
-          `AL-3.3 §3.2 反约束: PresenceDot 仅允许 import 进 ${[...allowed].join(',')}; 命中 ${f}`,
+          `AL-3.3 §3.2 约束: PresenceDot 仅允许 import 进 ${[...allowed].join(',')}; 命中 ${f}`,
         );
       }
     }
@@ -111,7 +111,7 @@ describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
       if (!importRe.test(content)) continue;
       if (!allowed.has(base)) {
         throw new Error(
-          `AL-3.3 §3.2 反约束: usePresence/markPresence 仅允许在 ${[...allowed].join(',')}; 命中 ${f}`,
+          `AL-3.3 §3.2 约束: usePresence/markPresence 仅允许在 ${[...allowed].join(',')}; 命中 ${f}`,
         );
       }
     }
@@ -124,7 +124,7 @@ describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
     expect(src).toContain('sr-only');
   });
 
-  // AL-1b (#R3 Phase 4) acceptance §3.4 — busy/idle 文案模糊词反约束.
+  // AL-1b (#R3 Phase 4) acceptance §3.4 — busy/idle 文案模糊词约束.
   // describeAgentState() 必须用 "在工作" / "空闲", 不准 "活跃" / "running" /
   // "Standing by" / "等待中" 模糊词. 跟 al-1b-content-lock 同源 (待野马).
   it('§3.4 (AL-1b) agent-state.ts 不出现 "活跃"/"running"/"standing by"/"等待中" 模糊词', () => {
@@ -141,7 +141,7 @@ describe('AL-3.3 反约束 grep 守 (al-3.md §5.1 / §3.2)', () => {
     });
     if (hits.length > 0) {
       throw new Error(
-        'AL-1b §3.4 反约束: busy/idle 文案禁模糊词. 命中:\n' + hits.join('\n'),
+        'AL-1b §3.4 约束: busy/idle 文案禁模糊词. 命中:\n' + hits.join('\n'),
       );
     }
   });

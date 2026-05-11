@@ -11,14 +11,14 @@
 //   - DOM hover anchor `data-cm5-collab-link` 锁 ChannelMembersModal agent
 //     行 (跟 mention render @{display_name} DM-2.3 #388 同源, hover 显示
 //     "正在协作")
-//   - 反约束: 反向断言 ai_only / agent_only / visibility_scope DOM attr 在
+//   - 约束: 反向断言 ai_only / agent_only / visibility_scope DOM attr 在
 //     channel/agent UI 0 hit (蓝图 §185 透明协作设计 — owner-first 视角
 //     看到完整链, 反 owner_visibility_scope 多源)
-//   - 反约束: 不订阅 push frame — `agent_config_update` 单引号代码字面 0
+//   - 约束: 不订阅 push frame — `agent_config_update` 单引号代码字面 0
 //     hit (BPP frame 留 AL-2b + BPP-3, CM-5 设计 ① 走人 path 不开新 frame)
-//   - X2 toast 错码字面承袭 — 反向断言 CM-5 自起 X2 错码同义词 0 hit
+//   - X2 toast 错码字面跟历史一致 — 反向断言 CM-5 自起 X2 错码同义词 0 hit
 //     (cm5.x2_conflict / agent_collision / artifact.x2_conflict / x2_lock_held)
-//     强制复用 CV-4 #380 ⑦ 既有路径 (server-side 反约束 grep 守见
+//     强制复用 CV-4 #380 ⑦ 既有路径 (server-side 约束 grep 守见
 //     cm5stance.TestCM51_X2ConflictLiteralReuse)
 
 import { describe, it, expect } from 'vitest';
@@ -59,7 +59,7 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
     // Suffix + prefix const literals (used by reverse-grep).
     expect(CM5_X2_CONFLICT_TOAST_PREFIX).toBe('正在被 agent ');
     expect(CM5_X2_CONFLICT_TOAST_SUFFIX).toBe(' 处理');
-    // Lib source must contain the prefix literal (锁 — drift detection).
+    // Lib source must contain the prefix literal (锁定 — mismatch detection).
     expect(toastLib).toContain('正在被 agent ');
     expect(toastLib).toContain(' 处理');
   });
@@ -70,17 +70,17 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
     expect(membersModal).toContain("'data-cm5-collab-link': ''");
   });
 
-  it('③ 反约束 ai_only / agent_only DOM attr 不渲染 (channel/agent UI)', () => {
+  it('③ 约束 ai_only / agent_only DOM attr 不渲染 (channel/agent UI)', () => {
     // 蓝图 §185 透明协作设计 — 反 owner_visibility scope 多源.
     // membersModal 是 channel/agent UI 真渲染 source — 反向断言 0 hit.
-    // (toastLib 只是 lib 定义这些为反约束 const, 出现在反向断言 array 内
+    // (toastLib 只是 lib 定义这些为约束 const, 出现在反向断言 array 内
     // 是 intentional, 不算 leak.)
     for (const forbidden of CM5_FORBIDDEN_VISIBILITY_DOM_ATTRS) {
       expect(membersModal).not.toContain(forbidden);
     }
   });
 
-  it('④ 反约束 不订阅 push frame (BPP frame 留 AL-2b + BPP-3)', () => {
+  it('④ 约束 不订阅 push frame (BPP frame 留 AL-2b + BPP-3)', () => {
     // CM-5 设计 ① 走人 path 不开新 frame. 单引号字面 (代码使用形式) 0 hit.
     const FRAME = 'agent_config' + '_update'; // 拼接防 lint 自 trip.
     expect(membersModal).not.toContain(`'${FRAME}'`);
@@ -92,10 +92,10 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
     expect(toastLib).not.toContain('hub.subscribe');
   });
 
-  it('⑤ 反约束 X2 错码同义词 0 hit (强制复用 CV-4 #380 ⑦ 既有路径)', () => {
+  it('⑤ 约束 X2 错码同义词 0 hit (强制复用 CV-4 #380 ⑦ 既有路径)', () => {
     // CM-5 设计 ③ 字面: X2 冲突复用 CV-4 既有错码 `artifact.locked_by_
     // another_iteration` byte-identical. 反向 reject CM-5 自起同义词
-    // (跟 cm5stance.TestCM51_X2ConflictLiteralReuse server-side 反约束
+    // (跟 cm5stance.TestCM51_X2ConflictLiteralReuse server-side 约束
     // 守同源).
     for (const drift of [
       'cm5.x2_conflict',
@@ -110,7 +110,7 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
     }
   });
 
-  it('反约束: X2 toast 同义词漂移 0 hit (字面唯一根)', () => {
+  it('约束: X2 toast 同义词漂移 0 hit (字面唯一根)', () => {
     // 反向同义词 byte-identical reject — 改 toast 必须改 spec/acceptance/
     // server const 三处同源.
     for (const drift of [
