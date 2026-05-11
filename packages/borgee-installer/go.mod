@@ -12,9 +12,9 @@
 // service unit 部署 wrapping borgee-helper.{service,plist}).
 //
 // 立场 (hb-1b-installer-spec §0):
-//   - HB-1 #589 server endpoint + HB-2 v0(D) #617 daemon byte-identical 不破
-//   - 0 server-go diff + 0 borgee-helper diff
-//   - admin god-mode 永久不挂 (ADM-0 §1.3 红线)
+//   - HB-1 #589 server endpoint and HB-2 v0(D) #617 daemon remain source-of-truth
+//   - installer implementation stays in this module and uses helper install assets
+//   - no installer admin API path (ADM-0 §1.3 red line)
 module borgee-installer
 
 go 1.25.0

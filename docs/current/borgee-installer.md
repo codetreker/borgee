@@ -19,20 +19,20 @@ and HB-2 v0(D) (#617) shipped only the `borgee-helper` Go daemon binary
 gap as a deploy-only tool: it fetches the HB-1 manifest, verifies the
 ed25519 signature, prompts the user for `host_grants` permissions, and
 deploys the existing `borgee-helper` binary plus its platform service
-unit. In this docs/comments cleanup branch, installer implementation bytes stay
-unchanged while helper prose and comments may be corrected.
+unit. The installer does not own the helper daemon implementation; it fetches,
+verifies, prompts, and deploys the existing helper artifacts.
 
 ## Stance (蓝图 host-bridge.md §1.1 + §1.2 + §1.4 字面)
 
 | Principle | Contract |
 |---|---|
-| **HB-1 + HB-2 v0(D) stay byte-identical** | The installer is a deployment tool. It does not modify the server endpoint, daemon binary, or schema. |
-| **Three-platform split, Windows deferred to v2** | Linux `.deb` and macOS `.pkg` are v1. Windows `.msi` remains deferred per blueprint §1.4 literal "Windows: v2 才支持, 需重新设计"; `cmd/borgee-installer-windows/` is absent in v1 (grep check 0 hit). |
+| **HB-1 + HB-2 v0(D) remain source-of-truth** | The installer is a deployment tool. It does not modify the server endpoint, daemon binary, or schema. |
+| **Three-platform split, Windows deferred to v2** | Linux `.deb` and macOS `.pkg` are v1. Windows `.msi` remains deferred per blueprint §1.4 literal "Windows: v2 才支持, 需重新设计"; `cmd/borgee-installer-windows/` is absent in v1. |
 | **First-install ed25519 manifest verify** | Before install, fetch the HB-1 endpoint and verify the signature using the existing HB-1 `PluginManifestEntries` const slice plus ed25519 detached signature. Verify failure blocks install; there is no silent fallback. |
-| **Permission popup UX uses the HB-3 #520 grant_type list** | The install/exec/filesystem/network 4-value enum stays byte-identical with the HB-3 host_grants CHECK constraint. Changing the popup enum means changing the HB-3 schema and this doc. |
-| **Service units come from borgee-helper byte-identical** | The installer does not duplicate `.service` / `.plist` bytes. The sudo install command uses the existing `packages/borgee-helper/install/{borgee-helper.service, cloud.borgee.host-bridge.plist}` as the HB-2 v0(D) #617 single source. |
-| **Installer implementation remains isolated** | Installer implementation changes stay in the independent `packages/borgee-installer/` Go module, the GitHub Actions matrix workflow, and the uninstall script; this docs/comments cleanup branch may also touch helper prose and comments. |
-| **admin god-mode 永久不挂** | Per ADM-0 §1.3 red line, the installer uses user sudo, and grep check `admin.*installer|/admin-api/.*installer` returns 0 hit. |
+| **Permission popup UX uses the HB-3 #520 grant_type list** | The install/exec/filesystem/network 4-value enum must match the HB-3 host_grants CHECK constraint. Changing the popup enum means changing the HB-3 schema and this doc. |
+| **Service units come from borgee-helper** | The installer does not duplicate `.service` / `.plist` files. The sudo install command uses the existing `packages/borgee-helper/install/{borgee-helper.service, cloud.borgee.host-bridge.plist}` as the HB-2 v0(D) #617 single source. |
+| **Installer implementation remains isolated** | Installer code stays in the independent `packages/borgee-installer/` Go module, the GitHub Actions matrix workflow, and the uninstall script. Helper daemon implementation remains owned by `packages/borgee-helper/`. |
+| **No installer admin API path** | Per ADM-0 §1.3 red line, the installer uses user sudo and does not call admin installer APIs. |
 
 ## Module layout
 
@@ -42,18 +42,18 @@ packages/borgee-installer/
 ├── cmd/
 │   ├── borgee-installer-linux/main.go            # .deb installer
 │   └── borgee-installer-darwin/main.go           # .pkg installer
-│   (Windows v2 留账; grep 检查 0 hit)
+│   (Windows v2 留账; v1 has no Windows installer command)
 ├── internal/
 │   ├── manifest/   # HB-1 endpoint fetch + ed25519 verify
 │   ├── dialog/     # 4 grant_type permission popup
 │   └── deploy/     # per-platform service unit deployment
 └── install/
-    └── README.md   # 反向 pointer to HB-2 v0(D) byte-identical units
+    └── README.md   # pointer to HB-2 v0(D) helper unit sources
 ```
 
 ## Per-platform deploy contract
 
-| 平台   | 安装命令                                    | service unit (byte-identical from `packages/borgee-helper/install/`) |
+| 平台   | 安装命令                                    | service unit source from `packages/borgee-helper/install/` |
 |--------|---------------------------------------------|----------------------------------------------------------------------|
 | Linux  | `sudo apt install ./borgee-helper.deb`      | `/lib/systemd/system/borgee-helper.service`                          |
 | macOS  | `sudo /usr/sbin/installer -pkg ... -target /` | `/Library/LaunchDaemons/cloud.borgee.host-bridge.plist`              |
@@ -73,7 +73,7 @@ installer → GET /api/v1/plugin-manifest (HB-1 #491 endpoint, 字面不动)
          → 写 host_grants 4 enum 行 (HB-3 #520 schema)
 ```
 
-## Permission popup contract (HB-3 #520 4 grant_type byte-identical)
+## Permission popup contract (HB-3 #520 4 grant_type values)
 
 | grant_type   | 触发                      | scope JSON 例                  |
 |--------------|---------------------------|--------------------------------|
@@ -82,9 +82,9 @@ installer → GET /api/v1/plugin-manifest (HB-1 #491 endpoint, 字面不动)
 | `filesystem` | agent 第一次读写用户目录   | `{"path": "/home/user/code"}`  |
 | `network`    | agent 第一次发请求到外部   | `{"host": "api.example.com"}`  |
 
-The literal 4-value enum is byte-identical with the host_grants CHECK
-constraint (HB-3 #520 migration v=27). Changing the frontend means changing
-the schema CHECK and content-lock §1.①.
+The literal 4-value enum must match the host_grants CHECK constraint (HB-3 #520
+migration v=27). Changing the frontend means changing the schema CHECK and
+content-lock §1.①.
 
 ## Uninstall (信任底线, 蓝图 §1.2 字面 6 项)
 
@@ -116,7 +116,7 @@ test -f packages/borgee-installer/cmd/borgee-installer-darwin/main.go    # exist
 test ! -d packages/borgee-installer/cmd/borgee-installer-windows         # absent (留 v2)
 git diff origin/main -- packages/server-go/internal/api/hb_1_plugin_manifest.go | wc -l   # 0
 git diff origin/main -- packages/borgee-helper/install/                  | wc -l   # 0
-grep -rE 'admin.*installer|/admin-api/.*installer' packages/borgee-installer/  # 0 hit (ADM-0 §1.3)
+grep -rE 'admin.*installer|/admin-api/.*installer' packages/borgee-installer/  # no matches (ADM-0 §1.3)
 ```
 
 ## Tests
@@ -124,7 +124,7 @@ grep -rE 'admin.*installer|/admin-api/.*installer' packages/borgee-installer/  #
 | Test | Coverage |
 |---|---|
 | `packages/borgee-installer/internal/manifest/fetcher_test.go` | HB-1 endpoint fetch plus ed25519 verify gate; verify failure blocks install. |
-| `packages/borgee-installer/internal/dialog/dialog_test.go` | 4 grant_type popup values stay byte-identical with the HB-3 schema CHECK. |
+| `packages/borgee-installer/internal/dialog/dialog_test.go` | 4 grant_type popup values stay aligned with the HB-3 schema CHECK. |
 | `packages/borgee-installer/internal/deploy/deploy_test.go` | Per-platform `LinuxPlan` / `DarwinPlan` use the existing borgee-helper service unit bytes instead of duplicating them. |
 
 Regression rows: `REG-HB1B-001..010` in

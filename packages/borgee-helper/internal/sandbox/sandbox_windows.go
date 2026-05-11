@@ -13,12 +13,12 @@ func Apply(_ Profile) error {
 	return nil
 }
 
-// Profile 描述 sandbox 配置 (跨平台 byte-identical struct).
+// Profile describes the sandbox configuration shape for the unsupported Windows fallback.
 type Profile struct {
 	ReadPaths    []string
 	AuditLogPath string
 	TmpCachePath string
 }
 
-// Platform 出处 — 单测断 build tag 选对.
+// Platform identifies the unsupported Windows fallback selected by this build tag.
 const Platform = "windows"

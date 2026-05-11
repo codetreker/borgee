@@ -3,16 +3,17 @@
 // Package main — borgee-installer-linux: HB-1B-INSTALLER Linux .deb installer.
 //
 // hb-1b-installer-spec §0.2: 真 ed25519 manifest verify + permission popup
-// + sudo apt install + systemd unit 部署 (跟 borgee-helper.service byte-identical
-// 承袭).
+// + sudo apt install + systemd unit deployment from borgee-helper install assets.
 //
 // CLI:
-//   borgee-installer-linux \
-//     --manifest-url=https://server/api/v1/plugin-manifest \
-//     --pubkey-base64=... \
-//     --deb=./borgee-helper_0.1.0_amd64.deb
 //
-// 反约束: 0 server-go 改 + 0 borgee-helper 改 + admin god-mode 永久不挂.
+//	borgee-installer-linux \
+//	  --manifest-url=https://server/api/v1/plugin-manifest \
+//	  --pubkey-base64=... \
+//	  --deb=./borgee-helper_0.1.0_amd64.deb
+//
+// Boundary: installer implementation stays in this module and uses user sudo;
+// it does not add an installer admin API path.
 package main
 
 import (
@@ -67,7 +68,7 @@ func main() {
 	}
 	fmt.Printf("manifest verified: %d entries signed_at=%d\n", len(env.Entries), env.SignedAt)
 
-	// Step 3: permission popup UX (4 grant_type byte-identical 跟 HB-3 #520).
+	// Step 3: permission popup UX (4 grant_type values match HB-3 #520).
 	ok, err := dialog.Confirm(os.Stdin, os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "confirm failed: %v\n", err)
