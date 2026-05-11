@@ -1,6 +1,6 @@
 // Package api — mention_dispatch_test.go: DM-2.2 acceptance tests for
 // the mention parser + persist + dispatch path. Pins #312 spec brief
-// §0 设计 ①②③ + acceptance §1.1-§2.5 + #314 §1 ③ system DM byte-identical.
+// §0 设计第 1/2/3 条 + acceptance §1.1-§2.5 + #314 §1 第 3 条 system DM 字节级一致.
 //
 // Layout: parser tests (ParseMentionTargets) at the top — pure function;
 // then validate (Validate) + persist (PersistMentions) + dispatch
@@ -22,7 +22,7 @@ import (
 // ---- ParseMentionTargets (pure, regex grammar) ---------------------
 
 // TestParseMentionTargets_HappyPath pins acceptance §1.1 — body 中
-// `@<uuid>` token 被抓; 设计 ① UUID grammar 字面 (8-4-4-4-12 lowercase hex).
+// `@<uuid>` token 被抓; 设计第 1 条 UUID grammar 字面 (8-4-4-4-12 lowercase hex).
 func TestParseMentionTargets_HappyPath(t *testing.T) {
 	t.Parallel()
 	uid1 := "11111111-2222-3333-4444-555555555555"
@@ -45,8 +45,8 @@ func TestParseMentionTargets_DedupSameTarget(t *testing.T) {
 	}
 }
 
-// TestParseMentionTargets_NonMentions pins acceptance §1.2 反约束 — email /
-// 短 @name / 半段 UUID 都 NOT match. 设计 ① UUID-only grammar, 防 bare
+// TestParseMentionTargets_NonMentions pins acceptance §1.2 约束 — email /
+// 短 @name / 半段 UUID 都 NOT match. 设计第 1 条 UUID-only grammar, 防 bare
 // `@username` 误抓走 routing.
 func TestParseMentionTargets_NonMentions(t *testing.T) {
 	t.Parallel()
@@ -58,7 +58,7 @@ func TestParseMentionTargets_NonMentions(t *testing.T) {
 		"prefixed lol@11111111-2222-3333-4444-555555555555 ", // boundary tolerated; @ within word still captures (regex 不强 word-boundary 因 token 即字面 @<uuid>)
 	}
 	// First 4 expect zero matches; case 5 expects 1 (the regex deliberately
-	// permits trailing-after-text — 设计 ① body 内 anywhere a `@<uuid>`
+	// permits trailing-after-text — 设计第 1 条 body 内 anywhere a `@<uuid>`
 	// substring qualifies; bare-name dedup is downstream user_id validation).
 	for i, body := range cases {
 		got := ParseMentionTargets(body)
@@ -270,7 +270,7 @@ func TestDispatch_OnlineTarget_PushOnly(t *testing.T) {
 	if hub.pushes[0].TargetID != ids.Agent {
 		t.Errorf("target: got %q want %q", hub.pushes[0].TargetID, ids.Agent)
 	}
-	// 反约束: owner DM 0 行 (sniff dm channels).
+	// 约束: owner DM 0 行 (sniff dm channels).
 	var ownerDmCount int64
 	s.DB().Raw(`SELECT COUNT(*) FROM messages WHERE sender_id = 'system'`).Scan(&ownerDmCount)
 	if ownerDmCount != 0 {
@@ -279,7 +279,7 @@ func TestDispatch_OnlineTarget_PushOnly(t *testing.T) {
 }
 
 // TestDispatch_OfflineAgent_OwnerDM pins acceptance §2.2 — agent 离线 →
-// owner 收到 1 条 system DM, body byte-identical (#314 §1 ③).
+// owner 收到 1 条 system DM, body 字节级一致 (#314 §1 第 3 条).
 func TestDispatch_OfflineAgent_OwnerDM(t *testing.T) {
 	t.Parallel()
 	d, s, hub, ids := newDispatchFixture(t, map[string]bool{}, 1_700_000_000_000)
@@ -306,7 +306,7 @@ func TestDispatch_OfflineAgent_OwnerDM(t *testing.T) {
 	}
 }
 
-// TestDispatch_OfflineAgent_NoRawBody pins acceptance §2.4 反约束 — system
+// TestDispatch_OfflineAgent_NoRawBody pins acceptance §2.4 约束 — system
 // DM body 不含原 message body 字符串 (隐私 §13).
 func TestDispatch_OfflineAgent_NoRawBody(t *testing.T) {
 	t.Parallel()
