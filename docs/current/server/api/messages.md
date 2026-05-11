@@ -6,7 +6,7 @@
 ## 1. 设计
 
 Messages sent by the current user use three safeguards so they do not count as unread for that same user:
-- **Layer 1 (after-send read marking)**: client 发完自己的消息后立刻调 `markChannelRead(channelID, currentUser.id)` 标当前 channel 已读; server/API handler also performs a best-effort `MarkChannelRead` fallback after accepting the message. Together they cover the window before server aggregation confirms the read state.
+- **Layer 1 (server/API after-send fallback)**: `CreateMessageFull` accepts the message, then best-effort calls `MarkChannelRead(channelID, user.ID)` for the sender. This covers the after-send window before the next channel aggregation response; failure is logged and does not block message creation.
 - **Layer 2 (server SQL)**: `GetChannelsForUser` 聚合 unread_count 时用 `WHERE m.sender_id != ?` 只统计其他用户发来的消息. Prevents server unread aggregation from counting the sender's own messages in multi-device scenarios.
 - **Layer 3 (client reducer)**: ws push frame 来时 reducer 判 `if (frame.sender_id === currentUser.id) return; // skip bump` — prevents sidebar unread increments when another device receives a message from the current user.
 
@@ -16,27 +16,27 @@ Required constraints:
 - ③ 其他用户发来的消息仍算 unread (regression assertion: Layer 2 still counts messages whose sender differs from the current user)
 - ④ multi-device self-send (设备 A 发, 设备 B 收) 在设备 B 也不算 unread (Layer 3 走 sender_id 比对)
 
-## 2. Layer 1 (after-send read marking)
+## 2. Layer 1 (server/API after-send fallback)
 
-| Path | Location | Behavior |
-|---|---|---|
-| Client after-send path | `markChannelRead(channelID, currentUser.id)` | Marks the current channel read immediately after the sender posts a message. |
-| Server/API fallback | `packages/server-go/internal/api/messages.go::CreateMessageFull` | Calls `MarkChannelRead(ctx, channelID, user.ID)` after message creation; failures are logged and do not block message creation. |
+| Scope | Location | Behavior | Failure semantics |
+|---|---|---|---|
+| Server/API after-send fallback | `packages/server-go/internal/api/messages.go::CreateMessageFull` | Calls `MarkChannelRead(channelID, user.ID)` after message creation for the sender. | Logs the failure and still returns the created message. |
+
+Client `markChannelRead(channelId)` remains a channel selection/open behavior in
+`packages/client/src/context/AppContext.tsx`; it is not an after-send safeguard.
 
 `POST /api/v1/channels/:id/messages` 路径:
 
 ```go
-// CreateMessageFull 写消息后, server 端尽力 mark current channel read for the sender.
-// 避免 client 端等 server 端聚合 ack 来再 mark 的窗口期 (用户 ws push 看到自己发的
-// 消息但侧边栏还没 mark-read, badge 闪一下).
-err := h.store.MarkChannelRead(ctx, channelID, user.ID)
-if err != nil {
-  // 不阻塞消息创建 — 失败仅 log; client after-send mark 和其他 unread safeguards 继续保底.
-  log.Warn(...)
+// CreateMessageFull 写消息后, server/API 端尽力 mark current channel read for the sender.
+// 避免下一次 channel 聚合返回前, sender 自己发的消息短暂显示 unread.
+if mrErr := h.Store.MarkChannelRead(channelID, user.ID); mrErr != nil {
+  // 不阻塞消息创建 — 失败仅 log; Layer 2 SQL 和 Layer 3 reducer 继续保底.
+  h.Logger.Error(...)
 }
 ```
 
-Server/API fallback is best-effort: 失败仅 log 不阻塞消息创建. The client after-send mark is idempotent with this server call, Layer 3 reducer skips own messages, and the Layer 2 SQL filter remains as fallback.
+Server/API fallback is best-effort: 失败仅 log 不阻塞消息创建. Layer 3 reducer skips own messages, and the Layer 2 SQL filter remains as fallback. Client `markChannelRead(channelId)` is still used for channel selection/open, not after send.
 
 ## 3. Layer 2 (server SQL) — `packages/server-go/internal/store/queries.go`
 
@@ -69,7 +69,7 @@ case 'NEW_MESSAGE': {
 }
 ```
 
-跟 Layer 1 联动: 当前用户在本设备发完消息后, client after-send path 立刻 mark-read, and the server/API fallback also attempts the same mark after accepting the message; ws push 到当前设备时 Layer 3 avoids another unread increment. 跨设备时 Layer 3 继续根据 sender_id 判断 (设备 A 发, 设备 B 收 ws push 走 Layer 3 不增加 unread).
+跟 Layer 1 联动: 当前用户发完消息后, server/API fallback attempts to mark the sender's channel read after accepting the message; ws push 到当前设备时 Layer 3 avoids another unread increment. 跨设备时 Layer 3 继续根据 sender_id 判断 (设备 A 发, 设备 B 收 ws push 走 Layer 3 不增加 unread).
 
 ## 5. Regression assertion (other users' messages still count as unread)
 
