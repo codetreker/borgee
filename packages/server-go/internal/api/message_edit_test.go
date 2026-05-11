@@ -1,12 +1,12 @@
 // Package api_test — DM-4.1 server PATCH endpoint tests.
 //
 // 设计反查 (跟 dm-4-stance-checklist.md §1+§3+§4):
-//   ① RT-3 既有 fan-out 复用 — events INSERT op="edit" 真写入
-//   ③ thinking 5-pattern 反约束延伸第 3 处 — dm_4*.go grep 检查 0 hit
-//   ④ DM-only path — channel.Type != "dm" reject 403
-//   ⑤ owner-only ACL — sender != caller → 403
+//   设计第 1 条 RT-3 既有 fan-out 复用 — events INSERT op="edit" 真写入
+//   设计第 3 条 thinking 5-pattern 约束延伸第 3 处 — dm_4*.go grep 检查 0 hit
+//   设计第 4 条 DM-only path — channel.Type != "dm" reject 403
+//   设计第 5 条 owner-only ACL — sender != caller → 403
 //
-// 跨 milestone byte-identical: events 表 op="edit" 复用既有 message_edited
+// 跨 milestone 字节级一致: events 表 op="edit" 复用既有 message_edited
 // kind (跟 messages.go::handleUpdateMessage 同源, 不另起 dictionary);
 // useDMSync (DM-3 #508) 客户端订阅 channel events backfill 自动多端 derive.
 
@@ -100,8 +100,8 @@ func TestDM_HappyPath(t *testing.T) {
 }
 
 // TestDM_HappyPath_IdempotentSameContent — DM-7 后续 (G4.audit row #1):
-// 反向断 same-content PATCH 不追加 edit_history (保 idempotent).
-// Phase 4 batch1 audit §2.1 drift closure.
+// 反向断言 same-content PATCH 不追加 edit_history (保 idempotent).
+// Phase 4 batch1 audit §2.1 mismatch closure.
 func TestDM_HappyPath_IdempotentSameContent(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -134,7 +134,7 @@ func TestDM_HappyPath_IdempotentSameContent(t *testing.T) {
 	}
 }
 
-// TestDM_NonOwnerRejected — acceptance §1.1 设计 ⑤ owner-only ACL.
+// TestDM_NonOwnerRejected — acceptance §1.1 设计第 5 条 owner-only ACL.
 // member@test.com is added as DM member to keep channel ACL satisfied
 // but is not the original sender, so PATCH must 403.
 func TestDM_NonOwnerRejected(t *testing.T) {
@@ -157,7 +157,7 @@ func TestDM_NonOwnerRejected(t *testing.T) {
 	}
 }
 
-// TestDM_NonDMReject — acceptance §1.1 设计 ④ DM-only path.
+// TestDM_NonDMReject — acceptance §1.1 设计第 4 条 DM-only path.
 // PATCH /api/v1/channels/{publicChannelId}/messages/{id} → 403
 // `dm.edit_only_in_dm`.
 func TestDM_NonDMReject(t *testing.T) {
@@ -227,8 +227,8 @@ func TestDM_NotFound404(t *testing.T) {
 	}
 }
 
-// TestDM_NoThinkingPatternInBody — acceptance §1.3 设计 ③
-// thinking subject 5-pattern 反约束延伸第 3 处 (RT-3 第 1 + DM-3
+// TestDM_NoThinkingPatternInBody — acceptance §1.3 设计第 3 条
+// thinking subject 5-pattern 约束延伸第 3 处 (RT-3 第 1 + DM-3
 // 第 2 + DM-4 第 3). dm_4*.go grep 检查 5 字面 0 hit (production
 // .go 不含 thinking 状态字面).
 func TestDM_NoThinkingPatternInBody(t *testing.T) {
@@ -266,7 +266,7 @@ func TestDM_NoThinkingPatternInBody(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("DM-4 设计 ③ broken: thinking 5-pattern literal in dm_4*.go production: %v", hits)
+		t.Errorf("DM-4 设计第 3 条 broken: thinking 5-pattern literal in dm_4*.go production: %v", hits)
 	}
 }
 

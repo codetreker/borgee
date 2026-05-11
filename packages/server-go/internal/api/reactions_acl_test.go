@@ -2,12 +2,12 @@
 // 3 handler (PUT/DELETE/GET) MUST require channel membership (CV-7 #535
 // gap fix; DM-5 #549 REG-DM5-005 documented and now closed).
 //
-// Stance pin (ap-4-spec.md §0):
-//   - ① 3 handler 加 ACL gate (Store.IsChannelMember + CanAccessChannel)
-//   - ② admin god-mode 不挂 (sanity)
-//   - ③ REG-INV-002 fail-closed — non-member 三动作全 reject 404
-//     byte-identical "Channel not found" 跟 messages.go 既有同字符
-//   - ④ 既有 member OK path 不破 (反向 sanity)
+// 设计约束 pin (ap-4-spec.md §0):
+//   - 设计第 1 条 3 handler 加 ACL gate (Store.IsChannelMember + CanAccessChannel)
+//   - 设计第 2 条 admin god-mode 不挂 (sanity)
+//   - 设计第 3 条 REG-INV-002 fail-closed — non-member 三动作全 reject 404
+//     字节级一致 "Channel not found" 跟 messages.go 既有同字符
+//   - 设计第 4 条 既有 member OK path 不破 (反向 sanity)
 
 package api_test
 
@@ -40,7 +40,7 @@ func ap4Setup(t *testing.T) (string, string, string, string, string) {
 	return ts.URL, ownerTok, memberTok, chID, msgID
 }
 
-// TestAP_PutReaction_NonMember404 pins 设计 ③: non-member PUT → 404.
+// TestAP_PutReaction_NonMember404 pins 设计第 3 条: non-member PUT → 404.
 func TestAP_PutReaction_NonMember404(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, msgID := ap4Setup(t)
@@ -51,7 +51,7 @@ func TestAP_PutReaction_NonMember404(t *testing.T) {
 	}
 }
 
-// TestAP_DeleteReaction_NonMember404 pins 设计 ③: non-member DELETE → 404.
+// TestAP_DeleteReaction_NonMember404 pins 设计第 3 条: non-member DELETE → 404.
 func TestAP_DeleteReaction_NonMember404(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, msgID := ap4Setup(t)
@@ -62,7 +62,7 @@ func TestAP_DeleteReaction_NonMember404(t *testing.T) {
 	}
 }
 
-// TestAP_GetReactions_NonMember404 pins 设计 ③: non-member GET → 404.
+// TestAP_GetReactions_NonMember404 pins 设计第 3 条: non-member GET → 404.
 func TestAP_GetReactions_NonMember404(t *testing.T) {
 	t.Parallel()
 	url, _, memberTok, _, msgID := ap4Setup(t)
@@ -72,8 +72,8 @@ func TestAP_GetReactions_NonMember404(t *testing.T) {
 	}
 }
 
-// TestAP_Member_AllOK pins 设计 ④ 反向 sanity: channel member 三动作 (PUT/GET/DELETE)
-// 全 200 byte-identical 既有行为不破.
+// TestAP_Member_AllOK pins 设计第 4 条 反向 sanity: channel member 三动作 (PUT/GET/DELETE)
+// 全 200 字节级一致 既有行为不破.
 func TestAP_Member_AllOK(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, memberTok, chID, msgID := ap4Setup(t)
@@ -103,7 +103,7 @@ func TestAP_Member_AllOK(t *testing.T) {
 	}
 }
 
-// TestAP_GetReactions_Unauth401 pins 设计 ① — pre-AP-4 GET handler skipped
+// TestAP_GetReactions_Unauth401 pins 设计第 1 条 — pre-AP-4 GET handler skipped
 // the user==nil check entirely; AP-4 fixes by emitting 401 on unauth.
 //
 // Note: middleware authMw should already block unauth requests at the
