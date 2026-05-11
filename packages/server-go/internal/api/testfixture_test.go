@@ -1,23 +1,23 @@
 package api
 
-// TEST-FIX-3 testfixture: 共享 fixture 单源 (跟 BPP-3 PluginFrameDispatcher SSOT 同精神).
+// TEST-FIX-3 testfixture: 共享 fixture 单一来源 (跟 BPP-3 PluginFrameDispatcher 单一来源 同精神).
 //
 // 历史: TestClosedStoreInternalErrorBranches 11 sub-test 各 inline server.New +
 // store.Open + s.Close 重复 ~30 行 boilerplate. 真因 (TEST-FIX-2 #608 诊断):
 // 这些 inline boilerplate 漏配 ctx-aware shutdown → goroutine + DB leak 累积.
 //
-// 修法: 单源 helper newTestServerWithClosedStore / newTestServerWithFaultStore,
+// 修法: 单一来源 helper newTestServerWithClosedStore / newTestServerWithFaultStore,
 // 走 server.New(ctx) ctor (TEST-FIX-2 既有 ctx-aware), 内置 t.Cleanup(cancel)
 // 兜底 (Go 1.25 t.Context() 自动 cancel + 显式 cleanup 双保险).
 //
 // 设计 (test-fix-3-spec §0 设计 ②):
-//   - 单源化: 所有 race-heavy / closed-store 类 fixture 走此文件 helper, 反 inline
-//     boilerplate (grep 检查 `s := server.New` in *_test.go 单源化后 ≤ baseline)
+//   - 收敛到单一来源: 所有 race-heavy / closed-store 类 fixture 走此文件 helper, 反 inline
+//     boilerplate (grep 检查 `s := server.New` in *_test.go 收敛后 ≤ baseline)
 //   - ctx-aware: 严格 t.Context() + WithCancel + t.Cleanup(cancel), 反 Background()
 //     leak (#608 真因不复发)
 //   - 不引行为: helper 仅 wrap 既有 setupFullTestServer + 加 ctx 兜底, 0 行为改
 //
-// 跨 milestone 锁链:
+// 跨 milestone 对齐链:
 //   - 复用 TEST-FIX-2 #608 既有 server.New(ctx) ctor (ctx-aware shutdown)
 //   - 复用 setupFullTestServer 内 t.Cleanup(func() { s.Close() }) 模式
 //   - 兼容 race_heavy build tag (closed_store_race_test.go 调用此 helper)
