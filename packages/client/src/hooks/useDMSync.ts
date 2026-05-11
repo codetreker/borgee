@@ -1,19 +1,19 @@
 // DM-3.2 — useDMSync hook
 //
-// 立场 (跟 dm-3-stance-checklist.md §1):
+// DM sync rules (from dm-3-stance-checklist.md §1):
 //   ① DM cursor 复用 RT-1.3 既有 sequence
 //   ② 多端走 RT-3 fan-out, 不订阅 dm-only frame
 //   ④ 复用 useArtifactUpdated / lastSeenCursor 模式 — sessionStorage
 //      `dm:<channelID>:cursor` round-trip
 //
-// 反约束: 不订阅 `borgee:dm-sync` 等 dm-only frame, 不开 dmSubscribe API
-// (DM 视角的多端同步走普通 channel push 同 path).
+// Do not subscribe to dm-only frames such as `borgee:dm-sync`, and do not
+// add a dmSubscribe API. DM multi-device sync uses the normal channel push path.
 //
 // API:
 //   const { lastSeenCursor, markSeen } = useDMSync(dmChannelID);
 //
-// markSeen(cursor) 仅 monotonic 推进 (cursor > lastSeen 才存), 跟
-// lastSeenCursor.ts persistLastSeenCursor 同精神.
+// markSeen(cursor) advances monotonically: it only stores cursor values
+// greater than lastSeen, matching lastSeenCursor.ts persistLastSeenCursor.
 
 import { useCallback, useEffect, useState } from 'react';
 
@@ -55,7 +55,7 @@ export function persistDMCursor(dmChannelID: string, cursor: number): number {
   const current = loadDMCursor(dmChannelID);
   if (cursor <= current) return current;
   const s = safeStorage();
-  if (!s) return cursor; // best-effort; in-memory fallback omitted for simplicity
+  if (!s) return cursor; // Best effort; in-memory fallback omitted for simplicity.
   s.setItem(storageKey(dmChannelID), String(cursor));
   return cursor;
 }
@@ -68,12 +68,12 @@ export function __resetDMCursorForTests(dmChannelID: string): void {
 
 /**
  * useDMSync — React hook for tracking the high-water cursor of a DM
- * channel across tabs / page reloads. Pure client-side; no WS subscription
- * (立场 ② — DM frames flow through the existing per-channel push path).
+ * channel across tabs / page reloads. Pure client behavior; no WS subscription
+ * (rule ② — DM frames flow through the existing per-channel push path).
  *
  * Returns:
  *   lastSeenCursor — current persisted value (initial render reads sessionStorage)
- *   markSeen(cursor) — monotonic-advance the persisted value
+ *   markSeen(cursor) — advance the persisted value monotonically
  */
 export function useDMSync(dmChannelID: string): {
   lastSeenCursor: number;
@@ -83,7 +83,7 @@ export function useDMSync(dmChannelID: string): {
     loadDMCursor(dmChannelID),
   );
 
-  // Re-load on dmChannelID change (switching DM panes).
+  // Reload on dmChannelID change (switching DM panes).
   useEffect(() => {
     setLastSeenCursor(loadDMCursor(dmChannelID));
   }, [dmChannelID]);
