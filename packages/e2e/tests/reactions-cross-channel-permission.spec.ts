@@ -121,21 +121,28 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
       'user B sidebar 不应出现 user A private channel',
     ).toEqual([]);
 
-    // 真断 2: 直接打 channelId URL, ChannelView 渲染 "频道未找到" fallback (channel-empty)
-    // 或 client 没把 channelId 写进 state.currentChannelId — 两种状态都不允许 reach message list
-    const emptyState = pageB.locator('.channel-empty');
-    const messageContents = pageB.locator('.message-content');
-    // 任一断成立即真 ACL gate 渲染 (forbidden state 之一)
-    const emptyVisible = await emptyState.isVisible().catch(() => false);
-    const msgCount = await messageContents.count();
+    // 真断 2: ChannelView 不渲染 user A 的 channel 内容 — 反向证用 channel title 不含 user A 创建的 channel 名
+    // (SPA 不读 ?channel= URL parameter, auto-select user B 自己的 welcome; user A's private channel
+    // 永远不进 user B 的 state.channels, 自然无法 reach 任何 user A 资源)
+    const channelTitleTexts = await pageB.locator('.channel-title').allTextContents();
     expect(
-      emptyVisible || msgCount === 0,
-      `user B 真 navigate 后, ChannelView 必走 fallback (channel-empty=${emptyVisible} OR messageCount=${msgCount} = 0)`,
-    ).toBe(true);
+      channelTitleTexts.filter(t => t.includes('ap4-private-')),
+      `user B 看到的 channel title 不应含 user A private channel 名 (REWRITE-NAV 反向证: user B 真 reach 不到 user A 资源, 落到自己的 welcome)`,
+    ).toEqual([]);
 
-    // 真断 3: MessageInput 不渲染 (user B 没 reach write 入口)
-    const inputCount = await pageB.locator('.tiptap-editor').count();
-    expect(inputCount, 'user B 真 navigate 后 MessageInput 必不渲染').toBe(0);
+    // 真断 3 (server gate sanity): user B 真试 GET userA private channel messages → server 真 403/404
+    // (REWRITE-NAV F2 显式允许例外, heima 约束 3 — 反向证 server ACL gate 不依赖 client UI hide)
+    const fetchResult = await pageB.evaluate(async (cid: string) => {
+      const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      return { status: r.status };
+    }, channelId);
+    expect(
+      fetchResult.status === 403 || fetchResult.status === 404,
+      `server ACL gate 真挡 cross-channel GET messages: expected 403/404, got ${fetchResult.status}`,
+    ).toBe(true);
 
     await ctxB.close();
     await admin.dispose();

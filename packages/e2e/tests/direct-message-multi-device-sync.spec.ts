@@ -238,19 +238,16 @@ test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 
       `user B sidebar 不应出现 user A (${userA.displayName}) 的 DM`,
     ).toEqual([]);
 
-    // (b) ChannelView 走 fallback (channel-empty) 或 message list 0
-    const emptyVisible = await pageB.locator('.channel-empty').isVisible().catch(() => false);
-    const msgCount = await pageB.locator('.message-content').count();
+    // (b) ChannelView 不渲染 user A 的 DM 内容
+    // 真因: SPA 不读 ?channel= URL parameter, user B 落到自己 welcome (非 user A DM).
+    // 反向证: channel title 不含 user A 的 displayName (DM peer 名字).
+    const channelTitleTexts = await pageB.locator('.channel-title').allTextContents();
     expect(
-      emptyVisible || msgCount === 0,
-      `user B 真 navigate userA DM 后必走 fallback: emptyState=${emptyVisible} | msgCount=${msgCount}=0`,
-    ).toBe(true);
+      channelTitleTexts.filter(t => t.includes(userA.displayName)),
+      `user B channel title 不应含 user A (${userA.displayName}) 的 DM peer 名 (反向证: user B 真 reach 不到)`,
+    ).toEqual([]);
 
-    // (c) MessageInput 不渲染 — user B 无法 reach 写入口
-    const inputCount = await pageB.locator('.tiptap-editor').count();
-    expect(inputCount, 'user B 真 navigate userA DM 后 MessageInput 必不渲染').toBe(0);
-
-    // (d) server gate sanity (REWRITE-NAV F2 显式允许例外, heima 约束 3):
+    // (c) server gate sanity (REWRITE-NAV F2 显式允许例外, heima 约束 3):
     // user B 浏览器登态下 fetch GET /messages 验 server ACL gate 真挡, 不依赖 client UI hide
     const fetchResult = await pageB.evaluate(async (cid: string) => {
       const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {

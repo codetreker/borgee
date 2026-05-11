@@ -130,17 +130,28 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
       'user B sidebar 不应出现 user A private channel',
     ).toEqual([]);
 
-    // (b) ChannelView 走 fallback (channel-empty) 或 message list 0
-    const emptyVisible = await pageB.locator('.channel-empty').isVisible().catch(() => false);
-    const msgCount = await pageB.locator('.message-content').count();
+    // (b) ChannelView 不渲染 user A private channel 内容
+    // 真因: SPA 不读 ?channel= URL parameter, user B 落到自己 welcome (非 user A channel).
+    // 反向证: channel title 不含 user A 创建的 ap5-case1-* channel 名.
+    const channelTitleTexts = await pageB.locator('.channel-title').allTextContents();
     expect(
-      emptyVisible || msgCount === 0,
-      `user B 真 navigate 后 ChannelView 必走 fallback: emptyState=${emptyVisible} | msgCount=${msgCount}=0`,
-    ).toBe(true);
+      channelTitleTexts.filter(t => t.includes('ap5-case1-')),
+      `user B channel title 不应含 user A private channel 名 (反向证: user B 真 reach 不到 user A 资源)`,
+    ).toEqual([]);
 
-    // (c) MessageInput 不渲染 (无写入口)
-    const inputCount = await pageB.locator('.tiptap-editor').count();
-    expect(inputCount, 'user B 真 navigate 后 MessageInput 必不渲染').toBe(0);
+    // (c) server gate sanity (REWRITE-NAV F2 显式允许例外, heima 约束 3):
+    // user B fetch GET userA channel messages → server 真挡 403/404 不依赖 client UI hide
+    const fetchResult = await pageB.evaluate(async (cid: string) => {
+      const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      return { status: r.status };
+    }, channelId);
+    expect(
+      fetchResult.status === 403 || fetchResult.status === 404,
+      `server ACL gate 真挡 cross-channel GET: expected 403/404, got ${fetchResult.status}`,
+    ).toBe(true);
 
     await ctxB.close();
   });
