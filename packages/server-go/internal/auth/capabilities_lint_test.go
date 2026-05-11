@@ -1,7 +1,7 @@
 // AP-4-enum.1 reflect-lint tests — capability ALL slice + init() rebuild
-// Capabilities map + IsValidCapability helper 单源 (spec §0 立场 ① + ③).
+// Capabilities map + IsValidCapability helper 单一来源 (spec §0 设计 ① + ③).
 //
-// 6 unit (跟 acceptance template 立场 ① 1.1-1.5 + 立场 ③ 3.1 同源):
+// 6 unit (跟 acceptance template 设计 ① 1.1-1.5 + 设计 ③ 3.1 同源):
 //   - TestAP_ALL_OrderedByteIdentical (1.1) — ALL 顺序跟 const 声明顺序对齐
 //   - TestAP_Capabilities_AutoBuildFromAll (1.2) — init() 派生 map ↔ ALL 双向
 //   - TestAP_ALL_Length14 (1.3) — len(ALL) == 14 锁
@@ -62,7 +62,7 @@ func TestAP_Capabilities_AutoBuildFromAll(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("Capabilities[%q] not in ALL — drift", k)
+			t.Errorf("Capabilities[%q] not in ALL — mismatch", k)
 		}
 	}
 }
@@ -105,7 +105,7 @@ func TestAP_reflect_lint_NoOrphanConst(t *testing.T) {
 				}
 				lit := strings.Trim(bl.Value, `"`)
 				if !allSet[lit] {
-					t.Errorf("const literal %q not in ALL — orphan const drift", lit)
+					t.Errorf("const literal %q not in ALL — orphan const mismatch", lit)
 				}
 			}
 		}
@@ -121,7 +121,7 @@ func TestAP_reflect_lint_NoExtraInMap(t *testing.T) {
 	}
 	for k := range Capabilities {
 		if !allSet[k] {
-			t.Errorf("Capabilities[%q] not in ALL — extra drift", k)
+			t.Errorf("Capabilities[%q] not in ALL — extra mismatch", k)
 		}
 	}
 }
