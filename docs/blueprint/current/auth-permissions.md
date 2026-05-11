@@ -9,7 +9,7 @@
 
 ---
 
-## 1. 目标态（Should-be）— 四条立场
+## 1. 目标态（Should-be）— 四条约定
 
 ### 1.1 颗粒度：C 混合（存储 ABAC + UI bundle）
 

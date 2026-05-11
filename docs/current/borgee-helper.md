@@ -20,7 +20,7 @@
 | 子包 | 路径 | 角色 |
 |---|---|---|
 | `acl` | `internal/acl/acl.go` (128) + `_test.go` (118) | 路径白名单 + grant_type 校验 (HB-3 grant_type enum 4-list 同源) |
-| `audit` | `internal/audit/audit.go` (48) + `_test.go` (61) | 审计日志 5 字段 (`actor / action / target / when / scope`) byte-identical 跟 HB-1 + BPP-4 #499 + HB-3 同源锁链 |
+| `audit` | `internal/audit/audit.go` (48) + `_test.go` (61) | 审计日志 5 字段 (`actor / action / target / when / scope`) byte-identical 跟 HB-1 + BPP-4 #499 + HB-3 同源对齐链 |
 | `fileio` | `internal/fileio/file_actions.go` (119) + `_test.go` (105) | 文件读/写代理 actions (受 sandbox + acl 双门把守) |
 | `grants` | `internal/grants/grants.go` (94) + `sqlite_consumer.go` (110) + 2 `_test.go` | SQLite consumer (HB-3 `host_grants` 表 read-only, 单 SELECT WHERE `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now)`) |
 | `ipc` | `internal/ipc/ipc.go` (181) + `_test.go` (147) | IPC server (unix socket on Linux/macOS, named pipe on Windows; handshake + frame routing) |
@@ -40,7 +40,7 @@
 - **常驻无 sudo** (蓝图 §1.3) — daemon 跑在独立 OS user/group `borgee`, install/`borgee-helper.service` 字面 `User=borgee Group=borgee`
 - **forward-only revoke** (蓝图 §2 信任五支柱第 3 条 "可逆卸载"; HB-3 #520 server-go 唯一写路径 stamp `revoked_at` forward-only) — `internal/grants/sqlite_consumer.go` 单 SELECT, daemon 不 INSERT/UPDATE/DELETE `host_grants` (server-go `internal/api/host_grants.go` 唯一写路径; 跟 [`server/api/host-grants.md`](server/api/host-grants.md) §1 byte-identical)
 - **撤销 < 100ms** (蓝图 host-bridge §1.5 第 5 行 + HB-4 §1.5 release gate 第 5 行) — 不缓存 grant 状态, 每次 file action 真查 SQLite (e2e `sandbox_apply_test.go` 验)
-- **审计 5 字段同源** (HB-4 §1.5 release gate 第 4 行) — `internal/audit/audit.go` JSON schema 跟 HB-1 install audit + BPP-4 dead-letter audit + HB-3 host-IPC audit 字段 byte-identical, 改 = 改四处单测锁链
+- **审计 5 字段同源** (HB-4 §1.5 release gate 第 4 行) — `internal/audit/audit.go` JSON schema 跟 HB-1 install audit + BPP-4 dead-letter audit + HB-3 host-IPC audit 字段 byte-identical, 改 = 改四处单测对齐链
 
 ## 5. grep 守门 (CI lint)
 
