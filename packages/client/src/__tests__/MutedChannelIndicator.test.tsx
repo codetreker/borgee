@@ -1,5 +1,5 @@
-// MutedChannelIndicator.test.tsx — CHN-7.2 indicator DOM byte-identical
-// + MuteBit byte-identical 双向锁 + 同义词反向.
+// MutedChannelIndicator.test.tsx — CHN-7.2 indicator DOM byte-identical checks,
+// MuteBit byte-identical alignment, and synonym rejection.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -21,8 +21,8 @@ afterEach(() => {
   }
 });
 
-describe('MutedChannelIndicator — CHN-7.2 DOM + 文案锁', () => {
-  it('muted=true: 渲染 indicator with `已静音` text + 🔕 emoji', () => {
+describe('MutedChannelIndicator — CHN-7.2 DOM and locked labels', () => {
+  it('muted=true renders the indicator with `已静音` text and 🔕 emoji', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<MutedChannelIndicator muted={true} />);
@@ -34,7 +34,7 @@ describe('MutedChannelIndicator — CHN-7.2 DOM + 文案锁', () => {
     expect(ind.getAttribute('title')).toBe('已静音');
   });
 
-  it('muted=false: 不渲染 (return null)', () => {
+  it('muted=false renders nothing', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<MutedChannelIndicator muted={false} />);
@@ -43,7 +43,7 @@ describe('MutedChannelIndicator — CHN-7.2 DOM + 文案锁', () => {
     expect(ind).toBeNull();
   });
 
-  it('MuteBit byte-identical 双向锁 + isMuted 谓词单源', () => {
+  it('MUTE_BIT stays byte-identical with isMuted behavior', () => {
     expect(MUTE_BIT).toBe(2);
     expect(isMuted(0)).toBe(false);
     expect(isMuted(1)).toBe(false); // collapsed only
@@ -53,7 +53,7 @@ describe('MutedChannelIndicator — CHN-7.2 DOM + 文案锁', () => {
     expect(isMuted(undefined)).toBe(false);
   });
 
-  it('反向断言 — 同义词 0 出现 user-visible text', () => {
+  it('synonym rejection: forbidden mute labels do not appear in user-visible text', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<MutedChannelIndicator muted={true} />);

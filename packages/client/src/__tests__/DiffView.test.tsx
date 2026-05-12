@@ -1,9 +1,9 @@
-// DiffView.test.tsx — CV-4.3 acceptance §3.5 vitest 锁.
+// DiffView.test.tsx — CV-4.3 acceptance §3.5 Vitest coverage.
 //
-// 锚: docs/qa/cv-4-content-lock.md §1 ⑤ + acceptance §3.5 + spec §0 设计 ③.
+// References: docs/qa/cv-4-content-lock.md §1 ⑤ + acceptance §3.5 + spec §0 design ③.
 //
-// jsdiff 行级 diff 纯函数测 (computeDiffRows) + DOM 字面验
-// (data-diff-line='add|del|context' a11y ARIA + "对比" 文案锁).
+// Covers the jsdiff line-level pure function (computeDiffRows) and DOM literals:
+// data-diff-line='add|del|context', a11y ARIA labels, and locked "对比" text.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -35,23 +35,23 @@ function render(node: React.ReactElement) {
   });
 }
 
-describe('computeDiffRows — jsdiff 行级 (设计 ③ client jsdiff)', () => {
+describe('computeDiffRows — jsdiff line-level behavior (design ③ client jsdiff)', () => {
   it('identical → all context rows', () => {
     const rows = computeDiffRows('a\nb\nc', 'a\nb\nc');
     expect(rows.every((r) => r.kind === 'context')).toBe(true);
   });
 
-  it('add only → 含 add row', () => {
+  it('add only → includes an add row', () => {
     const rows = computeDiffRows('a\nb', 'a\nb\nc');
     expect(rows.some((r) => r.kind === 'add' && r.text === 'c')).toBe(true);
   });
 
-  it('del only → 含 del row', () => {
+  it('del only → includes a del row', () => {
     const rows = computeDiffRows('a\nb\nc', 'a\nb');
     expect(rows.some((r) => r.kind === 'del' && r.text === 'c')).toBe(true);
   });
 
-  it('replace → del + add 两 row', () => {
+  it('replace → includes del and add rows', () => {
     const rows = computeDiffRows('a\nb\nc', 'a\nB\nc');
     expect(rows.some((r) => r.kind === 'del' && r.text === 'b')).toBe(true);
     expect(rows.some((r) => r.kind === 'add' && r.text === 'B')).toBe(true);
@@ -79,12 +79,12 @@ describe('DiffView DOM byte-identical (acceptance §3.5)', () => {
     expect(title!.textContent).toBe('v3 ↔ v2');
   });
 
-  it('emits data-diff-line="add|del|context" ARIA replacement (a11y 反约束)', () => {
+  it('emits data-diff-line="add|del|context" plus ARIA labels', () => {
     render(<DiffView newBody="a\nB\nc" oldBody="a\nb\nc" newVersion={2} oldVersion={1} />);
     const adds = container!.querySelectorAll('[data-diff-line="add"]');
     const dels = container!.querySelectorAll('[data-diff-line="del"]');
     expect(adds.length + dels.length).toBeGreaterThan(0);
-    // 反向断言 — 每行有 aria-label (色盲反约束).
+    // Each changed row has an aria-label so color is not the only signal.
     for (const el of adds) {
       expect(el.getAttribute('aria-label')).toBe('增行');
     }
@@ -93,7 +93,7 @@ describe('DiffView DOM byte-identical (acceptance §3.5)', () => {
     }
   });
 
-  it('image_link kind → 前后缩略图并排 fallback (jsdiff 不适用)', () => {
+  it('image_link kind → renders side-by-side thumbnails because jsdiff does not apply', () => {
     render(
       <DiffView
         newBody="https://example.com/new.png"

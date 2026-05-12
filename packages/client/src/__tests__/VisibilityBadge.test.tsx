@@ -1,5 +1,5 @@
-// VisibilityBadge.test.tsx — CHN-9.2 三态 DOM byte-identical + 文案锁
-// + 同义词反向 + Visibility 三向锁.
+// VisibilityBadge.test.tsx — CHN-9.2 three-state DOM byte-identical checks,
+// locked Chinese labels, synonym rejection, and Visibility constant alignment.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -27,8 +27,8 @@ afterEach(() => {
   }
 });
 
-describe('VisibilityBadge — CHN-9.2 三态 DOM + 文案锁', () => {
-  it('creator_only 文案=`🔒 仅创建者` byte-identical', () => {
+describe('VisibilityBadge — CHN-9.2 three-state DOM and locked labels', () => {
+  it('creator_only label=`🔒 仅创建者` remains byte-identical', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<VisibilityBadge visibility="creator_only" />);
@@ -39,7 +39,7 @@ describe('VisibilityBadge — CHN-9.2 三态 DOM + 文案锁', () => {
     expect(badge.getAttribute('title')).toBe('可见性: 仅创建者');
   });
 
-  it('private 文案=`👥 成员可见` byte-identical', () => {
+  it('private label=`👥 成员可见` remains byte-identical', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<VisibilityBadge visibility="private" />);
@@ -49,7 +49,7 @@ describe('VisibilityBadge — CHN-9.2 三态 DOM + 文案锁', () => {
     expect(badge.textContent).toBe('👥 成员可见');
   });
 
-  it('public 文案=`🌐 组织内可见` byte-identical', () => {
+  it('public label=`🌐 组织内可见` remains byte-identical', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<VisibilityBadge visibility="public" />);
@@ -59,7 +59,7 @@ describe('VisibilityBadge — CHN-9.2 三态 DOM + 文案锁', () => {
     expect(badge.textContent).toBe('🌐 组织内可见');
   });
 
-  it('Visibility consts byte-identical 三向锁 + isValidVisibility 谓词单源', () => {
+  it('Visibility constants stay byte-identical and isValidVisibility accepts only known values', () => {
     expect(VISIBILITY_CREATOR_ONLY).toBe('creator_only');
     expect(VISIBILITY_MEMBERS).toBe('private');
     expect(VISIBILITY_ORG_PUBLIC).toBe('public');
@@ -75,7 +75,7 @@ describe('VisibilityBadge — CHN-9.2 三态 DOM + 文案锁', () => {
     expect(VISIBILITY_LABELS.public.text).toBe('组织内可见');
   });
 
-  it('反向断言 — 同义词 0 出现 user-visible text', () => {
+  it('synonym rejection: forbidden visibility labels do not appear in user-visible text', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<VisibilityBadge visibility="creator_only" />);

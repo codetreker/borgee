@@ -1,5 +1,5 @@
-// PinButton.test.tsx — CHN-6.2 PinButton DOM byte-identical + 文案锁
-// + 同义词反向 + click → pinChannel API call.
+// PinButton.test.tsx — CHN-6.2 PinButton DOM byte-identical checks,
+// locked Chinese labels, synonym rejection, and click → pinChannel API calls.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -22,8 +22,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('PinButton — CHN-6.2 文案 + DOM 字面锁', () => {
-  it('未 pin 状态文案=`置顶` data-action="pin"', () => {
+describe('PinButton — CHN-6.2 locked labels and DOM literals', () => {
+  it('unpinned state renders label=`置顶` and data-action="pin"', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<PinButton channelId="c-1" pinned={false} />);
@@ -33,7 +33,7 @@ describe('PinButton — CHN-6.2 文案 + DOM 字面锁', () => {
     expect(btn.getAttribute('data-action')).toBe('pin');
   });
 
-  it('已 pin 状态文案=`取消置顶` data-action="unpin"', () => {
+  it('pinned state renders label=`取消置顶` and data-action="unpin"', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<PinButton channelId="c-1" pinned={true} />);
@@ -79,7 +79,7 @@ describe('PinButton — CHN-6.2 文案 + DOM 字面锁', () => {
     expect(spy).toHaveBeenCalledWith('c-1', false);
   });
 
-  it('反向断言 — 同义词 0 出现在 DOM (`收藏/标星/star/favorite/top/顶置/钉住`)', () => {
+  it('synonym rejection: forbidden pin labels do not appear in the DOM', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<PinButton channelId="c-1" pinned={false} />);
@@ -89,8 +89,7 @@ describe('PinButton — CHN-6.2 文案 + DOM 字面锁', () => {
     for (const f of forbidden) {
       expect(html).not.toContain(f);
     }
-    // `top` 单独检查 — 同义词锁但 button might be inside arbitrary
-    // ancestor classes; we check exact sub-string against full HTML.
+    // `top` needs an exact-text check because ancestor class names may contain it.
     expect(html.toLowerCase()).not.toContain('>top<');
   });
 });
