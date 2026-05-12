@@ -1,22 +1,22 @@
-// tests/agent-list-presence-indicator.spec.ts — agent 列表在线状态指示点.
+// tests/agent-list-presence-indicator.spec.ts — agent-list online status indicator.
 //
-// 测试范围:
-//   - 新建 agent 无 runtime 时, 列表行渲染 `data-presence="offline"` + 文本 "已离线"
-//   - AgentManager 视图所有 [data-presence] 行 role 必为 agent (用户行无 presence 槽位)
-//   - 跨 org owner 看到的 agent 行同样走 offline DOM 形状, 不按 org 边界区分
+// Test scope:
+//   - Newly created agent without runtime renders `data-presence="offline"` + text "已离线".
+//   - In AgentManager, every [data-presence] row role must be agent; user rows have no presence slot.
+//   - Cross-org owner sees the same offline DOM shape for agent rows, without org-specific divergence.
 //
-// 待办:
-//   - online / error 两态等 server 端 presence.changed 推送落地后再加 (al-3.md §2.5)
-//   - cross-org 完整链路等 PR #318 邀请验收完成后再加 (al-3.md §3.4)
+// Follow-up:
+//   - Add online / error states after server-side presence.changed push lands (al-3.md §2.5).
+//   - Add the full cross-org path after PR #318 invitation acceptance is complete (al-3.md §3.4).
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/al-3.md §3.1 / §3.2 / §3.4
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/al-3.md §3.1 / §3.2 / §3.4
 //
-// 实施约束:
-//   - 真 UI 走浏览器 (page.goto + DOM 断)
-//   - seed 用 REST: admin login + invite + register + POST /api/v1/agents
-//   - 测试主体走 SPA AgentManager 视图查 DOM
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints:
+//   - Browser-driven UI path: page.goto + DOM assertions.
+//   - Seed data through REST: admin login + invite + register + POST /api/v1/agents.
+//   - Main test path uses the SPA AgentManager view and checks DOM.
+//   - Do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 import { test, expect, request as apiRequest } from '@playwright/test';
 
 const ADMIN_LOGIN = 'e2e-admin';
@@ -43,7 +43,7 @@ test.describe('AL-3.3 client SPA presence dot (al-3.md §3.1 / §3.2)', () => {
     const inviteCode = ((await inviteRes.json()) as { invite: { code: string } })
       .invite.code;
 
-    // Owner 注册 + 建 agent. agent 没 runtime, REST 返回 state='offline'.
+    // Register owner and create agent. The agent has no runtime, so REST returns state='offline'.
     const stamp = Date.now();
     const ownerCtx = await apiRequest.newContext({ baseURL: serverURL });
     const ownerReg = await ownerCtx.post('/api/v1/auth/register', {
@@ -61,7 +61,7 @@ test.describe('AL-3.3 client SPA presence dot (al-3.md §3.1 / §3.2)', () => {
     });
     expect(agentRes.ok(), `agent create: ${agentRes.status()}`).toBe(true);
 
-    // Forward owner cookie 到 SPA context.
+    // Forward owner cookie to the SPA context.
     const ownerStorage = await ownerCtx.storageState();
     const tokenCookie = ownerStorage.cookies.find(c => c.name === 'borgee_token');
     expect(tokenCookie, 'borgee_token cookie should exist').toBeTruthy();
@@ -80,11 +80,12 @@ test.describe('AL-3.3 client SPA presence dot (al-3.md §3.1 / §3.2)', () => {
 
     await page.goto('/');
 
-    // 进 AgentManager — 走 Sidebar 永久 nav 入口 [data-testid="sidebar-nav-agents"].
-    // 不走 #welcome 的 quick-action 按钮: 那条路径只在 CreateAgentModal 翻牌, 不
-    // 进 AgentList — 拿不到 [data-presence] 渲染 (野马 cross-grep 定位的真因).
-    // race 兜底: 先等 GET /api/v1/agents 返回 (AgentManager 渲 list 必查), 再
-    // 看 dot — 不依赖 networkidle (会被 vite HMR ws 拖死).
+    // Enter AgentManager through the persistent sidebar nav [data-testid="sidebar-nav-agents"].
+    // Do not use the #welcome quick-action button: that path flips only
+    // CreateAgentModal and does not enter AgentList, so [data-presence] never renders.
+    // Race guard: wait for GET /api/v1/agents, which AgentManager must call before
+    // rendering the list, then check the dot. Avoid networkidle because Vite HMR WS
+    // can keep it open indefinitely.
     const agentsNavBtn = page.locator('[data-testid="sidebar-nav-agents"]');
     await expect(agentsNavBtn).toBeVisible({ timeout: 10_000 });
     const agentsListResp = page.waitForResponse(
@@ -94,36 +95,40 @@ test.describe('AL-3.3 client SPA presence dot (al-3.md §3.1 / §3.2)', () => {
     await agentsNavBtn.click();
     await agentsListResp;
 
-    // §3.1 — AL-3.3 PresenceDot DOM 字面锁 (直查 [data-presence], 不绕 AL-1a
-    // [data-testid="agent-state-badge"] 入口 — AL-1a + AL-3 嵌套是合理产物,
-    // 但 e2e 必须走 AL-3 自己的入口, 防 AL-1a 内耦合掩盖 drift).
+    // §3.1 — AL-3.3 PresenceDot DOM literal lock. Check [data-presence] directly;
+    // do not rely on the AL-1a [data-testid="agent-state-badge"] entry. AL-1a +
+    // AL-3 nesting is expected, but this e2e must use AL-3's own entry so internal
+    // AL-1a coupling cannot hide drift.
     const dot = page.locator('[data-presence]').first();
     await expect(dot).toBeVisible({ timeout: 5000 });
     await expect(dot).toHaveAttribute('data-presence', 'offline');
-    // class 字面锁: 内嵌 .presence-dot 子节点带 .presence-offline (PresenceDot.tsx:38;
-    // 外层 [data-presence] wrapper class 是 .presence-inline, dot 颜色类挂在 child span).
+    // Class literal lock: nested .presence-dot child carries .presence-offline
+    // (PresenceDot.tsx:38). The outer [data-presence] wrapper class is
+    // .presence-inline; the color class belongs to the child span.
     const dotInner = dot.locator('.presence-dot');
     await expect(dotInner).toHaveClass(/presence-offline/);
-    // 文本字面 "已离线" — describeAgentState() 锁住 (跟 #305 content lock).
-    // PresenceDot compact 模式下文案在 sr-only / title; 这里用最近的 badge 容器看 visible 文案.
+    // Text literal "已离线" is locked by describeAgentState() and #305 content lock.
+    // In compact mode, PresenceDot copy is in sr-only / title; use the nearest
+    // badge container to check visible copy.
     const badge = page.locator('[data-testid="agent-state-badge"]').first();
     await expect(badge).toContainText('已离线');
-    // §5.1 反约束: badge 里不出 busy / idle / 忙 / 空闲.
+    // §5.1 negative constraint: badge does not show busy / idle / 忙 / 空闲.
     const badgeText = (await badge.textContent()) ?? '';
     expect(badgeText).not.toMatch(/busy|idle|忙|空闲/i);
 
-    // §3.2 — only-agent 反查: 全页 [data-role="user"][data-presence] count==0.
-    // (Sidebar DM 行 / ChannelMembersModal 行带 data-role; 仅 agent role 渲染 PresenceDot.)
+    // §3.2 only-agent check: full page [data-role="user"][data-presence] count==0.
+    // Sidebar DM rows / ChannelMembersModal rows carry data-role; only agent role renders PresenceDot.
     const peopleWithPresence = page.locator('[data-role="user"] [data-presence]');
     await expect(peopleWithPresence).toHaveCount(0);
     const adminsWithPresence = page.locator('[data-role="admin"] [data-presence]');
     await expect(adminsWithPresence).toHaveCount(0);
 
-    // TODO(AL-3.x): 等 server `presence.changed` push frame 落地 (§2.5 TBD)
-    // 后, 加 online → data-presence="online" + "在线" + 6 reason codes
-    // error 文案那两条 case. 现 phase 仅锁 offline 默认态.
+    // TODO(AL-3.x): after server `presence.changed` push frame lands (§2.5 TBD),
+    // add online → data-presence="online" + "在线" and the two error-copy cases
+    // covering the 6 reason codes. This phase only locks the default offline state.
 
-    // TODO(AL-3.x cross-org §3.4): 跨 org owner 视图的 agent 行 DOM 同形,
-    // 等 #318 邀请 acceptance + push frame 全 ready 再加 cross-org case.
+    // TODO(AL-3.x cross-org §3.4): cross-org owner views should keep the same
+    // agent-row DOM shape. Add this case after #318 invitation acceptance and
+    // push frame support are both ready.
   });
 });

@@ -1,21 +1,21 @@
-// tests/channel-collab-screenshots.spec.ts — G3.4 协作场 5 张截屏归档 (PM 签字依据).
+// tests/channel-collab-screenshots.spec.ts — G3.4 collaboration-space five-screenshot archive (PM signoff evidence).
 //
-// 测试范围:
-//   - g3.4-chn4-collab-skeleton-overview.png — 主路径全景 (PM 签字主图, fullPage)
+// Test scope:
+//   - g3.4-chn4-collab-skeleton-overview.png — primary path overview (PM signoff image, fullPage)
 //   - g3.4-chn4-dual-tab-chat.png — "聊天" tab 激活态 fullPage
 //   - g3.4-chn4-dual-tab-workspace.png — "工作区" tab 激活态 fullPage
-//   - g3.4-chn4-followup-dm-no-handle.png — 已落地 (PR #423)
-//   - g3.4-chn4-followup-cross-org-isolation.png — 已落地 (PR #423)
+//   - g3.4-chn4-followup-dm-no-handle.png — landed in PR #423
+//   - g3.4-chn4-followup-cross-org-isolation.png — landed in PR #423
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/chn-4.md §6 (G3.4 截屏依据)
-//   - 文案: "聊天" / "工作区" 中文跟 client/server/锁定文档保持一致
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/chn-4.md §6 (G3.4 screenshot evidence)
+//   - Copy: "聊天" / "工作区" must stay aligned with client/server/content-lock docs.
 //
-// 实施约束:
-//   - 真 UI 走浏览器 (page.goto + 真 tab 切换 + page.screenshot 入 git)
-//   - 真 server-go(4901) + vite(5174), 不 mock
-//   - 跟 G2.4 / G2.5 / G2.6 demo 截屏同模式
-//   - 不允许 PS 后期修改截屏 / fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints:
+//   - Browser-driven UI path: page.goto, real tab switching, and page.screenshot committed to git.
+//   - Real server-go(4901) + vite(5174), no mocks.
+//   - Same pattern as G2.4 / G2.5 / G2.6 demo screenshots.
+//   - Do not post-process screenshots, use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 import {
   test,
   expect,
@@ -127,15 +127,15 @@ test.describe('CHN-4 G3.4 5 张截屏 follow-up — 野马 PM 双 tab + 边界�
     const page = await ctx.newPage();
     await gotoChannel(page, chName);
 
-    // 字面验 byte-identical (chn-4-content-lock ①):
-    //   "聊天" / "工作区" 中文 byte-identical
+    // Byte-identical literal check (chn-4-content-lock ①):
+    //   "聊天" / "工作区" Chinese labels stay unchanged.
     await expect(page.locator('button[data-tab="chat"]')).toHaveText('聊天');
     await expect(page.locator('button[data-tab="workspace"]')).toHaveText('工作区');
 
-    // 立场 ⑥ default_tab="chat" — 进入无 URL ?tab 时 chat active.
+    // default_tab="chat": chat is active when entering without URL ?tab.
     await expect(page.locator('button[data-tab="chat"]')).toHaveClass(/active/);
 
-    // 主路径截屏 (fullPage 截 sidebar + 主区, 野马 PM demo 签字主图).
+    // Primary-path screenshot: fullPage captures sidebar + main area for PM demo signoff.
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-collab-skeleton-overview.png'),
       fullPage: true,
@@ -158,11 +158,11 @@ test.describe('CHN-4 G3.4 5 张截屏 follow-up — 野马 PM 双 tab + 边界�
     const page = await ctx.newPage();
     await gotoChannel(page, chName);
 
-    // chat tab default active (字面验 byte-identical "聊天").
+    // chat tab default active; byte-identical literal check for "聊天".
     await expect(page.locator('button[data-tab="chat"]')).toHaveText('聊天');
     await expect(page.locator('button[data-tab="chat"]')).toHaveClass(/active/);
 
-    // URL deep-link 显式锁 ?tab=chat (cd 通过 click 行为已锁; 此处验默认无 ?tab).
+    // URL deep-link explicitly locks ?tab=chat elsewhere; this check verifies the default has no ?tab.
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-dual-tab-chat.png'),
       fullPage: true,
@@ -185,7 +185,7 @@ test.describe('CHN-4 G3.4 5 张截屏 follow-up — 野马 PM 双 tab + 边界�
     const page = await ctx.newPage();
     await gotoChannel(page, chName);
 
-    // 切到 workspace tab — URL ?tab=workspace deep-link.
+    // Switch to workspace tab and verify the URL ?tab=workspace deep-link.
     await page.locator('button[data-tab="workspace"]').click();
     await expect(page.locator('button[data-tab="workspace"]')).toHaveClass(/active/);
     await expect(page.locator('button[data-tab="workspace"]')).toHaveText('工作区');
