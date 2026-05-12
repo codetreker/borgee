@@ -11,7 +11,7 @@
 
 # Files matching any of these globs are NEVER considered a "code change" for
 # current-sync purposes. Test files and snapshots don't change behavior, so
-# they shouldn't force a docs/current update. (飞马 review on PR #170.)
+# they shouldn't force a docs/current update. (Review feedback on PR #170.)
 exclude_globs:
   - "**/*_test.go"
   - "**/*.test.ts"
@@ -28,7 +28,7 @@ modules:
   - name: server-cmd
     code_prefix: packages/server-go/cmd/
     docs_prefix: docs/current/server/
-  # admin SPA is physically nested under client/ but is its own module
+  # admin single-page app is physically nested under client/ but is its own module
   # (separate auth, separate cookie, separate docs/current/admin/). Listed
   # before `client` so the longest-prefix match wins.
   - name: admin

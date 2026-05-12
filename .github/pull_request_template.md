@@ -5,7 +5,7 @@
 ## Blueprint
 
 <!--
-Required (规则 4 + 闸 2 grep). Cite the blueprint module + section this PR
+Required by rule 4 and the gate-2 grep check. Cite the blueprint module + section this PR
 delivers. At least one line starting with `Blueprint:` AND containing `§`
 MUST be present (not the heading above — a real line below).
 Example:
@@ -25,7 +25,7 @@ The CI lint greps for a line starting with `Touches:` (the line below the
 heading), not the heading itself. Keep both.
 
 If you list 2 OR MORE subsystems, you MUST split this PR into:
-  1. an interface-contract PR (≤300 lines: schema / proto / API types)
+  1. an interface-contract PR (≤300 lines: schema / protocol / API types)
   2. one or more implementation PRs
 
 A single cross-system implementation PR is rejected by review even if CI passes.
@@ -36,7 +36,7 @@ Touches: <subsystems>
 ## Current 同步
 
 <!--
-Required (规则 6). List the docs/current/<module>/*.md files updated in this PR.
+Required by 规则 6. List the docs/current/<module>/*.md files updated in this PR.
 If a code change genuinely needs no current update, write `N/A — <reason>`.
 A CI lint blocks PRs that touch internal/<module>/ but never docs/current/<module>/.
 -->
@@ -47,13 +47,13 @@ A CI lint blocks PRs that touch internal/<module>/ but never docs/current/<modul
 
 <!--
 Pick at least one of the four acceptance forms (see how-to-write-milestone.md):
-  1. E2E 断言
-  2. 蓝图行为对照
-  3. 数据契约
-  4. 行为不变量
+  1. End-to-end assertion
+  2. Blueprint behavior comparison
+  3. Data contract
+  4. Behavior invariant
 
 For ⭐ standout milestones, BOTH 4.1 (single-form acceptance) AND 4.2
-(野马 demo + 关键截屏) are required.
+(demo plus key screenshots) are required.
 -->
 
 - [ ] Form: <1 / 2 / 3 / 4>
@@ -72,7 +72,7 @@ Stage: v0
 ## Test plan
 
 <!--
-Author 自验 checklist. 不强阻塞 push, 但 reviewer 会扫这一栏。
+Author self-check checklist. This does not block pushes, but reviewers read it.
 -->
 
 - [ ] Local `make precheck` PASS (cov ≥ 85% + vitest + typecheck)
