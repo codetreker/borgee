@@ -221,7 +221,7 @@ export default function AnchorThreadPanel({
       {isResolved && canResolve && (
         <div className="anchor-thread-actions">
           {/* Negative constraint: resolved → reopen 文案锁; v1 服务端不暴露 reopen 路径,
-              UI 仅占位 byte-identical 锁内容防 drift; 服务端 v2 加 reopen
+              UI 仅占位 byte-identical 锁内容防止文案漂移; 服务端 v2 加 reopen
               endpoint 时此按钮启用. */}
           <button className="btn btn-sm anchor-reopen-btn" disabled title="v1 暂不支持重开">
             {REOPEN_LITERAL}

@@ -164,7 +164,7 @@ function AgentCard({
       const rt = await fetchAgentRuntime(agent.id);
       setRuntime(rt);
     } catch {
-      // Silent failure: §11 prefers silence over fake loading; a transient error
+      // Silent failure: #190 §11 prefers silence over fake loading; a transient error
       // should not block the expanded panel.
       setRuntime(null);
     } finally {
