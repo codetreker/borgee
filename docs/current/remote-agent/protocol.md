@@ -1,3 +1,3 @@
-# Remote Agent
+# Protocol
 
 Status: draft, assigned to remote agent architecture writer.
