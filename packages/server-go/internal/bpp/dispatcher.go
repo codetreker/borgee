@@ -1,41 +1,35 @@
 // Package bpp — dispatcher.go: BPP-2.1 source-of-truth for the
 // semantic_action dispatch layer (plugin → server → existing REST handler).
 //
-// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.3 (Plugin 调 Borgee
-// 抽象语义层 C, 不直对 REST + 协议红线 "不允许 plugin 下穿语义层直调
-// REST" + 7 v1 必须语义动作字面). Spec brief: docs/implementation/modules/
-// bpp-2-spec.md (战马E #460 v0) §0 原则 ① + §1 拆段 BPP-2.1.
-// 原则: docs/qa/bpp-2-stance-checklist.md §1 原则 ① 8 反向约束 checkbox.
-// Content lock: docs/qa/bpp-2-content-lock.md §1 ① 7 op 白名单字面.
+// Blueprint: docs/blueprint/current/plugin-protocol.md §1.3. Plugins call
+// Borgee through the semantic-action layer, not direct REST. Spec brief:
+// docs/implementation/modules/bpp-2-spec.md §0 + §1 BPP-2.1. Stance and
+// content locks: docs/qa/bpp-2-stance-checklist.md §1 and
+// docs/qa/bpp-2-content-lock.md §1 ①.
 //
 // What this dispatcher does:
 //
-//   1. Plugin upstream emits a `SemanticActionFrame` (BPP-1 envelope §2.2,
-//      already in `bppEnvelopeWhitelist` since #304). BPP-2.1 ADDS the
-//      server-side `Dispatch(frame)` routing layer — no envelope wire
-//      change (反向约束: BPP-1 envelope 不拆, 9 frame whitelist 不动).
-//   2. Validate `Action` ∈ 7 v1 whitelist (蓝图 §1.3 字面); enum-out
-//      values reject with `bpp.semantic_op_unknown` error code.
-//   3. Resolve `(action, agent_id, payload)` → an `ActionHandler`
-//      registered by the api package (interface seam, similar to
-//      AgentInvitationPusher / ArtifactPusher pattern — bpp pkg never
-//      imports internal/api).
-//   4. Permission check via AP-0 RequirePermission is the responsibility
-//      of the registered handler — the dispatcher only routes, does
-//      not bypass perm. 反向约束: dispatcher 不接 raw HTTP client
-//      / `http.Post`, 不拼 URL 调 REST endpoint (蓝图 §1.3 协议红线
-//      字面 "不允许 plugin 下穿语义层直调 REST").
+//  1. Plugin upstream emits a `SemanticActionFrame` (BPP-1 envelope §2.2,
+//     already in `bppEnvelopeWhitelist` since #304). BPP-2.1 ADDS the
+//     server-side `Dispatch(frame)` routing layer — no envelope wire
+//     change: BPP-1 envelope and the frame whitelist remain unchanged.
+//  2. Validate `Action` ∈ 7 v1 whitelist (blueprint §1.3); enum-out
+//     values reject with `bpp.semantic_op_unknown` error code.
+//  3. Resolve `(action, agent_id, payload)` → an `ActionHandler`
+//     registered by the api package (interface seam, similar to
+//     AgentInvitationPusher / ArtifactPusher pattern — bpp pkg never
+//     imports internal/api).
+//  4. Permission check via AP-0 RequirePermission is the responsibility
+//     of the registered handler — the dispatcher only routes, does
+//     not bypass permission checks. The dispatcher does not accept a raw
+//     HTTP client, call `http.Post`, or build URLs to REST endpoints.
 //
-// 反向约束 (bpp-2-spec.md §0 原则 ① + acceptance §4.1 反向 grep):
-//   - Dispatcher 不开 raw HTTP / REST 旁路 — 反向 grep
-//     reverse grep CI lint count==0 — see acceptance §4.1.
-//     across this package (excluding _test.go).
-//   - 7 op 白名单严闭, 'list_users' / 'delete_org' 等枚举外值 reject +
-//     log warn `bpp.semantic_op_unknown` (跟 dm.workspace_not_supported
-//     #407 / iteration.target_not_in_channel #409 / 出处 anchor.create_owner_only
-//     #360 错码命名同模式).
-//   - v2+ 列表 (蓝图 §1.3 v2+ 协作意图动作) 不在 v1 白名单, reject —
-//     列表字面禁 v1 进.
+// Negative constraints (bpp-2-spec.md §0 + acceptance §4.1 reverse grep):
+//   - Dispatcher has no raw HTTP / REST bypass; CI reverse grep must return 0
+//     hits across this package, excluding _test.go.
+//   - The 7-op whitelist is closed: enum-out values such as 'list_users' /
+//     'delete_org' reject with `bpp.semantic_op_unknown`.
+//   - v2+ collaborative intent actions are not in the v1 whitelist.
 package bpp
 
 import (
@@ -43,12 +37,9 @@ import (
 	"fmt"
 )
 
-// SemanticOp values pin the v1 whitelist byte-identical 跟蓝图
-// plugin-protocol.md §1.3 字面 "v1 必须的语义动作" 7 项. Drift here
-// breaks reverse grep `bpp-2-content-lock.md §1 ①` byte-identical 锁定.
-//
-// 改 = 改三处: 蓝图 plugin-protocol.md §1.3 + spec bpp-2-spec.md §0
-// 原则 ① + this enum (实施代码 source-of-truth).
+// SemanticOp values pin the v1 whitelist byte-identical with
+// plugin-protocol.md §1.3. Changes must be coordinated with the blueprint,
+// bpp-2-spec.md §0, and this implementation enum.
 const (
 	SemanticOpCreateArtifact     = "create_artifact"
 	SemanticOpUpdateArtifact     = "update_artifact"
@@ -57,12 +48,10 @@ const (
 	SemanticOpRequestAgentJoin   = "request_agent_join"
 	SemanticOpReadChannelHistory = "read_channel_history"
 	SemanticOpReadArtifact       = "read_artifact"
-	// BPP-3.2.1 — agent 触发 owner DM 走 capability 审批流 (蓝图
-	// auth-permissions.md §1.3 主入口字面). plugin 端 SDK 收 BPP-3.1
-	// permission_denied frame 后, 通过此 op 触发 server 给 owner 写
-	// system DM (复用 DM-2 既有 path, 反向约束: 不开新 channel 类型).
-	// 文案锁定见 docs/qa/bpp-3.2-content-lock.md §1; quick_action JSON
-	// shape 见 §2 (action ∈ {grant, reject, snooze}).
+	// BPP-3.2.1 — agent requests owner approval through the capability grant
+	// flow. After the plugin SDK receives a BPP-3.1 permission_denied frame,
+	// this op asks the server to write a system DM to the owner. It reuses the
+	// existing DM-2 path and does not add a channel type.
 	SemanticOpRequestCapabilityGrant = "request_capability_grant"
 )
 
@@ -200,11 +189,11 @@ func (d *Dispatcher) HandlerFor(op string) ActionHandler {
 // it to the registered handler.
 //
 // Validation (in order):
-//   1. frame.Action ∈ ValidSemanticOps (蓝图 §1.3 v1 whitelist) →
-//      returns errSemanticOpUnknown if not.
-//   2. handler registered for op → returns ErrNoHandler if not.
-//   3. Delegate to handler.HandleAction(frame, sess) — handler enforces
-//      permission via AP-0 + parses Payload.
+//  1. frame.Action ∈ ValidSemanticOps (蓝图 §1.3 v1 whitelist) →
+//     returns errSemanticOpUnknown if not.
+//  2. handler registered for op → returns ErrNoHandler if not.
+//  3. Delegate to handler.HandleAction(frame, sess) — handler enforces
+//     permission via AP-0 + parses Payload.
 //
 // 反向约束: Dispatch does not call out to raw HTTP / REST. The handler
 // is a pre-resolved ActionHandler interface, not a URL or http.Client.

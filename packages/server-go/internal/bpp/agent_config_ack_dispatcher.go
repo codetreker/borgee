@@ -1,40 +1,29 @@
-// Package bpp — agent_config_ack_dispatcher.go: AL-2b ack frame 入站
+// Package bpp — agent_config_ack_dispatcher.go: AL-2b ack frame inbound
 // dispatcher source-of-truth.
 //
-// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.5 (热更新 + 幂等
-// reload + ack 回执) + §2.2 (data plane, Plugin → Server).
-// Spec brief: docs/implementation/modules/al-2b-spec.md (烈马 #465 v0)
-// + docs/implementation/modules/al-2b.2-server-hook-spec.md §1
-// (`internal/bpp/agent_config_ack_dispatcher.go` 落点).
+// Blueprint: docs/blueprint/current/plugin-protocol.md §1.5 (hot reload,
+// idempotent reload, ack response) + §2.2 (data plane, Plugin → Server).
+// Spec brief: docs/implementation/modules/al-2b-spec.md +
+// docs/implementation/modules/al-2b.2-server-hook-spec.md §1.
 // Acceptance: docs/qa/acceptance-templates/al-2b.md §1.2 + §2.5 + §3.2.
 //
 // What this file does:
-//   1. Validate AgentConfigAckFrame.Status ∈ 3-enum {applied, rejected,
-//      stale}; enum 外 reject with AckErrCodeStatusUnknown (跟 BPP-2.2
-//      task_outcome_unknown / BPP-2.3 config_field_disallowed 错码命名
-//      同模式).
-//   2. When Status ∈ {rejected, stale} 且 Reason 非空: 校验 Reason ∈
-//      AL-1a 6 字典 byte-identical 同源 (跟 BPP-2.2 task_finished failed
-//      reason 第 7 处, 此处第 8 处跟链 — 改 = 改 8 处单测守护:
-//      AL-1a #249 + AL-3 #305 + CV-4 #380 + AL-2a #454 + AL-1b #458 +
-//      AL-4 #387/#461 + BPP-2.2 #485 + AL-2b #481, 不另起字典).
-//   3. cross-owner reject — sess.AgentUserID (BPP-1 connect 时已认证
-//      的 plugin owner) 跟 frame.AgentID 的 owner 不匹配 → reject +
-//      log warn `bpp.ack_cross_owner_reject` (跟出处 #360 owner-only
-//      + REG-INV-002 fail-closed 扫描器同模式).
-//   4. ActionHandler-style interface seam (跟 BPP-2.1 dispatcher.go
-//      ActionHandler / cv-4.2 IterationStatePusher 同模式) — bpp 包
-//      不 import internal/api, api 包注册 AgentConfigAckHandler.
+//  1. Validate AgentConfigAckFrame.Status ∈ 3-enum {applied, rejected,
+//     stale}; enum-out values reject with AckErrCodeStatusUnknown.
+//  2. When Status ∈ {rejected, stale} and Reason is non-empty: validate Reason
+//     against the byte-identical AL-1a reason set.
+//  3. cross-owner reject — sess.AgentUserID from the authenticated BPP-1
+//     connection must match frame.AgentID's owner, otherwise reject + log warn
+//     `bpp.ack_cross_owner_reject`.
+//  4. ActionHandler-style interface seam — bpp does not import internal/api;
+//     api registers AgentConfigAckHandler.
 //
-// 反向约束 (acceptance §3.2 + §4 反向 grep, 跟 al-2b-spec §3 byte-identical):
-//   - admin god-mode 不入业务路径 — CI 反向 grep 守 (al-2b-spec §3
-//     第 3 行) count==0.
-//   - cursor 唯一可信序 — CI 反向 grep 守 (al-2b-spec §3 第 7 行) count==0.
-//   - AL-2a 轮询路径下线 脱节 防双轨 — CI 反向 grep 守 (al-2b-spec §3
-//     第 6 行) count==0.
-//   - reason 字典不另起 — 复用 internal/agent/state.go::Reason* 单一来源,
-//     脱节 则 BPP-2.2 task_finished + AL-2b ack 同破.
-//   - bpp 包零 internal/api 依赖 — interface seam (跟 BPP-2.1 同模式).
+// Negative constraints (acceptance §3.2 + §4 reverse grep):
+//   - admin API does not enter this owner-only path.
+//   - cursor remains the only trusted ordering source.
+//   - AL-2a polling path is removed to avoid dual paths.
+//   - reason values reuse the internal/agent/reasons single source.
+//   - bpp has no internal/api dependency; the interface seam matches BPP-2.1.
 package bpp
 
 import (
@@ -80,8 +69,8 @@ var validAckStatuses = map[string]bool{
 	AgentConfigAckStatusStale:    true,
 }
 
-// validAL1aReason — REFACTOR-REASONS: 单一来源 迁到 internal/agent/reasons.
-// 改字面 = 改 reasons.ALL 一处即 8 处单测同步挂.
+// validAL1aReason — REFACTOR-REASONS moved the single source to
+// internal/agent/reasons.
 //
 // 历史: 此处原 inline 6 字面 byte-identical 跟 agent/state.go Reason*
 // (#249/#305/#321/#380/#454/#458/#481/#492 八处单测守护链), REFACTOR-REASONS
@@ -93,9 +82,9 @@ func validAL1aReason(s string) bool { return reasons.IsValid(s) }
 // authenticated plugin owner UUID (resolved via BPP-1 connect handshake)
 // + the plugin id (audit trail).
 //
-// cross-owner reject 用 OwnerUserID 跟 frame.AgentID 的 owner 比对;
-// 跟 BPP-2.1 SessionContext 同结构, 但分独立类型避免误用 (ack 不走
-// semantic action 路径).
+// cross-owner reject compares OwnerUserID with frame.AgentID's owner. This
+// mirrors BPP-2.1 SessionContext but remains a separate type because ack frames
+// do not use the semantic action path.
 type AckSessionContext struct {
 	OwnerUserID string // resolved via BPP-1 connect handshake
 	PluginID    string // for audit / log only
@@ -110,8 +99,8 @@ type AckSessionContext struct {
 //   - For Status==applied: UPDATE agent_configs.last_applied_at;
 //   - For Status∈{rejected,stale}: log warn (best-effort, 不 block).
 //
-// 反向约束: bpp 包不 import internal/api — handler 是 interface 注入
-// (跟 BPP-2.1 ActionHandler / cv-4.2 IterationStatePusher 同模式).
+// Negative constraint: bpp does not import internal/api; handler is injected
+// through an interface.
 type AgentConfigAckHandler interface {
 	HandleAck(frame AgentConfigAckFrame, sess AckSessionContext) error
 }

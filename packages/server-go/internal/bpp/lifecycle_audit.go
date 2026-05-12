@@ -3,34 +3,29 @@
 // Records 5 plugin lifecycle events (connect / disconnect / reconnect /
 // cold_start / heartbeat_timeout) into the existing admin_actions table
 // with `actor_id="system"` and `action="plugin_<event>"`. Reuses the
-// ADM-2.1 #484 admin_actions audit table — does NOT introduce a separate
-// `plugin_lifecycle_events` table (设计 ①).
+// ADM-2.1 #484 admin_actions audit table; it does NOT introduce a separate
+// `plugin_lifecycle_events` table.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 + §3 plugin lifecycle.
-// Spec: docs/implementation/modules/bpp-8-spec.md §0 设计 ①+②+③ + §1
-// 拆段 BPP-8.2.
+// Blueprint: docs/blueprint/current/plugin-protocol.md §1.6 + §3 plugin lifecycle.
+// Spec: docs/implementation/modules/bpp-8-spec.md §0 + §1 BPP-8.2.
 //
-// 设计 (跟 约定 §1+§2+§3+§4 byte-identical):
+// Design constraints:
 //
-//   - **① 复用 admin_actions 表** — auditor 调 Store.InsertAdminAction
+//   - **① reuse admin_actions** — auditor calls Store.InsertAdminAction
 //     with actor='system', action='plugin_<event>', target=<agent_id>,
-//     metadata=JSON{plugin_id, reason, ...}. audit forward-only 跟
-//     ADM-2.1 + AP-2 + BPP-4 watchdog 跨四 milestone 同精神 (对齐位第 5 处).
-//   - **② reason 复用 AL-1a 6-dict** — heartbeat_timeout reason=
+//     metadata=JSON{plugin_id, reason, ...}. Audit remains forward-only.
+//   - **② reason reuses the AL-1a reason set** — heartbeat_timeout reason=
 //     reasons.NetworkUnreachable; cold_start reason=reasons.RuntimeCrashed
-//     byte-identical 跟 BPP-6 #522 + BPP-7 SDK 同源. AL-1a reason 对齐链
-//     BPP-8 = 第 13 处.
-//   - **④ single-gate** — 5 method 全走此 auditor; 反向 grep
+//     byte-identical with BPP-6 #522 + BPP-7 SDK.
+//   - **④ single insert path** — all 5 methods go through this auditor; reverse grep
 //     `InsertAdminAction.*"plugin_` 在 lifecycle_audit.go 外 0 hit.
-//   - **⑥ best-effort** — fire-and-forget (log.Warn on InsertAdminAction
-//     error, 不 fail handler); 无 retry queue / 无持久化 deferred audit
-//     (跟 BPP-4/5/6/7 best-effort 设计跟历史一致, AST 延伸第 5 处).
-//   - **⑦ actor='system' byte-identical** — 跟 BPP-4 watchdog + AP-2
-//     sweeper actor='system' 跨五 milestone 同源.
+//   - **⑥ best-effort** — log.Warn on InsertAdminAction errors and do not fail
+//     the handler; no retry queue and no persistent deferred audit table.
+//   - **⑦ actor='system' byte-identical** — matches BPP-4 watchdog + AP-2 sweeper.
 //
-// 约束 (acceptance §3):
-//   - admin god-mode 不挂 SDK 路径 (ADM-0 §1.3 红线, lifecycle GET endpoint
-//     在 internal/api/bpp_8_lifecycle_list.go owner-only, admin-api 不挂).
+// Constraints (acceptance §3):
+//   - admin API does not mount SDK lifecycle paths (ADM-0 §1.3); lifecycle GET
+//     endpoint in internal/api/bpp_8_lifecycle_list.go is owner-only.
 //   - AST scan forbidden: `pendingLifecycleAudit\|lifecycleQueue\|
 //     deadLetterLifecycle` 0 hit (TestBPP83_NoLifecycleQueueOrAuditTable).
 
@@ -44,9 +39,8 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// LifecycleSystemActor — actor_id 字面 byte-identical 跟 BPP-4 watchdog +
-// AP-2 sweeper actor='system' 跨五 milestone 同源 (设计 ⑦). 改 = 改 BPP-4
-// + AP-2 同步.
+// LifecycleSystemActor is byte-identical with BPP-4 watchdog and AP-2 sweeper
+// actor='system'. Changes must be coordinated with BPP-4 and AP-2.
 const LifecycleSystemActor = "system"
 
 // Action constants — admin_actions CHECK enum 5 条 plugin_* 字面
@@ -83,7 +77,7 @@ type LifecycleAuditStore interface {
 // AdminActionsLifecycleAuditor implements LifecycleAuditor by writing
 // rows to admin_actions via Store.InsertAdminAction. Construct via
 // NewAdminActionsLifecycleAuditor (nil store / nil logger panics —
-// boot bug, 跟 BPP-3/4/5/6 同模式 ctor pattern).
+// fail-fast constructor validation, matching the BPP-3/4/5/6 constructor pattern).
 type AdminActionsLifecycleAuditor struct {
 	store  LifecycleAuditStore
 	logger *slog.Logger
@@ -103,7 +97,7 @@ func NewAdminActionsLifecycleAuditor(store LifecycleAuditStore, logger *slog.Log
 
 // recordEvent — internal helper, single insert path. Marshals metadata
 // to JSON; on InsertAdminAction error logs.Warn and returns
-// (best-effort 设计 ⑥, fire-and-forget).
+// (best-effort behavior).
 func (a *AdminActionsLifecycleAuditor) recordEvent(action, agentID string, metadata map[string]any) {
 	mdJSON, err := json.Marshal(metadata)
 	if err != nil {
