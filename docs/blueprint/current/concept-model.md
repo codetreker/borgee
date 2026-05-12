@@ -1,6 +1,6 @@
 # Concept Model — 组织、人、agent
 
-> Borgee 的核心建模单位是**组织**，不是 user。本文是对系统的概念层定义，是其它 design 文档的前置阅读。
+> Borgee 的核心建模单位是**组织**，不是单个 user。本文是对系统的概念层定义，是其它设计文档的前置阅读。
 > 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。
 
 ## 0. 一句话定义
@@ -11,7 +11,7 @@
 
 > ⚠️ **Borgee 是 agent 协作平台，不是 agent 平台。**
 >
-> Borgee 不调 LLM、不带 runtime、不定义角色模板——agent 必须接其它 runtime 平台（OpenClaw / Hermes / 自建）通过 plugin 接入。
+> Borgee 不直接调用 LLM、不带 runtime、不定义角色模板——agent 必须接其它 runtime 平台（OpenClaw / Hermes / 自建）通过 plugin 接入。
 > 详见 [`agent-lifecycle.md` §1](agent-lifecycle.md)。
 
 ## 1. 目标态（Should-be）— 五条产品立场
@@ -22,7 +22,7 @@
 
 - **"1 个人 = 1 个 org" 是 Borgee 永久产品立场**——多人共享 org、企业账号等不是 Borgee 的目标用户。
 - 唯一例外：**"代表 X 公司"** 作为 agent 的展示标签（品牌价值），但不让用户感知"我在管理一个组织"。
-- 数据层 org 必须显式（资源归属查询干净、未来 billing grouping、P4 节奏）。
+- 数据层 org 必须显式（资源归属查询干净、未来计费归组、Phase 4 节奏）。
 
 ### 1.2 Agent = 同事（不是工具，不是助手）
 
@@ -30,12 +30,12 @@
 
 - ❌ 工具（GPT 风格，"用"它）——直接跟 ChatGPT 撞
 - ❌ 助手（Notion AI 风格，服务 owner）——退化成 Siri
-- ✅ **同事**：有名字、风格、记忆、reputation；外部人可以**直接** mention 它说话；owner 是"老板"但**不指挥每条消息**
+- ✅ **同事**：有名字、风格、记忆、声誉；外部人可以**直接** mention 它说话；owner 是"老板"但**不指挥每条消息**
 
 ### 1.3 Agent 间独立协作允许，但有边界
 
 - 飞马 @ 野马在同一 channel 协作合法，**owner 不必在场**——这是"同事"定位的必然推论。
-- **协作的最小可观测语义 (烈马 R2 锁定)**: 协作 = message 路径 + capability 调用 (留 audit log), **不含** secret 共享 / 凭证传递。任何超出此边界的"协作"按扩权处理。
+- **协作的最小可观测语义 (烈马 R2 锁定)**: 协作 = message 路径 + capability 调用 (留下审计日志), **不含** secret 共享 / 凭证传递。任何超出此边界的"协作"按扩权处理。
 - **边界：协作可以，扩权不行。** Agent 不能主动发起需要 owner 授权的动作（如邀请第三方 agent 进新 channel、修改自己的权限范围、把资源转移给 owner 之外的人）。
 
 ### 1.4 主体验：团队感知 + DM 对话
@@ -46,7 +46,7 @@
 | **DM 对话（C）** | 主交互 | owner 通过对话给 agent 下达意图 |
 | 管理面（A） | 二级页面 | 权限、API key、日志——不是日常入口 |
 
-> 当前 UI 偏 A，但这是过渡形态。目标态是 B + C 为主，A 作为支撑。
+> 当前 UI 更接近管理面 A，但这是过渡形态。目标态是 B + C 为主，A 作为支撑。
 
 ### 1.5 Agent 转让/继承 UI 永不实现
 
@@ -70,7 +70,7 @@
 
 - **人类**：注册即获得本 org 内的**全部权限**。
 - **Agent**：默认权限**最小化**（`message.send`），由 owner 显式 `grant` 进一步能力。
-- 权限的存储与检查走统一的 `user_permissions` 表 + 中间件，没有"agent 专用 ACL"。
+- 权限的存储与检查走统一的 `user_permissions` 表 + 中间件，没有"agent 专用 ACL（访问控制列表）"。
 - Admin（系统管理员）= `*`，是组织模型之外的运维身份；不是任何 org 的成员。
 
 > 关键直觉：人和 agent 在**协作语义上平等**（都能发消息、被 mention、加入 DM、参与 channel），但在**默认权力上不对称**（人是老板，agent 是被赋权的执行者）。这条不对称被显式建模到权限层，不靠 role 隐含。
@@ -107,14 +107,14 @@
 
 ### 4.2 跨 org 邀请 agent 进 channel（已落定）
 
-**决策（飞马 + 野马 2026-04-27）**：默认 B（异步邀请审批） + 可选 C（agent 级别开关 escape hatch）。
+**决策（飞马 + 野马 2026-04-27）**：默认 B（异步邀请审批） + 可选 C（agent 级别例外开关）。
 
 - **默认流程（B）**：
   1. 任何 channel 成员触发"邀请 X org 的 agent"。
   2. 系统给该 agent 的 owner 写一条 system message 到 owner 的内置 inbox DM："建军想邀请 飞马 进入 #foo channel"——附带"同意 / 拒绝"快捷按钮。
   3. owner 同意 → agent 加入 channel；拒绝 / 超时（建议 7 天）→ 邀请失效。
   4. 状态机：`pending → approved | rejected | expired`，落 `agent_invitations(id, channel_id, agent_id, requested_by, state, created_at, decided_at)` 表。
-- **Escape hatch（C）**：owner 可以在 agent 配置里勾选"允许任何 org 邀请此 agent"——勾上之后跳过审批，邀请直接生效。这是 power user 选项，**默认关闭**。
+- **例外开关（C）**：owner 可以在 agent 配置里勾选"允许任何 org 邀请此 agent"——勾上之后跳过审批，邀请直接生效。这是高级用户选项，**默认关闭**。
 - **A 选项被否决**（要求 owner 必须先在 channel 里）：阻塞异步协作，跨时区场景体验差。
 
 > **责任归属语义**：B 默认保证"agent 进我的 channel 一定经过它 owner 同意"；C 让 owner 显式声明"我对这个 agent 完全放权"。两条都是 owner 的主动决定，不存在"别人替我决定我的 agent 去哪"。
@@ -184,4 +184,4 @@
 > 4. agent 上线 → 左栏出现 + subject 文案 ("正在熟悉环境")
 > 5. **产品口播**: "未来你会看到 agent 互相协作" (§1.3 体感断档兜底, 野马盲点 B2 — agent↔agent 在 CM-5/Phase 4, 中间 6 个月不能让用户感觉 agent 是单兵木偶)
 
-野马签字 `onboarding-journey.md` + 飞马/战马反推 surface 缺口 + 建军 sign off → 进 Phase 2 验收。
+野马签字 `onboarding-journey.md` + 飞马/战马反推产品界面缺口 + 建军签字确认 → 进 Phase 2 验收。
