@@ -13,9 +13,9 @@
 - 形态由两个共同支柱构成：
   1. **聊天流**——讨论、决策、状态同步
   2. **共享工作空间（workspace）**——文档、文件、产出
-- Agent 在 channel 里是**原生成员**，不是 webhook/bot 投递者——agent 与人**一样是"房东之一"**，能感知 channel 的状态、在 workspace 中放置/读取产物。
+- Agent 在 channel 里是**原生成员**，不是 webhook/bot 投递者——agent 与人**一样是协作者之一**，能感知 channel 的状态、在 workspace 中放置/读取产物。
 
-> 这条把 §concept-model §1.2（agent = 同事）落到 channel 维度。如果 channel 退化成纯聊天，agent "同事"定位也跟着退化成 bot。
+> 这条把 concept-model §1.2（agent = 同事）落到 channel 维度。如果 channel 退化成纯聊天，agent "同事"定位也跟着退化成 bot。
 
 ### 1.2 DM：概念独立，底层可复用
 
@@ -30,8 +30,8 @@
 ### 1.3 Workspace：核心（artifact 集合）
 
 - **目标态**：workspace 与聊天**并列核心**——这是 Borgee 与 Slack 的关键差异之一。
-- **形态（详见 [`canvas-vision.md`](canvas-vision.md)）**：workspace 是一组 **artifact**（PRD、代码片段、设计稿、测试用例…），不是简单文件树。每个 artifact 自带版本历史，agent 可 iterate 编辑、人可 review/edit。
-- **v1 实现节奏**：默认**收起** workspace，聊天优先曝光。这是**节奏选择，不是降级**——v1 跑最小 markdown artifact，验证"AI 团队产出沉淀"行为。
+- **形态（详见 [`canvas-vision.md`](canvas-vision.md)）**：workspace 是一组 **artifact**（PRD、代码片段、设计稿、测试用例…），不是简单文件树。每个 artifact 自带版本历史，agent 可迭代编辑，人可以审阅和编辑。
+- **v1 实现节奏**：默认**收起** workspace，聊天优先曝光。这是**节奏选择，不是降级**——v1 先运行最小 Markdown artifact，验证"AI 团队产出沉淀"行为。
 - workspace 内容包括：
   - Markdown artifact（v1 唯一形态）
   - 主动上传的文件 / 消息附件归档（沿用现状）
@@ -47,7 +47,7 @@
   - **侧边栏的排序**（在 group 之上的个人偏好层）
 - 不允许个人**改 group 名**或**重新分组**——那是 channel 作者的事。
 
-> 这是漂亮的折中：保留协作心智的"我们看到的是同一个组织结构"，又把个人偏好（折叠/排序）藏起来不污染他人。
+> 这是产品折中：保留协作心智的"我们看到的是同一个组织结构"，又把个人偏好（折叠/排序）藏起来不污染他人。
 
 ---
 
@@ -60,13 +60,13 @@
 | Agent 加入 channel 必须由 owner 触发 | 跨 org 邀请规则见 [`concept-model.md` §4.2](concept-model.md) |
 | Agent 在 channel 里**代表自己** | mention 路由不展开到 owner，见 [`concept-model.md` §4](concept-model.md) |
 | DM 永远 2 人 | 想加人 → 创建新 channel 把双方拉进去 |
-| Workspace per channel | 每个 channel 一棵独立文件树；DM 没有 workspace |
+| 每个 channel 独立 workspace | 每个 channel 一棵独立文件树；DM 没有 workspace |
 
 ## 3. 与现状的差距（v1 还差什么）
 
 ### 3.1 Channel 作为"协作场"
 
-- 当前实现：channel = 聊天容器 + per-channel workspace（已经是 70% 形态）
+- 当前实现：channel = 聊天容器 + 每个 channel 独立 workspace（已经接近目标形态）
 - 差距：workspace 还只是**附件归档**视觉权重低；agent 在 channel 里仍偏"消息发送者"。
 - 下一步：当画布/文档协作开始铺设时，workspace 升级为协作场的另一支柱。
 
@@ -85,7 +85,7 @@
 
 - 当前实现：`channel_groups` 全 org 共享（任何人拖动都改大家看到的顺序）。
 - 差距：缺"个人折叠状态"和"个人排序"。需要新增 `user_channel_layout(user_id, channel_id, collapsed, position)`（或 group 层面的）。
-- 这是中等改动，不影响数据迁移，纯 UI + 个人偏好表。
+- 这是中等改动，不影响数据迁移，只涉及 UI + 个人偏好表。
 
 ## 4. 不在本轮范围
 

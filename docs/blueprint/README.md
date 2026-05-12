@@ -1,14 +1,14 @@
 # Borgee Blueprint — 目标态(should-be)
 
 > 这一目录是 11 轮设计讨论的产物 —— Borgee **应该是什么样**的规范集合。
-> 状态: 建军 + 飞马 + 野马 三方对齐, 2026-04-27 首次发布。
-> 归档 tag: `archive/discussion-final`(commit 5a788e9) 保留首次产出的原始形态。
+> 状态: 建军 + 飞马 + 野马 三方已对齐, 2026-04-27 首次发布。
+> 归档标签: `archive/discussion-final`(commit 5a788e9) 保留首次产出的原始形态。
 
 ## 蓝图状态机 (按 blueprintflow blueprint-iteration skill)
 
-- `current/` — 当前蓝图 (frozen, 实施基于此). 11 模型 SOT 真值居此, 实施 PR 引此为准.
-- `next/` — 下一版蓝图 (草拟期). 蓝图迭代时 fork 一份到 `next/`, 改完拍板再 promote → `current/`.
-- `_meta/` — 蓝图 meta (decisions / phase / audit / review trigger). **不是模型 SOT**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
+- `current/` — 当前蓝图 (frozen, 实施基于此). 11 个模型的 source of truth 位于这里, 实施 PR 引用这里为准.
+- `next/` — 下一版蓝图 (草拟期). 蓝图迭代时复制一份到 `next/`, 评审决定后提升为 `current/`.
+- `_meta/` — 蓝图过程记录 (decisions / phase / audit / review trigger). **不是模型 source of truth**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
 
 ### `current/` — 11 模型 SOT (按概念依赖排序)
 
@@ -23,7 +23,7 @@
 | 7 | [`current/realtime.md`](current/realtime.md) | 推送 / 状态 / 回放 — 让用户感到 AI 在工作的最小集 |
 | 8 | [`current/auth-permissions.md`](current/auth-permissions.md) | 权限模型: ABAC 存储 + UI bundle, 跨 org 只减不加 |
 | 9 | [`current/admin-model.md`](current/admin-model.md) | Admin 与隐私契约: 元数据可管, 内容不可读 |
-| 10 | [`current/data-layer.md`](current/data-layer.md) | 数据层总账 + 分布式 ready 三层 |
+| 10 | [`current/data-layer.md`](current/data-layer.md) | 数据层总账 + 分布式预备三层 |
 | 11 | [`current/client-shape.md`](current/client-shape.md) | Client: 一份 SPA + Tauri 桌面壳 + Mobile PWA |
 
 ### `_meta/` — 6 meta (过程治理记录)
@@ -34,12 +34,12 @@
 | [`_meta/r4-review-trigger.md`](_meta/r4-review-trigger.md) | R4 review 触发条件 (Phase 2 退出 + Phase 3 启动) |
 | [`_meta/blueprint-audit-rotation.md`](_meta/blueprint-audit-rotation.md) | 蓝图 audit 轮换协议 (反实施漂蓝图) |
 | [`_meta/phase-2-stance-vs-impl.md`](_meta/phase-2-stance-vs-impl.md) | Phase 2 约定 vs 实施落差表 |
-| [`_meta/phase-3-4-vision.md`](_meta/phase-3-4-vision.md) | Phase 3+4 主线方向 (R4 anchor) |
+| [`_meta/phase-3-4-vision.md`](_meta/phase-3-4-vision.md) | Phase 3+4 主线方向 (R4 锚点) |
 | [`_meta/phase-3-trigger-conditions.md`](_meta/phase-3-trigger-conditions.md) | Phase 3 启动触发条件 |
 
 ### `next/` — 下一版蓝图 (草拟期)
 
-> 待评审蓝图提案. 当前空 — 蓝图迭代时 fork `current/X.md` 到 `next/X.md`, 评审拍板后 promote → `current/`.
+> 待评审蓝图提案. 当前空 — 蓝图迭代时复制 `current/X.md` 到 `next/X.md`, 评审决定后提升为 `current/`.
 
 ## 这是什么 / 不是什么
 
@@ -47,10 +47,10 @@
 |----|------|
 | 产品形状的 source of truth | 当前代码的实现说明 |
 | 长期稳定的产品立场 | 实施排期或 milestone |
-| 跨模块对齐的概念基础 | 详细 spec 或 API 文档 |
+| 跨模块对齐的概念基础 | 详细规范或 API 文档 |
 
 > **如果想知道"代码现在长什么样"** → 见 [`../current/`](../current/)
-> **如果想知道"如何从 current 走到 blueprint"** → 见 `../implementation/`(实施 roadmap, 待建)
+> **如果想知道"如何从 current 走到 blueprint"** → 见 `../implementation/`(实施路线图, 待建)
 
 ---
 
@@ -60,7 +60,7 @@
 
 ## 文档导航
 
-> 11 模型 + 6 meta 完整索引见上面 [蓝图状态机](#蓝图状态机-按-blueprintflow-blueprint-iteration-skill) 段. 下面是核心约定.
+> 11 个模型 + 6 份过程记录的完整索引见上面 [蓝图状态机](#蓝图状态机-按-blueprintflow-blueprint-iteration-skill) 段. 下面是核心约定.
 
 ## 14 条核心约定(从 11 篇提炼)
 
@@ -71,17 +71,17 @@
 
 ### 产品
 4. **主体验 = 团队感知 + DM 对话 + artifact 工作面**
-5. **Workspace = artifact 集合** — 每个 artifact 版本化, agent 可 iterate
+5. **Workspace = artifact 集合** — 每个 artifact 版本化, agent 可迭代
 6. **Channel = 协作场** — 聊天 + workspace 双支柱
 
 ### 平台
 7. **Borgee 不带 runtime** — 通过 plugin 接 OpenClaw / Hermes
-8. **BPP 中立协议** — OpenClaw plugin 是 reference impl
-9. **Borgee 是 agent 配置面单一来源** — Schema-driven blob, 热更新立即生效
+8. **BPP 中立协议** — OpenClaw plugin 是参考实现
+9. **Borgee 是 agent 配置面单一来源** — schema 驱动的配置对象, 热更新立即生效
 10. **remote-agent 升级为安装管家** — 一份 SPA + Tauri 壳 + 信任五支柱
 
 ### 守则
 11. **沉默胜于假 loading** — thinking 必须带 subject
-12. **凭指标切, 不凭感觉切** — SQLite/MQ/Redis 同套阈值哲学
+12. **凭指标切换, 不凭感觉切换** — SQLite/MQ/Redis 同套阈值哲学
 13. **管控元数据 = OK, 读内容 = 必须用户授权** — admin 隐私契约
-14. **v1 协议 portable + 接口抽象, 运行时单机** — 分布式 ready 不挖坟
+14. **v1 协议可迁移 + 接口抽象, 运行时单机** — 预留分布式能力, 不提前建设
