@@ -4,7 +4,7 @@
 // 还有未保存的表单改动, 弹一个 window.confirm 让用户选 "继续切换" 还是
 // "停在这里". 用户决定的产品方向, 反"切换就静默丢"的 UX bug.
 //
-// 设计:
+// 实现说明:
 // - 注册表是 module-level 的一个 Set, 不走 React Context — 这样 App.tsx
 //   的 requestMainView 不需要 useContext, 任何视图都能注册退出守卫.
 // - 一个视图可以注册多个守卫 (例如同时有两个 form), 全部 dirty 才弹一次
@@ -112,8 +112,8 @@ export function useUnsavedChangesGuard(isDirty: () => boolean, message?: string)
   // gh#703 PR-2/2 — beforeunload 监听: 浏览器 ctrl+W / 关 tab / refresh 时
   // 如果当前 dirty, 让浏览器弹原生提示 ("您输入的内容可能不会被保存"). 跨
   // 5 处 form (AgentManager / AgentConfigPanel / DescriptionEditor /
-  // NodeManager 双 form) 自动获益, 不需要每处自己写. 反约束: 不挂自定义
-  // modal (跟 CV-10 ArtifactCommentDraftInput 立场 ② 一致); 现代浏览器忽略
+  // NodeManager 双 form) 自动获益, 不需要每处自己写. Constraint: 不挂自定义
+  // modal (跟 CV-10 ArtifactCommentDraftInput rule ② 一致); 现代浏览器忽略
   // message, 设 returnValue 触发原生提示就行.
   //
   // 空 deps OK — isDirtyRef 是 ref, handler 关到 ref 没 staleness 问题
