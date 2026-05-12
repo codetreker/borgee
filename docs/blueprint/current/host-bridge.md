@@ -128,16 +128,16 @@
 - 完整 host 命令通道单独立项，需重新做安全评估
 - 早期 v2 仅放给 power user / 显式 opt-in
 
-### 1.5 ⭐ v1 release 硬指标
+### 1.5 ⭐ v1 release 前置验收条件
 
-> 早期采用者就是开发者，"Dev agent 跑测试"是高频期待。如果 OpenClaw shell tool 这条 fallback 不好用，v1 体验会明显受损。
+> 早期采用者就是开发者，"Dev agent 在 channel 里执行测试"是高频期待。如果 OpenClaw shell tool 不能可靠承担这条回退执行路径，v1 体验会明显受损。
 
 **v1 上线前必须验证**：
 
-- 端到端 demo："**Dev agent 在 channel 里被要求跑测试**"
+- 端到端验证场景："**Dev agent 在 channel 里收到执行测试请求**"
   - 流程：用户 @DevAgent → DevAgent 通过 OpenClaw shell tool 执行 `pytest` → 结果回流到 channel + workspace artifact
   - 验证：OpenClaw shell tool **确实**能调起命令、捕获输出、传回 Borgee
-- 这是 v1 release 的**硬指标**，不是 nice-to-have
+- 这是 v1 release 的**必须通过的验收条件**，不是可选优化
 
 ---
 
@@ -167,7 +167,7 @@
 | 4 类情境化授权 | 启动参数 `--dirs` 一次授予 | UI + 持久化授权状态 + **触发式弹窗组件** + per-agent subset |
 | 一键完全卸载 | 只能手动 SIGINT 后 rm | 卸载脚本 + 服务端注销逻辑 + OS 资源清理 |
 | 安全补丁 banner | 无 | 版本检查 + 启动时 banner UX |
-| **v1 release 硬指标**：DevAgent 跑测试 demo | 尚未验证 | 端到端验证 OpenClaw shell tool 可用作 v1 fallback |
+| **v1 release 前置验收条件**：DevAgent 执行测试验证场景 | 尚未验证 | 端到端验证 OpenClaw shell tool 可用作 v1 回退执行路径 |
 
 ---
 

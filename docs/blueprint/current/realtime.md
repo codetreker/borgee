@@ -27,7 +27,7 @@
 | `"writing section 3"` | "AI is thinking…" 这种无信息文字 |
 | `"calling tool: bash"` | 闪烁的占位光标 |
 
-> **沉默胜于假 loading。** 没有语义信息的动态效果会让用户失去信任。
+> **没有语义信息时不展示 loading。** 没有语义信息的动态效果会让用户失去信任。
 
 BPP `progress` frame **强制带 `subject` 字段**——plugin 必须告诉 Borgee "agent 在做什么"，否则不展示。
 
@@ -114,20 +114,20 @@ runtime 在 `session.resume` 时根据 agent 配置和当前 context window 选 
 |-------|------|------|
 | `session.resume` | `replay_mode: full \| summary \| latest_n`, `since_cursor` | agent 重连时 server 按 hint 推回放 |
 
-### 2.3 Server → Client push frame (Phase 2 用 /ws hub 顶住, Phase 4 BPP 接管)
+### 2.3 Server → Client push frame (Phase 2 用 /ws hub 支撑, Phase 4 BPP 接管)
 
-> **2026-04-28 4 人 review #4 决议 (B29 路线 + 评审硬约束)**: Phase 2 用现有 `/ws` hub 加 invitation event 支撑, BPP 仍 Phase 4 接管。**关键约束**: Phase 2 `/ws` event payload schema **必须等同未来 BPP frame** (字段名 / 顺序 / 序列化), 这样 BPP 上线后 server 把发送源从 hub 切到 BPP frame, client handler 0 改。
+> **2026-04-28 4 人 review #4 决议 (B29 路线 + 必须满足的评审约束)**: Phase 2 用现有 `/ws` hub 加 invitation event 支撑, BPP 仍 Phase 4 接管。**关键约束**: Phase 2 `/ws` event payload schema **必须等同未来 BPP frame** (字段名 / 顺序 / 序列化), 这样 BPP 上线后 server 把发送源从 hub 切到 BPP frame, client handler 不需要改动。
 
 | Frame | 字段 | 用途 | 阶段 |
 |-------|------|------|------|
 | `agent_invitation_pending` | `invitation_id`, `requester_user_id`, `agent_id`, `channel_id`, `created_at`, `expires_at` | owner 收到邀请通知 (取代 60s polling) | Phase 2 /ws hub → Phase 4 BPP |
 | `agent_invitation_decided` | `invitation_id`, `state` (approved/rejected/expired), `decided_at` | 跨 client 同步邀请状态变更 | Phase 2 /ws hub → Phase 4 BPP |
 
-**v0 audit row (CM-4.3a)**: Phase 2 `/ws` hub 发 invitation event; v1 切 BPP 时 server 切发送源 (`hub.Broadcast` → `bpp.SendFrame`), client handler 0 改 (因 schema 等同)。
+**v0 audit row (CM-4.3a)**: Phase 2 `/ws` hub 发 invitation event; v1 切 BPP 时 server 切发送源 (`hub.Broadcast` → `bpp.SendFrame`), client handler 不需要改动 (因 schema 等同)。
 
-**Schema 等同性强制 (R3 acceptance 补充要求)**: CI lint 检查 `bpp/frame_schemas.go` 的 `agent_invitation_*` frame 与 `ws/event_schemas.go` 的对应 event payload **byte-identical 或 type alias**, 任何字段名/顺序/类型分歧 → CI fail。这是 v1 切换"client handler 0 改"承诺的硬保障。
+**Schema 等同性强制 (R3 acceptance 补充要求)**: CI lint 检查 `bpp/frame_schemas.go` 的 `agent_invitation_*` frame 与 `ws/event_schemas.go` 的对应 event payload **byte-identical 或 type alias**, 任何字段名/顺序/类型分歧 → CI fail。这是 v1 切换"client handler 不需要改动"承诺的强制保障。
 
-**G2.4 硬条件 (签字门槛)**: 邀请发出 → owner 端收到通知 latency **必须 ≤ 3s** (stopwatch 截屏作 acceptance 证据)。60s polling 不接受。**R3 补充要求**: latency 验收必须用 Playwright (vitest 无法覆盖真实 ws + UI 时序), **INFRA-2 Playwright scaffold 必须前置到 CM-4.3a 之前落地**, 不能等 G2.audit。
+**G2.4 必须满足的验收条件**: 邀请发出 → owner 端收到通知 latency **必须 ≤ 3s** (stopwatch 截屏作 acceptance 证据)。60s polling 不接受。**R3 补充要求**: latency 验收必须用 Playwright (vitest 无法覆盖真实 ws + UI 时序), **INFRA-2 Playwright scaffold 必须前置到 CM-4.3a 之前落地**, 不能等 G2.audit。
 
 ---
 
