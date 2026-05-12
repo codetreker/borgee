@@ -7,8 +7,8 @@
 ## 1. 设计
 
 - **独立 pnpm workspace 包** `@borgee/e2e` (不挂在 `@borgee/client` 下), 避免把 `@playwright/test` ~150MB 拖进 client build。
-- **真二进制启动**, 不 mock: server-go 跑 `go run ./cmd/collab`, client 跑真 vite dev, 行为跟开发环境一致 (CM-4.2 60s polling 那种集成 bug 单测抓不出, 只能 E2E)。
-- **端口隔离**: E2E 跑 server-go 在 `4901`, vite 在 `5174` (开发默认 4900/5173 留给开发者, `pnpm test` 不抢端口)。
+- **真实进程启动**, 不 mock: server-go 跑 `go run ./cmd/collab`, client 跑真 vite dev, 行为跟开发环境一致 (CM-4.2 60s polling 那种集成 bug 单测抓不出, 只能 E2E)。
+- **端口隔离**: E2E 跑 server-go 在 `4901`, vite 在 `5174` (开发默认 4900/5173 留给开发者, `pnpm test` 不占用这些端口)。
 - **数据隔离**: sqlite db 落 `packages/e2e/.playwright-data/collab-e2e.db`, 每次 run 复用 (CI runner workspace 自动清空)。
 
 ## 2. 目录
@@ -31,7 +31,7 @@ packages/e2e/
     └── canvas-modal-open-close.spec.ts             # CV-1.3 Canvas tab markdown+WS push (§3.1-§3.3)
 ```
 
-`canvas-modal-open-close.spec.ts` 闭环 cv-1.md §3 acceptance: markdown-ONLY 渲染 (设计 ④), rollback owner-only DOM 闸 + label byte-identical `"v{N+1} (rollback from v{M})"` (设计 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (设计 ②⑤)。两条 test 共 ~3.7s, 真 server-go + vite, REST 驱动 other-user commit 触发 push。
+`canvas-modal-open-close.spec.ts` 覆盖 cv-1.md §3 acceptance: markdown-ONLY 渲染 (设计 ④), rollback owner-only DOM gate + label byte-identical `"v{N+1} (rollback from v{M})"` (设计 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (设计 ②⑤)。两条 test 共 ~3.7s, 使用真实 server-go + vite，REST 驱动 other-user commit 触发 push。
 
 ## 3. 双 server 编排
 
@@ -47,7 +47,7 @@ server-go 通过环境变量切换:
 - `DATABASE_PATH` 落 e2e tmp 目录
 - `JWT_SECRET=e2e-test-secret-not-for-prod` 固定 (跨 run 复用 token 没意义)
 - `ADMIN_USER` / `ADMIN_PASSWORD` env bootstrap (ADM-0 之后改吃 `admins` 表)
-- `BORGEE_ADMIN_LOGIN=e2e-admin` + `BORGEE_ADMIN_PASSWORD_HASH=$2a$10$...` — ADM-0.1 fail-loud bootstrap 红线: env 任一缺 → server panic, 所以 e2e webServer 必须显式提供。bcrypt cost=10, 明文 `e2e-admin-pass-12345` (e2e 专用, 永不进 prod)。改 hash = 同步改 `playwright.config.ts` 的 `BORGEE_ADMIN_PASSWORD_HASH` 字面。
+- `BORGEE_ADMIN_LOGIN=e2e-admin` + `BORGEE_ADMIN_PASSWORD_HASH=$2a$10$...` — ADM-0.1 fail-loud bootstrap invariant: env 任一缺 → server panic, 所以 e2e webServer 必须显式提供。bcrypt cost=10, 明文 `e2e-admin-pass-12345` (e2e 专用, 永不进 prod)。改 hash = 同步改 `playwright.config.ts` 的 `BORGEE_ADMIN_PASSWORD_HASH` 字面。
 
 client 通过 **`VITE_E2E_API_TARGET`** 把 vite proxy 从写死的 `localhost:4900` 切到 e2e server 端口。`packages/client/vite.config.ts` 读这个 env, 默认仍是 `4900` (开发流不变)。
 
@@ -55,7 +55,7 @@ client 通过 **`VITE_E2E_API_TARGET`** 把 vite proxy 从写死的 `localhost:4
 
 ### `fixtures/stopwatch.ts`
 
-为野马 G2.4 ≤ 3s 硬条件而生。RT-0 (#40) 是第一个真消费者。
+用于验证 G2.4 ≤ 3s 条件。RT-0 (#40) 是第一个真实消费者。
 
 ```ts
 const sw = stopwatch();
@@ -70,7 +70,7 @@ expect(sw.ms).toBeLessThanOrEqual(3000);
 
 ### `fixtures/auth.ts`
 
-**故意是占位**。`seedUser` / `login` 都直接 throw, 不让别的测试在 invite-code seed env 落地之前 (CM-onboarding #42) 偷偷接 auth — 失败要响。pattern 内联在文件注释里。
+**故意是占位**。`seedUser` / `login` 都直接 throw, 防止其他测试在 invite-code seed env 落地之前 (CM-onboarding #42) 提前接入 auth；失败必须显式暴露。pattern 内联在文件注释里。
 
 ## 5. CI 集成
 

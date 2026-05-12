@@ -22,7 +22,7 @@ deploys the existing `borgee-helper` binary plus its platform service
 unit. The installer does not own the helper daemon implementation; it fetches,
 verifies, prompts, and deploys the existing helper artifacts.
 
-## Stance (蓝图 host-bridge.md §1.1 + §1.2 + §1.4 字面)
+## Stance (蓝图 host-bridge.md §1.1 + §1.2 + §1.4)
 
 | Principle | Contract |
 |---|---|
@@ -108,7 +108,7 @@ produces `.deb` / `.pkg` artifacts, writes checksums, and ed25519-signs the
 installer binary itself, matching the HB-1 manifest signing model. Windows row
 remains deferred to v2.
 
-## Reverse-grep 锚
+## Reverse-grep checks
 
 ```
 test -f packages/borgee-installer/cmd/borgee-installer-linux/main.go     # exists
