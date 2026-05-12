@@ -1,17 +1,19 @@
 //go:build integration && (linux || darwin)
 
-// Package e2e — HB-2 v0(D) #617 daemon startup integration test.
+// Package e2e covers the HB-2 daemon startup integration behavior.
 //
-// hb-2-v0d-e2e-spec.md §1 case-1 daemon 真启:
+// hb-2-v0d-e2e-spec.md §1 case-1 daemon startup:
 //   - go build daemon binary
-//   - 拉起 with --grants-db=<seeded-sqlite> + --read-paths=<tmp>
-//   - 等 UDS socket 就绪 (轮询 stat 真启证据)
-//   - SIGTERM 触发 ctx.Done → 反向断 net.Listener.Close → 进程 0 退出
-//   - audit log 文件存在 (反 silent abort)
+//   - start it with --grants-db=<seeded-sqlite> and --read-paths=<tmp>
+//   - wait for the UDS socket by polling stat as startup evidence
+//   - send SIGTERM so ctx.Done closes the net.Listener and the process exits
+//   - verify that the audit log file exists instead of silently aborting
 //
-// 设计 (hb-2-v0d-e2e-spec.md §0 设计 ①+②):
-//   - 0 production .go 改 (本 _test.go 仅消费既有 cmd/borgee-helper main.go)
-//   - build tag `integration` 隔离 (CI 不默认跑, 跟 HB-2.0 #605 IPC matrix 同模式)
+// Design note (hb-2-v0d-e2e-spec.md §0 design ①+②):
+//   - no production .go changes; this _test.go only uses the existing
+//     cmd/borgee-helper main.go
+//   - the `integration` build tag keeps this out of default CI, matching the
+//     HB-2.0 #605 IPC coverage pattern
 package e2e
 
 import (
@@ -31,7 +33,7 @@ import (
 
 // skipIfLandlockEPERM checks whether the daemon stderr indicates a
 // landlock_restrict_self EPERM (CI runner lacks PR_SET_NO_NEW_PRIVS / CAP_SYS_ADMIN).
-// Returns true if test should skip-with-reason (反 silent skip per spec §0.1).
+// Returns true if the test should skip with an explicit reason, as required by spec §0.1.
 func skipIfLandlockEPERM(t *testing.T, stderr *bytes.Buffer) bool {
 	t.Helper()
 	if !strings.Contains(stderr.String(), "landlock_restrict_self") {
@@ -41,7 +43,7 @@ func skipIfLandlockEPERM(t *testing.T, stderr *bytes.Buffer) bool {
 		return false
 	}
 	t.Skipf("landlock_restrict_self EPERM — runner lacks PR_SET_NO_NEW_PRIVS / CAP_SYS_ADMIN " +
-		"(production daemon installed via systemd/launchd has these set; e2e真测留生产runner)")
+		"(production daemon installed via systemd/launchd has these set; run full e2e coverage on a production-like runner)")
 	return true
 }
 
@@ -58,7 +60,7 @@ const hostGrantsSchema = `CREATE TABLE host_grants (
 )`
 
 // seedHostGrantsDB creates a sqlite DB with HB-3 host_grants schema +
-// 1 seed row for the daemon to consume on startup.
+// one seed row for the daemon to consume on startup.
 func seedHostGrantsDB(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
@@ -82,7 +84,7 @@ func seedHostGrantsDB(t *testing.T) string {
 	return dsn
 }
 
-// buildDaemon builds the borgee-helper binary into a tempdir + returns path.
+// buildDaemon builds the borgee-helper binary into a tempdir and returns its path.
 func buildDaemon(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
@@ -96,11 +98,11 @@ func buildDaemon(t *testing.T) string {
 	return binPath
 }
 
-// TestHB2DE_DaemonStartup_BuildsAndListens — case-1 daemon 真启.
+// TestHB2DE_DaemonStartup_BuildsAndListens covers case-1 daemon startup.
 //
-// 真测: build → start with --grants-db + --read-paths + --socket → 等
-// UDS 就绪 → SIGTERM → 进程退出. 反 silent abort: 1s timeout 内 socket
-// 必须 stat 成功.
+// It builds the daemon, starts it with --grants-db, --read-paths, and --socket,
+// waits for UDS readiness, sends SIGTERM, and verifies that the process exits.
+// The socket must be visible before the timeout so startup failures do not pass silently.
 func TestHB2DE_DaemonStartup_BuildsAndListens(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test (requires go build + fork+exec)")
@@ -125,13 +127,13 @@ func TestHB2DE_DaemonStartup_BuildsAndListens(t *testing.T) {
 		t.Fatalf("daemon start: %v", err)
 	}
 	t.Cleanup(func() {
-		// best-effort cleanup if SIGTERM path fails partway
+		// Best-effort cleanup if SIGTERM handling fails partway through the test.
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 	})
 
-	// Poll for UDS socket readiness (≤2s budget — landlock + sandbox apply
-	// is fast; this is a startup smoke check, not a perf gate).
+	// Poll for UDS socket readiness. The 2s budget is for a startup smoke check,
+	// not a performance threshold.
 	deadline := time.Now().Add(2 * time.Second)
 	var ready bool
 	for time.Now().Before(deadline) {
@@ -148,7 +150,7 @@ func TestHB2DE_DaemonStartup_BuildsAndListens(t *testing.T) {
 		t.Fatalf("daemon did not create UDS socket within 2s (platform=%s) stderr=%q", runtime.GOOS, stderr.String())
 	}
 
-	// Audit log file should be created (反 silent abort).
+	// Audit log file should be created so startup failures do not pass silently.
 	if _, err := os.Stat(auditPath); err != nil {
 		t.Errorf("audit log not created: %v", err)
 	}
