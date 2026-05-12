@@ -1,7 +1,7 @@
 // fixtures/auth.ts — INFRA-2 auth fixture skeleton.
 //
 // **Status: PLACEHOLDER.** This file documents the pattern for future PRs
-// (CM-onboarding #42, RT-0 #40, CM-4 闸 4 demo) to add real auth fixtures
+// (CM-onboarding #42, RT-0 #40, CM-4 gate 4 demo) to add real auth fixtures
 // without rediscovering the API surface. The smoke test in this PR does
 // NOT use any of this — it only hits unauthenticated endpoints.
 //

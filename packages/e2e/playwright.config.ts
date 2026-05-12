@@ -18,8 +18,8 @@
 //   - CM-onboarding (#42) and RT-0 (#40) will add auth fixtures when they
 //     need them. Pattern documented in fixtures/auth.ts (placeholder).
 //
-// Stopwatch helper for latency assertions (野马 G2.4 ≤ 3s) lives in
-// fixtures/stopwatch.ts. RT-0 will use it; INFRA-2 just ships the helper.
+// Stopwatch helper for latency assertions (G2.4 requires ≤ 3s) lives in
+// fixtures/stopwatch.ts. RT-0 will use it; INFRA-2 only adds the helper.
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -98,8 +98,8 @@ export default defineConfig({
         JWT_SECRET: 'e2e-test-secret-not-for-prod',
         ADMIN_USER: 'e2e-admin',
         ADMIN_PASSWORD: 'e2e-admin-password-12345',
-        // ADM-0.1 (this PR) bootstrap is fail-loud by design (red-line:
-        // missing env → panic). Without these the Playwright webServer
+        // ADM-0.1 bootstrap is intentionally fail-fast: missing env vars
+        // panic at startup. Without these the Playwright webServer
         // panics on boot and downstream PRs' e2e jobs all fail. The
         // password is bcrypt('e2e-admin-pass-12345', cost=10) — committed
         // because this is e2e-only data, never reachable from prod

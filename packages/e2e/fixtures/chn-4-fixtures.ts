@@ -1,15 +1,16 @@
 // fixtures/chn-4-fixtures.ts — CHN-4 wrapper REST-driven seed fixtures.
 //
-// 立场 ⑤ — fixture file 是 SSOT, 替代 spec 内部重复 setup 代码 (反 spec
-// boilerplate 漂移 + 反 timing 死等真根因).
+// CHN-4 convention: keep REST setup in this fixture file instead of
+// duplicating setup code in specs. This avoids drift in repeated setup
+// blocks and avoids fixed waits for asynchronous setup.
 //
-// Pattern: Playwright `test.beforeAll` 钩子调 seedCHN4Fixtures(serverURL)
-// → 返 dual fixture: { ownerToken, ownerCtx, agentID, dmID, publicChID }.
-// Spec 内部仅做 page navigation + assertion auto-retry, 不再 register +
-// create channel + create agent (那些走 REST 完成).
+// Pattern: Playwright `test.beforeAll` calls `seedCHN4Fixtures(serverURL)`.
+// → returns fixture handles: { ownerToken, ownerCtx, agentID, dmID,
+// publicChID }. Specs only perform page navigation and assertion
+// auto-retry; user, channel, and agent setup happens through REST.
 //
-// 不靠 timing 死等 — fixture 同步 REST setup 完成后 fixture 即可用; spec
-// 走 Playwright `toBeVisible` / `toHaveCount` 默认 5s auto-retry.
+// No fixed timing waits: after the REST setup resolves, the fixture is
+// ready. Specs use Playwright `toBeVisible` / `toHaveCount` auto-retry.
 
 import {
   request as apiRequest,
@@ -29,9 +30,9 @@ export interface CHN4Fixture {
 }
 
 /**
- * seedCHN4Fixtures — 一次性 REST seed: register owner + create agent +
- * open DM + create public channel. 返 fixture 句柄, 由 spec `beforeAll`
- * 调用; `afterAll` 调 cleanup() 释放 APIRequestContext.
+ * seedCHN4Fixtures — one-time REST seed: register owner, create agent,
+ * open DM, and create public channel. Specs call this from `beforeAll`;
+ * `afterAll` calls cleanup() to release APIRequestContext.
  */
 export async function seedCHN4Fixtures(serverURL: string): Promise<CHN4Fixture> {
   const ownerEmail = `chn4-owner-${Date.now()}@e2e.test`;
@@ -61,7 +62,7 @@ export async function seedCHN4Fixtures(serverURL: string): Promise<CHN4Fixture> 
   const agent = await agentRes.json();
   const agentID = agent.agent.id as string;
 
-  // 3. Open DM with the agent (立场 ④ — DM 永远 2 人, type='dm').
+  // 3. Open DM with the agent (CHN-4 rule: DM channels have 2 members and type='dm').
   const dmRes = await ownerCtx.post('/api/v1/channels', {
     data: { type: 'dm', with_user_id: agentID },
     headers: auth,
@@ -71,10 +72,10 @@ export async function seedCHN4Fixtures(serverURL: string): Promise<CHN4Fixture> 
     const dm = await dmRes.json();
     dmID = (dm.channel ?? dm).id as string;
   }
-  // DM endpoint shape may vary; tolerate empty dmID for spec-side feature
-  // detection (test.skip when dmID==='').
+  // DM endpoint shape may vary; tolerate empty dmID so specs can detect
+  // missing DM support and skip with test.skip when dmID===''.
 
-  // 4. Create a public channel (workspace-bearing — 立场 ② DM ↔ public 区分).
+  // 4. Create a public channel (CHN-4 rule: public channels are distinct from DMs).
   const chRes = await ownerCtx.post('/api/v1/channels', {
     data: {
       name: `chn4-pub-${Date.now()}`,
