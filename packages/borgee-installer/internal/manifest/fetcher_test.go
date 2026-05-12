@@ -1,4 +1,4 @@
-// fetcher_test.go — REG-HB1B-001 + REG-HB1B-002 unit verify.
+// fetcher_test.go verifies REG-HB1B-001 and REG-HB1B-002.
 package manifest
 
 import (
@@ -13,7 +13,8 @@ import (
 	"testing"
 )
 
-// signEnvelope 拿测试私钥签 — server-side SignManifestPayload 同源.
+// signEnvelope signs test envelopes using the same payload bytes as server-side
+// SignManifestPayload.
 func signEnvelope(t *testing.T, env *Envelope, priv ed25519.PrivateKey) {
 	t.Helper()
 	signed, err := CanonicalSignedBytes(env)
@@ -71,7 +72,8 @@ func TestHB1B_VerifyManifest_BadSig_Reject(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	env := &Envelope{Entries: []PluginEntry{{ID: "x"}}, SignedAt: 123}
 	signEnvelope(t, env, priv)
-	// 篡改 SignedAt 让 sig 不匹配 (反 v0(C) silent skip).
+	// Change SignedAt after signing so the signature no longer matches. This guards
+	// against silently skipping verification.
 	env.SignedAt = 999
 	if err := Verify(env, pub); err == nil {
 		t.Fatal("expected verify failure")
@@ -92,7 +94,8 @@ func TestHB1B_VerifyManifest_EmptySig_Reject(t *testing.T) {
 }
 
 func TestHB1B_Reasons7DictByteIdentical(t *testing.T) {
-	// Drift 守门: 7 字面 byte-identical 跟 spec §3.2 + server HB1AllReasons.
+	// Drift guard: these seven literals must stay byte-identical with spec §3.2
+	// and server-side HB1AllReasons.
 	want := []string{
 		"ok",
 		"manifest_signature_invalid",
@@ -103,7 +106,7 @@ func TestHB1B_Reasons7DictByteIdentical(t *testing.T) {
 		"unknown_plugin",
 	}
 	if len(AllReasons) != len(want) {
-		t.Fatalf("AllReasons len mismatch: %d vs %d", len(AllReasons), len(want))
+		t.Fatalf("AllReasons length mismatch: %d vs %d", len(AllReasons), len(want))
 	}
 	for i, w := range want {
 		if AllReasons[i] != w {
@@ -137,6 +140,6 @@ func TestHB1B_FetchManifest_BadJSON_FetchFailed(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	if !strings.Contains(err.Error(), ReasonManifestFetchFailed) {
-		t.Errorf("expected fetch_failed in err: %v", err)
+		t.Errorf("expected manifest_fetch_failed reason in error: %v", err)
 	}
 }

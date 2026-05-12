@@ -1,13 +1,13 @@
-// Package dialog - HB-1B-INSTALLER permission dialog UX.
+// Package dialog builds the HB-1B-INSTALLER permission confirmation dialog.
 //
-// Per hb-1b-installer-spec §0.2 required item 3: the 4 grant_type literals must
+// Per hb-1b-installer-spec §0.2 required item 3: the four grant_type literals must
 // stay byte-identical with the HB-3 #520 host_grants schema CHECK enum
 // (read/write/exec/network). Any change must also update the server migration
-// host_grants v=24 CHECK constraint and this GrantTypes source.
+// host_grants v=24 CHECK constraint and the GrantTypes list below.
 //
-// Real dialog paths use platform-native tools through os/exec: zenity or kdialog
-// on Linux, and osascript on macOS. Unit tests use Confirm with injected
-// io.Reader/io.Writer values so they do not block on GUI prompts.
+// Installer commands use platform-native tools through os/exec: zenity or
+// kdialog on Linux, and osascript on macOS. Unit tests use Confirm with
+// injected io.Reader/io.Writer values so they do not block on GUI prompts.
 package dialog
 
 import (
@@ -17,9 +17,9 @@ import (
 	"strings"
 )
 
-// GrantTypes is the four-value source of truth matching the HB-3 #520
+// GrantTypes is the four-value source of truth that matches the HB-3 #520
 // host_grants CHECK enum byte-for-byte. Changes must update server migrations,
-// this slice, and the REG-HB1B-005 reverse-grep check.
+// this slice, and the REG-HB1B-005 source-text check.
 var GrantTypes = []string{
 	"read",
 	"write",
@@ -27,8 +27,8 @@ var GrantTypes = []string{
 	"network",
 }
 
-// PromptText renders the native dialog body with all 4 grant_type values and an
-// explicit user confirmation. REG-HB1B-005 reverse-grep checks for
+// PromptText renders the native dialog body with all four grant_type values and
+// an explicit user confirmation. REG-HB1B-005 checks source text for
 // `grant_type.*read|grant_type.*write|grant_type.*exec|grant_type.*network` in
 // dialog.go.
 func PromptText() string {
@@ -51,7 +51,7 @@ func PromptText() string {
 	return b.String()
 }
 
-// Confirm uses injected io.Reader/io.Writer values. Real installer cmd/* paths
+// Confirm uses injected io.Reader/io.Writer values. Installer command packages
 // pass os.Stdin/Stdout through the native dialog wrapper, while unit tests pass
 // strings.Reader values.
 func Confirm(in io.Reader, out io.Writer) (bool, error) {
