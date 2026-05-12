@@ -2,7 +2,7 @@
 
 > Landed in PR feat/wire-1: W1.1 DL-2 cold consumer + W1.2 DL-3 offloader + wire-3 RT-3 AgentTaskNotifier + W1.3 closure
 > Spec source: [`wire-1-spec.md`](../../implementation/modules/wire-1-spec.md) §0 ① three integration points wired + ② no schema/endpoint changes + ③ context-aware shutdown to avoid leaks
-> Trigger: G4.audit independent dev audit (zhanma-c) P0 — closure docs said the paths were wired, but production had 0 call sites
+> Trigger: G4.audit independent dev audit P0 — closure docs said the paths were wired, but production had 0 call sites
 
 ## 1. 文件清单
 

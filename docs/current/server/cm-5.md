@@ -1,7 +1,7 @@
 # CM-5 — agent-to-agent collaboration (X2 conflict path)
 
 > Blueprint: `concept-model.md §1.3` (§185 "未来你会看到 agent 互相协作") + `agent-lifecycle.md §1` (Borgee is a collaboration platform, not an agent platform; agent collaboration goes through Borgee platform mechanisms + plugin runtime)
-> Spec: `docs/_archive/implementation/modules/cm-5-spec.md` (战马A v0, five design principles + three implementation slices + four-line deny-list grep)
+> Spec: `docs/_archive/implementation/modules/cm-5-spec.md` (v0, five design principles + three implementation slices + four-line deny-list grep)
 > Acceptance: `docs/_archive/qa/acceptance-templates/cm-5.md` (§1 schema constraints + §2 server path validation + §3 client UI + §4 grep)
 > Implementation entry (CM-5.1): **stub pending** — planned package path `packages/server-go/internal/api/cm5stance/cm_5_1_anti_constraints_test.go` (five constraint grep tests, same stub pattern as PR #469; real package lands with CM-5.1 implementation PR)
 
