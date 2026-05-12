@@ -1,9 +1,10 @@
 package main
 
-// TEST-FIX-3-COV smoke test for haystack-derived coverage tool.
+// TEST-FIX-3-COV smoke test for the haystack-derived coverage tool.
 //
 // Don't actually run `go test` (that would recurse infinitely). Just verify
-// parseConfig honors our env var contract (THRESHOLD_TOTAL / BUILD_TAGS / etc).
+// parseConfig honors the environment variable contract (THRESHOLD_TOTAL,
+// BUILD_TAGS, and related variables).
 
 import (
 	"os"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestParseConfig_DefaultsAndEnvOverrides(t *testing.T) {
-	// Save then restore env to avoid bleeding into other tests.
+	// Save then restore the environment to avoid affecting other tests.
 	saved := map[string]string{}
 	for _, k := range []string{
 		"CI", "THRESHOLD_FUNC", "THRESHOLD_PACKAGE", "THRESHOLD_PRINT",
@@ -75,7 +76,7 @@ func TestParseConfig_DefaultsAndEnvOverrides(t *testing.T) {
 }
 
 func TestModulePrefix_BorgeeServer(t *testing.T) {
-	// Sanity: ensure the haystack→borgee port renamed ModulePrefix.
+	// Sanity check: ensure the haystack-to-borgee port renamed ModulePrefix.
 	if ModulePrefix != "borgee-server/" {
 		t.Errorf("ModulePrefix should be %q, got %q", "borgee-server/", ModulePrefix)
 	}
