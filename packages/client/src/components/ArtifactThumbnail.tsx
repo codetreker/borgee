@@ -1,22 +1,23 @@
 // ArtifactThumbnail — CV-3 v2 client renderer for code/markdown artifact
 // thumbnail (Phase 5+, #cv-3-v2).
 //
-// Spec: docs/implementation/modules/cv-3-v2-spec.md (战马C v0, 484ec08).
-// Server 锚: api/thumbnail.go::ThumbnailableKinds (2-tuple [markdown, code])
+// Spec: docs/implementation/modules/cv-3-v2-spec.md (v0, 484ec08).
+// Server reference: api/thumbnail.go::ThumbnailableKinds (2-tuple [markdown, code])
 // + cv_3_v2_artifact_thumbnail migration v=31 (artifacts.thumbnail_url
 // TEXT NULL).
 //
-// 设计反查 (跟 CV-2 v2 #517 MediaPreview 同模式):
+// Design checks (same pattern as CV-2 v2 #517 MediaPreview):
 //   - ① server CDN thumbnail 不 inline — `<img loading="lazy">`, 不引入
 //     html2canvas / dom-to-image / puppeteer-client / shiki client-side
 //     renderer (grep 检查 package.json count==0).
 //   - ② src 必 https (复用 ImageLinkRenderer.isHttpsURL XSS 红线 #1,
-//     byte-identical 跟 server ValidateImageLinkURL 同源).
-//   - ③ kind 闸 — markdown / code 分发, 其他 kind 走 CV-2 v2 MediaPreview
-//     既有 path. THUMBNAILABLE_KINDS 跟 server ThumbnailableKinds 双向锁.
+//     must exactly match server ValidateImageLinkURL).
+//   - ③ kind allowlist — markdown / code render here; other kinds use the
+//     existing CV-2 v2 MediaPreview path. THUMBNAILABLE_KINDS is checked
+//     against server ThumbnailableKinds in both directions.
 //
-// 反约束:
-//   - 不引入 client-side renderer 重 lib (HTML5 native + server-side SSOT).
+// Constraints:
+//   - Do not add a large client-side renderer library (HTML5 native + server-side source of truth).
 //   - 不把 non-https URL 推入 DOM.
 //   - 不渲染 image_link / video_link / pdf_link (走 MediaPreview).
 //
@@ -31,7 +32,7 @@ export const THUMBNAILABLE_KINDS: readonly ArtifactThumbnailKind[] = [
   'code',
 ] as const;
 
-/** isThumbnailableKind — 跟 server thumbnail.go::IsThumbnailableKind byte-identical. */
+/** isThumbnailableKind — must exactly match server thumbnail.go::IsThumbnailableKind. */
 export function isThumbnailableKind(k: string): k is ArtifactThumbnailKind {
   return (THUMBNAILABLE_KINDS as readonly string[]).includes(k);
 }
@@ -51,7 +52,7 @@ interface Props {
 }
 
 /**
- * ArtifactThumbnail — 设计 ③ kind 闸 + 设计 ① server thumbnail-first.
+ * ArtifactThumbnail — design ③ kind allowlist + design ① server thumbnail-first.
  *
  * 渲染规则:
  *   - kind ∈ THUMBNAILABLE_KINDS + safe https thumbnailUrl → `<img loading="lazy"

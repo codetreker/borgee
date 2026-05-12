@@ -5,10 +5,10 @@
 // Stance: docs/qa/cv-10-stance-checklist.md §4.
 // Content-lock: docs/qa/cv-10-content-lock.md §1 + §2.
 //
-// 设计反查:
+// Design contract notes:
 //   - ④ DOM `data-cv10-draft-textarea="<artifactId>"` + `data-cv10-restore-toast`
-//     必锚; 文案 "已恢复未保存的草稿" + "草稿已清除" byte-identical.
-//   - ② page-leave warning 走浏览器原生 beforeunload (反约束 不挂自定义 modal).
+//     are required markers; text "已恢复未保存的草稿" + "草稿已清除" must match exactly.
+//   - ② page-leave warning uses native browser beforeunload; do not mount a custom modal.
 
 import { useCallback, useEffect, useState } from 'react';
 import { useArtifactCommentDraft } from '../hooks/useArtifactCommentDraft';
@@ -30,14 +30,14 @@ export default function ArtifactCommentDraftInput({
   const [showClearedToast, setShowClearedToast] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // 设计 ② page-leave 警告 — 走浏览器原生 beforeunload, 不挂自定义 modal.
+  // Design ② page-leave warning: use native browser beforeunload, not a custom modal.
   useEffect(() => {
     if (draft.trim() === '') return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Modern browsers ignore the message; setting returnValue triggers
       // the native prompt. Spec lock: do NOT render a custom modal here
-      // (反约束 grep `cv10.*confirm.*leave` 0 hit).
+      // Grep check: `cv10.*confirm.*leave` should have 0 hits.
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', handler);

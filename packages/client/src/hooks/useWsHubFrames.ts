@@ -8,15 +8,15 @@
 // Why CustomEvent and not a context store: the existing precedent in
 // useWebSocket is `case 'commands_updated': window.dispatchEvent(...)`.
 // InvitationsInbox + Sidebar both already manage their own local
-// state via REST fetch — the smallest "drop the poll, react to push"
-// change is "fire an event, they re-fetch". Avoids touching the
+// state via REST fetch. The smallest change that removes polling is to
+// fire an event and let those components re-fetch. Avoids touching the
 // AppContext reducer for a Phase 2 transitional path that BPP will
 // replace anyway.
 //
 // Phase 2 → Phase 4 contract: when BPP takes over (#40 Phase 4),
 // the server change is `hub.Broadcast → bpp.SendFrame`; the
 // client handler here remains unchanged because the schema is locked
-// byte-identical (see frame_schemas.go CI lint).
+// exact match (see frame_schemas.go CI lint).
 //
 // Wiring: useWebSocket.ts's handleMessage switch adds two cases that
 // call into this module's dispatchers (kept exported for the WS hook
@@ -67,8 +67,8 @@ export function dispatchInvitationDecided(frame: AgentInvitationDecidedFrame): v
  * full frame so consumers can decide whether to re-fetch (cheap +
  * authoritative) or splice locally (cheaper but risks drift).
  *
- * Bell badge / inbox both opt for re-fetch in v1 — server is source
- * of truth, push is just the "wake up" signal.
+ * Bell badge / inbox both opt for re-fetch in v1: server is the source
+ * of truth, and push is only the wake-up signal.
  */
 export function useInvitationFrames(handlers: {
   onPending?: (frame: AgentInvitationPendingFrame) => void;
