@@ -1,19 +1,22 @@
-// Package agent — AL-1a (#R3 Phase 2 起步) agent runtime 三态.
+// Package agent implements the AL-1a (#R3 Phase 2 start) agent runtime
+// three-state model.
 //
-// Phase 2 只承诺 online / offline + error 旁路 (busy / idle 等 BPP/Phase 4 的
-// task_started / task_finished frame, 没 BPP 不能 stub — 见 docs/blueprint/
-// agent-lifecycle.md §2.3 + 2026-04-28 4 人 review #5 决议).
+// Phase 2 only commits to online / offline plus the error-side path. busy /
+// idle depend on the BPP/Phase 4 task_started / task_finished frames; without
+// BPP they would be stubs that v1 would later remove. See docs/blueprint/
+// agent-lifecycle.md §2.3 and the 2026-04-28 four-person review #5 decision.
 //
-// 设计:
+// Design:
 //
-//   - online / offline 由 hub plugin presence 推导 (GetPlugin(id) != nil),
-//     不存进 Tracker — 这样 reconnect 不会窗口期 mismatch.
-//   - error 是 Tracker 唯一持久状态. SetError(id, reason) 来自 runtime 故障
-//     旁路 (HTTP 500 / api_key_invalid / network_unreachable / runtime_crashed).
-//     Clear(id) 在重新建立连接 (RegisterPlugin) 时调用.
-//   - 不持久化 — Phase 2 是 runtime memory; AL-3 才落表.
+//   - online / offline are derived from hub plugin presence (GetPlugin(id) != nil)
+//     and are not stored in Tracker, so reconnects do not create a mismatch window.
+//   - error is Tracker's only retained state. SetError(id, reason) comes from
+//     the runtime error-side path (HTTP 500 / api_key_invalid /
+//     network_unreachable / runtime_crashed). Clear(id) runs when RegisterPlugin
+//     establishes a new connection.
+//   - State is not persisted in Phase 2; AL-3 moves it to storage.
 //
-// 文案锁 (野马 #190 §11): "在线" / "已离线" / "故障 (api_key_invalid)" 等.
+// Copy lock (#190 §11): "在线" / "已离线" / "故障 (api_key_invalid)" and related labels.
 // 客户端见 packages/client/src/components/AgentManager.tsx + Sidebar.tsx.
 package agent
 
@@ -25,7 +28,7 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// RuntimeState — Phase 2 三态.
+// RuntimeState is the Phase 2 three-state model.
 type RuntimeState string
 
 const (
@@ -34,13 +37,16 @@ const (
 	StateError   RuntimeState = "error"
 )
 
-// Reason codes — 故障原因. UI 直达修复入口 (蓝图 §2.3 关键设计).
-// 字符串面跟客户端文案表绑定, 改这里 = 改 AgentManager.tsx 的 reasonLabel.
+// Reason codes describe runtime failure causes. The UI uses them to route users
+// to the repair entry point (blueprint §2.3 key design).
+// String values are bound to the client copy table; changing them also requires
+// updating AgentManager.tsx reasonLabel.
 //
-// REFACTOR-REASONS: SSOT 已迁到 internal/agent/reasons. 此处仅 re-export
-// 维持 byte-identical 调用语义 + 既有 import-site (api/al_1b_2_status.go /
-// api/runtimes.go / api/iterations.go 等) 不破. 改字面 = 改 reasons.ALL
-// 一处即 8 处单测同步挂. 新代码请直接 import internal/agent/reasons.
+// REFACTOR-REASONS: the single source of truth moved to internal/agent/reasons.
+// This block only re-exports values to preserve byte-identical call semantics
+// and existing import sites (api/al_1b_2_status.go / api/runtimes.go /
+// api/iterations.go, etc.). Changing a literal means changing reasons.ALL and
+// the eight synchronized tests. New code should import internal/agent/reasons directly.
 const (
 	ReasonAPIKeyInvalid      = reasons.APIKeyInvalid
 	ReasonQuotaExceeded      = reasons.QuotaExceeded
@@ -50,23 +56,23 @@ const (
 	ReasonUnknown            = reasons.Unknown
 )
 
-// Snapshot — 单次查询结果, JSON 直接 marshal 到 GET /api/v1/agents 的
-// agent.state / agent.reason 字段.
+// Snapshot is the result of one state query. It marshals directly into the
+// agent.state / agent.reason fields returned by GET /api/v1/agents.
 type Snapshot struct {
 	State     RuntimeState `json:"state"`
 	Reason    string       `json:"reason,omitempty"`
-	UpdatedAt int64        `json:"updated_at,omitempty"` // Unix ms; 0 表示未更新过 (默认 offline)
+	UpdatedAt int64        `json:"updated_at,omitempty"` // Unix ms; 0 means not updated yet (default offline)
 }
 
-// Tracker — agentID → error snapshot 的 thread-safe 内存 map.
-// online / offline 不进 Tracker (从 hub presence 推导).
+// Tracker is a thread-safe in-memory map from agentID to error snapshot.
+// online / offline are not stored in Tracker; they are derived from hub presence.
 type Tracker struct {
 	mu       sync.RWMutex
 	errors   map[string]Snapshot
-	now      func() time.Time // 注入用; 默认 time.Now.
+	now      func() time.Time // injectable for tests; defaults to time.Now.
 }
 
-// NewTracker — production 构造器.
+// NewTracker constructs the production tracker.
 func NewTracker() *Tracker {
 	return &Tracker{
 		errors: make(map[string]Snapshot),
@@ -74,7 +80,7 @@ func NewTracker() *Tracker {
 	}
 }
 
-// SetError — 标 agent 进 error 态. 空 reason 兜底为 ReasonUnknown.
+// SetError marks an agent as error. Empty reason falls back to ReasonUnknown.
 func (t *Tracker) SetError(agentID, reason string) {
 	if agentID == "" {
 		return
@@ -91,7 +97,8 @@ func (t *Tracker) SetError(agentID, reason string) {
 	}
 }
 
-// Clear — 清掉 error (新连接成功 / owner 手动 reset). agentID 为空 noop.
+// Clear removes the error state after a successful new connection or owner reset.
+// Empty agentID is a no-op.
 func (t *Tracker) Clear(agentID string) {
 	if agentID == "" {
 		return
@@ -101,8 +108,8 @@ func (t *Tracker) Clear(agentID string) {
 	delete(t.errors, agentID)
 }
 
-// Lookup — 查 agent 错误态. ok=false 表示 "无错误记录" — 调用方应根据
-// hub presence 判 online vs offline.
+// Lookup returns an agent's error state. ok=false means there is no error record;
+// callers should use hub presence to choose online vs offline.
 func (t *Tracker) Lookup(agentID string) (Snapshot, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -110,11 +117,11 @@ func (t *Tracker) Lookup(agentID string) (Snapshot, bool) {
 	return s, ok
 }
 
-// Resolve — 给定 agentID + 当前 plugin presence (online bool), 返回最终
-// snapshot. error 优先级 > online > offline (有 error 记录则 error 显示;
-// 无 error 但 plugin 在线则 online; 都没有则 offline).
+// Resolve returns the final snapshot for an agentID and current plugin presence.
+// Priority is error > online > offline: an error record displays error; without
+// an error, plugin presence displays online; otherwise the result is offline.
 //
-// 这是 GET /api/v1/agents 的唯一查询入口.
+// This is the only state query entry point for GET /api/v1/agents.
 func (t *Tracker) Resolve(agentID string, hasPlugin bool) Snapshot {
 	if s, ok := t.Lookup(agentID); ok {
 		return s
@@ -125,17 +132,18 @@ func (t *Tracker) Resolve(agentID string, hasPlugin bool) Snapshot {
 	return Snapshot{State: StateOffline}
 }
 
-// ClassifyProxyError — runtime 故障旁路: 把 ProxyPluginRequest 返回的
-// (status, err) 分类为 reason code. 调用方收到非空 reason 时应 SetError.
+// ClassifyProxyError is the runtime error-side classifier: it maps the
+// (status, err) returned by ProxyPluginRequest to a reason code. Callers should
+// call SetError when the returned reason is non-empty.
 //
-// 规则 (蓝图 §2.3 故障态原因码):
-//   - status == 401 或 err 含 "api key" → api_key_invalid
+// Rules (blueprint §2.3 error-state reason codes):
+//   - status == 401 or err contains "api key" → api_key_invalid
 //   - status == 429 → quota_exceeded
 //   - status >= 500 → runtime_crashed
-//   - err 含 "timeout" / "deadline" → runtime_timeout
-//   - err 含 "not connected" / "no route" → network_unreachable
-//   - 其它非 nil err → unknown
-//   - 都不命中 → "" (no error).
+//   - err contains "timeout" / "deadline" → runtime_timeout
+//   - err contains "not connected" / "no route" → network_unreachable
+//   - any other non-nil err → unknown
+//   - no match → "" (no error).
 func ClassifyProxyError(status int, err error) string {
 	if err == nil && status < 400 {
 		return ""
