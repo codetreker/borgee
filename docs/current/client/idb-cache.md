@@ -24,7 +24,7 @@ export const STORE_AGENT_STATE = 'agent_state';   // keyPath=agent_id
 
 API: `openCS4DB()` / `cs4Get` / `cs4Put` / `cs4Delete` / `clearStaleEntries(maxAgeMs)`.
 
-DB version=1。schema 改动必须 bump version，并在 `onupgradeneeded` 中补 migration；治理方式与 server schema_migrations 同精神。
+DB version=1。schema 改动必须 bump version，并在 `onupgradeneeded` 中补 migration；治理方式与 server schema_migrations 保持一致。
 
 ## SyncState 4-enum + 文案 (lib/cs4-sync-state.ts)
 
@@ -87,7 +87,7 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 | RT-1 #290 cursor opaque | CS-4 `IDB.put` cursor key 跟 server `?cursor=` 同源 |
 | DM-3 useDMSync | 既有 client cursor 同步同模式 |
 | CV-10 草稿 localStorage | 明确区分；CS-4 不入草稿域 |
-| CS-2 #595 故障三态联动 | failed 时 IDB cache hit + offline label graceful fallback |
+| CS-2 #595 故障三态联动 | failed 时 IDB cache hit + offline label 平稳降级 |
 | ADM-0 §1.3 | 不提供管理端 IDB 查看入口 |
 
 ## 不在范围
@@ -97,5 +97,5 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 - typing / presence-realtime 入 IDB (蓝图 §1.4)
 - Service Worker offline page (由 CS-3 PWA + sw.js DL-4 覆盖)
 - 跨设备同步 (server cursor 为权威来源)
-- 管理端 IDB inspect 入口 (管理端 / god-mode 路由不得暴露或挂载该入口)
+- 管理端 IDB inspect 入口 (管理端 / 管理特权路由不得暴露或挂载该入口)
 - IDB cleanup goroutine / scheduled job (由 v1 用户 logout 流程清理)

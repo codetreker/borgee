@@ -1,6 +1,6 @@
 # RT-3 ⭐ client — useRT3Presence + RT3PresenceDot (≤40 行)
 
-> 落地: feat/rt-3 RT-3.2 client (`hooks/useRT3Presence.ts` + `components/RT3PresenceDot.tsx` + 13 vitest)
+> 实现位置: feat/rt-3 RT-3.2 client (`hooks/useRT3Presence.ts` + `components/RT3PresenceDot.tsx` + 13 vitest)
 > 关联: server `docs/current/server/rt-3.md` PresenceState 4 态 enum 单一来源 (byte-identical)
 
 ## 1. hook — `hooks/useRT3Presence.ts`
@@ -13,7 +13,7 @@ export function getRT3Presence(userID): RT3PresenceEntry | undefined;
 export function useRT3Presence(userID): RT3PresenceEntry | undefined; // 派生 online ≥ 5min → away
 ```
 
-**反向约束**: thinking 态 + 空 subject → drop (反"假 loading" 脱节, 跟 server `ValidateTaskStarted` 单一来源 byte-identical).
+**反向约束**: thinking 态 + 空 subject → drop (防止显示未确认的 loading 状态, 跟 server `ValidateTaskStarted` 单一来源 byte-identical).
 
 ## 2. component — `components/RT3PresenceDot.tsx`
 
@@ -32,6 +32,6 @@ DOM data-attr 单一来源 (跟 content-lock §2 byte-identical):
 
 ## 4. 反向约束
 
-- ❌ typing-indicator 真启 (永久不挂)
-- ❌ AL-3 既有 `usePresence.ts` 不复用 (那是 agent presence cache, RT-3 是 human multi-device presence — 不同维度不混)
+- ❌ typing-indicator 启用 (永久不挂)
+- ❌ AL-3 既有 `usePresence.ts` 不复用 (那是 agent presence cache, RT-3 是 human multi-device presence — 两个维度不混用)
 - ❌ thought-process 5-pattern (processing/responding/analyzing/planning/"AI is thinking") 0 hit

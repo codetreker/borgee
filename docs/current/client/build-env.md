@@ -1,11 +1,11 @@
 # Client build env — VITE_AGENT_WS_SERVER (no-hardcoded-domain milestone)
 
-> 2026-05-04 · client build-time env 单一来源 for fork-friendly deploy.
+> 2026-05-04 · client build-time env 单一来源，便于 fork / on-prem 部署。
 > 0 hardcoded codetrek.cn in `packages/client/src/` production source.
 
 ## VITE_AGENT_WS_SERVER
 
-NodeManager.tsx 真用 `import.meta.env.VITE_AGENT_WS_SERVER` 字面 (Vite 在 `pnpm build` 阶段读 env, baked into bundle). 反 runtime fetch /config endpoint (反 over-engineering, build-time inject 已足).
+NodeManager.tsx 实际使用 `import.meta.env.VITE_AGENT_WS_SERVER` 字面 (Vite 在 `pnpm build` 阶段读 env，并写入 bundle)。不采用 runtime fetch /config endpoint；build-time inject 已足够。
 
 ### Per-env value
 

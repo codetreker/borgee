@@ -1,7 +1,7 @@
 # CS-3 PWA install + Web Push UI (client)
 
 > 出处: `docs/blueprint/current/client-shape.md` §1.1 (PWA 主战场) + §1.4 (Web Push) + `docs/implementation/modules/cs-3-spec.md` v0
-> 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
+> 落点: 分阶段实现 (一个 milestone 一个 PR, 0 server prod + 0 schema)
 
 ## PWA install prompt 单一来源 (lib/cs3-install-prompt.ts)
 
@@ -42,7 +42,7 @@ byte-identical 跟 DL-4 #485 PushPermissionState 4-enum + 蓝图 §1.1+§1.4 字
 | `InstallPromptButton.tsx` | `<button data-cs3-install-button data-install-state>{INSTALL_BUTTON_LABEL}</button>` | click → useInstallPrompt.prompt() (user-gesture only) | installed/unavailable 时 return null (不准 disabled style 替代) |
 | `PushSubscribeToggle.tsx` | `<button data-cs3-push-toggle data-push-state aria-pressed>{label}</button>` | click → DL-4 `subscribeToPush()` (default) / `unsubscribeFromPush()` (granted) | unsupported 时 return null; denied 时 disabled (浏览器永久拒绝, click 无效); 不准 mount-time auto requestPermission (走 DL-4 入口) |
 
-## 反向约束守门 (跟 cs-3-stance-checklist §2 + content-lock §4 同源)
+## 反向约束检查 (跟 cs-3-stance-checklist §2 + content-lock §4 同源)
 
 ```bash
 # ① auto-prompt 反向 (Chrome 红线)
@@ -67,7 +67,7 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - DL-4 既有 manifest.json + sw.js 不动
 - PushPermissionState 4-enum byte-identical 跟 DL-4 (granted/denied/default/unsupported)
 - 文案 byte-identical 跟蓝图 client-shape.md §1.1+§1.4 字面
-- ADM-0 §1.3 admin god-mode 不挂
+- ADM-0 §1.3 管理端不得挂载该入口
 
 ## 不在范围
 
@@ -77,4 +77,4 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - background sync (跟蓝图 §1.1 字面一致)
 - iOS Safari beforeinstallprompt 真支持 (留 v2)
 - per-device 多端管理 UI (留 v1)
-- admin god-mode PWA install / push 管理 (永久不挂 ADM-0 §1.3)
+- 永久不得挂载或暴露 ADM-0 §1.3 管理端 PWA install / push 管理入口

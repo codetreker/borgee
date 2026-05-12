@@ -1,4 +1,4 @@
-# MediaPreview — three preview states DOM contract
+# MediaPreview — three media preview states DOM contract
 
 > **Source of truth.** Component in
 > `packages/client/src/components/MediaPreview.tsx`. Wired into
@@ -9,11 +9,11 @@
 
 ## Why
 
-CV-2 v2 closes the multimedia preview loop on the client side —
-image_link / video_link / pdf_link kinds get HTML5-native preview
-without dragging in heavy inline render libs. Server records
-`preview_url` (https-only); client uses it as image thumbnail-first src
-and video poster. PDF embeds use the browser's native `<embed>`.
+CV-2 v2 adds client-side previews for multimedia artifacts. image_link /
+video_link / pdf_link kinds use native HTML5 previews without adding large
+inline rendering libraries. The server records `preview_url` (https-only); the
+client uses it first for image thumbnails and as the video poster. PDF previews
+use the browser's native `<embed>`.
 
 ## Principles (cv-2-v2-media-preview-spec.md §0 + 设计 ②)
 
@@ -52,12 +52,12 @@ interface Props {
 }
 ```
 
-## thumbnail-first path
+## Thumbnail-first path
 
-- image_link render priority: `previewUrl`(safe) > `body`. server 端 GET
+- image_link render priority: safe `previewUrl` > `body`. server 端 GET
   /artifacts/:id 回填的 `preview_url` 字段 (CV-2 v2 v=28 schema) 命中
   时直接走缩略, 节省首屏带宽.
-- video_link `poster` 走 `previewUrl`(safe); 缺省时浏览器默认黑屏.
+- video_link `poster` 走 safe `previewUrl`; 缺省时浏览器默认黑屏.
   pdf_link 不接 poster (embed 标签不支持).
 
 ## XSS constraint #1 fallback
@@ -101,5 +101,5 @@ same URL vector.
 - HLS / DASH 流媒体 (server-side transcoding, 拆 BPP-4+).
 - inline pdf.js / react-pdf 渲染 (蓝图 §1.4 "首屏快读不是浏览器内全量
   解码").
-- thumbnail 实时刷新 (preview_url 静态 CDN, 不订阅 WS frame; client
-  下次 GET /artifacts/:id pull 拿到).
+- thumbnail 实时刷新 (preview_url 是静态 CDN 字段，不订阅 WebSocket frame;
+  client 下次 GET /artifacts/:id 时拉取最新值).
