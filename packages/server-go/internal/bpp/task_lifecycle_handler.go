@@ -1,12 +1,14 @@
-// Package bpp — task_lifecycle_handler.go: RT-3 ⭐ server派生 hook —
+// Package bpp — task_lifecycle_handler.go: RT-3 server-derived hook —
 // Plugin-upstream task_started / task_finished frames → server fanout
 // AgentTaskStateChangedFrame (busy/idle) via Hub.PushAgentTaskStateChanged.
 //
-// Blueprint锚: docs/blueprint/current/realtime.md §1.1 ⭐ (活物感 / thinking 必带
-// subject) + agent-lifecycle.md §2.3 (busy/idle source = plugin 上行 frame).
+// Blueprint reference: docs/blueprint/current/realtime.md §1.1 (live-feel /
+// thinking must include subject) + agent-lifecycle.md §2.3 (busy/idle source =
+// plugin upstream frame).
 // Spec: docs/implementation/modules/rt-3-spec.md §0 设计 ②+③ + §1 RT-3.2.
 //
-// Wire (跟 BPP-3 #489 + AL-2b #481 AckFrameAdapter + BPP-5/6 同模式):
+// Wire-up uses the same pattern as BPP-3 #489, AL-2b #481 AckFrameAdapter,
+// and BPP-5/6:
 //
 //   server.go boot:
 //     hub := ws.NewHub(...)
@@ -15,24 +17,28 @@
 //     pfd.Register(bpp.FrameTypeBPPTaskStarted,  handler.StartedAdapter())
 //     pfd.Register(bpp.FrameTypeBPPTaskFinished, handler.FinishedAdapter())
 //
-// 设计 (跟 spec §0):
+// Design (matching spec §0):
 //   ① BroadcastToChannel multi-device fanout (Hub.PushAgentTaskStateChanged
-//     internal — user-id 路由经 channel member subscription, 反 device-id
-//     拆分; P1MultiDeviceWebSocket #197 模式).
-//   ② thinking subject 必带非空 — handler 走 ValidateTaskStarted 单一来源
-//     (BPP-2.2 task_lifecycle.go errSubjectEmpty 同源, 改 = 改 validator
-//     一处). 派生路径 fail-closed: empty subject reject + 不 push 任何
-//     fallback 字面 (反 'AI is thinking' / defaultSubject 进 ws push).
-//   ③ task_started → busy + Subject 透传; task_finished → idle + Subject 空 +
-//     reason 透传 (idle+failed 时 AL-1a 6-dict; completed/cancelled 时空,
-//     反字典污染 — ValidateTaskFinished 守门).
+//     internal): user-id routing goes through channel member subscription and
+//     does not split by device-id, matching P1MultiDeviceWebSocket #197.
+//   ② thinking subject must be non-empty. The handler uses ValidateTaskStarted
+//     as the single source of truth (same errSubjectEmpty source as BPP-2.2
+//     task_lifecycle.go). The derived path fails closed: empty subject rejects
+//     and does not push any fallback literal such as 'AI is thinking' or
+//     defaultSubject into ws push.
+//   ③ task_started → busy + Subject passthrough; task_finished → idle + empty
+//     Subject + reason passthrough. idle+failed uses the AL-1a 6-dict;
+//     completed/cancelled use an empty reason. ValidateTaskFinished prevents
+//     reason dictionary pollution.
 //
-// 约束:
-//   - 不另起 device-only push channel — 复用 hub.cursors 共序 + channel
-//     member subscription 自动 multi-device fanout.
-//   - admin god-mode 不下发 — handler 仅由 plugin upstream frame 触发,
-//     反向 grep `admin.*PushAgentTaskStateChanged` 0 hit (CI 守门).
-//   - 不挂 schema/migration — RT-3 是 0 schema (跟 RT-4 / DM-9 同精神).
+// Constraints:
+//   - Do not add a device-only push channel. Reuse hub.cursors shared ordering
+//     and channel member subscription for automatic multi-device fanout.
+//   - Admin users do not trigger this push. The handler is only triggered by a
+//     plugin upstream frame; reverse grep `admin.*PushAgentTaskStateChanged`
+//     must return 0 hits.
+//   - Do not add schema/migration changes. RT-3 is 0 schema, matching RT-4 and
+//     DM-9 intent.
 
 package bpp
 
@@ -47,8 +53,8 @@ import (
 // Production wires *ws.Hub via HubAgentTaskPusher; tests inject a fake.
 //
 // The interface is a strict superset of the busy/idle derivation —
-// state ('busy' | 'idle'), subject (busy 时 non-empty, idle 时 ""),
-// reason (idle+failed 时 AL-1a 6-dict; 否则 "").
+// state ('busy' | 'idle'), subject (non-empty for busy, "" for idle),
+// reason (AL-1a 6-dict for idle+failed; "" otherwise).
 type AgentTaskPusher interface {
 	PushAgentTaskStateChanged(
 		agentID string,
@@ -61,9 +67,9 @@ type AgentTaskPusher interface {
 }
 
 // ChannelMemberFetcher returns user_ids of members for a channel.
-// WIRE-1 wire-3 — fan-out target for AgentTaskNotifier push (DL-4 ws +
-// service worker push 双轨 fanout, Hub.PushAgentTaskStateChanged 已走 ws,
-// notifier 补 mobile background push).
+// WIRE-1 wire-3 — fan-out target for AgentTaskNotifier push. DL-4 uses two
+// tracks: Hub.PushAgentTaskStateChanged already covers ws, while notifier adds
+// mobile background service-worker push.
 type ChannelMemberFetcher interface {
 	ListChannelMemberUserIDs(channelID string) ([]string, error)
 }
@@ -71,22 +77,24 @@ type ChannelMemberFetcher interface {
 // AgentTaskPushNotifier is the test seam for push.AgentTaskNotifier.
 // Wraps NotifyAgentTask call (returns attempts count, observability only).
 //
-// 设计 ② thinking subject 必带非空 (busy 态), reason 透传 (idle+failed
-// 时 AL-1a 6-dict, 反字典污染).
+// Design ②: thinking subject must be non-empty for busy state; reason passes
+// through for idle+failed using the AL-1a 6-dict, avoiding reason dictionary
+// pollution.
 type AgentTaskPushNotifier interface {
 	NotifyAgentTask(targetUserID, agentID, state, subject, reason string, changedAt int64) int
 }
 
 // TaskLifecycleHandler routes plugin-upstream task_started /
-// task_finished frames through ValidateTask* 单一来源 and then fans out
+// task_finished frames through the ValidateTask* single source of truth, then fans out
 // AgentTaskStateChangedFrame via the AgentTaskPusher seam.
 //
 // Construction is pure — no boot-time side effects. server.go wires
 // instances + registers Started/FinishedAdapter() returns onto the
 // PluginFrameDispatcher boundary (BPP-3 #489).
 //
-// WIRE-1 wire-3: members + notifier 可 nil (production 真注入 ListChannelMembers
-// + push.NewAgentTaskNotifier; test path 仅传 pusher 不破). Nil-safe fanout.
+// WIRE-1 wire-3: members + notifier may be nil. Production injects
+// ListChannelMembers + push.NewAgentTaskNotifier; tests can pass only pusher.
+// Fanout is nil-safe.
 type TaskLifecycleHandler struct {
 	pusher   AgentTaskPusher
 	members  ChannelMemberFetcher  // nil-safe: 跳 push fanout
@@ -103,11 +111,12 @@ func NewTaskLifecycleHandler(pusher AgentTaskPusher, logger *slog.Logger) *TaskL
 	return &TaskLifecycleHandler{pusher: pusher, logger: logger}
 }
 
-// SetPushFanout wires WIRE-1 wire-3 push fanout (RT-3 AgentTaskNotifier 真接
-// DL-4 push gateway). members + notifier 任一 nil → 跳 fanout (反 leak).
+// SetPushFanout wires WIRE-1 wire-3 push fanout through the DL-4 push gateway.
+// If either members or notifier is nil, fanout is skipped to avoid leaks.
 //
-// 约束: 不在 NewTaskLifecycleHandler 加 4 参数 — 保持 BPP-3 既有 wire 模式
-// byte-identical (战马 review 友好); 走 setter 加 wire-up 步骤透明.
+// Constraint: do not add four constructor parameters to NewTaskLifecycleHandler.
+// Keep the existing BPP-3 wire-up pattern byte-identical and use this setter to
+// make the extra wire-up step explicit.
 func (h *TaskLifecycleHandler) SetPushFanout(members ChannelMemberFetcher, notifier AgentTaskPushNotifier) {
 	h.members = members
 	h.notifier = notifier
@@ -126,15 +135,16 @@ func (h *TaskLifecycleHandler) FinishedAdapter() FrameDispatcher {
 // HandleStarted is the test-friendly typed entry. Validation errors
 // are wrapped with errSubjectEmpty etc. (errors.Is compatible). On
 // success, fanout AgentTaskStateChangedFrame{state: 'busy', subject:
-// frame.Subject, reason: ''} via pusher.
+// frame.Subject, empty reason} via pusher.
 func (h *TaskLifecycleHandler) HandleStarted(frame TaskStartedFrame) error {
 	if err := ValidateTaskStarted(frame); err != nil {
-		// 设计 ② thinking subject 必带非空 — fail-closed, 反 fallback push.
+		// Design ②: thinking subject must be non-empty. Fail closed; do not push a fallback.
 		// Caller (FrameDispatcher) logs warn via the dispatcher boundary.
 		return err
 	}
-	// task_started → busy. subject 透传 plugin 上行 (validator 已守非空).
-	// reason 是 "" (busy 态语义无 reason; AL-1a reason 仅 idle+failed 用).
+	// task_started → busy. Subject passes through from plugin upstream; the
+	// validator has already enforced non-empty. Reason is "" because busy has no
+	// reason; AL-1a reasons are only used for idle+failed.
 	h.pusher.PushAgentTaskStateChanged(
 		frame.AgentID,
 		frame.ChannelID,
@@ -143,22 +153,23 @@ func (h *TaskLifecycleHandler) HandleStarted(frame TaskStartedFrame) error {
 		"",
 		frame.StartedAt,
 	)
-	// WIRE-1 wire-3 — DL-4 push gateway fanout 真接 (mobile background).
-	// nil-safe: members 或 notifier 任一 nil 跳 fanout (test path).
+	// WIRE-1 wire-3: DL-4 push gateway fanout for mobile background delivery.
+	// Nil-safe: if members or notifier is nil, skip fanout for test paths.
 	h.fanoutPush(frame.AgentID, frame.ChannelID, "busy", frame.Subject, "", frame.StartedAt)
 	return nil
 }
 
 // HandleFinished is the test-friendly typed entry for task_finished.
-// On success, fanout AgentTaskStateChangedFrame{state: 'idle', subject:
-// '', reason: frame.Reason} (failed → AL-1a reason; completed/cancelled
-// → reason "" via ValidateTaskFinished 字典污染防御).
+// On success, fanout AgentTaskStateChangedFrame{state: 'idle', empty subject,
+// reason: frame.Reason} (failed → AL-1a reason; completed/cancelled
+// → reason "" via ValidateTaskFinished dictionary-pollution guard).
 func (h *TaskLifecycleHandler) HandleFinished(frame TaskFinishedFrame) error {
 	if err := ValidateTaskFinished(frame); err != nil {
 		return err
 	}
-	// task_finished → idle. subject 必空 (反 idle 字段污染); reason 透传
-	// (validator 已守 outcome=failed 时 AL-1a 6-dict, completed/cancelled 时 "").
+	// task_finished → idle. Subject must be empty to avoid idle field pollution;
+	// reason passes through. The validator has already enforced AL-1a 6-dict for
+	// outcome=failed and "" for completed/cancelled.
 	h.pusher.PushAgentTaskStateChanged(
 		frame.AgentID,
 		frame.ChannelID,
@@ -172,12 +183,12 @@ func (h *TaskLifecycleHandler) HandleFinished(frame TaskFinishedFrame) error {
 }
 
 // fanoutPush invokes AgentTaskNotifier per channel member for mobile
-// background push (DL-4 #485 push gateway). nil-safe: members 或 notifier
-// 任一 nil → 跳 (反 leak / 反 boot panic).
+// background push (DL-4 #485 push gateway). Nil-safe: if members or notifier is
+// nil, skip fanout to avoid leaks and boot panics.
 //
-// 设计: hub.PushAgentTaskStateChanged 走 ws live conn (前台 client),
-// notifier 走 service worker push (后台 mobile / closed tab). 双轨 fanout
-// 跟 DL-4.6 mention 同模式.
+// Design: hub.PushAgentTaskStateChanged uses the ws live connection for
+// foreground clients, while notifier uses service-worker push for mobile
+// background / closed tabs. This two-track fanout matches DL-4.6 mention.
 func (h *TaskLifecycleHandler) fanoutPush(agentID, channelID, state, subject, reason string, ts int64) {
 	if h.members == nil || h.notifier == nil {
 		return
@@ -192,7 +203,7 @@ func (h *TaskLifecycleHandler) fanoutPush(agentID, channelID, state, subject, re
 	}
 	for _, uid := range userIDs {
 		if uid == "" || uid == agentID {
-			continue // 跳 agent 自己 (反 self-push) + 空字符串
+			continue // Skip the agent itself and empty user ids.
 		}
 		_ = h.notifier.NotifyAgentTask(uid, agentID, state, subject, reason, ts)
 	}

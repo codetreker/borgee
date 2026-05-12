@@ -10,8 +10,8 @@
 //   - Semantic IDs / counters come next (`Mode`, `Since` / `Count`,
 //     `Cursor`).
 //   - There is NO `timestamp` field on the request/response themselves
-//     because the cursor IS the order — see RT-1 spec §1 反约束: clients
-//     MUST NOT sort by timestamp.
+//     because the cursor IS the order. See RT-1 spec §1 negative constraint:
+//     clients MUST NOT sort by timestamp.
 //
 // Type aliasing: `internal/ws/event_schemas.go` and
 // `internal/ws/cursor.go` already pin the wire schema for the
@@ -39,7 +39,7 @@ const (
 
 // ResumeMode is the replay-strategy enum carried on `session.resume`.
 //
-// 反约束 (RT-1 spec §1.3 hardline): the server MUST NOT default the
+// Negative constraint (RT-1 spec §1.3 hardline): the server MUST NOT default the
 // runtime into `Full`. The blueprint splits human vs. agent: agents are
 // the only callers permitted to ask for `Full`, and even then they
 // must do so explicitly. An empty / unknown mode falls back to
@@ -61,7 +61,7 @@ const (
 	// ResumeModeFull — replay everything visible to the agent's channel
 	// scope from cursor 0. Reserved for agent runtimes that have lost
 	// their durable state and explicitly request a re-seed. Human
-	// clients are forbidden from picking this mode (反约束); the
+	// clients are forbidden from picking this mode; the negative constraint in the
 	// resolver enforces this even when a malformed frame arrives.
 	ResumeModeFull ResumeMode = "full"
 )

@@ -1,14 +1,14 @@
 // Package bpp — plugin_frame_dispatcher.go: BPP-3 unified plugin-upstream
 // BPP frame dispatcher boundary.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §2.2 (Plugin → Server data
+// Blueprint reference: docs/blueprint/current/plugin-protocol.md §2.2 (Plugin → Server data
 // plane) — BPP frames carry `{type, ...payload-direct-fields}`, distinct
 // from the RPC envelope `{type, id, data}` used by api_request/
 // api_response.
 //
 // Spec: BPP-3 plugin connection lifecycle + unified frame dispatcher
-// boundary (派 zhanma-a, 跟 ws/plugin.go read loop AL-2b ack ingress
-// 收尾 — 即 113 line "deferred to BPP-3 plugin 真实施 PR" 锚).
+// boundary. This completes the ws/plugin.go read-loop path for AL-2b ack
+// ingress, which was previously deferred to the BPP-3 plugin implementation.
 //
 // Why this file exists:
 //
@@ -26,7 +26,7 @@
 //     per-frame dispatcher (currently AL-2b ack only; future: BPP-2
 //     task lifecycle frames will register here).
 //
-// Boundary立场 (BPP-1 envelope contract 守):
+// Boundary stance (BPP-1 envelope contract):
 //
 //   - This file does NOT touch `{type, id, data}` RPC frames — those
 //     stay in plugin.go (api_request / api_response / ping / pong /
@@ -42,12 +42,12 @@
 //     send frames the server doesn't yet understand; reject would break
 //     plugin upgrade rollouts).
 //
-// 反约束:
+// Negative constraints:
 //
 //   - No schema/migration changes (BPP-3 is wire-routing only).
 //   - No new frame types added here — frames live in envelope.go,
 //     dispatchers register on the boundary.
-//   - Direction lock守 — only DirectionPluginToServer frames may
+//   - Direction lock: only DirectionPluginToServer frames may
 //     register. Attempt to register a server→plugin frame panics at
 //     boot (defense-in-depth, prevents silent direction drift).
 
@@ -74,17 +74,18 @@ type FrameDispatcher interface {
 	// Dispatch decodes raw JSON into the dispatcher's frame type and
 	// processes it under the session context. Returns wrapped sentinel
 	// errors so callers can errors.Is to map to wire-level error codes
-	// (跟 BPP-2.1 Dispatch / BPP-2.2 ValidateTaskFinished 同模式).
+	// using the same pattern as BPP-2.1 Dispatch and BPP-2.2
+	// ValidateTaskFinished.
 	Dispatch(raw json.RawMessage, sess PluginSessionContext) error
 }
 
 // PluginSessionContext is the per-connection context passed to every
 // frame dispatcher. Carries the authenticated owner UUID (from BPP-1
-// connect handshake) so per-frame dispatchers can run cross-owner ACL
-// (跟 AckSessionContext shape byte-identical — same field, broader
-// scope).
+// connect handshake) so per-frame dispatchers can run cross-owner ACL.
+// This is byte-identical with AckSessionContext for the shared field, with a
+// broader scope.
 //
-// 立场 (Auth): OwnerUserID is set ONCE at connection accept (plugin.go
+// Auth stance: OwnerUserID is set ONCE at connection accept (plugin.go
 // hub.RegisterPlugin time, after API key auth) and never mutates. A
 // dispatcher receiving sess with empty OwnerUserID is a server boot
 // bug (panics defensively in Dispatch).
@@ -121,7 +122,7 @@ func NewPluginFrameDispatcher(logger *slog.Logger) *PluginFrameDispatcher {
 //   - frameType is not in the BPP envelope whitelist (forces caller to
 //     define the frame in envelope.go first, prevents typo'd routes)
 //
-// Direction lock守 — only DirectionPluginToServer frames may be
+// Direction lock: only DirectionPluginToServer frames may be
 // registered. Attempting to register a server→plugin frame panics
 // (defense-in-depth: the plugin doesn't *send* server→plugin frames,
 // so registering one here is a definitional bug).
@@ -234,7 +235,7 @@ func isPluginToServerFrame(frameType string) bool {
 // dispatcher, defined in agent_config_ack_dispatcher.go) into the
 // FrameDispatcher interface so it can register on PluginFrameDispatcher.
 //
-// 立场: keep the AckDispatcher API surface focused on the validated
+// Stance: keep the AckDispatcher API surface focused on the validated
 // frame struct (typed AgentConfigAckFrame) and let this adapter handle
 // the raw → typed decoding boundary. Same pattern: BPP-2.1 ActionHandler
 // wraps server-go business logic, this wraps the typed dispatcher into
