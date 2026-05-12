@@ -36,7 +36,7 @@
 | `organizations` | [concept-model §1.1](concept-model.md) | UI 不暴露，数据层核心对象 |
 | `users.org_id` | concept-model | UI 不返回 |
 | `users.owner_id` | concept-model | agent → 人类的归属关系字段 |
-| `users.role` | admin-model | 取值 `member` / `admin` / `agent` |
+| `users.role` | admin-model | 取值 `member` / `agent`；admin 走独立 `admins` 表，不进入 `users.role` |
 
 ### 2.2 权限
 
@@ -95,20 +95,21 @@
 
 | 表/列 | 来源 | 备注 |
 |-------|------|------|
-| `admin_grants(promoted_user_id, promoted_by, promoted_at)` | [admin-model §1.2](admin-model.md) | 长期保留 |
+| `admins(id, username, password_hash, created_at, created_by, last_login_at)` | [admin-model §1.2](admin-model.md) | 独立 admin 身份表；首个 admin 由 env bootstrap，后续由 admin SPA 新建 |
 | `admin_audit` | admin-model §1.4 | 长期保留 |
 | `impersonation_grants(user_id, granted_at, expires_at)` | admin-model §1.3 | 24h 过期 |
+| ❌ ~~`admin_grants(promoted_user_id, promoted_by, promoted_at)`~~ | admin-model §1.2 / §3 | 撤销；admin 不再由 user 提升产生，不入 active schema |
 
 ### 2.9 注册 / 邀请
 
 | 表/列 | 来源 | 备注 |
 |-------|------|------|
-| `invitations(code, role, invited_by, used_by, expires_at)` | 注册 / 邀请补充，对应 PRD P4 | 跟 admin_grants 语义不同 |
+| `invitations(code, role, invited_by, used_by, expires_at)` | 注册 / 邀请补充，对应 PRD P4 | 跟已撤销的 admin_grants 提升语义不同 |
 
 ### 2.10 不入库的概念
 
 - ❌ `agent_capability_bundle`：UI 模板，不存数据库（[auth-permissions §1.1](auth-permissions.md)）
-- ❌ Role enum：`role` 只用 `'admin' / 'agent' / 'member'`，不引入 PM/Dev/QA 角色
+- ❌ Role enum：`users.role` 只用 `'agent' / 'member'`，admin 是 `admins` 表里的平台运维身份；不引入 PM/Dev/QA 角色
 
 ---
 
@@ -141,7 +142,7 @@ cursor 协议同形（`kind + ulid`），客户端按订阅集合 merge。
 
 - 后台 cron 每天 `DELETE WHERE created_at < now() - 90d`
 - WAL checkpoint 后跑，业务无感
-- **长期保留表（不受 90 天滚动保留策略影响）**：`admin_audit` / `impersonation_grants` / `agent_invitations` / `admin_grants` / `permission_grants` 历史
+- **长期保留表（不受 90 天滚动保留策略影响）**：`admin_audit` / `impersonation_grants` / `agent_invitations` / `permission_grants` 历史
 
 ### 3.2 Q10.3 — 迁移：标准版本化（B）
 
