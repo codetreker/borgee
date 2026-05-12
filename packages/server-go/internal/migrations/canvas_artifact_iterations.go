@@ -20,87 +20,24 @@ import (
 // state 4 态 byte-identical + reason 三处单测锁定 + jsdiff.
 //
 // What this migration does:
-//  1. CREATE TABLE artifact_iterations:
-//     - id                          TEXT    PRIMARY KEY      (uuid; one row
-//     per iterate
-//     request)
-//     - artifact_id                 TEXT    NOT NULL         (FK
-//     artifacts.id;
-//     逻辑 FK,
-//     SQLite FK 默认
-//     禁用 — 跟
-//     cv_1_1 / cv_2_1
-//     / dm_2_1 /
-//     al_3_1 / al_4_1
-//     同模式)
-//     - requested_by                TEXT    NOT NULL         (FK users.id;
-//     owner-only
-//     acceptance §2.1
-//     + ADM-0 §1.3
-//     红线 设计 ⑦)
-//     - intent_text                 TEXT    NOT NULL         (用户输入意图
-//     — 隐私字段,
-//     admin god-mode
-//     must not return
-//     unredacted text —
-//     acceptance §2.7
-//     + ADM-0 §1.3)
-//     - target_agent_id             TEXT    NOT NULL         (FK agents.id =
-//     users.id where
-//     role='agent';
-//     设计 ⑥ 同 DM-2.1
-//     target_user_id
-//     同模式 — 单列
-//     agent / human
-//     同语义)
-//     - state                       TEXT    NOT NULL         (CHECK 4 态
-//     ('pending',
-//     'running',
-//     'completed',
-//     'failed') —
-//     #380 文案锁定
-//     byte-identical;
-//     反向约束: reject
-//     'starting' /
-//     'busy' /
-//     'unknown' 中间
-//     态)
-//     - created_artifact_version_id INTEGER NULL             (FK
-//     artifact_versions.id;
-//     completed 态时
-//     填 — 设计 ②
-//     CV-1 commit
-//     单一来源 atomic
-//     UPDATE; 反向
-//     NOT NULL: pending
-//     / running /
-//     failed 态时
-//     NULL)
-//     - error_reason                TEXT    NULL             (复用 AL-1a
-//     #249 6 reason
-//     枚举字面 byte-
-//     identical: api_
-//     key_invalid /
-//     quota_exceeded
-//     / network_
-//     unreachable /
-//     runtime_crashed
-//     / runtime_
-//     timeout /
-//     unknown +
-//     AL-4 placeholder
-//     fail-closed
-//     runtime_not_
-//     registered;
-//     schema 不装
-//     CHECK enum,
-//     跟 AL-4.1
-//     #398 同思路
-//     — server 校验)
-//     - created_at                  INTEGER NOT NULL         (Unix ms)
-//     - completed_at                INTEGER NULL             (Unix ms;
-//     completed /
-//     failed 态时填)
+//  1. CREATE TABLE artifact_iterations with these columns:
+//     id TEXT PRIMARY KEY (uuid; one row per iterate request); artifact_id TEXT
+//     NOT NULL (logical FK to artifacts.id; SQLite FK is off, same as cv_1_1 /
+//     cv_2_1 / dm_2_1 / al_3_1 / al_4_1); requested_by TEXT NOT NULL (FK users.id;
+//     owner-only, acceptance §2.1 + ADM-0 §1.3 红线 设计 ⑦); intent_text TEXT
+//     NOT NULL (user intent and privacy field; admin responses must not return
+//     unredacted text, acceptance §2.7 + ADM-0 §1.3); target_agent_id TEXT NOT NULL
+//     (FK agents.id = users.id where role='agent'; same single-column agent/human
+//     semantics as DM-2.1 target_user_id); state TEXT NOT NULL CHECK ('pending',
+//     'running','completed','failed') (#380 locked 4-state byte-identical literals;
+//     reject 'starting' / 'busy' / 'unknown'); created_artifact_version_id INTEGER
+//     NULL (FK artifact_versions.id; filled only on completed, and remains NULL for
+//     pending / running / failed); error_reason TEXT NULL (AL-1a #249 6 reason
+//     literals byte-identical: api_key_invalid / quota_exceeded /
+//     network_unreachable / runtime_crashed / runtime_timeout / unknown, plus AL-4
+//     placeholder fail-closed runtime_not_registered; no schema CHECK enum, server
+//     validates as in AL-4.1 #398); created_at INTEGER NOT NULL (Unix ms);
+//     completed_at INTEGER NULL (Unix ms; set for completed / failed).
 //  2. CREATE INDEX idx_iterations_artifact_id_state
 //     ON artifact_iterations(artifact_id, state) — per-artifact pending /
 //     running hot path (UI inline + state machine guard).

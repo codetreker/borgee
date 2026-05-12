@@ -18,50 +18,20 @@ import (
 // Content lock: `docs/qa/al-4-content-lock.md` (#321).
 //
 // What this migration does:
-//  1. CREATE TABLE agent_runtimes:
-//     - id                 TEXT    PRIMARY KEY      (uuid; 1 row per agent)
-//     - agent_id           TEXT    NOT NULL UNIQUE  (FK agents.id; 设计 ①
-//     v1 不优化多 runtime
-//     并行, 1 runtime per
-//     agent. 逻辑 FK,
-//     SQLite FK 默认禁用 —
-//     跟 cv_1_1 / cv_2_1 /
-//     dm_2_1 同模式)
-//     - endpoint_url       TEXT    NOT NULL         (plugin WS/HTTP 入口)
-//     - process_kind       TEXT    NOT NULL         (CHECK ('openclaw',
-//     'hermes') — v1 仅
-//     'openclaw' 蓝图 §2.2
-//     v1 边界字面, 'hermes'
-//     reserved for v2+; 反约束:
-//     reject 'unknown' 等
-//     枚举外值)
-//     - status             TEXT    NOT NULL         (CHECK ('registered',
-//     'running','stopped',
-//     'error') — process-
-//     level 4 态, 设计 ③
-//     kept separate from
-//     AL-3 session-level)
-//     - last_error_reason  TEXT    NULL             (复用 AL-1a #249 6
-//     reason 枚举字面 —
-//     api_key_invalid /
-//     quota_exceeded /
-//     network_unreachable /
-//     runtime_crashed /
-//     runtime_timeout /
-//     unknown; 隐私: admin
-//     god-mode must not return
-//     this field's unredacted text,
-//     设计 ⑦
-//     ADM-0 红线)
-//     - last_heartbeat_at  INTEGER NULL             (Unix ms; process-
-//     level heartbeat,
-//     设计 ③ 不写
-//     presence_sessions —
-//     AL-3 hub lifecycle
-//     路径)
-//     - created_at         INTEGER NOT NULL         (Unix ms)
-//     - updated_at         INTEGER NOT NULL         (Unix ms; status
-//     transition 触发更)
+//  1. CREATE TABLE agent_runtimes with these columns:
+//     id TEXT PRIMARY KEY (uuid; 1 row per agent); agent_id TEXT NOT NULL UNIQUE
+//     (logical FK to agents.id; v1 keeps 1 runtime per agent; SQLite FK is off,
+//     same as cv_1_1 / cv_2_1 / dm_2_1); endpoint_url TEXT NOT NULL; process_kind
+//     TEXT NOT NULL CHECK ('openclaw','hermes') ('openclaw' is the v1 boundary,
+//     'hermes' is reserved for v2+, and values like 'unknown' must reject); status
+//     TEXT NOT NULL CHECK ('registered','running','stopped','error') (process-level
+//     4-state, kept separate from AL-3 session-level); last_error_reason TEXT NULL
+//     (AL-1a #249 6 reason literals: api_key_invalid / quota_exceeded /
+//     network_unreachable / runtime_crashed / runtime_timeout / unknown; admin
+//     responses must not return this field's unredacted text, 设计 ⑦ ADM-0 红线);
+//     last_heartbeat_at INTEGER NULL (Unix ms; process-level heartbeat; does not
+//     write presence_sessions); created_at INTEGER NOT NULL (Unix ms); updated_at
+//     INTEGER NOT NULL (Unix ms; written on status transition).
 //  2. CREATE INDEX idx_agent_runtimes_agent_id
 //     ON agent_runtimes(agent_id) — lookup hot path (acceptance §1.3).
 //     UNIQUE(agent_id) 已自动建 sqlite_autoindex_agent_runtimes_*, 此显式

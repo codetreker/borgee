@@ -12,7 +12,7 @@ import "gorm.io/gorm"
 // Schema (v=47, global-scoped events):
 //   - lex_id      TEXT NOT NULL PRIMARY KEY  (ULID, monotonic)
 //   - kind        TEXT NOT NULL              (e.g. "perm.grant", "impersonate.start")
-//   - payload     TEXT NOT NULL DEFAULT ”   (JSON-serialized event body)
+/*   - payload     TEXT NOT NULL DEFAULT ''  (JSON-serialized event body) */
 //   - created_at  INTEGER NOT NULL           (UnixMilli)
 //   - retention_days INTEGER                 (NULL = use sweeper default)
 //
