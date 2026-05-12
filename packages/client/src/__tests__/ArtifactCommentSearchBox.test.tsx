@@ -115,7 +115,7 @@ describe('ArtifactCommentSearchBox — CV-12.2 client', () => {
     const spy = api.searchArtifactComments as ReturnType<typeof vi.fn>;
     await render(<ArtifactCommentSearchBox artifactId="art-4" artifactChannelId="ch-4" />);
     const submit = container!.querySelector('[data-testid="cv12-search-submit"]') as HTMLButtonElement;
-    // submit button is disabled when query is empty — sanity reverse check.
+    // Empty query keeps the submit button disabled; this is the reverse check for API calls.
     expect(submit.disabled).toBe(true);
     // Even if we force-click the button, no API call.
     await act(async () => {

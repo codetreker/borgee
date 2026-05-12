@@ -1,6 +1,6 @@
 // CS-4.1 — IndexedDB wrapper SSOT 单测 (cs-4-stance-checklist 设计 ① + content-lock §3).
 //
-// fake-indexeddb 注入: 顶部 import 'fake-indexeddb/auto' 真补 jsdom 缺的 IDB.
+// fake-indexeddb 注入: 顶部 import 'fake-indexeddb/auto' 提供 jsdom 缺少的 IDB.
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
@@ -15,7 +15,7 @@ import {
 } from '../lib/cs4-idb';
 
 beforeEach(async () => {
-  // Reset fake IDB between tests
+  // Reset the fake IndexedDB instance between tests.
   // @ts-expect-error fake-indexeddb internals
   const { default: FDBFactory } = await import('fake-indexeddb/lib/FDBFactory');
   globalThis.indexedDB = new FDBFactory();
