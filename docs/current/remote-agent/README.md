@@ -7,11 +7,11 @@
 
 `remote-agent` 是一个**用户在自己机器上跑的 Node 守护进程**。它向 Borgee server 长连一条 WebSocket（`/ws/remote`），server 可以通过这条连接反向读取该机器上**白名单目录**里的文件，让 channel 里的 agent 看到这些内容。
 
-它**不是聊天 agent 的运行时**——不参与消息流，不调用 LLM。它是一个"远程文件视图"的 daemon，作用对标 SSH 的只读子集，但通过既有的 Borgee channel 路径授权。
+它**不是聊天 agent 的运行时**——不参与消息流，不调用 LLM。它是一个提供远程文件视图的 daemon，能力类似 SSH 的只读子集，但通过既有的 Borgee channel 路径授权。
 
 设计意图：
 
-- 运维不必把代码 push 到云端就能让 LLM agent "看到"它；
+- 运维不必把代码 push 到云端就能让 LLM agent 读取它；
 - 用户对暴露范围有显式控制（启动参数 `--dirs` 白名单 + per-channel 绑定）；
 - server 完全主导请求节奏，agent 只被动响应。
 
@@ -36,7 +36,7 @@ borgee-remote-agent \
 
 ## 3. 协议
 
-**形态：服务端主导的 RPC over WebSocket**——daemon 永远是被动方，只回应 `request`，不主动发业务请求。
+**形态：服务端主导的 RPC over WebSocket**——daemon 始终是被动方，只回应 `request`，不主动发业务请求。
 
 连接地址：`{serverUrl}/ws/remote?token=${encodeURIComponent(token)}`。token 通过 query 参数带（不是 Header）。
 
@@ -59,7 +59,7 @@ borgee-remote-agent \
 
 ## 4. 文件系统沙箱（`fs-ops.ts`）
 
-**只有一道安全墙**：路径白名单 `isPathAllowed`（`fs-ops.ts:52–58`）：
+**唯一安全边界**：路径白名单 `isPathAllowed`（`fs-ops.ts:52–58`）：
 
 ```ts
 const resolved = path.resolve(targetPath);
@@ -73,7 +73,7 @@ return allowedDirs.some(dir => {
 
 - `path.resolve` 把相对路径与 `..` 全部规范化，杜绝 traversal；
 - `+ path.sep` 防 `/srv/data-extra` 这种**前缀误匹配**；
-- 白名单"等于"或"在子目录里"才放行。
+- 路径等于白名单目录，或位于白名单目录的子目录内，才放行。
 
 每个导出函数（`ls` / `readFile` / `stat`）**第一行就是 isPathAllowed 校验**，失败返回 `{error:"path_not_allowed"}`。
 
@@ -92,7 +92,7 @@ return allowedDirs.some(dir => {
 ### 显式不做的事
 
 - **没有写、删、改名、exec、symlink 解析、follow link 控制、隐藏文件过滤**——只读、扁平。
-- **没有进程级隔离**：没有 seccomp / chroot / namespace。整套靠 userland 路径检查；如果担心二次提权，跑在低权限 user 下。
+- **没有进程级隔离**：没有 seccomp / chroot / namespace。整套依赖 userland 路径检查；如果担心二次提权，跑在低权限 user 下。
 - 没有审计日志；只 `console.log` 连接生命周期。
 
 ## 5. 与 server-go 的对偶
@@ -156,10 +156,10 @@ remote_bindings:
 - 用专用低权限 user 跑 daemon；不要 `sudo`。
 - `--dirs` 给最小、最具体的目录；尽量是只读的内容仓库（数据集、文档、构建产物），不要交出源码或 secret 目录。
 - `connection_token` 是 long-lived 凭证，泄露等于把对应 node 上白名单内的文件全交出去——把它当 SSH key 一样保存，必要时删了 node 重新注册即可换 token。
-- `wss://` 在跨网络部署时是必须的（token 走 query string，明文 ws 等于裸传）。
+- `wss://` 在跨网络部署时是必须的（token 走 query string，明文 ws 会暴露 token）。
 - 容器化时把白名单挂成 `:ro` volume，给沙箱再加一层文件系统层面的只读保证。
 
-## 8. 已知 quirks
+## 8. 已知限制
 
 1. `path_not_found` 在 server 这一侧没有专门 mapping，会落到 502（见 §5）。
 2. `readFile` 用 `utf-8` 解码所有文件——二进制内容会损坏。当前没有 base64 通道，也没有按 MIME 切分支。
