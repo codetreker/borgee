@@ -7,12 +7,12 @@
 // docs/implementation/modules/bpp-4-spec.md §0.2. Acceptance:
 // docs/qa/acceptance-templates/bpp-4.md §1.
 //
-// Principles (byte-identical with BPP-4 principles §1+§2):
+// Principles (matching BPP-4 principles §1+§2):
 //   - **Borgee does not cancel in-flight tasks** (blueprint §1.6). The
 //     watchdog only triggers a state transition; it does not send a
 //     cancel/abort/kill frame. Reverse grep `cancel.*task\|abort.*inflight\|
 //     server.*kill.*runtime` must return 0 hits.
-//   - **30s threshold has one source of truth** (byte-identical with blueprint
+//   - **30s threshold has one source of truth** (matching blueprint
 //     BPP-4 module acceptance "kill plugin → 30s 内 agent 显示 error"). Any
 //     change must update three locks together: this constant,
 //     bpp-4-spec.md §0.2, and content-lock §1.①.
@@ -26,7 +26,7 @@
 //   - Do not write presence_sessions columns directly. AL-1b keeps that
 //     boundary; the watchdog uses agent.Tracker.SetError as the single source
 //     of truth, matching the #457 PATCH endpoint source.
-//   - Do not add a new BPP envelope frame. The whitelist is unchanged; BPP-4
+//   - Do not add a new BPP envelope frame. The allow-list is unchanged; BPP-4
 //     only reuses HeartbeatFrame as the watchdog trigger source.
 //   - Admin users do not enter the watchdog path because admins do not hold a
 //     PluginConn.
@@ -42,7 +42,7 @@ import (
 )
 
 // BPP_HEARTBEAT_TIMEOUT_SECONDS — single source of truth for the
-// plugin heartbeat liveness threshold. Byte-identical with blueprint BPP-4
+// plugin heartbeat liveness threshold. Matches blueprint BPP-4
 // module acceptance "kill plugin → 30s 内 agent 显示 error".
 //
 // Any change must update three places:

@@ -11,7 +11,7 @@
 //  1. Validate AgentConfigAckFrame.Status ∈ 3-enum {applied, rejected,
 //     stale}; enum-out values reject with AckErrCodeStatusUnknown.
 //  2. When Status ∈ {rejected, stale} and Reason is non-empty: validate Reason
-//     against the byte-identical AL-1a reason set.
+//     against the AL-1a reason set that must match exactly.
 //  3. cross-owner reject — sess.OwnerUserID from the authenticated BPP-1
 //     connection must match frame.AgentID's owner, otherwise reject + log warn
 //     `bpp.ack_cross_owner_reject`.
@@ -33,7 +33,7 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// AckErrCode* — error code literals are byte-identical with the BPP-2.2
+// AckErrCode* — error code literals match the BPP-2.2
 // task_outcome_unknown / BPP-2.3 config_field_disallowed naming pattern.
 const (
 	AckErrCodeStatusUnknown    = "bpp.ack_status_unknown"
@@ -59,7 +59,7 @@ func IsAckCrossOwnerReject(err error) bool {
 	return errors.Is(err, errAckCrossOwnerReject)
 }
 
-// validAckStatuses — 3-enum membership set byte-identical with acceptance
+// validAckStatuses — 3-enum membership set matching acceptance
 // §1.2 CHECK enum (same source as al_2b_frames_test.go::isValidAckStatus;
 // this is the production path reference).
 var validAckStatuses = map[string]bool{
@@ -71,9 +71,10 @@ var validAckStatuses = map[string]bool{
 // validAL1aReason — REFACTOR-REASONS moved the single source to
 // internal/agent/reasons.
 //
-// History: this file previously had inline 6 literals byte-identical with
+// History: this file previously had inline 6 literals matching
 // agent/state.go Reason* (#249/#305/#321/#380/#454/#458/#481/#492 test-lock
-// chain). REFACTOR-REASONS deduped them to the internal/agent/reasons SSOT.
+// chain). REFACTOR-REASONS deduped them to the internal/agent/reasons single
+// source of truth.
 func validAL1aReason(s string) bool { return reasons.IsValid(s) }
 
 // AckSessionContext is the per-plugin-connection context the
@@ -92,7 +93,7 @@ type AckSessionContext struct {
 // AgentConfigAckHandler is the seam between the bpp package and the api
 // package for processing a validated AgentConfigAckFrame. The api
 // package implements one handler that:
-//   - Looks up the current agent_configs.schema_version SSOT value;
+//   - Looks up the current agent_configs.schema_version single-source value;
 //   - Compares against frame.SchemaVersion (mismatch → log stale, skip
 //     last_applied_at update);
 //   - For Status==applied: UPDATE agent_configs.last_applied_at;

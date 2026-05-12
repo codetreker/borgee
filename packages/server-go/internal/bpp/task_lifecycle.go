@@ -41,7 +41,7 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// TaskOutcome enum — content-lock §1 ③ byte-identical with blueprint §1.6.
+// TaskOutcome enum — content-lock §1 ③ matches blueprint §1.6.
 // Changes must be coordinated with spec §0, acceptance §2.2, and this enum.
 const (
 	TaskOutcomeCompleted = "completed"
@@ -61,13 +61,13 @@ var validTaskOutcomes = map[string]bool{
 // validTaskReasons — REFACTOR-REASONS moved the single source to
 // internal/agent/reasons. Call reasons.IsValid(s) instead of keeping an inline map.
 //
-// History: this file previously kept an inline 6-literal set, byte-identical
-// with agent/state.go Reason* across the eight test-lock points
+// History: this file previously kept an inline 6-literal set matching
+// agent/state.go Reason* across the eight test-lock points
 // (#249/#305/#321/#380/#454/#458/#481/#492). REFACTOR-REASONS deduped it into
 // the internal/agent/reasons single source package.
 func validTaskReason(s string) bool { return reasons.IsValid(s) }
 
-// TaskErrCode* error code literals are byte-identical with content-lock §1 ⑥.
+// TaskErrCode* error code literals match content-lock §1 ⑥.
 // Naming follows anchor.create_owner_only #360, dm.workspace_not_supported #407,
 // iteration.target_not_in_channel #409, and bpp.semantic_op_unknown.
 const (

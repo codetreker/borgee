@@ -8,13 +8,13 @@
 // Spec brief: docs/implementation/modules/bpp-4-spec.md §0.3 + §1
 // BPP-4.2. Acceptance: docs/qa/acceptance-templates/bpp-4.md §2.
 //
-// Stance (byte-identical with stance §3):
+// Design contract (matching the design checklist §3):
 //   - **ack is best-effort and is not resent** (inherits blueprint §1.5).
 //     When a server→plugin push fails (sent=false, plugin offline), log a
 //     warning plus an audit hint, but do not queue it. After reconnect, the
 //     plugin uses RT-1.3 cursor replay to pull; the server does not proactively
 //     resend.
-//   - **dead-letter audit log schema is byte-identical with HB-1/HB-2 audit**
+//   - **dead-letter audit log schema matches HB-1/HB-2 audit**
 //     (5 fields: actor / action / target / when / scope). Any change must
 //     update three test locks, matching HB-4 §1.5 release gate line 4, which
 //     locks the audit log format.
@@ -32,7 +32,7 @@ import (
 	"log/slog"
 )
 
-// DeadLetterAuditEntry is the 5-field audit log schema, byte-identical with
+// DeadLetterAuditEntry is the 5-field audit log schema, matching
 // HB-1 install-butler audit (docs/implementation/modules/hb-1-spec.md §4
 // negative constraint 7) and HB-2 host-bridge IPC audit
 // (docs/implementation/modules/hb-2-spec.md §4 negative constraint 5).
@@ -59,7 +59,7 @@ type DeadLetterAuditEntry struct {
 // a timer; it only logs a warning plus an audit hint. After reconnect, the
 // plugin uses RT-1.3 #296 cursor replay to actively pull missing frames.
 //
-// log key `bpp.frame_dropped_plugin_offline` must remain byte-identical with
+// log key `bpp.frame_dropped_plugin_offline` must stay aligned with
 // content-lock §1.③. Any change must update this function, content-lock, and
 // acceptance.
 func LogFrameDroppedPluginOffline(logger *slog.Logger, entry DeadLetterAuditEntry) {

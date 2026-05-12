@@ -1,19 +1,19 @@
 // Package bpp — agent_config_update.go: BPP-2.3 source-of-truth for
-// the agent_config_update fields whitelist + idempotent reload validation.
+// the agent_config_update field allow-list + idempotent reload validation.
 //
 // Blueprint: docs/blueprint/current/plugin-protocol.md §1.5 (field-based
 // config hot reload and idempotent plugin reload) + §1.4 (Borgee-managed
 // fields versus runtime-managed fields).
 //
 // Spec brief: docs/implementation/modules/bpp-2-spec.md §0 + §1 BPP-2.3.
-// Stance: docs/qa/bpp-2-stance-checklist.md §3. Content lock:
+// Design contract: docs/qa/bpp-2-stance-checklist.md §3. Content lock:
 // docs/qa/bpp-2-content-lock.md §1 ②.
 //
 // What this file does:
-//  1. ConfigField enum lock — 6 values byte-identical with the blueprint
+//  1. ConfigField enum lock — 6 values matching the blueprint
 //     §1.4 Borgee-managed field list.
 //  2. ValidateConfigPayload — parses the AgentConfigUpdateFrame.Payload
-//     JSON (opaque on wire) + asserts every key ∈ valid whitelist;
+//     JSON (opaque on wire) + asserts every key ∈ the allowed set;
 //     runtime-tuning fields reject with ConfigErrCodeFieldDisallowed.
 //  3. Track per-agent ConfigRev for idempotent reload — same
 //     (agent_id, config_rev) pushed twice is a no-op (blueprint §1.5).
@@ -23,7 +23,7 @@
 //     (acceptance §4.5).
 //   - config is server→plugin only; plugins do not send config upstream — reverse grep
 //     CI lint count==0 (acceptance §4.3).
-//   - the field whitelist is closed — enum-out values reject + log warn
+//   - the field allow-list is closed — enum-out values reject + log warn
 //     `bpp.config_field_disallowed`.
 package bpp
 
@@ -33,7 +33,7 @@ import (
 	"fmt"
 )
 
-// ConfigField enum — content-lock §1 ② byte-identical with the blueprint §1.4
+// ConfigField enum — content-lock §1 ② matches the blueprint §1.4
 // Borgee-managed field list. Changes must be coordinated with the blueprint,
 // spec §0, and this enum.
 const (
@@ -45,7 +45,7 @@ const (
 	ConfigFieldEnabled      = "enabled"
 )
 
-// ValidConfigFields is the 6-field whitelist set. Membership is the only
+// ValidConfigFields is the 6-field allow-list set. Membership is the only
 // gate at the dispatcher boundary; runtime-tuning fields MUST reject.
 //
 // Negative constraint (acceptance §4.5 + content-lock §2 ⑤): runtime-tuning
@@ -59,7 +59,7 @@ var ValidConfigFields = map[string]bool{
 	ConfigFieldEnabled:      true,
 }
 
-// ConfigErrCode* — error code literals are byte-identical with content-lock §1 ⑥.
+// ConfigErrCode* — error code literals match content-lock §1 ⑥.
 const (
 	ConfigErrCodeFieldDisallowed  = "bpp.config_field_disallowed"
 	ConfigErrCodePayloadMalformed = "bpp.config_payload_malformed"

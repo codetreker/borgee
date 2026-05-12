@@ -43,8 +43,8 @@ const (
 	FrameTypeBPPAgentToggle            = "agent_toggle" // disable/enable: one frame, action field
 	FrameTypeBPPInboundMessage         = "inbound_message"
 	// BPP-3.1 permission_denied — server notifies plugin of authz failure.
-	// Server-to-plugin only; plugin never sends it. Payload fields are
-	// byte-identical with the AP-1 abac.go 403 body.
+	// Server-to-plugin only; plugin never sends it. Payload fields match
+	// the AP-1 abac.go 403 body.
 	FrameTypeBPPPermissionDenied = "permission_denied"
 
 	// Data plane (Plugin → Server) — §2.2.
@@ -71,7 +71,7 @@ const (
 	// restart, with state lost and no cursor. Cold-start is distinct from
 	// reconnect: reconnect has last_known_cursor and uses ResolveResume, while
 	// cold-start clears agent.Tracker and appends any→online through AL-1 #492.
-	// The reason reuses `runtime_crashed` from the byte-identical reason set.
+	// The reason reuses `runtime_crashed` from the aligned reason set.
 	// Cold-start intentionally omits LastKnownCursor / DisconnectAt / ReconnectAt.
 	FrameTypeBPPColdStartHandshake = "cold_start_handshake"
 )
@@ -143,7 +143,7 @@ func (RuntimeSchemaAdvertiseFrame) FrameDirection() Direction { return Direction
 //
 // AL-2b (#460 BPP-2 base + AL-2b acceptance #452 §1.1) extended this from
 // the BPP-1 4-field stub (Type / AgentID / ConfigRev / Payload) to the
-// 7-field byte-identical envelope per acceptance §1.1:
+// 7-field envelope matching acceptance §1.1:
 //
 //	{Type, Cursor, AgentID, SchemaVersion, Blob, IdempotencyKey, CreatedAt}
 //
@@ -151,15 +151,15 @@ func (RuntimeSchemaAdvertiseFrame) FrameDirection() Direction { return Direction
 // schema_equivalence_test.go + acceptance al-2b.md §1.1 simultaneously.
 //
 // Field semantics:
-//   - Type: discriminator first field, byte-identical with BPP-1 envelope (#280)
+//   - Type: discriminator first field, matching BPP-1 envelope (#280)
 //   - Cursor: hub.cursors atomic int64 monotonic allocation, sharing one
 //     sequence with RT-1 #290 + CV-2.2 #360 + DM-2.2 #372 + CV-4.2 #416 +
 //     AL-2b's 5 source frames. RT-1 spec §1.1 negative constraint: do not add a
-//     plugin-only channel; principle "不另起 channel" remains byte-identical
+//     plugin-only channel; principle "不另起 channel" remains aligned
 //     with acceptance §2.1.
 //   - AgentID: target agent UUID
 //   - SchemaVersion: monotonic with agent_configs.schema_version (AL-2a v=20
-//     #447), byte-identical; plugin receives < current server value → ack
+//     #447), kept aligned; plugin receives < current server value → ack
 //     `status=stale`
 //     (acceptance §2.3)
 //   - Blob: serialized single-source fields (name/avatar/prompt/model/
@@ -221,12 +221,12 @@ func (InboundMessageFrame) FrameDirection() Direction { return DirectionServerTo
 // owner DM. Also see §4.1 row listing the exact frame fields:
 // `attempted_action`, `required_capability`, `current_scope`, `reason`).
 //
-// 8 fields, byte-identical with spec bpp-3.1 §1 principle ③:
+// 8 fields, matching spec bpp-3.1 §1 principle ③:
 //
 //	{Type, Cursor, AgentID, RequestID, AttemptedAction, RequiredCapability, CurrentScope, DeniedAt}
 //
 // Field semantics:
-//   - Type: discriminator first field, byte-identical with BPP envelope (#280)
+//   - Type: discriminator first field, matching BPP envelope (#280)
 //   - Cursor: hub.cursors monotonic allocation, sharing one sequence with
 //     RT-1/CV-2/DM-2/CV-4/AL-2b. Negative constraint: do not add a plugin-only
 //     push channel.
@@ -237,10 +237,10 @@ func (InboundMessageFrame) FrameDirection() Direction { return DirectionServerTo
 //     (`SemanticOp*` const) or a REST endpoint name (e.g.
 //     "POST /artifacts/:id/commits"). Negative constraint: reject v2+ enum-out
 //     values such as 'list_users'.
-//   - RequiredCapability: byte-identical with the AP-1 abac.go 403 body field
+//   - RequiredCapability: matches the AP-1 abac.go 403 body field
 //     (e.g. "commit_artifact" shares the AP-1 capabilities.go const; drift
 //     fails the bidirectional grep CI lint)
-//   - CurrentScope: byte-identical with the AP-1 abac.go 403 body field (e.g.
+//   - CurrentScope: matches the AP-1 abac.go 403 body field (e.g.
 //     "artifact:art-1" shares AP-1 ArtifactScopeStr)
 //   - DeniedAt: Unix-ms semantic timestamp. Negative constraint: do not use it
 //     as the ordering source; cursor is the ordering source, matching
@@ -285,7 +285,7 @@ func (HeartbeatFrame) FrameType() string         { return FrameTypeBPPHeartbeat 
 func (HeartbeatFrame) FrameDirection() Direction { return DirectionPluginToServer }
 
 // SemanticActionFrame — collaborative-intent action (§1.3). The
-// `Action` field carries one of the v1 whitelisted verbs
+// `Action` field carries one of the v1 allowed verbs
 // (create_artifact / update_artifact / reply_in_thread / mention_user /
 // request_agent_join / read_channel_history / read_artifact). Server
 // dispatches to the matching REST handler with permission checks.
@@ -320,25 +320,25 @@ func (ErrorReportFrame) FrameDirection() Direction { return DirectionPluginToSer
 // not use DirectionServerToPlugin, matching the BPP-1 #304 direction-lock
 // pattern.
 //
-// 7 字段 byte-identical 跟 acceptance §1.2:
+// 7 fields matching acceptance §1.2:
 //
 //	{Type, Cursor, AgentID, SchemaVersion, Status, Reason, AppliedAt}
 //
 // Field semantics:
-//   - Type: discriminator first field, byte-identical with BPP envelope #280
+//   - Type: discriminator first field, matching BPP envelope #280
 //   - Cursor: plugin echoes update.Cursor for pairing. The server pairs ack ↔
 //     AgentConfigUpdateFrame by cursor; the ack itself does not use
 //     hub.cursors monotonic allocation because it is a plugin → server receipt,
 //     not the same sequence as the server → plugin push cursor.
-//   - AgentID: target agent UUID, byte-identical with the update frame
+//   - AgentID: target agent UUID, matching the update frame
 //   - SchemaVersion: schema_version actually applied by the plugin. In the
 //     acceptance §2.3 stale path, plugin receives < current server value → ack
 //     carries the plugin-known value, and the server treats it as stale so the
 //     plugin actively pulls.
 //   - Status: 'applied' | 'rejected' | 'stale' (acceptance §1.2 CHECK
-//     enum byte-identical; negative constraint: reject enum-out values such as
+//     enum matches exactly; negative constraint: reject enum-out values such as
 //     'unknown', with server-side validation fail-closed)
-//   - Reason: set for stale/rejected. It is byte-identical with the AL-1a #249
+//   - Reason: set for stale/rejected. It matches the AL-1a #249
 //     6-reason enum — api_key_invalid/quota_exceeded/network_unreachable/
 //     runtime_crashed/runtime_timeout/unknown. For applied, it is empty string.
 //     Negative constraint: do not add omitempty; always serialize it, matching
@@ -367,7 +367,7 @@ type AgentConfigAckFrame struct {
 func (AgentConfigAckFrame) FrameType() string         { return FrameTypeBPPAgentConfigAck }
 func (AgentConfigAckFrame) FrameDirection() Direction { return DirectionPluginToServer }
 
-// AgentConfigAck status enum is byte-identical with acceptance §1.2 CHECK plus
+// AgentConfigAck status enum matches acceptance §1.2 CHECK plus
 // server-side fail-closed validation; enum-out values reject.
 const (
 	AgentConfigAckStatusApplied  = "applied"
@@ -379,7 +379,7 @@ const (
 // agent-lifecycle.md §2.3 require busy/idle to come from a plugin upstream
 // frame; stubs must be removed before v1. The `Subject` field is the
 // human-readable description ("agent 在做什么"). The server rejects empty or
-// whitespace-only Subject and logs `bpp.task_subject_empty` (spec §0 stance ②:
+// whitespace-only Subject and logs `bpp.task_subject_empty` (spec §0 design ②:
 // default-value fallback is forbidden).
 type TaskStartedFrame struct {
 	Type      string `json:"type"`
@@ -422,7 +422,7 @@ func (TaskFinishedFrame) FrameDirection() Direction { return DirectionPluginToSe
 // agents are scoped from the plugin connection's authenticated user
 // (BPP-1 connect handshake), so this frame doesn't re-authenticate.
 //
-// 6 fields, byte-identical with spec brief §1 BPP-5.1:
+// 6 fields, matching spec brief §1 BPP-5.1:
 //
 //	{Type, PluginID, AgentID, LastKnownCursor, DisconnectAt, ReconnectAt}
 //
@@ -464,7 +464,7 @@ func (ReconnectHandshakeFrame) FrameDirection() Direction { return DirectionPlug
 //     runtime_crashed, "") — AL-1 #492 single-gate writes state-log row
 //  3. NO history replay. This is the opposite of BPP-5: cold-start is a fresh start.
 //
-// 5 fields, byte-identical with spec brief §1 BPP-6.1:
+// 5 fields, matching spec brief §1 BPP-6.1:
 //
 //	{Type, PluginID, AgentID, RestartAt, RestartReason}
 //
@@ -478,7 +478,7 @@ func (ReconnectHandshakeFrame) FrameDirection() Direction { return DirectionPlug
 //   - **Do not add a plugin_restart_count column**. Restart count is derived
 //     from state-log COUNT(WHERE to_state='online' AND reason='runtime_crashed').
 //     spec §0.3.
-//   - reason reuses `runtime_crashed` from the byte-identical 6-dict to express
+//   - reason reuses `runtime_crashed` from the aligned 6-dict to express
 //     previous error → current recovery. reasons single source #496 does not
 //     add a 7th literal.
 //   - Field order is fixed: type/plugin_id/agent_id/restart_at/restart_reason.

@@ -6,12 +6,12 @@
 // Spec brief: docs/implementation/modules/hb-3-v2-spec.md §0.1 + §1
 // HB-3 v2.1.
 //
-// Stance (byte-identical with stance §1+§4):
+// Design contract (matching the design checklist §1+§4):
 //
 //   - **0 schema changes** — DecayState is derived from last_heartbeat_at;
 //     do not split a table or add another sequence. Reverse grep ensures
 //     production code does not introduce a new table.
-//   - **threshold is byte-identical with BPP-4** — StaleThreshold = 30 *
+//   - **threshold matches BPP-4** — StaleThreshold = 30 *
 //     time.Second, matching srvbpp/BPP-7 SDK HeartbeatInterval.
 //   - **enum literals have one source of truth** — DecayState const literals
 //     (`fresh / stale / dead`) are locked; reverse grep hardcode outside
@@ -27,7 +27,7 @@ package bpp
 import "time"
 
 // DecayState is the single source of truth for the three literals; values must
-// remain byte-identical with spec §1 and acceptance §1 enum literals.
+// remain aligned with spec §1 and acceptance §1 enum literals.
 type DecayState string
 
 const (
@@ -53,7 +53,7 @@ const DeadThreshold = 60 * time.Second
 // milliseconds. Negative or zero lastHeartbeatAt counts as "no heartbeat
 // ever" → dead.
 //
-// Stance ①: derive in reverse from timestamps without table reads, store
+// Design contract ①: derive in reverse from timestamps without table reads, store
 // dependencies, or IO. Reverse-monotonic safe: now < lastHeartbeatAt returns
 // fresh because the future-dated heartbeat is treated as healthy by being less
 // than StaleThreshold old.
@@ -80,7 +80,7 @@ func DeriveDecayState(now, lastHeartbeatAt int64) DecayState {
 // IsCrossBucketTransition returns true iff the two states are in
 // different decay buckets — used by the watchdog wire (HB-3 v2.2) to
 // decide whether to fire BPP-8 RecordHeartbeatTimeout audit. Same-bucket
-// transitions are silently no-op (stance ⑦: do not repeatedly fire within the
+// transitions are silently no-op (design ⑦: do not repeatedly fire within the
 // same bucket, which keeps high-frequency noise out of the audit log).
 func IsCrossBucketTransition(from, to DecayState) bool {
 	return from != to
