@@ -1,13 +1,13 @@
 // SearchBox — CV-6 client SPA artifact search input (#cv-6).
 //
-// Spec: docs/implementation/modules/cv-6-spec.md (战马C v0).
+// Spec: docs/implementation/modules/cv-6-spec.md.
 // Content lock: docs/qa/cv-6-content-lock.md §2 (DOM 字面锁) + §4 (5 错码
 // 文案 byte-identical 跟 server const + SEARCH_ERR_TOAST map 同源).
 //
 // 设计反查:
 //   - ① server-side SSOT (复用 SQLite FTS5) — 不引入 fuse.js / minisearch
 //     / fuzzysort / flexsearch (grep 检查 package.json count==0).
-//   - ⑨ debounce 300ms — 反每键发 HTTP, useEffect cleanup 模式.
+//   - ⑨ debounce 300ms — prevent one HTTP request per keypress; useEffect cleanup 模式.
 //   - kbd `/` focus + `Esc` clear — UX 标尺 (跟既有 mention `@` 同精神).
 //
 // DOM 字面锁 (content-lock §2):
@@ -52,7 +52,7 @@ export default function SearchBox({ channelId, onResults, onError }: Props) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onResults]);
 
-  // debounce 300ms (反每键发 HTTP).
+  // debounce 300ms to avoid one HTTP request per keypress.
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     const trimmed = query.trim();

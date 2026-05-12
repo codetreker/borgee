@@ -1,7 +1,7 @@
 // ArchivedChannelsPanel.tsx — CHN-5.3 archived channels 折叠面板.
 //
 // Blueprint: channel-model.md §2 不变量 #3 archive 留 history. Spec:
-// docs/implementation/modules/chn-5-spec.md (战马D v0). Content-lock:
+// docs/implementation/modules/chn-5-spec.md. Content-lock:
 // docs/qa/chn-5-content-lock.md §2 (DOM byte-identical) + §3 (toast).
 //
 // 反约束 (chn-5-content-lock.md §2+§3+§4):

@@ -1,6 +1,6 @@
 // BannerImpersonate — ADM-2.2 顶部红横幅 (业主端).
 //
-// Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 2 ("Impersonate 必须显眼,
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 constraint 2 ("Impersonate 必须显眼,
 // 红色横幅 + 倒计时") + ADM-1 §4.1 R3 第 2 条 ("24h 时窗顶部红色横幅常驻可
 // 随时撤销") 兑现.
 // Content lock: docs/qa/adm-2-content-lock.md §2 (text must match exactly).
@@ -26,7 +26,7 @@ interface ImpersonateGrant {
   revoked_at: number | null;
   // Server may attach admin_username when impersonate is currently in use
   // (admins.Login lookup); v1 we just show "support" prefix per content-lock §2
-  // 字面 (admin 端真正使用 impersonate grant 时, server 会 stamp 字段; 此 v1
+  // literal (admin 端真正使用 impersonate grant 时, server 会 stamp 字段; 此 v1
   // 横幅不依赖该字段渲染 admin_username, uses the general "support admin" text from blueprint
   // §1.4 row 2 "support 张三正在协助你, 剩 23h").
   admin_username?: string;

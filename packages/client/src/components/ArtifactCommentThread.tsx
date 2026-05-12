@@ -14,7 +14,7 @@
 // 反约束:
 //   - 不开 N-deep recursion (props 不传 children, 仅 1-level)
 //   - 不另起 emoji picker / mention parser (reply input 是 plain textarea)
-//   - admin god-mode 不挂 (此组件不在 admin console)
+//   - 不挂 admin-only path (此组件不在 admin console)
 
 import { useCallback, useState } from 'react';
 import { ApiError, postArtifactCommentReply } from '../lib/api';

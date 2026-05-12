@@ -7,7 +7,7 @@
 //
 // 设计 ③ pin = position MIN-1.0 单调小数 (server 不算, useUserLayout 算).
 // 设计 ④ DM 行 reverse-DOM omit — 不在此组件 mount; 调用方 (Sidebar)
-// 必须按 channel.type==='dm' 守门, defense-in-depth 锁.
+// 必须按 channel.type==='dm' 判断, 保留 defense-in-depth 约束.
 //
 // DOM lock byte-identical (cv-3-content-lock.md ③ + reverse grep ≥2):
 //   <menu role="menu" data-context="channel-pin">

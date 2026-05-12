@@ -32,7 +32,7 @@ import { usePresence } from '../hooks/usePresence';
 // only the last four chars; callers slice after fetch and immediately drop the
 // full key so it cannot be kept in React state.
 //
-// 前缀 `bgr_` 写死 — server-go `GenerateAPIKey()` 真值 (queries_phase2b.go:440).
+// 前缀 `bgr_` 写死 — server-go `GenerateAPIKey()` actual value (queries_phase2b.go:440).
 // Matches brief §2.3 + §2.4 grep guards; `sk-` must not appear.
 function formatMaskedApiKey(last4: string): string {
   return `bgr_...${last4}`;
@@ -164,7 +164,7 @@ function AgentCard({
       const rt = await fetchAgentRuntime(agent.id);
       setRuntime(rt);
     } catch {
-      // Silent failure: §11 prefers silence over fake loading; a transient error
+      // Silent failure: #190 §11 prefers silence over fake loading; a transient error
       // should not block the expanded panel.
       setRuntime(null);
     } finally {
@@ -359,7 +359,7 @@ function AgentCard({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <strong>{agent.display_name}</strong>
-                {/* AL-1a (#R3): runtime 三态 + 故障原因. 文案锁见 lib/agent-state.ts (野马 #190 §11). */}
+                {/* AL-1a (#R3): runtime 三态 + 故障原因. 文案锁见 lib/agent-state.ts (§11). */}
                 <AgentStateBadge agent={agent} />
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>

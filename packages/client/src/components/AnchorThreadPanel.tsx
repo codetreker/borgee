@@ -22,7 +22,7 @@
 //   - ② "段落讨论" header — 不准 "评论区" / "Comments" / "Thread"
 //   - ③ "针对此段写下你的 review…" placeholder — 不准 "输入评论" / "Write a comment"
 //   - ④ 🤖 角标 byte-identical 跟 CV-1 #347 line 251 同源
-//   - ⑥ '标为已解决' / '重新打开' — 不准英文同义词 / 完成 / Done (字面禁词在 anchor-content-lock.test.ts ⑥ 反向锁)
+//   - ⑥ '标为已解决' / '重新打开' — 不准英文同义词 / 完成 / Done (anchor-content-lock.test.ts ⑥ enforces forbidden terms)
 //   - ⑦ stale 标签 "锚点指向 v{N}, 文档已更新到 v{M}" byte-identical
 //     (#358 acceptance §3.4 同源)
 
@@ -220,8 +220,8 @@ export default function AnchorThreadPanel({
 
       {isResolved && canResolve && (
         <div className="anchor-thread-actions">
-          {/* 反向: resolved → reopen 文案锁; v1 服务端不暴露 reopen 路径,
-              UI 仅占位 byte-identical 锁内容防漂移; 服务端 v2 加 reopen
+          {/* Negative constraint: resolved → reopen 文案锁; v1 服务端不暴露 reopen 路径,
+              UI 仅占位 byte-identical 锁内容防止文案漂移; 服务端 v2 加 reopen
               endpoint 时此按钮启用. */}
           <button className="btn btn-sm anchor-reopen-btn" disabled title="v1 暂不支持重开">
             {REOPEN_LITERAL}

@@ -23,7 +23,7 @@
 //   - 不另起 reaction chip 渲染 (复用 DM-5 ReactionSummary)
 //   - 不另起 fetch (用既有 getMessageReactions; onChanged 触发 refetch)
 //   - 不写 sessionStorage / localStorage (纯 component state)
-//   - admin god-mode 不挂
+//   - 不挂 admin-only path
 
 import { useCallback, useEffect, useState } from 'react';
 import EmojiPickerPopover from './EmojiPickerPopover';

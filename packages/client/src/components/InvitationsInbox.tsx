@@ -59,7 +59,7 @@ export default function InvitationsInbox({ onBack, onJumpToChannel }: Props) {
   // RT-0 (#40): drop-in push listener — when the server pushes an
   // `agent_invitation_pending` or `_decided` frame the inbox re-fetches
   // immediately. Server is authoritative; the frame is just the
-  // wake-up. 野马 G2.4 hardline (≤ 3s) is satisfied because the path
+  // wake-up. G2.4 latency requirement (≤ 3s) is satisfied because the path
   // is /ws push → CustomEvent → load() (no 60s polling).
   useInvitationFrames({
     onPending: load,

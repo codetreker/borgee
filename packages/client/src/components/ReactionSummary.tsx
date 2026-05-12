@@ -10,7 +10,7 @@
 //   - ④ DOM `data-dm5-reaction-chip` + `data-dm5-reaction-count` +
 //     `data-dm5-reaction-mine` 锚 + 文案 `{emoji} {count}` byte-identical.
 //
-// 反约束: 不另起 emoji picker (复用 unicode 直接发); admin god-mode 不挂.
+// Negative constraint: 不另起 emoji picker (复用 unicode 直接发); 不挂 admin-only path.
 
 import { useCallback, useState } from 'react';
 import {

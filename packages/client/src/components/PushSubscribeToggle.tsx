@@ -7,7 +7,7 @@
 // 走 DL-4 pushSubscribe.subscribeToPush() 单源 (不另起 helper).
 // unsupported 时 return null.
 //
-// 反约束: 不准 mount-time 自动 Notification.requestPermission()
+// Negative constraint: mount-time code must not call Notification.requestPermission()
 // (DL-4 subscribeToPush 内部已封装, 走 click → DL-4 入口).
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -35,7 +35,7 @@ export default function PushSubscribeToggle({
   );
 
   useEffect(() => {
-    // 仅 mount 时 sync state — 不调 requestPermission (反滥用红线).
+    // 仅 mount 时 sync state — 不调 requestPermission; permission prompt stays click-gated.
     setState(getCurrentSubscriptionState());
   }, []);
 

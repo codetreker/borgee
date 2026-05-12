@@ -7,7 +7,7 @@
 //   <button data-cs2-failure-center-toggle>故障中心 (N)</button>
 //   <ul data-cs2-failure-center-list>...</ul>
 //
-// 反约束: admin god-mode 不挂 (ADM-0 §1.3 红线 — admin 看 audit 不看实时
+// Negative constraint: 不挂 admin-only path (ADM-0 §1.3 constraint — admin 看 audit 不看实时
 // 故障 UX); grep 检查 `admin.*failure-ux|admin.*FailureCenter` count==0.
 import React, { useState } from 'react';
 import type { AgentRuntimeReason } from '../lib/api';

@@ -64,7 +64,7 @@ const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 
 // gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
-// byte-identical, 改这些 = 改 design + grep 检查 e2e 真验报告).
+// byte-identical; changes must update the design doc and e2e grep evidence together).
 //   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
 //   ARTIFACT_CREATE_FAIL_PREFIX — prefix for create failure text inside the modal
 //   ARTIFACT_CREATE_NETWORK_ERR — generic fallback for network failures
@@ -211,7 +211,7 @@ export default function ArtifactPanel({ channelId }: Props) {
 
   // Reset on channel switch + try to find the channel's existing artifact.
   // CV-1.3 v1: one artifact per channel surface — listing API is out of
-  // scope for this PR, so we lazy-create on first interaction. Until the
+  // scope for this surface, so we lazy-create on first interaction. Until the
   // user creates one we render the "create" affordance.
   //
   // gh#691 design §4 边界: channel 切换时一并 reset modal state, 防 modal
@@ -467,7 +467,7 @@ export default function ArtifactPanel({ channelId }: Props) {
             </button>
             {/* CV-4.3 — "对比" tab byte-identical (content-lock §1 ⑤ 单字).
                 versions ≥ 2 才显示 (无前一版本无可对比).
-                文案锁: "对比" 单字, 反同义词漂移
+                文案锁: "对比" 单字, prevent synonym drift
                 (acceptance §3.5 + #380 ⑤). */}
             {versions.length >= 2 && !diffPair && (
               <button
@@ -700,7 +700,7 @@ export default function ArtifactPanel({ channelId }: Props) {
 }
 
 /**
- * gh#691 helper — 关 modal 时把 focus 回到原触发按钮 (liema a11y #3).
+ * gh#691 helper — 关 modal 时把 focus 回到原触发按钮 (a11y #3).
  * 触发按钮可能因列表重渲染已 unmount, .focus() 在 unmounted DOM 上无效但
  * 不报错; 兜底落到 .artifact-panel 容器, 让屏幕阅读器有锚.
  */
@@ -729,11 +729,11 @@ function restoreFocus(ref: RefObject<HTMLElement | null>): void {
  *    阻止 form submit). input onKeyDown 显式 isComposing 检查双层防护.
  *  - busy 时禁用关闭路径, 防关 modal 后异步请求继续跑造成的状态错乱.
  *  - 文案保留原 prompt / confirm 字面 byte-identical (反 acceptance 文案锁误判).
- *  - a11y (liema #3): role="dialog" + aria-modal + aria-labelledby + autoFocus
+ *  - a11y (#3): role="dialog" + aria-modal + aria-labelledby + autoFocus
  *    到 input.
- *  - 失败行为 (yema C 混合): 创建失败 errMsg prop 在 modal 内显, 输入保留,
+ *  - 失败行为: 创建失败 errMsg prop 在 modal 内显, 输入保留,
  *    按钮重新 enable. 父组件不关 modal, 用户可改 title 重试.
- *  - 反 client sanitize (heima Security): title 透传给 server, server 端
+ *  - Client sanitization is intentionally not duplicated: title 透传给 server, server 端
  *    字段验证 + 渲染时 marked + DOMPurify 双层防护. client modal 不重复 sanitize.
  */
 function CreateArtifactModal({
@@ -797,7 +797,7 @@ function CreateArtifactModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
-              // gh#691 liema #2: IME composition Enter 双层防护 (form
+              // gh#691 IME #2: IME composition Enter 双层防护 (form
               // onSubmit 已自带, 这里再兜一层).
               if (e.key === 'Enter' && e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -843,7 +843,7 @@ function CreateArtifactModal({
 /**
  * gh#691 RollbackConfirmModal — 替代 window.confirm.
  *
- * a11y (liema #3 + feima 实施提醒 #2):
+ * a11y (#3 + implementation reminder #2):
  *   - DOM 顺序: 取消左 / 确认回滚右 (危险操作, 跟 macOS / Material 一致)
  *   - autoFocus 走 cancelBtnRef + useEffect, 不靠 DOM 顺序 (反误锚 confirm)
  *   - role="dialog" + aria-modal + aria-labelledby
@@ -943,7 +943,7 @@ export function normalizeKind(raw: string | undefined): ArtifactKind | string {
  * Switch 顺序 markdown → code → image_link byte-identical 跟
  * content-lock §1 ① 同源.
  *
- * 反约束: 不渲染 raw HTML (XSS 红线 §2.8) — markdown 路径走
+ * Negative constraint: 不渲染 raw HTML (XSS constraint §2.8) — markdown 路径走
  * renderMarkdown() (marked + DOMPurify), 其它两 kind 走 React 节点.
  */
 function ArtifactBody({ artifact }: { artifact: Artifact }) {
@@ -960,7 +960,7 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
         />
       );
     case 'code':
-      // language 在当前 PR 协议: server validation 已收 metadata.language
+      // language protocol: server validation 已收 metadata.language
       // 但不持久化 (CV-3.2 留账); client 默认走 'text' fallback,
       // mention preview 路径有显式 language 时按值走.
       return (
@@ -969,7 +969,7 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
         </div>
       );
     case 'image_link':
-      // body = https URL (server ValidateImageLinkURL 已闸).
+      // body = https URL (server ValidateImageLinkURL already gates it).
       // sub-kind 默认 image; v0 不暴露 link 切换 (留 metadata 持久化后).
       return (
         <div data-artifact-kind="image_link" className="artifact-rendered">

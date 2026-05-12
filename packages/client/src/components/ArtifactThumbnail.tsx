@@ -10,7 +10,7 @@
 //   - ① server CDN thumbnail 不 inline — `<img loading="lazy">`, 不引入
 //     html2canvas / dom-to-image / puppeteer-client / shiki client-side
 //     renderer (grep 检查 package.json count==0).
-//   - ② src 必 https (复用 ImageLinkRenderer.isHttpsURL XSS 红线 #1,
+//   - ② src 必 https (复用 ImageLinkRenderer.isHttpsURL XSS constraint #1,
 //     must exactly match server ValidateImageLinkURL).
 //   - ③ kind allowlist — markdown / code render here; other kinds use the
 //     existing CV-2 v2 MediaPreview path. THUMBNAILABLE_KINDS is checked

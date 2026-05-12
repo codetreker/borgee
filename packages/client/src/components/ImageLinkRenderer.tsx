@@ -3,14 +3,14 @@
 // Spec: docs/implementation/modules/cv-3-spec.md §0 设计 ① +
 //   §1 CV-3.2 client; 文案锁: docs/qa/cv-3-content-lock.md §1 ④⑤;
 //   acceptance: docs/qa/acceptance-templates/cv-3.md §2.4 §2.5.
-// Server 锚: cv_3_2_artifact_validation.go::ValidImageLinkKinds +
-//   ValidateImageLinkURL (#400, https-only XSS 红线第一道).
+// Server reference: cv_3_2_artifact_validation.go::ValidImageLinkKinds +
+//   ValidateImageLinkURL (#400, first https-only XSS constraint).
 //
 // 设计反查:
 //   - ④ image 分支 — `<img loading="lazy">` byte-identical (移动端
-//     流量保护, 反向 eager 流量防御); src 必 https (XSS 红线 #1).
+//     流量保护, 防止 eager loading); src 必 https (XSS constraint #1).
 //   - ⑤ link 分支 — rel 三联锁 byte-identical
-//     (XSS 红线 #2 reverse-tab 防御); target 二元锁 byte-identical
+//     (XSS constraint #2 reverse-tab defense); target 二元锁 byte-identical
 //     (vitest strictly assert rel 字串原样, 漏 = leak).
 //
 // 反约束 (本文件路径grep 检查 干净):
@@ -21,7 +21,7 @@
 //
 // body 协议 (跟 server validation §0 ①): body 字段直接是 https URL.
 // metadata.kind ∈ ('image','link') 由 server 验完丢弃 (CV-3.2 留账
-// metadata 持久化), client 当前从 body 字段以 sub-kind 默认: 这一 PR
+// metadata 持久化), client 当前从 body 字段以 sub-kind 默认: current implementation
 // 用 url query / explicit prop 覆盖. 默认走 image (常见). 上层 (mention
 // preview) 可显式传 subKind='link'. UI v0 仅渲染 image 路径; link 路径
 // 由 sub-kind 控制 — 跟 spec §0 字面对齐.
@@ -37,7 +37,7 @@ interface Props {
   subKind?: ImageLinkSubKind;
 }
 
-/** isHttpsURL — XSS 红线第一道, mirrors server ValidateImageLinkURL. */
+/** isHttpsURL — first XSS constraint, mirrors server ValidateImageLinkURL. */
 export function isHttpsURL(raw: string): boolean {
   if (!raw) return false;
   const trimmed = raw.trim();

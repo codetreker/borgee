@@ -17,7 +17,7 @@
 //   - 不另起 emoji unicode 集 (5 preset 字面单源)
 //   - 不写 sessionStorage / localStorage (纯 component state)
 //   - 不另起 fetch (只调既有 lib/api.ts::addReaction)
-//   - admin god-mode 不挂 (此组件不在 admin console)
+//   - 不挂 admin-only path (此组件不在 admin console)
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { addReaction } from '../lib/api';

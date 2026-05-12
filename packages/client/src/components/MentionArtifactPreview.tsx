@@ -15,7 +15,7 @@
 // 反约束:
 //   - markdown preview 不 > 80 字; code preview 不 > 5 行;
 //     image preview 不 > 192px; link preview 不渲染 <img>.
-//   - 不渲染 raw HTML / dangerouslySetInnerHTML body (XSS 红线).
+//   - 不渲染 raw HTML / dangerouslySetInnerHTML body (XSS constraint).
 import type { ArtifactKind } from '../lib/api';
 import { normalizeLang, LANG_LABEL } from './CodeRenderer';
 import { isHttpsURL } from './ImageLinkRenderer';
@@ -64,7 +64,7 @@ export default function MentionArtifactPreview({ kind, title, body, language }: 
         </span>
       );
     }
-    // 非 https → 降级文案 (XSS 红线 + 不在 link 分支渲染 <img>).
+    // 非 https → 降级文案 (XSS constraint + 不在 link 分支渲染 <img>).
     return (
       <span className="artifact-preview" data-artifact-kind="image_link" title={title}>
         {title}

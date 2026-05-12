@@ -11,7 +11,7 @@
 //     diff 缓存 (查时即算 ≤500ms 实测够 markdown 数 KB).
 //
 // DOM 字面锁 (content-lock §1 ⑤):
-//   - tab 文案 byte-identical (单字, 反同义词漂移).
+//   - tab 文案 byte-identical (单字; synonyms must not appear).
 //   - 标题 "v{N} ↔ v{M}" (双向箭头 ↔ 锁).
 //   - 行级 DOM data-diff-line="add" / data-diff-line="del" /
 //     data-diff-line="context" 三 enum 字面 (a11y ARIA 替代仅颜色辨识 —
