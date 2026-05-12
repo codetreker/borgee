@@ -1,6 +1,6 @@
 # SearchBox + SearchResultList — artifact 全文搜索 client contract
 
-> **单一来源 pointer.** Components in
+> **Implementation pointer.** Components in
 > `packages/client/src/components/SearchBox.tsx` +
 > `SearchResultList.tsx`. API client in
 > `packages/client/src/lib/api.ts::searchArtifacts` +
@@ -19,13 +19,13 @@ minisearch / fuzzysort / flexsearch).
 
 ## 原则 (cv-6-spec.md §0 + content-lock)
 
-- **server-side 单一来源** (FTS5). No client-side fuzzy-search library (grep 检查
+- **server-side search** (FTS5). No client-side fuzzy-search library (grep 检查
   package.json count==0 by 5 keyword).
 - **debounce 300ms** — 反每键发 HTTP, useEffect cleanup pattern.
 - **kbd shortcut**: `/` focuses input (不在编辑态时); `Escape` clears
   query (跟既有 mention `@` 同精神).
-- **5 错码 → toast** byte-identical (`SEARCH_ERR_TOAST` map; 跟 server
-  const + content-lock §4 三处单一来源).
+- **5 错码 → toast** uses the same literals as `SEARCH_ERR_TOAST`, server
+  const, and content-lock §4.
 
 ## DOM contract (content-lock §2 + §3)
 
@@ -45,8 +45,8 @@ minisearch / fuzzysort / flexsearch).
 字面锁定:
 
 - `type="search"` (browser search input, not `type="text"`).
-- `placeholder` byte-identical "搜索 artifact (按 / 聚焦)".
-- `maxlength="256"` 跟 server `SearchQueryMaxLen` byte-identical.
+- `placeholder` locks the literal "搜索 artifact (按 / 聚焦)".
+- `maxlength="256"` matches server `SearchQueryMaxLen`.
 - `data-testid="artifact-search-input"` (e2e 出处).
 - `aria-label="搜索 artifact"` (accessibility assertion that keeps the label present).
 
@@ -66,14 +66,14 @@ minisearch / fuzzysort / flexsearch).
 </ul>
 ```
 
-`data-artifact-kind` 5 enum byte-identical 跟 server (markdown / code /
+`data-artifact-kind` 5 enum matches server (markdown / code /
 image_link / video_link / pdf_link).
 
 ## Snippet rendering
 
 server-side `snippet()` 返回 `<mark>...</mark>` 字面已嵌入. client 走
 `dangerouslySetInnerHTML` 直渲 — server-side validated by FTS5 (token
-boundaries + literal `<mark>`/`</mark>` 字符串 server 单一来源加注), 不
+boundaries + literal `<mark>`/`</mark>` 字符串 server-side annotation), 不
 再 client-side sanitize (跟既有 markdown 同精神 — markdown 路径也走
 server-side trusted output).
 
@@ -91,15 +91,16 @@ export const SEARCH_ERR_TOAST: Record<string, string> = {
 
 **改 = 改三处** (server const + 此 map + content-lock §4); CI lint
 等价单测 (`SearchBox.test.tsx::SEARCH_ERR_TOAST byte-identical`) 守
-future 脱节.
+future mismatch.
 
 ## 跨 milestone byte-identical 锁定
 
 - `SearchResult.kind` 5 enum 跟 server `cv_3_2_artifact_validation.go::
-  ValidArtifactKinds` byte-identical (CV-3 + CV-2 v2 同源).
+  ValidArtifactKinds` must use the same five artifact kinds for the CV-3
+  and CV-2 v2 paths.
 - `SEARCH_ERR_TOAST` 5 keys 跟 `internal/api/search.go::SearchErrCode*`
-  const byte-identical.
-- DOM `data-testid` + `data-artifact-kind` byte-identical 跟 server
+  const must match.
+- DOM `data-testid` + `data-artifact-kind` must match server
   endpoint spec docs/current/server/api/artifact-search.md.
 - 不引入 client-side fuzzy-search library — 跟 CV-2 v2 / CV-3 v2 设计 "不引入重 lib"
   同精神 (grep 检查 package.json count==0 on `fuse\|minisearch\|fuzzysort

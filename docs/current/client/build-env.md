@@ -1,6 +1,6 @@
 # Client build env — VITE_AGENT_WS_SERVER (no-hardcoded-domain milestone)
 
-> 2026-05-04 · client build-time environment variable source of truth for forked and on-prem deployments.
+> 2026-05-04 · client build-time environment variable reference for forked and on-prem deployments.
 > 0 hardcoded codetrek.cn in `packages/client/src/` production source.
 
 ## VITE_AGENT_WS_SERVER
