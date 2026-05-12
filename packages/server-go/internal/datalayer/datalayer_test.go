@@ -1,8 +1,9 @@
 // DL-1 — datalayer unit tests (12 cases, 4 interface × 3 happy/empty/err).
 //
-// 立场承袭: spec §0 ① interface byte-identical + ② factory + DI seam.
-// Tests走真 SQLite (in-memory) + 真 PresenceTracker (空 db) — interface
-// 锁不破 byte-identical 验证.
+// This follows spec §0: interface behavior stays unchanged, and factory-based
+// dependency injection supplies handlers.
+// Tests use real SQLite (in-memory) + real PresenceTracker (empty db) to verify
+// the interface contract remains unchanged.
 
 package datalayer
 
@@ -162,7 +163,7 @@ func TestMessageRepository_GetByID_Empty(t *testing.T) {
 	}
 }
 
-// ----- PresenceStore + Storage + EventBus (3 cases combined for non-Repo seams) -----
+// ----- PresenceStore + Storage + EventBus (3 cases combined for non-Repo interfaces) -----
 
 func TestPresenceStore_IsOnline_OfflineUser(t *testing.T) {
 	t.Parallel()

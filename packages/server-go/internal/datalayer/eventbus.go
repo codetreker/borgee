@@ -1,6 +1,6 @@
 // DL-1 — EventBus interface (blueprint §4 B item 3).
 //
-// Principle ① (DL-1 spec §0): Publish / Subscribe stay byte-identical with the
+// Principle ① (DL-1 spec §0): Publish / Subscribe preserve the exact
 // blueprint. The v1 InProcessEventBus uses an in-process map + buffered channel,
 // matching the ws hub in-process pub-sub pattern without changing behavior.
 //
@@ -19,7 +19,7 @@ type Event struct {
 	Payload []byte
 }
 
-// EventBus is the SSOT interface for in-process pub-sub.
+// EventBus is the canonical interface for in-process pub-sub.
 type EventBus interface {
 	// Publish a single event under topic. Buffered best-effort delivery uses
 	// RT-1.3 cursor replay as fallback and follows the BPP-4 dead_letter policy.

@@ -1,4 +1,4 @@
-// Package datalayer — must_persist_kinds.go: DL-2 §3 must-persist kind enum SSOT.
+// Package datalayer — must_persist_kinds.go: DL-2 §3 canonical must-persist kind enum.
 //
 // Spec: docs/implementation/modules/dl-2-spec.md §0 principle ② + blueprint
 // §3.4 privacy contract for 4 must-persist categories.
@@ -7,7 +7,7 @@
 //   - 4 must-persist kind categories (perm.grant / perm.revoke / impersonate.* /
 //     agent.state / admin.force_*) are never deleted by the retention sweeper
 //     because the privacy contract requires permanent audit.
-//   - This SSOT avoids inline literal drift. Reverse grep for
+//   - This centralized list avoids inline literal drift. Search for
 //     `mustPersistKinds`/`MustPersistKind` must find one definition, matching the
 //     reasons.IsValid #496 / AP-4-enum #591 pattern.
 

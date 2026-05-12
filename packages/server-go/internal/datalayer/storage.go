@@ -1,6 +1,6 @@
 // DL-1 — Storage interface (blueprint §4 B item 1).
 //
-// Principle ① (cs-spec §0): GetURL / PutBlob / Delete stay byte-identical with
+// Principle ① (cs-spec §0): GetURL / PutBlob / Delete preserve the exact
 // the blueprint. v1 LocalDBStorage uses the existing store.Store artifact blob
 // path. Artifacts currently live in DB, not fs; the blueprint's "local fs"
 // wording was a v0 assumption, while v1 uses DB blobs.
@@ -16,7 +16,7 @@ import (
 	"errors"
 )
 
-// Storage is the SSOT interface for blob (artifact body) storage.
+// Storage is the canonical interface for blob (artifact body) storage.
 // v1 read/write uses DB blob columns; v3+ object storage should only change
 // the NewStorage factory.
 type Storage interface {
