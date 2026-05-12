@@ -1,11 +1,11 @@
 # Realtime — 推送、状态、回放
 
-> Borgee 的 realtime 不只是"消息及时到"，是"让用户感到 AI 团队在工作"的最小活物感系统。
-> 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。前置阅读：[`channel-model.md`](channel-model.md)、[`plugin-protocol.md`](plugin-protocol.md)、[`agent-lifecycle.md`](agent-lifecycle.md)。
+> Borgee 的 realtime 不只是"消息及时到"，还要让用户清楚感到 AI 团队正在工作。
+> 状态：三方评审对齐（2026-04-27）。前置阅读：[`channel-model.md`](channel-model.md)、[`plugin-protocol.md`](plugin-protocol.md)、[`agent-lifecycle.md`](agent-lifecycle.md)。
 
 ## 0. 一句话定义
 
-> **v1 realtime 只做"足够让用户感到 AI 在工作"的最小集：四态状态点 + 语义化 progress + artifact 流式/commit + 人类端 full replay。强活物感留 v2。**
+> **v1 realtime 只做"足够让用户感到 AI 在工作"的最小集：四态状态点 + 语义化 progress + artifact 流式/commit + 人类端 full replay。更强的动态呈现留给 v2。**
 
 ---
 
@@ -16,7 +16,7 @@
 | 强度 | 用在哪里 |
 |------|----------|
 | **B（轻动效）** | 底子：typing 指示、reaction 飞入、新消息 highlight |
-| **C（强活物感）** | **仅 artifact 编辑场景**：agent 工作时显示语义化 progress |
+| **C（强动态呈现）** | **仅 artifact 编辑场景**：agent 工作时显示语义化 progress |
 | **不做** | 多 agent 编排可视化（v2）、agent 头像独立动画（v2） |
 
 #### ⭐ 关键纪律：所有 "thinking" 动画必须带**语义信息**
@@ -27,7 +27,7 @@
 | `"writing section 3"` | "AI is thinking…" 这种无信息文字 |
 | `"calling tool: bash"` | 闪烁的占位光标 |
 
-> **沉默胜于假 loading。** 假装活物感 = 用户立刻看穿 = 信任崩塌。
+> **沉默胜于假 loading。** 没有语义信息的动态效果会让用户失去信任。
 
 BPP `progress` frame **强制带 `subject` 字段**——plugin 必须告诉 Borgee "agent 在做什么"，否则不展示。
 
@@ -54,7 +54,7 @@ BPP 协议加两种 frame：
 
 ### 1.3 离线回放：⭐ 人 / agent 拆分
 
-> 这条打掉一个隐性假设——"人和 agent 走同一套回放"。两端的需求**截然不同**。
+> 这条移除一个隐性假设——"人和 agent 走同一套回放"。两端的需求**截然不同**。
 
 | 接收方 | 回放模式 | 理由 |
 |--------|----------|------|
@@ -73,7 +73,7 @@ BPP `session.resume` 接口带 hint：
 
 runtime 在 `session.resume` 时根据 agent 配置和当前 context window 选 hint。
 
-> **设计直觉**：人类的脑子能处理"虚拟列表里翻 200 条"，agent 的 context window 有限，给它倒灌历史 = 烧 token。
+> **设计直觉**：人类能处理"虚拟列表里翻 200 条"，agent 的 context window 有限，一次性灌入历史会消耗大量 token。
 
 ### 1.4 多端在线：A 全推默认，B 智能推 v1 末优化
 
@@ -116,7 +116,7 @@ runtime 在 `session.resume` 时根据 agent 配置和当前 context window 选 
 
 ### 2.3 Server → Client push frame (Phase 2 用 /ws hub 顶住, Phase 4 BPP 接管)
 
-> **2026-04-28 4 人 review #4 决议 (B29 路线 + 飞马硬约束)**: Phase 2 用现有 `/ws` hub 加 invitation event 顶住, BPP 仍 Phase 4 接管。**关键约束**: Phase 2 `/ws` event payload schema **必须等同未来 BPP frame** (字段名 / 顺序 / 序列化), 这样 BPP 上线后 server 把发送源从 hub 切到 BPP frame, client handler 0 改。
+> **2026-04-28 4 人 review #4 决议 (B29 路线 + 评审硬约束)**: Phase 2 用现有 `/ws` hub 加 invitation event 支撑, BPP 仍 Phase 4 接管。**关键约束**: Phase 2 `/ws` event payload schema **必须等同未来 BPP frame** (字段名 / 顺序 / 序列化), 这样 BPP 上线后 server 把发送源从 hub 切到 BPP frame, client handler 0 改。
 
 | Frame | 字段 | 用途 | 阶段 |
 |-------|------|------|------|
@@ -125,9 +125,9 @@ runtime 在 `session.resume` 时根据 agent 配置和当前 context window 选 
 
 **v0 audit row (CM-4.3a)**: Phase 2 `/ws` hub 发 invitation event; v1 切 BPP 时 server 切发送源 (`hub.Broadcast` → `bpp.SendFrame`), client handler 0 改 (因 schema 等同)。
 
-**Schema 等同性强制 (飞马 R3 acceptance 补)**: CI lint 检查 `bpp/frame_schemas.go` 的 `agent_invitation_*` frame 与 `ws/event_schemas.go` 的对应 event payload **byte-identical 或 type alias**, 任何字段名/顺序/类型分歧 → CI fail。这是 v1 切换"client handler 0 改"承诺的硬保障。
+**Schema 等同性强制 (R3 acceptance 补充要求)**: CI lint 检查 `bpp/frame_schemas.go` 的 `agent_invitation_*` frame 与 `ws/event_schemas.go` 的对应 event payload **byte-identical 或 type alias**, 任何字段名/顺序/类型分歧 → CI fail。这是 v1 切换"client handler 0 改"承诺的硬保障。
 
-**野马硬条件 (G2.4 签字门槛)**: 邀请发出 → owner 端收到通知 latency **必须 ≤ 3s** (stopwatch 截屏作 acceptance 证据)。60s polling 不接受。**烈马 R3 加补**: latency 验收必须用 Playwright (vitest 跑不了真 ws + UI 时序), **INFRA-2 Playwright scaffold 必须前置到 CM-4.3a 之前落地**, 不能等 G2.audit。
+**G2.4 硬条件 (签字门槛)**: 邀请发出 → owner 端收到通知 latency **必须 ≤ 3s** (stopwatch 截屏作 acceptance 证据)。60s polling 不接受。**R3 补充要求**: latency 验收必须用 Playwright (vitest 无法覆盖真实 ws + UI 时序), **INFRA-2 Playwright scaffold 必须前置到 CM-4.3a 之前落地**, 不能等 G2.audit。
 
 ---
 
