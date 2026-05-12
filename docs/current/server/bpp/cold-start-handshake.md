@@ -1,6 +1,6 @@
 # BPP-6 — plugin cold-start handshake + state re-derive
 
-> **单一来源 pointer.** Implementation in
+> **Single-source pointer.** Implementation in
 > `packages/server-go/internal/bpp/cold_start_handler.go` +
 > `packages/server-go/internal/bpp/envelope.go` (ColdStartHandshakeFrame
 > + FrameTypeBPPColdStartHandshake). Wire-up at server boot in
@@ -23,14 +23,14 @@ BPP-6 ships a dedicated `cold_start_handshake` frame that signals
 process restart (no cursor) and triggers a fresh `online` transition
 audited as `runtime_crashed`.
 
-## 原则 (蓝图 §1.6 + §2.1 + AL-1 #492 原则一致)
+## Principles (蓝图 §1.6 + §2.1 + AL-1 #492)
 
-- **cold-start ≠ reconnect.** `cold_start_handshake` = BPP envelope
-  第 15 frame, direction lock plugin→server (server 永不发). 字段集
-  与 `ReconnectHandshakeFrame` **互斥反向断言** — cold-start 不含
+- **cold-start ≠ reconnect.** `cold_start_handshake` is the 15th BPP envelope
+  frame, direction-locked plugin→server (the server never sends it). Its field set
+  is mutually exclusive with `ReconnectHandshakeFrame`: cold-start does not include
   `LastKnownCursor` / `DisconnectAt` / `ReconnectAt` (spec §0.1).
-  AST scan + reverse grep `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` 守门 0 hit.
-- **agent state 重新 derive (反向 BPP-5).** Handler steps:
+  AST scan + reverse grep `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` must stay at 0 hits.
+- **agent state is re-derived, unlike BPP-5.** Handler steps:
   ① `agent.Tracker.Clear(agentID)` — drop in-memory state;
   ② `Store.AppendAgentStateTransition(agentID, fromState, online,
   runtime_crashed, "")` via AL-1 #492 single-gate, where `fromState`
@@ -38,29 +38,29 @@ audited as `runtime_crashed`.
   initial / error / offline → online; if already online, no-op);
   ③ **NO history replay** — handler does not invoke `ResolveResume`
   (spec §0.2). AST reverse-grep `ResolveResume` / `SessionResumeRequest`
-  / `ResumeModeIncremental` / `DefaultResumeLimit` 在
+  / `ResumeModeIncremental` / `DefaultResumeLimit` in
   `cold_start_handler.go` ident scan 0 hit.
-- **AL-1a reason 6-dict 不扩第 7.** Reason `runtime_crashed` is
-  reused byte-identical (反映上次 error → 此次复活语义). reasons 单一来源
-  #496 6-dict 不动. AL-1a reason 守护链 BPP-6 = **第 11 处** (BPP-2.2
+- **AL-1a reason 6-dict does not add a seventh value.** Reason `runtime_crashed` is
+  reused byte-identical to represent previous error → current recovery. reasons single source
+  #496 6-dict is unchanged. AL-1a reason guard chain BPP-6 = **11th use** (BPP-2.2
   第 7 + AL-2b 第 8 + BPP-4 第 9 + BPP-5 第 10 + BPP-6 第 11).
 - **Restart count audit-only, count derived from state-log.** No
   separate `plugin_restart_count` column; restart frequency is read
   via `COUNT(WHERE to_state='online' AND reason='runtime_crashed')`
   on demand. AST reverse-grep `plugin_restart_count` /
   `cold_start_count` / `restart_counter` 0 hit (spec §0.3).
-- **Best-effort, no retry queue (BPP-4+BPP-5 守护链延伸第 3 处).**
+- **Best-effort, no retry queue (third extension of the BPP-4+BPP-5 guard chain).**
   Handler returns success/failure exactly once; no persistent
   cold-start state, no pending queue, no backoff timer. AST
   reverse-grep forbids `pendingColdStart` / `coldStartQueue` /
-  `deadLetterColdStart` — 守护链延伸 from BPP-4 dead_letter_test
+  `deadLetterColdStart` — guard chain extension from BPP-4 dead_letter_test
   + BPP-5 reconnect_handler_test.
 - **No transient `cold_starting` state.** AL-1 5-state graph (#492)
   is unchanged — single-gate jumps any → online directly. (Mirrors
   BPP-5 conceptual `connecting` deferred — name only, no persisted
   state.)
-- **ADM-0 §1.3 red-line.** admin-api does NOT mount this path;
-  reverse grep `admin.*cold_start.*handshake\|admin.*BPP6` 在
+- **ADM-0 §1.3 admin path isolation.** admin-api does NOT mount this path;
+  reverse grep `admin.*cold_start.*handshake\|admin.*BPP6` in
   `internal/api/admin*.go` 0 hit.
 
 ## Frame schema (envelope.go)
@@ -75,20 +75,20 @@ type ColdStartHandshakeFrame struct {
 }
 ```
 
-## Field set vs ReconnectHandshakeFrame (BPP-5) — 字段集互斥反向断言
+## Field Set vs ReconnectHandshakeFrame (BPP-5)
 
 | Field            | BPP-5 (reconnect) | BPP-6 (cold_start) |
 |------------------|:---:|:---:|
 | Type             | ✓ | ✓ |
 | PluginID         | ✓ | ✓ |
 | AgentID          | ✓ | ✓ |
-| LastKnownCursor  | ✓ | **✗** (互斥反向断言, spec §0.1) |
-| DisconnectAt     | ✓ | **✗** (互斥反向断言) |
-| ReconnectAt      | ✓ | **✗** (互斥反向断言) |
+| LastKnownCursor  | ✓ | **✗** (mutually exclusive, spec §0.1) |
+| DisconnectAt     | ✓ | **✗** (mutually exclusive) |
+| ReconnectAt      | ✓ | **✗** (mutually exclusive) |
 | RestartAt        | ✗ | ✓ |
 | RestartReason    | ✗ | ✓ |
 
-`TestBPP6_FrameSet_NoReconnectFields` asserts the 互斥 invariant via
+`TestBPP6_FrameSet_NoReconnectFields` asserts the mutual-exclusion invariant via
 `reflect`. CI lint grep 检查 `cold_start.*last_known_cursor\|cold_start.*resume\|cold_start.*cursor` 0 hit.
 
 ## Wire path (server.go boot)
@@ -103,9 +103,9 @@ The handler is wired into the existing BPP-3 #489 `PluginFrameDispatcher`
 `OwnerResolver` + `AgentErrorClearer` interface seams as BPP-5
 reconnect handler.
 
-`AgentStateAppender` is a new interface seam (`AppendAgentStateTransition`
-+ `ListAgentStateLog`) routing through `*store.Store` — bpp 包不直
-import store 业务边界, 跟 BPP-3/4/5 同 interface 注入模式.
+`AgentStateAppender` is a new interface boundary (`AppendAgentStateTransition`
++ `ListAgentStateLog`) routing through `*store.Store`; the bpp package does not
+import store directly, matching the BPP-3/4/5 interface injection pattern.
 
 ## Validation order (cold_start_handler.go::Dispatch)
 

@@ -1,18 +1,18 @@
-# Data Model — SQLite schema 与事件日志
+# Data Model — SQLite schema and event log
 
 代码位置：`packages/server-go/internal/store/`。
-所有表定义在 `migrations.go`（幂等 `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN` 守卫），ORM 用 GORM 但只是薄包装，没有自动迁移。
+All tables are defined in `migrations.go` using idempotent `CREATE TABLE IF NOT EXISTS` plus guarded `ALTER TABLE ADD COLUMN`. GORM is used as a thin wrapper only; it does not run automatic migrations.
 
-## 1. 表清单
+## 1. Tables
 
-| 表 | 关键列 | 备注 |
+| Table | Key Columns | Notes |
 |----|--------|------|
 | `users` | `id`, `display_name`, `role` (`member` / `agent` / `system`，**ADM-0.3 后** `admin` **不再**在此 enum), `email`（可空，部分唯一索引：`WHERE email IS NOT NULL`）, `password_hash`, `api_key` UNIQUE, `owner_id` FK→users, `disabled`, `deleted_at`, `org_id` (CM-1.1) | agent 行 `role="agent"` 且必有 `owner_id`；`role="system"` 用于 `sender_id='system'` 欢迎消息发送方 (CM-onboarding)；软删 |
-| `admins` | `id`, `login` UNIQUE, `password_hash` (bcrypt), `created_at` | **ADM-0.1 (v=4)** — admin 独立子系统的凭证表；不准多 `org_id / role / is_admin / email` 字段。Bootstrap 由 `BORGEE_ADMIN_LOGIN` + `BORGEE_ADMIN_PASSWORD_HASH` env 注入 |
-| `admin_sessions` | `token` PK (32B hex), `admin_id`, `created_at`, `expires_at` | **ADM-0.2 (v=5)** — `borgee_admin_session` cookie 反查表；token 不可猜，cookie 值不能是 admin id |
+| `admins` | `id`, `login` UNIQUE, `password_hash` (bcrypt), `created_at` | **ADM-0.1 (v=4)** — credential table for the independent admin subsystem; must not add `org_id / role / is_admin / email` fields. Bootstrap uses `BORGEE_ADMIN_LOGIN` + `BORGEE_ADMIN_PASSWORD_HASH` env vars |
+| `admin_sessions` | `token` PK (32B hex), `admin_id`, `created_at`, `expires_at` | **ADM-0.2 (v=5)** — lookup table for the `borgee_admin_session` cookie; token must be unguessable, and cookie value must not be admin id |
 | `channels` | `id`, `name` (per-org UNIQUE via `idx_channels_org_id_name WHERE deleted_at IS NULL`, **CHN-1.1 v=11**), `type` (`channel` / `dm` / `system`), `visibility` (`public` / `private`), `topic`, `position` (LexoRank), `group_id` FK, `created_by`, `deleted_at`, `archived_at` (CHN-1.1, NULL=active), `org_id` | DM name = `dm:<uid_low>_<uid_high>`；`system` type 给 CM-onboarding `#welcome` 私属频道用; **跨 org 同名合法** (蓝图 channel-model §2) |
 | `channel_groups` | `id`, `name`, `position`, `created_by` | 侧边栏分组 |
-| `channel_members` | PK (`channel_id`, `user_id`), `joined_at`, `last_read_at`, `silent` (CHN-1.1, agent 行默认 1, 人 0), `org_id_at_join` (CHN-1.1, audit snapshot) | `last_read_at` 给未读计数用; `silent` 落蓝图 concept-model §1.2 "agent = 同事但默认不抢话" 的设计, owner 显式翻 0 才发言 |
+| `channel_members` | PK (`channel_id`, `user_id`), `joined_at`, `last_read_at`, `silent` (CHN-1.1, agent row default 1, human 0), `org_id_at_join` (CHN-1.1, audit snapshot) | `last_read_at` is used for unread counts; `silent` implements concept-model §1.2, where agents are colleagues but do not speak by default until the owner explicitly sets 0 |
 | `messages` | `id`, `channel_id`, `sender_id`, `content`, `content_type` (默认 `text`), `reply_to_id`, `edited_at`, `deleted_at`, `edit_history` (DM-7.1 v=34, JSON 数组 `[{old_content, ts, reason}]`, NULL=无编辑), **`pinned_at`** (DM-10.1 v=45, INTEGER NULL Unix ms, NULL=未 pin, sparse partial idx `idx_messages_pinned_at(channel_id, pinned_at DESC) WHERE pinned_at IS NOT NULL` 现网零开销) | 软删. **DM-10**: `pinned_at` 仅 DM channel scope 写 (server `pin.dm_only_path` 反 non-DM); pin/unpin 走 `POST/DELETE /api/v1/channels/{channelId}/messages/{messageId}/pin` + `GET /api/v1/channels/{channelId}/messages/pinned`; channel-member ACL 复用 AP-4 #551 / AP-5 #555 同 helper; admin god-mode 不挂 (ADM-0 §1.3 红线; grep 检查 `admin.*pin.*messages` 在 admin*.go 0 hit). 反向约束: 不挂 `pinned_by`/`pin_reason` 列 (per-DM scope, 反 per-user pin 留 v2 跟 CHN-3.2 风格不同源); 不另起 `pinned_messages` 表 (单一来源 `messages.pinned_at` 列). |
 | `mentions` | `id`, `message_id`, `user_id`, `channel_id` | `CreateMessageFull` 解析 `@name` 时回填 |
 | `events` | `cursor` AUTOINC PK, `kind`, `channel_id` NOT NULL, `payload` (JSON text), `created_at` | **事件日志唯一来源**，下文详述 |
@@ -39,7 +39,7 @@
 | `agent_state_log` | `id` PK AUTOINCREMENT (单调 history 序号), `agent_id` NOT NULL (FK users.id role='agent' 逻辑), `from_state` NOT NULL ('' / 'online' / 'busy' / 'idle' / 'error' / 'offline' 5 字面 union, AL-1a 三态 + AL-1b 5-state 复用), `to_state` NOT NULL (同上), `reason` NOT NULL DEFAULT '' (error 转移复用 AL-1a 6 字面 byte-identical), `task_id` NOT NULL DEFAULT '' (BPP-2.2 task lifecycle 触发记 task_id; presence 触发留空), `ts` Unix ms | **Phase 4 / AL-1.4 (`schema_migrations` v=25, AL-1 wrapper milestone PR)**。蓝图 `agent-lifecycle.md §2.3` (4 态 + cross-state transition lock + 故障可解释) 兑现 — wrapper milestone 跟 AL-1a (#249) + AL-1b (#453/#457/#462) + BPP-2.2 (#485) 同源, 此表是历史 audit 轨迹 + state machine validator (`store.ValidateTransition` server-side gate)。设计 ① forward-only audit log (跟 admin_actions ADM-2.1 设计 ⑤ 同精神 — 不挂 `updated_at`, 错误录入只能再写新行); 设计 ② state machine 单一来源 (`AppendAgentStateTransition` 是 server-side state set 唯一入口); 设计 ③ task-driven (BPP-2.2 触发 busy/idle 转移时 task_id 必填, presence 触发留空); 设计 ④ reason 复用 AL-1a 6 字面 byte-identical (改 = 改 8 处单测守护链同源 — #249 + #305 + #321 + #380 + #454 + #458 + #481 + 此)。**反向约束**: 不挂 `cursor` (跟 al_3_1 / al_4_1 / cv_*_1 / dm_2_1 / cv_4_1 / chn_3_1 / al_2a_1 / adm_2_1 / adm_2_2 同模式 RT-1 envelope frame 路径不下沉); 不挂 `org_id` (派生 users.org_id); 不挂 `state` 单字段 (语义在 to_state, 双字段引诱 redundant write); 不挂 `owner_id` (派生 users.owner_id)。索引: `idx_agent_state_log_agent_id_ts` DESC (owner GET /api/v1/agents/:id/state-log 热路径)。endpoint: `GET /api/v1/agents/:id/state-log` owner-only (non-owner → 403, non-agent → 404, unauthenticated → 401)。 |
 | `schema_migrations` | `version` PK, `applied_at`, `name` | Phase 0 / INFRA-1a。版本化迁移引擎状态表。 |
 
-**`org_id` 列**: CM-1.1 给 `users / channels / messages / workspace_files / remote_nodes` 各加一列 `org_id TEXT NOT NULL DEFAULT ''` + 同名 `idx_*_org_id` 索引。v0 默认空串占位 (audit 表登记), CM-1.2 起注册流程开始写真值, CM-3 切到基于 `org_id` 直查。
+**`org_id` column**: CM-1.1 adds `org_id TEXT NOT NULL DEFAULT ''` plus matching `idx_*_org_id` indexes to `users / channels / messages / workspace_files / remote_nodes`. v0 uses the empty string as a placeholder for legacy rows, CM-1.2 starts writing real values during registration, and CM-3 switches to direct `org_id` queries.
 
 **自动建 org (CM-1.2)**: `POST /api/v1/auth/register` 与管理员 `POST /api/v1/admin/users` 在创建 user 之后立即在同一事务中创建一行 `organizations(id=uuid, name="<DisplayName>'s org")` 并把 `users.org_id` 更新为新 org 的 id。失败则注册整体 5xx, 不留孤儿用户。Agent 创建 (`POST /api/v1/agents`) 继承所有人的 `org_id` (blueprint §1.1: agents 是 org 内资源, 不独立成 org)。schema 已允许空串, 但 app-layer 契约：注册路径产出的 user 永远 `org_id != ''`; v1 后续在 column constraint 上收紧。API 序列化 (`sanitizeUser` / `sanitizeUserAdmin`) 永不暴露 `org_id` (UI 不可见, blueprint §1.1)。
 
@@ -49,7 +49,7 @@
 
 **Agent invitations API (CM-4.1)**: 蓝图 §4.2 流程 B 的 HTTP 落地, 复用 CM-4.0 的状态机 helper, **不动 BPP frame (CM-4.3) / client UI (CM-4.2) / offline 检测 (CM-4.3b)**。Endpoints: `POST /api/v1/agent_invitations` (channel 成员发起 — handler 显式 `inv.State = AgentInvitationPending`, 不依赖 GORM default), `GET /api/v1/agent_invitations[?role=owner|requester]` (owner=待办 inbox, requester=自己发出去的; admin 看全量), `GET /api/v1/agent_invitations/{id}` (requester / agent owner / admin), `PATCH /api/v1/agent_invitations/{id}` body `{state: "approved"|"rejected"}` (仅 agent owner / admin; `expired` 走后台 sweep 不开放给 owner)。Side-effect: `approved` 同步 `Store.AddChannelMember(agent → channel)` (idempotent FirstOrCreate); 失败只记 log 不回滚 — 持久化的决策才是单一来源, 重试或 sweep reconcile。Sanitizer hand-built (`map[string]any`, `decided_at` / `expires_at` 走 omitempty), 永不 `json.Marshal *store.AgentInvitation` (admin 模式)。`(state, expires_at)` 复合索引留给后台 sweep, 本步不补。`Now func() time.Time` 注入支持 testutil/clock 约定。覆盖率 ≥ 80% (handler ~85%)。
 
-## 2. 迁移策略
+## 2. Migration Strategy
 
 `store.Migrate()` 是幂等函数：
 
@@ -60,7 +60,7 @@
 5. `PRAGMA foreign_keys = ON`
 6. **回填**：默认权限（AP-0: human → `(*, *)`; agent → `(message.send, *)`; 旧 v0 dev DB 上残留的 `channel.create / message.send / agent.manage` 三元组不主动清, 只增不减）、creator 的频道级权限、LexoRank 重平衡（默认 `"0|aaaaaa"` 的 channel）、DM 去重（按双方 id 排序检测重复）
 
-**约束**：只允许加列，不允许改/删；要重命名或删列必须新建表 + 拷贝数据 + drop。没有版本表，因此每次启动跑全量幂等迁移。
+**Constraint**: column migrations only add columns. Renaming or deleting columns requires creating a new table, copying data, and dropping the old table. Because this store has no version table, startup always runs the full idempotent migration sequence.
 
 ## 3. 事件日志（`events` 表）
 
