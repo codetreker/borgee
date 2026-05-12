@@ -97,8 +97,8 @@ export type ArtifactUpdatedEvent = CustomEvent<ArtifactUpdatedFrame>;
 
 // ─── DM-2.2 MentionPushed frame (#372 envelope) ─────────────
 //
-// Spec: docs/implementation/modules/dm-2.3-spec.md §0 rules ②③ and
-// issue #362 defines the 8-field envelope.
+// Spec: docs/implementation/modules/dm-2.3-spec.md §0 rules ②③; issue #362
+// defines the 8-field envelope.
 // 锁: server 端 internal/ws/mention_pushed_frame.go::MentionPushedFrame
 // — 8 字段顺序 byte-identical:
 //   {type, cursor, message_id, channel_id, sender_id,
