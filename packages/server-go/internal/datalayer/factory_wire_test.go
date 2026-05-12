@@ -1,10 +1,10 @@
 // Package datalayer — factory_wire_test.go: WIRE-1 production wire-up
-// 真测 (反"spec 字面合格但 0 callsite 死代码"教训承袭).
+// coverage. Guards against spec text passing while the production callsite stays dead.
 //
 // Spec: docs/implementation/modules/wire-1-spec.md §1 W1.1.
 //
-// Pin: NewDataLayer 走 NewInProcessEventBusWithStore production callsite,
-// 1 Publish → channel_events INSERT 真验 (反 hot-only stale).
+// Pin: NewDataLayer uses the NewInProcessEventBusWithStore production callsite;
+// one Publish must insert into channel_events, preventing hot-only drift.
 
 package datalayer
 
@@ -19,13 +19,13 @@ import (
 	"borgee-server/internal/store"
 )
 
-// TestFactory_EventBus_ColdConsumer_Wired verifies that DataLayer 真接
-// DL-2 cold consumer in production path (factory.go uses
+// TestFactory_EventBus_ColdConsumer_Wired verifies that DataLayer wires the
+// DL-2 cold consumer in the production path (factory.go uses
 // NewInProcessEventBusWithStore, not NewInProcessEventBus).
 //
-// 真测路径: dl := NewDataLayer(...); dl.EventBus.Publish(...) →
-// channel_events / global_events 表 真 INSERT (cold stream consumer
-// goroutine 异步 INSERT, 走 sync.WaitGroup 同步等真值).
+// Covered path: dl := NewDataLayer(...); dl.EventBus.Publish(...) inserts into
+// channel_events / global_events. The cold-stream consumer writes asynchronously,
+// so the test uses sync.WaitGroup to wait for the persisted value.
 func TestFactory_EventBus_ColdConsumer_Wired(t *testing.T) {
 	t.Parallel()
 	s, err := store.Open(":memory:")
@@ -42,15 +42,15 @@ func TestFactory_EventBus_ColdConsumer_Wired(t *testing.T) {
 		t.Fatal("EventBus nil — factory wire-up broken")
 	}
 
-	// Publish 1 channel-scoped event → channel_events row 真 INSERT.
+	// Publish 1 channel-scoped event → channel_events row insert.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := dl.EventBus.Publish(ctx, "channel.archived:ch-1", []byte(`{"x":1}`)); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 
-	// cold stream consumer 是 goroutine 异步, poll 短轮询直到真 INSERT
-	// (deterministic 反 race-flake, 1s timeout 兜底).
+	// The cold-stream consumer runs in a goroutine; poll briefly until the INSERT is
+	// visible. The 1s timeout keeps the test deterministic without race flakes.
 	var n int64
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
@@ -65,8 +65,8 @@ func TestFactory_EventBus_ColdConsumer_Wired(t *testing.T) {
 	}
 }
 
-// TestFactory_EventBus_GlobalRoute_Wired pins global_events route真接
-// (perm.grant 走 global_events, 反 channel-scoped 漂).
+// TestFactory_EventBus_GlobalRoute_Wired pins the global_events route
+// (perm.grant goes to global_events, not the channel-scoped path).
 func TestFactory_EventBus_GlobalRoute_Wired(t *testing.T) {
 	t.Parallel()
 	s, err := store.Open(":memory:")
@@ -97,7 +97,7 @@ func TestFactory_EventBus_GlobalRoute_Wired(t *testing.T) {
 }
 
 // TestEventsArchiveOffloader_Start_TickerLoop pins WIRE-1 wire-2
-// production wire — offloader.Start(ctx) 真启 ticker, ctx cancel 后真停.
+// production wiring: offloader.Start(ctx) starts the ticker, and ctx cancel stops it.
 func TestEventsArchiveOffloader_Start_TickerLoop(t *testing.T) {
 	t.Parallel()
 	s, err := store.Open(":memory:")

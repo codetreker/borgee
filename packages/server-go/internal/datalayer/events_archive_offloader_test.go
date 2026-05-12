@@ -4,9 +4,9 @@
 //
 // Pins:
 //   - threshold no-op when row count < threshold
-//   - archive file 真创建 + INSERT 真写 + 源 DELETE 真行
-//   - audit "events.archive_offload" 走 EventBus.Publish 真测
-//   - ctx-aware (走 m.db.WithContext, 反 leak)
+//   - archive file creation + INSERT writes + source DELETE row count
+//   - audit "events.archive_offload" through EventBus.Publish
+//   - ctx-aware execution through m.db.WithContext to avoid leaks
 
 package datalayer
 

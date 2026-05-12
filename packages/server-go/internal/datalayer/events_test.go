@@ -1,12 +1,12 @@
 // Package datalayer — DL-2 events store + retention sweeper unit tests.
 //
-// Spec: docs/implementation/modules/dl-2-spec.md §0 立场 + §1 DL2.2.
+// Spec: docs/implementation/modules/dl-2-spec.md §0 policy + §1 DL2.2.
 //
 // Pins:
-//   - hot stream byte-identical (DL-1 #609 Subscribe/Publish 不破)
-//   - cold stream 异步 INSERT (channel_events / global_events 路由)
-//   - mustPersistKinds 4 类 byte-identical (perm.* / impersonate.* / agent.state / admin.force_*)
-//   - retention sweeper per-kind reaping (must-persist 永不删 / channel.* 30d / agent_task.* 60d / 默认 90d)
+//   - hot stream byte-identical (DL-1 #609 Subscribe/Publish behavior unchanged)
+//   - cold stream async INSERT (channel_events / global_events routing)
+//   - mustPersistKinds 4 categories byte-identical (perm.* / impersonate.* / agent.state / admin.force_*)
+//   - retention sweeper per-kind reaping (must-persist never deleted / channel.* 30d / agent_task.* 60d / default 90d)
 
 package datalayer
 
@@ -37,7 +37,7 @@ func openTestDB(t *testing.T) *gorm.DB {
 }
 
 // TestIsMustPersistKind pins 4 must-persist prefixes byte-identical
-// (蓝图 §3.4 隐私契约 4 类).
+// (blueprint §3.4 privacy contract categories).
 func TestIsMustPersistKind(t *testing.T) {
 	t.Parallel()
 	want := map[string]bool{
@@ -62,7 +62,7 @@ func TestIsMustPersistKind(t *testing.T) {
 	}
 }
 
-// TestRetentionDaysForKind pins per-kind defaults (sweeper §0 立场 ②).
+// TestRetentionDaysForKind pins per-kind defaults (sweeper §0 policy ②).
 func TestRetentionDaysForKind(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -264,7 +264,7 @@ func TestEventsRetentionSweeper_RunOnce_ReapsExpired(t *testing.T) {
 }
 
 // TestEventsRetentionSweeper_StartStop covers the ctx-aware lifecycle.
-// 反 goroutine leak (#608 立场承袭).
+// It guards against goroutine leaks, matching #608.
 func TestEventsRetentionSweeper_StartStop(t *testing.T) {
 	t.Parallel()
 	db := openTestDB(t)
