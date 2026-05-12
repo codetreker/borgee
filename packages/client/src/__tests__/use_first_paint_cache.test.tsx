@@ -17,7 +17,7 @@ let root: Root | null = null;
 beforeEach(async () => {
   container = document.createElement('div');
   document.body.appendChild(container);
-  // Reset fake IDB
+  // Reset the fake IndexedDB instance between tests.
   // @ts-expect-error fake-indexeddb internals
   const { default: FDBFactory } = await import('fake-indexeddb/lib/FDBFactory');
   globalThis.indexedDB = new FDBFactory();
@@ -85,7 +85,7 @@ describe('CS-4.2 — useFirstPaintCache (cursor sync)', () => {
   });
 
   it('TestCS42_HookReturnsCachedOnMount — IDB cached present → 立即返 cached', async () => {
-    // Seed IDB
+    // Seed IndexedDB with a cached message.
     const db = await openCS4DB();
     const seed: CachedMessage = {
       id: 'm1',
@@ -113,7 +113,7 @@ describe('CS-4.2 — useFirstPaintCache (cursor sync)', () => {
 
   it('TestCS42_OfflineSkipsServer — navigator.onLine=false → 不 fetch + offline_cache_hit', async () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
-    // Seed IDB
+    // Seed IndexedDB with data available while offline.
     const db = await openCS4DB();
     await cs4Put(db, STORE_MESSAGES, {
       id: 'm1',
@@ -139,7 +139,7 @@ describe('CS-4.2 — useFirstPaintCache (cursor sync)', () => {
     expect(last.syncState).toBe('offline_cache_hit');
   });
 
-  it('TestCS42_TriggersServerSyncOnMount — fetch 真 call (走 RT-1 既有 lib 的 caller-supplied fn)', async () => {
+  it('TestCS42_TriggersServerSyncOnMount — fetch is called via caller-supplied RT-1 function', async () => {
     const fetchSpy = vi.fn().mockResolvedValue([]);
     await render(
       <HookHarness
@@ -150,7 +150,7 @@ describe('CS-4.2 — useFirstPaintCache (cursor sync)', () => {
     );
     await waitMicrotasks();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    // First arg = sinceCursor (null because no cache)
+    // First argument is sinceCursor; it is null when no cache exists.
     expect(fetchSpy.mock.calls[0][0]).toBeNull();
   });
 });
