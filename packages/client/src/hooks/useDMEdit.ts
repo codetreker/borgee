@@ -1,16 +1,17 @@
 // DM-4.2 — useDMEdit hook
 //
-// 立场 (跟 dm-4-stance-checklist.md §1+§2+§3):
+// Intent (per dm-4-stance-checklist.md §1+§2+§3):
 //   ① Reuse the existing RT-3 fan-out path: call PATCH /api/v1/channels/{dmID}/messages/{id},
-//      events 表 INSERT op="edit" is delivered through channel events backfill;
+//      events table INSERT op="edit" is delivered through channel events backfill;
 //      useDMSync (DM-3 #508) applies it on other devices.
-//   ② edit 是 cursor 子集 — useDMEdit 仅做 PATCH + optimistic update;
-//      cursor 进展全归 useDMSync (反向不写独立 sessionStorage cursor).
-//   ③ thinking 5-pattern 反约束延伸第 3 处 — agent edit is a content revision,
-//      hook 不暴露 reasoning 字面.
+//   ② Edits are a cursor-backed subset: useDMEdit only performs PATCH plus
+//      optimistic update, while cursor progress stays owned by useDMSync. This
+//      hook must not write a separate sessionStorage cursor.
+//   ③ Extension of thinking 5-pattern constraint 3: agent edit is a content
+//      revision, so this hook does not expose reasoning text.
 //
-// 反约束: 不订阅 dm-only frame, 不写 borgee.dm4.cursor:* sessionStorage
-// (cursor 复用 useDMSync DM-3).
+// Constraints: do not subscribe to a dm-only frame and do not write
+// borgee.dm4.cursor:* sessionStorage. Cursor handling reuses useDMSync DM-3.
 //
 // API:
 //   const { editMessage, isEditing, error } = useDMEdit(dmChannelID);
@@ -34,8 +35,9 @@ export interface UseDMEditResult {
  * already subscribes to channel events backfill which carries
  * `message_edited` events emitted by the server PATCH path.
  *
- * 立场 ② 反向断言: this hook never reads/writes `borgee.dm4.cursor:*`
- * sessionStorage. Cursor ordering is preserved by useDMSync.
+ * Intent ② reverse assertion: this hook never reads/writes
+ * `borgee.dm4.cursor:*` sessionStorage. Cursor ordering is preserved by
+ * useDMSync.
  */
 export function useDMEdit(dmChannelID: string): UseDMEditResult {
   const [isEditing, setIsEditing] = useState(false);

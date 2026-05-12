@@ -4,8 +4,9 @@ import { fetchAdminArchivedChannels } from '../api';
 import type { AdminArchivedChannel } from '../api';
 
 // ADMIN-SPA-UI-COVERAGE-WAVE2: GET /admin-api/v1/channels/archived (CHN-5 #189).
-// 立场: admin god-mode readonly 全 org archived 视图; 不挂 unarchive 入口
-// (admin god-mode 不直接改, owner 走 user-rail). 0 server 改.
+// Intent: admin read-only full-org archived view; do not mount an unarchive
+// entry point. Admin routes do not mutate archived state directly; owners use
+// the user API path. No server change.
 
 export default function ArchivedChannelsPage() {
   const [channels, setChannels] = useState<AdminArchivedChannel[]>([]);

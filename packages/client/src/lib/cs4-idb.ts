@@ -1,12 +1,12 @@
-// CS-4 — IndexedDB wrapper SSOT (蓝图 client-shape.md §1.4 乐观缓存 B 路径).
+// CS-4 — IndexedDB wrapper single source of truth (blueprint client-shape.md §1.4 optimistic cache B path).
 //
-// 设计 ① (cs-4-stance-checklist):
-//   - 3 store 拆死: messages / last_read_at / agent_state
-//   - typing/presence-realtime 必从 server 实时拉, 不入 IDB (蓝图 §1.4 字面)
-//   - artifact 内容 / DM body / 草稿 走 CV-10 localStorage 既有, 不漂
+// Design ① (cs-4-stance-checklist):
+//   - exactly 3 stores: messages / last_read_at / agent_state
+//   - typing/presence-realtime must be pulled from the server and not stored in IDB
+//   - artifact content / DM body / drafts stay on the existing CV-10 localStorage path
 //
-// DB version=1; schema 改 = bump version + onupgradeneeded migration
-// (跟 server schema_migrations 同精神).
+// DB version=1; schema change requires bumping version + onupgradeneeded migration
+// (same migration rule as server schema_migrations).
 
 const DB_NAME = 'borgee-cs4';
 const DB_VERSION = 1;
@@ -73,7 +73,7 @@ export function cs4Delete(db: IDBDatabase, store: string, key: IDBValidKey): Pro
 
 /**
  * clearStaleEntries — remove store entries older than maxAgeMs. v1 best-effort
- * cleanup; not a goroutine / scheduled job (留 v1 用户 logout 时调).
+ * cleanup; not a goroutine / scheduled job. v1 reserves this for user logout.
  */
 export async function clearStaleEntries(
   db: IDBDatabase,

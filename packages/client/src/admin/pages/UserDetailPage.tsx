@@ -12,9 +12,9 @@ import type { AdminUser, UserPermissionDetail } from '../api';
 import { CAPABILITY_TOKENS, capabilityLabel, isKnownCapability } from '../../lib/capabilities';
 
 // ADMIN-SPA-UI-COVERAGE: surface 3 server-wired admin endpoints that had
-// no UI before (D6 真兑现 — capability grant + role/disabled/password
-// PATCH). 0 server / 0 endpoint / 0 schema 改; admin god-mode 路径独立
-// (ADM-0 §1.3 红线 — 仅 admin SPA 访问 /admin-api/*).
+// no UI before (D6 coverage: capability grant + role/disabled/password
+// PATCH). No server, endpoint, or schema change; the admin path stays separate
+// under ADM-0 §1.3, with only the admin SPA calling /admin-api/*.
 
 export default function UserDetailPage() {
   const { id } = useParams();

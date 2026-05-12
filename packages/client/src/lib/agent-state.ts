@@ -1,16 +1,17 @@
-// AL-1a (#R3 Phase 2) — Agent runtime state 文案锁.
+// AL-1a (#R3 Phase 2) — agent runtime state wording lock.
 //
-// 野马 #190 §11 硬条件: Phase 2 Sidebar 不准 "灰点 + 不说原因" 糊弄. 状态
-// 必须明确文案 ("已离线" 而不是模糊 idle 灰), 故障态必须可解释 (蓝图
-// agent-lifecycle §2.3 "故障态的关键设计").
+// Issue #190 §11 hard requirement: Phase 2 Sidebar must not show an unexplained
+// gray dot. State labels must be explicit ("已离线", not vague idle gray), and
+// error states must explain the reason (blueprint agent-lifecycle §2.3).
 //
-// AL-1b (#R3 Phase 4) 扩 busy/idle 两态 — server-side 5-state 合并优先级
-// 见 al-1b-spec.md §1 (error > busy > idle > online > offline). 客户端
-// describeAgentState() 只负责把单个 state 翻成文案 — 优先级合并由 server
-// 端 resolveStatus5State() 做 (设计 ① 拆三路径 — client 不重做合并).
+// AL-1b (#R3 Phase 4) adds busy/idle. Server-side 5-state merge priority is
+// defined in al-1b-spec.md §1 (error > busy > idle > online > offline).
+// describeAgentState() only maps one state to a label; server resolveStatus5State()
+// owns priority merging, so the client does not re-merge statuses.
 //
-// 改这里 = 改 server 的 agent.Reason* 常量字符串. 单测 agent-state.test.ts
-// 跟 internal/agent/state.go + internal/api/al_1b_2_status.go 字面绑定.
+// Changing these labels also requires updating the server agent.Reason* constant
+// strings. Tests bind this file byte-for-byte with internal/agent/state.go and
+// internal/api/al_1b_2_status.go.
 import type { AgentRuntimeReason, AgentRuntimeState } from './api';
 
 export interface AgentStateLabel {
@@ -36,11 +37,11 @@ export function describeAgentState(
     const reasonText = reason ? REASON_LABELS[reason] ?? reason : '未知错误';
     return { text: `故障 (${reasonText})`, tone: 'error' };
   }
-  // AL-1b (#R3 Phase 4) — busy/idle 文案锁 (acceptance al-1b.md §3.1 + §3.2).
-  // 反约束: 不准 "活跃" / "running" / "Standing by" / "等待中" 模糊 (acceptance
-  // §3.4 — grep -nE "活跃|standing by|running" count==0 反查锚).
+  // AL-1b (#R3 Phase 4) — busy/idle wording lock (acceptance al-1b.md §3.1 + §3.2).
+  // Constraint: avoid vague labels such as "活跃" / "running" / "Standing by" /
+  // "等待中" (acceptance §3.4 grep guard expects zero hits).
   if (state === 'busy') return { text: '在工作', tone: 'ok' };
   if (state === 'idle') return { text: '空闲', tone: 'muted' };
-  // Default + 'offline' bucket — 蓝图 §2.3 守: 不准糊弄 idle 灰.
+  // Default + 'offline' bucket: blueprint §2.3 requires an explicit offline label.
   return { text: '已离线', tone: 'muted' };
 }
