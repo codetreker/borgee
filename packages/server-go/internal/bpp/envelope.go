@@ -151,22 +151,27 @@ func (RuntimeSchemaAdvertiseFrame) FrameDirection() Direction { return Direction
 // schema_equivalence_test.go + acceptance al-2b.md §1.1 simultaneously.
 //
 // Field semantics:
-//   - Type: discriminator 头位, byte-identical 跟 BPP-1 envelope (#280)
-//   - Cursor: hub.cursors atomic int64 单调发号, 跟 RT-1 #290 + CV-2.2
-//     #360 + DM-2.2 #372 + CV-4.2 #416 + AL-2b 5 source frame 共一根
-//     sequence (RT-1 spec §1.1, 反向约束: 不另起 plugin-only 通道; 原则
-//     "不另起 channel" 跟 acceptance §2.1 字面同源)
+//   - Type: discriminator first field, byte-identical with BPP-1 envelope (#280)
+//   - Cursor: hub.cursors atomic int64 monotonic allocation, sharing one
+//     sequence with RT-1 #290 + CV-2.2 #360 + DM-2.2 #372 + CV-4.2 #416 +
+//     AL-2b's 5 source frames. RT-1 spec §1.1 negative constraint: do not add a
+//     plugin-only channel; principle "不另起 channel" remains byte-identical
+//     with acceptance §2.1.
 //   - AgentID: target agent UUID
-//   - SchemaVersion: 单调跟 agent_configs.schema_version (AL-2a v=20 #447)
-//     字面 byte-identical; plugin 收到 < 当前 server 值 → ack `status=stale`
+//   - SchemaVersion: monotonic with agent_configs.schema_version (AL-2a v=20
+//     #447), byte-identical; plugin receives < current server value → ack
+//     `status=stale`
 //     (acceptance §2.3)
-//   - Blob: 序列化后的单一来源字段 (name/avatar/prompt/model/能力开关/启用
-//     状态/memory_ref); 反向约束 不含 api_key/temperature/token_limit/
-//     retry_policy runtime-only 字段 (acceptance §3.2 + AL-2a #447 单一来源)
-//   - IdempotencyKey: server 生成的稳定 key, 同 key 重发 plugin reload
-//     仅触发 1 次 (acceptance §2.2 + 蓝图 §1.5 字面 "幂等 reload")
-//   - CreatedAt: Unix ms 语义戳 (反向约束: 不用作排序源, cursor 才是; 跟
-//     IterationStateChangedFrame.CompletedAt 同语义模式)
+//   - Blob: serialized single-source fields (name/avatar/prompt/model/
+//     capability switches/enabled state/memory_ref). Negative constraint: do
+//     not include runtime-only fields api_key/temperature/token_limit/
+//     retry_policy (acceptance §3.2 + AL-2a #447 single source).
+//   - IdempotencyKey: stable server-generated key; resending the same key
+//     triggers plugin reload only once (acceptance §2.2 + blueprint §1.5
+//     literal "幂等 reload")
+//   - CreatedAt: Unix-ms semantic timestamp. Negative constraint: do not use
+//     it as the ordering source; cursor is the ordering source, matching
+//     IterationStateChangedFrame.CompletedAt semantics.
 //
 // Plugin MUST reload idempotently; same payload pushed twice is a no-op.
 type AgentConfigUpdateFrame struct {
@@ -174,7 +179,7 @@ type AgentConfigUpdateFrame struct {
 	Cursor         int64  `json:"cursor"`
 	AgentID        string `json:"agent_id"`
 	SchemaVersion  int64  `json:"schema_version"`
-	Blob           string `json:"blob"` // JSON-encoded 单一来源 delta; opaque on the wire
+	Blob           string `json:"blob"` // JSON-encoded single-source delta; opaque on the wire
 	IdempotencyKey string `json:"idempotency_key"`
 	CreatedAt      int64  `json:"created_at"` // Unix ms; semantic only — cursor IS the order
 }
@@ -210,39 +215,44 @@ type InboundMessageFrame struct {
 func (InboundMessageFrame) FrameType() string         { return FrameTypeBPPInboundMessage }
 func (InboundMessageFrame) FrameDirection() Direction { return DirectionServerToPlugin }
 
-// PermissionDeniedFrame — BPP-3.1 server 通知 plugin authz 失败 (蓝图
-// auth-permissions.md §2 不变量字面 "Permission denied 走 BPP — 不靠
-// HTTP 错误码, 由协议层路由到 owner DM" + §4.1 row 字面 frame 字段:
+// PermissionDeniedFrame — BPP-3.1 server notifies plugin of authz failure.
+// Blueprint auth-permissions.md §2 invariant: permission denial is sent through
+// BPP rather than HTTP error codes, and the protocol layer routes it to the
+// owner DM. Also see §4.1 row listing the exact frame fields:
 // `attempted_action`, `required_capability`, `current_scope`, `reason`).
 //
-// 8 字段 byte-identical 跟 spec bpp-3.1 §1 原则 ③:
+// 8 fields, byte-identical with spec bpp-3.1 §1 principle ③:
 //
 //	{Type, Cursor, AgentID, RequestID, AttemptedAction, RequiredCapability, CurrentScope, DeniedAt}
 //
 // Field semantics:
-//   - Type: discriminator 头位 byte-identical 跟 BPP envelope (#280)
-//   - Cursor: hub.cursors 单调发号, 跟 RT-1/CV-2/DM-2/CV-4/AL-2b 共一根
-//     sequence (反向约束: 不另起 plugin-only 推送通道)
+//   - Type: discriminator first field, byte-identical with BPP envelope (#280)
+//   - Cursor: hub.cursors monotonic allocation, sharing one sequence with
+//     RT-1/CV-2/DM-2/CV-4/AL-2b. Negative constraint: do not add a plugin-only
+//     push channel.
 //   - AgentID: target agent UUID (deny 路径 plugin 端按 agent 分流)
-//   - RequestID: AP-1 调用方生成的 trace UUID, plugin 按此 key 关联
-//     owner DM 推审批通知 + retry 流 (BPP-3.2 follow-up)
-//   - AttemptedAction: ∈ BPP-2.1 7 op 白名单 (`SemanticOp*` const) 或
-//     REST endpoint 名 (e.g. "POST /artifacts/:id/commits"); 反向约束:
-//     'list_users' 等 v2+ 枚举外值 reject
-//   - RequiredCapability: byte-identical 跟 AP-1 abac.go 403 body 字段
-//     (e.g. "commit_artifact" 跟 AP-1 capabilities.go const 同源 — 脱节 =
-//     双向 grep CI lint red)
-//   - CurrentScope: byte-identical 跟 AP-1 abac.go 403 body 字段
-//     (e.g. "artifact:art-1" 跟 AP-1 ArtifactScopeStr 同源)
-//   - DeniedAt: Unix ms 语义戳 (反向约束: 不用作排序源, cursor 才是; 跟
-//     IterationStateChangedFrame.CompletedAt 同语义模式)
+//   - RequestID: AP-1 caller-generated trace UUID; plugin uses this key to
+//     link owner DM approval notification + retry flow (BPP-3.2 follow-up)
+//   - AttemptedAction: one of the BPP-2.1 7 op allow-list values
+//     (`SemanticOp*` const) or a REST endpoint name (e.g.
+//     "POST /artifacts/:id/commits"). Negative constraint: reject v2+ enum-out
+//     values such as 'list_users'.
+//   - RequiredCapability: byte-identical with the AP-1 abac.go 403 body field
+//     (e.g. "commit_artifact" shares the AP-1 capabilities.go const; drift
+//     fails the bidirectional grep CI lint)
+//   - CurrentScope: byte-identical with the AP-1 abac.go 403 body field (e.g.
+//     "artifact:art-1" shares AP-1 ArtifactScopeStr)
+//   - DeniedAt: Unix-ms semantic timestamp. Negative constraint: do not use it
+//     as the ordering source; cursor is the ordering source, matching
+//     IterationStateChangedFrame.CompletedAt semantics.
 //
-// 反向约束 (spec bpp-3.1 §2):
-//   - direction = server→plugin hard-locked; plugin 永不发
-//     (bppEnvelopeWhitelist + reflect lint 双闸守)
-//   - admin god-mode 不消费此 frame (admin 走 /admin-api/* 不入业务路径,
-//     ADM-0 §1.3 红线)
-//   - HTTP 403 是 fallback, BPP frame 是 primary (蓝图 §2 不变量字面)
+// Negative constraints (spec bpp-3.1 §2):
+//   - direction = server→plugin hard-locked; plugins must never send this
+//     frame. bppEnvelopeWhitelist and reflection lint both enforce it.
+//   - Admin users do not consume this frame. Admin flows use /admin-api/* and
+//     do not enter the business path, per ADM-0 §1.3.
+//   - HTTP 403 is the fallback; the BPP frame is the primary signal, per
+//     blueprint §2 invariant.
 type PermissionDeniedFrame struct {
 	Type               string `json:"type"`
 	Cursor             int64  `json:"cursor"`
@@ -305,40 +315,45 @@ func (ErrorReportFrame) FrameType() string         { return FrameTypeBPPErrorRep
 func (ErrorReportFrame) FrameDirection() Direction { return DirectionPluginToServer }
 
 // AgentConfigAckFrame — plugin acknowledges receipt + apply outcome of an
-// AgentConfigUpdateFrame (AL-2b acceptance #452 §1.2 + 蓝图 §1.5 幂等
-// reload). Direction is hard-locked plugin→server (反向断言:
-// DirectionServerToPlugin 不在此 frame, 跟 BPP-1 #304 direction 锁定同模式).
+// AgentConfigUpdateFrame (AL-2b acceptance #452 §1.2 + blueprint §1.5
+// idempotent reload). Direction is hard-locked plugin→server: this frame must
+// not use DirectionServerToPlugin, matching the BPP-1 #304 direction-lock
+// pattern.
 //
 // 7 字段 byte-identical 跟 acceptance §1.2:
 //
 //	{Type, Cursor, AgentID, SchemaVersion, Status, Reason, AppliedAt}
 //
 // Field semantics:
-//   - Type: discriminator 头位 byte-identical 跟 BPP envelope #280
-//   - Cursor: plugin echo update.Cursor 做配对 (server 端按 cursor
-//     配 ack ↔ AgentConfigUpdateFrame; ack 自身不走 hub.cursors 单调
-//     发号 — ack 是 plugin → server 回执, 跟 update 走的 server →
-//     plugin push cursor 不同根 sequence)
-//   - AgentID: target agent UUID, 跟 update frame byte-identical
-//   - SchemaVersion: plugin 实际 apply 的 schema_version (acceptance §2.3
-//     stale 路径: plugin 收到 < server 当前 → ack 携带 plugin 已知值,
-//     server 据此判 stale 触发 plugin 主动拉)
+//   - Type: discriminator first field, byte-identical with BPP envelope #280
+//   - Cursor: plugin echoes update.Cursor for pairing. The server pairs ack ↔
+//     AgentConfigUpdateFrame by cursor; the ack itself does not use
+//     hub.cursors monotonic allocation because it is a plugin → server receipt,
+//     not the same sequence as the server → plugin push cursor.
+//   - AgentID: target agent UUID, byte-identical with the update frame
+//   - SchemaVersion: schema_version actually applied by the plugin. In the
+//     acceptance §2.3 stale path, plugin receives < current server value → ack
+//     carries the plugin-known value, and the server treats it as stale so the
+//     plugin actively pulls.
 //   - Status: 'applied' | 'rejected' | 'stale' (acceptance §1.2 CHECK
-//     enum byte-identical; 反向约束 reject 'unknown' 等枚举外值, server 端
-//     校验 fail-closed)
-//   - Reason: stale/rejected 时填 (跟 AL-1a #249 6 reason 枚举 byte-
-//     identical 同源 — api_key_invalid/quota_exceeded/network_unreachable/
-//     runtime_crashed/runtime_timeout/unknown); applied 态时空 string
-//     (反向约束: 不挂 omitempty, 跟 IterationStateChangedFrame.ErrorReason
-//     同模式 — 始终序列化)
-//   - AppliedAt: Unix ms plugin 实际 reload 完成戳 (acceptance §2.2 幂等
-//     reload — applied 态填真值, stale/rejected 填 0)
+//     enum byte-identical; negative constraint: reject enum-out values such as
+//     'unknown', with server-side validation fail-closed)
+//   - Reason: set for stale/rejected. It is byte-identical with the AL-1a #249
+//     6-reason enum — api_key_invalid/quota_exceeded/network_unreachable/
+//     runtime_crashed/runtime_timeout/unknown. For applied, it is empty string.
+//     Negative constraint: do not add omitempty; always serialize it, matching
+//     IterationStateChangedFrame.ErrorReason.
+//   - AppliedAt: Unix-ms plugin actual reload completion timestamp
+//     (acceptance §2.2 idempotent reload). applied uses the actual value;
+//     stale/rejected use 0.
 //
-// 反向约束 (acceptance §3.2 + §4.2):
-//   - 不挂 cursor 之外的排序字段 — sort.AgentConfigAck.time / timestamp
-//     反向 grep 0 hit (跟 RT-1 原则反向约束同源, cursor 唯一可信序)
-//   - 不下发 admin god-mode (admin 不入业务路径, ADM-0 §1.3 红线 + 反向
-//     grep `admin.*AgentConfig.*ack` 0 hit)
+// Negative constraints (acceptance §3.2 + §4.2):
+//   - Do not add ordering fields beyond cursor. Reverse grep for
+//     sort.AgentConfigAck.time / timestamp must return 0 hits. This matches
+//     the RT-1 principle: cursor is the only trusted order.
+//   - Do not send admin override acknowledgements. Admins do not enter the
+//     business path per ADM-0 §1.3, and reverse grep
+//     `admin.*AgentConfig.*ack` must return 0 hits.
 type AgentConfigAckFrame struct {
 	Type          string `json:"type"`
 	Cursor        int64  `json:"cursor"`
@@ -352,20 +367,20 @@ type AgentConfigAckFrame struct {
 func (AgentConfigAckFrame) FrameType() string         { return FrameTypeBPPAgentConfigAck }
 func (AgentConfigAckFrame) FrameDirection() Direction { return DirectionPluginToServer }
 
-// AgentConfigAck status enum byte-identical 跟 acceptance §1.2 CHECK
-// + server-side fail-closed 校验 (枚举外值 reject).
+// AgentConfigAck status enum is byte-identical with acceptance §1.2 CHECK plus
+// server-side fail-closed validation; enum-out values reject.
 const (
 	AgentConfigAckStatusApplied  = "applied"
 	AgentConfigAckStatusRejected = "rejected"
 	AgentConfigAckStatusStale    = "stale"
 )
 
-// TaskStartedFrame — BPP-2.2 plugin signals agent has started a task
-// (§1.6 + agent-lifecycle.md §2.3 字面: busy/idle source 必须 plugin
-// 上行 frame, stub 一旦上 v1 拆掉 = 白写). The `Subject` field is the
-// human-readable description ("agent 在做什么") — server REJECTS empty
-// or whitespace-only Subject + log warn `bpp.task_subject_empty`
-// (野马 §11 文案守 + spec §0 立场 ② 字面禁默认值 fallback).
+// TaskStartedFrame — BPP-2.2 plugin signals agent has started a task. §1.6 and
+// agent-lifecycle.md §2.3 require busy/idle to come from a plugin upstream
+// frame; stubs must be removed before v1. The `Subject` field is the
+// human-readable description ("agent 在做什么"). The server rejects empty or
+// whitespace-only Subject and logs `bpp.task_subject_empty` (spec §0 stance ②:
+// default-value fallback is forbidden).
 type TaskStartedFrame struct {
 	Type      string `json:"type"`
 	TaskID    string `json:"task_id"`
@@ -378,13 +393,13 @@ type TaskStartedFrame struct {
 func (TaskStartedFrame) FrameType() string         { return FrameTypeBPPTaskStarted }
 func (TaskStartedFrame) FrameDirection() Direction { return DirectionPluginToServer }
 
-// TaskFinishedFrame — BPP-2.2 plugin signals task termination. `Outcome`
-// ∈ 3 enum ('completed' / 'failed' / 'cancelled'); when 'failed', `Reason`
-// MUST be one of AL-1a #249 6 字典 (api_key_invalid / quota_exceeded /
-// network_unreachable / runtime_crashed / runtime_timeout / unknown) —
-// 跟 AL-3 #305 + AL-4 #321 + #427 三处单测锁定同源 (改 = 改四处, BPP-2.2
-// 是第四). 反向约束: 'partial' / 'paused' / 'pending' / 'starting' 中间
-// 态 reject.
+// TaskFinishedFrame — BPP-2.2 plugin signals task termination. `Outcome` is one
+// of the 3 enum values ('completed' / 'failed' / 'cancelled'). When 'failed',
+// `Reason` MUST be one of the AL-1a #249 6-dict reasons (api_key_invalid /
+// quota_exceeded / network_unreachable / runtime_crashed / runtime_timeout /
+// unknown). This shares the AL-3 #305, AL-4 #321, and #427 test locks; BPP-2.2
+// is the fourth lock. Negative constraint: reject intermediate states such as
+// 'partial' / 'paused' / 'pending' / 'starting'.
 type TaskFinishedFrame struct {
 	Type       string `json:"type"`
 	TaskID     string `json:"task_id"`
@@ -407,20 +422,22 @@ func (TaskFinishedFrame) FrameDirection() Direction { return DirectionPluginToSe
 // agents are scoped from the plugin connection's authenticated user
 // (BPP-1 connect handshake), so this frame doesn't re-authenticate.
 //
-// 6 字段 byte-identical 跟 spec brief §1 BPP-5.1:
+// 6 fields, byte-identical with spec brief §1 BPP-5.1:
 //
 //	{Type, PluginID, AgentID, LastKnownCursor, DisconnectAt, ReconnectAt}
 //
-// 反向约束 (跟 spec §0 + 原则 §1 一致):
-//   - **不复用 ConnectFrame** — connect 携 Token + Capabilities (首次身份);
-//     reconnect 携 last_known_cursor (恢复). 字段集不交.
-//   - **不另开 channel/sub_protocol** — 单 BPP envelope frame, 跟 BPP-3
-//     dispatcher 复用 (PluginFrameDispatcher 注册).
-//   - **cursor resume 复用 RT-1.3** — server handler 调
+// Negative constraints (matching spec §0 + principle §1):
+//   - **Do not reuse ConnectFrame**. connect carries Token + Capabilities for
+//     initial identity; reconnect carries last_known_cursor for recovery. Their
+//     field sets are disjoint.
+//   - **Do not add another channel/sub_protocol**. This is a single BPP envelope
+//     frame and reuses the BPP-3 dispatcher via PluginFrameDispatcher.
+//   - **cursor resume reuses RT-1.3**. The server handler calls
 //     bpp.ResolveResume(SessionResumeRequest{Mode: incremental,
-//     AfterCursor: LastKnownCursor}, …). 不另起 sequence.
-//   - 字段顺序锁定: type/plugin_id/agent_id/last_known_cursor/disconnect_at/
-//     reconnect_at — 跟 BPP-1 #304 envelope CI lint reflect 自动覆盖.
+//     AfterCursor: LastKnownCursor}, …). Do not add another sequence.
+//   - Field order is fixed: type/plugin_id/agent_id/last_known_cursor/
+//     disconnect_at/reconnect_at. The BPP-1 #304 envelope CI reflection lint
+//     covers this.
 type ReconnectHandshakeFrame struct {
 	Type            string `json:"type"`
 	PluginID        string `json:"plugin_id"`
@@ -445,25 +462,26 @@ func (ReconnectHandshakeFrame) FrameDirection() Direction { return DirectionPlug
 //  1. agent.Tracker.Clear(agentID) — drop in-memory state
 //  2. Store.AppendAgentStateTransition(agentID, fromState, online,
 //     runtime_crashed, "") — AL-1 #492 single-gate writes state-log row
-//  3. NO history replay (反向 BPP-5 — cold-start 是 fresh start)
+//  3. NO history replay. This is the opposite of BPP-5: cold-start is a fresh start.
 //
-// 5 字段 byte-identical 跟 spec brief §1 BPP-6.1:
+// 5 fields, byte-identical with spec brief §1 BPP-6.1:
 //
 //	{Type, PluginID, AgentID, RestartAt, RestartReason}
 //
-// 反向约束 (跟 spec §0 + 原则 §1 一致):
-//   - **字段集与 ReconnectHandshakeFrame 互斥** — 不含 LastKnownCursor /
-//     DisconnectAt / ReconnectAt 字段. spec §0.1 原则守门.
-//   - **不另开 channel/sub_protocol** — 单 BPP envelope frame, 跟 BPP-3
-//     dispatcher 复用 (PluginFrameDispatcher 注册).
-//   - **不重放历史 frame** — handler 不调 ResolveResume, 不携 cursor.
-//     spec §0.2 原则守门 (AST scan 守).
-//   - **不另开 plugin_restart_count 列** — restart 计数走 state-log
-//     COUNT(WHERE to_state='online' AND reason='runtime_crashed') 反向
-//     derive. spec §0.3 原则守门.
-//   - reason 复用 `runtime_crashed` 6-dict byte-identical (反映上次
-//     error → 此次复活语义). reasons 单一来源 #496 不扩第 7 字面.
-//   - 字段顺序锁定: type/plugin_id/agent_id/restart_at/restart_reason.
+// Negative constraints (matching spec §0 + principle §1):
+//   - **Field set is disjoint from ReconnectHandshakeFrame**. It does not carry
+//     LastKnownCursor / DisconnectAt / ReconnectAt. spec §0.1.
+//   - **Do not add another channel/sub_protocol**. This is a single BPP envelope
+//     frame and reuses the BPP-3 dispatcher via PluginFrameDispatcher.
+//   - **Do not replay historical frames**. The handler does not call
+//     ResolveResume and does not carry cursor. spec §0.2 (AST scan).
+//   - **Do not add a plugin_restart_count column**. Restart count is derived
+//     from state-log COUNT(WHERE to_state='online' AND reason='runtime_crashed').
+//     spec §0.3.
+//   - reason reuses `runtime_crashed` from the byte-identical 6-dict to express
+//     previous error → current recovery. reasons single source #496 does not
+//     add a 7th literal.
+//   - Field order is fixed: type/plugin_id/agent_id/restart_at/restart_reason.
 type ColdStartHandshakeFrame struct {
 	Type          string `json:"type"`
 	PluginID      string `json:"plugin_id"`
@@ -475,8 +493,8 @@ type ColdStartHandshakeFrame struct {
 func (ColdStartHandshakeFrame) FrameType() string         { return FrameTypeBPPColdStartHandshake }
 func (ColdStartHandshakeFrame) FrameDirection() Direction { return DirectionPluginToServer }
 
-// bppEnvelopeWhitelist — 单一来源 list of permitted
-// BPP-1 envelope OpNames. The reflection lint asserts every exported
+// bppEnvelopeWhitelist is the single source of truth for permitted BPP-1
+// envelope OpNames. The reflection lint asserts every exported
 // frame struct in this file maps to exactly one entry here and
 // vice-versa (no orphans, no extras). Adding a row here without a
 // matching blueprint §2 entry is a CI red.

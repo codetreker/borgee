@@ -1,11 +1,11 @@
 // Package bpp — session_resume.go: RT-1.3 (#293) resolver for the
 // `session.resume` / `session.resume_ack` agent handshake.
 //
-// Behaviour contract (RT-1 spec §1.3 hardline + 飞马 review §0):
+// Behaviour contract (RT-1 spec §1.3 hardline + review §0):
 //
 //   1. Three modes — `incremental` (default), `none` (cold start),
 //      `full` (agent-explicit only).
-//   2. 反约束 — the server NEVER defaults a caller into `full`. An
+//   2. Negative constraint: the server NEVER defaults a caller into `full`. An
 //      empty, unknown, or malformed mode falls back to `incremental`.
 //      Reverse grep `defaultReplayMode` / `= "full"` (excluding tests)
 //      MUST be empty in this package; the only `Full` literal is the
@@ -57,7 +57,7 @@ var ErrNoChannelScope = errors.New("bpp: empty channel scope")
 
 // ParseResumeMode normalises the wire string into a ResumeMode value.
 //
-// 反约束 — unknown / empty / mis-typed input MUST resolve to
+// Negative constraint: unknown / empty / mis-typed input MUST resolve to
 // `Incremental`, NEVER to `Full`. The single `Full` branch is reachable
 // ONLY when the caller's bytes are literally `"full"`. This is the
 // gate the spec calls out: agents that want a full replay declare it

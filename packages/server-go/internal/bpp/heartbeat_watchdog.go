@@ -1,29 +1,35 @@
-// Package bpp — heartbeat_watchdog.go: BPP-4.1 plugin liveness 监测 +
-// 状态翻转 (lastSeenAt > 30s → mark agent error/network_unreachable).
+// Package bpp — heartbeat_watchdog.go: BPP-4.1 plugin liveness check and
+// state transition (lastSeenAt > 30s → mark agent error/network_unreachable).
 //
-// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 +
-// 故障 UX 区分表 — "runtime_disconnected" 平台问题). Spec brief:
+// Blueprint reference: docs/blueprint/current/plugin-protocol.md §1.6
+// (disconnected and failure states + failure UX distinction table for the
+// platform-level "runtime_disconnected" case). Spec brief:
 // docs/implementation/modules/bpp-4-spec.md §0.2. Acceptance:
 // docs/qa/acceptance-templates/bpp-4.md §1.
 //
-// 原则 (跟 BPP-4 原则 §1+§2 byte-identical):
-//   - **Borgee 不取消 in-flight 任务** (蓝图 §1.6 字面). watchdog 仅触发
-//     状态翻转, 不下发 cancel/abort/kill frame. 反向 grep `cancel.*task\|
-//     abort.*inflight\|server.*kill.*runtime` 0 hit 守门.
-//   - **30s 单一来源阈值锁定** (跟蓝图 BPP-4 module acceptance "kill plugin →
-//     30s 内 agent 显示 error" byte-identical). 改 = 改三处单测锁定
-//     (此常量 + bpp-4-spec.md §0.2 + content-lock §1.①).
-//   - **AL-1a 6-dict reason 不扩第 7** — watchdog 触发的 reason 选既有
-//     `network_unreachable` (跟蓝图 §1.6 故障 UX 区分表 "runtime_disconnected
-//     → 重连中…" 文案对齐, 平台层判网络失联). BPP-4 = AL-1a reason 字典
-//     第 9 处单测守护链 (跟 BPP-2.2 #485 第 7 处 + AL-2b #481 第 8 处链承接).
+// Principles (byte-identical with BPP-4 principles §1+§2):
+//   - **Borgee does not cancel in-flight tasks** (blueprint §1.6). The
+//     watchdog only triggers a state transition; it does not send a
+//     cancel/abort/kill frame. Reverse grep `cancel.*task\|abort.*inflight\|
+//     server.*kill.*runtime` must return 0 hits.
+//   - **30s threshold has one source of truth** (byte-identical with blueprint
+//     BPP-4 module acceptance "kill plugin → 30s 内 agent 显示 error"). Any
+//     change must update three locks together: this constant,
+//     bpp-4-spec.md §0.2, and content-lock §1.①.
+//   - **Do not add a 7th AL-1a reason**. The watchdog uses the existing
+//     `network_unreachable` reason, aligned with the blueprint §1.6 failure UX
+//     row "runtime_disconnected → 重连中…" for platform-level network loss.
+//     BPP-4 is the 9th test lock in the AL-1a reason chain, after BPP-2.2
+//     #485 and AL-2b #481.
 //
-// 反向约束 (acceptance §4):
-//   - 不直写 presence_sessions 列 (AL-1b 边界守, watchdog 走 agent.Tracker
-//     SetError 单一来源, 跟 #457 PATCH endpoint 同 source).
-//   - 不开新 BPP envelope frame (whitelist 不变, BPP-4 仅复用 HeartbeatFrame
-//     做 watchdog 触发源).
-//   - admin god-mode 不入 watchdog (admin 不持有 PluginConn).
+// Negative constraints (acceptance §4):
+//   - Do not write presence_sessions columns directly. AL-1b keeps that
+//     boundary; the watchdog uses agent.Tracker.SetError as the single source
+//     of truth, matching the #457 PATCH endpoint source.
+//   - Do not add a new BPP envelope frame. The whitelist is unchanged; BPP-4
+//     only reuses HeartbeatFrame as the watchdog trigger source.
+//   - Admin users do not enter the watchdog path because admins do not hold a
+//     PluginConn.
 
 package bpp
 
@@ -36,26 +42,28 @@ import (
 )
 
 // BPP_HEARTBEAT_TIMEOUT_SECONDS — single source of truth for the
-// plugin heartbeat liveness threshold. Byte-identical 跟蓝图 BPP-4
-// module acceptance "kill plugin → 30s 内 agent 显示 error" 字面.
+// plugin heartbeat liveness threshold. Byte-identical with blueprint BPP-4
+// module acceptance "kill plugin → 30s 内 agent 显示 error".
 //
-// 改 = 改三处:
-//   1. 此常量
-//   2. docs/implementation/modules/bpp-4-spec.md §0.2
-//   3. docs/qa/bpp-4-content-lock.md §1.①
+// Any change must update three places:
+//  1. This constant.
+//  2. docs/implementation/modules/bpp-4-spec.md §0.2
+//  3. docs/qa/bpp-4-content-lock.md §1.①
 //
-// 反向 grep CI lint 守: `bpp.*heartbeat.*60|heartbeat.*timeout.*[5-9][0-9]+s`
-// count==0 (防隐式调高).
+// Reverse grep CI lint: `bpp.*heartbeat.*60|heartbeat.*timeout.*[5-9][0-9]+s`
+// count==0, preventing an implicit threshold increase.
 const BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
 
-// BPP_HEARTBEAT_TICKER_INTERVAL — watchdog 扫描周期, 必须 ≤ 阈值/3 防错
-// 过窗口. 跟蓝图 §1.6 "缺心跳按未知" 原则一致 (检测延迟 ≤ 阈值的容差).
+// BPP_HEARTBEAT_TICKER_INTERVAL is the watchdog scan interval. It must be <=
+// threshold/3 so the watchdog does not miss the timeout window. This matches
+// blueprint §1.6 "缺心跳按未知": detection delay is tolerated only up to the
+// threshold.
 const BPP_HEARTBEAT_TICKER_INTERVAL = 10 * time.Second
 
-// PluginLivenessSource — interface seam, hub.go 实现, watchdog 消费.
-// 跟 BPP-3 PluginFrameRouter / BPP-2.1 ActionHandler / cv-4.2
-// IterationStatePusher 同 interface seam 模式 — bpp 包不 import
-// internal/ws.
+// PluginLivenessSource is the interface boundary implemented by hub.go and
+// consumed by the watchdog. This follows the same interface-boundary pattern as
+// BPP-3 PluginFrameRouter, BPP-2.1 ActionHandler, and cv-4.2
+// IterationStatePusher; the bpp package does not import internal/ws.
 //
 // SnapshotLastSeen returns a copy of the per-plugin lastSeenAt map
 // (key = agent_id, value = last frame/ping receive time). Empty map
@@ -65,10 +73,10 @@ type PluginLivenessSource interface {
 	SnapshotLastSeen() map[string]time.Time
 }
 
-// AgentErrorSink — interface seam to *agent.Tracker.SetError. bpp 包
-// 不 import internal/agent at the package boundary; the wire-up at
-// server boot injects the concrete tracker. Same seam pattern as
-// PluginLivenessSource above.
+// AgentErrorSink is the interface boundary to *agent.Tracker.SetError. The bpp
+// package does not import internal/agent at the package boundary; server boot
+// wire-up injects the concrete tracker. Same boundary pattern as
+// PluginLivenessSource.
 type AgentErrorSink interface {
 	SetError(agentID, reason string)
 }
@@ -76,7 +84,8 @@ type AgentErrorSink interface {
 // HeartbeatWatchdog periodically checks plugin liveness against the
 // 30s threshold. When a plugin's lastSeenAt is older than the threshold,
 // the watchdog marks the corresponding agent as error/network_unreachable
-// via the AgentErrorSink (跟 AL-1a 6-dict reason 第 9 处单测守护链承接).
+// via the AgentErrorSink. This is the 9th test lock in the AL-1a 6-dict reason
+// chain.
 //
 // Construction: NewHeartbeatWatchdog(source, sink, logger). Run(ctx)
 // blocks until ctx is cancelled (typically run from server boot in a
@@ -118,8 +127,9 @@ func NewHeartbeatWatchdog(source PluginLivenessSource, sink AgentErrorSink, logg
 // BPP_HEARTBEAT_TICKER_INTERVAL; each tick scans the source's
 // lastSeenAt snapshot and flips stale agents to error.
 //
-// 反向约束: Run 仅触发 SetError; **不**调任何 cancel/abort/kill 路径
-// (蓝图 §1.6 原则 ① — server 不取消 in-flight 任务).
+// Negative constraint: Run only triggers SetError; it does not call any
+// cancel/abort/kill path (blueprint §1.6 principle ①: the server does not
+// cancel in-flight tasks).
 func (w *HeartbeatWatchdog) Run(ctx context.Context) {
 	ticker := time.NewTicker(BPP_HEARTBEAT_TICKER_INTERVAL)
 	defer ticker.Stop()
@@ -170,13 +180,14 @@ func (w *HeartbeatWatchdog) scanOnce() {
 // ReasonNetworkUnreachable: BPP-4 watchdog uses
 // `agentpkg.ReasonNetworkUnreachable` directly (single source of truth
 // in `internal/agent/state.go::ReasonNetworkUnreachable`, AL-1a #249
-// 6-dict). 改 = 改九处单测锁定:
+// 6-dict). Any change must update nine test locks:
 //   1. internal/agent/state.go (#249 source-of-truth)
 //   2. internal/agent/state_test.go
 //   3. AL-3 #305 / CV-4 #380 / AL-2a #454 / AL-1b #458 / AL-4 #387/#461
 //   4. internal/bpp/agent_config_ack_dispatcher.go (#481 AL-2b 第 8 处)
 //   5. internal/bpp/heartbeat_watchdog.go (本文件, BPP-4 第 9 处)
 //
-// 反向约束: BPP-4 不另起 reason 字典 — `runtime_disconnected` 字面**不**
-// 入代码层 (蓝图 §1.6 故障 UX 区分表 "runtime_disconnected → 重连中…"
-// 是 client 侧 UI 文案, server 侧仍走 AL-1a 6-dict `network_unreachable`).
+// Negative constraint: BPP-4 does not add another reason dictionary. The
+// `runtime_disconnected` literal does not enter server code; blueprint §1.6
+// failure UX row "runtime_disconnected → 重连中…" is client-side UI wording,
+// while the server still uses AL-1a 6-dict `network_unreachable`.

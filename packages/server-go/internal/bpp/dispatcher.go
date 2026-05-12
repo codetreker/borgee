@@ -60,11 +60,11 @@ const (
 // permission via AP-0 RequirePermission and parses the payload.
 //
 // Order matches the blueprint table (§1.3) for byte-identical review.
-// 反向约束: do NOT add v2+ ops here without first updating the blueprint;
-// CI grep 反向断言 count==0 for v2+ literals (acceptance §4 反向约束).
+// Negative constraint: do NOT add v2+ ops here without first updating the
+// blueprint. CI grep must return count==0 for v2+ literals (acceptance §4).
 //
-// BPP-3.2.1 (#494 后续): 7→8 加 request_capability_grant; 蓝图
-// §1.3 字面跟随 + bpp-3.2-spec.md §1 原则 ① + bpp-3.2-stance §1.
+// BPP-3.2.1 (#494 follow-up): 7→8 adds request_capability_grant, following
+// blueprint §1.3 wording + bpp-3.2-spec.md §1 principle ① + bpp-3.2-stance §1.
 var ValidSemanticOps = map[string]bool{
 	SemanticOpCreateArtifact:         true,
 	SemanticOpUpdateArtifact:         true,
@@ -78,9 +78,9 @@ var ValidSemanticOps = map[string]bool{
 
 // DispatchErrCodeOpUnknown is the error code returned when a plugin
 // upstream SemanticActionFrame carries an Action outside the v1
-// whitelist. byte-identical literal 跟 bpp-2-content-lock.md §1 ⑥
-// 错误码字面 (跟 出处 anchor.create_owner_only #360 / dm.workspace_not_supported
-// #407 / iteration.target_not_in_channel #409 命名同模式).
+// whitelist. The literal is byte-identical with bpp-2-content-lock.md §1 ⑥.
+// Naming follows anchor.create_owner_only #360, dm.workspace_not_supported #407,
+// and iteration.target_not_in_channel #409.
 const DispatchErrCodeOpUnknown = "bpp.semantic_op_unknown"
 
 // DispatchErrCodeNoRawREST is the error code reserved for plugin
@@ -88,7 +88,7 @@ const DispatchErrCodeOpUnknown = "bpp.semantic_op_unknown"
 // the BPP socket). v0 implementation does not currently emit this code
 // — the protocol envelope itself enforces frame-only ingress (BPP-1
 // #304 envelope whitelist). The constant is reserved as a defense-in-
-// depth witness for acceptance §4.1 反向 grep + future runtime patches.
+// depth witness for acceptance §4.1 reverse grep and future runtime patches.
 const DispatchErrCodeNoRawREST = "bpp.plugin_no_raw_rest"
 
 // errSemanticOpUnknown is the sentinel returned by Dispatch when the
@@ -98,8 +98,8 @@ const DispatchErrCodeNoRawREST = "bpp.plugin_no_raw_rest"
 var errSemanticOpUnknown = errors.New("bpp: semantic op unknown")
 
 // IsSemanticOpUnknown lets callers map the package-private sentinel to
-// the wire-level error code without exporting the var directly (跟
-// errArtifactConflict / errIterationStateMachineReject 同模式).
+// the wire-level error code without exporting the var directly, matching the
+// errArtifactConflict / errIterationStateMachineReject pattern.
 func IsSemanticOpUnknown(err error) bool {
 	return errors.Is(err, errSemanticOpUnknown)
 }
@@ -119,8 +119,8 @@ type ActionHandler interface {
 	// and routed by op. The implementation must:
 	//   - Parse SemanticActionFrame.Payload as JSON args (op-specific
 	//     shape; see plugin-protocol.md §1.3 v1 args table).
-	//   - Resolve the agent's user permissions via AP-0 (跟既有 REST
-	//     handler 同闸).
+	//   - Resolve the agent's user permissions via AP-0, using the same gate as
+	//     the existing REST handler.
 	//   - Execute the side effect (artifact create / message send / ...).
 	//   - Return a result blob the bpp.SemanticActionAck frame can carry.
 	HandleAction(frame SemanticActionFrame, sess SessionContext) (result []byte, err error)
@@ -132,8 +132,8 @@ type ActionHandler interface {
 // + the plugin id (for audit trail).
 //
 // AP-0 RequirePermission is invoked using sess.AgentUserID — the
-// permission scope is per-channel where applicable (跟 既有 REST
-// handler 模式同 — `auth.RequirePermission(s, "message.send", channelID)`).
+// permission scope is per-channel where applicable, matching the existing REST
+// handler pattern: `auth.RequirePermission(s, "message.send", channelID)`.
 type SessionContext struct {
 	AgentUserID string // resolved via BPP-1 connect handshake
 	PluginID    string // for audit / log only
@@ -142,9 +142,10 @@ type SessionContext struct {
 // Dispatcher routes validated SemanticActionFrame instances to the
 // registered ActionHandler for the op.
 //
-// 反向约束 (acceptance §4.1): Dispatcher 不接 raw HTTP / REST endpoint,
-// 不在内部 import internal/api 包 (依赖反转 via ActionHandler interface).
-// Plugin 不下穿走 raw REST — protocol red line (蓝图 §1.3).
+// Negative constraint (acceptance §4.1): Dispatcher does not accept raw HTTP /
+// REST endpoints and does not import internal/api. Dependency inversion happens
+// through the ActionHandler interface. Plugins must not bypass the protocol by
+// calling raw REST; this is the blueprint §1.3 boundary.
 type Dispatcher struct {
 	handlers map[string]ActionHandler
 }
@@ -189,13 +190,13 @@ func (d *Dispatcher) HandlerFor(op string) ActionHandler {
 // it to the registered handler.
 //
 // Validation (in order):
-//  1. frame.Action ∈ ValidSemanticOps (蓝图 §1.3 v1 whitelist) →
+//  1. frame.Action ∈ ValidSemanticOps (blueprint §1.3 v1 whitelist) →
 //     returns errSemanticOpUnknown if not.
 //  2. handler registered for op → returns ErrNoHandler if not.
 //  3. Delegate to handler.HandleAction(frame, sess) — handler enforces
 //     permission via AP-0 + parses Payload.
 //
-// 反向约束: Dispatch does not call out to raw HTTP / REST. The handler
+// Negative constraint: Dispatch does not call out to raw HTTP / REST. The handler
 // is a pre-resolved ActionHandler interface, not a URL or http.Client.
 // Reverse grep CI lint count==0 across
 // internal/bpp/ (acceptance §4.1).
