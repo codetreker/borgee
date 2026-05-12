@@ -1,10 +1,10 @@
-// SearchBox.test.tsx — CV-6 client acceptance vitest 锁 (#cv-6).
+// SearchBox.test.tsx — CV-6 client acceptance Vitest coverage (#cv-6).
 //
-// 锚: cv-6-content-lock.md §2 + §4 (DOM 字面锁 + 5 错码文案 byte-identical).
+// References: cv-6-content-lock.md §2 + §4 (DOM literals + 5 error-code toasts byte-identical).
 //
 // Note: full debounce / fetch / Escape integration is e2e territory
-// (jsdom + controlled-input race makes those flaky in vitest); 此测试
-// 锁 DOM contract + SEARCH_ERR_TOAST byte-identical 不变量.
+// (jsdom + controlled-input races make those flaky in Vitest); this test covers
+// the DOM contract and SEARCH_ERR_TOAST byte-identical invariants.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -32,7 +32,7 @@ function render(node: React.ReactElement) {
   return root;
 }
 
-describe('SearchBox DOM 字面锁 (content-lock §2)', () => {
+describe('SearchBox DOM literals (content-lock §2)', () => {
   it('renders <input type="search"> with locked attrs', () => {
     render(<SearchBox channelId="ch-1" onResults={() => {}} />);
     const input = container!.querySelector('input[data-testid="artifact-search-input"]') as HTMLInputElement;
@@ -66,22 +66,22 @@ describe('SEARCH_ERR_TOAST byte-identical (content-lock §4 — 5 错码)', () =
     expect(Object.keys(SEARCH_ERR_TOAST).length).toBe(5);
   });
 
-  it('all keys start with `search.` prefix (跟 server const 同源)', () => {
+  it('all keys start with `search.` prefix and stay aligned with server constants', () => {
     for (const k of Object.keys(SEARCH_ERR_TOAST)) {
       expect(k.startsWith('search.')).toBe(true);
     }
   });
 });
 
-describe('SearchBox debounce constant (设计 ⑨ DEBOUNCE_MS=300)', () => {
+describe('SearchBox debounce constant (design ⑨ DEBOUNCE_MS=300)', () => {
   it('component renders without immediate fetch on mount (no query)', () => {
-    // Smoke: empty query → no fetch (debounce only fires on non-empty query).
+    // Empty query → no fetch; debounce only fires on non-empty query.
     let fetchCalled = false;
     const origFetch = globalThis.fetch;
     globalThis.fetch = (() => { fetchCalled = true; return Promise.reject(new Error('blocked')); }) as typeof fetch;
     try {
       render(<SearchBox channelId="ch-1" onResults={() => {}} />);
-      // No-op render path; don't change query.
+      // Render only; do not change the query.
       expect(fetchCalled).toBe(false);
     } finally {
       globalThis.fetch = origFetch;

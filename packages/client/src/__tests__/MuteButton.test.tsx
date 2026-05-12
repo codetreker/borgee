@@ -1,5 +1,5 @@
-// MuteButton.test.tsx — CHN-7.2 MuteButton DOM byte-identical + 文案锁
-// + 同义词反向 + click → muteChannel API call.
+// MuteButton.test.tsx — CHN-7.2 MuteButton DOM byte-identical checks,
+// locked Chinese labels, synonym rejection, and click → muteChannel API calls.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -22,8 +22,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('MuteButton — CHN-7.2 文案 + DOM 字面锁', () => {
-  it('未 mute 状态文案=`静音` data-action="mute"', () => {
+describe('MuteButton — CHN-7.2 locked labels and DOM literals', () => {
+  it('unmuted state renders label=`静音` and data-action="mute"', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<MuteButton channelId="c-1" muted={false} />);
@@ -33,7 +33,7 @@ describe('MuteButton — CHN-7.2 文案 + DOM 字面锁', () => {
     expect(btn.getAttribute('data-action')).toBe('mute');
   });
 
-  it('已 mute 状态文案=`取消静音` data-action="unmute"', () => {
+  it('muted state renders label=`取消静音` and data-action="unmute"', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<MuteButton channelId="c-1" muted={true} />);
@@ -79,7 +79,7 @@ describe('MuteButton — CHN-7.2 文案 + DOM 字面锁', () => {
     expect(spy).toHaveBeenCalledWith('c-1', false);
   });
 
-  it('反向断言 — 同义词 0 出现在 user-visible button text', () => {
+  it('synonym rejection: forbidden mute labels do not appear in user-visible button text', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(<MuteButton channelId="c-1" muted={false} />);
@@ -90,8 +90,7 @@ describe('MuteButton — CHN-7.2 文案 + DOM 字面锁', () => {
     for (const f of forbidden) {
       expect(text).not.toContain(f);
     }
-    // English 'mute' must not appear in the user-visible text (data-action
-    // 字面除外).
+    // English 'mute' must not appear in user-visible text; data-action is separate.
     expect(text.toLowerCase()).not.toContain('mute');
   });
 });

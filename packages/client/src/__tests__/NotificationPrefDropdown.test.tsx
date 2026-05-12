@@ -1,5 +1,5 @@
-// NotificationPrefDropdown.test.tsx — CHN-8.2 dropdown DOM byte-identical
-// + 三选一文案 + 同义词反向 + change → API call + NotifPref 三向锁.
+// NotificationPrefDropdown.test.tsx — CHN-8.2 dropdown DOM byte-identical checks,
+// three-option labels, synonym rejection, change → API call, and NotifPref alignment.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -30,8 +30,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('NotificationPrefDropdown — CHN-8.2 DOM + 文案锁', () => {
-  it('三选一 DOM byte-identical (所有消息 / 仅@提及 / 不打扰)', () => {
+describe('NotificationPrefDropdown — CHN-8.2 DOM and locked labels', () => {
+  it('three options remain byte-identical (所有消息 / 仅@提及 / 不打扰)', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(
@@ -75,7 +75,7 @@ describe('NotificationPrefDropdown — CHN-8.2 DOM + 文案锁', () => {
     expect(onChange).toHaveBeenCalledWith('mention');
   });
 
-  it('反向断言 — 同义词 0 出现在 user-visible options', () => {
+  it('synonym rejection: forbidden notification labels do not appear in user-visible options', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(
@@ -89,7 +89,7 @@ describe('NotificationPrefDropdown — CHN-8.2 DOM + 文案锁', () => {
     }
   });
 
-  it('NotifPref consts byte-identical 三向锁 + getNotifPref 谓词单源', () => {
+  it('NotifPref constants stay byte-identical with getNotifPref behavior', () => {
     expect(NOTIF_PREF_SHIFT).toBe(2);
     expect(NOTIF_PREF_MASK).toBe(3);
     expect(NOTIF_PREF_ALL).toBe(0);
@@ -100,7 +100,7 @@ describe('NotificationPrefDropdown — CHN-8.2 DOM + 文案锁', () => {
     expect(getNotifPref(8)).toBe(NOTIF_PREF_NONE); // bit 3 set
     expect(getNotifPref(null)).toBe(NOTIF_PREF_ALL);
     expect(getNotifPref(undefined)).toBe(NOTIF_PREF_ALL);
-    // bitmap isolation: bit 0/1 不影响
+    // Bitmap isolation: bits 0 and 1 do not affect notification preference.
     expect(getNotifPref(1 | 2)).toBe(NOTIF_PREF_ALL); // collapsed + mute, no pref
     expect(getNotifPref(1 | 4)).toBe(NOTIF_PREF_MENTION); // collapsed + mention
   });

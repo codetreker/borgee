@@ -1,5 +1,5 @@
-// PinnedChannelsSection.test.tsx — CHN-6.2 顶部 section DOM byte-identical
-// + filter byte-identical + empty state null + 同义词反向.
+// PinnedChannelsSection.test.tsx — CHN-6.2 top section DOM byte-identical checks,
+// pinned-channel filtering byte-identical invariant, empty state, and synonym rejection.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -35,7 +35,7 @@ function ch(id: string, name: string, position: number): Channel & { position: n
   } as unknown as Channel & { position: number };
 }
 
-describe('PinnedChannelsSection — CHN-6.2 DOM + 过滤 + empty state', () => {
+describe('PinnedChannelsSection — CHN-6.2 DOM, filtering, and empty state', () => {
   it('list rendering + DOM byte-identical', () => {
     const root = createRoot(container!);
     act(() => {
@@ -60,7 +60,7 @@ describe('PinnedChannelsSection — CHN-6.2 DOM + 过滤 + empty state', () => {
     expect(items.length).toBe(2);
   });
 
-  it('empty state — section 不渲染 (return null)', () => {
+  it('empty state renders no section', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(
@@ -73,14 +73,14 @@ describe('PinnedChannelsSection — CHN-6.2 DOM + 过滤 + empty state', () => {
     expect(section).toBeNull();
   });
 
-  it('PinThreshold byte-identical 双向锁 + isPinned 谓词单源', () => {
+  it('POSITION_PIN_THRESHOLD stays byte-identical with isPinned behavior', () => {
     expect(POSITION_PIN_THRESHOLD).toBe(0);
     expect(isPinned(-1)).toBe(true);
     expect(isPinned(0)).toBe(false);
     expect(isPinned(1)).toBe(false);
   });
 
-  it('反向断言 — 同义词 0 出现在 DOM', () => {
+  it('synonym rejection: forbidden pin labels do not appear in the DOM', () => {
     const root = createRoot(container!);
     act(() => {
       root.render(
