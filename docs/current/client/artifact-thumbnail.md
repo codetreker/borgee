@@ -1,18 +1,18 @@
-# ArtifactThumbnail — code/markdown 缩略 DOM contract
+# ArtifactThumbnail — code/markdown thumbnail DOM contract
 
-> **单一来源 pointer.** Component in
-> `packages/client/src/components/ArtifactThumbnail.tsx`. Vitest pins in
+> **单一来源指针.** Component in
+> `packages/client/src/components/ArtifactThumbnail.tsx`. Vitest 锁定在
 > `packages/client/src/__tests__/ArtifactThumbnail.test.tsx` (23 cases).
-> Sister component: `MediaPreview.tsx` (CV-2 v2) for image/video/pdf
-> kinds — 二端互斥.
+> Paired component: `MediaPreview.tsx` (CV-2 v2) handles image/video/pdf
+> kinds; the two rendering paths are mutually exclusive.
 
 ## Why
 
-CV-3 v2 closes the text-kind thumbnail loop on the client side —
-markdown / code artifacts get a 256x256 lazy `<img>` thumbnail (or
-icon-only fallback when `thumbnail_url` not yet generated). Server
-records `thumbnail_url` (CV-3 v2 server endpoint). HTML5 native + no
-client-side renderer libs.
+CV-3 v2 adds client-side thumbnails for text artifacts. markdown / code
+artifacts get a 256x256 lazy `<img>` thumbnail, or an icon-only fallback
+when `thumbnail_url` has not been generated yet. The server records
+`thumbnail_url` through the CV-3 v2 endpoint. Rendering uses native HTML5
+elements and does not add client-side renderer libraries.
 
 ## 原则 (cv-3-v2-spec.md §0)
 
@@ -22,7 +22,7 @@ client-side renderer libs.
 - **XSS 红线 #1 (https only).** 复用 `ImageLinkRenderer.isHttpsURL`
   byte-identical 跟 server `ValidateImageLinkURL` 同源. Non-https URL
   → fallback div, 不渲染 `<img>`.
-- **kind 闸 (2-tuple).** `THUMBNAILABLE_KINDS = ['markdown', 'code']`
+- **kind 限制 (2-tuple).** `THUMBNAILABLE_KINDS = ['markdown', 'code']`
   byte-identical 跟 server `ThumbnailableKinds` 同源 (vitest 双向锁定).
   其他 kind (image_link / video_link / pdf_link / unknown) → null
   (走 CV-2 v2 `MediaPreview` 既有 path, 二端互斥).
@@ -54,9 +54,8 @@ interface Props {
 - 内含 `<span class="artifact-thumbnail-icon" aria-hidden="true">`
   显 emoji icon: `📝` (markdown) / `💻` (code)
 
-CSS 盒子 (`.artifact-thumbnail-fallback`) 由 stylesheet 控制 256x256
-固定尺寸 + 居中 icon. icon emoji 是 ASCII-decoded Unicode, 不依赖外
-font.
+CSS 盒子 (`.artifact-thumbnail-fallback`) 由样式表控制：固定 256x256
+尺寸，并让 icon 居中。icon emoji 是 Unicode 文本，不依赖外部字体。
 
 ## XSS 红线 #1 fallback
 
@@ -90,9 +89,9 @@ PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
   `ValidateImageLinkURL` byte-identical 同源 (XSS 红线第一道).
 - DOM `data-thumbnail-kind` 二 enum byte-identical 跟 server endpoint
   spec 出处.
-- 不引入 client-side renderer 重 lib — 跟 CV-2 v2 `MediaPreview` 设计
+- 不引入 client-side renderer 大型依赖 — 跟 CV-2 v2 `MediaPreview` 设计
   ② "不引入 video.js/hls.js/dash.js/shaka-player/pdf.js/react-pdf" 同
-  精神 (grep 检查 package.json count==0 on `html2canvas|dom-to-image|
+  一原则 (grep 检查 package.json count==0 on `html2canvas|dom-to-image|
   puppeteer-client|shiki`).
 
 ## 不在范围

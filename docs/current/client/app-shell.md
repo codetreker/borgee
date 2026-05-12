@@ -1,14 +1,14 @@
 # Client AppShell — 三栏布局 + Artifact 分级展开 (current)
 
 > 出处: 蓝图 [`client-shape.md §1.2`](../../blueprint/current/client-shape.md) (主界面三栏 + Artifact 分级) · 实现 PR #601
-> 落点: `packages/client/src/components/AppShell.tsx` + `packages/client/src/lib/use_artifact_panel.ts`
+> 实现位置: `packages/client/src/components/AppShell.tsx` + `packages/client/src/lib/use_artifact_panel.ts`
 > 关联: 抽屉细节 [`artifact-drawer.md`](artifact-drawer.md) (右栏 drawer/split/fullscreen 渲染)
 
 ## 文件清单
 
 | 文件 | 角色 |
 |---|---|
-| `packages/client/src/components/AppShell.tsx` | 三栏 grid container; 据 `artifactMode` 派生 `grid-template-columns`; mobile (≤768px) 降级 |
+| `packages/client/src/components/AppShell.tsx` | 三栏 grid container; 根据 `artifactMode` 派生 `grid-template-columns`; mobile (≤768px) 降级 |
 | `packages/client/src/lib/use_artifact_panel.ts` | 4-态 state machine hook (`useArtifactPanel`); transition 谓词单一来源 |
 | `packages/client/src/components/ArtifactDrawer.tsx` | 右栏渲染容器 (mode != 'closed' 才挂 DOM); 详见 [`artifact-drawer.md`](artifact-drawer.md) |
 
@@ -24,7 +24,7 @@
 └──────────┴──────────────────┴───────────────────┘
 ```
 
-three-pane 字面单一来源, 反 inline 脱节.
+three-pane 字面是单一来源，避免 inline 文案分散后不一致.
 
 桌面 grid-template-columns (`computeGridColumns(mode, isMobile=false)`):
 
@@ -35,7 +35,7 @@ three-pane 字面单一来源, 反 inline 脱节.
 | `split`      | `240px 1fr 1fr` |
 | `fullscreen` | `240px 1fr` (artifact overlay 覆盖) |
 
-字面常量单一来源 (改 = 改一处, 反 inline 散落):
+字面常量单一来源 (改 = 改一处, 避免 inline 散落):
 
 | const | 字面 | 来源 |
 |---|---|---|
@@ -61,7 +61,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 | transition | API | 行为 |
 |---|---|---|
 | `closed → drawer`     | `open(artifactId)` | 仅当 `mode==='closed'`, 切到 `drawer` + 设 artifactId |
-| `drawer → split`      | `promoteToSplit()` | 仅当 `mode==='drawer'` 才升级; 返 `true` 表已 promoted |
+| `drawer → split`      | `promoteToSplit()` | 仅当 `mode==='drawer'` 才升级; 返回 `true` 表示已升级 |
 | `split → drawer`      | `demoteToDrawer()` | 仅当 `mode==='split'` 才降级 |
 | `* → closed`          | `close()` | 任意态 → closed, 清 artifactId |
 | `drawer/split/fullscreen → fullscreen` | `setFullscreen(true)` | mobile 降级; closed 态保持 closed |
@@ -82,7 +82,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 
 `AppShell` 接 `isMobile: boolean` prop (caller 据 viewport breakpoint 算):
 - 三栏 → 单栏 (`grid-template-columns: 1fr`); 主区 full width
-- 侧栏 → overlay drawer; 走 `sidebarOpen` + `onSidebarClose` props 控制
+- 侧栏 → overlay drawer; 由 `sidebarOpen` + `onSidebarClose` props 控制
 - artifact split → 全屏 modal (`mode='fullscreen'`); `role="dialog" aria-modal="true"`
 
 ## DOM 出处 (改 = 改两处: 此组件 + acceptance template)
@@ -90,8 +90,8 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 | 出处 | 来源 |
 |---|---|
 | `div.app-shell[data-testid="app-shell"]`              | AppShell 根 |
-| `div[data-artifact-mode="closed\|drawer\|split\|fullscreen"]` | 4-态 真值 attr |
-| `div[data-mobile="true\|false"]`                      | viewport 真值 |
+| `div[data-artifact-mode="closed\|drawer\|split\|fullscreen"]` | 4-态真实值 attr |
+| `div[data-mobile="true\|false"]`                      | viewport 真实值 |
 | `div[data-testid="app-shell-sidebar"]`                | 侧栏 |
 | `div[data-testid="app-shell-main"]`                   | 主区 |
 | `div[data-testid="app-shell-artifact-column"]`        | drawer/split 时挂 |
@@ -102,7 +102,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 
 | 出处 | 期望 |
 |---|---|
-| `useArtifactPanel` 调用 单一来源 | 仅 AppShell 顶层 caller 一处 (反 hook 散落) |
+| `useArtifactPanel` 调用 单一来源 | 仅 AppShell 顶层 caller 一处 (避免 hook 调用分散) |
 | `setMode\(['"]split['"]\)` 直调 | 仅 useArtifactPanel.ts 内部一处 (caller 走 `promoteToSplit()`) |
-| inline `'240px 1fr 380px'` 字面 | 仅 `computeGridColumns` 内一处 (反 inline 脱节) |
+| inline `'240px 1fr 380px'` 字面 | 仅 `computeGridColumns` 内一处 (避免 inline 字面分散后不一致) |
 | `closed → split` 直接 transition | 0 hit (反向约束硬性强制) |
