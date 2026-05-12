@@ -1,18 +1,18 @@
-# Client AppShell — 三栏布局 + Artifact 分级展开 (current)
+# Client AppShell — three-pane layout + Artifact staged expansion (current)
 
-> 出处: 蓝图 [`client-shape.md §1.2`](../../blueprint/current/client-shape.md) (主界面三栏 + Artifact 分级) · 实现 PR #601
-> 实现位置: `packages/client/src/components/AppShell.tsx` + `packages/client/src/lib/use_artifact_panel.ts`
-> 关联: 抽屉细节 [`artifact-drawer.md`](artifact-drawer.md) (右栏 drawer/split/fullscreen 渲染)
+> Source: blueprint [`client-shape.md §1.2`](../../blueprint/current/client-shape.md) (main three-pane UI + Artifact staged expansion) · implementation PR #601
+> Implementation: `packages/client/src/components/AppShell.tsx` + `packages/client/src/lib/use_artifact_panel.ts`
+> Related: drawer details in [`artifact-drawer.md`](artifact-drawer.md) (right-pane drawer/split/fullscreen rendering)
 
-## 文件清单
+## File List
 
-| 文件 | 角色 |
+| File | Role |
 |---|---|
-| `packages/client/src/components/AppShell.tsx` | 三栏 grid layout container; 根据 `artifactMode` 派生 `grid-template-columns`; mobile (≤768px) 降级 |
-| `packages/client/src/lib/use_artifact_panel.ts` | 4-态 state machine hook (`useArtifactPanel`); transition 谓词单一来源 |
-| `packages/client/src/components/ArtifactDrawer.tsx` | 右栏渲染容器 (mode != 'closed' 才挂 DOM); 详见 [`artifact-drawer.md`](artifact-drawer.md) |
+| `packages/client/src/components/AppShell.tsx` | Three-pane grid layout container; derives `grid-template-columns` from `artifactMode`; mobile fallback at ≤768px |
+| `packages/client/src/lib/use_artifact_panel.ts` | 4-state state-machine hook (`useArtifactPanel`); single source for transition predicates |
+| `packages/client/src/components/ArtifactDrawer.tsx` | Right-pane render container (mounts DOM only when mode != 'closed'); see [`artifact-drawer.md`](artifact-drawer.md) |
 
-## 三栏布局 (蓝图 §1.2 byte-identical)
+## Three-Pane Layout (blueprint §1.2 byte-identical)
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -24,85 +24,85 @@
 └──────────┴──────────────────┴───────────────────┘
 ```
 
-three-pane 字面是单一来源，避免 literal 文案分散后不一致.
+The three-pane literal is the single source, avoiding inconsistent scattered literal copy.
 
-桌面 grid-template-columns (`computeGridColumns(mode, isMobile=false)`):
+Desktop grid-template-columns (`computeGridColumns(mode, isMobile=false)`):
 
 | `artifactMode` | grid-template-columns |
 |---|---|
 | `closed`     | `240px 1fr` |
 | `drawer`     | `240px 1fr 380px` |
 | `split`      | `240px 1fr 1fr` |
-| `fullscreen` | `240px 1fr` (artifact overlay 覆盖) |
+| `fullscreen` | `240px 1fr` (artifact overlay covers it) |
 
-字面常量单一来源 (改 = 改一处, 避免 literal values 散落):
+Single source for literal constants (change one place, avoiding scattered literal values):
 
-| const | 字面 | 来源 |
+| const | Literal | Source |
 |---|---|---|
-| `APP_SHELL_DESKTOP_SIDEBAR`    | `240` (px) | 蓝图 §1.2 |
-| `APP_SHELL_DESKTOP_DRAWER`     | `380` (px) | 蓝图 §1.2 |
-| `APP_SHELL_MOBILE_BREAKPOINT`  | `768` (px) | 蓝图 §1.2 |
+| `APP_SHELL_DESKTOP_SIDEBAR`    | `240` (px) | blueprint §1.2 |
+| `APP_SHELL_DESKTOP_DRAWER`     | `380` (px) | blueprint §1.2 |
+| `APP_SHELL_MOBILE_BREAKPOINT`  | `768` (px) | blueprint §1.2 |
 
-## 4-态 state machine (蓝图 §1.2 Artifact 分级展开 byte-identical)
+## 4-State State Machine (blueprint §1.2 Artifact staged expansion byte-identical)
 
 ```
 ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 ```
 
-| 态 | 触发 | 渲染 |
+| State | Trigger | Rendering |
 |---|---|---|
-| `closed`     | 初始 / `close()` | 右栏不渲染 (grid 仅 2 列) |
-| `drawer`     | 首次点击 artifact 引用 → `open(id)` | 右侧 380px 抽屉 (轻量预览) |
-| `split`      | drawer 拖拽 OR 二次点击 → `promoteToSplit()` | 主区 + artifact 各 50/50 |
-| `fullscreen` | mobile (≤768px) 降级 → `setFullscreen(true)` | 全屏 modal (overlay) |
+| `closed`     | initial / `close()` | right pane does not render (grid has only 2 columns) |
+| `drawer`     | first click on artifact reference → `open(id)` | right-side 380px drawer (lightweight preview) |
+| `split`      | drawer drag OR second click → `promoteToSplit()` | main area + artifact are each 50/50 |
+| `fullscreen` | mobile fallback (≤768px) → `setFullscreen(true)` | fullscreen modal (overlay) |
 
-### 合法 transition 单一来源 (`useArtifactPanel` hook)
+### Legal Transition Single Source (`useArtifactPanel` hook)
 
-| transition | API | 行为 |
+| transition | API | Behavior |
 |---|---|---|
-| `closed → drawer`     | `open(artifactId)` | 仅当 `mode==='closed'`, 切到 `drawer` + 设 artifactId |
-| `drawer → split`      | `promoteToSplit()` | 仅当 `mode==='drawer'` 才升级; 返回 `true` 表示已升级 |
-| `split → drawer`      | `demoteToDrawer()` | 仅当 `mode==='split'` 才降级 |
-| `* → closed`          | `close()` | 任意态 → closed, 清 artifactId |
-| `drawer/split/fullscreen → fullscreen` | `setFullscreen(true)` | mobile 降级; closed 态保持 closed |
-| `fullscreen → drawer` | `setFullscreen(false)` | mobile 退出全屏 |
+| `closed → drawer`     | `open(artifactId)` | only when `mode==='closed'`; switch to `drawer` + set artifactId |
+| `drawer → split`      | `promoteToSplit()` | only upgrades when `mode==='drawer'`; returns `true` when upgraded |
+| `split → drawer`      | `demoteToDrawer()` | only demotes when `mode==='split'` |
+| `* → closed`          | `close()` | any state → closed, clear artifactId |
+| `drawer/split/fullscreen → fullscreen` | `setFullscreen(true)` | mobile fallback; closed state remains closed |
+| `fullscreen → drawer` | `setFullscreen(false)` | mobile exits fullscreen |
 
-**反向约束** (spec §0 ②):
-- `closed → split` 直接 reject (`promoteToSplit()` 在 `mode==='closed'` 时 no-op + 返 `false`) — 必先经 drawer
-- grep 检查: `SplitView.*directOpen|artifact.*autoSplit|setMode\(['"]split['"]\)` 仅命中 ArtifactDrawer drag handler 一处
+**Reverse constraint** (spec §0 ②):
+- Direct `closed → split` is rejected (`promoteToSplit()` is a no-op and returns `false` when `mode==='closed'`) — must pass through drawer first
+- Grep check: `SplitView.*directOpen|artifact.*autoSplit|setMode\(['"]split['"]\)` only matches the ArtifactDrawer drag handler
 
-### `open(artifactId)` 行为细则
+### `open(artifactId)` Behavior Details
 
-| `prev.mode` | 新 `mode` | artifactId |
+| `prev.mode` | New `mode` | artifactId |
 |---|---|---|
-| `closed` | `drawer` | 设新 id |
-| `drawer` / `split` / `fullscreen` | 不变 | 仅切 id (复用既有 mode, 不退栈) |
+| `closed` | `drawer` | set new id |
+| `drawer` / `split` / `fullscreen` | unchanged | only switch id (reuse existing mode, do not pop state) |
 
-## 移动 (≤768px) 降级
+## Mobile Fallback (≤768px)
 
-`AppShell` 接 `isMobile: boolean` prop (calling component 据 viewport breakpoint 算):
-- 三栏 → 单栏 (`grid-template-columns: 1fr`); 主区 full width
-- 侧栏 → overlay drawer; 由 `sidebarOpen` + `onSidebarClose` props 控制
-- artifact split → 全屏 modal (`mode='fullscreen'`); `role="dialog" aria-modal="true"`
+`AppShell` accepts `isMobile: boolean` prop (calling component calculates it from viewport breakpoint):
+- three-pane → single-pane (`grid-template-columns: 1fr`); main area is full width
+- sidebar → overlay drawer; controlled by `sidebarOpen` + `onSidebarClose` props
+- artifact split → fullscreen modal (`mode='fullscreen'`); `role="dialog" aria-modal="true"`
 
-## DOM 出处 (改 = 改两处: 此组件 + acceptance template)
+## DOM Sources (change two places: this component + acceptance template)
 
-| 出处 | 来源 |
+| Source | Origin |
 |---|---|
-| `div.app-shell[data-testid="app-shell"]`              | AppShell 根 |
-| `div[data-artifact-mode="closed\|drawer\|split\|fullscreen"]` | 4-态真实值 attr |
-| `div[data-mobile="true\|false"]`                      | viewport 真实值 |
-| `div[data-testid="app-shell-sidebar"]`                | 侧栏 |
-| `div[data-testid="app-shell-main"]`                   | 主区 |
-| `div[data-testid="app-shell-artifact-column"]`        | drawer/split 时挂 |
-| `div[data-testid="app-shell-artifact-fullscreen"]`    | fullscreen 时挂 (`role="dialog"`) |
-| `div[data-testid="app-shell-sidebar-overlay"]`        | mobile 侧栏 overlay |
+| `div.app-shell[data-testid="app-shell"]`              | AppShell root |
+| `div[data-artifact-mode="closed\|drawer\|split\|fullscreen"]` | real 4-state attribute value |
+| `div[data-mobile="true\|false"]`                      | real viewport value |
+| `div[data-testid="app-shell-sidebar"]`                | sidebar |
+| `div[data-testid="app-shell-main"]`                   | main area |
+| `div[data-testid="app-shell-artifact-column"]`        | mounted during drawer/split |
+| `div[data-testid="app-shell-artifact-fullscreen"]`    | mounted during fullscreen (`role="dialog"`) |
+| `div[data-testid="app-shell-sidebar-overlay"]`        | mobile sidebar overlay |
 
-## grep 守门
+## Grep Checks
 
-| 出处 | 期望 |
+| Source | Expected |
 |---|---|
-| `useArtifactPanel` 调用 单一来源 | 仅 AppShell 顶层 calling component 一处 (避免 hook 调用分散) |
-| `setMode\(['"]split['"]\)` 直调 | 仅 useArtifactPanel.ts 内部一处 (caller 走 `promoteToSplit()`) |
-| inline `'240px 1fr 380px'` 字面 | 仅 `computeGridColumns` 内一处 (避免 literal 字面分散后不一致) |
-| `closed → split` 直接 transition | 0 hit (反向约束硬性强制) |
+| `useArtifactPanel` call single source | only one top-level AppShell calling component (avoid scattered hook calls) |
+| direct `setMode\(['"]split['"]\)` call | only one internal useArtifactPanel.ts call (caller uses `promoteToSplit()`) |
+| inline `'240px 1fr 380px'` literal | only one occurrence inside `computeGridColumns` (avoid inconsistent scattered literal values) |
+| direct `closed → split` transition | 0 hits (hard reverse constraint) |
