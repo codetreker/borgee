@@ -1,7 +1,7 @@
 # Data Layer — 总账与分布式 ready
 
 > 数据层汇总前 9 轮架构决策。本文规范数据要素、events 模型、迁移策略、存储路径，以及**v1 为分布式部署做好准备的边界**。
-> 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。前置阅读：所有 design 文档（本文是它们的数据汇总）。
+> 状态：目标态已对齐（2026-04-27）。前置阅读：所有 design 文档（本文是它们的数据汇总）。
 
 ## 0. 一句话定义
 
@@ -44,7 +44,7 @@
 |-------|------|------|
 | `user_permissions(user_id, permission, scope)` | [auth-permissions §1.1](auth-permissions.md) | ABAC 存储 |
 | `user_permissions.expires_at` | auth-permissions §1.2 | 列预留，UI 不暴露 |
-| `permission_grants` 历史 | auth-permissions（野马补充） | 用户半年后回查"何时授权"——长期保留 |
+| `permission_grants` 历史 | auth-permissions（授权审计补充） | 用户半年后回查"何时授权"——长期保留 |
 
 ### 2.3 Channel & Workspace
 
@@ -53,7 +53,7 @@
 | `channels`（type, visibility, group_id, deleted_at） | [channel-model](channel-model.md) | DM 复用 type='dm' |
 | `channel_groups` | channel-model §1.4 | 作者定义，全 org 共享 |
 | `user_channel_layout(user_id, channel_id, collapsed, position)` | channel-model §1.4 | 个人折叠/排序 |
-| `channel_members.last_read_at` | 野马补充 | 未读小红点唯一数据源 |
+| `channel_members.last_read_at` | channel 未读状态补充 | 未读小红点唯一数据源 |
 
 ### 2.4 Artifact / 协作产出
 
@@ -103,7 +103,7 @@
 
 | 表/列 | 来源 | 备注 |
 |-------|------|------|
-| `invitations(code, role, invited_by, used_by, expires_at)` | 野马补充，对应 PRD P4 | 跟 admin_grants 语义不同 |
+| `invitations(code, role, invited_by, used_by, expires_at)` | 注册 / 邀请补充，对应 PRD P4 | 跟 admin_grants 语义不同 |
 
 ### 2.10 不入库的概念
 
@@ -159,7 +159,7 @@ cursor 协议同形（`kind + ulid`），客户端按订阅集合 merge。
 
 ### 3.4 Global events 必落清单（产品硬要求）
 
-不能泛指"全局事件"，必须点名——这是 [admin-model §1.4](admin-model.md) 隐私契约的承载：
+不能泛指"全局事件"，必须明确列出——这是 [admin-model §1.4](admin-model.md) 隐私契约的承载：
 
 | 必须写入的 kind | 理由 |
 |-----------|------|
@@ -180,7 +180,7 @@ cursor 协议同形（`kind + ulid`），客户端按订阅集合 merge。
 |---|------|-----------|
 | 1 | **ID 方案 = ULID**（所有业务表主键，禁 INTEGER PK） | 分布式无冲突 + cursor 单调 |
 | 2 | **Cursor 协议 = opaque string**，服务端编码不外露 | 切换 cursor 实现不破坏协议 |
-| 3 | ⭐ **artifact.version = opaque string** | v1 把 INTEGER 转成字符串返回（单写者串行），未来改用 HLC 不破坏协议——**协议约束的代表案例**（野马点名） |
+| 3 | ⭐ **artifact.version = opaque string** | v1 把 INTEGER 转成字符串返回（单写者串行），未来改用 HLC 不破坏协议——**协议约束的代表案例** |
 | 4 | **events lex_id = ULID** | 同 #1 |
 | 5 | **EventBus interface**（Publish/Subscribe），v1 实现 in-process map | 未来换 NATS/Redis 不动业务 |
 
