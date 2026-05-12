@@ -1,4 +1,4 @@
-# server-go — 后端设计
+# server-go — backend design
 
 代码位置：`/workspace/borgee/packages/server-go/`
 
@@ -15,30 +15,30 @@ server.New(cfg, store)  # 装配 router + middleware
 http.Server.Serve       # 0.0.0.0:4900
 ```
 
-`SIGINT/SIGTERM` 触发 15s 超时的 graceful shutdown。
+`SIGINT/SIGTERM` triggers graceful shutdown with a 15s timeout.
 
 ### 配置项 (`internal/config/config.go`)
 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `PORT` | `4900` | 监听端口 |
-| `HOST` | `0.0.0.0` | bind 地址 |
-| `NODE_ENV` | `""` | `"development"` 时启用 dev 行为 |
+| `HOST` | `0.0.0.0` | bind address |
+| `NODE_ENV` | `""` | enables dev behavior when set to `"development"` |
 | `LOG_LEVEL` | `info` | debug/info/warn/error |
 | `CORS_ORIGIN` | `https://borgee.codetrek.cn` | prod 单一允许 origin（dev 反射 Origin） |
 | `DATABASE_PATH` | `data/collab.db` | SQLite 文件 |
 | `UPLOAD_DIR` | `data/uploads` | 上传目录 |
 | `WORKSPACE_DIR` | `data/workspaces` | per-channel workspace 文件根 |
 | `CLIENT_DIST` | `packages/client/dist` | SPA 静态资源 |
-| `JWT_SECRET` | dev 时 `dev-secret` | prod 必填，否则 `Validate()` 报错 |
-| `DEV_AUTH_BYPASS` | `false` | 仅 dev：允许 `X-Dev-User-Id` 头 |
+| `JWT_SECRET` | dev 时 `dev-secret` | required in prod, otherwise `Validate()` returns an error |
+| `DEV_AUTH_BYPASS` | `false` | dev only: allows `X-Dev-User-Id` header |
 | `ADMIN_USER` / `ADMIN_PASSWORD` | 空 | **已废弃**（ADM-0.1+ 用 `BORGEE_ADMIN_LOGIN` + `BORGEE_ADMIN_PASSWORD_HASH`），保留供过渡期日志参考 |
 | `BORGEE_ADMIN_LOGIN` | — | ADM-0.1：admin bootstrap 登录名，缺 → fail-loud |
 | `BORGEE_ADMIN_PASSWORD_HASH` | — | ADM-0.1：bcrypt hash，缺 → fail-loud |
 
 ## 2. HTTP 层
 
-- **路由**：标准库 `http.ServeMux`（Go 1.22 新增 `"GET /api/v1/...{id}"` 模式语法），**没有引入第三方 router**。
+- **Routing**: standard-library `http.ServeMux` (Go 1.22 pattern syntax such as `"GET /api/v1/...{id}"`), with no third-party router.
 - **Middleware 链**（`internal/server/middleware.go`，外到内）：
   1. `recoverMiddleware` — panic → 500 + 堆栈日志。
   2. `requestIDMiddleware` — 注入 UUID `X-Request-ID`。
@@ -46,7 +46,7 @@ http.Server.Serve       # 0.0.0.0:4900
   4. `corsMiddleware` — dev 反射 Origin，prod 只允许 `CORS_ORIGIN`，`Allow-Credentials: true`，处理 OPTIONS。
   5. `securityHeadersMiddleware` — `X-Content-Type-Options`、`X-Frame-Options: DENY` 等。
   6. `rateLimitMiddleware` — 基于 client IP 的 token bucket，`/api/v1/auth/register` 10/min，其余 100/min；后台每 5 分钟清理旧桶。
-- **静态资源**：`cfg.ClientDist` 下的文件直接 serve，不带后缀的路径回退到 `index.html`/`admin.html`，实现 SPA fallback。
+- **Static assets**: files under `cfg.ClientDist` are served directly; extensionless paths fall back to `index.html`/`admin.html` for SPA routing.
 
 ## 3. Auth
 
@@ -60,19 +60,19 @@ http.Server.Serve       # 0.0.0.0:4900
 
 `POST /api/v1/poll` 还接受 body 里的 `api_key` 字段，方便 plugin 长连。
 
-**Dev bypass 行为细节**（`internal/auth/middleware.go:56–74`）：
-启用后顺序为
+**Dev bypass behavior** (`internal/auth/middleware.go:56–74`):
+When enabled, resolution order is:
 1. `X-Dev-User-Id: <uid>` 头存在 → 以该 user 通过；
 2. 否则**没有任何凭证**也会通过，自动选第一个 `role="admin"` 的 user。
 
-也就是说在 dev 模式下根本不带 cookie 也能直接访问 API。**生产 / staging 千万不要打开**。
+In dev mode, API access can succeed without a cookie. **Do not enable this in production or staging**.
 
 **Admin auth 完全独立**（ADM-0.1 + ADM-0.2 原则）：
 
 - 凭证表：`admins` 表（ADM-0.1），bcrypt hash；bootstrap 由 `BORGEE_ADMIN_LOGIN` + `BORGEE_ADMIN_PASSWORD_HASH` 环境变量 fail-loud 注入（缺一启动失败）。
 - Cookie：`borgee_admin_session`，值是 32 字节随机 hex token，**不**是 admin id。`admin_sessions(token PK, admin_id, created_at, expires_at)` 表反查（ADM-0.2 §1）。
 - 中间件 `admin.RequireAdmin` 只解 `borgee_admin_session` cookie / Bearer，找不到 session 或过期 → 401。
-- 二轨完全隔离：user-rail (`borgee_token`) **永远不**授权 `/admin-api/*`；admin-rail (`borgee_admin_session`) **永远不**授权 `/api/v1/*`。`/api/v1/admin/*` 这条 god-mode 旧挂载在 ADM-0.2 已删除，无任何 user-API 路径上需要 admin 权限。
+- two rails are fully isolated: user-rail (`borgee_token`) never authorizes `/admin-api/*`; admin-rail (`borgee_admin_session`) never authorizes `/api/v1/*`. The legacy privileged `/api/v1/admin/*` mount was removed in ADM-0.2, and no user-API path requires admin permission.
 - 字段白名单：`/admin-api/v1/{stats,users,invites,channels}` response 只回元数据（id / created_at / role / counts），**禁止**出现 `body|content|text|artifact` 等业务正文字段（`internal/admin/handlers_field_whitelist_test.go` 反射扫描守门）。
 
 **权限**（PRD F1 + AP-0 Phase 1 设计）：

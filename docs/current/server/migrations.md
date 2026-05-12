@@ -1,10 +1,10 @@
-# schema_migrations 框架 — 现状
+# schema_migrations framework — current state
 
 > Phase 0 / INFRA-1a 引入。Blueprint: data-layer §3.2 forward-only versioned migrations。
 
-## 1. 两套并行机制 (v0 过渡期)
+## 1. Two Parallel Mechanisms (v0 transition)
 
-server-go 启动时按以下顺序跑数据库初始化:
+server-go initializes the database in this order:
 
 ```
 store.Open(cfg.DatabasePath)        # 打开 sqlite + WAL + FK ON
@@ -12,9 +12,9 @@ store.Migrate()                     # 旧的 big-bang: createSchema + applyColum
 migrations.Default(db).Run(0)       # INFRA-1a: 版本化迁移引擎, 跑所有 Pending
 ```
 
-**为什么并行**: v0 不删旧 schema, 但 Phase 1+ 所有新 schema 改动都进 `internal/migrations/registry.go` 的 `All` 列表, 不再继续往 `createSchema` 里塞 DDL。这给了 v1 切换时一个清晰的"形迁分裂点"。
+**Why both exist**: v0 keeps the legacy schema path, but every Phase 1+ schema change goes into the `All` list in `internal/migrations/registry.go` instead of adding more DDL to `createSchema`. This creates a clear cutover point for the v1 migration path.
 
-## 2. 表结构
+## 2. Table Shape
 
 ```sql
 CREATE TABLE schema_migrations (
@@ -24,14 +24,14 @@ CREATE TABLE schema_migrations (
 );
 ```
 
-每条已 apply 的迁移留一行。Engine 启动时读这张表算出 Pending。
+Each applied migration writes one row. On startup, the engine reads this table to compute pending migrations.
 
-## 3. 编写约束
+## 3. Authoring Constraints
 
-- `Version` 严格递增正整数, 不可重用 / 不可重排。
-- 一旦 migration 进 main, **body 不可再编辑**, 改 schema = 追加新 migration。
-- 没有 `Down()`。v0 出错"删库重建"; v1 靠 backup restore (见 README §阶段策略)。
-- 每条 migration 跑在独立 transaction 内。失败回滚, **不会**写 `schema_migrations` 行。
+- `Version` must be a strictly increasing positive integer; versions must not be reused or reordered.
+- Once a migration lands on main, its body must not be edited. Schema changes require a new migration.
+- There is no `Down()`. v0 recovery is database recreation; v1 recovery uses backup restore (see README §阶段策略).
+- Each migration runs in its own transaction. On failure it rolls back and does not write a `schema_migrations` row.
 
 ## 4. CLI
 
@@ -50,9 +50,9 @@ borgee-migrate status            # applied vs pending
 - 单测: `internal/migrations/migrations_test.go` (≥80%, 覆盖 ascending / 幂等 / target / rollback / 重复版本 / 校验)。
 - Seed 契约: `internal/migrations/testdata/infra-1a/seed.sql` (Phase 0 留空, Phase 1+ 按需填)。
 
-## 6. 与旧 Store.Migrate() 的迁移路径
+## 6. Migration Path From Store.Migrate()
 
-Phase 1 CM-1 (organizations 表) **必须** 走新引擎, 不进 `createSchema`。`Store.Migrate()` 内部 backfill 函数在 v1 切换前评估迁出。
+Phase 1 CM-1 (organizations table) must use the new engine and must not be added to `createSchema`. `Store.Migrate()` backfill functions will be evaluated for migration before the v1 cutover.
 
 ## 7. 已注册迁移清单
 

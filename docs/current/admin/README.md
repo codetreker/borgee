@@ -1,19 +1,19 @@
-# Admin — 后台管理面
+# Admin — management surface
 
-> Phase 2 R3 锁: ADM-0.1 (#197) + ADM-0.2 (#201) + ADM-0.3 (#223) 串成 admin 完全独立子系统. user-rail 与 admin-rail **双轨彻底分裂**, 不再有"role=admin 的普通用户"这种重叠态.
+> Phase 2 R3 lock: ADM-0.1 (#197) + ADM-0.2 (#201) + ADM-0.3 (#223) define admin as a fully independent subsystem. user-rail and admin-rail are fully separated; there is no longer an overlapping "normal user with role=admin" state.
 
-Borgee 的 admin 面是一个**独立子系统**: 不同 SPA 入口 (`admin.html`), 不同 cookie (`borgee_admin_session`), 不同鉴权中间件 (`admin.RequireAdmin`), 不同凭证表 (`admins`). 本文讲清 server + client 双侧实现.
+Borgee's admin surface is an **independent subsystem**: separate SPA entry (`admin.html`), separate cookie (`borgee_admin_session`), separate auth middleware (`admin.RequireAdmin`), and separate credential table (`admins`). This document covers both server and client implementation.
 
-## 0. 单一 admin 入口 (ADM-0.2 后)
+## 0. Single Admin Entry Point (after ADM-0.2)
 
 | 前缀 | 鉴权 | 谁用 |
 |------|------|------|
 | `/admin-api/v1/*` | `admin.RequireAdmin` (`borgee_admin_session` cookie / Bearer) | admin SPA (`admin.html`) |
 | `/admin-api/auth/{login,logout,me}` | 同上 (login 例外) | admin SPA 登录路径 |
 
-**ADM-0.2 砍掉的旧入口 (不要再以为它们存在)**:
+**Legacy entries removed by ADM-0.2**:
 
-- ❌ `/api/v1/admin/*` god-mode 旧挂载 (`AdminHandler.RegisterAppRoutes` 已移除, `internal/server/auth_isolation_test.go` 反向断言 → 404)
+- ❌ `/api/v1/admin/*` legacy privileged mount (`AdminHandler.RegisterAppRoutes` removed; `internal/server/auth_isolation_test.go` asserts 404)
 - ❌ `internal/api/admin_auth.go` (旧 JWT + `borgee_admin_token` cookie 路径) — 文件已删
 - ❌ `auth.RequirePermission` 里 `users.role == "admin"` 短路 — ADM-0.2 删除
 - ❌ `users.role='admin'` 行 — ADM-0.3 (v=10) 4 步 backfill 后 **count=0** (顺序锁: admins INSERT → sessions DELETE → user_permissions DELETE → users DELETE; 单事务)
@@ -31,20 +31,20 @@ CREATE TABLE admins (
 );
 ```
 
-**红线 (review checklist §ADM-0.1)**: `admins` 表**不准**多 `org_id / role / is_admin / email` 字段. admin 不在任何 org, 不通过 promote 产生.
+**Review rule (checklist §ADM-0.1)**: the `admins` table must not add `org_id / role / is_admin / email` fields. Admins are not in any org and are not created through promotion.
 
 ### Bootstrap
 
-`cmd/collab/main.go` 启动调 `internal/admin.Bootstrap(db)`, 读 env:
+`cmd/collab/main.go` calls `internal/admin.Bootstrap(db)` at startup and reads these env vars:
 
 | env | 缺失行为 |
 |-----|---------|
 | `BORGEE_ADMIN_LOGIN` | fail-loud panic |
-| `BORGEE_ADMIN_PASSWORD_HASH` | fail-loud panic; 非 bcrypt 串或 cost < 10 也 panic |
+| `BORGEE_ADMIN_PASSWORD_HASH` | fail-loud panic; non-bcrypt value or cost < 10 also panics |
 
-`INSERT OR IGNORE` 落第一个 admin. 已存在 (login UNIQUE) → 跳过.
+`INSERT OR IGNORE` creates the first admin. If it already exists (login UNIQUE), bootstrap skips it.
 
-> 旧 env `ADMIN_USER` / `ADMIN_PASSWORD` **已废弃**. `config.go` 仍读取以兼容过渡期日志参考, bootstrap 路径完全不看.
+> Legacy env vars `ADMIN_USER` / `ADMIN_PASSWORD` are **deprecated**. `config.go` still reads them for transitional log context, but bootstrap ignores them.
 
 ### Login + Session (ADM-0.2, v=5)
 
@@ -55,7 +55,7 @@ CREATE TABLE admins (
 - 写 cookie `borgee_admin_session`: `HttpOnly; SameSite=Lax; MaxAge=604800; Path=/`, prod 非 localhost 加 `Secure`
 - raw token 同时 JSON body 返回 (Bearer 兼容)
 
-**红线**: cookie 值**必须**是 token (不是 admin id / login / email / 任何可枚举值). `internal/admin/auth.go::ResolveSession` 是 cookie → admin 的唯一通路.
+**Invariant**: cookie value must be the token, not admin id / login / email / any enumerable value. `internal/admin/auth.go::ResolveSession` is the only cookie → admin path.
 
 ### 中间件 `admin.RequireAdmin` (`middleware.go`)
 
@@ -63,15 +63,15 @@ CREATE TABLE admins (
 2. 没有再看 `Authorization: Bearer <token>`;
 3. 查 `admin_sessions` 表 (token + 未过期), 找到对应 admin → 注入 context. 否则 401.
 
-### 隔离单测 (反向断言)
+### Isolation Unit Tests
 
 - `internal/admin/middleware_test.go` — `borgee_token` (user cookie) 喂 `/admin-api/v1/orgs` → 401
-- `internal/server/auth_isolation_test.go` — `/api/v1/admin/users` (旧 god-mode) → 404
+- `internal/server/auth_isolation_test.go` — `/api/v1/admin/users` (legacy privileged path) → 404
 - `internal/admin/handlers_field_whitelist_test.go` — `/admin-api/v1/{stats,users,invites,channels}` 反射扫 response, 出现 `body|content|text|artifact` 等业务正文字段 → red
 
 ### 包级 import 隔离
 
-`internal/admin/` 包**禁止 import** `internal/auth/`. grep enforce + 单测兜底.
+`internal/admin/` must not import `internal/auth/`. grep enforces this, with unit-test coverage as a fallback.
 
 ## 2. Server 路由
 
@@ -91,7 +91,7 @@ CREATE TABLE admins (
 | POST/PATCH/DELETE | `/admin-api/v1/users/...` | role 硬锁 `member`, 软删, agent 级联禁用 |
 | `*` | `/admin-api/v1/{invites,channels,...}` | response sanitizer 只回元数据 |
 
-> ADM-0.2 砍掉 god-mode 后, admin **看不到**消息 body / artifact / content. 字段白名单单测保护.
+> After ADM-0.2 removed the legacy privileged path, admin responses do not expose message body / artifact / content fields. Field allow-list unit tests enforce this.
 
 ## 3. Client SPA (`packages/client/src/admin/`)
 
@@ -111,9 +111,9 @@ CREATE TABLE admins (
 | `InvitesPage.tsx` | `/admin/invites` | `GET/POST/DELETE /invites` |
 | `SettingsPage.tsx` | `/admin/settings` | session 信息 + logout |
 
-**SPA 缺失/有意为之**:
-- 没有"创建 admin"按钮 (admin 只能由 env bootstrap 决定)
-- 没有 admin-only WebSocket 通道 (admin SPA 不订阅 `/ws`)
+**Intentionally absent from the SPA**:
+- no "create admin" button; admins are created only by env bootstrap
+- no admin-only WebSocket channel; admin SPA does not subscribe to `/ws`
 
 ## 4. 与 PRD 的对应
 
@@ -121,7 +121,7 @@ PRD F1: admin = 全权运维 + 不在 org 内. 代码层:
 
 - **唯一 admin 路径**: `admins` 表 + `borgee_admin_session` cookie + `/admin-api/*` 路由
 - **唯一 user 路径**: `users` 表 + `borgee_token` JWT + `/api/v1/*` 路由 (role ∈ `{member, agent}`)
-- 两条**永不交叉**, 单测 + middleware + migration 三层 enforce
+- the two paths never cross, enforced by unit tests, middleware, and migrations
 
 ## 5. 风险与注意
 
