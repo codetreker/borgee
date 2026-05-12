@@ -33,6 +33,8 @@ The UI map explains where a maintainer should place or reason about a user-facin
 
 It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns.
 
+For a terminal-style layout companion to this hierarchy, see `wireframes.md`. Those sketches show the same surfaces as maps, not as exact UI specifications.
+
 ## Surface Placement Rules
 
 | Question | Architectural answer |

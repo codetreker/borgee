@@ -53,6 +53,55 @@ Login is a two-step browser flow: submit credentials to the admin auth endpoint,
   authenticated   -> admin layout
 ```
 
+## Layout Sketches
+
+These sketches are architecture maps restored from the older admin UI wireframes. They show the separation between admin entry, admin navigation, and page surfaces; they are not exact visual specifications.
+
+Login gate:
+
+```text
++----------------------------------------------------------------+
+|                                                                |
+|                         Borgee Admin                           |
+|                                                                |
+|                 +----------------------------+                 |
+|                 | Username                   |                 |
+|                 +----------------------------+                 |
+|                 +----------------------------+                 |
+|                 | Password              show |                 |
+|                 +----------------------------+                 |
+|                                                                |
+|                 +----------------------------+                 |
+|                 | Log in                     |                 |
+|                 +----------------------------+                 |
+|                                                                |
++----------------------------------------------------------------+
+```
+
+Authenticated layout:
+
+```text
++------------------+---------------------------------------------------------+
+| Admin nav        | Page surface                                            |
+|                  |                                                         |
+| Dashboard        | Dashboard: metadata cards and recent operational rows   |
+| Users            | Users: user lifecycle, detail, owned-agent metadata     |
+| Channels         | Channels: channel metadata and explicit force actions   |
+| Invites          | Invites: invite code create/revoke                      |
+| Audit            | Audit: metadata rows and filters                        |
+| Runtimes         | Runtimes: operational status, heartbeat lag, host lag   |
+| Settings         | Settings: current admin session and logout              |
+|                  |                                                         |
++------------------+---------------------------------------------------------+
+```
+
+Architectural reading:
+
+- The admin SPA is a separate browser entry; it does not mount inside the user shell.
+- The left navigation owns admin page selection; individual pages own local filters and form state.
+- Page surfaces consume the admin API client and remain metadata-oriented unless the server rail intentionally exposes a stronger contract.
+- User-owned admin-awareness appears in the user SPA settings surface, not in this admin route tree.
+
 Admin pages are grouped by operational domain:
 
 | Page group | Purpose | Mutation posture |

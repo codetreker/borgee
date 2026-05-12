@@ -51,6 +51,8 @@ Feature surfaces own user workflows and local UI state. They coordinate with sha
 
 They do not own backend ACLs, persistence, admin visibility policy, or realtime frame schemas. They consume shared rails and server-enforced contracts.
 
+`wireframes.md` provides terminal-style sketches for the major surface relationships described here. Treat those sketches as layout maps, not product requirements.
+
 ## Channel, Chat, And DM
 
 The channel rail separates public/private channels from DMs, but both converge on the selected channel model. A DM is a channel-like conversation without the non-DM tab strip; normal joined channels can switch between chat, canvas, workspace, and remote browsing.
