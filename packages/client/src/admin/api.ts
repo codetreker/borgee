@@ -145,10 +145,10 @@ export async function patchUser(
   return res.user;
 }
 
-// ADMIN-SPA-UI-COVERAGE: D6 真兑现 — admin user permissions UI.
+// ADMIN-SPA-UI-COVERAGE: D6 implementation — admin user permissions UI.
 // server endpoints already wired (admin.go:39-41 GET/POST/DELETE
 // /admin-api/v1/users/{id}/permissions). post-#633 D6 IsValidCapability
-// gate enforces dot-notation字面 (CAPABILITY-DOT #628 14 const SSOT).
+// gate enforces dot-notation literals (CAPABILITY-DOT #628 14 capability tokens).
 
 /**
  * UserPermissionDetail — server `handleGetPermissions` row shape
@@ -235,7 +235,7 @@ export async function deleteInvite(code: string): Promise<void> {
 }
 
 // ADM-2.2 admin API audit-log endpoint (#484, blueprint admin-model.md §1.4
-// stance ③: admins can see each other + three-filter UI convergence). Keep
+// admin visibility rule: admins can see each other + three-filter UI convergence). Keep
 // admin-cookie routing separate (REG-ADM0-002 baseline: user cookie → 401).
 //
 // Cross-surface literal lock: admin surfaces use English enum actions
@@ -247,10 +247,10 @@ export interface AdminActionRow {
   id: string;
   actor_id: string; // admin_view=true 包含 (UUID 字符串)
   target_user_id: string;
-  action: string;   // 英文 enum (跟 server CHECK constraint byte-identical)
+  action: string;   // English enum matching the server CHECK constraint
   metadata: string; // JSON string; server omits body/content/text/artifact fields, admin sees metadata only
   created_at: number; // Unix ms
-  // ADMIN-SPA-SHAPE-FIX D4: AL-8 §0 立场 ③ archived 三态. server `sanitizeAdminAction`
+  // ADMIN-SPA-SHAPE-FIX D4: AL-8 §0 archived tri-state. server `sanitizeAdminAction`
   // (admin_endpoints.go) nil-safe surface — null/缺 = active, non-null = archived.
   archived_at?: number | null;
 }
@@ -259,9 +259,9 @@ export interface AuditLogFilters {
   actor_id?: string;
   action?: string;
   target_user_id?: string;
-  // ADMIN-SPA-ARCHIVED-UI-FOLLOWUP: AL-8 §0 立场 ③ archived 三态 filter.
+  // ADMIN-SPA-ARCHIVED-UI-FOLLOWUP: AL-8 §0 archived tri-state filter.
   // server `?archived=active|archived|all`; empty means the "active" default.
-  // Keep byte-identical with server admin_endpoints.go::handleAdminAuditLog.
+  // Keep literal values aligned with server admin_endpoints.go::handleAdminAuditLog.
   archived?: 'active' | 'archived' | 'all';
 }
 
@@ -277,11 +277,11 @@ export async function fetchAdminAuditLog(filters: AuditLogFilters = {}): Promise
 }
 
 // ADM-3 multi-source audit query (蓝图 admin-model.md §1.4 来源透明 4 类:
-// server / plugin / host_bridge / agent). 4 source enum byte-identical 跟
-// server-side AuditSources 同源 (改 = 改 server const + 此处 + i18n 三处).
+// server / plugin / host_bridge / agent). The 4 source enum literals match
+// server-side AuditSources (change server const, this file, and i18n together).
 //
 // Admin path is separate (ADM-0 §1.3 separation constraint): expose only
-// /admin-api/v1/audit/multi-source, with no user API drift.
+// /admin-api/v1/audit/multi-source, without adding a user API path.
 export const AUDIT_SOURCES = ['server', 'plugin', 'host_bridge', 'agent'] as const;
 export type AuditSource = typeof AUDIT_SOURCES[number];
 
@@ -343,7 +343,7 @@ export async function fetchAdminRuntimes(): Promise<AdminRuntime[]> {
 
 /**
  * LagSnapshot — server `host_lag.go::LagSnapshot` shape (HB-5 #408).
- * 9 字段 byte-identical 跟 server JSON struct tag (改 = 改两处).
+ * 9 fields match the server JSON struct tags (change both sides together).
  */
 export interface LagSnapshot {
   count: number;
@@ -364,7 +364,7 @@ export async function fetchAdminHeartbeatLag(): Promise<LagSnapshot> {
 /**
  * AdminArchivedChannel — server `store.ChannelWithCounts` filtered to
  * archived rows (channel_archived.go::handleAdminListArchivedChannels).
- * archived_at non-null 真锚 (ChannelWithCounts.ArchivedAt *int64).
+ * archived_at is non-null for archived rows (ChannelWithCounts.ArchivedAt *int64).
  */
 export interface AdminArchivedChannel {
   id: string;
@@ -385,7 +385,7 @@ export async function fetchAdminArchivedChannels(): Promise<AdminArchivedChannel
 /**
  * ChannelDescriptionHistoryEntry — server `store.GetChannelDescriptionHistory`
  * row shape (CHN-14 #429): description_edit_history JSON `[{old_content, ts, reason}]`.
- * 3 字段 byte-identical 跟 server queries.go:1238-1244.
+ * 3 fields match server queries.go:1238-1244.
  */
 export interface ChannelDescriptionHistoryEntry {
   old_content: string;
