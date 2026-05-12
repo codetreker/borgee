@@ -1,35 +1,36 @@
 // Package api — dm_10_pin.go: DM-10 message pin/unpin REST endpoints.
 //
-// Blueprint锚: dm-model.md §3 future per-user message layout v2 (本 PR
-// v0 = per-DM pin, 双方共享 pinned_at 列). Spec:
-// docs/implementation/modules/dm-10-spec.md (战马E v0).
+// Blueprint reference: dm-model.md §3 future per-user message layout v2. This
+// v0 implements per-DM pinning, with both participants sharing the pinned_at
+// column. Spec: docs/implementation/modules/dm-10-spec.md.
 //
 // Public surface:
 //   - (h *MessagePinHandler) RegisterRoutes(mux, authMw)
 //
-// Endpoints (DM-only, channel.Type == "dm" 守):
+// Endpoints (DM-only; channel.Type must be "dm"):
 //   POST   /api/v1/channels/{channelId}/messages/{messageId}/pin
 //   DELETE /api/v1/channels/{channelId}/messages/{messageId}/pin
 //   GET    /api/v1/channels/{channelId}/messages/pinned
 //
-// 设计 (跟 spec §0):
-//   ① ALTER TABLE messages ADD pinned_at INTEGER NULL — schema 单源
-//      (跟 DM-7.1 edit_history / AL-7.1 archived_at 跨九 milestone
-//      ALTER ADD COLUMN nullable 同模式).
-//   ② DM-only scope (channel.Type != "dm" → 400 `pin.dm_only_path`,
-//      跟 dm_4_message_edit.go::handleEdit DM-only path 同精神).
-//   ③ channel-member ACL gate (跟 AP-4 #551 reactions + AP-5 #555
-//      messages 同 helper Store.IsChannelMember + Store.CanAccessChannel).
-//   ④ POST 立 pinned_at = now() / DELETE 立 pinned_at = NULL / GET list
-//      pinned_at IS NOT NULL ORDER BY pinned_at DESC.
-//   ⑤ admin god-mode 不挂 — grep 检查 `admin.*pin.*messages` 0 hit
-//      (ADM-0 §1.3 红线, 跟 DM-4/CV-7/AP-4/AP-5 owner-only 锁链承袭).
+// Design, matching spec §0:
+//   ① ALTER TABLE messages ADD pinned_at INTEGER NULL: schema single source,
+//      following the nullable-column pattern used by DM-7.1 edit_history and
+//      AL-7.1 archived_at.
+//   ② DM-only scope: channel.Type != "dm" returns 400 `pin.dm_only_path`,
+//      matching the dm_4_message_edit.go::handleEdit DM-only path.
+//   ③ Channel-member ACL gate: reuse Store.IsChannelMember +
+//      Store.CanAccessChannel as in AP-4 #551 reactions and AP-5 #555 messages.
+//   ④ POST sets pinned_at = now(); DELETE sets pinned_at = NULL; GET lists rows
+//      with pinned_at IS NOT NULL ORDER BY pinned_at DESC.
+//   ⑤ Admin path is not mounted: grep checks require zero
+//      `admin.*pin.*messages` matches (ADM-0 §1.3, aligned with the DM-4/CV-7/
+//      AP-4/AP-5 owner-only chain).
 //
-// 反约束:
-//   - 不另起 pinned_messages 表 (pinned_at on messages 列单源)
-//   - 不挂 pinned_by 列 (DM 双方都可 pin, per-DM scope)
-//   - 不挂 pinned_reason / pin_note 列 (留 v2)
-//   - 不开 admin /admin-api/.*messages.*pin 路径 (god-mode 不挂)
+// Constraints:
+//   - Do not add a pinned_messages table; messages.pinned_at is the source.
+//   - Do not add a pinned_by column; either DM participant can pin.
+//   - Do not add pinned_reason or pin_note columns; reserve that for v2.
+//   - Do not mount an admin /admin-api/.*messages.*pin route.
 
 package api
 
@@ -52,7 +53,7 @@ type MessagePinHandler struct {
 }
 
 // RegisterRoutes wires DM-10 endpoints behind authMw.
-// user-rail only; admin god-mode 不挂 (设计 ⑤ ADM-0 §1.3 红线).
+// User rail only; no admin route is mounted (design ⑤, ADM-0 §1.3).
 func (h *MessagePinHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/channels/{channelId}/messages/{messageId}/pin",
 		authMw(http.HandlerFunc(h.handlePin)))
@@ -65,11 +66,12 @@ func (h *MessagePinHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.
 // gateDMScope validates auth + channel-member + DM-only path. Returns
 // (channel, message-or-nil, ok). On false, response already written.
 //
-// Sequence (跟 dm_4_message_edit.go::handleEdit 同模式):
-//   1. Auth (user-rail)
-//   2. Channel exists + Type == "dm" (else 400 dm_only_path)
-//   3. channel-member gate (Store.IsChannelMember + Store.CanAccessChannel,
-//      跟 AP-4 #551 + AP-5 #555 同 helper) — fail-closed 404 "Channel not found"
+// Sequence, matching dm_4_message_edit.go::handleEdit:
+//  1. Auth (user-rail)
+//  2. Channel exists + Type == "dm" (else 400 dm_only_path)
+//  3. channel-member gate (Store.IsChannelMember + Store.CanAccessChannel,
+//     same helpers as AP-4 #551 + AP-5 #555) — fail closed with 404
+//     "Channel not found"
 func (h *MessagePinHandler) gateDM(w http.ResponseWriter, r *http.Request) (channelID string, user *store.User, ok bool) {
 	user = auth.UserFromContext(r.Context())
 	if user == nil {
@@ -87,12 +89,12 @@ func (h *MessagePinHandler) gateDM(w http.ResponseWriter, r *http.Request) (chan
 		return "", nil, false
 	}
 	if ch.Type != "dm" {
-		// 设计 ② DM-only path — non-DM channel reject.
+		// Design ②: DM-only path; reject non-DM channels.
 		writeJSONErrorCode(w, http.StatusBadRequest, "pin.dm_only_path",
 			"Pin 仅 DM 路径")
 		return "", nil, false
 	}
-	// 设计 ③ channel-member ACL gate (跟 AP-4 #551 + AP-5 #555 同 helper).
+	// Design ③: channel-member ACL gate, using the AP-4 #551 and AP-5 #555 helpers.
 	if !h.Store.IsChannelMember(channelID, user.ID) ||
 		!h.Store.CanAccessChannel(channelID, user.ID) {
 		writeJSONError(w, http.StatusNotFound, "Channel not found")
@@ -104,7 +106,7 @@ func (h *MessagePinHandler) gateDM(w http.ResponseWriter, r *http.Request) (chan
 // handlePin — POST /api/v1/channels/{channelId}/messages/{messageId}/pin.
 // Stamps messages.pinned_at = now() for the (channel, message) pair.
 // Idempotent — second call within the same instant overwrites pinned_at
-// (last-write-wins, 跟 AL-7 sweeper UPDATE archived_at 同精神).
+// (last-write-wins, same pattern as AL-7 sweeper UPDATE archived_at).
 func (h *MessagePinHandler) handlePin(w http.ResponseWriter, r *http.Request) {
 	channelID, _, ok := h.gateDM(w, r)
 	if !ok {
@@ -120,7 +122,7 @@ func (h *MessagePinHandler) handlePin(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "Message not found")
 		return
 	}
-	// Cross-check: message belongs to the path channel (反 cross-channel pin).
+	// Cross-check: message must belong to the path channel.
 	if msg.ChannelID != channelID {
 		writeJSONError(w, http.StatusNotFound, "Message not found")
 		return
@@ -147,8 +149,7 @@ func (h *MessagePinHandler) handlePin(w http.ResponseWriter, r *http.Request) {
 
 // handleUnpin — DELETE /api/v1/channels/{channelId}/messages/{messageId}/pin.
 // Stamps messages.pinned_at = NULL. Idempotent — unpinning an unpinned
-// message returns 200 + pinned=false (反 fail-closed reject — nothing
-// to undo).
+// message returns 200 + pinned=false because there is nothing to undo.
 func (h *MessagePinHandler) handleUnpin(w http.ResponseWriter, r *http.Request) {
 	channelID, _, ok := h.gateDM(w, r)
 	if !ok {
@@ -185,7 +186,7 @@ func (h *MessagePinHandler) handleUnpin(w http.ResponseWriter, r *http.Request) 
 // handleListPinned — GET /api/v1/channels/{channelId}/messages/pinned.
 // Returns messages with pinned_at IS NOT NULL ORDER BY pinned_at DESC,
 // scoped to the path channel. Empty list when no pinned messages
-// (反向 fail-closed — gorm.ErrRecordNotFound 走空 list 同 CV-5 同精神).
+// (gorm.ErrRecordNotFound maps to an empty list, matching CV-5 behavior).
 func (h *MessagePinHandler) handleListPinned(w http.ResponseWriter, r *http.Request) {
 	channelID, _, ok := h.gateDM(w, r)
 	if !ok {

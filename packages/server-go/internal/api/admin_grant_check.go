@@ -1,14 +1,17 @@
-// Package api — admin_grant_check.go: ADM-2-FOLLOWUP REG-010 grant 校验
-// 守门 helper. admin 写动作前 must hold active ImpersonationGrant; 否则
-// 返回 403 + reason="impersonate.no_grant" (跟 ADM-2 既有 5 模板字面承袭).
+// Package api — admin_grant_check.go: ADM-2-FOLLOWUP REG-010 grant validation
+// helper. Before an admin write action, the admin must hold an active
+// ImpersonationGrant; otherwise this helper returns 403 with
+// reason="impersonate.no_grant", matching the existing ADM-2 five-template
+// wording.
 //
-// 设计 (adm-2-followup-stance §1):
-//   - 5/5 admin 写动作 (force_delete_channel / patch disabled / patch password
-//     / patch role / start_impersonation) 全 wire grant 校验.
-//   - 失败字面 byte-identical `impersonate.no_grant` 跟 ADM-2 既有承袭.
-//   - admin god-mode 独立路径 (ADM-0 §1.3 红线), 不挂 user-rail.
+// Design (adm-2-followup-stance §1):
+//   - All 5 admin write actions (force_delete_channel / patch disabled /
+//     patch password / patch role / start_impersonation) are wired through this
+//     grant validation.
+//   - Failure literal `impersonate.no_grant` stays byte-identical with ADM-2.
+//   - Admin path remains separate from the user rail (ADM-0 §1.3).
 //
-// grep 检查 `RequireImpersonationGrant` 在 5/5 admin write handler 全挂.
+// Grep checks require `RequireImpersonationGrant` in all 5 admin write handlers.
 package api
 
 import (
@@ -18,11 +21,12 @@ import (
 	"borgee-server/internal/store"
 )
 
-// RequireImpersonationGrant 校验 admin context + active impersonation grant
-// 对 targetUserID. 返回 (true, nil) 表 grant 有效, 调用方继续; (false, _)
-// 表 grant 缺失/过期, 已写 403 response, 调用方 return.
+// RequireImpersonationGrant validates the admin context and active
+// impersonation grant for targetUserID. It returns (true, admin) when the grant
+// is valid and the caller may continue. It returns (false, _) after writing the
+// rejection response when the grant is missing or expired.
 //
-// REG-ADM2-010 wire — 5/5 admin write handler 全挂此 gate.
+// REG-ADM2-010 wiring: all 5 admin write handlers call this helper.
 func RequireImpersonationGrant(w http.ResponseWriter, r *http.Request, s *store.Store, targetUserID string) (bool, *admin.Admin) {
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {

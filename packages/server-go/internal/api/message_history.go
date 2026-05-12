@@ -1,20 +1,21 @@
 // Package api — dm_7_edit_history.go: DM-7 GET edit history endpoints.
 //
 // Blueprint: dm-model.md §3 audit forward-only history. Spec:
-// docs/implementation/modules/dm-7-spec.md (战马D v0). schema migration
-// v=34 ALTER messages ADD edit_history TEXT NULL (跟 AL-7.1 + 跨七
-// milestone ALTER ADD nullable 同模式).
+// docs/implementation/modules/dm-7-spec.md. Schema migration v=34 adds
+// `messages.edit_history TEXT NULL`, following the same nullable-column pattern
+// used by AL-7.1 and related milestones.
 //
 // Public surface:
 //   - MessageEditHistoryHandler{Store, Logger}
 //   - (h *MessageEditHistoryHandler) RegisterUserRoutes(mux, authMw)
 //   - (h *MessageEditHistoryHandler) RegisterAdminRoutes(mux, adminMw)
 //
-// 反约束 (dm-7-spec.md §0):
-//   - 设计 ③ owner-only sender — user-rail GET 反向断言 sender ==
-//     current user (别 user 403); admin readonly admin-rail GET (admin
-//     god-mode 不挂 PATCH/DELETE — ADM-0 §1.3 红线).
-//   - 设计 ⑥ AST 锁链延伸第 16 处 forbidden 3 token 0 hit.
+// Constraints (dm-7-spec.md §0):
+//   - Design ③ sender-only access: user-rail GET requires sender == current
+//     user; other users receive 403. Admin rail is readonly GET only, with no
+//     PATCH/DELETE route mounted (ADM-0 §1.3).
+//   - Design ⑥ AST check chain site 16 requires zero matches for the three
+//     forbidden tokens.
 package api
 
 import (
@@ -27,23 +28,23 @@ import (
 
 // MessageEditHistoryHandler hosts the user-rail and admin-rail GET endpoints
 // for message edit history. user-rail is sender-only; admin-rail is
-// readonly only (no PATCH/DELETE — admin god-mode 不挂).
+// readonly only with no PATCH/DELETE route.
 type MessageEditHistoryHandler struct {
 	Store  *store.Store
 	Logger *slog.Logger
 }
 
 // RegisterUserRoutes wires GET /api/v1/channels/{channelId}/messages/
-// {messageId}/edit-history behind authMw. user-rail sender-only (设计 ③
-// owner-only ACL 锁链第 19 处).
+// {messageId}/edit-history behind authMw. User rail is sender-only (design ③,
+// owner-only ACL chain site 19).
 func (h *MessageEditHistoryHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/channels/{channelId}/messages/{messageId}/edit-history",
 		authMw(http.HandlerFunc(h.handleUserGet)))
 }
 
 // RegisterAdminRoutes wires GET /admin-api/v1/messages/{messageId}/edit-history
-// behind adminMw. admin readonly — no PATCH/DELETE on this path (反向
-// grep 守门; admin god-mode ADM-0 §1.3 红线 — admin 看不能改).
+// behind adminMw. Admin rail is readonly; no PATCH/DELETE route is mounted on
+// this path (ADM-0 §1.3: admin can inspect but not modify).
 func (h *MessageEditHistoryHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/messages/{messageId}/edit-history",
 		adminMw(http.HandlerFunc(h.handleAdminGet)))
@@ -51,8 +52,8 @@ func (h *MessageEditHistoryHandler) RegisterAdminRoutes(mux *http.ServeMux, admi
 
 // handleUserGet — GET /api/v1/channels/{channelId}/messages/{messageId}/edit-history.
 //
-// 设计 ③: sender ≠ current user → 403. 历史空时返 `[]`. HappyPath
-// 返 JSON array (server-side store layer pre-normalized).
+// Design ③: sender != current user returns 403. Empty history returns `[]`.
+// Happy path returns a JSON array pre-normalized by the store layer.
 func (h *MessageEditHistoryHandler) handleUserGet(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -64,7 +65,7 @@ func (h *MessageEditHistoryHandler) handleUserGet(w http.ResponseWriter, r *http
 		writeJSONError(w, http.StatusNotFound, "Message not found")
 		return
 	}
-	// 设计 ③: sender-only — 反向断言 sender == current user.
+	// Design ③: sender-only, requiring sender == current user.
 	if msg.SenderID != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
@@ -76,7 +77,7 @@ func (h *MessageEditHistoryHandler) handleUserGet(w http.ResponseWriter, r *http
 
 // handleAdminGet — GET /admin-api/v1/messages/{messageId}/edit-history.
 //
-// admin readonly. 设计 ③ 反约束: 不挂 PATCH/DELETE (grep 守门).
+// Admin rail is readonly. Design ③ requires no PATCH/DELETE route.
 func (h *MessageEditHistoryHandler) handleAdminGet(w http.ResponseWriter, r *http.Request) {
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {

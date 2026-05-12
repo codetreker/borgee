@@ -14,11 +14,12 @@ import (
 // UserHandler handles user-related endpoints.
 type UserHandler struct {
 	Store *store.Store
-	// DataLayer — DL-1.2 单一来源 4-interface bundle (Storage / Presence /
-	// EventBus / 3 Repository). Optional in v1 (nil-safe; 历史 paths
-	// still walk Store directly until ArtifactRepo + remaining surface
-	// migrate in DL-1.5+). When non-nil, prefer DL-1 Repository methods
-	// over store.Store equivalents (interface seam 锁定未来换实现).
+	// DataLayer is the DL-1.2 single source for Storage, Presence,
+	// EventBus, and the three repositories. It is optional in v1; legacy
+	// paths still call Store directly until ArtifactRepo and the remaining
+	// surface migrate in DL-1.5+. When non-nil, prefer DL-1 Repository
+	// methods over store.Store equivalents so implementation swaps stay behind
+	// the repository interfaces.
 	DataLayer *datalayer.DataLayer
 	Logger    *slog.Logger
 }
@@ -66,19 +67,19 @@ func (h *UserHandler) handleMyPermissions(w http.ResponseWriter, r *http.Request
 		details = []map[string]any{}
 	}
 
-	// AP-2 设计 ② — capability 透明 UI: response 加 `capabilities` 数组,
-	// 走 14 const 单一来源 byte-identical (`auth.ALL`). UI 走 capability token
-	// 渲染, 反 role 名 (admin/editor/viewer/owner) bleed. Member humans
-	// 全权 → 全 14 const; agents/bundle-narrowed 仅 derive permissions
-	// 中已授权的 token (grep 检查 `"role":\s*"(admin|editor|viewer|owner)"`
-	// 0 hit in this response — `role` 字段保留 历史 caller 兼容, 但
-	// `capabilities` 是 AP-2 单一来源).
+	// AP-2 design ②: the response includes `capabilities` for capability-based
+	// UI. The 14 values must stay byte-identical with the `auth.ALL` single
+	// source. UI renders capability tokens, not role names
+	// (admin/editor/viewer/owner). Member humans receive all 14 capabilities;
+	// agents and bundle-narrowed accounts receive only tokens derived from their
+	// granted permissions. The `role` field remains for legacy callers, but
+	// `capabilities` is the AP-2 source of truth.
 	capabilities := deriveAP2Capabilities(user.Role, permissions)
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{
 		"user_id": user.ID,
-		// role kept for 历史 callers; AP-2 client UI 不显此字段
-		// (反 role bleed; 设计 ② content-lock §1).
+		// role is kept for legacy callers; AP-2 client UI must not render it
+		// as a role label (design ②, content-lock §1).
 		"role":         user.Role,
 		"permissions":  permissions,
 		"details":      details,
@@ -86,19 +87,20 @@ func (h *UserHandler) handleMyPermissions(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// deriveAP2Capabilities maps user.Role + permissions[] → 14-const capability
-// tokens (AP-2 设计 ② 单一来源).
+// deriveAP2Capabilities maps user.Role + permissions[] to the 14 capability
+// tokens from the AP-2 design ② single source.
 //
 //   - Member humans (Role=="member" + permissions=["*"]) → full 14 const
-//     (蓝图 §1.1 + AP-0 default 全权)
-//   - Agents / bundle-narrowed → filter `auth.ALL` keep only granted tokens
-//     (走 capability part before `:` of `permissions[]` entries like
+//     (blueprint §1.1 + AP-0 default full grant)
+//   - Agents / bundle-narrowed → filter `auth.ALL` to keep only granted tokens
+//     (using the capability part before `:` of `permissions[]` entries like
 //     `read_channel:*` or `commit_artifact:channel:abc`)
 //
-// 反向约束: 不返回 role-derived 字面 (反 admin/editor/viewer/owner bleed).
+// Constraint: do not return role-derived labels such as
+// admin/editor/viewer/owner.
 func deriveAP2Capabilities(role string, permissions []string) []string {
 	if role == "member" && len(permissions) == 1 && permissions[0] == "*" {
-		// Full grant — return 14-const 单一来源 byte-identical 跟 auth.ALL.
+		// Full grant: return the 14-value list byte-identical with auth.ALL.
 		out := make([]string, 0, len(auth.ALL))
 		out = append(out, auth.ALL...)
 		return out
@@ -115,7 +117,8 @@ func deriveAP2Capabilities(role string, permissions []string) []string {
 			token = entry
 		}
 		if !auth.IsValidCapability(token) {
-			// Forward-compat: drop unknown tokens (反 leak v3+ 字面).
+			// Forward compatibility: drop unknown tokens so v3+ literals are not
+			// exposed early.
 			continue
 		}
 		if !seen[token] {
