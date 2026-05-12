@@ -1,19 +1,20 @@
 //go:build !linux && !darwin && !windows
 
-// Package sandbox — fallback (其他 OS, 极少). v0(D) no-op + 警告.
+// Package sandbox provides the fallback for unsupported OS targets. v0(D) uses
+// a no-op placeholder on these platforms.
 package sandbox
 
-// Apply v0(D) fallback — 其他非主流 OS, no-op + 警告.
+// Apply is the v0(D) fallback for unsupported OS targets.
 func Apply(_ Profile) error {
 	return nil
 }
 
-// Profile 描述 sandbox 配置 (跨平台 byte-identical struct).
+// Profile describes the sandbox configuration shape shared across platforms.
 type Profile struct {
 	ReadPaths    []string
 	AuditLogPath string
 	TmpCachePath string
 }
 
-// Platform 出处 — 单测断 build tag 选对.
+// Platform identifies the fallback selected by this build tag.
 const Platform = "other"
