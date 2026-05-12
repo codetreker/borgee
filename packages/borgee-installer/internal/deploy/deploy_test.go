@@ -28,10 +28,10 @@ func TestHB1B_DarwinPlan_HasSudoAndLaunchd(t *testing.T) {
 
 func TestHB1B_PlanForCurrentOS_KnownGOOS(t *testing.T) {
 	// runtime.GOOS in test env = linux | darwin | windows. linux/darwin
-	// must succeed; windows must error (留 v2).
+	// must succeed; windows must error because support is reserved for v2.
 	p, err := PlanForCurrentOS("/tmp/x")
 	if err != nil {
-		// windows / other → err with v2 留账 message.
+		// windows / other -> err with a reserved-for-v2 message.
 		if !strings.Contains(err.Error(), "v2") {
 			t.Errorf("expected v2 留账 in err, got: %v", err)
 		}
