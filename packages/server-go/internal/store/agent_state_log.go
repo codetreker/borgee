@@ -52,7 +52,7 @@ import (
 )
 
 // AgentState is the five-literal state union (AL-1a three-state base plus
-// AL-1b busy/idle). ” is the sentinel for "no prior state" on the first
+// AL-1b busy/idle). '' is the sentinel for "no prior state" on the first
 // transition.
 type AgentState string
 

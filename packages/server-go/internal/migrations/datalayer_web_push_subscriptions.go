@@ -31,7 +31,7 @@ import (
 //     library requires it to encrypt payloads)
 //     - auth_key    TEXT    NOT NULL              (subscription auth secret,
 //     base64 url-safe; same requirement)
-//     - user_agent  TEXT    NOT NULL DEFAULT ”   (UA hint for admin diagnostics,
+//     - user_agent  TEXT    NOT NULL DEFAULT ''  (UA hint for admin diagnostics,
 //     opaque; do not add
 //     device_id / device_kind
 //     columns. This matches AL-3.1
