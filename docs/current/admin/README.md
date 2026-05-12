@@ -1,66 +1,61 @@
-# Admin SPA
+# Admin Architecture
 
-The admin SPA is a separate browser application for operational administration. It shares the frontend package with the user SPA, but it has its own HTML entry, session provider, route tree, API client, and page surfaces.
+Admin architecture is the operational control plane for Borgee. It has a browser SPA, a dedicated admin API client, a server-side admin rail, and privacy/audit projections that make admin impact observable without turning user content into an admin browsing surface.
 
 ## Architecture At A Glance
 
 ```mermaid
 flowchart TB
-  Entry[Admin entry]
-  Session[Admin session provider]
-  Router[Protected route tree]
-  Layout[Admin layout]
-  Pages[Admin pages]
-  API[Admin API client]
-  Server[Admin server rail]
-  User[User SPA rail]
+  AdminSPA[Admin SPA]
+  APIClient[Admin API client]
+  ServerRail[Admin server rail]
+  Privacy[Privacy/audit projection]
+  UserSPA[User SPA admin-awareness]
+  Store[(Server data stores)]
 
-  Entry --> Session --> Router --> Layout --> Pages
-  Pages --> API --> Server
-  User -. isolated .- Entry
+  AdminSPA --> APIClient --> ServerRail --> Store
+  ServerRail --> Privacy
+  Privacy --> AdminSPA
+  Privacy --> UserSPA
 ```
 
-| Layer | Architectural role | Boundary |
-| --- | --- | --- |
-| Entry | Boot the admin app independently from the user app. | Shares build assets, not user providers or user state. |
-| Session | Convert admin cookie state into a small browser session model. | Session is minimal and cookie-backed. |
-| Router/layout | Protect admin pages and provide admin navigation. | Admin routes live under the admin path space. |
-| Pages | Present operational views and explicit admin actions. | Pages call only the admin API client. |
-| Admin API client | Centralize admin endpoint paths, request behavior, and response types. | Uses the admin rail prefix, not user endpoints. |
-| Server rail | Enforce admin auth, ACL, privacy, and persistence. | Owned by the server architecture docs, not this SPA module. |
+| Layer | Role | Owns | Does not own |
+| --- | --- | --- | --- |
+| Admin SPA | Browser console for operators. | Entry, session provider, protected routes, page surfaces. | Server enforcement or persistence. |
+| Admin API client | Frontend boundary for admin endpoints. | Admin path prefix, request shape, response types, admin errors. | User API calls or server authorization. |
+| Admin server rail | Server control plane. | Admin auth, middleware, handlers, serializers, audit writes, retention endpoints. | User session authority or user feature UI. |
+| Privacy/audit projection | Shared visibility model for admin impact. | Admin audit views, user-scoped impact view, impersonation grant state. | A guarantee that every local/helper audit source is ingested. |
 
 ## Responsibilities
 
-The admin SPA owns admin browser composition: login, session refresh, logout, protected routing, admin navigation, page-level view state, admin API request shapes, and frontend-visible metadata/action surfaces.
+This section owns the architecture contract between admin browser surfaces, admin server endpoints, and privacy/audit visibility. The SPA subdocument explains browser composition; the server rail subdocument explains server surfaces; the privacy/audit subdocument explains audience-specific projections.
 
-It does not own server enforcement, audit persistence, privacy sanitization, backend migrations, or user SPA workflows. Server rail details belong to `server-rail.md`.
+It does not own user SPA feature behavior, remote node execution, host helper authority, or plugin transport behavior.
 
-## Interfaces
+## Primary Boundaries
 
-| Interface | Contract |
+| Boundary | Architectural rule |
 | --- | --- |
-| Build entry | Admin is a second frontend entry inside the client build. |
-| Admin REST rail | Admin pages call the admin API client, which targets the admin endpoint prefix. |
-| Admin session | Browser session state is derived from admin auth endpoints and cookies. |
-| User rail isolation | Admin does not mount user app context, user WebSocket, channel shell, or user API client. |
-| Server rail | Backend owns authorization and privacy; the SPA renders the sanitized shapes it receives. |
+| Session | Admin authority comes from the admin session cookie and admin session table, not from user cookies or user roles. |
+| API prefix | Admin endpoints live on the admin rail and are consumed through the admin API client. |
+| Metadata | Admin read surfaces are intentionally metadata-oriented unless a server contract explicitly exposes more. |
+| User awareness | Users see only their own admin-impact projection and impersonation grant state on the user rail. |
+| Audit | Durable server audit is the authority for admin impact records; notification is secondary. |
 
 ## Subdocuments
 
 | Document | Scope |
 | --- | --- |
-| `spa.md` | Admin SPA design: entry, session, API client, route/page layering, isolation, and safety boundaries. |
-| `server-rail.md` | Admin server rail behavior and enforcement, maintained separately. |
-| `privacy-audit.md` | Privacy and audit concerns that cross admin behavior, maintained separately. |
+| `spa.md` | Admin SPA entry, session, API client, route/page layering, and user rail isolation. |
+| `server-rail.md` | Admin server rail surfaces, auth boundary, route classes, and server-only/admin API-only endpoints. |
+| `privacy-audit.md` | Audit projection, user privacy view, admin audit view, impersonation grant, and current gaps. |
 
 ## Implementation Anchors
 
 | Concern | Anchors |
 | --- | --- |
-| Vite entry split | `packages/client/vite.config.ts`, `packages/client/admin.html` |
-| Admin app entry | `packages/client/src/admin/main.tsx` |
-| Session provider | `packages/client/src/admin/auth.ts`, `AdminAuthProvider`, `AdminSession` |
-| Admin route tree | `packages/client/src/admin/AdminApp.tsx` |
-| Admin API client | `packages/client/src/admin/api.ts`, `AdminApiError` |
-| Admin pages | `packages/client/src/admin/pages/` |
-| User rail contrast | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts` |
+| Admin SPA | `packages/client/src/admin/` |
+| Admin API client | `packages/client/src/admin/api.ts` |
+| Admin server rail | `packages/server-go/internal/admin/`, `packages/server-go/internal/api/` |
+| Admin route wiring | `packages/server-go/internal/server/server.go` |
+| Privacy/audit store | `packages/server-go/internal/store/admin_actions.go` |

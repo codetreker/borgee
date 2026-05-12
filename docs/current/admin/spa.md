@@ -126,5 +126,5 @@ When adding an admin capability, update the architecture in this order: server r
 | Session provider | `packages/client/src/admin/auth.ts`, `AdminAuthProvider`, `useAdminAuth` |
 | Session and API types | `packages/client/src/admin/api.ts`, `AdminSession`, `AdminApiError` |
 | Admin route tree | `packages/client/src/admin/AdminApp.tsx` |
-| Page surfaces | `packages/client/src/admin/pages/DashboardPage.tsx`, `packages/client/src/admin/pages/UsersPage.tsx`, `packages/client/src/admin/pages/UserDetailPage.tsx`, `packages/client/src/admin/pages/ChannelsPage.tsx`, `packages/client/src/admin/pages/InvitesPage.tsx`, `packages/client/src/admin/pages/AdminAuditLogPage.tsx`, `packages/client/src/admin/pages/MultiSourceAuditPage.tsx`, `packages/client/src/admin/pages/RuntimesPage.tsx`, `packages/client/src/admin/pages/HeartbeatLagPage.tsx`, `packages/client/src/admin/pages/ArchivedChannelsPage.tsx`, `packages/client/src/admin/pages/ChannelDescriptionHistoryPage.tsx`, `packages/client/src/admin/pages/SettingsPage.tsx` |
+| Page surfaces | `packages/client/src/admin/pages/` |
 | User rail contrast | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/hooks/useWebSocket.ts` |

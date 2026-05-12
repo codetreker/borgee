@@ -86,9 +86,6 @@ It does not specify visual design, CSS layout, copy, keyboard behavior, or exact
 | --- | --- |
 | Shell and view selector | `packages/client/src/App.tsx`, `MainView` |
 | App state | `packages/client/src/context/AppContext.tsx`, `AppState` |
-| Navigation rail | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelList.tsx` |
-| Channel host | `packages/client/src/components/ChannelView.tsx` |
-| Chat | `packages/client/src/components/MessageList.tsx`, `packages/client/src/components/MessageInput.tsx` |
-| Channel tabs | `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/WorkspacePanel.tsx`, `packages/client/src/components/RemotePanel.tsx` |
-| Sidepanes | `packages/client/src/components/AgentManager.tsx`, `packages/client/src/components/InvitationsInbox.tsx`, `packages/client/src/components/WorkspaceManager.tsx`, `packages/client/src/components/NodeManager.tsx`, `packages/client/src/components/Settings/SettingsPage.tsx` |
-| Global signals | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/hooks/useUnsavedChangesGuard.ts` |
+| Surface hosts | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx` |
+| Feature surfaces | `packages/client/src/components/`, `packages/client/src/components/Settings/` |
+| Global hooks | `packages/client/src/hooks/` |

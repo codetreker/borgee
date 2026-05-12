@@ -24,7 +24,7 @@ flowchart LR
 | Phase | Purpose | Architectural constraint |
 | --- | --- | --- |
 | Auth gate | Decide whether to show login/register or the workspace. | The shell does not render authenticated surfaces until session check completes. |
-| Bootstrap | Load current user, permissions, channels, and online users. | Cross-surface state is initialized before the main workspace renders. |
+| Bootstrap | Load current user, permissions, channels, and online users. | Only the data required for first workspace render blocks `initialized=true`. |
 | Shell layout | Hold responsive sidebar state and authenticated banner placement. | Layout state stays in the shell because it is view orchestration, not domain state. |
 | View selection | Choose one sidepane or the selected channel view. | A single view mode prevents overlapping sidepanes and stale stacked UI. |
 | Shared state | Store data that must be consistent across surfaces. | App context owns shared user state; feature-specific drafts stay local. |
@@ -41,7 +41,8 @@ Global app state is intentionally scoped to data that multiple surfaces or rails
 
 | State category | Why it is global |
 | --- | --- |
-| Channels, groups, and DMs | Sidebar, channel view, realtime frames, and navigation all need the same rail model. |
+| Channels and groups | Sidebar, channel view, realtime frames, and navigation all need the same channel rail model. |
+| DMs | DM channels share the selected-channel model, but the DM rail refreshes lazily after the sidebar mounts. |
 | Selected channel | The shell, sidebar, chat, tabs, and read-marker behavior share one active channel identity. |
 | Message pages and pending messages | Chat rendering, optimistic send, retry, ack/nack, and reconnect reconciliation share message state. |
 | Current user and permissions | Navigation, permission-gated controls, and user-owned settings depend on the same identity. |
@@ -59,7 +60,7 @@ Before switching view mode, the shell runs registered unsaved-change guards. Fea
 
 ## Initialization And Refresh
 
-Initialization follows a simple sequence: validate session, load identity, load permissions, load channel rail, load online users, then mark initialized. Online users refresh periodically after authentication because presence is useful even without a fresh WS event.
+Initialization follows a simple sequence: validate session, load identity, load permissions, load channel rail, load online users, then mark initialized. DM channels are not part of the initialized gate; the sidebar refreshes the DM rail after it mounts, and the realtime hook subscribes DM channels as they appear. Online users refresh periodically after authentication because presence is useful even without a fresh WS event.
 
 The shell also wires WebSocket send and ack-timer functions into the shared context. Message composition and retry flows can then remain feature-local while using the same realtime transport.
 
@@ -83,4 +84,4 @@ The shell also wires WebSocket send and ack-timer functions into the shared cont
 | User REST actions | `packages/client/src/lib/api.ts` |
 | Realtime wiring | `packages/client/src/hooks/useWebSocket.ts` |
 | Unsaved-change guard | `packages/client/src/hooks/useUnsavedChangesGuard.ts` |
-| Shell surfaces | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx`, `packages/client/src/components/Settings/BannerImpersonate.tsx` |
+| Surface hosts | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx` |

@@ -44,6 +44,28 @@ The admin rail is a collection of operator tools, not a blanket bypass. Some sur
 
 Permission management on the admin rail uses the same capability vocabulary as the user authorization model. This keeps arbitrary capability strings from being introduced through the admin UI while still keeping admin rail authentication separate from ordinary capability checks.
 
+## Server Rail Surfaces
+
+| Surface | Admin SPA page | Rail exposure | Current posture |
+| --- | --- | --- | --- |
+| Admin auth/session | Login/settings session surfaces | Admin API | Login/logout/me endpoints backed by admin session cookie. |
+| Dashboard stats | Yes | Admin API | Read-only counts and org aggregation. |
+| Users and user detail | Yes | Admin API | User create/update/delete, password/role/disabled changes, permissions, and owned-agent metadata. |
+| Invites | Yes | Admin API | Invite create/list/revoke. |
+| Channels | Yes | Admin API | Channel metadata plus explicit force-delete operation. |
+| Archived channels | Yes | Admin API | Read-only archived channel list. |
+| Channel description history | Yes | Admin API | Read-only description edit history. |
+| Runtime metadata | Yes | Admin API | Read-only agent runtime metadata; raw owner diagnostics are narrowed. |
+| Heartbeat lag | Yes | Admin API | Read-only rolling heartbeat lag snapshot. |
+| Admin audit log | Yes | Admin API | Filterable admin action projection. |
+| Multi-source audit | Yes | Admin API | Read-only merged audit projection across configured sources. |
+| Audit retention override | No | Admin API only | Server-only operator endpoint records `audit_retention_override`; no SPA page currently calls it. |
+| Heartbeat retention override | No | Admin API only | Server-only operator endpoint records the same audit action with heartbeat target metadata; no SPA page currently calls it. |
+| Message edit history | No | Admin API only | Read-only admin endpoint for message edit history; no admin SPA page/client wrapper currently exposes it. |
+| Artifact comment edit history | No | Admin API only | Read-only admin endpoint for artifact-comment edit history; no admin SPA page/client wrapper currently exposes it. |
+| User impersonation grant lifecycle | User SPA, not Admin SPA | User API plus audit projection | User-owned grant create/read/revoke; admin rail consumes audit visibility but has no SPA impersonation page. |
+| Retention sweepers | No | Server-only background jobs | Audit, heartbeat, and event retention run as server background processes. |
+
 ## Metadata-Only Runtime View
 
 The runtime admin view summarizes process descriptors and heartbeat metadata. It intentionally omits raw last-error details that remain part of the owner-facing runtime view. This is the main example of the admin rail being powerful but not unlimited: operational visibility is allowed, raw user-facing diagnostic text is narrowed.
@@ -55,7 +77,6 @@ The admin rail does not authenticate with user cookies, create host grants for u
 ## Known Gaps
 
 - Audit coverage is not uniform across all admin write surfaces.
-- The impersonation-grant validation helper exists but is not clearly wired into current production write handlers.
 
 ## Implementation Anchors
 
@@ -67,4 +88,3 @@ The admin rail does not authenticate with user cookies, create host grants for u
 - `packages/server-go/internal/api/admin.go` (`AdminHandler`)
 - `packages/server-go/internal/api/runtimes.go` (`AdminRuntimeHandler`)
 - `packages/server-go/internal/api/admin_endpoints.go` (`AdminEndpointsHandler`)
-- `packages/server-go/internal/api/admin_grant_check.go` (`RequireImpersonationGrant`)

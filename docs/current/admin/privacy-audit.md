@@ -61,12 +61,12 @@ The user-owned impersonation grant represents a temporary support consent state.
 
 ## Out Of Scope
 
-Privacy audit does not guarantee helper JSONL ingestion, does not make all admin writes uniformly audited today, and does not by itself enforce impersonation checks unless write handlers call the grant gate.
+Privacy audit does not guarantee helper JSONL ingestion, does not make all admin writes uniformly audited today, and does not by itself enforce impersonation checks.
 
 ## Known Gaps
 
 - Some admin write paths have audit hooks and some do not.
-- The impersonation grant gate exists as a helper but is not clearly applied to current admin write paths.
+- `RequireImpersonationGrant` currently has no production admin write-handler call sites; it is present as a helper with tests, so the current limitation is wiring, not grant storage or user grant CRUD.
 - Helper-local audit is not yet part of the durable server audit projection.
 
 ## Implementation Anchors
@@ -74,7 +74,6 @@ Privacy audit does not guarantee helper JSONL ingestion, does not make all admin
 - `packages/server-go/internal/store/admin_actions.go` (`AdminAction`, `InsertAdminAction`, `EmitAdminActionAudit`, `ImpersonationGrant`)
 - `packages/server-go/internal/api/admin_endpoints.go` (`AdminEndpointsHandler`)
 - `packages/server-go/internal/api/admin.go` (`AdminHandler` audit hook call sites)
-- `packages/server-go/internal/api/admin_grant_check.go` (`RequireImpersonationGrant`)
 - `packages/server-go/internal/api/admin_audit_query.go` (`AdminAuditMultiSourceHandler`)
 - `packages/server-go/internal/migrations/admin_actions.go`
 - `packages/server-go/internal/migrations/admin_impersonation_grants.go`
