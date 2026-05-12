@@ -1,123 +1,130 @@
-# Admin SPA Details
+# Admin SPA Design
 
-This document expands the admin SPA browser architecture: entry, auth/session provider, API client, routes/pages, user rail isolation, and frontend-visible safety boundaries. Server endpoint implementation is outside this document and belongs to `server-rail.md`.
+The admin SPA is an operational console. Its design goal is separation: separate browser entry, separate session model, separate API client, separate route tree, and separate page surfaces from the user SPA.
 
-## Module Overview
+## Architecture
 
-```text
-admin.html
-  -> src/admin/main.tsx
-    -> AdminAuthProvider
-      -> AdminApp
-        -> BrowserRouter
-          -> /admin login or dashboard redirect
-          -> /admin/* protected AdminLayout
-            -> admin pages call admin/api.ts
+```mermaid
+flowchart LR
+  Entry[Admin entry]
+  Auth[Session provider]
+  Gate[Route gate]
+  Layout[Admin layout]
+  Page[Page surface]
+  Client[Admin API client]
+  Rail[Admin server rail]
+
+  Entry --> Auth --> Gate
+  Gate --> Layout --> Page
+  Page --> Client --> Rail
 ```
 
-The admin SPA is a separate React entry in the same Vite build. `admin.html` points to `/src/admin/main.tsx`; Vite builds it as the `admin` Rollup input next to the user `main` input (`packages/client/admin.html`, `packages/client/vite.config.ts`).
+| Decision | Design effect |
+| --- | --- |
+| Separate entry | Admin can evolve without participating in user shell state or user PWA assumptions. |
+| Cookie-backed session | Browser state stays minimal; server remains session authority. |
+| Protected route tree | Pages are inaccessible until initial session check completes and a session exists. |
+| Dedicated API client | Admin request paths, errors, and response types stay out of the user API client. |
+| Page-level REST loading | Admin pages are pull-driven; no admin WebSocket rail is mounted in the current SPA. |
 
 ## Responsibilities
 
-This module is responsible for the frontend admin session, protected route tree, route-to-page mapping, admin layout/navigation, admin API client shape, and frontend-visible rail isolation (`packages/client/src/admin/main.tsx`, `packages/client/src/admin/auth.ts`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/*`).
+The admin SPA owns the browser-side admin shell: session refresh, login/logout, protected routing, navigation, page composition, admin request types, and rendering of admin metadata and explicit admin operations.
 
-This module is not responsible for server-side admin auth, cookie creation, endpoint ACLs, audit storage, data sanitization, or backend privacy enforcement. It documents only the calls and rendering behavior visible in client source; server details belong to the sibling `server-rail.md` (`packages/client/src/admin/api.ts`).
+It does not own backend enforcement, endpoint implementation, audit storage, server-side privacy filtering, or user-facing feature workflows. Those belong to the admin server rail or user SPA modules.
 
-This module is not responsible for the user SPA's `/api/v1` client, app reducer, `/ws` hook, or feature surfaces. The admin SPA does not mount those modules (`packages/client/src/admin/main.tsx`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`).
+## Entry And Session
 
-## Entry And Providers
+The admin entry starts with an auth provider, then renders the admin app. The provider performs an initial session refresh so routing can distinguish “checking” from “unauthenticated.”
 
-`packages/client/src/admin/main.tsx` imports `../index.css`, wraps `<AdminApp />` with `<AdminAuthProvider>`, and renders under `React.StrictMode`. It does not register `/sw.js` and does not import the user `App` (`packages/client/src/admin/main.tsx`, `packages/client/src/main.tsx`).
+The session model is intentionally small: an admin identity with login information, backed by a cookie. The browser does not model admin role hierarchy, token strings, or expiry as primary SPA state.
 
-`AdminAuthProvider` is the sole admin session provider. It stores `session: AdminSession | null` and `checked: boolean`, runs `refresh()` on mount, and exposes `login`, `logout`, and `refresh` through `useAdminAuth()` (`packages/client/src/admin/auth.ts`, `packages/client/src/admin/api.ts`).
+Login is a two-step browser flow: submit credentials to the admin auth endpoint, then refresh the current admin session. Logout calls the admin logout endpoint and clears browser session state even if the request fails.
 
-The admin session shape is `{ id, login }`. The admin API client comments explicitly lock this to the server `/auth/me` shape and do not model role, username, token, or expiry fields; the browser carries the admin cookie by using `credentials: 'include'` (`packages/client/src/admin/api.ts`, `packages/client/src/admin/auth.ts`).
+## Routing And Page Layers
 
 ```text
-LoginPage
-  -> useAdminAuth().login(login, password)
-  -> POST /admin-api/v1/auth/login
-  -> GET  /admin-api/v1/auth/me
-  -> session { id, login }
-  -> navigate /admin/dashboard
+/admin
+  unauthenticated -> login
+  authenticated   -> dashboard
+
+/admin/*
+  unauthenticated -> login redirect
+  authenticated   -> admin layout
 ```
 
-Logout calls `adminLogout()` and clears local session in a `finally` block, so the browser session state is cleared even if the logout request errors (`packages/client/src/admin/auth.ts`, `packages/client/src/admin/pages/SettingsPage.tsx`, `packages/client/src/admin/AdminApp.tsx`).
+Admin pages are grouped by operational domain:
 
-## Admin API Client
+| Page group | Purpose | Mutation posture |
+| --- | --- | --- |
+| Dashboard | Operational counts and high-level status. | Read-only. |
+| Users and user detail | User lifecycle, account controls, permissions, and owned agents. | Explicit admin mutations. |
+| Channels and archived channels | Channel metadata, force-delete controls, archived visibility, description history. | Mixed: force-delete in active channel view; archived/history are read-only. |
+| Invites | Invite code creation and revocation. | Explicit admin mutations. |
+| Audit log and multi-source audit | Admin/audit visibility across server and related sources. | Read-only in the SPA. |
+| Runtimes and heartbeat lag | Runtime and host-lag operational metadata. | Read-only in the SPA. |
+| Settings | Current admin session summary and logout. | Session operation only. |
 
-`packages/client/src/admin/api.ts` is the admin API boundary. It sets `BASE = '/admin-api/v1'`, includes cookies, sets JSON `Content-Type` for non-`FormData` bodies, parses non-2xx JSON error bodies when possible, and throws `AdminApiError` (`packages/client/src/admin/api.ts`).
+The admin layout owns admin navigation and nested page selection. Individual pages own their local filters, loading states, and forms; durable results come from the admin API client.
 
-| API group | Functions | Frontend boundary | Evidence |
-| --- | --- | --- | --- |
-| Auth/session | `adminLogin`, `adminLogout`, `fetchAdminMe` | Cookie-backed admin login, logout, and session refresh. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/auth.ts`, `packages/client/src/admin/pages/LoginPage.tsx` |
-| Stats | `fetchStats` | Dashboard count cards and optional org debug rows. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/DashboardPage.tsx` |
-| Users | `fetchUsers`, `createUser`, `patchUser`, `deleteUser`, `fetchUserAgents` | User list, create member, disable/enable, delete, detail page, password/role/agent rows. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/UsersPage.tsx`, `packages/client/src/admin/pages/UserDetailPage.tsx` |
-| Permissions | `fetchUserPermissions`, `grantUserPermission`, `revokeUserPermission` | Capability grant/revoke table on user detail. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/UserDetailPage.tsx` |
-| Channels | `fetchChannels`, `forceDeleteChannel` | Channel metadata table and force delete for eligible rows. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/ChannelsPage.tsx` |
-| Invites | `fetchInvites`, `createInvite`, `deleteInvite` | Invite code list/create/revoke. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/InvitesPage.tsx` |
-| Audit log | `fetchAdminAuditLog` | Filterable admin action rows with metadata string. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/AdminAuditLogPage.tsx` |
-| Multi-source audit | `fetchMultiSourceAudit` | Source-filtered audit rows from server/plugin/host_bridge/agent. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/MultiSourceAuditPage.tsx` |
-| Runtimes | `fetchAdminRuntimes` | Read-only runtime metadata table. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/RuntimesPage.tsx` |
-| Heartbeat lag | `fetchAdminHeartbeatLag` | Read-only lag snapshot. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/HeartbeatLagPage.tsx` |
-| Archived channels | `fetchAdminArchivedChannels` | Read-only archived channel list. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/ArchivedChannelsPage.tsx` |
-| Description history | `fetchAdminChannelDescriptionHistory` | Read-only channel description history rows. | `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/ChannelDescriptionHistoryPage.tsx` |
+## Admin API Client Boundary
 
-## Routes And Pages
+The admin API client is the only frontend boundary for admin endpoint calls. It centralizes the admin path prefix, cookie inclusion, JSON request behavior, typed response shapes, and admin-specific error type.
 
-`AdminApp` creates a `BrowserRouter`. `/admin` renders `LoginPage` when there is no session and redirects to `/admin/dashboard` when authenticated. `/admin/*` renders `AdminLayout` only when a session exists; otherwise it redirects to `/admin` (`packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/LoginPage.tsx`).
-
-`AdminLayout` owns the admin sidebar and nested page routes. It displays the current `session.login`, provides a logout button, and does not reuse the user `Sidebar` component or the user `mainView` model (`packages/client/src/admin/AdminApp.tsx`, `packages/client/src/components/Sidebar.tsx`, `packages/client/src/lib/mainView.ts`).
-
-| Route | Page | Responsibility | Evidence |
-| --- | --- | --- | --- |
-| `/admin/dashboard` | `DashboardPage` | Global stats and optional org debug rows. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/DashboardPage.tsx` |
-| `/admin/users` | `UsersPage` | User list, create member user, disable/enable, delete non-admin users, link to detail. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/UsersPage.tsx` |
-| `/admin/users/:id` | `UserDetailPage` | User detail, password reset, role change, disabled toggle, permissions, owned agents. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/UserDetailPage.tsx` |
-| `/admin/channels` | `ChannelsPage` | Channel metadata and force delete where UI allows. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/ChannelsPage.tsx` |
-| `/admin/channels-archived` | `ArchivedChannelsPage` | Read-only archived channels; links to description history. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/ArchivedChannelsPage.tsx` |
-| `/admin/channels/:id/description-history` | `ChannelDescriptionHistoryPage` | Read-only channel description edit history rows. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/ChannelDescriptionHistoryPage.tsx` |
-| `/admin/runtimes` | `RuntimesPage` | Read-only runtime metadata. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/RuntimesPage.tsx` |
-| `/admin/heartbeat-lag` | `HeartbeatLagPage` | Read-only heartbeat lag snapshot. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/HeartbeatLagPage.tsx` |
-| `/admin/invites` | `InvitesPage` | Invite code list/create/revoke. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/InvitesPage.tsx` |
-| `/admin/audit-log` | `AdminAuditLogPage` | Filterable admin action audit table with English enum actions. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/AdminAuditLogPage.tsx` |
-| `/admin/audit-multi-source` | `MultiSourceAuditPage` | Source-filtered multi-source audit table. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/MultiSourceAuditPage.tsx` |
-| `/admin/settings` | `SettingsPage` | Current admin session summary and logout. | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/SettingsPage.tsx` |
+This keeps user features from accidentally depending on admin endpoints and keeps admin page types from leaking into the user API client. When an admin endpoint shape changes, the admin API client is the place to update the browser contract before page code changes.
 
 ## User Rail Isolation
 
-The admin rail is separated from the user rail by entry point, provider, API base, route tree, and realtime behavior.
+| Boundary | Admin SPA | User SPA |
+| --- | --- | --- |
+| Entry | Admin HTML and admin React entry. | User HTML and user React entry. |
+| Session/state | Admin auth provider and minimal admin session. | User app context with channels, DMs, messages, permissions, presence. |
+| Navigation | Browser routes under the admin path space. | Shell view mode plus selected channel/tab state. |
+| API | Admin endpoint prefix through the admin API client. | User endpoint paths through the user API client. |
+| Realtime | No admin realtime hook mounted. | User WebSocket for chat, presence, and signals. |
+| PWA | No dedicated admin PWA registration in the admin entry. | User entry registers service-worker behavior. |
 
-| Boundary | Admin side | User side | Evidence |
-| --- | --- | --- | --- |
-| HTML entry | `admin.html` | `index.html` | `packages/client/admin.html`, `packages/client/index.html`, `packages/client/vite.config.ts` |
-| React entry | `src/admin/main.tsx` | `src/main.tsx` | `packages/client/src/admin/main.tsx`, `packages/client/src/main.tsx` |
-| Provider | `AdminAuthProvider` | `ThemeProvider`, `AppProvider`, `ToastProvider` | `packages/client/src/admin/main.tsx`, `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx` |
-| API client | `src/admin/api.ts`, base `/admin-api/v1` | `src/lib/api.ts`, `/api/v1/*` paths | `packages/client/src/admin/api.ts`, `packages/client/src/lib/api.ts` |
-| Routing/state | `BrowserRouter` under `/admin/*` | `mainView` plus selected channel state; no user router in `App.tsx` | `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/App.tsx`, `packages/client/src/lib/mainView.ts` |
-| Realtime | No admin WS hook mounted | `useWebSocket` mounted by user `AppInner` | `packages/client/src/admin/main.tsx`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/App.tsx`, `packages/client/src/hooks/useWebSocket.ts` |
+User-facing admin-awareness is not an admin SPA feature. The normal user shell can show the user's own admin-impact history and impersonation grant through user-owned endpoints, without creating an admin session.
 
-Admin pages import from `../api`; user features import from `../lib/api` or `./lib/api`. This keeps admin-only calls out of the user API client and user-owned admin-awareness calls out of the admin client (`packages/client/src/admin/pages/*.tsx`, `packages/client/src/admin/api.ts`, `packages/client/src/lib/api.ts`).
+## Metadata And Safety Design
 
-## Metadata And Safety Boundaries Visible In Client Code
+The admin SPA is designed around metadata and explicit operational actions. It can render powerful controls, but it should not become a viewer for user message bodies, file bodies, artifact contents, raw API keys, or agent private reasoning unless the server rail intentionally exposes such a contract and the privacy model is updated.
 
-The strongest frontend-visible boundary is that admin pages render metadata tables and explicit admin operations, not the user chat/workspace/artifact surfaces. Admin audit rows render `metadata` as a JSON string; the admin API type comment states server omits body/content/text/artifact fields from that metadata (`packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/AdminAuditLogPage.tsx`).
+Current page posture:
 
-Runtime visibility is read-only metadata in the admin SPA. `AdminRuntime` includes id, agent id, endpoint URL, process kind, status, heartbeat, and timestamps; the type comment says `last_error_reason` is omitted, and `RuntimesPage` only renders the listed fields (`packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/RuntimesPage.tsx`).
+| Area | Safety posture |
+| --- | --- |
+| Audit metadata | Rendered as metadata rows; body/content fields are expected to be server-sanitized. |
+| Runtime metadata | Read-only operational fields; detailed private failure content is not modeled as page state. |
+| Archived channels | Read-only archived list; description history is a narrow history surface. |
+| User mutations | Explicit forms/buttons for password, role, disabled state, permission grants, create/delete. |
+| Channel mutations | Force delete is explicit and limited to the channel management page. |
+| Invites | Create/revoke is explicit and scoped to invite code management. |
 
-Archived channels and description history are read-only in the current admin UI. `ArchivedChannelsPage` lists archived rows and links to description history; `ChannelDescriptionHistoryPage` renders `old_content`, timestamp, and reason for description edits only (`packages/client/src/admin/pages/ArchivedChannelsPage.tsx`, `packages/client/src/admin/pages/ChannelDescriptionHistoryPage.tsx`, `packages/client/src/admin/api.ts`).
+The SPA must not treat frontend hiding as enforcement. Security and privacy are server rail responsibilities; the frontend design keeps the boundary visible and avoids mixing user and admin data clients.
 
-Powerful admin mutations are concentrated in explicit pages and explicit `/admin-api/v1` calls: user create/delete/disable/role/password/permission changes, channel force delete, and invite create/revoke (`packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/UsersPage.tsx`, `packages/client/src/admin/pages/UserDetailPage.tsx`, `packages/client/src/admin/pages/ChannelsPage.tsx`, `packages/client/src/admin/pages/InvitesPage.tsx`).
+## Relationship To Admin Server Rail
 
-User-facing admin-awareness is intentionally on the user rail. Settings loads `/api/v1/me/admin-actions` and `/api/v1/me/impersonation-grant`, while the admin SPA audit page uses `/admin-api/v1/audit-log`. The user privacy UI states that admins see metadata and not message/file/artifact contents unless the user grants temporary impersonation; keep that UI aligned with server behavior when endpoint shapes change (`packages/client/src/lib/api.ts`, `packages/client/src/components/Settings/PrivacyPromise.tsx`, `packages/client/src/components/Settings/SettingsPage.tsx`, `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/AdminAuditLogPage.tsx`).
+The admin SPA is a consumer of the admin server rail. The server rail owns auth, cookie issuance, request authorization, response sanitization, audit writes, and database effects. The SPA owns presentation, local form state, route protection based on the current session, and request composition.
 
-The admin SPA code read here has no route or page for impersonation. The user rail has the visible grant banner and grant/revoke controls (`packages/client/src/admin/AdminApp.tsx`, `packages/client/src/components/Settings/BannerImpersonate.tsx`, `packages/client/src/components/Settings/ImpersonateGrantSection.tsx`, `packages/client/src/lib/api.ts`).
+When adding an admin capability, update the architecture in this order: server rail contract, admin API client type/function, page surface, and user-facing admin-awareness surface if the action affects a user's privacy or account state.
 
 ## Interfaces To Other Modules
 
-| Interface | Contract | Evidence |
-| --- | --- | --- |
-| Vite build | Admin is a second HTML entry in the client package. | `packages/client/vite.config.ts`, `packages/client/admin.html` |
-| Server admin rail | Admin pages call `/admin-api/v1`; server behavior belongs to the sibling `server-rail.md`. | `packages/client/src/admin/api.ts` |
-| Shared CSS | Admin entry imports `../index.css`; component/provider logic stays separate. | `packages/client/src/admin/main.tsx`, `packages/client/src/index.css` |
-| User privacy surface | User settings mirrors admin impact through user-owned endpoints, not admin API calls. | `packages/client/src/components/Settings/SettingsPage.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/admin/api.ts` |
+| Interface | Contract |
+| --- | --- |
+| Build/PWA | Admin shares the client build but not the user PWA registration path. |
+| Admin server rail | Server is authority for auth, privacy, audit, and mutations. |
+| User SPA | Isolated runtime; only user-owned admin-awareness metadata crosses into the user rail. |
+| Privacy/audit docs | Should stay aligned when admin-visible metadata or user-facing promises change. |
+
+## Implementation Anchors
+
+| Concern | Anchors |
+| --- | --- |
+| Admin entry | `packages/client/admin.html`, `packages/client/src/admin/main.tsx` |
+| Session provider | `packages/client/src/admin/auth.ts`, `AdminAuthProvider`, `useAdminAuth` |
+| Session and API types | `packages/client/src/admin/api.ts`, `AdminSession`, `AdminApiError` |
+| Admin route tree | `packages/client/src/admin/AdminApp.tsx` |
+| Page surfaces | `packages/client/src/admin/pages/DashboardPage.tsx`, `packages/client/src/admin/pages/UsersPage.tsx`, `packages/client/src/admin/pages/UserDetailPage.tsx`, `packages/client/src/admin/pages/ChannelsPage.tsx`, `packages/client/src/admin/pages/InvitesPage.tsx`, `packages/client/src/admin/pages/AdminAuditLogPage.tsx`, `packages/client/src/admin/pages/MultiSourceAuditPage.tsx`, `packages/client/src/admin/pages/RuntimesPage.tsx`, `packages/client/src/admin/pages/HeartbeatLagPage.tsx`, `packages/client/src/admin/pages/ArchivedChannelsPage.tsx`, `packages/client/src/admin/pages/ChannelDescriptionHistoryPage.tsx`, `packages/client/src/admin/pages/SettingsPage.tsx` |
+| User rail contrast | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/hooks/useWebSocket.ts` |

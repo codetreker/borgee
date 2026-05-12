@@ -1,74 +1,86 @@
-# App Shell State
+# App Shell And State
 
-This document covers the user SPA entry, root providers, auth bootstrap, top-level view state, and `AppContext`. Realtime frame handling is covered in `realtime-sync.md`; feature-specific component ownership is covered in `feature-surfaces.md`.
+The app shell is the user SPA's runtime boundary. It turns an authenticated browser session into an initialized workspace, then coordinates a small set of global state that multiple surfaces need to share.
 
-## Module Overview
+## Architecture
 
-```text
-index.html
-  -> src/main.tsx
-    -> App
-      -> ThemeProvider
-        -> AppProvider
-          -> ToastProvider
-            -> AppInner
-              -> auth check + init loads
-              -> Sidebar
-              -> ChannelView or sidepane selected by mainView
+```mermaid
+flowchart LR
+  Auth[Auth gate]
+  Init[Bootstrap loads]
+  Shell[Responsive shell]
+  View[View selector]
+  State[App context]
+  Feature[Feature surfaces]
+  Guard[Unsaved-change guards]
+
+  Auth --> Init --> Shell
+  Shell --> View --> Feature
+  Shell <--> State
+  View --> Guard
+  Guard --> View
 ```
 
-The user entry is `packages/client/src/main.tsx`. It mounts `<App />` into `#root`, wraps it in `React.StrictMode`, and registers `/sw.js` after the window `load` event when `navigator.serviceWorker` is available (`packages/client/src/main.tsx`, `packages/client/index.html`).
-
-`App` provides `ThemeProvider`, `AppProvider`, and `ToastProvider` around `AppInner`. The admin entry does not participate in this provider tree; it mounts `AdminAuthProvider` and `AdminApp` separately (`packages/client/src/App.tsx`, `packages/client/src/admin/main.tsx`).
+| Phase | Purpose | Architectural constraint |
+| --- | --- | --- |
+| Auth gate | Decide whether to show login/register or the workspace. | The shell does not render authenticated surfaces until session check completes. |
+| Bootstrap | Load current user, permissions, channels, and online users. | Cross-surface state is initialized before the main workspace renders. |
+| Shell layout | Hold responsive sidebar state and authenticated banner placement. | Layout state stays in the shell because it is view orchestration, not domain state. |
+| View selection | Choose one sidepane or the selected channel view. | A single view mode prevents overlapping sidepanes and stale stacked UI. |
+| Shared state | Store data that must be consistent across surfaces. | App context owns shared user state; feature-specific drafts stay local. |
 
 ## Responsibilities
 
-This module is responsible for bootstrapping user auth state, initializing shared user data, owning the top-level `mainView`, wiring the WebSocket send/ack functions into `AppContext`, rendering the responsive sidebar wrapper, and choosing the active shell surface (`packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`).
+The shell owns authentication gating, initial user data loading, view-mode selection, responsive sidebar behavior, global impersonation banner placement, WebSocket send/ack wiring, and channel auto-selection after bootstrap.
 
-This module is not responsible for route matching. The user SPA does not use `react-router-dom` in `App.tsx`; it uses reducer state plus a `mainView` string. React Router is used by the admin SPA only (`packages/client/src/App.tsx`, `packages/client/src/lib/mainView.ts`, `packages/client/src/admin/AdminApp.tsx`).
+The shell does not own feature editing workflows, backend authorization, or admin routing. It delegates feature behavior to surfaces and data authority to REST.
 
-This module is not responsible for backend authorization or persistence. It calls `fetchMe`, `fetchMyPermissions`, `fetchChannels`, `fetchOnlineUsers`, message APIs, and related user endpoints through `lib/api.ts` (`packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts`).
+## State Boundary
 
-## Auth And Initialization
+Global app state is intentionally scoped to data that multiple surfaces or rails must coordinate:
 
-`AppInner` first calls `fetchMe` to decide whether to render login/register or the authenticated app. On successful login it waits briefly for `fetchMe` to become ready, then sets `authenticated` so the post-auth initialization effect can run (`packages/client/src/App.tsx`, `packages/client/src/lib/api.ts`).
+| State category | Why it is global |
+| --- | --- |
+| Channels, groups, and DMs | Sidebar, channel view, realtime frames, and navigation all need the same rail model. |
+| Selected channel | The shell, sidebar, chat, tabs, and read-marker behavior share one active channel identity. |
+| Message pages and pending messages | Chat rendering, optimistic send, retry, ack/nack, and reconnect reconciliation share message state. |
+| Current user and permissions | Navigation, permission-gated controls, and user-owned settings depend on the same identity. |
+| Online users and connection state | Sidebar, DM presence, banners, and realtime diagnostics need a single connection view. |
+| Typing users and channel member version | Transient collaboration UI and member-dependent lists need coordinated invalidation. |
+| Initialization flag | Prevents authenticated surfaces from rendering before required bootstrap state exists. |
 
-After authentication, `AppInner` calls `actions.loadCurrentUser()`, `actions.loadPermissions()`, `actions.loadChannels()`, and `actions.loadOnlineUsers()` before dispatching `SET_INITIALIZED`. It also refreshes online users every 30 seconds while authenticated (`packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`).
+Feature-local state stays outside the shared context when it is not required across surfaces: editor drafts, modal state, selected files, selected remote bindings, artifact edit forms, filter fields, and local loading/error state.
 
-If no channel is selected after initialization, the shell auto-selects the first `system` channel, otherwise the first channel. If channel loading leaves no selected channel, the fallback UI offers a retry that calls `actions.loadChannels()` (`packages/client/src/App.tsx`).
+## View Model
 
-## Top-Level View State
+The user shell has one primary view mode: channel, agents, invitations, workspaces, remote nodes, or settings. Channel mode then delegates to the selected channel and its tab state. This keeps app-level navigation shallow and avoids using browser routes for normal user workflow.
 
-The user shell uses a single `mainView` value rather than independent booleans. The active values are `channel`, `agents`, `invitations`, `workspaces`, `remote-nodes`, and `settings`; `MAIN_VIEW_DEFAULT` is defined in `packages/client/src/lib/mainView.ts` and used by `App.tsx` (`packages/client/src/App.tsx`, `packages/client/src/lib/mainView.ts`).
+Before switching view mode, the shell runs registered unsaved-change guards. Feature forms that can lose user input register with the guard system; the shell treats cancellation as a navigation veto.
 
-Sidebar callbacks call `requestMainView`. Before replacing `mainView`, `requestMainView` runs `runUnsavedGuards()` so dirty editors/forms can block navigation (`packages/client/src/App.tsx`, `packages/client/src/hooks/useUnsavedChangesGuard.ts`).
+## Initialization And Refresh
 
-The shell renders sidepanes directly from `mainView`: `AgentManager`, `InvitationsInbox`, `WorkspaceManager`, `NodeManager`, and `SettingsPage`. When `mainView === 'channel'`, the shell renders `ChannelView` for `state.currentChannelId` (`packages/client/src/App.tsx`, `packages/client/src/components/AgentManager.tsx`, `packages/client/src/components/InvitationsInbox.tsx`, `packages/client/src/components/WorkspaceManager.tsx`, `packages/client/src/components/NodeManager.tsx`, `packages/client/src/components/Settings/SettingsPage.tsx`, `packages/client/src/components/ChannelView.tsx`).
+Initialization follows a simple sequence: validate session, load identity, load permissions, load channel rail, load online users, then mark initialized. Online users refresh periodically after authentication because presence is useful even without a fresh WS event.
 
-## AppContext State
-
-`AppProvider` owns the user reducer and exposes `state`, `dispatch`, `sendWsMessage`, `registerAckTimer`, setter functions used by `AppInner`, and an `actions` object for common REST-backed operations (`packages/client/src/context/AppContext.tsx`, `packages/client/src/App.tsx`).
-
-| State | Responsibility | Evidence |
-| --- | --- | --- |
-| `channels`, `groups`, `dmChannels` | User channel rail, grouped channels, and DM rail data. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/types.ts`, `packages/client/src/components/Sidebar.tsx` |
-| `currentChannelId` | Selected channel or DM for `ChannelView`. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/App.tsx` |
-| `messages`, `hasMore`, `loadingMessages` | Per-channel message cache and pagination state. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/components/MessageList.tsx` |
-| `pendingMessages` | Optimistic outbound messages awaiting WS ack/nack or timeout. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/components/MessageInput.tsx`, `packages/client/src/hooks/useWebSocket.ts` |
-| `currentUser`, `permissions` | Authenticated user identity and capability details. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/usePermissions.ts`, `packages/client/src/lib/api.ts` |
-| `onlineUserIds`, `connectionState`, `typingUsers` | Online presence, WS connection banner state, and transient typing indicators. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/components/ConnectionStatus.tsx`, `packages/client/src/components/TypingIndicator.tsx` |
-| `channelMembersVersion` | Version counter used to wake member-dependent UI after membership frames. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/components/Sidebar.tsx` |
-| `initialized` | Gate that prevents rendering the authenticated app before bootstrap data loads. | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx` |
-
-Context actions are thin orchestration around `lib/api.ts`. They load channels/groups, load messages and older pages, load current user, load permissions, load online users, select a channel, send a message through the REST fallback API, create a channel, load DM channels, and open a DM (`packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts`).
-
-`selectChannel` is both navigation and read-state coordination: it sets `currentChannelId`, clears unread counts locally, and fire-and-forgets `markChannelRead` to the server (`packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts`).
+The shell also wires WebSocket send and ack-timer functions into the shared context. Message composition and retry flows can then remain feature-local while using the same realtime transport.
 
 ## Interfaces To Other Modules
 
-| Interface | Used by this module | Contract | Evidence |
-| --- | --- | --- | --- |
-| REST API client | `AppInner` and `AppContext` actions | Auth/init and state loading use `packages/client/src/lib/api.ts`. | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts` |
-| WebSocket hook | `AppInner` | `useWebSocket` returns `subscribe`, `sendWsMessage`, and `registerAckTimer`; `AppInner` stores send/ack functions in context. | `packages/client/src/App.tsx`, `packages/client/src/hooks/useWebSocket.ts` |
-| Unsaved guard registry | `requestMainView` | Dirty feature forms can register guards; shell navigation runs them before switching sidepanes. | `packages/client/src/App.tsx`, `packages/client/src/hooks/useUnsavedChangesGuard.ts`, `packages/client/src/components/AgentConfigPanel.tsx`, `packages/client/src/components/NodeManager.tsx` |
-| Sidebar/component surfaces | Rendered by shell | Sidebar owns channel/DM rail interactions; sidepane components own feature-specific local state. | `packages/client/src/App.tsx`, `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/*` |
+| Interface | Contract |
+| --- | --- |
+| REST client | The shell and context actions pull user/session/channel/message/permission data from the user REST rail. |
+| Realtime hook | The shell subscribes joined channels and exposes send/ack functions through context. |
+| Feature surfaces | Surfaces receive the selected context and call context actions rather than duplicating global state. |
+| Settings/admin-awareness | The authenticated shell hosts the active impersonation banner and settings entry point. |
+| Admin rail | No admin provider or admin router participates in the user shell. |
+
+## Implementation Anchors
+
+| Concern | Anchors |
+| --- | --- |
+| User entry | `packages/client/src/main.tsx` |
+| Shell and view mode | `packages/client/src/App.tsx`, `MainView`, `MAIN_VIEW_DEFAULT` |
+| App state boundary | `packages/client/src/context/AppContext.tsx`, `AppState`, `AppProvider` |
+| User REST actions | `packages/client/src/lib/api.ts` |
+| Realtime wiring | `packages/client/src/hooks/useWebSocket.ts` |
+| Unsaved-change guard | `packages/client/src/hooks/useUnsavedChangesGuard.ts` |
+| Shell surfaces | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx`, `packages/client/src/components/Settings/BannerImpersonate.tsx` |

@@ -1,47 +1,66 @@
 # Admin SPA
 
-This module documents the frontend admin SPA in `packages/client/src/admin`. Server rail behavior is owned by the sibling `server-rail.md`; this page only describes the browser entry, auth/session provider, admin API client, route/page composition, and separation from the user rail.
+The admin SPA is a separate browser application for operational administration. It shares the frontend package with the user SPA, but it has its own HTML entry, session provider, route tree, API client, and page surfaces.
 
-## Module Overview
+## Architecture At A Glance
 
 ```mermaid
-flowchart LR
-  adminHtml[admin.html] --> adminMain[src/admin/main.tsx]
-  adminMain --> Auth[AdminAuthProvider]
-  Auth --> App[AdminApp]
-  App --> Router[BrowserRouter /admin/*]
-  Router --> Pages[Admin pages]
-  Pages --> API[admin/api.ts /admin-api/v1]
+flowchart TB
+  Entry[Admin entry]
+  Session[Admin session provider]
+  Router[Protected route tree]
+  Layout[Admin layout]
+  Pages[Admin pages]
+  API[Admin API client]
+  Server[Admin server rail]
+  User[User SPA rail]
+
+  Entry --> Session --> Router --> Layout --> Pages
+  Pages --> API --> Server
+  User -. isolated .- Entry
 ```
 
-The admin SPA is built by the same Vite package as the user SPA, but as a separate HTML input. `packages/client/vite.config.ts` declares both `index.html` and `admin.html`; `admin.html` loads `/src/admin/main.tsx` (`packages/client/vite.config.ts`, `packages/client/admin.html`, `packages/client/src/admin/main.tsx`).
-
-The admin entry imports shared CSS, wraps `AdminApp` in `AdminAuthProvider`, and mounts under `React.StrictMode`. It does not mount the user `AppProvider`, `ThemeProvider`, `ToastProvider`, `Sidebar`, `ChannelView`, or `useWebSocket` (`packages/client/src/admin/main.tsx`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`).
-
-`AdminApp` owns the browser route tree under `/admin/*`. It gates routes on `useAdminAuth().checked` and `session`, redirecting unauthenticated users to `/admin` and authenticated users from `/admin` to `/admin/dashboard` (`packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/auth.ts`).
+| Layer | Architectural role | Boundary |
+| --- | --- | --- |
+| Entry | Boot the admin app independently from the user app. | Shares build assets, not user providers or user state. |
+| Session | Convert admin cookie state into a small browser session model. | Session is minimal and cookie-backed. |
+| Router/layout | Protect admin pages and provide admin navigation. | Admin routes live under the admin path space. |
+| Pages | Present operational views and explicit admin actions. | Pages call only the admin API client. |
+| Admin API client | Centralize admin endpoint paths, request behavior, and response types. | Uses the admin rail prefix, not user endpoints. |
+| Server rail | Enforce admin auth, ACL, privacy, and persistence. | Owned by the server architecture docs, not this SPA module. |
 
 ## Responsibilities
 
-The admin SPA module is responsible for the admin browser rail: admin login/logout session handling, protected admin layout, admin page routing, admin navigation, page-level REST calls, and admin-only API client types (`packages/client/src/admin/main.tsx`, `packages/client/src/admin/auth.ts`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/*`).
+The admin SPA owns admin browser composition: login, session refresh, logout, protected routing, admin navigation, page-level view state, admin API request shapes, and frontend-visible metadata/action surfaces.
 
-The admin SPA module is not responsible for server implementation, server-side auth enforcement, audit persistence, ACL checks, or response sanitization. Those belong to the server rail documented separately in `server-rail.md`; this frontend doc only states what the current client calls and renders (`packages/client/src/admin/api.ts`, `packages/client/src/admin/pages/*`).
+It does not own server enforcement, audit persistence, privacy sanitization, backend migrations, or user SPA workflows. Server rail details belong to `server-rail.md`.
 
-The admin SPA module is not responsible for user app state, user WebSocket sync, channel/DM chat, workspace/artifact editing, or user settings privacy UI. Those live under `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`, and `packages/client/src/components/*` and are documented under `../client/` (`packages/client/src/App.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/admin/api.ts`).
+## Interfaces
 
-## Interfaces To Other Modules
-
-| Interface | Direction | Contract | Evidence |
-| --- | --- | --- | --- |
-| Build entry | Vite -> admin SPA | `admin.html` is a Rollup input and loads `/src/admin/main.tsx`. | `packages/client/vite.config.ts`, `packages/client/admin.html`, `packages/client/src/admin/main.tsx` |
-| Admin REST rail | Admin SPA -> backend | `admin/api.ts` uses `BASE = '/admin-api/v1'` and includes cookies. | `packages/client/src/admin/api.ts` |
-| Admin session | Pages -> `AdminAuthProvider` | Session is `AdminSession | null`; `checked` gates initial auth check. | `packages/client/src/admin/auth.ts`, `packages/client/src/admin/AdminApp.tsx` |
-| User rail isolation | Admin SPA vs user SPA | Admin pages import `../api`; user pages import `../lib/api` or `./lib/api`; providers and routes are separate. | `packages/client/src/admin/pages/*.tsx`, `packages/client/src/admin/api.ts`, `packages/client/src/lib/api.ts` |
-| Server rail docs | Admin SPA docs -> server rail docs | Server endpoint behavior and enforcement belong in the sibling `server-rail.md`, not this SPA overview. | `packages/client/src/admin/api.ts` |
-
-## Document Index
-
-| Document | What to read it for |
+| Interface | Contract |
 | --- | --- |
-| `spa.md` | Admin entry, auth provider/session, API client, route/page map, user rail isolation, metadata/safety boundaries. |
-| `server-rail.md` | Server-side admin rail behavior and enforcement; maintained by another teammate. |
-| `privacy-audit.md` | Privacy/audit details where they intersect admin behavior; maintained separately from this SPA page. |
+| Build entry | Admin is a second frontend entry inside the client build. |
+| Admin REST rail | Admin pages call the admin API client, which targets the admin endpoint prefix. |
+| Admin session | Browser session state is derived from admin auth endpoints and cookies. |
+| User rail isolation | Admin does not mount user app context, user WebSocket, channel shell, or user API client. |
+| Server rail | Backend owns authorization and privacy; the SPA renders the sanitized shapes it receives. |
+
+## Subdocuments
+
+| Document | Scope |
+| --- | --- |
+| `spa.md` | Admin SPA design: entry, session, API client, route/page layering, isolation, and safety boundaries. |
+| `server-rail.md` | Admin server rail behavior and enforcement, maintained separately. |
+| `privacy-audit.md` | Privacy and audit concerns that cross admin behavior, maintained separately. |
+
+## Implementation Anchors
+
+| Concern | Anchors |
+| --- | --- |
+| Vite entry split | `packages/client/vite.config.ts`, `packages/client/admin.html` |
+| Admin app entry | `packages/client/src/admin/main.tsx` |
+| Session provider | `packages/client/src/admin/auth.ts`, `AdminAuthProvider`, `AdminSession` |
+| Admin route tree | `packages/client/src/admin/AdminApp.tsx` |
+| Admin API client | `packages/client/src/admin/api.ts`, `AdminApiError` |
+| Admin pages | `packages/client/src/admin/pages/` |
+| User rail contrast | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts` |

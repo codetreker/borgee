@@ -1,85 +1,94 @@
 # UI Map
 
-This is a maintainer locator for the user SPA. It maps visible areas to source files, state owners, and API hooks. It is not a UI design spec and should not be used as a source of visual styling requirements.
+This map describes the user SPA's surface hierarchy. It is an architectural locator, not a component inventory and not a design specification.
 
-## Module Overview
+## Surface Hierarchy
 
 ```text
-User window
-  Sidebar: channels, DMs, footer actions
-  Main content:
-    ChannelView chat/canvas/workspace/remote
-    or one mainView sidepane
-  Global authenticated banner: BannerImpersonate
+User SPA
+  Auth gate
+  Authenticated shell
+    Global banner area
+    Navigation rail
+      Channel groups and channels
+      Direct messages
+      Global sidepane actions
+    Main workspace
+      Channel host
+        Chat
+        Canvas
+        Workspace
+        Remote
+      Sidepanes
+        Agents
+        Invitations
+        All workspaces
+        Remote nodes
+        Settings
 ```
-
-The source of truth for current layout behavior is the rendered component tree in `App.tsx`: `BannerImpersonate`, optional mobile hamburger/overlay, `Sidebar`, and `main-content` containing either a `mainView` sidepane or `ChannelView` (`packages/client/src/App.tsx`).
 
 ## Responsibilities
 
-This document is responsible for helping maintainers find the component and API boundary for a user-visible area (`packages/client/src/App.tsx`, `packages/client/src/components/*`, `packages/client/src/hooks/*`, `packages/client/src/lib/api.ts`).
+The UI map explains where a maintainer should place or reason about a user-facing capability in the architecture: rail, channel host, channel tab, global sidepane, or global shell concern.
 
-This document is not responsible for specifying spacing, color, copy, visual hierarchy, interaction design, or accessibility acceptance criteria. Those must be read from components, CSS, tests, and product specs where applicable (`packages/client/src/index.css`, `packages/client/src/components/*`, `packages/client/src/__tests__/*`).
+It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns.
 
-This document is not responsible for admin SPA UI. Admin routes and pages are documented in `../admin/spa.md` and live under `packages/client/src/admin/*` (`packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/pages/*`).
+## Surface Placement Rules
 
-## Shell Locator
+| Question | Architectural answer |
+| --- | --- |
+| Does it affect the entire authenticated session? | Place it in the shell layer. Examples: auth state, initialization, active impersonation banner, connection wiring. |
+| Does it choose where the user is working? | Place it in the navigation rail or view selector. Examples: channel selection, DM selection, sidepane buttons. |
+| Is it scoped to the selected channel? | Place it under the channel host as a tab or chat capability. Examples: messages, canvas artifact, channel workspace, channel remote bindings. |
+| Does it span channels but remain user-owned? | Place it as a global sidepane. Examples: all workspaces, remote nodes, agent management, invitations, settings. |
+| Does it need admin authority? | It belongs outside the user SPA unless it is user-owned admin-awareness metadata. |
 
-| UI area | Primary files | State/API boundary | Evidence |
+## Surface Map
+
+| Surface | Layer | State owner | Data owner |
 | --- | --- | --- | --- |
-| Root entry | `src/main.tsx`, `App.tsx` | Mounts user app and service worker; no router. | `packages/client/src/main.tsx`, `packages/client/src/App.tsx` |
-| Providers | `ThemeContext.tsx`, `AppContext.tsx`, `Toast.tsx` | Theme, user state reducer, toast context. | `packages/client/src/App.tsx`, `packages/client/src/context/ThemeContext.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/components/Toast.tsx` |
-| Mobile shell | `App.tsx` | `isMobile`, `sidebarOpen`, resize listener, overlay/hamburger. | `packages/client/src/App.tsx` |
-| Sidepane switching | `App.tsx`, `mainView.ts`, `useUnsavedChangesGuard.ts` | Single `mainView` string; guard registry before navigation. | `packages/client/src/App.tsx`, `packages/client/src/lib/mainView.ts`, `packages/client/src/hooks/useUnsavedChangesGuard.ts` |
-| Active impersonation banner | `BannerImpersonate.tsx` | Polls and revokes user-owned grant. | `packages/client/src/App.tsx`, `packages/client/src/components/Settings/BannerImpersonate.tsx`, `packages/client/src/lib/api.ts` |
+| Login/register | Auth gate | Local auth UI plus shell auth flags | User auth REST rail |
+| Channel and DM rail | Navigation rail | Shared app state | User channel, DM, member, layout, and presence endpoints |
+| Chat | Channel host | Shared message and pending-message state plus local composer state | User message REST and WS rails |
+| Canvas/artifact | Channel tab | Local artifact/edit state | Artifact REST rail, refreshed by signals |
+| Channel workspace | Channel tab | Local file navigation/editor state | Workspace REST rail |
+| Channel remote | Channel tab | Local binding/tree/viewer state | Remote user REST rail |
+| Agents | Global sidepane | Local agent/detail/config state | User agent REST rail and runtime presence |
+| Invitations | Global sidepane | Local list/filter state | Agent invitation REST rail, refreshed by signals |
+| All workspaces | Global sidepane | Local grouping/filter/preview state | Workspace REST rail |
+| Remote nodes | Global sidepane | Local node/detail/binding state | Remote user REST rail |
+| Settings | Global sidepane | Local settings tab state | User admin-awareness REST endpoints |
 
-## Navigation And Rail Locator
+## Cross-Surface Signals
 
-| UI area | Primary files | State/API boundary | Evidence |
-| --- | --- | --- | --- |
-| Channel list | `Sidebar.tsx`, `ChannelList.tsx`, `SortableChannelItem.tsx`, `ChannelGroupComponent.tsx` | `state.channels`, `state.groups`, channel reorder/group APIs. | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelList.tsx`, `packages/client/src/lib/api.ts` |
-| Create channel/group | `Sidebar.tsx`, `CreateGroupModal.tsx` | `actions.createChannel`, `createChannelGroup`, `useCan('channel.create')`. | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/CreateGroupModal.tsx`, `packages/client/src/hooks/usePermissions.ts` |
-| DM list | `Sidebar.tsx` | `state.dmChannels`, `actions.loadDmChannels`, `actions.openDm`, online status. | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts` |
-| Sidebar footer actions | `Sidebar.tsx` | Opens `agents`, `invitations`, `workspaces`, `remote-nodes`, `settings`; hides some actions for agent users. | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/App.tsx` |
-| Invitation bell | `Sidebar.tsx`, `InvitationsInbox.tsx` | `listAgentInvitations`, `useInvitationFrames`, 60s fallback poll. | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/InvitationsInbox.tsx`, `packages/client/src/hooks/useWsHubFrames.ts` |
-
-## Channel View Locator
-
-| UI area | Primary files | State/API boundary | Evidence |
-| --- | --- | --- | --- |
-| Channel header | `ChannelView.tsx`, `ChannelMembersModal.tsx`, `MemberList.tsx` | Channel/DM lookup, member modal, join/leave, preview mode. | `packages/client/src/components/ChannelView.tsx`, `packages/client/src/components/ChannelMembersModal.tsx`, `packages/client/src/lib/api.ts` |
-| Tabs | `ChannelView.tsx` | Non-DM joined channels show `chat`, `canvas`, `workspace`, `remote`; only `chat`/`workspace` sync to URL. | `packages/client/src/components/ChannelView.tsx` |
-| Connection banner | `ConnectionStatus.tsx`, `SyncStatusIndicator.tsx` | `state.connectionState` from `useWebSocket`. | `packages/client/src/components/ConnectionStatus.tsx`, `packages/client/src/components/SyncStatusIndicator.tsx`, `packages/client/src/hooks/useWebSocket.ts` |
-| Message list | `MessageList.tsx`, `MessageItem.tsx`, reaction components, edit/history components | `state.messages`, `state.pendingMessages`, members, reactions, mention-pushed refresh. | `packages/client/src/components/MessageList.tsx`, `packages/client/src/components/MessageItem.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWsHubFrames.ts` |
-| Message composer | `MessageInput.tsx`, `MentionPicker.tsx`, `SlashCommandPicker.tsx`, `EmojiPickerPopover.tsx` | WS send, upload, mentions, slash commands, typing. | `packages/client/src/components/MessageInput.tsx`, `packages/client/src/commands/registry.ts`, `packages/client/src/hooks/useSlashCommands.ts`, `packages/client/src/extensions/mention.ts` |
-| Public preview | `ChannelView.tsx`, `MessageList.tsx` | `fetchChannelPreview`, join channel, no composer until joined. | `packages/client/src/components/ChannelView.tsx`, `packages/client/src/lib/api.ts` |
-
-## Feature Sidepanes And Tabs
-
-| UI area | Primary files | State/API boundary | Evidence |
-| --- | --- | --- | --- |
-| Canvas/artifact tab | `ArtifactPanel.tsx`, `DiffView.tsx`, `AnchorThreadPanel.tsx`, `IteratePanel.tsx` | Artifact head/version/commit/rollback/anchor/iteration APIs; WS signal pull. | `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/hooks/useWsHubFrames.ts` |
-| Artifact comments | `ArtifactComments.tsx`, comment body/item/thread/search/edit-history components | Comment REST APIs and `artifact_comment_added` signal pull. | `packages/client/src/components/ArtifactComments.tsx`, `packages/client/src/components/ArtifactCommentThread.tsx`, `packages/client/src/lib/api.ts` |
-| Workspace tab | `WorkspacePanel.tsx`, `FileViewer.tsx`, `MarkdownEditor.tsx`, viewer components | Channel workspace file APIs and download/viewer selection. | `packages/client/src/components/WorkspacePanel.tsx`, `packages/client/src/components/FileViewer.tsx`, `packages/client/src/components/viewers/*` |
-| Workspaces sidepane | `WorkspaceManager.tsx` | `fetchAllWorkspaces`, grouping/filtering, preview, rename. | `packages/client/src/components/WorkspaceManager.tsx`, `packages/client/src/lib/api.ts` |
-| Remote tab | `RemotePanel.tsx`, `RemoteTree.tsx`, `RemoteFileViewer.tsx` | Channel remote bindings, read-only remote `ls` and file reads. | `packages/client/src/components/RemotePanel.tsx`, `packages/client/src/components/RemoteTree.tsx`, `packages/client/src/components/RemoteFileViewer.tsx` |
-| Remote nodes sidepane | `NodeManager.tsx` | Node CRUD/status/token/start command/binding APIs. | `packages/client/src/components/NodeManager.tsx`, `packages/client/src/lib/api.ts` |
-| Agent sidepane | `AgentManager.tsx`, `AgentConfigPanel.tsx`, `RuntimeCard.tsx`, `HostGrantsPanel.tsx` | Agent CRUD, permissions, key, runtime, config APIs. | `packages/client/src/components/AgentManager.tsx`, `packages/client/src/components/AgentConfigPanel.tsx`, `packages/client/src/lib/api.ts` |
-| Invitations sidepane | `InvitationsInbox.tsx` | Owner invitation list/approve/reject plus invitation frame refresh. | `packages/client/src/components/InvitationsInbox.tsx`, `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/lib/api.ts` |
-| Settings sidepane | `Settings/SettingsPage.tsx`, `PrivacyPromise.tsx`, `ImpersonateGrantSection.tsx`, `AdminActionsList.tsx` | User-owned admin-awareness endpoints and grant operations. | `packages/client/src/components/Settings/SettingsPage.tsx`, `packages/client/src/components/Settings/*`, `packages/client/src/lib/api.ts` |
-
-## Hooks Locator
-
-| Hook/module | Main users | Responsibility | Evidence |
-| --- | --- | --- | --- |
-| `useWebSocket` | `App.tsx`, `AppContext`, chat components indirectly | `/ws` connection, subscribe, frame dispatch, pending ack timers, reconnect/backfill. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/App.tsx` |
-| `useWsHubFrames` | Invitations, messages, artifact/comment/iteration surfaces | Convert signal-only WS frames to window events and hooks. | `packages/client/src/hooks/useWsHubFrames.ts` |
-| `usePermissions` | Sidebar and permission-gated controls | Check current user's permissions from `AppContext`. | `packages/client/src/hooks/usePermissions.ts`, `packages/client/src/context/AppContext.tsx` |
-| `useUnsavedChangesGuard` | Shell sidepane switching, agent config, remote forms | Register dirty guards and run them before navigation. | `packages/client/src/hooks/useUnsavedChangesGuard.ts`, `packages/client/src/App.tsx` |
-| `usePresence` / `useRT3Presence` | Agent/DM presence displays | Local presence cache updated by WS runtime frames. | `packages/client/src/hooks/usePresence.ts`, `packages/client/src/hooks/useRT3Presence.ts`, `packages/client/src/components/AgentManager.tsx` |
-| `useSlashCommands` | Message composer | Filter built-in and remote slash commands. | `packages/client/src/hooks/useSlashCommands.ts`, `packages/client/src/components/MessageInput.tsx`, `packages/client/src/commands/registry.ts` |
-| `useVisualViewport` | Channel view | Adjust channel viewport when virtual keyboard changes. | `packages/client/src/hooks/useVisualViewport.ts`, `packages/client/src/components/ChannelView.tsx` |
+| Signal source | Surfaces affected | Design rule |
+| --- | --- | --- |
+| Channel selection | Rail, channel host, read markers | Selection is global because multiple surfaces must agree on the active channel. |
+| WebSocket connection | Chat, rail, presence indicators | Connection state is global; feature-specific refresh remains local. |
+| Unsaved-change guards | Sidepanes and shell navigation | Feature forms register guards; shell navigation respects them. |
+| Invitation signal | Rail badge and invitation sidepane | Signal wakes both surfaces; REST remains authoritative. |
+| Artifact/comment signal | Canvas and comment surfaces | Signal wakes scoped artifact surfaces; bodies are pulled. |
+| Admin-awareness grant | Global banner and settings | User-owned grant state can affect the whole authenticated shell. |
 
 ## Interfaces To Other Modules
 
-The UI map interfaces with `app-shell-state.md` for shell ownership, `realtime-sync.md` for WS/REST behavior, `feature-surfaces.md` for deeper feature boundaries, and `build-pwa-cache.md` for entry/build/cache behavior. Source evidence remains the code paths listed in each row above.
+| Interface | Contract |
+| --- | --- |
+| App shell | Owns auth, initialization, global banner, navigation state, and active surface selection. |
+| Realtime sync | Provides connection state, direct chat/presence updates, and signal wake-ups. |
+| Feature surfaces | Own workflow state below the shell and call REST for authoritative data. |
+| Build/PWA | Determines which entry registers service-worker behavior and which rail is installable. |
+| Admin SPA | Separate application; not part of this surface hierarchy. |
+
+## Implementation Anchors
+
+| Concern | Anchors |
+| --- | --- |
+| Shell and view selector | `packages/client/src/App.tsx`, `MainView` |
+| App state | `packages/client/src/context/AppContext.tsx`, `AppState` |
+| Navigation rail | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelList.tsx` |
+| Channel host | `packages/client/src/components/ChannelView.tsx` |
+| Chat | `packages/client/src/components/MessageList.tsx`, `packages/client/src/components/MessageInput.tsx` |
+| Channel tabs | `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/WorkspacePanel.tsx`, `packages/client/src/components/RemotePanel.tsx` |
+| Sidepanes | `packages/client/src/components/AgentManager.tsx`, `packages/client/src/components/InvitationsInbox.tsx`, `packages/client/src/components/WorkspaceManager.tsx`, `packages/client/src/components/NodeManager.tsx`, `packages/client/src/components/Settings/SettingsPage.tsx` |
+| Global signals | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/hooks/useUnsavedChangesGuard.ts` |

@@ -1,78 +1,87 @@
-# Build PWA Cache
+# Build, PWA, And Cache Constraints
 
-This document covers Vite build configuration, dual HTML entries, package scripts, dev proxy, PWA manifest, service worker behavior, and cache boundaries for the client package.
+This document records architecture constraints created by the frontend build, entry split, service worker, and cache behavior. It is not a build tutorial.
 
-## Module Overview
+## Architecture
 
-```text
-packages/client/vite.config.ts
-  inputs: index.html -> src/main.tsx -> user SPA
-          admin.html -> src/admin/main.tsx -> admin SPA
-  dev proxy: /api /admin-api /health /uploads /ws
+```mermaid
+flowchart LR
+  Build[Vite build]
+  UserEntry[User HTML entry]
+  AdminEntry[Admin HTML entry]
+  UserApp[User SPA]
+  AdminApp[Admin SPA]
+  SW[Service worker]
+  Manifest[PWA manifest]
+  Rails[Same-origin rails]
 
-User PWA:
-  index.html links manifest
-  src/main.tsx registers /sw.js
-  public/sw.js caches shell and same-origin GET responses except /api and /ws
+  Build --> UserEntry --> UserApp
+  Build --> AdminEntry --> AdminApp
+  UserEntry --> Manifest
+  UserApp --> SW
+  UserApp --> Rails
+  AdminApp --> Rails
 ```
 
-The client package is a Vite React app with two Rollup HTML inputs: `main: 'index.html'` and `admin: 'admin.html'`. Build output goes to `dist` with sourcemaps enabled (`packages/client/vite.config.ts`).
-
-The package scripts are `dev`, `build`, `build:dev`, `preview`, `typecheck`, and `test`. `build` runs `tsc -b && vite build`; `typecheck` runs `tsc --noEmit`; tests run through Vitest (`packages/client/package.json`, `packages/client/vitest.config.ts`, `packages/client/tsconfig.json`).
+| Constraint | Architectural impact |
+| --- | --- |
+| One Vite package builds two entries. | User and admin share build tooling and CSS assets but keep separate runtime roots. |
+| The user entry owns PWA registration. | Install/offline/push behavior is attached to the user rail, not treated as an admin feature. |
+| API rails are same-origin in browser code. | User and admin clients depend on path separation rather than separate frontend hosts. |
+| Service worker uses network-first shell caching. | Cache improves app-shell resilience but is not the source of truth for domain data. |
+| Dev proxy mirrors production path separation. | `/api`, `/admin-api`, `/ws`, and uploads remain distinct architectural rails during local development. |
 
 ## Responsibilities
 
-This module is responsible for documenting how the frontend is built, how user and admin entries are separated at HTML/build level, how dev proxying works, and what the current service worker caches (`packages/client/vite.config.ts`, `packages/client/index.html`, `packages/client/admin.html`, `packages/client/public/sw.js`).
+This module describes build-time and browser-cache constraints that affect the SPA architecture: dual entry, same-origin proxy assumptions, PWA scope, service-worker cache strategy, and push-notification entry point.
 
-This module is not responsible for backend serving, deployment topology, CDN policy, or server cache headers. It only reflects the frontend source configuration in `packages/client` (`packages/client/vite.config.ts`, `packages/client/public/sw.js`).
+It does not own deployment, backend serving, CDN configuration, test commands, or admin route/session design.
 
-This module is not responsible for admin SPA route/session details. The admin build entry is noted here because Vite builds it, but admin architecture is documented in `../admin/README.md` and `../admin/spa.md` (`packages/client/admin.html`, `packages/client/src/admin/main.tsx`, `packages/client/src/admin/AdminApp.tsx`).
+## Dual Entry Boundary
 
-## Vite Dual Entry
+The frontend build emits both the user and admin HTML entries. This is a packaging choice, not a runtime merge: the user entry mounts the user shell and PWA registration path; the admin entry mounts the admin session provider and admin route tree.
 
-`packages/client/vite.config.ts` installs `@vitejs/plugin-react`, sets dev server port `5173`, and configures `rollupOptions.input` with both user and admin HTML files (`packages/client/vite.config.ts`).
+Because both entries share a package, shared CSS and static assets can be reused. Runtime state, providers, API clients, and navigation remain split by entry.
 
-`packages/client/index.html` loads `/src/main.tsx`, links `/manifest.json`, sets Apple mobile metadata, and references the app icons. This is the only entry that registers the service worker because service-worker registration is in `src/main.tsx` (`packages/client/index.html`, `packages/client/src/main.tsx`).
+## Same-Origin Rail Constraint
 
-`packages/client/admin.html` loads `/src/admin/main.tsx`, has favicon/theme metadata, and does not link `/manifest.json`. The admin entry imports shared `../index.css` but mounts `AdminAuthProvider` and `AdminApp`, not the user providers (`packages/client/admin.html`, `packages/client/src/admin/main.tsx`).
+The browser talks to backend rails through path prefixes on the same origin. The user API rail, admin API rail, WebSocket rail, health endpoint, and upload/static serving are separate by URL prefix.
 
-## Dev Proxy
+This means frontend architecture must preserve path ownership: user features call user endpoints, admin pages call admin endpoints, and shared build configuration should not blur the two API clients.
 
-The Vite dev proxy target is `process.env.VITE_E2E_API_TARGET ?? 'http://localhost:4900'`. `/api`, `/admin-api`, `/health`, and `/uploads` proxy to that HTTP target; `/ws` proxies to the corresponding `ws:` target with WebSocket support (`packages/client/vite.config.ts`).
+## PWA And Service Worker Constraint
 
-This proxy setup means the user REST client can keep `BASE = ''` and call `/api/v1/*`, while the admin REST client can keep `BASE = '/admin-api/v1'` (`packages/client/src/lib/api.ts`, `packages/client/src/admin/api.ts`, `packages/client/vite.config.ts`).
+The PWA manifest and service-worker registration are associated with the user entry. The service worker precaches a small app shell, uses network-first behavior for cacheable GETs, and falls back to the shell for offline navigation.
 
-## PWA Manifest
+Domain data remains REST-authoritative. Messages, files, artifacts, permissions, admin metadata, and remote reads should not be designed around service-worker cache correctness.
 
-The manifest declares `name` and `short_name` as `Borgee`, `start_url: '/'`, `display: 'standalone'`, background/theme colors, and SVG icons for 192, 512, and maskable favicon purposes (`packages/client/public/manifest.json`, `packages/client/index.html`).
+## Cache Safety Boundary
 
-Because `admin.html` does not link the manifest and `src/admin/main.tsx` does not register the service worker, the PWA install path is tied to the user entry in current code (`packages/client/admin.html`, `packages/client/src/admin/main.tsx`, `packages/client/src/main.tsx`).
+The service worker explicitly skips user API and WebSocket paths. It does not explicitly skip the admin API prefix in current code, so any change that makes admin pages service-worker-controlled should evaluate whether admin GET responses can be cached by the generic network-first handler.
 
-## Service Worker Cache
+Upload/static URLs are not in the explicit skip list. They should be treated as static asset serving from a browser-cache perspective, separate from upload creation through REST.
 
-`public/sw.js` uses cache name `borgee-v1` and precaches `['/', '/index.html']` on install. Activation deletes caches whose key is not `borgee-v1` and claims clients (`packages/client/public/sw.js`).
+## Push Boundary
 
-The fetch handler only handles `GET` requests. It skips paths starting with `/api` and `/ws`, performs a network-first fetch for other requests, caches successful same-origin responses, and falls back to a matching cache entry or `/index.html` when the network request fails (`packages/client/public/sw.js`).
-
-The current skip list does not explicitly skip `/admin-api`. Because `/admin-api` starts with `/admin-api`, not `/api`, a same-origin `GET /admin-api/*` response could be intercepted and cached by this service worker if the admin page is controlled by it. This is a code-derived boundary to keep in mind when changing service-worker scope or admin entry behavior (`packages/client/public/sw.js`, `packages/client/admin.html`, `packages/client/src/main.tsx`).
-
-## Push Notifications
-
-The service worker handles push payloads with `kind: 'mention'` and `kind: 'agent_task'`. It renders notifications with icon `/icons/icon-192.svg`, badge `/favicon.svg`, and a `tag` equal to the payload kind so same-kind notifications collapse (`packages/client/public/sw.js`).
-
-Notification clicks focus an existing window client when one exists; otherwise the service worker opens `/` (`packages/client/public/sw.js`).
-
-## Cache And API Boundaries
-
-| Area | Current behavior | Evidence |
-| --- | --- | --- |
-| User app shell | `src/main.tsx` registers `/sw.js`; service worker precaches `/` and `/index.html`. | `packages/client/src/main.tsx`, `packages/client/public/sw.js` |
-| User REST | `/api` is skipped by the service worker and proxied in dev. | `packages/client/public/sw.js`, `packages/client/vite.config.ts` |
-| WebSocket | `/ws` is skipped by the service worker and proxied as WebSocket in dev. | `packages/client/public/sw.js`, `packages/client/vite.config.ts` |
-| Upload serving | `/uploads` is proxied in dev and is not in the service-worker skip list. | `packages/client/vite.config.ts`, `packages/client/public/sw.js` |
-| Admin REST | `/admin-api` is proxied in dev but not explicitly skipped by the service worker. | `packages/client/vite.config.ts`, `packages/client/public/sw.js`, `packages/client/src/admin/api.ts` |
-| Admin entry | `admin.html` is a Vite input but has no manifest link and no SW registration in its entry. | `packages/client/admin.html`, `packages/client/src/admin/main.tsx`, `packages/client/vite.config.ts` |
+Browser push handling lives in the service worker and supports mention and agent-task notification payloads. Notification click behavior returns the user to the app root rather than routing to a deep admin or feature page.
 
 ## Interfaces To Other Modules
 
-The build module interfaces with the user SPA through `index.html` and `src/main.tsx`, with the admin SPA through `admin.html` and `src/admin/main.tsx`, with backend rails through Vite proxy paths, and with browser offline/push behavior through `public/sw.js` and `public/manifest.json` (`packages/client/vite.config.ts`, `packages/client/index.html`, `packages/client/admin.html`, `packages/client/public/sw.js`, `packages/client/public/manifest.json`).
+| Interface | Contract |
+| --- | --- |
+| User SPA | Owns PWA registration and user app shell behavior. |
+| Admin SPA | Shares the build but has no separate PWA registration in its entry. |
+| REST/realtime sync | Depends on same-origin path prefixes and service-worker skip behavior. |
+| Feature surfaces | Must treat service-worker cache as shell/static optimization, not domain authority. |
+
+## Implementation Anchors
+
+| Concern | Anchors |
+| --- | --- |
+| Build config | `packages/client/vite.config.ts` |
+| User entry | `packages/client/index.html`, `packages/client/src/main.tsx` |
+| Admin entry | `packages/client/admin.html`, `packages/client/src/admin/main.tsx` |
+| User REST client | `packages/client/src/lib/api.ts` |
+| Admin REST client | `packages/client/src/admin/api.ts` |
+| Service worker | `packages/client/public/sw.js` |
+| PWA manifest | `packages/client/public/manifest.json` |

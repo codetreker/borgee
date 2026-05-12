@@ -1,110 +1,106 @@
 # Realtime Sync
 
-This document covers the user SPA data-sync model: REST as authority, WebSocket as live delivery and wake-up signal, reconnect/backfill, and pending-message reconciliation. Shell state is covered in `app-shell-state.md`.
+The user SPA sync model is REST-authoritative with WebSocket acceleration. REST owns durable truth; WebSocket reduces latency, carries presence and message acks, and wakes surfaces that then pull fresh state.
 
-## Module Overview
+## Architecture
 
-```text
-User action or mount
-  -> lib/api.ts pulls / mutates /api/v1 authoritative data
-  -> useWebSocket receives /ws frames
-     -> reducer-updating frames mutate AppContext directly
-     -> signal-only frames dispatch window CustomEvents
-        -> feature component refetches REST state
-  -> reconnect uses cursor backfill and per-channel message pull
+```mermaid
+sequenceDiagram
+  participant UI as Surface
+  participant REST as User REST rail
+  participant WS as WebSocket rail
+  participant State as App state
+
+  UI->>REST: Load authoritative state
+  REST-->>UI: Lists, bodies, permissions, files
+  WS-->>State: Direct reducer frame
+  WS-->>UI: Signal frame via event bridge
+  UI->>REST: Pull fresh state after signal
+  WS-->>REST: Reconnect cursor drives backfill pull
 ```
 
-The client sync contract is REST-first. `packages/client/src/lib/api.ts` contains same-origin `/api/v1/*` calls with `credentials: 'include'`; components and context actions use those calls for initial state, list refresh, file/artifact content, comments, permissions, workspace data, remote data, admin-awareness rows, and mutations (`packages/client/src/lib/api.ts`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/components/*`).
-
-`useWebSocket` connects to `ws://<host>/ws` or `wss://<host>/ws` and optionally appends `user_id` from the dev user helper. It exposes `subscribe`, `unsubscribe`, `sendWsMessage`, `registerAckTimer`, and `connectionState` (`packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/lib/api.ts`).
+| Sync channel | Used for | Not used for |
+| --- | --- | --- |
+| REST | Authoritative lists, details, file bodies, artifact bodies, comments, permissions, workspace data, remote reads, admin-awareness rows. | Low-latency typing/presence and optimistic message ack state. |
+| WebSocket direct frames | New messages, message ack/nack, presence, typing, reactions, channel/group changes, connection state. | Persisting full feature detail models. |
+| WebSocket signal frames | Invitations, artifact changes, mention push, anchor/comment/iteration changes. | Rendering full message, comment, artifact, or iteration bodies. |
+| Backfill pulls | Repair state after reconnect using cursor and per-channel message reconciliation. | Cold-start full-history loading. |
 
 ## Responsibilities
 
-This module is responsible for documenting how live frames update user state, how dropped connections are reconciled, how message acks map to optimistic pending messages, and which frame types are only wake-up signals (`packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/context/AppContext.tsx`).
+Realtime sync owns connection lifecycle, subscription state, frame normalization, reducer updates, signal dispatch, pending-message resolution, and reconnect repair.
 
-This module is not responsible for server frame schema definitions or backend event storage. The client consumes frame shapes in `packages/client/src/types/ws-frames.ts` and REST response shapes in `packages/client/src/lib/api.ts`; server ownership is outside the frontend docs (`packages/client/src/types/ws-frames.ts`, `packages/client/src/hooks/useWebSocket.ts`).
+It does not own server event storage, frame schema evolution, backend authorization, or admin realtime behavior. Admin pages are REST-driven in the current design.
 
-This module is not responsible for admin realtime behavior. The admin SPA does not mount `useWebSocket`; admin pages are REST-driven through `/admin-api/v1` (`packages/client/src/admin/main.tsx`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/api.ts`, `packages/client/src/hooks/useWebSocket.ts`).
+## REST Authority
 
-## REST API Client
+The REST rail is the single source of truth for any data that must survive reloads or be privacy/ACL correct: channel membership, messages, files, artifact content, comments, agent configuration, remote file reads, permissions, audit visibility, and impersonation grants.
 
-`lib/api.ts` uses `BASE = ''`, so production and Vite dev proxy both use same-origin requests. It includes cookies, adds JSON `Content-Type` only for non-`FormData` bodies, and lets the browser provide multipart boundaries for uploads (`packages/client/src/lib/api.ts`, `packages/client/vite.config.ts`).
+Surfaces should prefer a pull after any signal that does not contain a complete safe payload. This is especially important for body-bearing resources such as messages, comments, artifact content, workspace files, and iteration details.
 
-Important user REST groups:
+## WebSocket Direct Updates
 
-| Group | Responsibility | Evidence |
+Some frames are small enough and safe enough to apply directly to shared state. These frames update the app reducer or lightweight presence caches because their payload is already the UI state being represented.
+
+| Direct update family | State effect |
+| --- | --- |
+| Message delivery and ack/nack | Adds server messages and resolves optimistic pending messages. |
+| Message edit/delete and reactions | Updates existing message rows or reaction aggregates. |
+| Presence and typing | Updates transient user/agent availability and typing indicators. |
+| Channel and group lifecycle | Adds, removes, reorders, or updates rail metadata. |
+| Membership changes | Updates member count and invalidates member-dependent UI. |
+| Command refresh | Wakes command-loading logic without storing command state globally. |
+
+## Signal Then Pull
+
+Signal frames intentionally carry minimal data. They answer “something changed” rather than “here is the new authority.” The receiving surface decides whether the signal applies to its current scope and then pulls the relevant REST endpoint.
+
+| Signal | Pull target | Reason |
 | --- | --- | --- |
-| Auth/user | Login, logout, register, current user, profile. | `packages/client/src/lib/api.ts`, `packages/client/src/App.tsx` |
-| Channels/groups/members | Channel list, create/update/join/leave/delete/reorder, groups, members, read markers, visibility, pin/mute/notification prefs. | `packages/client/src/lib/api.ts`, `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx` |
-| Messages/DMs | Message pages, sends, edits, deletes, reactions, DMs, DM edit/history/search helpers. | `packages/client/src/lib/api.ts`, `packages/client/src/components/MessageList.tsx`, `packages/client/src/components/MessageInput.tsx` |
-| Backfill | `fetchEventsBackfill(since)` calls `/api/v1/events?since=` after reconnect with a stored cursor. | `packages/client/src/lib/api.ts`, `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/lib/lastSeenCursor.ts` |
-| Agents/runtime/config | Agent CRUD, permissions, API key rotation, runtime start/stop, config, recovery. | `packages/client/src/lib/api.ts`, `packages/client/src/components/AgentManager.tsx`, `packages/client/src/components/AgentConfigPanel.tsx` |
-| Workspace/uploads | Message image upload plus channel/global workspace file operations. | `packages/client/src/lib/api.ts`, `packages/client/src/components/MessageInput.tsx`, `packages/client/src/components/WorkspacePanel.tsx`, `packages/client/src/components/WorkspaceManager.tsx` |
-| Remote nodes | Remote node CRUD/status/token bindings, channel bindings, remote `ls` and read-only file reads. | `packages/client/src/lib/api.ts`, `packages/client/src/components/NodeManager.tsx`, `packages/client/src/components/RemotePanel.tsx`, `packages/client/src/components/RemoteTree.tsx` |
-| Artifacts/comments | Artifact create/get/version/commit/rollback, iterations, anchors, comments, comment search, edit history. | `packages/client/src/lib/api.ts`, `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/ArtifactComments.tsx`, `packages/client/src/components/IteratePanel.tsx` |
-| User admin-awareness | Own admin action history and own impersonation grant. | `packages/client/src/lib/api.ts`, `packages/client/src/components/Settings/SettingsPage.tsx`, `packages/client/src/components/Settings/BannerImpersonate.tsx` |
-
-## WebSocket Connection
-
-`useWebSocket` keeps a set of subscribed channel IDs. On open, it resubscribes every stored channel and marks connection state connected. `AppInner` subscribes all joined channels after initialization, and the hook also auto-subscribes DM channels from context state (`packages/client/src/App.tsx`, `packages/client/src/hooks/useWebSocket.ts`).
-
-The hook sends a ping every 25 seconds while the socket is open. On close, it schedules reconnects with delays from 1 second up to 30 seconds, except auth failure close codes `4001` and `4003`, which leave the connection disconnected (`packages/client/src/hooks/useWebSocket.ts`).
-
-The hook normalizes both direct frames and hub envelope frames through `flattenWsFrame`, so handlers read a flattened `{ type, ...payload }` shape regardless of whether the server sent `{type, data: payload}` or a direct payload frame (`packages/client/src/hooks/useWebSocket.ts`).
-
-## Reconnect Backfill
-
-When reconnecting after a dropped socket, `useWebSocket` loads the stored cursor from `lastSeenCursor`. If the cursor is greater than zero, it calls `fetchEventsBackfill(since)`, dispatches each returned event through the same message handler, and persists the returned cursor if it advanced (`packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/lib/lastSeenCursor.ts`, `packages/client/src/lib/api.ts`).
-
-Backfill is not a cold-start full history load. If `loadLastSeenCursor()` returns `0`, the event backfill is skipped; normal state comes from REST list/message loads and per-channel reconciliation (`packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/context/AppContext.tsx`).
-
-The hook also reconciles missed messages per subscribed channel. It tracks the latest message timestamp per channel and calls `fetchMessages(channelId, { after: lastTs, limit: 50 })` after reconnect, then dispatches `ADD_MESSAGE` for each returned message and clears matching pending messages (`packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/lib/api.ts`).
-
-## Direct Reducer Frames
-
-Some frames are treated as state updates and dispatch directly into `AppContext`:
-
-| Frame family | Reducer effect | Evidence |
-| --- | --- | --- |
-| `new_message`, `message_ack`, `message_nack`, `message_edited`, `message_deleted` | Add/edit/delete messages and resolve pending messages. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/context/AppContext.tsx` |
-| `presence`, `presence.changed` | Update user online set or agent runtime presence cache. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/usePresence.ts` |
-| `channel_created`, `channel_added`, `channel_removed`, `channel_deleted`, `visibility_changed`, `channel_updated`, `channels_reordered` | Add/remove/update channel rows and subscriptions. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/context/AppContext.tsx` |
-| `user_joined`, `user_left` | Update member count and bump `channelMembersVersion`. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/components/Sidebar.tsx` |
-| `typing`, `reaction_update` | Set transient typing state and replace reaction aggregates. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/context/AppContext.tsx` |
-| Group frames | Add/update/reorder/delete channel groups. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/context/AppContext.tsx` |
-| `commands_updated` | Dispatch a browser event that `ChannelView` debounces before reloading commands. | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/components/ChannelView.tsx` |
+| Agent invitation pending/decided | Invitation list | Inbox and bell count should reflect server-side state and expiration/decision logic. |
+| Artifact updated | Artifact head and version list | Artifact body, committer, and versions are authoritative through REST. |
+| Mention pushed | Channel messages | The push preview is not the rendered message body. |
+| Anchor comment added | Anchor threads and comments | Comment bodies and thread state are pulled through ACL-aware REST. |
+| Iteration state changed | Iteration detail/list | Intent and result details are not treated as push authority. |
+| Artifact comment added | Artifact comments | Comment body preview is not the rendered comment text. |
 
 ## Pending Message Flow
 
 ```text
-MessageInput or retry in MessageList
-  -> ADD_PENDING_MESSAGE
-  -> sendWsMessage({ type: "send_message", channel_id, content, content_type, client_message_id })
-  -> register 10s timeout
-  -> message_ack: ACK_PENDING_MESSAGE and insert server message
-  -> message_nack or timeout: FAIL_PENDING_MESSAGE
+compose message
+  -> create pending item in shared state
+  -> send over WebSocket with client message id
+  -> ack inserts server message and clears pending item
+  -> nack or timeout marks pending item failed
+  -> retry creates a new pending item
 ```
 
-Text messages and uploaded image messages both follow the pending-message path. For images, `MessageInput` first calls `uploadImage`, then sends the returned URL as an image message over WS (`packages/client/src/components/MessageInput.tsx`, `packages/client/src/components/MessageList.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/lib/api.ts`).
+Image messages add one preliminary step: upload through REST, then send the returned URL as message content over the realtime rail. The upload result is not inserted as a durable message until the send flow completes.
 
-## Signal Then Pull
+## Reconnect Repair
 
-Signal-only frames are bridged to browser `CustomEvent`s in `useWsHubFrames`; consumers refetch REST state instead of rendering frame previews as authoritative data (`packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/hooks/useWebSocket.ts`).
+The client persists a high-water cursor when frames include one. After a dropped connection reconnects, it asks the REST rail for events after that cursor, replays them through the same frame handler, and advances the cursor only when the server returns a newer one.
 
-| WS signal | Client bridge | Follow-up pull | Consumer evidence |
-| --- | --- | --- | --- |
-| `agent_invitation_pending`, `agent_invitation_decided` | `useInvitationFrames` / `borgee:invitation-*` | `listAgentInvitations` refreshes inbox and bell badge. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/InvitationsInbox.tsx` |
-| `artifact_updated` | `useArtifactUpdated` | `getArtifact` and `listArtifactVersions` reload artifact head and versions. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/lib/api.ts` |
-| `mention_pushed` | `useMentionPushed` | Matching channel calls `actions.loadMessages`; body preview is not rendered as message body. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/MessageList.tsx`, `packages/client/src/types/ws-frames.ts` |
-| `anchor_comment_added` | `useAnchorCommentAdded` | Artifact anchors/comments are refetched. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/AnchorThreadPanel.tsx`, `packages/client/src/lib/api.ts` |
-| `iteration_state_changed` | `useIterationStateChanged` | Iteration state/body is refetched by artifact iteration UI. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/IteratePanel.tsx`, `packages/client/src/types/ws-frames.ts` |
-| `artifact_comment_added` | `useArtifactCommentAdded` | Artifact comments are refetched from `/api/v1/artifacts/:id/comments`; body preview is not the rendered comment body. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/ArtifactComments.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/types/ws-frames.ts` |
+Cursor backfill is not a cold-start history mechanism. If no cursor exists, normal bootstrap and per-surface loads provide state. In addition, subscribed channels reconcile missed messages by pulling messages after the last observed timestamp.
 
 ## Interfaces To Other Modules
 
-| Interface | Contract | Evidence |
-| --- | --- | --- |
-| `AppContext` reducer | Receives direct frame actions and stores pending messages, connection state, typing, channels, messages, and DMs. | `packages/client/src/context/AppContext.tsx`, `packages/client/src/hooks/useWebSocket.ts` |
-| Feature components | Listen to `useWsHubFrames` hooks and pull REST data after signal frames. | `packages/client/src/hooks/useWsHubFrames.ts`, `packages/client/src/components/MessageList.tsx`, `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/InvitationsInbox.tsx` |
-| Backend REST rail | Source of truth for state after mount, reconnect, and signal frames. | `packages/client/src/lib/api.ts` |
-| Vite dev proxy | `/ws` is proxied with WebSocket support; `/api` and `/uploads` use the same target. | `packages/client/vite.config.ts` |
+| Interface | Contract |
+| --- | --- |
+| App state | Direct frames dispatch reducer actions; pending messages and connection state are shared through the app context. |
+| Feature surfaces | Signal subscribers pull authoritative data and keep body-bearing resource state local. |
+| REST client | Backfill, message reconciliation, uploads, artifact/comment refresh, and invitation refresh use REST. |
+| Build/proxy | `/ws` must be proxied as WebSocket in development and must stay separate from REST caching assumptions. |
+
+## Implementation Anchors
+
+| Concern | Anchors |
+| --- | --- |
+| User REST client | `packages/client/src/lib/api.ts`, `BackfillEvent` |
+| Realtime hook | `packages/client/src/hooks/useWebSocket.ts`, `flattenWsFrame` |
+| Signal bridge | `packages/client/src/hooks/useWsHubFrames.ts` |
+| Cursor persistence | `packages/client/src/lib/lastSeenCursor.ts` |
+| Shared state reducer | `packages/client/src/context/AppContext.tsx`, `AppState` |
+| Frame types | `packages/client/src/types/ws-frames.ts` |
+| Message surfaces | `packages/client/src/components/MessageInput.tsx`, `packages/client/src/components/MessageList.tsx` |
+| Signal consumers | `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/ArtifactComments.tsx`, `packages/client/src/components/InvitationsInbox.tsx` |
