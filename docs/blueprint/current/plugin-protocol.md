@@ -1,7 +1,7 @@
 # Plugin Protocol — BPP (Borgee Plugin Protocol)
 
 > Plugin 是 agent 接入 Borgee 的**唯一**通道。本文规范 BPP 协议的目标态——v1 由 OpenClaw plugin 作 reference implementation，v2+ 接其它 runtime 不必重写。
-> 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。前置阅读：[`agent-lifecycle.md`](agent-lifecycle.md)。
+> 状态：三方评审对齐（2026-04-27）。前置阅读：[`agent-lifecycle.md`](agent-lifecycle.md)。
 
 ## 0. 一句话定义
 
@@ -23,7 +23,7 @@
 
 - **v1 只有 OpenClaw 实现，但协议本身中立**——任何 runtime 实现 BPP 即可接入。
 - **20% 工程溢价的回报**：
-  - 早期种子用户不会觉得 Borgee 是"OpenClaw 套壳"
+  - 早期种子用户不会觉得 Borgee 只是 OpenClaw 的包装层
   - v2 接 Hermes 时**不必重写** plugin 协议
   - 公开 BPP 规范文档作为平台战略——欢迎第三方 runtime 实现
 - **OpenClaw plugin 作为 reference implementation**，长期维护者对照规范实现。
@@ -58,7 +58,7 @@ request_clarification    # 跟某个 user 索要更多信息
 
 - 每个语义动作内部 **dispatch 到白名单 REST API**
 - server 统一在 dispatch 层做权限检查（依据 [concept-model](concept-model.md) 的 user/agent permission 系统）
-- 不允许 plugin "下穿"语义层直调 REST——这是协议红线
+- 不允许 plugin 绕过语义层直调 REST——这是协议红线
 
 ### 1.4 Borgee 是 agent 配置面的单一来源
 
@@ -88,7 +88,7 @@ request_clarification    # 跟某个 user 索要更多信息
 - **memory 内容在 runtime**：实际向量库 / RAG 索引由 runtime 维护
 - v1 不让 Borgee 变向量库基础设施
 
-> 这条直接让 [agent-lifecycle.md §2.1](agent-lifecycle.md) 的"用户完全自定义 agent" **明确**为：用户在 **Borgee UI** 一处全配，不去 OpenClaw 配。配置面与运行时分离，跟"Borgee 不带 runtime"不矛盾。
+> 这条直接让 [agent-lifecycle.md §2.1](agent-lifecycle.md) 的"用户完全自定义 agent" **明确**为：用户在 **Borgee UI** 完成配置，不去 OpenClaw 配置。配置面与运行时分离，跟"Borgee 不带 runtime"不矛盾。
 
 ### 1.5 配置热更新：按字段分类生效
 
@@ -97,7 +97,7 @@ request_clarification    # 跟某个 user 索要更多信息
 | `name` / `avatar` / 能力开关 | **立即**——下条消息渲染就用新值 |
 | `prompt` | **立即下发**，作用于"下一次 inference"，**不打断正在生成的回复** |
 | `model` | 立即下发，下次 inference 切换 |
-| 长任务边界 | 当前任务用旧 config 跑完，新 config 下次任务起作用 |
+| 长任务边界 | 当前任务用旧 config 完成，新 config 下次任务起作用 |
 
 #### 协议接口
 
@@ -156,7 +156,7 @@ request_clarification    # 跟某个 user 索要更多信息
 
 | 目标态 | 现状 | 差距 |
 |--------|------|------|
-| 一 plugin 管多 agent | OpenClaw plugin 已支持 multi-account，但仍是一对一 connection | 协议层加多 agent 注册接口 |
+| 一 plugin 管多 agent | OpenClaw plugin 已支持 multi-account，但仍是一对一 connection | 协议层增加多 agent 注册接口 |
 | BPP 中立协议 | 私有 OpenClaw SDK 协议 | 抽规范文档 + 重构 plugin 端代码作 reference impl |
 | 语义动作层 | plugin 通过 WS `api_request` 直调 REST | 新增高级动作 API + dispatch 层 + 权限收敛 |
 | Borgee 配置单一来源 | `users` 表里 agent 行只有 name/role/owner_id | **大改**：加 `agent_config` 表（含 schema-driven blob）、配置 UI、`agent_config_update` BPP 接口 |
@@ -169,6 +169,6 @@ request_clarification    # 跟某个 user 索要更多信息
 
 - 跨 runtime 协作场景（OpenClaw + Hermes 混跑） → v2 后再讨论
 - BPP 协议的版本协商机制 → 第 7 轮"Realtime / 事件流"
-- runtime 安装管家的协议（remote-agent setup OpenClaw） → 第 6 轮"Remote-agent / Host bridge"
+- runtime 安装管家的协议（remote-agent 配置 OpenClaw） → 第 6 轮"Remote-agent / Host bridge"
 - 权限检查在 dispatch 层的具体实现 → 第 8 轮"Auth & 权限"
 - agent 配置 UI 形态 → 第 11 轮"Client (web SPA)"
