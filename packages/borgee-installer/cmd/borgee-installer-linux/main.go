@@ -2,7 +2,7 @@
 
 // Package main — borgee-installer-linux: HB-1B-INSTALLER Linux .deb installer.
 //
-// hb-1b-installer-spec §0.2: 真 ed25519 manifest verify + permission popup
+// hb-1b-installer-spec §0.2: ed25519 manifest verification + permission popup
 // + sudo apt install + systemd unit deployment from borgee-helper install assets.
 //
 // CLI:
@@ -61,7 +61,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Step 2: 真 ed25519 verify (反 v0(C) skip).
+	// Step 2: ed25519 verification is required; do not skip it.
 	if err := manifest.Verify(env, ed25519.PublicKey(pubKey)); err != nil {
 		fmt.Fprintf(os.Stderr, "manifest verify failed: %v\n", err)
 		os.Exit(1)
@@ -86,8 +86,8 @@ func main() {
 		if *dryRun {
 			continue
 		}
-		// 真 sudo: split on space (simple — production cmd/* should shlex; for
-		// installer 单 string command 已够; reverse grep `sudo` ≥1 hit anchor).
+		// Keep the sudo command visible for REG-HB1B-004 coverage; installer plan
+		// steps are simple shell commands.
 		cmd := exec.CommandContext(ctx, "sh", "-c", step)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

@@ -1,5 +1,5 @@
 // dialog_test.go verifies REG-HB1B-005: the four grant_type literals remain
-// byte-identical.
+// exact matches.
 package dialog
 
 import (

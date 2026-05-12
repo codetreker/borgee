@@ -59,6 +59,6 @@ func PlanForCurrentOS(installerArtifact string) (*Plan, error) {
 	case "darwin":
 		return DarwinPlan(installerArtifact), nil
 	default:
-		return nil, fmt.Errorf("hb-1b-installer: GOOS=%s not supported in v1 (windows留 v2)", runtime.GOOS)
+		return nil, fmt.Errorf("hb-1b-installer: GOOS=%s not supported in v1 (Windows support planned for v2)", runtime.GOOS)
 	}
 }
