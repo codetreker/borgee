@@ -37,7 +37,7 @@
 
 ### 3.2 八行 ✅/❌ 表格 (三色锁定)
 
-`PRIVACY_TABLE_ROWS`：8 行 `{ category, mark, kind }`，三色设置需逐字一致：
+`PRIVACY_TABLE_ROWS`：8 行 `{ category, mark, kind }`，三色 token 需一致：
 
 | kind          | className                 | mark      | 颜色 token             |
 | ------------- | ------------------------- | --------- | ---------------------- |

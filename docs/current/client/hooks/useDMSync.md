@@ -11,7 +11,7 @@ agent-DM 多端 owner cursor 同步：复用 RT-1.3 已有的 sequence 和 sessi
 - ① DM cursor 复用 RT-1.3 已有机制（不开 `/api/v1/dm/sync` 旁路 endpoint，DM 走 channel events 同一路径）
 - ② 多端同步走 RT-3 fan-out（不开 dm-only WebSocket subscription / frame）
 - ③ thinking subject 5-pattern 不出现 system DM body（与 RT-3 #488 保持逐字一致）
-- ④ useDMSync 复用 `useArtifactUpdated` / `lastSeenCursor` 模式，不拆出新的 hook 边界
+- ④ useDMSync 复用 `useArtifactUpdated` / `lastSeenCursor` 模式，不新增独立 hook 抽象
 - ⑤ server 0 行新增（DM-3.1 限制由 grep test 守住，复用 RT-1.3 events backfill）
 
 ## 2. API surface (`packages/client/src/hooks/useDMSync.ts`)
@@ -54,7 +54,7 @@ agent-DM 多端 owner cursor 同步：复用 RT-1.3 已有的 sequence 和 sessi
 ## 7. 跨 milestone 逐字一致范围
 
 - cursor 跟 RT-1 #290 + AL-2b #481 + CV-\* + BPP-3.1 #494 共 sequence
-- hook 边界跟 CV-1.3 #346 useArtifactUpdated 同模式
+- hook 抽象沿用 CV-1.3 #346 useArtifactUpdated 模式
 - sessionStorage round-trip 跟 RT-1.2 #292 lastSeenCursor 同规则（key prefix 不同，key namespace 隔离）
 - thinking 5-pattern 跟 RT-3 #488 逐字一致（改动时需要同步 5+ 处）
 
