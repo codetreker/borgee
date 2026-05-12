@@ -109,7 +109,7 @@ describe('dispatchAnchorCommentAdded', () => {
     expect(keys).not.toContain('end_offset');
     // Design ③ envelope naming lock: the column is `author_kind`, NOT
     // `committer_kind` (anchors use comment authors, not committers; this
-    // matches the Pegasus v2 changelog wording).
+    // matches the v2 changelog wording).
     expect(keys).toContain('author_kind');
     expect(keys).not.toContain('committer_kind');
     expect(keys).not.toContain('kind');
