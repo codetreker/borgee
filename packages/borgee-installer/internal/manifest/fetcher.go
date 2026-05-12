@@ -1,13 +1,14 @@
-// Package manifest - HB-1B-INSTALLER manifest fetcher and ed25519 verifier.
+// Package manifest fetches HB-1B-INSTALLER manifests and verifies ed25519
+// signatures.
 //
-// Contract: GET HB-1 server endpoint `/api/v1/plugin-manifest` (server-side
-// PluginManifestEntries const slice, hb_1_plugin_manifest.go source of truth)
-// and verify the ed25519 detached signature.
+// It calls the HB-1 server endpoint `/api/v1/plugin-manifest`, whose
+// server-side PluginManifestEntries const slice in hb_1_plugin_manifest.go is
+// the source of truth, then verifies the ed25519 detached signature.
 //
-// The 7-reason dictionary must stay byte-identical with server-side
-// HB1AllReasons. Changes must update server hb_1_plugin_manifest.go, this
-// fetcher.go file, and installer/cmd/* together. manifest_test.go contains the
-// reverse-grep drift check.
+// The seven-reason dictionary must stay byte-identical with server-side
+// HB1AllReasons. Changes must update server hb_1_plugin_manifest.go,
+// fetcher.go, and installer/cmd/* together. manifest_test.go contains the
+// source-text drift check.
 //
 // Signature verification invariant: ed25519.Verify must run. Bad signatures return
 // ReasonManifestSignatureInvalid instead of being skipped.
@@ -26,7 +27,7 @@ import (
 )
 
 // The 7-reason dictionary must match server-side HB1AllReasons byte-for-byte
-// (hb_1_plugin_manifest.go). REG-HB1B-002 reverse-grep tests cover these 7
+// (hb_1_plugin_manifest.go). REG-HB1B-002 source-text tests cover these seven
 // literals and the server-side 7 literals.
 const (
 	ReasonOK                       = "ok"
@@ -38,7 +39,7 @@ const (
 	ReasonUnknownPlugin            = "unknown_plugin"
 )
 
-// AllReasons lists the 7 values used by the reverse-grep drift check.
+// AllReasons lists the seven values used by the source-text drift check.
 var AllReasons = []string{
 	ReasonOK,
 	ReasonManifestSignatureInvalid,
@@ -49,7 +50,7 @@ var AllReasons = []string{
 	ReasonUnknownPlugin,
 }
 
-// PluginEntry mirrors server-side PluginManifestEntry shape byte-identical
+// PluginEntry mirrors the server-side PluginManifestEntry shape byte-for-byte
 // (hb_1_plugin_manifest.go §3.1 content-lock §1).
 type PluginEntry struct {
 	ID        string   `json:"id"`
@@ -60,7 +61,7 @@ type PluginEntry struct {
 	Platforms []string `json:"platforms"`
 }
 
-// Envelope mirrors server-side PluginManifestResponse byte-identical:
+// Envelope mirrors the server-side PluginManifestResponse shape byte-for-byte:
 // {"entries":[...], "signed_at": <unix-ms>, "signature": "<base64>"}.
 type Envelope struct {
 	Entries   []PluginEntry `json:"entries"`
@@ -68,7 +69,7 @@ type Envelope struct {
 	Signature string        `json:"signature"`
 }
 
-// FetchError carries a 7-dict reason + underlying error.
+// FetchError carries a seven-reason dictionary value and an underlying error.
 type FetchError struct {
 	Reason string
 	Err    error

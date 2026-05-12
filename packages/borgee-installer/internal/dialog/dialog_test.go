@@ -1,4 +1,5 @@
-// dialog_test.go — REG-HB1B-005 verify 4 grant_type 字面 byte-identical.
+// dialog_test.go verifies REG-HB1B-005: the four grant_type literals remain
+// byte-identical.
 package dialog
 
 import (
@@ -10,7 +11,7 @@ import (
 func TestHB1B_GrantTypes_ByteIdentical(t *testing.T) {
 	want := []string{"read", "write", "exec", "network"}
 	if len(GrantTypes) != 4 {
-		t.Fatalf("GrantTypes len = %d, want 4", len(GrantTypes))
+		t.Fatalf("GrantTypes length = %d, want 4", len(GrantTypes))
 	}
 	for i, w := range want {
 		if GrantTypes[i] != w {
@@ -36,7 +37,7 @@ func TestHB1B_Confirm_Yes(t *testing.T) {
 		t.Fatalf("Confirm: %v", err)
 	}
 	if !ok {
-		t.Errorf("expected ok=true for 'y'")
+		t.Errorf("expected Confirm to accept 'y'")
 	}
 }
 
@@ -45,7 +46,7 @@ func TestHB1B_Confirm_No(t *testing.T) {
 	var out bytes.Buffer
 	ok, _ := Confirm(in, &out)
 	if ok {
-		t.Errorf("expected ok=false for 'n'")
+		t.Errorf("expected Confirm to reject 'n'")
 	}
 }
 
@@ -54,6 +55,6 @@ func TestHB1B_Confirm_EmptyDefaultsNo(t *testing.T) {
 	var out bytes.Buffer
 	ok, _ := Confirm(in, &out)
 	if ok {
-		t.Errorf("expected ok=false for empty (must be explicit confirm)")
+		t.Errorf("expected Confirm to reject an empty response because confirmation must be explicit")
 	}
 }
