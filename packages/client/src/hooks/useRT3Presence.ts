@@ -1,31 +1,33 @@
 // RT-3 presence: multi-device delivery and four states (blueprint §1.4).
 //
-// 立场承袭 (rt-3-spec.md §0):
-//   - 4 态 enum single source of truth, byte-identical 跟 server `internal/datalayer/presence.go`
-//     PresenceState const (online / away / offline / thinking)
-//   - 字面 byte-identical 跟 content-lock §1+§2 (`在线` / `离线` / `刚刚活跃` /
-//     `最近活跃 ${N} 分钟前` + DOM data-attr `data-rt3-presence-dot|last-seen|cursor-user`)
-//   - 防止 false-loading indicator wording drift (content-lock §3) + 防止 thought-process
-//     5-pattern drift (content-lock §4 — RT-3 extends the same guard)
-//   - 不重复 AL-3 既有 usePresence (那是 agent presence cache, RT-3 是 human
-//     multi-device presence)
+// Policy inherited from rt-3-spec.md §0:
+//   - 4-state enum single source of truth, byte-identical with server
+//     `internal/datalayer/presence.go` PresenceState const
+//     (online / away / offline / thinking).
+//   - Display text is byte-identical with content-lock §1+§2 (`在线` / `离线` /
+//     `刚刚活跃` / `最近活跃 ${N} 分钟前` + DOM data attrs
+//     `data-rt3-presence-dot|last-seen|cursor-user`).
+//   - Prevent false-loading indicator wording drift (content-lock §3) and
+//     thought-process 5-pattern drift (content-lock §4; RT-3 extends that guard).
+//   - Do not duplicate the existing AL-3 usePresence hook. That hook is for
+//     agent presence cache; RT-3 is for human multi-device presence.
 //
-// Tests: __tests__/RT3PresenceDot.test.tsx + presence-reverse-grep.test.ts (扩).
+// Tests: __tests__/RT3PresenceDot.test.tsx + presence-reverse-grep.test.ts (extended).
 import { useEffect, useState } from 'react';
 
-/** RT-3 four-state enum; byte-identical 跟 server PresenceState const. */
+/** RT-3 four-state enum; byte-identical with server PresenceState const. */
 export type RT3PresenceState = 'online' | 'away' | 'offline' | 'thinking';
 
 /** RT-3 presence cache entry. */
 export interface RT3PresenceEntry {
   state: RT3PresenceState;
-  /** Subject 字段 — thinking 态必带非空 (blueprint §1.1 requirement). */
+  /** Subject field; thinking state requires a non-empty value (blueprint §1.1). */
   subject?: string;
-  /** Unix ms — 上次活动时间 (last-seen 派生 away 阈值). */
+  /** Unix ms — last activity time used to derive the away threshold. */
   lastSeenAt: number;
 }
 
-/** Away 阈值 — 5 分钟无活动转 away (matches the server-side 5min throttle window). */
+/** Away threshold: 5 minutes without activity changes online to away. */
 export const RT3_AWAY_THRESHOLD_MS = 5 * 60 * 1000;
 
 type Listener = (userID: string) => void;
@@ -54,8 +56,9 @@ function notify(store: RT3PresenceStore, userID: string): void {
 
 /**
  * markRT3Presence — client entry point: WS multi-device fanout frame → cache.
- * thinking 态 subject 字段必带非空 (prevents false loading state drift); 空 subject 走
- * `thinking.subject_required` server reject 路径 byte-identical (RT-3 立场 ②).
+ * Thinking state requires a non-empty subject, preventing false-loading state
+ * drift. Empty subject follows the byte-identical `thinking.subject_required`
+ * server reject path (RT-3 principle ②).
  */
 export function markRT3Presence(
   userID: string,
@@ -64,8 +67,8 @@ export function markRT3Presence(
   store: RT3PresenceStore = defaultStore,
 ): void {
   if (!userID) return;
-  // thinking 态 subject 必带非空 — prevents false loading state drift. 空 subject 直接 drop
-  // (server 走 ValidateTaskStarted single source of truth reject, client-side guard).
+  // Thinking state requires a non-empty subject. Empty subject is dropped here;
+  // the server also rejects it through the ValidateTaskStarted single source of truth.
   if (state === 'thinking' && (!subject || subject.trim() === '')) {
     return;
   }
@@ -84,7 +87,7 @@ export function getRT3Presence(
 
 /**
  * useRT3Presence — React hook: subscribe to cached presence for one userID and derive
- * away (last-seen ≥ 5min 自动降级 online → away).
+ * away (last-seen ≥ 5min derives online → away).
  */
 export function useRT3Presence(userID: string | undefined): RT3PresenceEntry | undefined {
   const [, setTick] = useState(0);

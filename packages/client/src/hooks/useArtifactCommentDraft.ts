@@ -1,19 +1,20 @@
 // useArtifactCommentDraft — CV-10.1 client hook for unsaved comment draft
-// persistence across page reloads. Pure localStorage (反约束 0 server code).
+// persistence across page reloads. Pure localStorage; no server code.
 //
-// Spec: docs/implementation/modules/cv-10-spec.md §0 立场 ①.
+// Spec: docs/implementation/modules/cv-10-spec.md §0 principle ①.
 // Stance: docs/qa/cv-10-stance-checklist.md §1.
 // Content-lock: docs/qa/cv-10-content-lock.md §3 (key namespace).
 //
-// 立场反查:
-//   - ① localStorage 单源, key namespace `borgee.cv10.comment-draft:<artifactId>`
-//     byte-identical (跟 DM-4 既有 `borgee.dm.draft:` 同模式).
+// Policy checks:
+//   - ① localStorage is the single source, with byte-identical key namespace
+//     `borgee.cv10.comment-draft:<artifactId>` (same pattern as existing DM-4
+//     `borgee.dm.draft:`).
 //   - ② save is debounced (500ms), avoiding a localStorage write on every keystroke; clear()
-//     是 submit 后调用 (移除 key, getItem 返回 null).
+//     is called after submit, removing the key so getItem returns null.
 //
-// 反约束:
-//   - 不用 sessionStorage (要跨 reload)
-//   - No server fetch (反向 grep 见 cv-10-content-lock §4)
+// Required constraints:
+//   - Do not use sessionStorage because drafts must survive reload.
+//   - No server fetch; see the reverse-grep check in cv-10-content-lock §4.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 

@@ -1,20 +1,25 @@
 // ArtifactComments — CV-5.2 client SPA: artifact-level comment list + composer.
 //
-// Blueprint: docs/blueprint/current/canvas-vision.md §0 L24 字面 "Linear issue +
-// comment, 不是 Miro 白板". Spec: docs/implementation/modules/cv-5-spec.md
+// Blueprint: docs/blueprint/current/canvas-vision.md §0 L24 wording:
+// "Linear issue + comment, not a Miro whiteboard". Spec: docs/implementation/modules/cv-5-spec.md
 // §1 CV-5.2 (client). Stance: docs/qa/cv-5-stance-checklist.md.
 //
-// 设计反查:
-//   - ① comment 走 messages 表单源 — 不写 artifact_comments 类型, 调 postArtifactComment +
-//     listArtifactComments (服务端落 messages 表 + virtual `artifact:<id>` channel).
-//   - ② frame 信号 + 增量 append — useArtifactCommentAdded 监听 WS frame, 命中
-//     当前 artifact 时调 listArtifactComments 拉最新 (跟 AnchorThreadPanel 同模式),
-//     反约束: 不用 frame.body_preview 渲染 comment text (server 80-rune cap, 隐私 §13).
-//   - ③ agent thinking subject — 服务端 reject; client 仅显错码 (人审 + agent 都可看, 不裂渲染).
+// Design checks:
+//   - ① comments use messages table as the single source. Do not introduce an
+//     artifact_comments type; call postArtifactComment + listArtifactComments
+//     (server writes messages table + virtual `artifact:<id>` channel).
+//   - ② frame signal + incremental append. useArtifactCommentAdded listens to
+//     the WS frame; when it matches the current artifact, listArtifactComments
+//     fetches the latest state, matching AnchorThreadPanel. Do not render
+//     comment text from frame.body_preview because the server caps it at 80 runes
+//     for privacy §13.
+//   - ③ agent thinking subject is rejected by the server. The client only shows
+//     the error code, visible to both human reviewers and agents, without split rendering.
 //
-// 反约束:
-//   - 不挂 admin-only 视图 (ADM-0 §1.3 constraint)
-//   - hover anchor `data-cv5-author-link` (跟 CM-5.3 透明协作 hover 同源 — UI 元素锚)
+// Required constraints:
+//   - Do not mount an admin-only view (ADM-0 §1.3 constraint).
+//   - Keep hover anchor `data-cv5-author-link`; it is the UI-element anchor shared
+//     with CM-5.3 transparent-collaboration hover.
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -48,8 +53,8 @@ export default function ArtifactComments({ artifactId }: ArtifactCommentsProps) 
     void refetch();
   }, [refetch]);
 
-  // 设计 ② WS frame signal — refetch when frame matches current artifact.
-  // 反约束: 不用 frame.body_preview 作渲染源 — 服务端 80-rune cap.
+  // Design ② WS frame signal: refetch when frame matches current artifact.
+  // Do not render from frame.body_preview because the server caps it at 80 runes.
   useArtifactCommentAdded(
     useCallback(
       (frame) => {
