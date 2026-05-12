@@ -17,7 +17,7 @@ export function readPersistedCursor(accountId: string): number {
       }
     }
   } catch {
-    /* corrupt or unreadable */
+    /* Ignore a corrupt or unreadable cursor file. */
   }
   return -1;
 }
@@ -31,6 +31,6 @@ export function persistCursor(accountId: string, cursor: number): void {
     }
     writeFileSync(fp, JSON.stringify({ cursor, updatedAt: Date.now() }), "utf-8");
   } catch {
-    /* best effort */
+    /* Ignore cursor persistence failures; delivery can resume from server state. */
   }
 }

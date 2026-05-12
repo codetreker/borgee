@@ -180,7 +180,7 @@ export async function handleBorgeeInbound(params: {
     sessionKey: route.sessionKey,
   });
 
-  // Format @mentions for the agent envelope
+  // Build the text envelope delivered to the agent.
   const body = runtime.channel.reply.formatAgentEnvelope({
     channel: params.channelLabel,
     from: msg.sender_name || msg.sender_id,

@@ -30,7 +30,7 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-// ─── Poll loop (unchanged logic) ─────────────────────────
+// ─── Poll transport loop ────────────────────────────────
 
 async function runPollLoop(params: {
   channelId: string;
@@ -39,7 +39,7 @@ async function runPollLoop(params: {
   config: CoreConfig;
   ctx: ChannelGatewayContext<ResolvedBorgeeAccount>;
   cursorRef: { value: number };
-  /** Abort this poll session (but not the whole gateway) to retry SSE */
+  /** Abort only this poll session so the gateway can retry SSE. */
   sessionSignal: AbortSignal;
 }): Promise<void> {
   let consecutiveErrors = 0;
@@ -126,7 +126,7 @@ async function runPollLoop(params: {
   }
 }
 
-// ─── Bootstrap cursor from server ────────────────────────
+// ─── Initialize cursor from server ───────────────────────
 
 async function bootstrapCursor(params: {
   account: ResolvedBorgeeAccount;
@@ -153,7 +153,7 @@ async function bootstrapCursor(params: {
   }
 }
 
-// ─── Orchestrator ────────────────────────────────────────
+// ─── Gateway transport orchestration ─────────────────────
 
 export async function startBorgeeGateway(
   channelId: string,
@@ -339,10 +339,10 @@ async function runAutoOrSse(params: {
       }
 
       if (abortSignal.aborted) return;
-      continue; // re-probe SSE
+      continue; // probe SSE again
     }
 
-    // SSE available — run loop
+    // SSE is available; start the SSE loop.
     console.log(`[borgee-plugin] transport=sse (${params.account.accountId})`);
     const result = await runSSELoop({
       channelId: params.channelId,
@@ -424,7 +424,7 @@ async function runWsTransport(params: {
 
   wsClient.connect();
 
-  // Store the client on the account for outbound to use
+  // Attach the client to the account so outbound handlers can use it.
   (account as Record<string, unknown>).__wsClient = wsClient;
 
   await new Promise<void>((resolve) => {
