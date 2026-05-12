@@ -1,27 +1,26 @@
 package migrations
 
 import (
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 )
 
 // cmOnboardingWelcome is migration v7 — Phase 2 / CM-onboarding schema landing.
 //
-// Blueprint: concept-model.md §10 + onboarding-journey.md (野马 v1, R2 merged).
+// Blueprint: concept-model.md §10 + onboarding-journey.md (v1, R2 merged).
 //
 // What this migration does:
-//   1. Adds `messages.quick_action` (TEXT, JSON-encoded, NULL by default) so a
-//      system message can carry a single quick action button. Schema is
-//      `{"kind":"button","label":string,"action":string}` for v0.
-//   2. Seeds the `system` user row (id='system') so messages with
-//      sender_id='system' satisfy the FK constraint. The row is disabled.
-//      Idempotent via INSERT OR IGNORE.
-//   3. Backfills #welcome for existing users without one (per
-//      onboarding-journey.md §4 invariant 4.1: every user must land on a
-//      non-empty channel). The handler-level auto-create lives in
-//      api/auth.go (handleRegister) and api/admin.go (handleCreateUser); see
-//      store.CreateWelcomeChannelForUser.
+//  1. Adds `messages.quick_action` (TEXT, JSON-encoded, NULL by default) so a
+//     system message can carry a single quick action button. Schema is
+//     `{"kind":"button","label":string,"action":string}` for v0.
+//  2. Seeds the `system` user row (id='system') so messages with
+//     sender_id='system' satisfy the FK constraint. The row is disabled.
+//     Idempotent via INSERT OR IGNORE.
+//  3. Backfills #welcome for existing users without one (per
+//     onboarding-journey.md §4 invariant 4.1: every user must land on a
+//     non-empty channel). The handler-level auto-create lives in
+//     api/auth.go (handleRegister) and api/admin.go (handleCreateUser); see
+//     store.CreateWelcomeChannelForUser.
 //
 // Field invariants:
 //   - quick_action is NULL for non-onboarding messages (CM-onboarding scope).
@@ -30,7 +29,7 @@ import (
 //
 // CM-onboarding scope (strict):
 //   - Schema column + system user seed + per-user backfill only.
-//   - No history rewrite for messages (留 v1).
+//   - No history rewrite for messages (handled by v1 work).
 var cmOnboardingWelcome = Migration{
 	Version: 7,
 	Name:    "cm_onboarding_welcome",
@@ -114,7 +113,7 @@ var cmOnboardingWelcome = Migration{
 }
 
 // WelcomeMessageBody is the locked welcome copy from onboarding-journey.md
-// §3 step 2 success state. Any change requires 野马 +1 (see CODEOWNERS).
+// §3 step 2 success state. Any change requires a content-lock update (see CODEOWNERS).
 //
 // Plain-text format (rendered with markdown by MessageItem.tsx):
 const WelcomeMessageBody = "**欢迎来到 Borgee 👋**\n\n" +
