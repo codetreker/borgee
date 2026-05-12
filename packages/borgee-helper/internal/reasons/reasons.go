@@ -1,8 +1,10 @@
-// Package reasons — HB-2 host-bridge 8-dict (跟 HB-1 7-dict + AL-1a 6-dict
-// 字典分立, 不混; 改一处 = 改 spec hb-2-spec.md §3.3 单一来源).
+// Package reasons defines the HB-2 host-bridge 8-dict reason set. It must stay
+// separate from the HB-1 7-dict install-butler reasons and the AL-1a 6-dict
+// runtime reasons; changes here must update hb-2-spec.md §3.3 as the source.
 package reasons
 
-// Reason 是 HB-2 IPC response 8-dict 字面 (含 "ok" 成功态).
+// Reason is an HB-2 IPC response reason literal from the 8-dict set, including
+// "ok" for successful responses.
 type Reason string
 
 // 8-dict (hb-2-spec.md §3.3 byte-identical).

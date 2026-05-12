@@ -31,11 +31,11 @@ func TestHB2_Reason8DictByteIdentical(t *testing.T) {
 func TestHB2_NoSeventhDictBleed(t *testing.T) {
 	t.Parallel()
 	forbidden := []Reason{
-		// HB-1 install-butler 7-dict 字面 (HB-2 不能复用)
+		// HB-1 install-butler 7-dict reason literals must not be reused by HB-2.
 		"manifest_signature_invalid",
 		"manifest_not_found",
 		"runtime_signature_invalid",
-		// AL-1a runtime 6-dict 字面 (HB-2 不能复用)
+		// AL-1a runtime 6-dict reason literals must not be reused by HB-2.
 		"network_unreachable",
 		"unknown",
 		"rate_limited",
