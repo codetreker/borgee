@@ -24,8 +24,8 @@ type Config struct {
 	ThresholdTotal   float64
 
 	// Behavior
-	CIMode          bool   // Enable CI mode (GitHub Actions error format, fail on CRITICAL)
-	RaceDetection   bool   // Enable -race flag
+	CIMode          bool   // Enable CI mode (GitHub Actions error format; fail on CRITICAL results)
+	RaceDetection   bool   // Enable the -race flag
 	ExcludePackages string // Packages to exclude (comma-separated)
 	ExcludeFiles    string // File path substrings to exclude from function/block reports (comma-separated)
 	ExcludeFuncs    string // Function names to exclude from coverage threshold (comma-separated)
@@ -33,8 +33,8 @@ type Config struct {
 	UncoveredLimit  int    // Max uncovered blocks to show
 	ShowTestCounts  bool   // Show TESTS column in package summary
 	BuildTags       string // Build tags to pass to `go test` (e.g. "sqlite_fts5 race_heavy")
-	CoverPkg        string // -coverpkg arg (comma-separated import paths); empty = per-package mode
-	PackageGateInclude string // If non-empty, package threshold gate ONLY enforced on packages matching one of these prefixes (comma-separated). Other packages still display but never CRITICAL.
+	CoverPkg        string // -coverpkg argument (comma-separated import paths); empty = per-package mode
+	PackageGateInclude string // If non-empty, enforce the package threshold only for packages matching one of these prefixes (comma-separated). Other packages still display but never CRITICAL.
 }
 
 const ModulePrefix = "borgee-server/"
@@ -126,12 +126,12 @@ func main() {
 	hasCriticalBlocks := analyzeUncoveredBlocks()
 
 	// In CI mode, exit with error if any CRITICAL issues
-	// TEST-FIX-3-COV integration: gate CRITICAL block check behind
-	// FAIL_ON_CRITICAL_BLOCKS env (default off). Borgee's legacy ci.yml
-	// only enforced total threshold; haystack's AST-driven block-level
-	// CRITICAL is a stricter quality gate we can ramp up incrementally
+	// TEST-FIX-3-COV integration: make the CRITICAL block check depend on
+	// the FAIL_ON_CRITICAL_BLOCKS environment variable (default off). Borgee's
+	// previous ci.yml only enforced the total threshold; the haystack-derived
+	// AST block-level CRITICAL check is stricter and can be enabled incrementally
 	// (currently 30+ CRITICAL uncovered blocks would all fail at once).
-	// Keep total/func/package thresholds enforced unconditionally — they
+	// Keep total/function/package thresholds enforced unconditionally — they
 	// preserve the prior CI semantics exactly.
 	failOnBlocks := os.Getenv("FAIL_ON_CRITICAL_BLOCKS") == "true"
 	if cfg.CIMode && (hasCriticalPackage || hasCriticalFunc || hasCriticalTotal || (failOnBlocks && hasCriticalBlocks)) {
@@ -197,24 +197,25 @@ func parseConfig() Config {
 	if v := os.Getenv("EXCLUDE_FUNCS"); v != "" {
 		c.ExcludeFuncs = v
 	}
-	// TEST-FIX-3-COV: BuildTags env override — needed for `sqlite_fts5` (FTS5
-	// virtual tables) + `race_heavy` (deterministic cov path includes the
-	// gated TestClosedStoreInternalErrorBranches 11 sub-test). Empty default
-	// (haystack upstream had no build tag awareness).
+	// TEST-FIX-3-COV: BuildTags environment override — needed for `sqlite_fts5`
+	// (FTS5 virtual tables) and `race_heavy` (the deterministic coverage path
+	// includes the 11 subtests in TestClosedStoreInternalErrorBranches). Empty
+	// default (haystack upstream had no build tag awareness).
 	if v := os.Getenv("BUILD_TAGS"); v != "" {
 		c.BuildTags = v
 	}
-	// TEST-FIX-3-COV: COVERPKG env override — pin the coverage statement
-	// universe to the same set the legacy ci.yml used (internal/api,
+	// TEST-FIX-3-COV: COVERPKG environment override — pin the coverage statement
+	// set to the same packages the previous ci.yml used (internal/api,
 	// internal/auth, internal/config, internal/store, internal/ws,
 	// internal/server). Empty default = haystack per-package mode.
 	if v := os.Getenv("COVERPKG"); v != "" {
 		c.CoverPkg = v
 	}
 	// TEST-FIX-3-COV: RACE_DETECTION explicit override — haystack defaults
-	// RaceDetection=true in CI mode, but borgee's CI splits race/cov jobs
-	// (TEST-FIX-3 #610 立场: cov 路径不带 -race, race scheduler 影响 cov
-	// determinism). Explicit "false" lets cov-only job opt out.
+	// RaceDetection=true in CI mode, but borgee's CI splits race and coverage
+	// jobs (TEST-FIX-3 #610 position: the coverage path does not use -race,
+	// because race scheduler changes affect coverage determinism). Explicit
+	// "false" lets the coverage-only job opt out.
 	if v := os.Getenv("RACE_DETECTION"); v != "" {
 		c.RaceDetection = v == "true"
 	}
@@ -456,7 +457,7 @@ func printPackageSummary(results []PackageResult, topLevelCounts, subTestCounts 
 			coverageStr := r.CoverageStr
 			// TEST-FIX-3-COV: only enforce package threshold for packages
 			// matching PackageGateInclude prefixes (when set). Packages
-			// outside this list still display their cov% but never trip
+			// outside this list still display their coverage percentage but never trigger
 			// CRITICAL — useful when COVERPKG narrows the statement universe.
 			gated := true
 			if cfg.PackageGateInclude != "" {
