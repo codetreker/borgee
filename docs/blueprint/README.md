@@ -7,7 +7,7 @@
 ## 蓝图状态机 (按 blueprintflow blueprint-iteration skill)
 
 - `current/` — 当前蓝图 (frozen, 实施基于此). 11 个模型的 source of truth 位于这里, 实施 PR 引用这里为准.
-- `next/` — 下一版蓝图 (草拟期). 蓝图迭代时复制一份到 `next/`, 评审拍板后提升为 `current/`.
+- `next/` — 下一版蓝图 (草拟期). 蓝图迭代时复制一份到 `next/`, 评审决定后提升为 `current/`.
 - `_meta/` — 蓝图过程记录 (decisions / phase / audit / review trigger). **不是模型 source of truth**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
 
 ### `current/` — 11 模型 SOT (按概念依赖排序)
@@ -39,7 +39,7 @@
 
 ### `next/` — 下一版蓝图 (草拟期)
 
-> 待评审蓝图提案. 当前空 — 蓝图迭代时复制 `current/X.md` 到 `next/X.md`, 评审拍板后提升为 `current/`.
+> 待评审蓝图提案. 当前空 — 蓝图迭代时复制 `current/X.md` 到 `next/X.md`, 评审决定后提升为 `current/`.
 
 ## 这是什么 / 不是什么
 
