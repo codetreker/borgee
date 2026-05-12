@@ -4,9 +4,9 @@
 //   - 4 态字面 byte-identical: `在线` / `离线` / `刚刚活跃` / `最近活跃 ${N} 分钟前`
 //   - DOM data-attr SSOT: data-rt3-presence-dot ∈ {online, offline, recently-active}
 //     + data-rt3-last-seen=unix-ms + data-rt3-cursor-user=user-id
-//   - 反 false-loading indicator 漂 (content-lock §3) — 仅活物感 + 时间戳,
+//   - False-loading indicators must not drift in (content-lock §3) — 仅活物感 + 时间戳,
 //     不显语义中间态
-//   - 反 thought-process 5-pattern 漂 (content-lock §4) — 5 字面 0 hit
+//   - thought-process 5-pattern wording must not drift in (content-lock §4) — 5 字面 0 hit
 //     (跟 BPP-3 + CV-* + DM-* 既有锁链承袭, RT-3 = 锁链第 N+1 处延伸)
 //
 // Tests: __tests__/RT3PresenceDot.test.tsx (4 态 + last-seen + DOM data-attr).

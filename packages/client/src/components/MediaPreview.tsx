@@ -13,13 +13,13 @@
 //     / hls.js / dash.js / shaka-player (grep 检查 package.json count==0).
 //   - ② pdf_link 分支 — `<embed type="application/pdf">` 浏览器内嵌; 不引入
 //     pdf.js / react-pdf (grep 检查 package.json count==0).
-//   - ② src 必 https (复用 ImageLinkRenderer.isHttpsURL XSS 红线 #1;
+//   - ② src 必 https (复用 ImageLinkRenderer.isHttpsURL XSS constraint #1;
 //     must exactly match server ValidateImageLinkURL).
 //   - ③ kind 三态分发 — 跟 PreviewableKinds 一致, 其它 kind 不渲染 (走 CV-1
 //     既有 markdown / CV-3 既有 code 路径).
 //
 // Constraints checked by grep on this file path:
-//   - 不接 javascript:|data:|http: src URL (XSS 红线 #1 + 混合内容).
+//   - 不接 javascript:|data:|http: src URL (XSS constraint #1 + mixed content).
 //   - 不引入 video.js / hls.js / dash.js / shaka-player / pdf.js / react-pdf
 //     (design ② keeps first paint lightweight instead of decoding everything in-browser).
 //   - 不拆成 image / video / pdf 三个组件 (single switch in MediaPreview,
@@ -78,7 +78,7 @@ export default function MediaPreview({ kind, body, title, previewUrl }: Props) {
     return null;
   }
   if (!safe) {
-    // 设计 ② XSS 红线 #1 — 不把 non-https URL 推入 DOM.
+    // 设计 ② XSS constraint #1 — 不把 non-https URL 推入 DOM.
     return (
       <div className="media-preview-invalid" data-media-kind={kind}>
         URL 不合法 (仅支持 https)
@@ -86,7 +86,7 @@ export default function MediaPreview({ kind, body, title, previewUrl }: Props) {
     );
   }
 
-  // previewUrl 也走 https 红线 (跟 server preview.go::ValidateImageLinkURL
+  // previewUrl 也走 https constraint (跟 server preview.go::ValidateImageLinkURL
   // same validation source — server rejects it first; client is the second defense.
   const safePreview = previewUrl && isHttpsURL(previewUrl) ? previewUrl : undefined;
 

@@ -11,7 +11,7 @@
 //     capabilities / enabled / memory_ref) — 跟 server allowedConfigKeys
 //     同源 byte-identical (蓝图 §1.4 SSOT 字段划界).
 //   - schema_version 显示 (server-stamp monotonic, agent 端轮询 reload
-//     drift 锚 — acceptance §4.1.d).
+//     drift evidence — acceptance §4.1.d).
 //   - 失败 toast 文案锁 byte-identical: "agent 配置保存失败, 请重试"
 //     (跟 server-go agent_config.go agentConfigSaveErrorMsg + AL-2a
 //     content-lock al-2a-content-lock.md ① 同源).
@@ -133,10 +133,10 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
           5 个 text/textarea label 用 display:block (跟 CreateAgentModal
           AgentManager.tsx L414 Agent ID label 同款), 1 个 checkbox label
           用 display:flex inline (跟 AgentManager.tsx L430 KNOWN_PERMISSIONS
-          块 inline checkbox 同款, yema review 拍 b inline). 反约束: 不引入
-          新 CSS class (反 pre-mature 抽象), 跟项目"按需重构"原则一致;
+          块 inline checkbox 同款). Negative constraint: 不引入
+          新 CSS class (避免 premature abstraction), 跟项目"按需重构"原则一致;
           后续 ≥3 form 同模式时再抽 .form-stack/.field-block 公共类
-          (留 followup issue, p3-low). */}
+          (future low-priority cleanup). */}
       <label style={{ display: 'block', marginTop: 8 }}>
         名称
         <input
@@ -188,7 +188,7 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
         />
       </label>
 
-      {/* checkbox 例外行 (yema review #1 拍 b inline): text 节点放在
+      {/* checkbox 例外行: text 节点放在
           input 后面 (inline 视觉顺序: 先 ☐ 后 "启用"), 跟 CreateAgentModal
           Permissions 块同款. */}
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>

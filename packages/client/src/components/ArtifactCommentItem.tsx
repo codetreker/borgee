@@ -17,7 +17,7 @@
 // 反约束:
 //   - 不另起 emoji picker (复用现有 message reaction unicode 集 — 默认 👍)
 //   - 不渲染 edit history (forward-only — 即覆写, 无历史版本)
-//   - admin god-mode 不挂 (此组件不在 admin console 路径渲染)
+//   - 不挂 admin-only path (此组件不在 admin console 路径渲染)
 
 import { useCallback, useState } from 'react';
 import { ApiError, editMessage, deleteMessage, addReaction } from '../lib/api';

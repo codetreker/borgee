@@ -13,7 +13,7 @@
 //   - ③ agent thinking subject — 服务端 reject; client 仅显错码 (人审 + agent 都可看, 不裂渲染).
 //
 // 反约束:
-//   - 不挂 admin god-mode 视图 (ADM-0 §1.3 红线)
+//   - 不挂 admin-only 视图 (ADM-0 §1.3 constraint)
 //   - hover anchor `data-cv5-author-link` (跟 CM-5.3 透明协作 hover 同源 — UI 元素锚)
 
 import { useCallback, useEffect, useState } from 'react';

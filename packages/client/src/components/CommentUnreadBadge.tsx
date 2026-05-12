@@ -18,7 +18,7 @@
 // 反约束:
 //   - 不 import api / fetch* (props + WS hook driven)
 //   - 不写 sessionStorage / localStorage (纯 component state)
-//   - admin god-mode 不挂 (此组件不在 admin console)
+//   - 不挂 admin-only path (此组件不在 admin console)
 
 import { useCallback, useState } from 'react';
 import { useArtifactCommentAdded } from '../hooks/useWsHubFrames';

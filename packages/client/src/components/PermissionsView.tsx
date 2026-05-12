@@ -1,11 +1,11 @@
-// AP-2 client — PermissionsView component (capability 透明 UI 无角色名).
+// AP-2 client — PermissionsView component (capability-based UI without role names).
 //
 // 设计沿用 (ap-2-spec.md §0 + content-lock §1+§2):
-//   - 走 capability token 字面渲染 (反 RBAC 角色名漂入 UI)
-//   - capabilityLabel SSOT 单源 (反 inline 字面散落)
+//   - 走 capability token 字面渲染 (RBAC role labels must not drift into UI)
+//   - capabilityLabel SSOT 单源 (avoid duplicated inline labels)
 //   - DOM data-attr SSOT: data-ap2-capability-row + data-ap2-capability-token
 //     + data-ap2-scope (按 content-lock §2)
-//   - 反 typing-indicator / thought-process 5-pattern 漂入 (跟 RT-3 #616 承袭)
+//   - typing-indicator / thought-process 5-pattern wording must not drift in (跟 RT-3 #616 承袭)
 import { useEffect, useState } from 'react';
 import { capabilityLabel, isKnownCapability } from '../lib/capabilities';
 import type { PermissionEntry } from '../hooks/usePermissions';
@@ -19,7 +19,7 @@ export interface PermissionsViewProps {
 
 interface MePermissionsResponse {
   user_id: string;
-  // role: kept for legacy callers; AP-2 设计 ② UI 不显此字段 (反 role bleed).
+  // role: kept for legacy callers; AP-2 设计 ② UI 不显此字段 (avoid role bleed).
   role?: string;
   permissions: string[];
   details: PermissionEntry[];
@@ -36,9 +36,9 @@ async function fetchPermissions(path: string): Promise<MePermissionsResponse> {
 }
 
 /**
- * PermissionsView — capability 透明 UI for any user (member / agent).
- * 不显角色名 (反 RBAC bleed); 列出已授权 capability token + scope (字面).
- * 未知 token forward-compat 渲染原 token (反 silent drop).
+ * PermissionsView — capability-based UI for any user (member / agent).
+ * 不显角色名 (avoid RBAC bleed); 列出已授权 capability token + scope (字面).
+ * 未知 token forward-compat 渲染原 token (avoid silent drop).
  */
 export function PermissionsView({ entries, fetchPath = '/api/v1/me/permissions' }: PermissionsViewProps) {
   const [resolved, setResolved] = useState<PermissionEntry[] | null>(entries ?? null);

@@ -3,7 +3,7 @@
 // Blueprint: docs/blueprint/current/admin-model.md §4.1 (3 条承诺锁 + 8 行 ✅/❌ 表格)
 // Spec: docs/qa/adm-1-implementation-spec.md §1-§5 (1 组件 + 1 页面 + 5 反向断言)
 // Acceptance: docs/qa/acceptance-templates/adm-1.md §1/§2/§3 (11 验收项)
-// 反查表: docs/qa/adm-1-privacy-promise-checklist.md (野马 #211/#228 spec)
+// Review checklist: docs/qa/adm-1-privacy-promise-checklist.md (#211/#228 spec)
 //
 // 设计反查 (admin-model.md §0):
 //   - "强权但不窥视" — admin 是平台运维, 不是协作者
@@ -11,7 +11,7 @@
 //   - impersonate 是临时 amber 态 (24h 红色横幅常驻, 可撤销)
 //
 // 反约束:
-//   - 默认展开不可折叠 (野马 R3 反 details-element 包裹; spec §4 第 2 项)
+//   - 默认展开不可折叠 (R3 requirement: do not wrap in a details element; spec §4 第 2 项)
 //   - 三色锁 byte-identical (gray / #d33 红 / #d97706 amber, 不开第 4 色)
 //   - 文案 1:1 跟 admin-model §4.1 + spec §2 同源 (drift test 双声明锁)
 //   - grep 检查 折叠 / 展开收起 同义词 0 hit (acceptance §2.3)
@@ -52,7 +52,7 @@ export default function PrivacyPromise() {
       <h2 className="privacy-promise-title">隐私承诺</h2>
 
       {/* 设计 §4.1 — 三条承诺字面 1:1 (drift test 锁); 默认展开不可折叠
-          (野马 R3 spec §4 第 2 项, 反 details-element 包裹). */}
+          (R3 spec §4 第 2 项: do not wrap in a details element). */}
       <ol className="privacy-promise-list">
         {PRIVACY_PROMISES.map((promise, i) => (
           <li

@@ -14,7 +14,7 @@
 //
 // 反约束:
 //   - 不另起 mention state (复用既有 hook)
-//   - admin god-mode 不挂 (此组件不在 admin console)
+//   - 不挂 admin-only path (此组件不在 admin console)
 
 import { useCallback, useState } from 'react';
 import { useMentionPushed } from '../hooks/useWsHubFrames';

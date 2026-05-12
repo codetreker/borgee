@@ -22,11 +22,11 @@
 //   - ⑥ iterate 触发按钮 owner-only DOM omit (防御深度跟 #347 line 254
 //     showRollbackBtn 同模式 — 由父组件 ArtifactPanel 负责 omit).
 //   - ⑦ failed UI 仅显示 "失败: {reason_label}" + 不显示重试按钮
-//     (蓝图反约束 + spec #365 §4 — 失败重试 = owner 重新触发新 iteration,
-//     不在此 UI 暴露重试按钮同义词漂移).
+//     (blueprint negative constraint + spec #365 §4 — 失败重试 = owner 重新触发新 iteration,
+//     retry-button synonyms must not appear in this UI).
 //
 // 反约束 (本组件强制 grep 锚, content-lock §2 一致):
-//   - 反同义词漂移 (按钮锁定为 🔄, 文案锁中文 byte-identical;
+//   - Prevent synonym drift (按钮锁定为 🔄, 文案锁中文 byte-identical;
 //     英文/全名/同义词全部grep 检查 0 hit)
 //   - state 4 态文案锁中文 byte-identical (反英文 4 态 + 模糊同义词)
 //   - failed UI 不渲染重试按钮 (失败状态机锁死, 设计 ⑦)
@@ -49,7 +49,7 @@ import { useIterationStateChanged } from '../hooks/useWsHubFrames';
 interface Props {
   artifactId: string;
   channelId: string;
-  /** Owner-only — 父组件 (ArtifactPanel) 已闸; 本面板再保险一层 (defense-in-depth). */
+  /** Owner-only — 父组件 (ArtifactPanel) already controls rendering; 本面板再保险一层 (defense-in-depth). */
   isOwner: boolean;
   /** 当 iteration completed 时父组件 reload artifact + 跳新版本 view. */
   onIterationCompleted?: (newVersionId: number | null | undefined) => void;

@@ -32,7 +32,7 @@ export interface PresenceDotProps {
   compact?: boolean;
 }
 
-// normalizeState — undefined / 未知值兜底为 'offline' (野马 §11 不准糊弄).
+// normalizeState — undefined / 未知值兜底为 'offline' (§11 requires explicit offline wording).
 // AL-1b: busy/idle 走独立路径 (data-task-state), normalizeState 不返 busy/idle —
 // data-presence 仍是 AL-3 三态; 调用方决定 task-state attr 是否填.
 function normalizeState(s: AgentRuntimeState | undefined): 'online' | 'offline' | 'error' {

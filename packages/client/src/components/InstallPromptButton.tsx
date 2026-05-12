@@ -5,7 +5,7 @@
 //
 // installed/unavailable 时 return null (不渲染, 不准 disabled style 替代).
 //
-// 反约束: prompt() 必由 click 触发, 不准 mount auto-prompt (Chrome 红线).
+// Negative constraint: prompt() must be click-triggered; mount-time auto-prompt is forbidden by Chrome.
 import React from 'react';
 import { useInstallPrompt } from '../lib/cs3-install-prompt';
 import { INSTALL_BUTTON_LABEL } from '../lib/cs3-permission-labels';
