@@ -12,16 +12,16 @@
 // Schema: #361 message_mentions (merged 2d2ac4e).
 //
 // Three responsibilities locked at this seam (单 PR):
-//   1. ParseMentionTargets: regex `@([0-9a-f-]{36})` 抓 token, 跟 §1 ①
-//      字面对齐 (UUID v4 lowercase hex). 不复用 store.parseMentionIDs
-//      ('<@id>' 旧 token, AP-1 历史路径 — 设计 ⑥ 同语义但 grammar 不同,
-//      混用会让反查 grep 路径覆盖不全).
-//   2. PersistMentions: 写 message_mentions(message_id, target_user_id);
-//      UNIQUE 由 schema 兜 dedup, 设计 ⑥ user / agent 同表同语义.
-//      Cross-channel reject 在 dispatcher 入口前置 (api 层 400) 而非这里.
-//   3. Dispatch: per-target — IsOnline true → PushMentionPushed (target-only
-//      WS, 反向检查: 不抄送 owner); IsOnline false → enqueueOwnerSystemDM
-//      with 5min/(agent,channel) throttle + body 文案锁 (#314 §1 ③).
+//  1. ParseMentionTargets: regex `@([0-9a-f-]{36})` 抓 token, 跟 §1 ①
+//     字面对齐 (UUID v4 lowercase hex). 不复用 store.parseMentionIDs
+//     ('<@id>' 旧 token, AP-1 历史路径 — 设计 ⑥ 同语义但 grammar 不同,
+//     混用会让反查 grep 路径覆盖不全).
+//  2. PersistMentions: 写 message_mentions(message_id, target_user_id);
+//     UNIQUE 由 schema 兜 dedup, 设计 ⑥ user / agent 同表同语义.
+//     Cross-channel reject 在 dispatcher 入口前置 (api 层 400) 而非这里.
+//  3. Dispatch: per-target — IsOnline true → PushMentionPushed (target-only
+//     WS, 反向检查: 不抄送 owner); IsOnline false → enqueueOwnerSystemDM
+//     with 5min/(agent,channel) throttle + body 文案锁 (#314 §1 ③).
 //
 // 反向检查 (spec §0 + §3 + acceptance §2.4 + 野马 #314 ③):
 //   - enqueueOwnerSystemDM payload MUST NOT contain raw message body —
@@ -51,7 +51,6 @@ import (
 	"borgee-server/internal/presence"
 	"borgee-server/internal/store"
 	"borgee-server/internal/ws"
-
 
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"

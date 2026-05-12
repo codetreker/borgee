@@ -42,9 +42,9 @@ import (
 // MeGrantsAction enum byte-identical 跟 bpp-3.2-content-lock.md §2
 // (改 = 改两处: content-lock + 此 const).
 const (
-	MeGrantsActionGrant   = "grant"
-	MeGrantsActionReject  = "reject"
-	MeGrantsActionSnooze  = "snooze"
+	MeGrantsActionGrant  = "grant"
+	MeGrantsActionReject = "reject"
+	MeGrantsActionSnooze = "snooze"
 )
 
 // validMeGrantsActions is the 3-enum membership set (反向约束 content-lock §2).
@@ -62,11 +62,11 @@ var validMeGrantsScopePrefixes = []string{"channel:", "artifact:"}
 // bpp-3.2-content-lock.md §4 + BPP-3.2.1 同源错码 (跟
 // bpp.grant_capability_disallowed 命名同模式).
 const (
-	MeGrantsErrCodeActionUnknown     = "bpp.grant_action_unknown"
-	MeGrantsErrCodeScopeUnknown      = "bpp.grant_scope_unknown"
-	MeGrantsErrCodeAgentNotFound     = "bpp.grant_agent_not_found"
-	MeGrantsErrCodeNotOwner          = "bpp.grant_not_owner"
-	MeGrantsErrCodeMissingFields     = "bpp.grant_missing_fields"
+	MeGrantsErrCodeActionUnknown = "bpp.grant_action_unknown"
+	MeGrantsErrCodeScopeUnknown  = "bpp.grant_scope_unknown"
+	MeGrantsErrCodeAgentNotFound = "bpp.grant_agent_not_found"
+	MeGrantsErrCodeNotOwner      = "bpp.grant_not_owner"
+	MeGrantsErrCodeMissingFields = "bpp.grant_missing_fields"
 )
 
 // MeGrantsHandler handles the owner-rail one-click grant endpoint.

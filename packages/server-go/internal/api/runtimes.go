@@ -69,7 +69,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 
@@ -166,15 +165,15 @@ func (h *RuntimeHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Han
 // runtimeRow — raw shape (private to handler, 跟 anchorRow / iterationRow
 // 同模式).
 type runtimeRow struct {
-	ID               string  `gorm:"column:id"`
-	AgentID          string  `gorm:"column:agent_id"`
-	EndpointURL      string  `gorm:"column:endpoint_url"`
-	ProcessKind      string  `gorm:"column:process_kind"`
-	Status           string  `gorm:"column:status"`
-	LastErrorReason  *string `gorm:"column:last_error_reason"`
-	LastHeartbeatAt  *int64  `gorm:"column:last_heartbeat_at"`
-	CreatedAt        int64   `gorm:"column:created_at"`
-	UpdatedAt        int64   `gorm:"column:updated_at"`
+	ID              string  `gorm:"column:id"`
+	AgentID         string  `gorm:"column:agent_id"`
+	EndpointURL     string  `gorm:"column:endpoint_url"`
+	ProcessKind     string  `gorm:"column:process_kind"`
+	Status          string  `gorm:"column:status"`
+	LastErrorReason *string `gorm:"column:last_error_reason"`
+	LastHeartbeatAt *int64  `gorm:"column:last_heartbeat_at"`
+	CreatedAt       int64   `gorm:"column:created_at"`
+	UpdatedAt       int64   `gorm:"column:updated_at"`
 }
 
 // loadOwnerCheckedAgent loads agent + verifies caller owns it. Returns
@@ -306,9 +305,9 @@ func (h *RuntimeHandler) handleStart(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf(RuntimeStatusDMTemplateStart, agent.DisplayName), nowMs)
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{
-		"id":        rt.ID,
-		"agent_id":  rt.AgentID,
-		"status":    RuntimeStatusRunning,
+		"id":         rt.ID,
+		"agent_id":   rt.AgentID,
+		"status":     RuntimeStatusRunning,
 		"updated_at": nowMs,
 	})
 }

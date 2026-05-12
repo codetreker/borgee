@@ -39,11 +39,11 @@ import (
 
 // PreviewURLErrCode constants stay byte-identical with spec §0 designs ②③.
 const (
-	PreviewErrCodeNotOwner          = "preview.not_owner"
-	PreviewErrCodeURLInvalid        = "preview.url_invalid"
-	PreviewErrCodeURLNotHTTPS       = "preview.url_must_be_https"
+	PreviewErrCodeNotOwner           = "preview.not_owner"
+	PreviewErrCodeURLInvalid         = "preview.url_invalid"
+	PreviewErrCodeURLNotHTTPS        = "preview.url_must_be_https"
 	PreviewErrCodeKindNotPreviewable = "preview.kind_not_previewable"
-	PreviewErrCodeArtifactNotFound  = "preview.artifact_not_found"
+	PreviewErrCodeArtifactNotFound   = "preview.artifact_not_found"
 )
 
 // PreviewableKinds is the allowlist for POST /preview artifact kinds (design ③).
