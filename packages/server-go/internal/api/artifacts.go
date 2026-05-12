@@ -83,7 +83,7 @@ const (
 	FrameKindRollback = "rollback"
 )
 
-// ArtifactPusher is the seam between the api package and ws.Hub for the
+// ArtifactPusher is the boundary between the api package and ws.Hub for the
 // RT-1.1 ArtifactUpdated frame (mirrors AgentInvitationPusher pattern in
 // agent_invitations.go so the api package doesn't import internal/ws).
 //
@@ -97,7 +97,7 @@ type ArtifactPusher interface {
 // ArtifactHandler exposes the CV-1.2 HTTP surface. Hub may be nil in
 // unit tests that don't assert push behaviour; nil-safe at call sites.
 //
-// IterationPusher is the CV-4.2 seam — when a commit carries
+// IterationPusher is the CV-4.2 integration boundary: when a commit carries
 // `?iteration_id=<uuid>` (设计 ② commit 单一来源) we transition the
 // iteration row from running→completed and emit IterationStateChanged.
 // Optional: nil disables the iteration completion path (历史 commit

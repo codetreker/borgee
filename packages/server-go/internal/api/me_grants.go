@@ -75,8 +75,9 @@ type MeGrantsHandler struct {
 	Logger *slog.Logger
 }
 
-// RegisterRoutes mounts POST /api/v1/me/grants behind the user-rail authMw.
-// 反向约束: not mounted on /admin-api (admin god-mode 走单独 mw, ADM-0 §1.3).
+// RegisterRoutes mounts POST /api/v1/me/grants behind authMw. Constraint: it
+// is not mounted on /admin-api because admin routes use separate middleware
+// (ADM-0 §1.3).
 func (h *MeGrantsHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/me/grants", authMw(http.HandlerFunc(h.handleGrant)))
 }
@@ -167,9 +168,9 @@ func (h *MeGrantsHandler) handleGrant(w http.ResponseWriter, r *http.Request) {
 			"scope":      req.Scope,
 		})
 	case MeGrantsActionReject, MeGrantsActionSnooze:
-		// v1 audit-only: spec §4 留作后续 — 不持久化 deny list, 仅记 log
-		// 供 v2+ replay. Future BPP-3.2.3 plugin retry cache 自动 abort
-		// on owner reject (BPP-3.2.3 后续 实施 trigger).
+		// v1 audit-only: spec §4 defers deny-list persistence, so this only logs
+		// the outcome for v2+ replay. A future BPP-3.2.3 plugin retry cache can
+		// abort automatically after owner rejection.
 		h.logInfo("bpp.grant."+req.Action, req, user.ID)
 		writeJSONResponse(w, http.StatusOK, map[string]any{
 			"granted": false,
@@ -178,7 +179,8 @@ func (h *MeGrantsHandler) handleGrant(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// meGrantsScopeValid validates v1 三层 scope (反向约束 ⑦ 原则 §2).
+// meGrantsScopeValid validates the v1 three-level scope rules (constraint ⑦,
+// principles §2).
 func meGrantsScopeValid(scope string) bool {
 	if scope == "*" {
 		return true

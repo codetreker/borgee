@@ -80,20 +80,21 @@ const OfflineOwnerDMTemplate = "%s 当前离线，#%s 中有人 @ 了它，你�
 const OfflineOwnerDMThrottleWindow = 5 * time.Minute
 
 // MentionFrameBroadcaster is the WS push surface DM-2.2 needs from the
-// hub. Subset of ws.Hub — declared as an interface so api tests can
-// inject a fake without spinning up a real cursor allocator + clients.
+// hub. It is a subset of ws.Hub, declared as an interface so api tests can
+// inject a test implementation without starting a real cursor allocator and
+// clients.
 type MentionFrameBroadcaster interface {
 	PushMentionPushed(messageID, channelID, senderID, mentionTargetID, bodyPreview string, createdAt int64) (int64, bool)
 }
 
-// MentionPushNotifier is the DL-4.6 cross-device fan-out seam. Mention
+// MentionPushNotifier is the DL-4.6 cross-device fan-out boundary. Mention
 // dispatch invokes this for EACH target (online + offline) so users
 // receive Web Push on devices where the SPA tab is not focused (browser
 // SW handles visibility-based dedup).
 //
-// Best-effort: implementation MUST NOT propagate errors (跟 ws push 同
-// 模式). Implemented by *push.Gateway in production; tests inject a
-// recording fake to assert call invocation.
+// Best-effort: implementation MUST NOT propagate errors, matching the WS push
+// path. Implemented by *push.Gateway in production; tests inject a recording
+// implementation to assert call invocation.
 //
 // 反向检查 (DL-4 spec §0 设计 ②): push fire-and-forget — Notify 返回
 // attempts count 仅 observability, 不 error 语义.
@@ -231,8 +232,8 @@ func (d *MentionDispatcher) PersistMentions(messageID string, targetIDs []string
 //   - target offline + (role!='agent' OR no owner_id) → no fallback
 //     (蓝图 §4.1 仅 agent 离线场景 — 人离线 mention 不触发 owner DM).
 //
-// Errors collected per-target; first non-nil returned but all targets
-// processed (best-effort fanout — one bad target shouldn't drop the rest).
+// Errors are collected per target; the first non-nil error is returned after
+// all targets are processed. A failure for one target must not drop the rest.
 func (d *MentionDispatcher) Dispatch(messageID, channelID, channelName, senderID, body string, targetIDs []string, createdAt int64) error {
 	var firstErr error
 	bodyPreview := ws.TruncateBodyPreview(body)

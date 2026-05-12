@@ -21,11 +21,11 @@
 //     preview (markdown / code 走 CV-1 既有 head body 渲染, 不需 preview_url);
 //     其他 kind 调此 endpoint → 400.
 //
-// v0 原则: 此 handler 是 thin recording shim — accepts client-supplied
-// preview_url (e.g. server-side ffmpeg/ImageMagick/pdf2image worker has run
-// out-of-band and posts the resulting CDN URL back). Real CDN integration
-// (ffmpeg first-frame / pdf2image first-page) 留 v1+ — 本 PR 锁定 ACL +
-// https 红线 + kind 闸的 server invariants.
+// v0 scope: this handler records a client-supplied preview_url. For example,
+// an out-of-band server-side ffmpeg/ImageMagick/pdf2image worker may post the
+// resulting CDN URL back here. Full CDN integration (ffmpeg first frame or
+// pdf2image first page) is deferred to v1+; this PR locks only the server
+// invariants for ACL, HTTPS-only URLs, and previewable artifact kinds.
 package api
 
 import (
@@ -37,7 +37,7 @@ import (
 	"borgee-server/internal/auth"
 )
 
-// PreviewURLErrCode constants — byte-identical 跟 spec §0 设计 ②③ 同源.
+// PreviewURLErrCode constants stay byte-identical with spec §0 designs ②③.
 const (
 	PreviewErrCodeNotOwner          = "preview.not_owner"
 	PreviewErrCodeURLInvalid        = "preview.url_invalid"
@@ -46,8 +46,9 @@ const (
 	PreviewErrCodeArtifactNotFound  = "preview.artifact_not_found"
 )
 
-// PreviewableKinds 是允许调 POST /preview 的 kind 白名单 (设计 ③).
-// markdown / code 走 CV-1 既有 head body 渲染, 不需 preview_url.
+// PreviewableKinds is the allowlist for POST /preview artifact kinds (design ③).
+// markdown / code use the existing CV-1 head/body rendering and do not need
+// preview_url.
 var PreviewableKinds = []string{
 	ArtifactKindImageLink,
 	ArtifactKindVideoLink,
@@ -55,8 +56,9 @@ var PreviewableKinds = []string{
 }
 
 // IsPreviewableKind reports whether kind k requires a preview thumbnail
-// path. 跟 PreviewableKinds slice 共闸; grep 检查 `markdown.*preview_url|
-// code.*preview_url` count==0 (markdown/code 不走 preview).
+// path. It uses the same gate as PreviewableKinds; grep checks keep
+// `markdown.*preview_url|code.*preview_url` at count==0 because markdown/code
+// do not use preview.
 func IsPreviewableKind(k string) bool {
 	for _, v := range PreviewableKinds {
 		if k == v {
@@ -67,8 +69,7 @@ func IsPreviewableKind(k string) bool {
 }
 
 // previewRequest is the POST body shape — server accepts a pre-computed
-// thumbnail / media URL (see file header v0 原则 — real CDN worker
-// integration is留作后续 v1+).
+// thumbnail / media URL. Real CDN worker integration is deferred to v1+.
 type previewRequest struct {
 	PreviewURL string `json:"preview_url"`
 }

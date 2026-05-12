@@ -129,18 +129,18 @@ func (h *RuntimeHandler) newID() string {
 	return idgen.NewID()
 }
 
-// RegisterRoutes mounts the user-rail runtime endpoints. The admin
-// god-mode metadata read path (`GET /admin-api/v1/runtimes`) is registered
-// separately by AdminRuntimeHandler.RegisterRoutes (admin.go-side rail).
+// RegisterRoutes registers the authenticated runtime endpoints. The admin
+// metadata read path (`GET /admin-api/v1/runtimes`) is registered separately
+// by AdminRuntimeHandler.RegisterRoutes in admin.go.
 //
-// Defense-in-depth (acceptance §4.6 出处): start + stop wrap with
+// Defense-in-depth (acceptance §4.6): start + stop wrap with
 // `auth.RequirePermission(s, "agent.runtime.control", nil)` so a future
-// GrantDefaultPermissions adjustment can narrow ownership without
-// changing this file. v0 owner check is still inline (handlers do
-// OwnerID 直比 — wildcard `(*, *)` AP-0 grant covers
-// `agent.runtime.control` so existing humans pass through; non-owners
-// then 403 via inline check). Reverse-grep §4.6: count≥2 for start +
-// stop literal `agent.runtime.control` 命中此文件.
+// GrantDefaultPermissions adjustment can narrow ownership without changing
+// this file. The v0 owner check remains inline: handlers compare OwnerID
+// directly. The wildcard `(*, *)` AP-0 grant covers `agent.runtime.control`,
+// so existing humans pass through, while non-owners still receive 403 from
+// the inline check. Reverse-grep §4.6 expects the start + stop literal
+// `agent.runtime.control` to appear in this file at least twice.
 func (h *RuntimeHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	wrap := func(f http.HandlerFunc) http.Handler { return authMw(f) }
 	// start + stop: defense-in-depth permission gate (acceptance §4.6).
