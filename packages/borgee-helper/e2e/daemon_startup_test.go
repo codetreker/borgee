@@ -132,7 +132,7 @@ func TestHB2DE_DaemonStartup_BuildsAndListens(t *testing.T) {
 		_ = cmd.Wait()
 	})
 
-	// Poll for UDS socket readiness. The 2s budget is for a startup smoke check,
+	// Poll for UDS socket readiness. The 2s budget is for a startup readiness check,
 	// not a performance threshold.
 	deadline := time.Now().Add(2 * time.Second)
 	var ready bool
