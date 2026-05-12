@@ -78,7 +78,7 @@ test.describe.skip('comment markdown 渲染 (gh#716 SKIP+followup, 等 v2 mount 
     // page via document.body, then dispatch DOMContentLoaded so the app
     // would run. Here we simply assert the marked + DOMPurify lib path
     // works by injecting raw HTML THROUGH the same sanitize call shape
-    // (sanity smoke; real lock is the vitest unit suite).
+    // (lightweight browser check; the strict lock is the vitest unit suite).
     //
     // Practical check: page loads without error, the client module bundle
     // includes 'marked' and 'dompurify' (反向断 spec lib 单源).
@@ -86,7 +86,7 @@ test.describe.skip('comment markdown 渲染 (gh#716 SKIP+followup, 等 v2 mount 
     expect(html.length).toBeGreaterThan(0);
   });
 
-  test('§3.3 反约束 — server response is raw text (does NOT contain <strong>/<em> HTML)', async () => {
+  test('§3.3 server response is raw text (does NOT contain <strong>/<em> HTML)', async () => {
     const adminCtx = await apiRequest.newContext({ baseURL: serverURL() });
     const login = await adminCtx.post('/admin-api/auth/login', {
       data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },

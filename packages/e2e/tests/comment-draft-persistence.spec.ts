@@ -55,7 +55,7 @@ test.describe.skip('comment 草稿持久化 (gh#716 SKIP+followup, 等 v2 mount 
     await ctx.close();
   });
 
-  test('§2.2 simulated submit removes localStorage entry (反向 sanity — clear() contract)', async ({ browser }) => {
+  test('§2.2 simulated submit removes localStorage entry (clear() contract check)', async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await page.goto(`${clientURL()}/`);
@@ -72,7 +72,7 @@ test.describe.skip('comment 草稿持久化 (gh#716 SKIP+followup, 等 v2 mount 
     await ctx.close();
   });
 
-  test('§2.3 反约束 — key namespace 字面 "borgee.cv10.comment-draft:" 跨 reload 稳定', async ({ browser }) => {
+  test('§2.3 key namespace "borgee.cv10.comment-draft:" stays stable across reload', async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await page.goto(`${clientURL()}/`);

@@ -140,7 +140,7 @@ async function switchToChannel(page: Page, name: string): Promise<void> {
 
 /**
  * 拿当前 sidebar 上 channel 行的 unread badge count. 没 badge 返 0.
- * SortableChannelItem.tsx L88 / L114 .unread-badge 锚.
+ * SortableChannelItem.tsx L88 / L114 .unread-badge selector reference.
  *
  * 重要 (zhanma 真因 reproduce 后校正):
  *   不能用 page.locator('li, div').filter({has: ...}).first() — 它会上升到
@@ -196,7 +196,7 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     await switchToChannel(page, secondName);
 
     // Step 5: 切回 welcome — sidebar 不应显未读
-    // 真验立场 ① + ② + ③: own message 在 welcome 通过三层防御都不计未读.
+    // Verify the three-layer guard: own messages in welcome do not count as unread.
     // 验证 welcome unread badge count == 0 (跟 design §7.3 expected output 同源).
     const welcomeUnread = await getUnreadCount(page, welcomeName);
     expect(
@@ -204,7 +204,7 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
       'gh#687 立场: own message in welcome 切走再回来不应增 unread',
     ).toBe(0);
 
-    // 反向: 第二 channel 没收到任何消息, 也应 unread=0 (sanity)
+    // Baseline check: 第二 channel 没收到任何消息, 也应 unread=0.
     const secondUnread = await getUnreadCount(page, secondName);
     expect(secondUnread).toBe(0);
   });
