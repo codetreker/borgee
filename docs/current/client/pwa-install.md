@@ -77,4 +77,4 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - background sync (跟蓝图 §1.1 字面一致)
 - iOS Safari beforeinstallprompt 真支持 (留 v2)
 - per-device 多端管理 UI (留 v1)
-- 不提供 ADM-0 §1.3 管理端 PWA install / push 管理入口
+- 永久不得挂载或暴露 ADM-0 §1.3 管理端 PWA install / push 管理入口
