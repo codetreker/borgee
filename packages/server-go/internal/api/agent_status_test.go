@@ -2,12 +2,12 @@
 // (#453 schema v=21 → AL-1b.2 server endpoint + state machine).
 //
 // 覆盖的设计约束 (al-1b-spec.md §0 + acceptance §2):
-//   - 设计第 1 条 分清三类路径 — busy/idle 跟 AL-3 presence + AL-4 runtime 分清,
+//   - design rule 1 separates three paths — busy/idle 跟 AL-3 presence + AL-4 runtime 分清,
 //     此 spec 5-state 合并仅在 API 层 (本 handler), schema 三表独立 (acceptance §2.1).
-//   - 设计第 2 条 BPP 单一来源 — PATCH /status 405 reject (admin 权限也拒绝,
+//   - design rule 2 busy/idle updates come from BPP frames — PATCH /status 405 reject (admin 权限也拒绝,
 //     ADM-0 第 7 条限制同一设计, acceptance §2.5).
-//   - 设计第 3 条 文案三态 — schema 仅 2 态, API 暴露 5 态, client UI 进一步合并显示
-//     (本 PR server-side 暴露 5 态字节级一致 跟 acceptance §2.1 字面对齐).
+//   - design rule 3 display-state wording — schema 仅 2 态, API 暴露 5 态, client UI 进一步合并显示
+//     (本 PR server-side 暴露 5 态 exact-match 跟 acceptance §2.1 字面对齐).
 //
 // 5-state 合并优先级 (acceptance §2.1):
 //
@@ -45,8 +45,8 @@ func al1b2Setup(t *testing.T) (url string, ownerTok string, s *store.Store, agen
 
 // TestAL_GetStatus_NoRowFallsBackToOnlineOffline 覆盖 acceptance §2.1
 // priority step 3 — 没有 BPP frame 上行过的 agent (agent_status 无 row)
-// 通过 AL-1a online/offline 退化 (Snapshot 默认 offline). 设计第 1 条分清三类路径
-// — busy/idle 须显式 row, 不假装.
+// 通过 AL-1a online/offline 退化 (Snapshot 默认 offline). Busy/idle requires an
+// explicit agent_status row; the handler must not infer it from presence/runtime data.
 func TestAL_GetStatus_NoRowFallsBackToOnlineOffline(t *testing.T) {
 	t.Parallel()
 	url, tok, _, agentID := al1b2Setup(t)
@@ -69,7 +69,7 @@ func TestAL_GetStatus_NoRowFallsBackToOnlineOffline(t *testing.T) {
 
 // TestAL_GetStatus_BusyFromAgentStatusRow 覆盖 acceptance §2.1 step 2
 // + §2.2: BPP `task_started` frame 触发 SetAgentTaskStarted → state='busy'
-// + last_task_id + last_task_started_at; GET /status 返字节级一致.
+// + last_task_id + last_task_started_at; GET /status returns an exact match.
 func TestAL_GetStatus_BusyFromAgentStatusRow(t *testing.T) {
 	t.Parallel()
 	url, tok, st, agentID := al1b2Setup(t)
@@ -127,7 +127,7 @@ func TestAL_GetStatus_IdleFromAgentStatusRow(t *testing.T) {
 	}
 }
 
-// TestAL_PatchStatusReturns405 覆盖 acceptance §2.5 + 设计第 2 条 BPP 单一来源
+// TestAL_PatchStatusReturns405 覆盖 acceptance §2.5: busy/idle is not writable through PATCH /status
 // — PATCH /status 405 reject for owner. Admin 权限同样 reject 跟
 // AL-4.2 admin 权限反向检查属于同一设计 (ADM-0 第 7 条限制).
 func TestAL_PatchStatusReturns405(t *testing.T) {
@@ -160,7 +160,7 @@ func TestAL_PatchStatusAdminAlsoRejected(t *testing.T) {
 		"state": "idle",
 	})
 	if resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("admin PATCH /status: status=%d, want 405 (admin 权限同样拒绝, 设计第 2 条 BPP 单一来源)", resp.StatusCode)
+		t.Errorf("admin PATCH /status: status=%d, want 405 (admin permission is also rejected; busy/idle updates come from BPP frames)", resp.StatusCode)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestAL_GetStatus_NotFound(t *testing.T) {
 
 // TestAL_ReapStaleBusyToIdle 覆盖 acceptance §2.4 — 5min 无 frame 自动
 // idle. ReapStaleBusyToIdle UPDATE WHERE last_task_started_at < cutoff.
-// IdleThreshold const 单一来源.
+// IdleThreshold defines the idle cutoff.
 func TestAL_ReapStaleBusyToIdle(t *testing.T) {
 	t.Parallel()
 	_, _, st, agentID := al1b2Setup(t)
@@ -221,7 +221,7 @@ func TestAL_ReapStaleBusyToIdle(t *testing.T) {
 	}
 }
 
-// TestAL_NoDomainBleed_Response 覆盖 acceptance §1.5 + spec §0 设计第 1 条
+// TestAL_NoDomainBleed_Response 覆盖 acceptance §1.5 + spec §0 design rule 1
 // 反向检查 — 5-state 合并响应不泄漏 schema 内列名 (server 不返
 // is_online / endpoint_url / process_kind / last_error_reason raw 文本).
 // 跟 al_4_2 admin 权限 reason raw 反向检查属于同一设计.
@@ -236,7 +236,7 @@ func TestAL_NoDomainBleed_Response(t *testing.T) {
 		t.Fatalf("GET /status: %d", resp.StatusCode)
 	}
 	for _, forbidden := range []string{
-		// AL-3 presence 列不应出现 (确实分清三类路径).
+		// AL-3 presence fields must not appear here.
 		"is_online", "presence",
 		// AL-4 runtime 列不应出现 (process-level vs task-level 确实分清).
 		"endpoint_url", "process_kind", "last_error_reason",
@@ -244,7 +244,7 @@ func TestAL_NoDomainBleed_Response(t *testing.T) {
 		"source", "set_by",
 	} {
 		if _, has := data[forbidden]; has {
-			t.Errorf("response leaks forbidden field %q (反向检查失败, acceptance §1.5 + spec §0 设计第 1+2 条)", forbidden)
+			t.Errorf("response leaks forbidden field %q (negative check failed, acceptance §1.5 + spec §0 design rules 1+2)", forbidden)
 		}
 	}
 }

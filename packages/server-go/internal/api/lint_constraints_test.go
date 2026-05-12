@@ -1,10 +1,10 @@
 // lint_constraints_test.go — 7 条 inline grep 约束转 Go 行为 test.
 //
 // 历史 .github/workflows/release-gate.yml + al-release-gate.yml 里有 7 条
-// inline bash grep 约束守"未来不许 commit mismatch" (heartbeat 30s 单一来源 /
+// inline bash grep guard 防止 future commit mismatch (heartbeat 30s defining constant /
 // reason 字典 6 不变 / agent_state_log 不写 connecting 持久态 /
 // presence_sessions 不写 busy 列 / agent_state_log 跟 audit_log 不 JOIN /
-// audit 5 字段字节级一致 / reasons 单一来源 跨 milestone ≥6 hit). #717
+// audit 5 fields exact match / reasons package 跨 milestone ≥6 hit). #717
 // 删两 yml 后, 这 7 条搬这里转 Go test (跟 dl12_direct_store_baseline_test.go
 // 同模式 — 代码行为 test 替 yaml grep). 走 go-test-cov / go-test-race ./...
 // 默认覆盖, 不需要单挑 step.
@@ -68,15 +68,15 @@ func walkGoSources(t *testing.T, dir string, excludeTests bool) []string {
 	return out
 }
 
-// TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 设计第 5 条 heartbeat 30s
-// 数字常量单一来源锁. internal/bpp/ 下 BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
+// TestLint_BPPHeartbeat30sSingleSource — BPP-4 §3 design rule 5 heartbeat 30s
+// numeric constant guard. internal/bpp/ 下 BPP_HEARTBEAT_TIMEOUT_SECONDS = 30
 // 单点定义, 不许涨到 30s 以上.
 func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
 	bppDir := filepath.Join(root, "packages", "server-go", "internal", "bpp")
 
-	// 第 1 步 单一来源存在
+	// Step 1: expected definition exists.
 	singleSrc := regexp.MustCompile(`BPP_HEARTBEAT_TIMEOUT_SECONDS\s*=\s*30\b`)
 	hits := 0
 	for _, f := range walkGoSources(t, bppDir, true) {
@@ -87,7 +87,7 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 		hits += len(singleSrc.FindAll(b, -1))
 	}
 	if hits < 1 {
-		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 single-source missing in internal/bpp/ (got %d, expected ≥1; BPP-4 §3 设计第 5 条 数字常量单一来源)", hits)
+		t.Errorf("BPP_HEARTBEAT_TIMEOUT_SECONDS = 30 definition missing in internal/bpp/ (got %d, expected >=1; BPP-4 §3 design rule 5 heartbeat timeout constant)", hits)
 	}
 
 	// 第 2 步 mismatch detection: heartbeat timeout > 30s 不允许
@@ -98,14 +98,14 @@ func TestLint_BPPHeartbeat30sSingleSource(t *testing.T) {
 			continue
 		}
 		if m := badPat.Find(b); m != nil {
-			t.Errorf("%s: heartbeat timeout above 30s (matched %q; BPP-4 §3 设计第 5 条 反向断言)", f, string(m))
+			t.Errorf("%s: heartbeat timeout above 30s (matched %q; BPP-4 §3 design rule 5 negative assertion)", f, string(m))
 		}
 	}
 }
 
 // TestLint_ReasonChainNo7th — AL-1.1 §1.3 6 reason 字典禁止第 7 项约束.
 // internal/ 下不允许 commit "reason.*7th" / "runtime_recovered" /
-// "reconnect_success" 字面 (新 reason 必须改 reasons 单一来源 包).
+// "reconnect_success" 字面 (新 reason 必须改 reasons 包).
 func TestLint_ReasonChainNo7th(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
@@ -137,23 +137,23 @@ func TestLint_ReasonChainNo7th(t *testing.T) {
 			if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") {
 				continue
 			}
-			t.Errorf("%s: detected 第 7 reason (line: %q; AL-1.1 §1.3 6-dict 对齐链 约束 — 新 reason 必须改 reasons 单一来源 包)", f, line)
+			t.Errorf("%s: detected 7th reason (line: %q; AL-1.1 §1.3 keeps the reason dictionary at 6 entries — new reason must update the reasons package)", f, line)
 		}
 	}
 }
 
-// TestLint_ReasonsSingleSourceExists — reasons 单一来源 包文件存在.
+// TestLint_ReasonsSingleSourceExists — reasons package file exists.
 func TestLint_ReasonsSingleSourceExists(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
 	ssot := filepath.Join(root, "packages", "server-go", "internal", "agent", "reasons", "reasons.go")
 	if _, err := os.Stat(ssot); err != nil {
-		t.Errorf("reasons 单一来源 包丢失 %s: %v (AL-1a #496 单一来源 对齐链)", ssot, err)
+		t.Errorf("reasons package missing %s: %v (required by AL-1a #496)", ssot, err)
 	}
 }
 
 // TestLint_ReasonsCrossMilestoneCoverage — 6 reason 跨 milestone ≥6 hit
-// (AL-1a 单一来源 跟实施同步, 至少每个 reason 1 次源端引用).
+// (AL-1a reasons package 跟实施同步, 至少每个 reason 1 次源端引用).
 func TestLint_ReasonsCrossMilestoneCoverage(t *testing.T) {
 	t.Parallel()
 	root := repoRootForLint(t)
@@ -169,7 +169,7 @@ func TestLint_ReasonsCrossMilestoneCoverage(t *testing.T) {
 		hits += len(pat.FindAll(b, -1))
 	}
 	if hits < 6 {
-		t.Errorf("reason chain coverage insufficient — got %d source-side hits, expected ≥6 (AL-1a 单一来源 跨 milestone 应每个 reason 至少 1 hit)", hits)
+		t.Errorf("reason chain coverage insufficient — got %d source-side hits, expected >=6 (AL-1a reason constants should each have at least 1 source-side reference)", hits)
 	}
 }
 
@@ -190,7 +190,7 @@ func TestLint_AgentStateLogNoConnecting(t *testing.T) {
 	}
 }
 
-// TestLint_PresenceSessionsNoBusyWrite — AL-1b §2 设计第 2 条 BPP frame 是
+// TestLint_PresenceSessionsNoBusyWrite — AL-1b §2 design rule 2 BPP frame 是
 // busy/idle 唯一 source, presence_sessions 不写 busy 列.
 func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 	t.Parallel()
@@ -204,7 +204,7 @@ func TestLint_PresenceSessionsNoBusyWrite(t *testing.T) {
 			continue
 		}
 		if m := pat.Find(b); m != nil {
-			t.Errorf("%s: busy/idle source 写入位置不正确 (matched %q; AL-1b §2 设计第 2 条 BPP frame 唯一 source, presence_sessions 不写 busy 列)", f, string(m))
+			t.Errorf("%s: busy/idle source write location is incorrect (matched %q; AL-1b §2 design rule 2 BPP frame is the only source, presence_sessions must not write busy column)", f, string(m))
 		}
 	}
 }
@@ -228,8 +228,8 @@ func TestLint_ALHBStackDictIsolation(t *testing.T) {
 	}
 }
 
-// TestLint_AuditSchema5FieldsByteIdentical — HB-3 §1.4 audit schema 5 字段
-// (actor / action / target / when / scope) 字节级一致 跨 audit source.
+// TestLint_AuditSchema5FieldsByteIdentical — HB-3 §1.4 audit schema 5 fields
+// (actor / action / target / when / scope) exact match across audit sources.
 // 当前 source: host_grants.go + dead_letter.go (HB-1 + HB-2 Go binary 实施
 // PR 加 install-butler/audit.go + host-bridge/audit.go 时, sources 列表扩
 // 4, 此 test 同步扩).
@@ -253,7 +253,7 @@ func TestLint_AuditSchema5FieldsByteIdentical(t *testing.T) {
 		for _, k := range keys {
 			pat := regexp.MustCompile(`"` + k + `"`)
 			if !pat.MatchString(txt) {
-				t.Errorf("%s: audit schema 字段 %q missing (HB-3 §1.4 5 字段 字节级一致 对齐链)", src, k)
+				t.Errorf("%s: audit schema field %q missing (HB-3 §1.4 requires actor/action/target/when/scope)", src, k)
 			}
 		}
 	}

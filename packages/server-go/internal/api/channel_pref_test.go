@@ -146,7 +146,7 @@ func TestCHN_SetPref_NonMemberRejected(t *testing.T) {
 	}
 }
 
-// REG-CHN8-003 — NotifPref consts byte-identical 三向锁 + GetNotifPref 谓词.
+// REG-CHN8-003 — NotifPref consts exact-match three-way lock + GetNotifPref predicate.
 func TestCHN_NotifPrefConsts_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if api.NotifPrefShift != 2 {

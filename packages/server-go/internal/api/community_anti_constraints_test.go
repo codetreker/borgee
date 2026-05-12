@@ -1,33 +1,33 @@
-// cm_5_1_anti_constraints_test.go — CM-5.1 反向约束 grep 守.
+// cm_5_1_anti_constraints_test.go — CM-5.1 negative source-scan guard.
 //
 // Spec: docs/implementation/modules/cm-5-spec.md §1.1 + §2 (5 条原则 + 4 行
 // 禁止项列表).
 // Acceptance: docs/qa/acceptance-templates/cm-5.md §1 schema (CM-5.1) +
-// §4 反向约束 grep 禁止项列表.
+// §4 negative source-scan forbidden list.
 // Blueprint: concept-model.md §1.3 (§185 "未来你会看到 agent 互相协作") +
 // agent-lifecycle.md §1 (Borgee 是协作平台, agent 之间走 Borgee 平台机制).
 //
-// CM-5 设计 (5 条字面来源必须保持一致):
-//   设计第 1 条 agent↔agent 协作走人协作 path — DM-2 mention router + CV-1 artifact
+// CM-5 design rules (5 literal sources must stay aligned):
+//   design rule 1 agent↔agent 协作走人协作 path — DM-2 mention router + CV-1 artifact
 //      + AP-0/AP-2 permission, **不拆** "agent_only_message" / "ai_to_ai_
 //      channel" 旁路.
-//   设计第 2 条 责任归属 owner-first — `artifact_versions.committed_by` 永远是 user
+//   design rule 2 owner-first responsibility — `artifact_versions.committed_by` 永远是 user
 //      行 (agent 也是 user.role='agent', 走 user.id), 不拆
 //      `triggered_by_agent_id` 列.
-//   设计第 3 条 X2 冲突复用 CV-1.2 既有 single-doc lock 30s + CV-4.1 iterations
+//   design rule 3 X2 conflict 复用 CV-1.2 既有 single-doc lock 30s + CV-4.1 iterations
 //      state 机制 — 不引入新 schema (artifact_locks / iteration_priority
 //      表).
-//   设计第 4 条 agent A → B mention 走 DM-2 router 不旁路 — `MentionPushedFrame` 8
-//      字段字节级一致, 不开 `agent_to_agent_mention` 专属 frame.
-//   设计第 5 条 协作可见性 owner-first — 跟人协作产物 owner 可见同模式, 不拆
+//   design rule 4 agent A → B mention 走 DM-2 router 不旁路 — `MentionPushedFrame` 8
+//      fields exactly match, 不开 `agent_to_agent_mention` 专属 frame.
+//   design rule 5 owner-first visibility — 跟人协作产物 owner 可见同模式, 不拆
 //      owner_visibility scope, 不引入 "ai_only" 隐藏字段.
 //
-// 此 test 等价于 acceptance §4 反向约束 grep 4 行禁止项列表 lint job:
-//   4.1 设计第 1 条 旁路表 — agent_messages\b / ai_to_ai_channel /
+// 此 test 等价于 acceptance §4 negative source scan over the 4 forbidden entries:
+//   4.1 design rule 1 旁路表 — agent_messages\b / ai_to_ai_channel /
 //       agent_only_message count==0
-//   4.2 设计第 1 条 旁路 endpoint — POST /api/v1/agents/.*/notify-agent count==0
-//   4.3 设计第 2 条 责任旁路 — triggered_by_agent_id / committed_by_agent count==0
-//   4.4 设计第 3 条 新锁定表 — artifact_locks\s+TABLE / iteration_priority\s+TABLE
+//   4.2 design rule 1 旁路 endpoint — POST /api/v1/agents/.*/notify-agent count==0
+//   4.3 design rule 2 责任旁路 — triggered_by_agent_id / committed_by_agent count==0
+//   4.4 design rule 3 新锁定表 — artifact_locks\s+TABLE / iteration_priority\s+TABLE
 //       count==0
 //
 // 跟 hub_presence_grep_test.go (AL-3.2 §301) 同模式 — AST walk + go/parser
@@ -184,7 +184,7 @@ func scanRegex(t *testing.T, roots []string, exts []string, patterns []*regexp.R
 	return hits
 }
 
-// TestCM_NoBypassTable 验证 acceptance §4.1 设计第 1 条 — agent↔agent 协作走人
+// TestCM_NoBypassTable 验证 acceptance §4.1 design rule 1 — agent↔agent 协作走人
 // 协作 path, 不拆表/不开旁路 schema. 反向断言 server-go 全包不出现
 // `agent_messages` / `ai_to_ai_channel` / `agent_only_message` /
 // `agent_to_agent_mention` 字面 (string literal context, 注释里说设计不
@@ -195,19 +195,19 @@ func TestCM_NoBypassTable(t *testing.T) {
 	files := walkGoFiles(t, serverGo)
 
 	hits := scanForbiddenLiterals(t, files, []string{
-		"agent_messages",         // 设计第 1 条 旁路表名
-		"ai_to_ai_channel",       // 设计第 1 条 旁路 channel kind
-		"agent_only_message",     // 设计第 1 条 旁路 message kind
-		"agent_to_agent_mention", // 设计第 4 条 旁路 frame name
+		"agent_messages",         // design rule 1 bypass table name
+		"ai_to_ai_channel",       // design rule 1 bypass channel kind
+		"agent_only_message",     // design rule 1 bypass message kind
+		"agent_to_agent_mention", // design rule 4 bypass frame name
 	})
 	if len(hits) > 0 {
-		t.Fatalf("CM-5.1 设计第 1 条反向检查失败 — server-go must not contain bypass table/channel/message/frame literals (走人协作 path); hits:\n  %s\n"+
-			"acceptance #264 §4.1 + cm-5-spec.md §0 设计第 1 条 + §2 禁止项列表第 1+2 行.",
+		t.Fatalf("CM-5.1 design rule 1 negative check failed — server-go must not contain bypass table/channel/message/frame literals (走人协作 path); hits:\n  %s\n"+
+			"acceptance #264 §4.1 + cm-5-spec.md §0 design rule 1 + §2 forbidden entries 1+2.",
 			strings.Join(hits, "\n  "))
 	}
 }
 
-// TestCM_NoBypassEndpoint 验证 acceptance §4.2 设计第 1 条 — server 不开
+// TestCM_NoBypassEndpoint 验证 acceptance §4.2 design rule 1 — server 不开
 // `POST /api/v1/agents/:id/notify-agent` 旁路 endpoint. 反向断言 server-go
 // 路由表不含此字面.
 func TestCM_NoBypassEndpoint(t *testing.T) {
@@ -223,13 +223,13 @@ func TestCM_NoBypassEndpoint(t *testing.T) {
 		},
 		true)
 	if len(hits) > 0 {
-		t.Fatalf("CM-5.1 设计第 1 条反向检查失败 — server-go must not expose POST /api/v1/agents/:id/notify-agent bypass endpoint (mention 走 DM-2 router); hits:\n  %s\n"+
-			"acceptance §4.2 + cm-5-spec.md §0 设计第 1 条 + §2 禁止项列表第 2 行.",
+		t.Fatalf("CM-5.1 design rule 1 negative check failed — server-go must not expose POST /api/v1/agents/:id/notify-agent bypass endpoint (mention 走 DM-2 router); hits:\n  %s\n"+
+			"acceptance §4.2 + cm-5-spec.md §0 design rule 1 + §2 forbidden entry 2.",
 			strings.Join(hits, "\n  "))
 	}
 }
 
-// TestCM_NoOwnerBypassColumn 验证 acceptance §4.3 设计第 2 条 — 责任归属
+// TestCM_NoOwnerBypassColumn 验证 acceptance §4.3 design rule 2 — 责任归属
 // owner-first, `artifact_versions.committed_by` 永远是 user 行, 不拆
 // `triggered_by_agent_id` / `committed_by_agent` 列. 反向断言 server-go
 // migrations + store 不出现此列名字面.
@@ -239,17 +239,17 @@ func TestCM_NoOwnerBypassColumn(t *testing.T) {
 	files := walkGoFiles(t, serverGo)
 
 	hits := scanForbiddenLiterals(t, files, []string{
-		"triggered_by_agent_id", // 设计第 2 条 责任旁路列
-		"committed_by_agent",    // 设计第 2 条 commit 旁路列
+		"triggered_by_agent_id", // design rule 2 responsibility bypass column
+		"committed_by_agent",    // design rule 2 commit bypass column
 	})
 	if len(hits) > 0 {
-		t.Fatalf("CM-5.1 设计第 2 条反向检查失败 — schema/store must not split owner-first responsibility into agent-specific columns; hits:\n  %s\n"+
-			"acceptance §4.3 + cm-5-spec.md §0 设计第 2 条 + §2 禁止项列表第 3 行.",
+		t.Fatalf("CM-5.1 design rule 2 negative check failed — schema/store must not split owner-first responsibility into agent-specific columns; hits:\n  %s\n"+
+			"acceptance §4.3 + cm-5-spec.md §0 design rule 2 + §2 forbidden entry 3.",
 			strings.Join(hits, "\n  "))
 	}
 }
 
-// TestCM_NoNewLockTable 验证 acceptance §4.4 设计第 3 条 — X2 冲突复用 CV-1.2
+// TestCM_NoNewLockTable 验证 acceptance §4.4 design rule 3 — X2 冲突复用 CV-1.2
 // single-doc lock + CV-4.1 iterations state, 不引入新锁定表. 反向断言
 // migrations 不创建 `artifact_locks` / `iteration_priority` 表.
 func TestCM_NoNewLockTable(t *testing.T) {
@@ -268,14 +268,14 @@ func TestCM_NoNewLockTable(t *testing.T) {
 		},
 		true)
 	if len(hits) > 0 {
-		t.Fatalf("CM-5.1 设计第 3 条反向检查失败 — X2 conflict must reuse CV-1.2 single-doc lock + CV-4.1 iterations state, no new artifact_locks/iteration_priority table; hits:\n  %s\n"+
-			"acceptance §4.4 + cm-5-spec.md §0 设计第 3 条 + §2 禁止项列表第 4 行.",
+		t.Fatalf("CM-5.1 design rule 3 negative check failed — X2 conflict must reuse CV-1.2 single-doc lock + CV-4.1 iterations state, no new artifact_locks/iteration_priority table; hits:\n  %s\n"+
+			"acceptance §4.4 + cm-5-spec.md §0 design rule 3 + §2 forbidden entry 4.",
 			strings.Join(hits, "\n  "))
 	}
 }
 
 // TestCM_X2ConflictLiteralReuse 验证 acceptance §2.2 + cm-5-spec.md §1.2
-// 设计第 3 条 — X2 冲突 409 错码字面跟 CV-4 #380 第 7 条字节级一致 同源.
+// design rule 3 — X2 冲突 409 错码字面 must reuse the CV-4 #380 rule 7 literal.
 // 验证: cv_4_2_iterations.go (or 同等 server file) 含
 // `artifact.locked_by_another_iteration` 字面 (CM-5 复用此既有错码,
 // 不另起 'cm5.x2_conflict' / 'agent_collision' 等同义词).
@@ -284,7 +284,7 @@ func TestCM_X2ConflictLiteralReuse(t *testing.T) {
 	serverGo := filepath.Join(root, "packages", "server-go")
 	files := walkGoFiles(t, serverGo)
 
-	// 反向断言 — 不出现 CM-5 自起的 X2 冲突错码 (复用 CV-4 #380 第 7 条 字面).
+	// negative assertion — 不出现 CM-5 自起的 X2 冲突错码 (复用 CV-4 #380 rule 7 字面).
 	hits := scanForbiddenLiterals(t, files, []string{
 		"cm5.x2_conflict",
 		"agent_collision",
@@ -292,8 +292,8 @@ func TestCM_X2ConflictLiteralReuse(t *testing.T) {
 		"x2_lock_held",
 	})
 	if len(hits) > 0 {
-		t.Fatalf("CM-5.1 设计第 3 条反向检查失败 — must reuse CV-4 #380 第 7 条 literal `artifact.locked_by_another_iteration`, not CM-5 specific synonym; hits:\n  %s\n"+
-			"cm-5-spec.md §1.2 + §1.3 字节级一致 同源 锁定.",
+		t.Fatalf("CM-5.1 design rule 3 negative check failed — must reuse CV-4 #380 rule 7 literal `artifact.locked_by_another_iteration`, not CM-5 specific synonym; hits:\n  %s\n"+
+			"cm-5-spec.md §1.2 + §1.3 requires the existing CV-4 conflict literal.",
 			strings.Join(hits, "\n  "))
 	}
 }
