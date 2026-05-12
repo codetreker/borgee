@@ -3,9 +3,9 @@
 //
 // Phase 2 路线: server pushes these via the existing /ws hub; Phase 4 BPP
 // will swap the wire layer without changing the schema. The CI lint
-// (frame_schemas.go vs ws/event_schemas.go byte-identical) is the hard
-// guarantee — these TS interfaces mirror that lock so client handler
-// remains unchanged across the swap.
+// (frame_schemas.go vs ws/event_schemas.go byte-identical) is the strict
+// schema contract — these TS interfaces match that contract so client handlers
+// remain unchanged across the swap.
 //
 // 字段顺序保留 (跟 server Go struct 字面对得上):
 //   pending : invitation_id, requester_user_id, agent_id, channel_id,
@@ -53,7 +53,7 @@ export type AgentInvitationFrame =
 /**
  * Window-level CustomEvent names fired by useWsHubFrames after a frame
  * lands. Components (Sidebar bell, InvitationsInbox) listen for these
- * to drop their poll loops.
+ * to remove their polling code.
  *
  * Naming follows the existing `commands_updated` precedent in
  * useWebSocket — namespace prefix `borgee:` to avoid conflicts with native
@@ -97,8 +97,8 @@ export type ArtifactUpdatedEvent = CustomEvent<ArtifactUpdatedFrame>;
 
 // ─── DM-2.2 MentionPushed frame (#372 envelope) ─────────────
 //
-// Spec: docs/implementation/modules/dm-2.3-spec.md §0 rules ②③ and
-// 飞马 #362 define the 8-field envelope.
+// Spec: docs/implementation/modules/dm-2.3-spec.md §0 rules ②③; issue #362
+// defines the 8-field envelope.
 // 锁: server 端 internal/ws/mention_pushed_frame.go::MentionPushedFrame
 // — 8 字段顺序 byte-identical:
 //   {type, cursor, message_id, channel_id, sender_id,
@@ -133,7 +133,7 @@ export type MentionPushedEvent = CustomEvent<MentionPushedFrame>;
 
 // ─── CV-2.2 AnchorCommentAdded frame (#360 envelope) ────────
 //
-// Spec: docs/implementation/modules/cv-2-spec.md §0 rule ③ + 飞马 v3 field lock.
+// Spec: docs/implementation/modules/cv-2-spec.md §0 rule ③ + v3 field lock.
 // Server lock: packages/server-go/internal/ws/anchor_comment_frame.go
 //   AnchorCommentAddedFrame — 10 字段 byte-identical:
 //   {type, cursor, anchor_id, comment_id, artifact_id,
