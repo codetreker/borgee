@@ -1,7 +1,8 @@
 // Package server — bpp_3_router_adapter_test.go: BPP-3 server-boot
 // pluginFrameRouterAdapter (ws.PluginFrameRouter ↔ bpp.PluginFrameDispatcher)
 // bridge coverage. Adapter is the only ws→bpp boundary at boot;
-// without this test it stays 0% covered (跨包桥代码典型 cold path).
+// without this test it stays 0% covered because cross-package bridge code is a
+// typical cold path.
 package server
 
 import (

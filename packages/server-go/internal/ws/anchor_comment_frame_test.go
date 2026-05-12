@@ -1,9 +1,10 @@
 // Package ws_test — anchor_comment_frame_test.go: CV-2.2 envelope
-// byte-identity lock + push smoke for AnchorCommentAddedFrame.
+// byte-identity lock and push coverage for AnchorCommentAddedFrame.
 //
 // The 10-field order is the contract per cv-2-spec.md §0 point 3 +
-// v2 changelog (字段名 `author_kind` 不复用 CV-1 `committer_kind`). Any
-// reorder caught here pre-merge — paired with BPP-1 #304 envelope CI lint.
+// v2 changelog (`author_kind` intentionally stays distinct from CV-1
+// `committer_kind`). Any reorder is caught here before merge, paired with
+// BPP-1 #304 envelope CI lint.
 package ws_test
 
 import (
@@ -39,7 +40,7 @@ func TestAnchorCommentAddedFrameFieldOrder(t *testing.T) {
 	}
 }
 
-// TestPushAnchorCommentAdded smoke: fresh emit returns sent=true with a
+// TestPushAnchorCommentAdded checks that a fresh emit returns sent=true with a
 // fresh cursor strictly above the artifact-updated head.
 func TestPushAnchorCommentAdded(t *testing.T) {
 	t.Parallel()

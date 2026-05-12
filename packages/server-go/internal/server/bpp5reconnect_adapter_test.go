@@ -1,8 +1,9 @@
 // Package server — bpp_5_reconnect_adapter_test.go: BPP-5 server-boot
 // channelScopeAdapter (bpp.ChannelScopeResolver ↔ store.GetUserChannelIDs)
 // bridge coverage. Adapter is the only store→bpp boundary at boot;
-// without this test it stays 0% covered (跨包桥代码典型 cold path,
-// 跟 hubLivenessAdapter / pluginFrameRouterAdapter 同模式).
+// without this test it stays 0% covered because cross-package bridge code is a
+// typical cold path, matching the hubLivenessAdapter and pluginFrameRouterAdapter
+// coverage pattern.
 package server
 
 import (
