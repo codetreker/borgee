@@ -1,7 +1,7 @@
-// PrivacyPromise.test.tsx — ADM-1 acceptance §1 + §2 vitest 锁.
+// PrivacyPromise.test.tsx — ADM-1 acceptance §1 + §2 Vitest lock.
 //
-// 锚: docs/qa/adm-1-implementation-spec.md §4 反向断言 5 项 + acceptance §1/§2.
-// 设计: admin-model.md §4.1 文案 1:1 锁 (drift test 双声明).
+// Anchor: docs/qa/adm-1-implementation-spec.md §4 five negative assertions + acceptance §1/§2.
+// Design: admin-model.md §4.1 copy is locked 1:1 (also declared by the drift test).
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
@@ -50,7 +50,8 @@ describe('PrivacyPromise — §1 三条承诺字面 1:1 (admin-model §4.1)', ()
     render(<PrivacyPromise />);
     const items = container!.querySelectorAll('.privacy-promise-item');
     expect(items).toHaveLength(3);
-    // marked + DOMPurify 渲染 **bold** 为 <strong>; 文本 (含 strong 子节点) 必含字面.
+    // marked + DOMPurify renders **bold** as <strong>; textContent, including
+    // strong child nodes, must contain the locked literals.
     expect(items[0]!.textContent).toContain('Admin 是平台运维, 不是协作者');
     expect(items[0]!.textContent).toContain('永不出现在 channel / DM / 团队列表里');
     expect(items[1]!.textContent).toContain('Admin 看不到消息 / 文件 / artifact 内容');

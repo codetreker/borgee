@@ -2,10 +2,10 @@
 //
 // Cases:
 //   ① title `编辑历史` 4 字 byte-identical
-//   ② empty `暂无编辑记录` 6 字 byte-identical (空 history 显式空态)
-//   ③ history 行 `: 修改了说明` byte-identical (前缀冒号+空格)
+//   ② empty `暂无编辑记录` 6 chars byte-identical (empty history renders an explicit empty state)
+//   ③ history row `: 修改了说明` byte-identical (colon prefix plus space)
 //   ④ 时间戳 RFC3339 byte-identical
-//   ⑤ 同义词反向 reject — source grep 0 hit (data-testid 例外)
+//   ⑤ synonym rejection — source grep 0 hits (except data-testid)
 
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -109,17 +109,19 @@ describe('CHN-14.3 DescriptionHistoryModal content-lock', () => {
   it('⑤ 同义词反向 reject — source grep 0 hit (data-testid + className 例外)', () => {
     const p = nodePath.resolve(HERE, '..', 'components', 'DescriptionHistoryModal.tsx');
     const src: string = fs.readFileSync(p, 'utf8');
-    // user-visible Chinese 反向 reject — 我们用 `编辑历史` / `暂无编辑记录` / `修改了说明`.
+    // User-visible Chinese synonym rejection; the approved copy is `编辑历史` /
+    // `暂无编辑记录` / `修改了说明`.
     for (const tok of ['记录', '日志', '审计']) {
-      // `记录` 在 `暂无编辑记录` 中作为合法字符出现, 我们检查独立的反义同义.
-      if (tok === '记录') continue; // 我们的固定文案含此字 — skip.
+      // `记录` is part of the approved `暂无编辑记录` copy, so only independent
+      // synonym tokens are checked here.
+      if (tok === '记录') continue;
       expect(src.includes(tok)).toBe(false);
     }
-    // English 同义词 — 反 reject (data-testid + className 例外).
-    // 我们的 component 完全没用 audit/log/History (大写) 之 user-visible.
+    // English synonym rejection, with data-testid and className as the only exceptions.
+    // The component must not use Audit / Log / History as user-visible copy.
     expect(src.includes('Audit')).toBe(false);
     expect(src.includes('Log')).toBe(false);
-    // `回退 / 恢复` 反义 — 反 reject (跟 rollback / restore 拆死).
+    // Reject rollback / restore wording; edit history must stay separate from restoration.
     expect(src.includes('回退')).toBe(false);
     expect(src.includes('恢复')).toBe(false);
   });
