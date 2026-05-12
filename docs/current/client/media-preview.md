@@ -101,5 +101,5 @@ same URL vector.
 - HLS / DASH 流媒体 (server-side transcoding, 拆 BPP-4+).
 - inline pdf.js / react-pdf 渲染 (蓝图 §1.4 "首屏快读不是浏览器内全量
   解码").
-- thumbnail 实时刷新 (preview_url 静态 CDN, 不订阅 WebSocket frame; client
-  下次 GET /artifacts/:id pull 拿到).
+- thumbnail 实时刷新 (preview_url 是静态 CDN 字段，不订阅 WebSocket frame;
+  client 下次 GET /artifacts/:id 时拉取最新值).

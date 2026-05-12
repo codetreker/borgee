@@ -67,7 +67,7 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - DL-4 既有 manifest.json + sw.js 不动
 - PushPermissionState 4-enum byte-identical 跟 DL-4 (granted/denied/default/unsupported)
 - 文案 byte-identical 跟蓝图 client-shape.md §1.1+§1.4 字面
-- ADM-0 §1.3 admin 管理端入口不挂
+- ADM-0 §1.3 管理端不得挂载该入口
 
 ## 不在范围
 
@@ -77,4 +77,4 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - background sync (跟蓝图 §1.1 字面一致)
 - iOS Safari beforeinstallprompt 真支持 (留 v2)
 - per-device 多端管理 UI (留 v1)
-- admin 管理端 PWA install / push 管理 (永久不挂 ADM-0 §1.3)
+- 不提供 ADM-0 §1.3 管理端 PWA install / push 管理入口

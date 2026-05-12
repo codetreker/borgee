@@ -1,10 +1,10 @@
 # ArtifactThumbnail — code/markdown thumbnail DOM contract
 
-> **单一来源指针.** Component in
-> `packages/client/src/components/ArtifactThumbnail.tsx`. Vitest 锁定在
+> **单一来源.** 组件实现位于
+> `packages/client/src/components/ArtifactThumbnail.tsx`；Vitest 锁定位于
 > `packages/client/src/__tests__/ArtifactThumbnail.test.tsx` (23 cases).
-> Paired component: `MediaPreview.tsx` (CV-2 v2) handles image/video/pdf
-> kinds; the two rendering paths are mutually exclusive.
+> 配套组件 `MediaPreview.tsx` (CV-2 v2) 处理 image/video/pdf kinds；两条
+> 渲染路径互斥。
 
 ## Why
 
