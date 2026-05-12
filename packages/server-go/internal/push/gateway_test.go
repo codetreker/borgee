@@ -2,13 +2,14 @@
 // tests. Validates:
 //
 //   - NewNoopGateway: zero-emit + counts==0 (dev/test isolation seam)
-//   - NewGateway env validation: missing VAPID env → error (跟 admin
-//     Bootstrap 区分 — push 是体验补丁, 不 fail-loud panic)
+//   - NewGateway env validation: missing VAPID env → error. Unlike admin
+//     Bootstrap, push is a user-experience add-on and does not panic fail-loud.
 //   - Send: subscription scan + per-row emit attempts (count returned)
-//   - 410 Gone path: subscription DELETE GC (单源退订, 蓝图 L22)
+//   - 410 Gone path: subscription DELETE GC (single unsubscribe source, blueprint L22)
 //
-// 反约束: 不验证真 web-push wire encryption (那是 SherClockHolmes/webpush-go
-// 库的事), 只验证 gateway scan + dispatch + GC path 路径 byte-identical.
+// Negative constraint: do not validate web-push wire encryption here; that is
+// owned by SherClockHolmes/webpush-go. These tests verify only the gateway scan,
+// dispatch, and GC paths.
 package push_test
 
 import (
@@ -41,8 +42,8 @@ func TestDL_NoopGateway(t *testing.T) {
 }
 
 // TestDL_NewGateway_RequiresEnv pins fail-soft on missing VAPID env —
-// returns error, caller falls back to noop (跟 admin Bootstrap 区分:
-// admin fail-loud panic, push 不阻 server 启动).
+// returns error, caller falls back to noop. Admin Bootstrap must panic
+// fail-loud, but push must not block server startup.
 func TestDL_NewGateway_RequiresEnv(t *testing.T) {
 	t.Setenv("BORGEE_VAPID_PUBLIC_KEY", "")
 	t.Setenv("BORGEE_VAPID_PRIVATE_KEY", "")
@@ -107,8 +108,8 @@ func TestDL_Send_ZeroSubscriptions(t *testing.T) {
 	}
 }
 
-// TestDL_Send_410GoneDeletesRow pins 单源退订 — push response 410 →
-// gateway DELETEs the row (蓝图 L22 字面 "退订" 单源).
+// TestDL_Send_410GoneDeletesRow pins the single unsubscribe source: push
+// response 410 makes the gateway DELETE the row (blueprint L22).
 //
 // Uses a fake HTTP server returning 410 for any push attempt + a
 // pre-seeded subscription row.

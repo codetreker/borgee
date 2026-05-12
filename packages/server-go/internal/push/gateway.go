@@ -20,7 +20,7 @@
 // Negative constraints (blueprint L22 + spec §0 principles ①②③):
 //   - VAPID private key is read only from server env. It is not stored in a
 //     table, request body, or log.
-//   - Push 不走 hub.cursors sequence (fire-and-forget).
+//   - Push does not use the hub.cursors sequence; it is fire-and-forget.
 //   - There is no admin route for actively pushing to a specific user. The
 //     reverse-grep check is `admin.*push\.Gateway|admin.*PushSubscribe` count==0.
 //   - subscription 410 Gone → DELETE row. Unsubscribe state has one source: the
@@ -131,7 +131,7 @@ type subscriptionRow struct {
 
 // Send fires a push notification to every subscription owned by userID.
 // Returns the count of attempts (sent + failed). Failures are logged but
-// do not propagate — caller is fire-and-forget (跟 DM-2.2 #372 同模式).
+// do not propagate; caller is fire-and-forget, matching DM-2.2 #372.
 //
 // Per-row error handling:
 //   - 410 Gone: subscription expired/unsubscribed → DELETE row as the single

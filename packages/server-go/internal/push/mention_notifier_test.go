@@ -20,7 +20,7 @@ import (
 )
 
 // recordingGateway is a Gateway test-double that captures Send calls
-// for assertion (跟 fakePusher / fakeNoopGateway 同模式).
+// for assertion, matching the fakePusher / fakeNoopGateway pattern.
 type recordingGateway struct {
 	mu    sync.Mutex
 	calls []recordedCall
@@ -81,7 +81,7 @@ func TestDL_NotifyMention_PayloadShape(t *testing.T) {
 		t.Errorf("Send userID = %q, want user-target", c.UserID)
 	}
 
-	// Payload field byte-identity check (蓝图 client-shape.md L37 字面).
+	// Payload field byte-identity check (blueprint client-shape.md L37 wording).
 	want := map[string]any{
 		"kind":    "mention",
 		"from":    "user-sender",
