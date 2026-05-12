@@ -2,26 +2,29 @@
 // REST endpoint.
 //
 // Blueprint: channel-model.md §3 layout per-user. Spec:
-// docs/implementation/modules/chn-8-spec.md (战马D v0). 0 schema 改 —
-// user_channel_layout.collapsed INTEGER bitmap 扩展:
-//   - bit 0 (=1) = 折叠态 (CHN-3 既有)
-//   - bit 1 (=2) = 静音态 (CHN-7, in-flight #550)
-//   - bits 2-3 (mask 12 = 0b1100) = 通知偏好 3 态 (CHN-8 新增):
-//       0 = NotifPrefAll (默认 / 现网行为零变)
-//       1 = NotifPrefMention (仅 @mention 触发 push)
-//       2 = NotifPrefNone (不发任何 push)
-//       3 = reserved/invalid (反 SetNotifPref 入参 reject)
+// docs/implementation/modules/chn-8-spec.md. No schema change: extend the
+// user_channel_layout.collapsed INTEGER bitmap:
+//   - bit 0 (=1) = collapsed state (CHN-3 existing)
+//   - bit 1 (=2) = muted state (CHN-7, #550)
+//   - bits 2-3 (mask 12 = 0b1100) = three notification preference states:
+//       0 = NotifPrefAll (default / current behavior unchanged)
+//       1 = NotifPrefMention (only @mention triggers push)
+//       2 = NotifPrefNone (no push notifications)
+//       3 = reserved/invalid (SetNotifPref rejects this input)
 //
-// 三向锁: server const + client lib/notif_pref.ts NOTIF_PREF_* + bitmap
-// `(collapsed >> NotifPrefShift) & NotifPrefMask` 字面 byte-identical. 改
-// 一处 = 改三处. 设计 ① + content-lock §3.
+// Three-way invariant: server consts, client lib/notif_pref.ts NOTIF_PREF_*, and
+// bitmap expression `(collapsed >> NotifPrefShift) & NotifPrefMask` must remain
+// byte-identical. Changing one requires updating all three. Design ① +
+// content-lock §3.
 //
-// 反约束 (chn-8-spec.md §0):
-//   - 设计 ② owner-only — admin god-mode 不挂 PUT/POST.
-//     owner-only ACL 锁链第 16 处 (CHN-7 #15 承袭).
-//   - 设计 ③ 不 drop messages — CreateMessage / RT-3 fan-out / WS frame
-//     全 byte-identical. notif pref 仅影响 DL-4 push notifier.
-//   - 设计 ⑥ AST 锁链延伸第 13 处 forbidden 3 token 0 hit.
+// Constraints (chn-8-spec.md §0):
+//   - Design ② owner-only: no admin PUT/POST route is mounted. Owner-only ACL
+//     reference site 16 follows CHN-7 #15.
+//   - Design ③ notification preferences leave message creation and delivery
+//     unchanged: CreateMessage, RT-3 fan-out, and WS frames stay byte-identical.
+//     Notification preference only affects DL-4 push notifier behavior.
+//   - Design ⑥ AST check site 13 requires zero matches for the three forbidden
+//     tokens.
 package api
 
 import (
@@ -31,7 +34,7 @@ import (
 
 // NotifPrefShift / NotifPrefMask are byte-identical const that locate the
 // 2-bit notification preference field in user_channel_layout.collapsed.
-// 三向锁: 跟 packages/client/src/lib/notif_pref.ts 同字面.
+// Three-way invariant: match packages/client/src/lib/notif_pref.ts.
 const (
 	NotifPrefShift = 2
 	NotifPrefMask  = 3
@@ -46,8 +49,8 @@ const (
 	NotifPrefNone    = 2
 )
 
-// NotifPrefStrings maps API string ↔ int const. Single-source 跟
-// content-lock §4 mapping table byte-identical.
+// NotifPrefStrings maps API string ↔ int const. Single source for the mapping;
+// byte-identical with the content-lock §4 table.
 var notifPrefFromString = map[string]int64{
 	"all":     NotifPrefAll,
 	"mention": NotifPrefMention,
@@ -61,8 +64,8 @@ func GetNotifPref(collapsed int64) int64 {
 }
 
 // RegisterCHN8Routes wires PUT /api/v1/channels/{channelId}/notification-pref
-// behind authMw. user-rail only (admin god-mode 不挂 ADM-0 §1.3 红线).
-// 设计 ②.
+// behind authMw. User rail only; no admin route is mounted (ADM-0 §1.3).
+// Design ②.
 func (h *ChannelHandler) RegisterCHN8Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("PUT /api/v1/channels/{channelId}/notification-pref",
 		authMw(http.HandlerFunc(h.handleSetNotificationPref)))
@@ -76,7 +79,7 @@ type chn8NotifPrefRequest struct {
 //
 // Sets bits 2-3 of user_channel_layout.collapsed for (user, channel).
 // Other bits (CHN-3 collapsed bit 0, CHN-7 mute bit 1) are preserved
-// (设计 ① 不互扰).
+// (design ①: the bits do not interfere with each other).
 func (h *ChannelHandler) handleSetNotificationPref(w http.ResponseWriter, r *http.Request) {
 	channelID := r.PathValue("channelId")
 	user, _, ok := requireChannelMember(w, r, h.Store, channelID, ChannelACLOpts{RejectDM: true})
