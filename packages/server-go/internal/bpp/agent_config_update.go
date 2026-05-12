@@ -1,32 +1,29 @@
 // Package bpp — agent_config_update.go: BPP-2.3 source-of-truth for
 // the agent_config_update fields whitelist + idempotent reload validation.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.5 (配置热更新按字段
-// 分类生效 + "plugin 必须支持幂等 reload, runtime 不缓存 agent 定义 —
-// 每次 inference 前读最新 config") + §1.4 表字面 (Borgee 管: name/avatar/
-// prompt/model/capabilities/enabled / Runtime 管: API key / 温度参数
-// / token 上限 / 限速 / retry — 立场 ① "Borgee 不带 runtime").
+// Blueprint: docs/blueprint/current/plugin-protocol.md §1.5 (field-based
+// config hot reload and idempotent plugin reload) + §1.4 (Borgee-managed
+// fields versus runtime-managed fields).
 //
-// Spec brief: docs/implementation/modules/bpp-2-spec.md (战马E #460 v0)
-// §0 立场 ③ + §1 拆段 BPP-2.3.
-// Stance: docs/qa/bpp-2-stance-checklist.md §3 立场 ③ 反约束 checkbox.
-// Content lock: docs/qa/bpp-2-content-lock.md §1 ② 6 fields 白名单字面.
+// Spec brief: docs/implementation/modules/bpp-2-spec.md §0 + §1 BPP-2.3.
+// Stance: docs/qa/bpp-2-stance-checklist.md §3. Content lock:
+// docs/qa/bpp-2-content-lock.md §1 ②.
 //
 // What this file does:
-//   1. ConfigField enum lock — 6 项 byte-identical 跟蓝图 §1.4 表字面
-//      (左列 "归 Borgee 管" 完整列表).
-//   2. ValidateConfigPayload — parses the AgentConfigUpdateFrame.Payload
-//      JSON (opaque on wire) + asserts every key ∈ valid whitelist;
-//      runtime 调优字段 reject with ConfigErrCodeFieldDisallowed.
-//   3. Track per-agent ConfigRev for idempotent reload — same
-//      (agent_id, config_rev) pushed twice is a no-op (蓝图 §1.5 字面).
+//  1. ConfigField enum lock — 6 values byte-identical with the blueprint
+//     §1.4 Borgee-managed field list.
+//  2. ValidateConfigPayload — parses the AgentConfigUpdateFrame.Payload
+//     JSON (opaque on wire) + asserts every key ∈ valid whitelist;
+//     runtime-tuning fields reject with ConfigErrCodeFieldDisallowed.
+//  3. Track per-agent ConfigRev for idempotent reload — same
+//     (agent_id, config_rev) pushed twice is a no-op (blueprint §1.5).
 //
-// 反约束 (acceptance §3 + content-lock §2):
-//   - runtime 调优字段不入 frame payload — 反向 grep CI lint count==0
+// Negative constraints (acceptance §3 + content-lock §2):
+//   - runtime-tuning fields do not enter frame payload — reverse grep CI count==0
 //     (acceptance §4.5).
-//   - config 单源 server→plugin (plugin 不上行 config) — 反向 grep
+//   - config is server→plugin only; plugins do not send config upstream — reverse grep
 //     CI lint count==0 (acceptance §4.3).
-//   - fields 白名单严闭 — 字典外值 reject + log warn
+//   - the field whitelist is closed — enum-out values reject + log warn
 //     `bpp.config_field_disallowed`.
 package bpp
 
@@ -36,9 +33,9 @@ import (
 	"fmt"
 )
 
-// ConfigField enum — content-lock §1 ② byte-identical 跟蓝图 §1.4 表
-// 左列字面 "归 Borgee 管 (用户选择项)" 完整列表. 改 = 改三处: 蓝图 §1.4
-// + spec §0 立场 ③ + this enum.
+// ConfigField enum — content-lock §1 ② byte-identical with the blueprint §1.4
+// Borgee-managed field list. Changes must be coordinated with the blueprint,
+// spec §0, and this enum.
 const (
 	ConfigFieldName         = "name"
 	ConfigFieldAvatar       = "avatar"
@@ -48,11 +45,11 @@ const (
 	ConfigFieldEnabled      = "enabled"
 )
 
-// ValidConfigFields is the 6-项白名单 set. Membership is the only
-// gate at the dispatcher boundary — runtime 调优字段 MUST reject.
+// ValidConfigFields is the 6-field whitelist set. Membership is the only
+// gate at the dispatcher boundary; runtime-tuning fields MUST reject.
 //
-// 反约束 (acceptance §4.5 + content-lock §2 ⑤): runtime 调优字段
-// (蓝图 §1.4 右列字面) 不入 frame payload.
+// Negative constraint (acceptance §4.5 + content-lock §2 ⑤): runtime-tuning
+// fields from blueprint §1.4 do not enter frame payload.
 var ValidConfigFields = map[string]bool{
 	ConfigFieldName:         true,
 	ConfigFieldAvatar:       true,
@@ -92,8 +89,8 @@ func IsConfigPayloadMalformed(err error) bool {
 //   - any key ∉ ValidConfigFields → errConfigFieldDisallowed (carries
 //     the offending key for log warn).
 //
-// 反约束: runtime 调优字段 (蓝图 §1.4 右列字面) reject —立场 ③ guard
-// at the BPP-2.3 frame ingress.
+// Negative constraint: runtime-tuning fields from blueprint §1.4 reject at the
+// BPP-2.3 frame ingress.
 func ValidateConfigPayload(frame AgentConfigUpdateFrame) (map[string]any, error) {
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(frame.Blob), &parsed); err != nil {

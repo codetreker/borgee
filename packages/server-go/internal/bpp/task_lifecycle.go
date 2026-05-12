@@ -2,48 +2,35 @@
 // task_started / task_finished plugin-upstream frame validation +
 // AL-1b busy/idle state-machine source.
 //
-// busy 状态由 task_started/finished frame 单一来源驱动, 不开 PATCH
-// /api/v1/agents/:id/state — 跟 AL-1b #482 BPP single source 原则同源
-// (蓝图 §2.3 R3). online = session-level 走 WS conn lifecycle, 跟
-// task-level (busy) 正交 — 反向 grep `presence_sessions.*busy|
-// presence.*task_id` count==0 (acceptance §4.2).
+// Busy state is driven by task_started/task_finished frames only; there is no
+// PATCH /api/v1/agents/:id/state path. online is session-level WebSocket
+// lifecycle, while busy is task-level state. Reverse grep for
+// `presence_sessions.*busy|presence.*task_id` must return 0 hits (acceptance §4.2).
 //
-// AL-1b client busy/idle UI: 服务端派生 (option a) — server 在收到
-// task_started/finished frame 后, 直接复用既有 RT-* AgentRosterUpdated /
-// presence push 通道把派生 state 推给 client; 不另起独立的
-// AgentTaskStateChangedFrame (frame 数量少一个 不冗余, busy/idle 是
-// task lifecycle 的算法结果不是独立信号). 因此 bppEnvelopeWhitelist
-// 留 11 frame 不动, 5-frame 共序锁定字段数各 frame 自报 (各自 _test 已锁定).
+// AL-1b client busy/idle UI is server-derived: after task_started/finished,
+// the server reuses existing RT-* AgentRosterUpdated / presence push paths to
+// publish derived state to clients. busy/idle is derived from task lifecycle,
+// not an independent signal.
 //
-// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.6 (失联与故障状态 +
-// "工作中状态需要 plugin 主动心跳上报 — 缺心跳按未知") + §2.2 (data
-// plane Plugin → Borgee). agent-lifecycle.md §2.3 字面: "busy / idle
-// source 必须是 plugin 上行的 task_started / task_finished frame, 没
-// BPP 就只能 stub, stub 一旦上 v1 要拆掉 = 白写"; §11 文案守 (野马硬
-// 条件 不准用模糊文案糊弄).
-//
-// Spec brief: docs/implementation/modules/bpp-2-spec.md (战马E #460 v0)
-// §0 原则 ② + §1 拆段 BPP-2.2.
-// 原则: docs/qa/bpp-2-stance-checklist.md §2 原则 ② 反向约束 checkbox.
-// Content lock: docs/qa/bpp-2-content-lock.md §1 ③ 3 outcome enum + §1 ④
-// 6 reason 字典字面跟随 AL-1a #249 + §1 ⑤ subject 文案锁定.
+// Blueprint: docs/blueprint/current/plugin-protocol.md §1.6 and §2.2 plus
+// agent-lifecycle.md §2.3. Spec brief: docs/implementation/modules/bpp-2-spec.md
+// §0 + §1 BPP-2.2. Content lock: docs/qa/bpp-2-content-lock.md §1 ③④⑤.
 //
 // What this file does:
-//   1. Validate TaskStartedFrame: subject MUST be non-empty after
-//      strings.TrimSpace; empty rejects with TaskErrCodeSubjectEmpty.
-//   2. Validate TaskFinishedFrame: outcome ∈ 3-enum; when
-//      outcome=='failed', reason MUST be in AL-1a #249 6-set.
-//   3. Expose ValidateTaskStarted / ValidateTaskFinished free functions
-//      so the api package (or future BPP listener) can validate before
-//      side-effecting AL-1b state.
+//  1. Validate TaskStartedFrame: subject MUST be non-empty after
+//     strings.TrimSpace; empty rejects with TaskErrCodeSubjectEmpty.
+//  2. Validate TaskFinishedFrame: outcome ∈ 3-enum; when
+//     outcome=='failed', reason MUST be in AL-1a #249 6-set.
+//  3. Expose ValidateTaskStarted / ValidateTaskFinished free functions
+//     so the api package (or future BPP listener) can validate before
+//     side-effecting AL-1b state.
 //
-// 反向约束 (acceptance §2 + content-lock §2):
-//   - subject 必带非空 + reject 默认值 fallback — 反向 grep CI lint
+// Negative constraints (acceptance §2 + content-lock §2):
+//   - subject must be non-empty; default-value fallback rejects — reverse grep CI
 //     count==0 (acceptance §4.4).
-//   - outcome 字典外值 (中间态) reject — 反向 grep CI lint count==0
+//   - enum-out outcome values, including intermediate states, reject — reverse grep CI count==0
 //     (acceptance §4.8).
-//   - reason 字典字面跟随 AL-1a #249 6 项, 不另起 (改 = 改四处:
-//     #249 + AL-3 #305 + AL-4 #321 + #427 + BPP-2.2 = 第四+).
+//   - reason values reuse the AL-1a #249 6-value reason set.
 package bpp
 
 import (
@@ -54,9 +41,8 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// TaskOutcome enum — content-lock §1 ③ byte-identical 跟蓝图 §1.6
-// 失联与故障状态 outcome 字面跟随. 改 = 改三处: spec §0 原则 ② +
-// acceptance §2.2 + this enum.
+// TaskOutcome enum — content-lock §1 ③ byte-identical with blueprint §1.6.
+// Changes must be coordinated with spec §0, acceptance §2.2, and this enum.
 const (
 	TaskOutcomeCompleted = "completed"
 	TaskOutcomeFailed    = "failed"
@@ -64,7 +50,7 @@ const (
 )
 
 // validTaskOutcomes is the 3-enum membership set. Reverse grep CI lint
-// rejects 中间态 ('partial' / 'paused' / 'pending' / 'starting')
+// rejects intermediate states ('partial' / 'paused' / 'pending' / 'starting')
 // count==0 (acceptance §4.8 + content-lock §2 ⑧ 中间态严闭).
 var validTaskOutcomes = map[string]bool{
 	TaskOutcomeCompleted: true,
@@ -72,9 +58,8 @@ var validTaskOutcomes = map[string]bool{
 	TaskOutcomeCancelled: true,
 }
 
-// validTaskReasons — REFACTOR-REASONS: 单一来源 迁到 internal/agent/reasons.
-// 直接调 reasons.IsValid(s); 不再 inline map. 改字面 = 改 reasons.ALL 一处
-// 即 8 处单测同步挂.
+// validTaskReasons — REFACTOR-REASONS moved the single source to
+// internal/agent/reasons. Call reasons.IsValid(s) instead of keeping an inline map.
 //
 // 历史: 此处原 inline 6 字面 byte-identical 跟 agent/state.go Reason*
 // (#249/#305/#321/#380/#454/#458/#481/#492 八处单测守护链), REFACTOR-REASONS
@@ -135,12 +120,12 @@ func ValidateTaskStarted(frame TaskStartedFrame) error {
 
 // ValidateTaskFinished enforces 原则 ② outcome 3-态 + reason 字典跟随
 // AL-1a 6 项 (content-lock §1 ③④). Validation order:
-//   1. outcome ∈ {completed, failed, cancelled} else errOutcomeUnknown.
-//   2. when outcome=='failed': reason non-empty AND in AL-1a 6 dict.
-//      Empty reason on failed → errFinishedNoReason; non-empty but
-//      字典外 → errReasonUnknown.
-//   3. when outcome ∈ {completed, cancelled}: reason MUST be empty
-//      (反向约束: 不允许"跑完了但顺便报个 reason" 漏 — 字典污染防御).
+//  1. outcome ∈ {completed, failed, cancelled} else errOutcomeUnknown.
+//  2. when outcome=='failed': reason non-empty AND in AL-1a 6 dict.
+//     Empty reason on failed → errFinishedNoReason; non-empty but
+//     字典外 → errReasonUnknown.
+//  3. when outcome ∈ {completed, cancelled}: reason MUST be empty
+//     (反向约束: 不允许"跑完了但顺便报个 reason" 漏 — 字典污染防御).
 func ValidateTaskFinished(frame TaskFinishedFrame) error {
 	if !validTaskOutcomes[frame.Outcome] {
 		return fmt.Errorf("%w: outcome=%q (3-enum: completed/failed/cancelled)",

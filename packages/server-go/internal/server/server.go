@@ -26,12 +26,12 @@ import (
 )
 
 type Server struct {
-	cfg          *config.Config
-	logger       *slog.Logger
-	store        *store.Store
-	// dl is the DL-1 SSOT bundle (Storage / Presence / EventBus / 3 Repository).
+	cfg    *config.Config
+	logger *slog.Logger
+	store  *store.Store
+	// dl is the DL-1 single source bundle (Storage / Presence / EventBus / 3 Repository).
 	// Wired once in New(); handlers receive it via DI to avoid direct store
-	// dependency. v3+ swap underlying impls 仅改 datalayer.NewDataLayer factory.
+	// dependency. v3+ swaps underlying implementations in datalayer.NewDataLayer only.
 	dl           *datalayer.DataLayer
 	mux          *http.ServeMux
 	hub          *ws.Hub
@@ -80,7 +80,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 		logger.Error("presence tracker init failed (continuing without presence_sessions writes)", "err", err)
 	}
 
-	// DL-1.2: wire the SSOT 4-interface bundle (Storage / Presence / EventBus
+	// DL-1.2: wire the single-source 4-interface bundle (Storage / Presence / EventBus
 	// / 3 Repository). v1 wraps existing store + presence byte-identical.
 	dl := datalayer.NewDataLayer(s, presenceTracker, logger)
 
@@ -117,7 +117,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 	// BPP-5 reconnect handshake — plugin upstream signals reconnect
 	// with last_known_cursor; handler resolves cursor via RT-1.3
 	// ResolveResume (incremental mode) + clears agent error (AL-1
-	// 5-state error → online valid edge, agent.Tracker.Clear SSOT).
+	// 5-state error → online valid edge, agent.Tracker.Clear single source).
 	// Reuses the BPP-3 PluginFrameDispatcher boundary.
 	reconnectHandler := bpp.NewReconnectHandler(s,
 		&channelScopeAdapter{store: s},
@@ -127,25 +127,24 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 	pfd.Register(bpp.FrameTypeBPPReconnectHandshake, reconnectHandler)
 
 	// BPP-6 cold-start handshake — plugin upstream signals process restart
-	// (state 全丢, 无 cursor; 反向 BPP-5 reconnect). handler 走 AL-1 #492
-	// single-gate AppendAgentStateTransition any→online + agent.Tracker.Clear,
-	// reason 复用 `runtime_crashed` 6-dict byte-identical (锁链第 11 处).
+	// (state is lost, no cursor; distinct from BPP-5 reconnect). Handler uses
+	// AL-1 #492 AppendAgentStateTransition any→online + agent.Tracker.Clear;
+	// reason reuses `runtime_crashed` from the byte-identical AL-1a reason set.
 	// Reuses the BPP-3 PluginFrameDispatcher boundary.
 	coldStartHandler := bpp.NewColdStartHandler(s, ownerResolver, srv.agentTracker, logger)
 	pfd.Register(bpp.FrameTypeBPPColdStartHandshake, coldStartHandler)
 
-	// RT-3 ⭐ task lifecycle → AgentTaskStateChanged fanout. Plugin upstream
-	// task_started / task_finished frames → server派生 AgentTaskStateChangedFrame
-	// (busy/idle) via Hub.PushAgentTaskStateChanged. multi-device fanout
-	// 走 BroadcastToChannel 自动 (P1MultiDeviceWebSocket #197 模式).
-	// thinking subject 必带非空 + outcome 3-enum + reason AL-1a 6-dict
-	// 全 ValidateTask* SSOT 守门 (BPP-2.2 #485 task_lifecycle.go 同源).
+	// RT-3 task lifecycle → AgentTaskStateChanged fanout. Plugin upstream
+	// task_started / task_finished frames produce AgentTaskStateChangedFrame
+	// (busy/idle) via Hub.PushAgentTaskStateChanged. Multi-device fanout uses
+	// BroadcastToChannel (P1MultiDeviceWebSocket #197 pattern). ValidateTask*
+	// enforces non-empty thinking subject, the 3-value outcome enum, and AL-1a reasons.
 	taskLifecycleHandler := bpp.NewTaskLifecycleHandler(
 		&hubAgentTaskPusherAdapter{hub: hub}, logger)
 	// WIRE-1 wire-3 — DL-4 push gateway fanout (mobile background) via
-	// AgentTaskNotifier. members fetch 走 store.ListChannelMembers, notifier
-	// 走 push.NewAgentTaskNotifier wrap pushGW. nil-safe (pushGW noop 时
-	// notifier nil → fanout 跳).
+	// AgentTaskNotifier. Member lookup uses store.ListChannelMembers; notifier
+	// uses push.NewAgentTaskNotifier around pushGW. nil-safe: when pushGW is noop,
+	// notifier nil skips fanout.
 	pushGWForTask, errPush := push.NewGateway(s, logger)
 	if errPush != nil {
 		pushGWForTask = push.NewNoopGateway(logger)
@@ -162,7 +161,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 
 	// BPP-4.1 heartbeat watchdog: 30s plugin liveness threshold, flips
 	// stale agents to error/network_unreachable via agent.Tracker
-	// (AL-1a 6-dict 第 9 处单测锁链承袭). Boot-only wire-up; nil-safe in
+	// (AL-1a reason set). Boot-only wire-up; nil-safe in
 	// tests via separate (NewTestServer doesn't invoke this path).
 	watchdog := bpp.NewHeartbeatWatchdog(&hubLivenessAdapter{hub}, srv.agentTracker, logger)
 
@@ -251,24 +250,22 @@ func (s *Server) SetupRoutes() {
 	}
 	userHandler.RegisterRoutes(s.mux, authMw)
 
-	// CHN-3.2 user_channel_layout — personal preferences (本人写本人读;
-	// admin god-mode endpoint 白名单不含 user_channel_layout, ADM-0 §1.3 +
-	// AL-3 #303 ⑦ 同模式).
+	// CHN-3.2 user_channel_layout — personal preferences (users read and write
+	// their own rows; admin API allowlist excludes user_channel_layout, ADM-0 §1.3).
 	layoutHandler := &api.LayoutHandler{Store: s.store, Logger: s.logger}
 	layoutHandler.RegisterRoutes(s.mux, authMw)
 
-	// BPP-3.2.2 owner DM 一键 grant — POST /api/v1/me/grants
-	// (蓝图 auth-permissions.md §1.3 主入口字面 + bpp-3.2-spec.md §1
-	// 立场 ②). owner-only ACL + capability ∈ AP-1 14 项 const + scope ∈
-	// v1 三层. action ∈ {grant, reject, snooze}; reject/snooze v1 仅 audit.
+	// BPP-3.2.2 owner DM one-click grant — POST /api/v1/me/grants.
+	// Owner-only ACL; capability must be one of the AP-1 constants and scope
+	// must match the v1 scope levels. action ∈ {grant, reject, snooze};
+	// reject/snooze v1 only writes audit data.
 	meGrantsHandler := &api.MeGrantsHandler{Store: s.store, Logger: s.logger}
 	meGrantsHandler.RegisterRoutes(s.mux, authMw)
 
-	// AL-2a.2 agent_configs — SSOT REST endpoints (owner-only, fail-closed
-	// runtime-field reject, acceptance #264 §4.1.a-d). 蓝图 §1.4 字段划界 +
-	// §1.5 BPP frame `agent_config_update` AL-2b 已落 — PATCH 后 fanout
-	// 走 hub.PushAgentConfigUpdate (best-effort, plugin 离线 frame 丢弃,
-	// 重连后 GET /agents/:id/config 主动拉最新, 跟蓝图 "runtime 不缓存" 同源).
+	// AL-2a.2 agent_configs — single-source REST endpoints (owner-only,
+	// fail-closed runtime-field reject, acceptance #264 §4.1.a-d). After PATCH,
+	// fanout uses hub.PushAgentConfigUpdate best-effort; offline plugins miss the
+	// frame and fetch the latest config after reconnect.
 	agentConfigHandler := &api.AgentConfigHandler{
 		Store:  s.store,
 		Logger: s.logger,
@@ -276,10 +273,9 @@ func (s *Server) SetupRoutes() {
 	}
 	agentConfigHandler.RegisterRoutes(s.mux, authMw)
 
-	// HB-3.1 host_grants SSOT REST endpoints (蓝图 host-bridge.md §1.3
-	// 情境化授权 4 类). Owner-only ACL (anchor #360 同模式); admin god-mode
-	// 不入 (用户主权, ADM-0 §1.3 红线). audit log 5 字段 byte-identical 跟
-	// HB-1 / HB-2 / BPP-4 dead-letter 跨四 milestone 同源.
+	// HB-3.1 host_grants single-source REST endpoints. Owner-only ACL; admin API
+	// does not handle user-owned grant writes (ADM-0 §1.3). Audit log fields stay
+	// byte-identical with HB-1 / HB-2 / BPP-4.
 	hostGrantsHandler := &api.HostGrantsHandler{
 		Store:  s.store,
 		Logger: s.logger,

@@ -16,15 +16,15 @@
 //
 // Direction lock — per §2.1 / §2.2 headings, every frame in this file
 // has a hard direction lock enforced by FrameDirection() below + the
-// reflection lint in frame_schemas_test.go. A mismatch is a CI red.
+// reflection lint in frame_schemas_test.go. A mismatch fails CI.
 //
 // Whitelist — only the 9 OpName constants enumerated in
 // `bppEnvelopeWhitelist` are permitted. Adding a frame here without a
-// matching blueprint row is a CI red (TestBPPEnvelopeFrameWhitelist).
+// matching blueprint row fails CI (TestBPPEnvelopeFrameWhitelist).
 //
-// 反向约束 — this file MUST NOT contain any `replay_mode = "full"`
+// Negative constraint — this file MUST NOT contain any `replay_mode = "full"`
 // default, `defaultReplayMode` symbol, or `default.*ResumeModeFull`
-// branch (RT-1.3 hardline carried forward). The reverse grep step in
+// branch (RT-1.3 fail-closed replay behavior). The reverse grep step in
 // the bpp-envelope-lint workflow enforces 0 hits across this package
 // (excluding _test.go).
 
@@ -42,10 +42,9 @@ const (
 	FrameTypeBPPAgentConfigUpdate      = "agent_config_update"
 	FrameTypeBPPAgentToggle            = "agent_toggle" // disable/enable: one frame, action field
 	FrameTypeBPPInboundMessage         = "inbound_message"
-	// BPP-3.1 permission_denied — server 通知 plugin authz 失败
-	// (蓝图 auth-permissions.md §2 不变量 + §4.1 row 字面). Server-rail
-	// only; plugin 永不发. payload 字段 byte-identical 跟 AP-1 abac.go
-	// 403 body (跨 PR 脱节守 — 改 = 改三处).
+	// BPP-3.1 permission_denied — server notifies plugin of authz failure.
+	// Server-to-plugin only; plugin never sends it. Payload fields are
+	// byte-identical with the AP-1 abac.go 403 body.
 	FrameTypeBPPPermissionDenied = "permission_denied"
 
 	// Data plane (Plugin → Server) — §2.2.
@@ -55,32 +54,25 @@ const (
 	FrameTypeBPPErrorReport    = "error_report"
 	FrameTypeBPPAgentConfigAck = "agent_config_ack" // AL-2b #481 §1.2 ack 路径
 	// BPP-2.2 task lifecycle reverse-channel — plugin upstream signals
-	// agent busy/idle (蓝图 §1.6 + agent-lifecycle §2.3 字面: source 必须
-	// plugin 上行 frame, 不准 stub). 跟 AL-1b #482 BPP single source
-	// 同源 (蓝图 §2.3 R3). online = session-level 走 WS conn
-	// lifecycle, 跟 task-level (busy) 正交.
+	// agent busy/idle. The source must be the plugin upstream frame, not a stub.
+	// online is session-level WebSocket lifecycle; busy is task-level state.
 	FrameTypeBPPTaskStarted  = "task_started"
 	FrameTypeBPPTaskFinished = "task_finished"
 
 	// BPP-5 plugin reconnect handshake — plugin upstream signals
-	// reconnect-with-cursor (蓝图 §1.6 重连恢复 + §2.1 connect 路径承接;
-	// reconnect ≠ connect — connect 是首次身份+capabilities, reconnect
-	// 携带 last_known_cursor 恢复, 字段集不交). cursor resume **复用
-	// RT-1.3 #296 既有 mechanism** (bpp.ResolveResume + Mode=incremental,
-	// AfterCursor=last_known_cursor); state 翻转走 AL-1 5-state graph
-	// 既有 error→online valid edge (无 persisted "connecting" 中间态,
-	// connecting 仅 spec 概念名, 跟 #492 valid edge byte-identical).
+	// reconnect-with-cursor. Reconnect is distinct from connect: connect carries
+	// initial identity + capabilities, while reconnect carries last_known_cursor.
+	// Cursor resume reuses RT-1.3 #296 (bpp.ResolveResume + Mode=incremental,
+	// AfterCursor=last_known_cursor). State uses the existing AL-1 error→online
+	// valid edge; there is no persisted "connecting" intermediate state.
 	FrameTypeBPPReconnectHandshake = "reconnect_handshake"
 
 	// BPP-6 plugin cold-start handshake — plugin upstream signals process
-	// restart (state 全丢, 无 cursor) (蓝图 §1.6 进程死亡 vs 网络重连;
-	// cold-start ≠ reconnect — reconnect 持 last_known_cursor 走
-	// ResolveResume 增量恢复 (BPP-5); cold-start 不持 cursor 走 fresh
-	// start — agent.Tracker.Clear + AL-1 #492 single-gate
-	// AppendAgentStateTransition any→online byte-identical, reason 复用
-	// `runtime_crashed` 6-dict 不扩 (#496 单一来源, 守护链第 11 处). 字段集
-	// 跟 ReconnectHandshakeFrame **互斥反断** — cold-start 不含
-	// LastKnownCursor / DisconnectAt / ReconnectAt 字段.
+	// restart, with state lost and no cursor. Cold-start is distinct from
+	// reconnect: reconnect has last_known_cursor and uses ResolveResume, while
+	// cold-start clears agent.Tracker and appends any→online through AL-1 #492.
+	// The reason reuses `runtime_crashed` from the byte-identical reason set.
+	// Cold-start intentionally omits LastKnownCursor / DisconnectAt / ReconnectAt.
 	FrameTypeBPPColdStartHandshake = "cold_start_handshake"
 )
 
@@ -153,7 +145,7 @@ func (RuntimeSchemaAdvertiseFrame) FrameDirection() Direction { return Direction
 // the BPP-1 4-field stub (Type / AgentID / ConfigRev / Payload) to the
 // 7-field byte-identical envelope per acceptance §1.1:
 //
-//   {Type, Cursor, AgentID, SchemaVersion, Blob, IdempotencyKey, CreatedAt}
+//	{Type, Cursor, AgentID, SchemaVersion, Blob, IdempotencyKey, CreatedAt}
 //
 // Field order is the contract. Do NOT reorder without updating
 // schema_equivalence_test.go + acceptance al-2b.md §1.1 simultaneously.
@@ -225,7 +217,7 @@ func (InboundMessageFrame) FrameDirection() Direction { return DirectionServerTo
 //
 // 8 字段 byte-identical 跟 spec bpp-3.1 §1 原则 ③:
 //
-//   {Type, Cursor, AgentID, RequestID, AttemptedAction, RequiredCapability, CurrentScope, DeniedAt}
+//	{Type, Cursor, AgentID, RequestID, AttemptedAction, RequiredCapability, CurrentScope, DeniedAt}
 //
 // Field semantics:
 //   - Type: discriminator 头位 byte-identical 跟 BPP envelope (#280)
@@ -319,7 +311,7 @@ func (ErrorReportFrame) FrameDirection() Direction { return DirectionPluginToSer
 //
 // 7 字段 byte-identical 跟 acceptance §1.2:
 //
-//   {Type, Cursor, AgentID, SchemaVersion, Status, Reason, AppliedAt}
+//	{Type, Cursor, AgentID, SchemaVersion, Status, Reason, AppliedAt}
 //
 // Field semantics:
 //   - Type: discriminator 头位 byte-identical 跟 BPP envelope #280
@@ -416,7 +408,8 @@ func (TaskFinishedFrame) FrameDirection() Direction { return DirectionPluginToSe
 // (BPP-1 connect handshake), so this frame doesn't re-authenticate.
 //
 // 6 字段 byte-identical 跟 spec brief §1 BPP-5.1:
-//   {Type, PluginID, AgentID, LastKnownCursor, DisconnectAt, ReconnectAt}
+//
+//	{Type, PluginID, AgentID, LastKnownCursor, DisconnectAt, ReconnectAt}
 //
 // 反向约束 (跟 spec §0 + 原则 §1 一致):
 //   - **不复用 ConnectFrame** — connect 携 Token + Capabilities (首次身份);
@@ -449,13 +442,14 @@ func (ReconnectHandshakeFrame) FrameDirection() Direction { return DirectionPlug
 //   - cold-start (BPP-6): process died, fresh start, no cursor
 //
 // Server handler reaction (cold_start_handler.go):
-//   1. agent.Tracker.Clear(agentID) — drop in-memory state
-//   2. Store.AppendAgentStateTransition(agentID, fromState, online,
-//      runtime_crashed, "") — AL-1 #492 single-gate writes state-log row
-//   3. NO history replay (反向 BPP-5 — cold-start 是 fresh start)
+//  1. agent.Tracker.Clear(agentID) — drop in-memory state
+//  2. Store.AppendAgentStateTransition(agentID, fromState, online,
+//     runtime_crashed, "") — AL-1 #492 single-gate writes state-log row
+//  3. NO history replay (反向 BPP-5 — cold-start 是 fresh start)
 //
 // 5 字段 byte-identical 跟 spec brief §1 BPP-6.1:
-//   {Type, PluginID, AgentID, RestartAt, RestartReason}
+//
+//	{Type, PluginID, AgentID, RestartAt, RestartReason}
 //
 // 反向约束 (跟 spec §0 + 原则 §1 一致):
 //   - **字段集与 ReconnectHandshakeFrame 互斥** — 不含 LastKnownCursor /
@@ -497,11 +491,11 @@ var bppEnvelopeWhitelist = map[string]Direction{
 	FrameTypeBPPHeartbeat:              DirectionPluginToServer,
 	FrameTypeBPPSemanticAction:         DirectionPluginToServer,
 	FrameTypeBPPErrorReport:            DirectionPluginToServer,
-	FrameTypeBPPAgentConfigAck: DirectionPluginToServer, // AL-2b #481
-	FrameTypeBPPTaskStarted:    DirectionPluginToServer, // BPP-2.2 #485
-	FrameTypeBPPTaskFinished:   DirectionPluginToServer, // BPP-2.2 #485
-	FrameTypeBPPReconnectHandshake: DirectionPluginToServer, // BPP-5
-	FrameTypeBPPColdStartHandshake: DirectionPluginToServer, // BPP-6
+	FrameTypeBPPAgentConfigAck:         DirectionPluginToServer, // AL-2b #481
+	FrameTypeBPPTaskStarted:            DirectionPluginToServer, // BPP-2.2 #485
+	FrameTypeBPPTaskFinished:           DirectionPluginToServer, // BPP-2.2 #485
+	FrameTypeBPPReconnectHandshake:     DirectionPluginToServer, // BPP-5
+	FrameTypeBPPColdStartHandshake:     DirectionPluginToServer, // BPP-6
 }
 
 // BPPEnvelopeWhitelist exposes the registry to tests in other packages
@@ -530,9 +524,9 @@ func AllBPPEnvelopes() []BPPEnvelope {
 		HeartbeatFrame{},
 		SemanticActionFrame{},
 		ErrorReportFrame{},
-		AgentConfigAckFrame{}, // AL-2b #481 §1.2
-		TaskStartedFrame{},    // BPP-2.2 #485
-		TaskFinishedFrame{},   // BPP-2.2 #485
+		AgentConfigAckFrame{},     // AL-2b #481 §1.2
+		TaskStartedFrame{},        // BPP-2.2 #485
+		TaskFinishedFrame{},       // BPP-2.2 #485
 		ReconnectHandshakeFrame{}, // BPP-5
 		ColdStartHandshakeFrame{}, // BPP-6
 	}
