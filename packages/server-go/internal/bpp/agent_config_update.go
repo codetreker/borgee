@@ -59,8 +59,7 @@ var ValidConfigFields = map[string]bool{
 	ConfigFieldEnabled:      true,
 }
 
-// ConfigErrCode* — error code literals byte-identical 跟 content-lock
-// §1 ⑥ 同源.
+// ConfigErrCode* — error code literals are byte-identical with content-lock §1 ⑥.
 const (
 	ConfigErrCodeFieldDisallowed  = "bpp.config_field_disallowed"
 	ConfigErrCodePayloadMalformed = "bpp.config_payload_malformed"
@@ -106,12 +105,12 @@ func ValidateConfigPayload(frame AgentConfigUpdateFrame) (map[string]any, error)
 }
 
 // ConfigRevTracker is the per-agent idempotency guard for plugin
-// config reload (蓝图 §1.5 字面 "同一 update payload 重复推送不应有
-// 副作用"). Stores the last-applied config_rev per agent_id; ShouldApply
+// config reload (blueprint §1.5 wording: "the same update payload sent twice
+// should have no side effects"). Stores the last-applied config_rev per agent_id; ShouldApply
 // returns true only when the incoming rev is strictly greater than the
 // last seen rev.
 //
-// 反约束: stale rev (incoming ≤ last) returns false WITHOUT error —
+// Negative constraint: stale rev (incoming ≤ last) returns false WITHOUT error —
 // it's a legitimate retry / network double-send, not a protocol
 // violation. The caller logs at debug level + drops the frame.
 //
@@ -120,7 +119,7 @@ func ValidateConfigPayload(frame AgentConfigUpdateFrame) (map[string]any, error)
 // reader per WS), which is the Borgee BPP-1 invariant — concurrent
 // agent_config_update for the same agent_id from different plugin
 // connections is itself a protocol violation (one runtime per agent,
-// AL-4.1 #398 schema UNIQUE(agent_id) 立场 ① 字面承袭).
+// AL-4.1 #398 schema UNIQUE(agent_id) principle ① wording).
 type ConfigRevTracker struct {
 	last map[string]int64
 }
@@ -135,8 +134,8 @@ func NewConfigRevTracker() *ConfigRevTracker {
 // tracker records the new rev. On false (stale or duplicate rev),
 // the tracker leaves state unchanged — caller treats as no-op.
 //
-// 反约束: rev MUST be strictly increasing (蓝图 §1.5 字面 "幂等 reload"
-// — same payload twice = no-op). Equal rev returns false (idempotent
+// Negative constraint: rev MUST be strictly increasing (blueprint §1.5
+// "idempotent reload" wording: same payload twice = no-op). Equal rev returns false (idempotent
 // retry guard). Negative rev returns false (defensive — never seen
 // in practice but spec doesn't forbid; we treat as stale).
 func (t *ConfigRevTracker) ShouldApply(agentID string, configRev int64) bool {

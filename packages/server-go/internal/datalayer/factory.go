@@ -1,12 +1,13 @@
-// DL-1 — DataLayer factory (蓝图 §4 B SSOT seam).
+// DL-1 — DataLayer factory (blueprint §4 B SSOT seam).
 //
-// 立场 ② (DL-1 spec §0): factory pattern + DI seam 单源. handler / server.go
-// 拿 *DataLayer 不直 import store, 跟 BPP-3 PluginFrameDispatcher /
-// reasons.IsValid SSOT 同精神.
+// Principle ② (DL-1 spec §0): factory pattern + DI seam as the single wiring
+// source. Handlers / server.go receive *DataLayer instead of importing store
+// directly, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid SSOT
+// pattern.
 //
 // v1: NewDataLayer wires SQLite store + in-memory presence + in-process bus
-// + DB blob storage byte-identical 不破. v3+ swap underlying impls 仅改本
-// factory, handler 0 改 (interface seam 锁).
+// + DB blob storage without changing behavior. v3+ implementation swaps should
+// change this factory only, leaving handlers untouched through the interface seam.
 
 package datalayer
 
@@ -17,8 +18,8 @@ import (
 	"borgee-server/internal/store"
 )
 
-// DataLayer is the SSOT bundle of the 4 蓝图 §4 B interfaces. Wired once at
-// server boot, passed to handlers via DI (替换 server.go 直 store 字段).
+// DataLayer is the SSOT bundle of the 4 blueprint §4 B interfaces. It is wired
+// once at server boot and passed to handlers via DI instead of direct store fields.
 type DataLayer struct {
 	Storage     Storage
 	Presence    PresenceStore
@@ -31,10 +32,10 @@ type DataLayer struct {
 // NewDataLayer assembles the v1 (SQLite + in-memory) bundle. Caller owns
 // store.Store + presence.PresenceTracker lifecycles (close on shutdown).
 //
-// WIRE-1 (post-Phase 4 closure follow-up): EventBus 真接 DL-2 cold consumer
-// 通过 NewInProcessEventBusWithStore — production Publish 真落 channel_events
-// / global_events 表 (反 hot-only stale, 跟 spec wire-1 立场 ① 字面). logger
-// 可 nil (NewSQLiteEventStore nil-safe).
+// WIRE-1 (post-Phase 4 closure follow-up): EventBus is wired to the DL-2 cold
+// consumer through NewInProcessEventBusWithStore. Production Publish writes to
+// channel_events / global_events, preventing the stale hot-only path described
+// by spec wire-1 principle ①. logger may be nil (NewSQLiteEventStore is nil-safe).
 func NewDataLayer(s *store.Store, pt presence.PresenceTracker, logger *slog.Logger) *DataLayer {
 	eventStore := NewSQLiteEventStore(s.DB(), logger)
 	return &DataLayer{

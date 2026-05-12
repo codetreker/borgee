@@ -1,11 +1,13 @@
 // DL-1 — concrete v1 implementations wrapping existing store.Store.
 //
-// 立场 ② (DL-1 spec §0): factory pattern + DI seam 单源, 跟 BPP-3
-// PluginFrameDispatcher / reasons.IsValid SSOT 同精神.
+// Principle ② (DL-1 spec §0): factory pattern + DI seam as the single wiring
+// source, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid SSOT
+// pattern.
 //
-// v1 wrap byte-identical 不破: handler 走 Repository interface, 内部
-// 转发到 store.Store 既有方法. 错误透传 (gorm.ErrRecordNotFound 转
-// ErrRepositoryNotFound 单源).
+// v1 wrapper preserves behavior: handlers use the Repository interface, and
+// the implementation forwards to existing store.Store methods. Errors pass
+// through, except gorm.ErrRecordNotFound maps to the single
+// ErrRepositoryNotFound sentinel.
 
 package datalayer
 
@@ -117,23 +119,26 @@ func (l *localDBStorage) GetURL(_ context.Context, key string) (string, error) {
 	if key == "" {
 		return "", ErrStorageKeyNotFound
 	}
-	// v1 占位: artifact body 走 Repository (留 DL-1.5 follow-up). 现 caller
-	// 没真消费 Storage.GetURL, 锁 interface 不锁实现.
+	// v1 placeholder: artifact body access remains in Repository until the DL-1.5
+	// follow-up. Current callers do not consume Storage.GetURL directly; this
+	// locks the interface shape, not a storage implementation.
 	return fmt.Sprintf("db://artifact/%s", key), nil
 }
 func (l *localDBStorage) PutBlob(_ context.Context, key string, _ []byte) error {
 	if key == "" {
 		return ErrStorageKeyNotFound
 	}
-	// v1 占位: artifact body write 走 store.Store.UpdateArtifact* 直查;
-	// caller 没真消费 PutBlob, 留 DL-1.5 wire.
+	// v1 placeholder: artifact body writes still use store.Store.UpdateArtifact*.
+	// Current callers do not consume PutBlob directly; this reserves the DL-1.5
+	// wire path.
 	return nil
 }
 func (l *localDBStorage) Delete(_ context.Context, key string) error {
 	if key == "" {
 		return ErrStorageKeyNotFound
 	}
-	// v1: forward-only audit, 不真删 row; 跟 ADM-3 audit-forward-only 同精神.
+	// v1: forward-only audit; do not physically delete the DB row. This matches
+	// the ADM-3 audit-forward-only pattern.
 	return nil
 }
 
@@ -146,14 +151,14 @@ type inProcessEventBus struct {
 
 // WIRE-1 #1: removed NewInProcessEventBus (hot-only constructor) —
 // production factory.go always wires NewInProcessEventBusWithStore (DL-2
-// cold consumer 真接 channel_events / global_events 表). Hot-only path
-// 仅 v0 spec stub, post-WIRE-1 已无 callsite (反 dead code 立场承袭).
+// cold consumer wired to channel_events / global_events tables). The hot-only
+// path was a v0 spec stub and has no callsite after WIRE-1.
 
 // NewInProcessEventBusWithStore wires a cold-stream EventStore consumer.
 // Publish forks an async INSERT to channel_events / global_events; failures
-// are logging-only and do NOT block the hot stream (蓝图 §4 立场).
+// are logging-only and do NOT block the hot stream (blueprint §4 policy).
 //
-// DL-2 spec §0 立场 ② — hot stream byte-identical, cold stream is additive.
+// DL-2 spec §0 principle ② — hot stream byte-identical, cold stream is additive.
 func NewInProcessEventBusWithStore(store EventStore) EventBus {
 	return &inProcessEventBus{
 		subs:  make(map[string][]chan Event),
@@ -167,8 +172,8 @@ func (b *inProcessEventBus) Publish(_ context.Context, topic string, payload []b
 		select {
 		case ch <- Event{Topic: topic, Payload: payload}:
 		default:
-			// best-effort: subscriber buffer 满则 drop (跟 BPP-4 dead_letter
-			// 立场承袭, RT-1.3 cursor replay 兜底).
+			// best-effort: drop when the subscriber buffer is full. This follows
+			// the BPP-4 dead_letter policy, with RT-1.3 cursor replay as fallback.
 		}
 	}
 	// cold stream: async persist (DL-2). Failures logging-only, no-op when

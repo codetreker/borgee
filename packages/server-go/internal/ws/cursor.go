@@ -3,7 +3,7 @@
 // fronts the `artifact_updated` push frame defined in
 // docs/blueprint/current/realtime.md §1.4 + §2.1.
 //
-// Behaviour contract (飞马 review §0 hardline + RT-1 spec §1.1):
+// Behaviour contract (review §0 hardline + RT-1 spec §1.1):
 //
 //   1. Cursor is strictly monotonically increasing within a single
 //      origin server. Two concurrent commits never see the same value.

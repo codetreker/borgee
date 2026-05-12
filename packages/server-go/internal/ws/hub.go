@@ -63,8 +63,8 @@ type Hub struct {
 
 // PluginFrameRouter is the read-side of bpp.PluginFrameDispatcher,
 // declared here so internal/ws does not import internal/bpp directly
-// (跟 BPP-2.1 ActionHandler / cv-4.2 IterationStatePusher / AL-2b
-// AgentConfigPusher 同 interface seam 模式).
+// (same interface-seam pattern as BPP-2.1 ActionHandler,
+// cv-4.2 IterationStatePusher, and AL-2b AgentConfigPusher).
 //
 // Implementations (currently *bpp.PluginFrameDispatcher) must:
 //   - Be safe for concurrent calls (one goroutine per plugin connection)
@@ -153,7 +153,7 @@ func (h *Hub) Register(c *Client) {
 		h.logger.Info("user online", "user_id", c.userID)
 	}
 	// AL-3.2: write the presence_sessions row so DM-2.2 fallback +
-	// sidebar 渲染 see this session. Failure is logged but does NOT
+	// sidebar rendering can see this session. Failure is logged but does NOT
 	// abort the connection — in-memory hub state is still authoritative
 	// for live broadcast; presence_sessions is the read-side cache for
 	// other subsystems and a transient DB hiccup must not deny service.
@@ -294,13 +294,13 @@ func (h *Hub) BroadcastEventToAll(eventType string, payload any) {
 // frames defined in docs/blueprint/current/realtime.md §2.3.
 //
 // Why two typed methods (not one `Push(frame any)`): the review prep
-// (docs/qa/rt-0-server-review-prep.md §S2 + 拒收红线) makes 编译期 schema
-// 锁 a hardline — `interface{}` would let a typo pass `go build`. The
+// (docs/qa/rt-0-server-review-prep.md §S2 + rejection prohibition) makes the
+// compile-time schema lock a hardline — `interface{}` would let a typo pass `go build`. The
 // frame structs in event_schemas.go are the only callable shapes.
 //
 // Behaviour:
 //   - frame is delivered to every live client of `userID` (multi-device
-//     parity per realtime.md §1.4 — A 全推默认).
+//     parity per realtime.md §1.4 — broadcast-to-all is the default).
 //   - if `userID` has no live sessions it's a silent no-op; the row
 //     persisted by the handler is the source of truth and the client
 //     will reconcile on next reconnect / bell-poll fallback.

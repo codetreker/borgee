@@ -1,16 +1,18 @@
-// DL-1 — Repository interfaces (蓝图 §4 B 第 4 条).
+// DL-1 — Repository interfaces (blueprint §4 B item 4).
 //
-// 立场 ① (DL-1 spec §0): 4 typed Repository wrap 既有 store.Store 字面.
-// v1 实现 SQLiteRepository 走 store.Store gorm 直查 byte-identical 不破.
+// Principle ① (DL-1 spec §0): 4 typed Repository interfaces wrap the existing
+// store.Store behavior. The v1 SQLiteRepository implementation delegates to
+// store.Store gorm queries without changing behavior.
 //
-// Note (战马D): 蓝图 §4 B 列了 4 typed Repo (User / Channel / Message /
-// Artifact); v1 现状只有 User/Channel/Message 在 store 包真有 model + CRUD,
-// Artifact 走 internal/api/artifacts.go 直 gorm. ArtifactRepo 留 v1.5 follow-up
-// 当 store.Artifact model 抽出时再补 (跟 spec §3 "渐进迁移" 立场承袭).
+// Note: blueprint §4 B lists 4 typed repos (User / Channel / Message /
+// Artifact). In v1, only User/Channel/Message have store package models and
+// CRUD methods; Artifact still uses direct gorm in internal/api/artifacts.go.
+// ArtifactRepo remains a v1.5 follow-up for when store.Artifact is extracted,
+// matching the spec §3 progressive-migration policy.
 //
-// 切换路径 (留 v3+, DL-3 阈值哨触发):
+// Implementation swap path (v3+, triggered by DL-3 threshold monitor):
 //   - SQLiteRepository (v1) → store.Store wrap
-//   - PostgresRepository    → standard SQL (蓝图 §4 C #10 字面禁 ORM)
+//   - PostgresRepository    → standard SQL (blueprint §4 C #10 forbids ORM)
 package datalayer
 
 import (
@@ -25,7 +27,7 @@ import (
 var ErrRepositoryNotFound = errors.New("datalayer: repository entity not found")
 
 // UserRepository is the SSOT interface for user CRUD ops.
-// v1 wrap store.Store user methods byte-identical.
+// v1 wraps store.Store user methods without changing behavior.
 type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*store.User, error)
 	GetByEmail(ctx context.Context, email string) (*store.User, error)

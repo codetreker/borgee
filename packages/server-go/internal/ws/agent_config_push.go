@@ -2,8 +2,9 @@
 // emitting AgentConfigUpdateFrame to the target agent's plugin
 // connection (server→plugin direction lock).
 //
-// Blueprint reference: docs/blueprint/current/plugin-protocol.md §1.5 (热更新分级 + 幂等
-// reload + runtime 不缓存) + §2.1 (control-plane row `agent_config_update`).
+// Blueprint reference: docs/blueprint/current/plugin-protocol.md §1.5
+// (hot-reload levels + idempotent reload + runtime does not cache) + §2.1
+// (control-plane row `agent_config_update`).
 // Spec: AL-2b acceptance #452 §2.1 + AL-2b.1 frames PR #472 (BPP envelope
 // 7+7 字段 byte-identical).
 //
@@ -20,22 +21,24 @@
 //   3. Field order contract: type/cursor/agent_id/schema_version/blob/idempotency_key/
 //      created_at — covered by BPP-1 #304 envelope CI lint reflect checks
 //      (al_2b_frames_test.go::TestAL2B1_AgentConfigUpdate7Fields).
-//   4. 幂等 reload (acceptance §2.2): caller 决定 idempotencyKey, server
-//      端只是 wire transport — plugin 端按 idempotencyKey 去重 reload.
+//   4. Idempotent reload (acceptance §2.2): caller decides idempotencyKey; the
+//      server side is only wire transport, and the plugin dedups reload by
+//      idempotencyKey.
 //      This hub method does not do server-side dedup (same stateless pattern as
 //      the BPP-1 frame layer — state lives in store/agent_configs.schema_version,
-//      不在 hub).
+//      not in hub).
 //
 // Negative constraints:
-//   - Admin god-mode does not call this method (ADM-0 §1.3 — admin is outside business paths).
-//     调用方 (AL-2a PATCH /config handler 或 follow-up) 必须先做 owner-only
-//     ACL gate. 此方法不做 ACL — 跟 PushArtifactUpdated 同模式 (broadcast
-//     由调用方决定权限).
-//   - 不返 sent=true 当 plugin 离线 — 这是 AL-2b 跟 RT-1 不同的语义:
-//     RT-1 frame 进 channel broadcast 任何 channel member 都收, AL-2b
-//     frame 是点对点 server→plugin, plugin 离线时 frame 丢弃 (constraint:
+//   - Admin routes do not call this method (ADM-0 §1.3 — admin is outside business paths).
+//     The caller (AL-2a PATCH /config handler or follow-up) must perform the
+//     owner-only ACL gate first. This method does not perform ACL checks, matching
+//     PushArtifactUpdated where the caller decides broadcast permissions.
+//   - sent=true is not returned when the plugin is offline. This differs from
+//     RT-1: RT-1 frames enter channel broadcast for every channel member, while
+//     AL-2b is point-to-point server→plugin and drops the frame when the plugin
+//     is offline (constraint:
 //     do not queue — plugin reconnects and GET /agents/:id/config pulls latest, matching
-//     蓝图 §1.5 字面 "runtime 不缓存" 同源).
+//     blueprint §1.5 "runtime does not cache" wording).
 
 package ws
 
@@ -61,7 +64,7 @@ import (
 // al_2b_frames_test.go reflect lint.
 //
 // Caller responsibilities:
-//   - blob: pre-marshalled JSON of 单一来源 whitelisted fields (acceptance §3.2).
+//   - blob: pre-marshalled JSON of SSOT whitelisted fields (acceptance §3.2).
 //     Server-side validation lives in AL-2a PATCH handler (allowedConfigKeys
 //     whitelist fail-closed); this method trusts the input.
 //   - idempotencyKey: stable per-PATCH key the plugin uses to dedup reload
@@ -69,9 +72,9 @@ import (
 //     or a request-scoped uuid (no constraint here — plugin contract).
 //   - schemaVersion: monotonic from agent_configs.schema_version (AL-2a
 //     #447 v=20 server-stamp).
-//   - createdAt: Unix ms semantic timestamp (反向约束: cursor 才是排序源,
-//     this field is an audit hint; it follows IterationStateChangedFrame.CompletedAt
-//     语义模式).
+//   - createdAt: Unix ms semantic timestamp. Negative constraint: cursor is the
+//     ordering source; this field is an audit hint and follows the
+//     IterationStateChangedFrame.CompletedAt semantic pattern.
 func (h *Hub) PushAgentConfigUpdate(
 	agentID string,
 	schemaVersion int64,
@@ -97,11 +100,11 @@ func (h *Hub) PushAgentConfigUpdate(
 	// Look up the plugin connection. h.GetPlugin RLock-guards the map.
 	pc := h.GetPlugin(agentID)
 	if pc == nil {
-		// Plugin offline — frame dropped. Per blueprint §1.5 "runtime 不
-		// 缓存", reconnect time triggers GET /agents/:id/config pull.
+		// Plugin offline — frame dropped. Per blueprint §1.5 "runtime does not
+		// cache", reconnect time triggers GET /agents/:id/config pull.
 		//
 		// BPP-4.2 dead-letter audit log: log warn `bpp.frame_dropped_plugin_offline`
-		// with 5-field schema byte-identical 跟 HB-1/HB-2 audit (acceptance
+		// with 5-field schema byte-identical with HB-1/HB-2 audit (acceptance
 		// §2.2 + content-lock §1.③). Constraint: do not use a persistent queue or
 		// timer retry — RT-1.3 #296 cursor replay is the fallback (plugin pulls missing
 		// frame after reconnect). Acceptance §4.3 reverse grep expects 0 hits for

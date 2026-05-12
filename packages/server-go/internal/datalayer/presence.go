@@ -1,53 +1,57 @@
-// DL-1 — PresenceStore interface (蓝图 §4 B 第 2 条).
+// DL-1 — PresenceStore interface (blueprint §4 B item 2).
 //
-// 原则 ① (DL-1 spec §0): IsOnline / Sessions byte-identical 跟蓝图.
-// v1 实现 InMemoryPresence 走 AL-3 #324 既有 presence.PresenceTracker
-// (内部 in-memory map) byte-identical 不破 — 跟 G2.5 contract 锁定同源.
+// Principle ① (DL-1 spec §0): IsOnline / Sessions stay byte-identical with the
+// blueprint. v1 InMemoryPresence uses the existing AL-3 #324
+// presence.PresenceTracker (internal in-memory map) without changing behavior,
+// matching the G2.5 contract lock.
 //
-// RT-3 ⭐ 原则 ② (rt-3-spec.md §0.2): PresenceState 4 态 enum 单一来源 —
-// online / away / offline / thinking (蓝图 §1.4 活物感 4 态). 单一来源 const
-// 反向 grep count==4 hit (反 5 态脱节 / 反 false-loading indicator 脱节入).
+// RT-3 ⭐ principle ② (rt-3-spec.md §0.2): PresenceState is the SSOT for the
+// 4-state enum: online / away / offline / thinking (blueprint §1.4 live-presence
+// feel). Reverse grep count==4 protects against adding a 5th state or a
+// false-loading synonym.
 //
-// 切换路径 (留 v3+):
+// Implementation swap path (v3+):
 //   - InMemoryPresence (v1) → presence.PresenceTracker
-//   - DistributedPresence  → Redis / NATS pub-sub (留 DL-3 阈值哨触发)
+//   - DistributedPresence  → Redis / NATS pub-sub (triggered by DL-3 threshold monitor)
 package datalayer
 
 import "context"
 
-// PresenceState — RT-3 ⭐ 4 态 enum 单一来源 (蓝图 §1.4 活物感).
-// 跟 reasons.IsValid #496 / AP-4-enum #591 / NAMING-1 #614 enum 单一来源 模式一致.
+// PresenceState — RT-3 ⭐ SSOT for the 4-state enum (blueprint §1.4 live-presence feel).
+// This matches the enum-SSOT pattern used by reasons.IsValid #496,
+// AP-4-enum #591, and NAMING-1 #614.
 //
-// 反向约束 (rt-3-spec.md §0.2 + content-lock §3):
-//   - 4 态封闭枚举, 不另起第 5 态 (反 type-T-indicator 脱节入: t-y-p-i-n-g
-//     / c-o-m-p-o-s-i-n-g / 输 入 中 等同义词跨 enum 脱节)
-//   - 反向 grep `PresenceStateOnline|PresenceStateAway|PresenceStateOffline|
-//     PresenceStateThinking` count==4 hit (单一来源)
-//   - thinking 态必带 subject (走 bpp.ValidateTaskStarted 单一来源, 反空字符串 reject)
+// Negative constraints (rt-3-spec.md §0.2 + content-lock §3):
+//   - Closed 4-state enum; do not add a 5th text-entry state or other
+//     cross-enum synonyms.
+//   - Reverse grep `PresenceStateOnline|PresenceStateAway|PresenceStateOffline|
+//     PresenceStateThinking` count==4 (SSOT).
+//   - thinking state requires subject through bpp.ValidateTaskStarted; empty
+//     subject is rejected.
 type PresenceState string
 
 const (
-	// PresenceStateOnline — 用户/agent 至少 1 live session (跟 IsOnline 同源).
+	// PresenceStateOnline — user/agent has at least 1 live session (same source as IsOnline).
 	PresenceStateOnline PresenceState = "online"
-	// PresenceStateAway — 5min 无活动 (last-seen 阈值, RT-3 client UI 派生).
+	// PresenceStateAway — 5min inactivity (last-seen threshold, derived by RT-3 client UI).
 	PresenceStateAway PresenceState = "away"
-	// PresenceStateOffline — 0 live session (跟 IsOnline 反义).
+	// PresenceStateOffline — 0 live sessions (opposite of IsOnline).
 	PresenceStateOffline PresenceState = "offline"
-	// PresenceStateThinking — agent 在执行任务 (走 bpp.task_started frame
-	// + Subject 字段必带). 反"假 loading" 脱节 — Subject 反空字符串守门
-	// (rt-3-spec.md §0.2 + 蓝图 §1.1 ⭐ 关键纪律).
+	// PresenceStateThinking — agent is executing a task through the bpp.task_started
+	// frame and must include Subject. This avoids fake-loading drift; empty Subject
+	// is rejected (rt-3-spec.md §0.2 + blueprint §1.1 ⭐ discipline).
 	PresenceStateThinking PresenceState = "thinking"
 )
 
-// PresenceStore is the 单一来源 interface for "is user X reachable?" queries.
-// v1 walls thru AL-3 PresenceTracker; v3+ swap underlying implementation
-// without touching consumers (handlers go thru this seam, not directly).
+// PresenceStore is the SSOT interface for "is user X reachable?" queries.
+// v1 routes through AL-3 PresenceTracker; v3+ can swap the underlying
+// implementation without touching consumers because handlers use this seam.
 type PresenceStore interface {
 	// IsOnline reports whether the user/agent has at least one live session.
-	// 跟 G2.5 contract 同源 (presence.PresenceTracker.IsOnline).
+	// Same source as the G2.5 contract (presence.PresenceTracker.IsOnline).
 	IsOnline(ctx context.Context, userID string) (bool, error)
 
 	// Sessions returns the live session ids for the user. Empty slice means
-	// offline. Stable order is not required (跟 #310 锁定同精神).
+	// offline. Stable order is not required, matching the #310 lock.
 	Sessions(ctx context.Context, userID string) ([]string, error)
 }

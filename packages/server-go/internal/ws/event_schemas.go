@@ -5,8 +5,8 @@
 // Phase 2 routes these via the existing /ws hub; Phase 4 BPP will swap
 // the wire layer without changing the schema. The blueprint locks the
 // promise that `bpp/frame_schemas.go` (Phase 4) and this file stay
-// byte-identical or type-aliased — that is what makes "client handler
-// 0 改" possible at the BPP cutover.
+// byte-identical or type-aliased — that is what lets the BPP cutover keep
+// client handlers unchanged.
 //
 // Field ordering is part of the contract. The matching client TS
 // interfaces live in packages/client/src/types/ws-frames.ts (PR #218):
@@ -27,8 +27,8 @@ const (
 )
 
 // AgentInvitationPendingFrame — owner-side "someone wants to bring
-// your agent into a channel" notification. Replaces the 60s polling
-// loop on the bell badge per 野马 G2.4 hardline (latency ≤ 3s).
+// your agent into a channel" notification. Replaces the 60s bell-badge polling
+// loop per G2.4 hardline (latency ≤ 3s).
 //
 // Sent by the POST /api/v1/agent_invitations handler after the invite
 // row is committed, addressed at the agent's owner.
