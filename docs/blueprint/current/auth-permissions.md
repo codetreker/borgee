@@ -5,7 +5,7 @@
 
 ## 0. 一句话定义
 
-> **存储层是 ABAC（capability list），UI 层用 bundle 简化。Agent 默认最小权限，主入口是动态请求 + 一键 grant。跨 org 只能减权，不能加权。**
+> **存储层是 ABAC（capability list），UI 层用 bundle 简化。Agent 默认最小权限，主入口是动态请求 + 一键授权。跨 org 只能减权，不能加权。**
 
 ---
 
@@ -15,14 +15,14 @@
 
 | 层 | 形态 |
 |---|------|
-| **存储层** | ABAC——`user_permissions(user_id, permission, scope)` 是 source of truth |
+| **存储层** | ABAC——`user_permissions(user_id, permission, scope)` 是唯一数据来源 |
 | **UI 层** | capability bundle——勾选预设组合，对用户友好 |
-| **不入库** | role 不存为枚举字段——未来加能力零迁移 |
+| **不入库** | role 不存为枚举字段——未来加能力不需要迁移 |
 
 #### 为什么不是纯 RBAC
 
-- 角色（PM/Dev/QA）= 套人格 → 与 [agent-lifecycle §2.1](agent-lifecycle.md) "Borgee 不定义角色"立场冲突
-- 角色固定包 → 加新能力时所有角色都要改
+- 角色（PM/Dev/QA）= 一组固定身份预设 → 与 [agent-lifecycle §2.1](agent-lifecycle.md) "Borgee 不定义角色"原则冲突
+- 固定角色包 → 加新能力时所有角色都要改
 
 #### 为什么不是纯 ABAC
 
@@ -32,8 +32,8 @@
 #### Bundle 是 UI 糖，不是数据
 
 - bundle 内容由 client 端定义，server 不识别
-- "勾选 Workspace bundle" = 一次性 grant 多个 capability
-- 后续加新 capability 到 bundle 不影响已 grant 的 agent（除非用户重勾）
+- "勾选 Workspace bundle" = 一次性授予多个 capability
+- 后续加新 capability 到 bundle 不影响已授予权限的 agent（除非用户重勾）
 
 ### 1.2 Scope 层级：v1 三层
 
@@ -44,14 +44,14 @@
 | `artifact:<id>` | ✅ | per-artifact 授权（agent 只能改某一份 PRD） |
 | `workspace:<channel_id>` | ❌ | channel 级足够，workspace 是 channel 的下属概念 |
 | `org:<id>` | ❌ | v1 "组织"对用户隐藏，scope 不暴露 |
-| `expires_at` 列 | ✅ schema 保留, UI 不做 | 协议升级位，让未来加时间窗权限零迁移 |
+| `expires_at` 列 | ✅ schema 保留, UI 不做 | 协议升级位，让未来加时间窗权限不需要迁移 |
 
 ### 1.3 授权 UX：B 主推 + A' 快速 bundle（无角色名）
 
 #### 创建 agent 时
 
-- **默认 `[message.send, message.read]`** — 最小起步 + 默认能读 channel 历史 (B29 / 4 人 review #1 决议, 2026-04-28: owner 想"agent 不偷看"是合理需求, 但默认开, 关闭走 agent 配置)
-- **不**勾选角色或预设包——保持 [agent-lifecycle §2.1](agent-lifecycle.md) "无角色库"立场
+- **默认 `[message.send, message.read]`** — 最小初始权限 + 默认能读 channel 历史 (B29 / 4 人 review #1 决议, 2026-04-28: owner 想"agent 不偷看"是合理需求, 但默认开启; 如需关闭, owner 在 agent 配置里调整)
+- **不**勾选角色或预设包——保持 [agent-lifecycle §2.1](agent-lifecycle.md) "无角色库"约束
 - 创建即就绪，能发消息 + 能读所在 channel
 
 #### 主入口（B）：动态请求
@@ -69,7 +69,7 @@ server 给 owner 写一条 system message 到内置 DM
  [✓ 一键 grant 限于此 channel]   [✗ 拒绝]   [⚙ 高级设置]"
 ```
 
-owner 一键 grant，agent 自动重试动作。
+owner 一键授予权限，agent 自动重试动作。
 
 #### 辅助入口（A'）：快速 bundle，无角色名
 
@@ -82,7 +82,7 @@ owner 一键 grant，agent 自动重试动作。
 | `Channel Admin`（成员管理、topic 改动） | `QA` |
 | `Researcher`（按工作类型描述） | `Designer`（角色） |
 
-> **理由**：角色名 = 套人格，跟 [agent-lifecycle §2.1](agent-lifecycle.md) 自相矛盾；能力名 = 描述操作集合，自然延伸。
+> **理由**：角色名 = 一组固定身份预设，跟 [agent-lifecycle §2.1](agent-lifecycle.md) 自相矛盾；能力名 = 描述操作集合，自然延伸。
 
 #### UX 语义跟 host-bridge 一致
 
@@ -93,19 +93,19 @@ owner 一键 grant，agent 自动重试动作。
 
 ### 1.4 跨 org：A，owner-only
 
-> [concept-model §1.3](concept-model.md) "协作可以，扩权不行" 的强落地。
+> [concept-model §1.3](concept-model.md) "协作可以，扩权不行" 的具体要求。
 
 | 角色 | 能做 | 不能做 |
 |------|------|--------|
-| **agent owner**（建军） | grant / revoke 自己 agent 的所有 capability | — |
-| **channel owner**（野马，agent 不在他 org） | mute 别人的 agent / 移除别人的 agent | **不能** grant 别人 agent 的 capability |
+| **agent owner**（建军） | 授予 / 撤销自己 agent 的所有 capability | — |
+| **channel owner**（野马，agent 不在他 org） | mute 别人的 agent / 移除别人的 agent | **不能**授予别人 agent 的 capability |
 | 任何 user | — | 修改其它 agent 的权限 |
 
 #### 设计直觉
 
 - 野马拉建军的 PMagent 进自己 channel = "我请你的助手来帮忙"
 - 野马**不能**给建军的 PMagent 加 channel 权限——那等于"替建军决定他的助手能干什么"
-- 野马**可以** mute / 移除 = "在自己地盘上保留控制权"
+- 野马**可以** mute / 移除 = "在自己 channel 管理范围内保留控制权"
 - **跨 org 只能减权，不能加权**
 
 ---
@@ -115,10 +115,10 @@ owner 一键 grant，agent 自动重试动作。
 | 不变量 | 含义 |
 |--------|------|
 | Admin = `*` | 系统管理员永远拥有所有 capability，不可剥夺 |
-| Agent 默认最小 | 创建即只有 `[message.send, message.read]` (能发能读 channel)，其它由 owner 显式 grant; owner 可在 agent 配置里关掉 `message.read` 阻止 agent 看 channel 历史 |
+| Agent 默认最小 | 创建即只有 `[message.send, message.read]` (能发能读 channel)，其它由 owner 显式授予; owner 可在 agent 配置里关闭 `message.read` 阻止 agent 看 channel 历史 |
 | Bundle 不是数据 | UI 层概念，server 端只看 capability list |
-| 跨 org 只减不加 | channel owner 对外部 agent 只能 mute/kick，不能 grant |
-| Permission denied 走 BPP | 不靠 HTTP 错误码，由协议层路由到 owner DM |
+| 跨 org 只减不加 | channel owner 对外部 agent 只能 mute / 移除，不能授予 capability |
+| Permission denied 使用 BPP | 不靠 HTTP 错误码，由协议层发送到 owner DM |
 
 ---
 
@@ -129,7 +129,7 @@ owner 一键 grant，agent 自动重试动作。
 ### Messaging
 
 - `message.send`
-- `message.read` — gate `GET /channels/:id/messages`; agent 默认有, owner 可在 agent 配置里关掉以阻止 agent 看 channel 历史 (B29 / 4 人 review #1 决议, 2026-04-28)
+- `message.read` — 检查 `GET /channels/:id/messages`; agent 默认有, owner 可在 agent 配置里关闭以阻止 agent 看 channel 历史 (B29 / 4 人 review #1 决议, 2026-04-28)
 - `message.edit_own`
 - `message.delete_own`
 - `mention.user`
@@ -171,7 +171,7 @@ owner 一键 grant，agent 自动重试动作。
 
 | Frame | 字段 | 用途 |
 |-------|------|------|
-| `capability_granted` | `agent_id`, `capability`, `scope` | owner grant 后通知 plugin 重试动作 |
+| `capability_granted` | `agent_id`, `capability`, `scope` | owner 授予权限后通知 plugin 重试动作 |
 
 ---
 
@@ -180,11 +180,11 @@ owner 一键 grant，agent 自动重试动作。
 | 目标态 | 现状 | 差距 |
 |--------|------|------|
 | ABAC + UI bundle | 当前已是 ABAC 表 (`user_permissions`) | 加 UI bundle 渲染层（纯 client 端） |
-| 三层 scope | 有 `*` 和 `channel:` | 等 artifact 落地后加 `artifact:<id>` 渲染逻辑 |
-| `expires_at` 列 | 无 | 加列（schema 不破），暂不业务化 |
-| `permission_denied` BPP frame | 错误以 HTTP 4xx 返回 | 协议层加 frame + server 路由到 owner DM + 一键 grant UI |
+| 三层 scope | 有 `*` 和 `channel:` | 等 artifact 实现后加 `artifact:<id>` 渲染逻辑 |
+| `expires_at` 列 | 无 | 加列（不破坏 schema），暂不业务化 |
+| `permission_denied` BPP frame | 错误以 HTTP 4xx 返回 | 协议层加 frame + server 发送到 owner DM + 一键授权 UI |
 | 无角色名 bundle | 当前没有 bundle | 设计 v1 bundle 命名表（参考 §1.3） |
-| Channel owner 对外部 agent 的 mute/kick | 仅 channel.manage_members（移除） | 加 mute；明确"不能改 capability" |
+| Channel owner 对外部 agent 的 mute / 移除 | 仅 channel.manage_members（移除） | 加 mute；明确"不能改 capability" |
 
 ---
 
