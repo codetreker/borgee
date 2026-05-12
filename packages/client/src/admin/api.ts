@@ -280,7 +280,7 @@ export async function fetchAdminAuditLog(filters: AuditLogFilters = {}): Promise
 // server / plugin / host_bridge / agent). 4 source enum byte-identical 跟
 // server-side AuditSources 同源 (改 = 改 server const + 此处 + i18n 三处).
 //
-// Admin path is separate (ADM-0 §1.3 redline): expose only
+// Admin path is separate (ADM-0 §1.3 separation constraint): expose only
 // /admin-api/v1/audit/multi-source, with no user API drift.
 export const AUDIT_SOURCES = ['server', 'plugin', 'host_bridge', 'agent'] as const;
 export type AuditSource = typeof AUDIT_SOURCES[number];

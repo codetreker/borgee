@@ -117,7 +117,7 @@ export async function archiveChannel(channelId: string, archived: boolean): Prom
 }
 
 // CHN-7: mute / unmute a channel for the current user. User API only;
-// no admin bypass route (ADM-0 §1.3 redline + design ②). Server toggles bit 1
+// no admin bypass route (ADM-0 §1.3 separation constraint + design ②). Server toggles bit 1
 // of user_channel_layout.collapsed and preserves bit 0 for CHN-3 collapse.
 export async function muteChannel(channelId: string, muted: boolean): Promise<{ collapsed: number; muted: boolean }> {
   const method = muted ? 'POST' : 'DELETE';
@@ -129,7 +129,7 @@ export async function muteChannel(channelId: string, muted: boolean): Promise<{ 
 // CHN-9: set channel visibility (one of 'creator_only' / 'private' /
 // 'public'). User API only, owner-only via the existing
 // channel.manage_visibility permission. Keep the CHN-1.2 ACL byte-identical;
-// there is no admin bypass route (ADM-0 §1.3 redline). Reuse updateChannel.
+// there is no admin bypass route (ADM-0 §1.3 separation constraint). Reuse updateChannel.
 export async function setChannelVisibility(
   channelId: string,
   visibility: import('./visibility').ChannelVisibility,
@@ -146,7 +146,7 @@ export async function listArchivedChannels(): Promise<Channel[]> {
 }
 
 // CHN-6: pin / unpin a channel for the current user. User API only;
-// no admin bypass route (ADM-0 §1.3 redline + design ②). Server stamps
+// no admin bypass route (ADM-0 §1.3 separation constraint + design ②). Server stamps
 // position = -(nowMs) on pin and max(positive)+1.0 on unpin, complementing
 // the CHN-3.3 MIN-1.0 monotonic decimal ordering model.
 export async function pinChannel(channelId: string, pinned: boolean): Promise<{ position: number; pinned: boolean }> {
@@ -157,7 +157,7 @@ export async function pinChannel(channelId: string, pinned: boolean): Promise<{ 
 }
 
 // CHN-8: set notification preference for a channel. User API only;
-// no admin bypass route (ADM-0 §1.3 redline + design ②). pref ∈ {'all', 'mention', 'none'}.
+// no admin bypass route (ADM-0 §1.3 separation constraint + design ②). pref ∈ {'all', 'mention', 'none'}.
 export async function setNotificationPref(
   channelId: string,
   pref: NotifPref,
@@ -570,7 +570,7 @@ export async function fetchAgentRuntime(agentId: string): Promise<AgentRuntime |
 
 // startAgentRuntime / stopAgentRuntime — owner-only writes
 // (RequirePermission 'agent.runtime.control', AL-4.2 server). Non-owner
-// → 403; admin → 401 (no admin bypass writes, ADM-0 §1.4 redline). Both endpoints
+// → 403; admin → 401 (ADM-0 §1.4 no admin bypass writes rule). Both endpoints
 // return the updated runtime row (#379 v2 §1 拆段 AL-4.2).
 export async function startAgentRuntime(agentId: string): Promise<AgentRuntime> {
   const data = await request<{ runtime: AgentRuntime }>(
