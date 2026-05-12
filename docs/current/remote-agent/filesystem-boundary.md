@@ -1,6 +1,6 @@
 # Remote Agent Filesystem Boundary
 
-Remote Agent's filesystem boundary is a process-level allowlist chosen by the user at startup. It is intentionally lighter than Host Bridge: there is no grant table, no helper daemon, no Unix socket, and no OS sandbox profile. Because the current server/agent request envelope is not aligned, this document describes the local boundary the agent applies when it receives a correctly shaped request; it should not be read as proof that the server-exposed proxy is fully operational end to end today.
+Remote Agent's filesystem boundary is a process-level allowlist chosen by the user at startup. It is intentionally lighter than Host Bridge: there is no grant table, no helper daemon, no Unix socket, and no OS sandbox profile. Because the current protocol caveats are documented in `protocol.md`, this document describes the local boundary the agent applies when it receives a correctly shaped request; it should not be read as proof that the server-exposed proxy is fully operational end to end today.
 
 ## Overview
 
@@ -61,7 +61,7 @@ The filesystem boundary does not provide write operations, symlink-realpath poli
 
 ## Known Gaps
 
-- The local boundary depends on the agent receiving the intended request shape; the current server/agent path envelope mismatch limits end-to-end reliability.
+- End-to-end proxy reliability depends on the Remote Agent protocol caveats described in `protocol.md`.
 - The boundary uses resolved path containment, not realpath-based symlink containment.
 - Large directory listing is not separately capped by the agent boundary.
 - Binary reads are not modeled as a separate binary transfer path.

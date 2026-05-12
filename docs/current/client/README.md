@@ -76,8 +76,8 @@ It does not own backend authorization, persistence, admin server enforcement, re
 | --- | --- |
 | Vite dual entry | `packages/client/vite.config.ts`, `packages/client/index.html`, `packages/client/admin.html` |
 | User entry and shell | `packages/client/src/main.tsx`, `packages/client/src/App.tsx` |
-| Shared user state | `packages/client/src/context/AppContext.tsx`, `AppState` |
-| User REST client | `packages/client/src/lib/api.ts`, `ApiError` |
-| Realtime client | `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts` |
-| Feature surfaces | `packages/client/src/components/ChannelView.tsx`, `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/AgentManager.tsx`, `packages/client/src/components/Settings/SettingsPage.tsx` |
-| Admin rail split | `packages/client/src/admin/main.tsx`, `packages/client/src/admin/AdminApp.tsx`, `packages/client/src/admin/api.ts` |
+| Shared user state | `packages/client/src/context/AppContext.tsx` |
+| User REST client | `packages/client/src/lib/api.ts` |
+| Realtime client | `packages/client/src/hooks/` |
+| Feature surfaces | `packages/client/src/components/` |
+| Admin rail split | `packages/client/src/admin/` |

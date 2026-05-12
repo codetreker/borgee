@@ -96,11 +96,8 @@ Cursor backfill is not a cold-start history mechanism. If no cursor exists, norm
 
 | Concern | Anchors |
 | --- | --- |
-| User REST client | `packages/client/src/lib/api.ts`, `BackfillEvent` |
-| Realtime hook | `packages/client/src/hooks/useWebSocket.ts`, `flattenWsFrame` |
-| Signal bridge | `packages/client/src/hooks/useWsHubFrames.ts` |
-| Cursor persistence | `packages/client/src/lib/lastSeenCursor.ts` |
-| Shared state reducer | `packages/client/src/context/AppContext.tsx`, `AppState` |
+| User REST client | `packages/client/src/lib/api.ts` |
+| Realtime hooks | `packages/client/src/hooks/` |
+| Shared state boundary | `packages/client/src/context/AppContext.tsx` |
 | Frame types | `packages/client/src/types/ws-frames.ts` |
-| Message surfaces | `packages/client/src/components/MessageInput.tsx`, `packages/client/src/components/MessageList.tsx` |
-| Signal consumers | `packages/client/src/components/ArtifactPanel.tsx`, `packages/client/src/components/ArtifactComments.tsx`, `packages/client/src/components/InvitationsInbox.tsx` |
+| Surface consumers | `packages/client/src/components/` |

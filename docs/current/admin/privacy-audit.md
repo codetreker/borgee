@@ -71,10 +71,6 @@ Privacy audit does not guarantee helper JSONL ingestion, does not make all admin
 
 ## Implementation Anchors
 
-- `packages/server-go/internal/store/admin_actions.go` (`AdminAction`, `InsertAdminAction`, `EmitAdminActionAudit`, `ImpersonationGrant`)
-- `packages/server-go/internal/api/admin_endpoints.go` (`AdminEndpointsHandler`)
-- `packages/server-go/internal/api/admin.go` (`AdminHandler` audit hook call sites)
-- `packages/server-go/internal/api/admin_audit_query.go` (`AdminAuditMultiSourceHandler`)
-- `packages/server-go/internal/migrations/admin_actions.go`
-- `packages/server-go/internal/migrations/admin_impersonation_grants.go`
-- `packages/server-go/internal/migrations/admin_audit_events_rename.go`
+- `packages/server-go/internal/store/admin_actions.go`
+- `packages/server-go/internal/api/admin*.go`
+- `packages/server-go/internal/migrations/`

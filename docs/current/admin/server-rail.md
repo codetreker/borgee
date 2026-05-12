@@ -80,11 +80,8 @@ The admin rail does not authenticate with user cookies, create host grants for u
 
 ## Implementation Anchors
 
-- `packages/server-go/internal/admin/auth.go` (`Handler`, `Admin`, `AdminSession`, `Bootstrap`)
-- `packages/server-go/internal/admin/middleware.go` (`RequireAdmin`, `AdminFromContext`)
-- `packages/server-go/internal/migrations/admin_admins.go`
-- `packages/server-go/internal/migrations/admin_sessions.go`
-- `packages/server-go/internal/server/server.go` (admin route wiring)
-- `packages/server-go/internal/api/admin.go` (`AdminHandler`)
-- `packages/server-go/internal/api/runtimes.go` (`AdminRuntimeHandler`)
-- `packages/server-go/internal/api/admin_endpoints.go` (`AdminEndpointsHandler`)
+- `packages/server-go/internal/admin/`
+- `packages/server-go/internal/migrations/`
+- `packages/server-go/internal/server/server.go`
+- `packages/server-go/internal/api/admin*.go`
+- `packages/server-go/internal/api/runtimes.go`

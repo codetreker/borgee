@@ -50,7 +50,7 @@ The installer does not enforce runtime grants, mediate helper IPC, install Remot
 ## Known Gaps
 
 - Client and server manifest envelope shapes are not aligned.
-- Local artifact integrity is not bound to the verified manifest entry.
+- Artifact-to-manifest binding remains the installer trust gap described above.
 - Installer prompt vocabulary and server host-grant vocabulary are not aligned.
 - Production signing-key injection for the server manifest path is not clearly represented in the current wiring.
 

@@ -100,6 +100,4 @@ Startup/routing does not define business authorization rules, migration contents
 - `packages/server-go/internal/datalayer/events_retention.go`
 - `packages/server-go/internal/datalayer/events_threshold.go`
 - `packages/server-go/internal/datalayer/events_archive_offloader.go`
-- `server.New`
-- `server.Server.SetupRoutes`
-- `server.Server.Handler`
+- `server.Server`

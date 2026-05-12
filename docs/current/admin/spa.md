@@ -123,8 +123,8 @@ When adding an admin capability, update the architecture in this order: server r
 | Concern | Anchors |
 | --- | --- |
 | Admin entry | `packages/client/admin.html`, `packages/client/src/admin/main.tsx` |
-| Session provider | `packages/client/src/admin/auth.ts`, `AdminAuthProvider`, `useAdminAuth` |
-| Session and API types | `packages/client/src/admin/api.ts`, `AdminSession`, `AdminApiError` |
+| Admin app boundary | `packages/client/src/admin/` |
+| Session boundary | `packages/client/src/admin/auth.ts` |
+| Admin API boundary | `packages/client/src/admin/api.ts` |
 | Admin route tree | `packages/client/src/admin/AdminApp.tsx` |
 | Page surfaces | `packages/client/src/admin/pages/` |
-| User rail contrast | `packages/client/src/App.tsx`, `packages/client/src/context/AppContext.tsx`, `packages/client/src/lib/api.ts`, `packages/client/src/hooks/useWebSocket.ts` |

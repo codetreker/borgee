@@ -1,6 +1,6 @@
 # Remote Agent
 
-Remote Agent is the user-owned path intended to make selected local directories visible to Borgee while the agent process is running. It is a reverse WebSocket bridge with a local read-only executor, but the current server/agent request envelope is not aligned, so the filesystem proxy should be treated as a partially wired capability. It is separate from Host Bridge: Remote Agent is for user-selected remote filesystem browsing; Host Bridge is for host capabilities mediated by grants, helper IPC, audit, and sandboxing.
+Remote Agent is the user-owned path intended to make selected local directories visible to Borgee while the agent process is running. It is a reverse WebSocket bridge with a local read-only executor, but current protocol caveats mean the filesystem proxy should be treated as a partially wired capability. It is separate from Host Bridge: Remote Agent is for user-selected remote filesystem browsing; Host Bridge is for host capabilities mediated by grants, helper IPC, audit, and sandboxing.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Remote Agent is the user-owned path intended to make selected local directories 
 Remote Agent gives a signed-in user a way to attach a machine to their Borgee account, bind selected paths to channels, and use the server as an intended proxy for directory listing and file reads to that machine. The server never mounts the filesystem directly; in the intended contract it asks the connected agent to perform bounded local operations.
 
 **Boundary**
-The boundary is the remote node plus the current protocol caveat. A node belongs to one user, authenticates with its own connection token, and is only reachable through that user's remote API requests. Local filesystem access is intended to be constrained by the agent's startup directory allowlist, but maintainers should account for the current envelope mismatch before treating server-triggered list/read as a reliable filesystem boundary.
+The boundary is the remote node plus the current protocol caveat. A node belongs to one user, authenticates with its own connection token, and is only reachable through that user's remote API requests. Local filesystem access is intended to be constrained by the agent's startup directory allowlist, but maintainers should account for the protocol caveats before treating server-triggered list/read as a reliable filesystem boundary.
 
 **Collaborators**
 Remote Agent collaborates with the user API control plane, the WebSocket hub data plane, the remote node store, channel remote bindings, and the local filesystem boundary. It does not collaborate with host grants or helper daemon IPC.
@@ -52,8 +52,8 @@ Remote Agent does not provide host-wide privileges, OS sandboxing, package insta
 
 ## Current Status And Boundary Caveats
 
-- The node token handoff path is not clearly exposed by the current API shape.
-- The server-to-agent request envelope and the TypeScript agent's expected path location are not aligned; remote filesystem behavior should be described as intended until that contract is reconciled.
+- The current filesystem proxy is an intended capability with protocol caveats; `protocol.md` owns the connection setup and request-contract details.
+- Treat Remote Agent's boundary as node ownership plus local allowlist intent until those protocol caveats are resolved.
 
 ## Implementation Anchors
 

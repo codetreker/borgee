@@ -106,8 +106,4 @@ Rails do not define every endpoint, replace domain-specific authorization, or me
 - `packages/server-go/internal/bpp/envelope.go`
 - `packages/server-go/internal/store/queries.go`
 - `packages/server-go/internal/store/admin_actions.go`
-- `auth.AuthMiddleware`
-- `auth.RequirePermission`
-- `auth.HasCapability`
-- `admin.RequireAdmin`
 - `admin.Handler`
