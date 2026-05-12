@@ -1,6 +1,6 @@
 // tests/agent-permission-bundle.spec.ts - Agent permission bundle UI tests (transparent capability expansion).
 //
-// Status: SKIP+followup (gh#716 + gh#724 §1, 2026-05-11 real mount verification found the missing mount).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1; real mount verification found the missing mount on 2026-05-11.
 //
 // Skip reason: BundleSelector / PermissionsView components currently have no production
 // mount in the client SPA (reverse grep for `<BundleSelector\b` / `<PermissionsView\b` in production code
@@ -29,7 +29,7 @@
 
 import { test, expect } from '@playwright/test';
 
-void expect; // 避免 unused; v2 unskip 时实施.
+void expect; // Keeps the import used until the v2 unskip implements assertions.
 
 test.describe.skip('agent permission bundle UI — capability 透明 (gh#716 + gh#724 §1, mount 待做)', () => {
   test('§3.2 capability response shape — /api/v1/me/permissions 含 capabilities 数组', async () => {

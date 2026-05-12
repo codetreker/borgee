@@ -1,35 +1,37 @@
-// tests/pwa-push-notification-subscribe.spec.ts — PWA install 三件套 (manifest + sw.js + push helper).
+// tests/pwa-push-notification-subscribe.spec.ts — PWA install pieces (manifest + sw.js + push helper).
 //
-// 测试范围:
-//   - PWA Web App Manifest endpoint 返回 W3C 兼容载荷 (display=standalone + 192/512 icons + Content-Type)
-//   - Service worker /sw.js 注册成功 (push handler 挂得上)
-//   - PushManager.subscribe 路径可达 (headless CI 不真订阅, 仅验 helper 模块加载 + 导出齐全)
+// Test scope:
+//   - PWA Web App Manifest endpoint returns a W3C-compatible payload
+//     (display=standalone + 192/512 icons + Content-Type).
+//   - Service worker /sw.js can register and includes a push handler.
+//   - PushManager.subscribe path is reachable. Headless CI does not create a
+//     real push subscription; it only verifies helper module loading and exports.
 //
-// 关联文档:
-//   - 蓝图: docs/blueprint/current/client-shape.md L42 (manifest + install + Web Push + standalone)
-//   - 验收: DL-4 spec §1 DL-4.5 acceptance §1
+// Related docs:
+//   - Blueprint: docs/blueprint/current/client-shape.md L42 (manifest + install + Web Push + standalone)
+//   - Acceptance: DL-4 spec §1 DL-4.5 acceptance §1
 //
-// 实施约束:
-//   - 真 UI 走浏览器 (page.goto 真发请求 + 浏览器层 sw register)
-//   - headless 不强求 user-permission grant
-//   - 不允许 fs.* / page.evaluate(fetch) 走 cookie 直调 / 只打 API / noop
+// Implementation constraints:
+//   - Browser-driven path: page.goto sends the request and the browser registers the service worker.
+//   - Headless CI does not require granting user notification permission.
+//   - Do not use fs.*, page.evaluate(fetch) with cookies, API-only checks, or empty placeholder tests.
 import { test, expect } from '@playwright/test';
 
 test('DL-4.4 PWA manifest endpoint returns W3C-compliant JSON', async ({ request }) => {
   const res = await request.get('/api/v1/pwa/manifest');
   expect(res.status()).toBe(200);
 
-  // W3C 标准 MIME (浏览器 install prompt 严格识别)
+  // W3C standard MIME type recognized by browser install prompts.
   const ct = res.headers()['content-type'] || '';
   expect(ct).toMatch(/^application\/manifest\+json/);
 
   const manifest = await res.json();
   expect(manifest.name).toBe('Borgee');
-  expect(manifest.display).toBe('standalone'); // 蓝图 L22 字面
+  expect(manifest.display).toBe('standalone'); // Blueprint L22 literal.
   expect(manifest.start_url).toBe('/');
   expect(manifest.scope).toBe('/');
 
-  // W3C 推荐基线 192x192 + 512x512
+  // W3C recommended baseline sizes: 192x192 + 512x512.
   const sizes = (manifest.icons as Array<{ sizes: string }>).map((i) => i.sizes);
   expect(sizes).toContain('192x192');
   expect(sizes).toContain('512x512');
@@ -43,7 +45,7 @@ test('DL-4.4 PWA manifest endpoint returns W3C-compliant JSON', async ({ request
 
 test('DL-4.4 endpoint separation — DL-4 does not respond as HB-1 plugin-manifest', async ({ request }) => {
   // HB-1 #491 endpoint — DL-4 server must not answer as that route.
-  // Expect non-2xx (404 most likely — DL-4 没注册此路由).
+  // Expect non-2xx (404 most likely because DL-4 does not register this route).
   const res = await request.get('/api/v1/plugin-manifest');
   expect(res.status()).toBeGreaterThanOrEqual(400);
 });
@@ -56,7 +58,7 @@ test('DL-4.5 service worker /sw.js loads + push handler exists', async ({ page }
   const swRes = await page.request.get('/sw.js');
   expect(swRes.status()).toBe(200);
   const swSrc = await swRes.text();
-  // Push event handler text-search lock — sw.js 必须含 push event listener.
+  // Push event handler text-search lock: sw.js must include the push event listener.
   expect(swSrc).toContain("addEventListener('push'");
   expect(swSrc).toContain('showNotification');
   // Click handler opens the SPA route.

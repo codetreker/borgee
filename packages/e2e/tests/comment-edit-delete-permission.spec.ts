@@ -1,28 +1,28 @@
-// tests/comment-edit-delete-permission.spec.ts — comment 编辑 / 删除 / 反应 + 防越权 (跨 §1+§2).
+// tests/comment-edit-delete-permission.spec.ts — comment edit / delete / reactions + access-control checks (§1 + §2).
 //
-// 状态: SKIP+followup (gh#716 + gh#724 §1 mount + §2 ACL UX).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1 mount + §2 ACL UX.
 //
-// 跳过原因 (双段同时撞):
-//   - §1: ArtifactComments 系列 client UI 0 production mount, page.click 走不通
-//   - §2: ACL 越权 forbidden state UX 还没设计完 (gh#724 §2)
-// 现 spec 走 REST 直调后端 = 后端 contract test (反模式 F3), 不算 e2e.
+// Skip reasons:
+//   - §1: ArtifactComments currently has no production mount, so page.click cannot reach the UI.
+//   - §2: forbidden-state UX for ACL failures is not designed yet (gh#724 §2).
+// This spec currently calls the backend through REST, so it is a backend contract test rather than an e2e test.
 //
-// 6 case 全保 (heima 拍: ACL 真验各路径不可丢):
-//   - 人 owner 编辑自己的评论 (PUT 200 + GET 看到新 body + edited_at 非空)
-//   - agent 编辑 thinking 触发 5 模式校验, 4 sub-case reject 400
-//   - 人 owner 删除自己的评论 (DELETE 200 + GET 不再出现)
-//   - 编辑别人的评论 → 403 (越权)
-//   - reaction +1 / -1 round-trip (PUT/DELETE 200 + count 真切换)
-//   - 反向: 非 comment 类型消息不走 thinking 校验
+// Keep all 6 cases; each ACL path is required:
+//   - Human owner edits their own comment (PUT 200 + GET sees new body + edited_at is non-empty)
+//   - Agent edit with thinking placeholder triggers placeholder-pattern validation; 4 sub-cases reject with 400
+//   - Human owner deletes their own comment (DELETE 200 + GET no longer returns it)
+//   - Editing another user's comment → 403
+//   - Reaction +1 / -1 round-trip (PUT/DELETE 200 + count changes)
+//   - Non-comment message types do not use the thinking validator
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/cv-7.md §3
-//   - 后续: gh#724 §1 (mount) + §2 (forbidden state UX)
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/cv-7.md §3
+//   - Follow-up: gh#724 §1 (mount) + §2 (forbidden state UX)
 //
-// 实施约束 (unskip 后):
-//   - 真 UI 走浏览器 + cross-user 越权走 page.goto + DOM 反向断 (REWRITE-NAV 模式)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
-//   - 6 case 不允许丢任一 ACL case
+// Implementation constraints after unskip:
+//   - Browser-driven UI path; cross-user access checks use page.goto plus negative DOM assertions (REWRITE-NAV pattern).
+//   - Do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
+//   - Keep all six ACL cases.
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
@@ -266,6 +266,6 @@ test.describe.skip('comment 编辑/删除/反应 + 防越权 (gh#716 SKIP+follow
     const r = await agentCtx.put(`/api/v1/messages/${pj.message.id}`, {
       data: { content: 'AI is thinking...' },
     });
-    expect(r.status()).toBe(200); // 不走 validator → 通过
+    expect(r.status()).toBe(200); // Text messages do not use this validator.
   });
 });
