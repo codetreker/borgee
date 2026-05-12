@@ -4,16 +4,17 @@
 // lib/api.ts so mismatch is caught pre-merge instead of post-merge by reverse
 // grep.
 //
-// Sources cross-referenced (byte-identical 多源 同根, 改一处必改全部):
+// Sources cross-referenced (byte-identical across multiple sources; change all together):
 //   - 失败 toast "agent 配置保存失败, 请重试" — 跟 server-go
 //     internal/api/agent_config.go const agentConfigSaveErrorMsg byte-
-//     identical 同源 (蓝图 §1.4 单一来源 设计, AL-2a content-lock ①).
+//     identical to the server source (blueprint §1.4 single-source design,
+//     AL-2a content-lock ①).
 //   - allowedConfigKeys 白名单 — 跟 server-go internal/api/agent_config.go
 //     allowedConfigKeys map 同源 (name / avatar / prompt / model /
 //     capabilities / enabled / memory_ref).
 //   - data-agent-config-field 属性二态锁 (form input 字段 ID).
 //   - 约束: runtime-only (api_key / temperature / token_limit /
-//     retry_policy) 不在 form (UI 层 + server 层双层 fail-closed).
+//     retry_policy) are absent from the form (UI and server both fail closed).
 
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — node:module 没 @types/node, vitest node 上下文可达.
@@ -42,7 +43,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   it('① failure toast 字面 byte-identical: "agent 配置保存失败, 请重试"', () => {
     const TOAST = 'agent 配置保存失败, 请重试';
     expect(panel).toContain(TOAST);
-    // Const export — server byte-identical 同源 锚.
+    // Const export: byte-identical anchor shared with the server.
     expect(panel).toContain(`AGENT_CONFIG_SAVE_TOAST = '${TOAST}'`);
   });
 
@@ -74,8 +75,8 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   });
 
   it('约束: runtime-only 字段 (api_key/temperature/token_limit/retry_policy) 不在 form', () => {
-    // UI 层 fail-closed — grep 检查 字段 ID 不出现 (server 层也 fail-closed
-    // reject, acceptance §4.1.c reflect scan 同源).
+    // UI fails closed: grep checks that these field IDs do not appear. The
+    // server also rejects them fail-closed, aligned with acceptance §4.1.c.
     for (const forbidden of ['api_key', 'temperature', 'token_limit', 'retry_policy']) {
       // form input id 反向断言 (data-agent-config-field 不渲染).
       expect(panel).not.toContain(`data-agent-config-field="${forbidden}"`);
@@ -83,20 +84,20 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   });
 
   it('约束: 不订阅 push frame (蓝图 §1.5 BPP frame 留 AL-2b)', () => {
-    // 设计 ⑥ — 走轮询 reload, 不订阅 ws subscription. grep 检查 字面.
+    // Design ⑥: use polling reload, not a WebSocket subscription. Grep checks the literal.
     expect(panel).not.toContain('subscribeWS');
     expect(panel).not.toContain('hub.subscribe');
-    // BPP frame name 字面只在 doc comment 出现 (说明 AL-2a 不挂); 单引号
-    // 字面 reject (代码使用形式).
+    // BPP frame name appears only in doc comments to state AL-2a does not mount it;
+    // reject single-quoted and double-quoted code literals.
     const FRAME = 'agent_config' + '_update';
     expect(panel).not.toContain(`'${FRAME}'`);
     expect(panel).not.toContain(`"${FRAME}"`);
   });
 
   it('约束: 失败 toast 同义词漂移 0 hit (字面唯一根)', () => {
-    // 反向同义词 byte-identical reject — 改 toast 必须改 server const.
-    // 注意: 不能用 "配置保存失败" 检测 (子串匹配 toast 自身), 用完整漂移
-    // 字面.
+    // Reject synonym drift; changing the toast requires changing the server const.
+    // Do not test "配置保存失败" because it matches the real toast substring;
+    // use complete drift literals instead.
     for (const drift of [
       'agent 配置保存出错',
       'agent 配置写入失败',
@@ -108,10 +109,9 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
     }
   });
 
-  // gh#701 不一致修 — md 早期写过 `<form data-form="agent-config">`,
-  // 实际代码用 `<section data-agent-config="root">`. 不一致已修 (md 改对齐
-  // code+test). 这条单测扫整个 packages/ + docs/qa/ 树, 守"data-form=
-  // 'agent-config'" 不再出现 (反 md 又漂回 form / 代码又漂去 form).
+  // gh#701 mismatch fix: older markdown mentioned `<form data-form="agent-config">`,
+  // while the implementation uses `<section data-agent-config="root">`. This test scans
+  // packages/ + docs/qa/ to keep `data-form="agent-config"` from returning in docs or code.
   it('grep 检查 (gh#701): 整个 packages/ + docs/qa/ 树没 data-form="agent-config" 字面 (容器是 section, 不是 form)', () => {
     // 路径: HERE = packages/client/src/__tests__ → ..*4 = repo root.
     const REPO_ROOT = nodePath.join(HERE, '..', '..', '..', '..');
@@ -147,10 +147,10 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
     const hits: string[] = [];
     for (const dir of SCAN_DIRS) {
       for (const file of walk(dir)) {
-        // 跳过测试文件自身 (它有 forbidden 字面在反向断言里 — 那是检测用)
+        // Skip this test file because it contains the forbidden literal for the assertion.
         if (file.endsWith('al-2a-content-lock.test.ts')) continue;
-        // 跳过 al-2a-content-lock.md 自身 (它的检查项段落在文档里 *写出*
-        // forbidden 字面作为 "❌ 不准用" 的字面引用 — 这是文档功能不是漂移).
+        // Skip al-2a-content-lock.md because it intentionally quotes the forbidden
+        // literal in a "do not use" checklist item.
         if (file.endsWith('al-2a-content-lock.md')) continue;
         let content: string;
         try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
@@ -159,7 +159,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
         }
       }
     }
-    // 0 hit — 容器 byte-identical = section, 反 md / code 漂去 form
+    // 0 hits: the container stays byte-identical as section, not form.
     expect(hits).toEqual([]);
   });
 });

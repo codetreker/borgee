@@ -30,24 +30,24 @@ const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
 const AUTH_FAILURE_CODES = new Set([4001, 4003]);
 
 /**
- * 服务器有两种 WebSocket frame 形状, 客户端 handler 只懂"平铺"形:
+ * The server emits two WebSocket frame shapes, while client handlers read the
+ * flattened shape:
  *
  *   1. `BroadcastEventToAll` (hub.go:284-289): `{type, data: payload}`
- *      其中 payload 例如 `{group: {...}}` — 这种把 payload 字段嵌在
- *      `data` 下.
+ *      where payload can be `{group: {...}}`; these payload fields are nested
+ *      under `data`.
  *   2. 直接 push frame (例如 PushArtifactUpdated, 见 cursor_test.go:175):
- *      `{type, cursor, ...fields}` — 这种 payload 字段已经平铺在顶层.
+ *      `{type, cursor, ...fields}`; these payload fields are already top-level.
  *
- * handler (handleMessage 那个 switch) 全部按"平铺"读字段
- * (data.group / data.channel / data.cursor 等). 它跟 backfill 路径
- * `{type, ...ev.payload}` 形状一致.
+ * `handleMessage` reads top-level fields such as data.group / data.channel /
+ * data.cursor. That matches the backfill path shape: `{type, ...ev.payload}`.
  *
- * 这个 helper 把两种形状都展平成一种, 让 handler 不用关心 frame 是不是
- * 走 BroadcastEventToAll 包了一层 — 拿到的永远是平铺. 这就是 #678 创建
- * 分组白屏的根本修法 (`group_created` 走 BroadcastEventToAll, 之前没展平,
- * handler 读 `data.group` 总是 undefined).
+ * This helper normalizes both shapes so handlers do not need to know whether
+ * BroadcastEventToAll wrapped the payload. This fixed #678: `group_created`
+ * used BroadcastEventToAll, so before flattening `data.group` was undefined.
  *
- * 对外 export 让单测可以直接验合约, 不需要起整个 WebSocket mock.
+ * Exported so tests can validate the contract without starting a full
+ * WebSocket mock.
  */
 export function flattenWsFrame(frame: unknown): { type: string; [key: string]: unknown } {
   if (!frame || typeof frame !== 'object') return { type: '' };
@@ -55,9 +55,10 @@ export function flattenWsFrame(frame: unknown): { type: string; [key: string]: u
   const type = typeof f.type === 'string' ? f.type : '';
   const { data: payload, ...rest } = f;
   const flatPayload = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
-  // 顺序: rest (含原 type) → flatPayload (覆盖同名 payload 字段) → type 显式
-  // 收尾确保 type 永远是 string. 如果 payload 里也带 type, 会被最后的 type
-  // 覆盖 — 这是我们想要的, type 永远从顶层来.
+  // Merge order: rest (including original type) → flatPayload (overriding
+  // same-name payload fields) → explicit type. The final type write ensures
+  // type is always a string from the top-level frame, even if payload also
+  // contains type.
   return { ...rest, ...flatPayload, type };
 }
 
@@ -277,9 +278,10 @@ export function useWebSocket() {
         break;
       }
       // AL-3.3 (#R3 Phase 2) — agent runtime presence frame.
-      // 字段白名单 (al-3.md §2.5): {agent_id, status, reason?} — 不接收 IP /
-      // last_heartbeat_at / connection_count, server 端已剥离. 5s 节流由
-      // server 端做出口侧 + 客户端 markPresence 入口侧双护栏.
+      // Field allowlist (al-3.md §2.5): {agent_id, status, reason?}. Do not
+      // accept IP / last_heartbeat_at / connection_count; the server strips
+      // them. 5s throttling is enforced on server egress and again at the
+      // client markPresence entry point.
       case 'presence.changed': {
         const agentID = data.agent_id as string | undefined;
         const status = data.status as AgentRuntimeState | undefined;
@@ -492,7 +494,7 @@ export function useWebSocket() {
       }
       case 'artifact_updated': {
         // CV-1.2 (#342): server → client signal that an artifact's head
-        // moved (commit or rollback). Envelope is signal-only (立场 ⑤),
+        // moved (commit or rollback). Envelope is signal-only (stance ⑤),
         // ArtifactPanel re-fetches GET /artifacts/:id for body+committer.
         // Schema lock: docs/blueprint/current/realtime.md §2.3 + cursor.go::ArtifactUpdatedFrame
         // (BPP-1 #304 envelope CI lint enforces byte-identical wire shape).
@@ -501,10 +503,10 @@ export function useWebSocket() {
       }
       case 'mention_pushed': {
         // DM-2.2 (#372): server → client signal that the current user has
-        // been @-mentioned in a message. Envelope is signal-only (立场 ②);
+        // been @-mentioned in a message. Envelope is signal-only (stance ②);
         // MessageList listens via useMentionPushed and refreshes the
         // channel via actions.loadMessages. body_preview is server-truncated
-        // to 80 runes — client MUST NOT re-parse it (反约束: 隐私 §13,
+        // to 80 runes; the client must not re-parse it (privacy §13 constraint,
         // full body arrives via the existing message backfill path).
         // Schema lock: docs/implementation/modules/dm-2.3-spec.md §0 立场
         // ② + mention_pushed_frame.go::MentionPushedFrame (BPP-1 #304

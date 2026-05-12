@@ -70,9 +70,10 @@ export async function logout(): Promise<void> {
 // ─── Channels ───────────────────────────────────────────
 
 export async function fetchChannels(q?: string): Promise<{ channels: Channel[]; groups: ChannelGroup[] }> {
-  // CHN-13 设计 ②: optional `q` 子串 filter — 空 q (undefined / "") 走
-  // 既有 URL `/api/v1/channels` byte-identical (grep 检查项不漂 `?q=`);
-  // q 含特殊字符走 encodeURIComponent (server LIKE 走 prepared stmt).
+  // CHN-13 design ②: optional `q` substring filter. Empty q
+  // (undefined / "") keeps the existing `/api/v1/channels` URL
+  // byte-identical so grep checks do not see a stray `?q=`. Special
+  // characters are encoded before they reach the server's prepared LIKE query.
   const url = q ? `/api/v1/channels?q=${encodeURIComponent(q)}` : '/api/v1/channels';
   return request<{ channels: Channel[]; groups: ChannelGroup[] }>(url);
 }
@@ -115,9 +116,9 @@ export async function archiveChannel(channelId: string, archived: boolean): Prom
   return updateChannel(channelId, { archived });
 }
 
-// CHN-7: mute / unmute a channel for the current user. user-rail only;
-// admin god-mode 不挂 (ADM-0 §1.3 红线 + 设计 ②). Server toggles bit 1
-// of user_channel_layout.collapsed (bit 0 preserved for CHN-3 collapse).
+// CHN-7: mute / unmute a channel for the current user. User API only;
+// no admin bypass route (ADM-0 §1.3 redline + design ②). Server toggles bit 1
+// of user_channel_layout.collapsed and preserves bit 0 for CHN-3 collapse.
 export async function muteChannel(channelId: string, muted: boolean): Promise<{ collapsed: number; muted: boolean }> {
   const method = muted ? 'POST' : 'DELETE';
   return request<{ collapsed: number; muted: boolean }>(`/api/v1/channels/${channelId}/mute`, {
@@ -126,9 +127,9 @@ export async function muteChannel(channelId: string, muted: boolean): Promise<{ 
 }
 
 // CHN-9: set channel visibility (one of 'creator_only' / 'private' /
-// 'public'). user-rail only — owner-only via existing channel.manage_visibility
-// permission (CHN-1.2 既有 ACL byte-identical 不动). admin god-mode 不挂
-// (ADM-0 §1.3 红线). 单源调用 updateChannel 路径.
+// 'public'). User API only, owner-only via the existing
+// channel.manage_visibility permission. Keep the CHN-1.2 ACL byte-identical;
+// there is no admin bypass route (ADM-0 §1.3 redline). Reuse updateChannel.
 export async function setChannelVisibility(
   channelId: string,
   visibility: import('./visibility').ChannelVisibility,
@@ -144,10 +145,10 @@ export async function listArchivedChannels(): Promise<Channel[]> {
   return data.channels;
 }
 
-// CHN-6: pin / unpin a channel for the current user. user-rail only;
-// admin god-mode 不挂 (ADM-0 §1.3 红线 + 设计 ②). Server stamps
-// position = -(nowMs) on pin / max(positive)+1.0 on unpin (跟 CHN-3.3
-// MIN-1.0 单调小数模式互补).
+// CHN-6: pin / unpin a channel for the current user. User API only;
+// no admin bypass route (ADM-0 §1.3 redline + design ②). Server stamps
+// position = -(nowMs) on pin and max(positive)+1.0 on unpin, complementing
+// the CHN-3.3 MIN-1.0 monotonic decimal ordering model.
 export async function pinChannel(channelId: string, pinned: boolean): Promise<{ position: number; pinned: boolean }> {
   const method = pinned ? 'POST' : 'DELETE';
   return request<{ position: number; pinned: boolean }>(`/api/v1/channels/${channelId}/pin`, {
@@ -155,8 +156,8 @@ export async function pinChannel(channelId: string, pinned: boolean): Promise<{ 
   });
 }
 
-// CHN-8: set notification preference for a channel. user-rail only;
-// admin god-mode 不挂 (ADM-0 §1.3 红线 + 设计 ②). pref ∈ {'all', 'mention', 'none'}.
+// CHN-8: set notification preference for a channel. User API only;
+// no admin bypass route (ADM-0 §1.3 redline + design ②). pref ∈ {'all', 'mention', 'none'}.
 export async function setNotificationPref(
   channelId: string,
   pref: NotifPref,
@@ -285,7 +286,7 @@ export async function fetchMessages(
 // disconnect window. Server contract (server-go internal/api/poll.go
 // handleEventsBackfill): returns ONLY events with `cursor > since`,
 // scoped to the user's channel membership, in cursor-ASC order. The
-// reverse约束 (RT-1 spec §1.2) is "do NOT default to full history" —
+// reverse constraint (RT-1 spec §1.2) is "do NOT default to full history" —
 // callers MUST pass an explicit `since` (= last_seen_cursor); the
 // server treats `since=0` as "give me everything you have for this
 // user from cursor 1" but the client's own gating (only call after a
@@ -481,9 +482,10 @@ export async function getMessageReactions(messageId: string): Promise<{ reaction
 
 // ─── Agents ────────────────────────────────────────────
 
-// AL-1a (#R3 Phase 2) — runtime 三态 + 故障原因码.
-// 文案锁见 packages/client/src/lib/agent-state.ts (野马 #190 §11).
-// state 字段 server 总是 emit (online/offline/error); reason 仅 error 态有.
+// AL-1a (#R3 Phase 2) — runtime tri-state plus failure reason code.
+// Locked labels live in packages/client/src/lib/agent-state.ts (#190 §11).
+// The server always emits state (online/offline/error); reason is present
+// only for the error state.
 // AL-1b (#R3 Phase 4) 扩 'busy' / 'idle' — server GET /agents/:id/status 5-state
 // 合并优先级 (error > busy > idle > online > offline), 见 al-1b-spec.md §1.
 export type AgentRuntimeState = 'online' | 'offline' | 'error' | 'busy' | 'idle';
@@ -514,21 +516,22 @@ export interface Agent {
 }
 
 // AL-4 (#313 v0 / #379 v2) — agent_runtimes registry. Schema source:
-// PR #398 migration v=16 (战马C, in-flight) — `agent_runtimes(id PK,
+// PR #398 migration v=16 — `agent_runtimes(id PK,
 // agent_id NOT NULL UNIQUE, endpoint_url, process_kind, status,
 // last_error_reason, last_heartbeat_at, created_at, updated_at)`.
-// Server API: AL-4.2 战马E in-flight — POST /agents/:id/runtime/start
+// Server API: AL-4.2 — POST /agents/:id/runtime/start
 // + /stop + GET surfaces a single row per agent (蓝图 §2.2 v1 边界
 // "不优化多 runtime 并行" + UNIQUE(agent_id) 字面).
 //
 // AL-4.3 client UI consumes this shape; runtime-not-yet-registered
 // agents → server 404 → UI hides the start/stop card surface entirely
-// (graceful degrade, 反约束 设计 ① "Borgee 不带 runtime" — 没注册的
-// agent 不假装有 runtime).
+// (graceful degradation, design ① "Borgee 不带 runtime": unregistered
+// agents should not pretend to have a runtime).
 
-// AgentRuntimeStatus is the 4-态 process-level enum (v=16 schema
-// CHECK). 反约束 (野马 #321 §2): v0 不开 'starting' / 'stopping' /
-// 'restarting' 中间态 — start/stop 走 同步 API, 直接 UPDATE status.
+// AgentRuntimeStatus is the four-state process-level enum (v=16 schema
+// CHECK). Constraint (#321 §2): v0 does not expose 'starting' / 'stopping' /
+// 'restarting' intermediate states; start/stop use the synchronous API and
+// directly UPDATE status.
 export type AgentRuntimeStatus = 'registered' | 'running' | 'stopped' | 'error';
 
 // AgentRuntimeProcessKind — v1 仅 'openclaw' (蓝图 §2.2 边界字面),
@@ -548,8 +551,9 @@ export interface AgentRuntime {
 }
 
 // fetchAgentRuntime returns the runtime row for the agent, or null if
-// no runtime is registered (server 404). 反约束 设计 ① "Borgee 不带
-// runtime" — 没注册的 agent 不假装 (graceful degrade UI omit the card).
+// no runtime is registered (server 404). Design ① "Borgee 不带 runtime":
+// unregistered agents should not pretend to have a runtime, so the UI omits
+// the card.
 //
 // Returns null on 404 specifically (not other errors) so the UI can
 // distinguish "no runtime registered yet" (show Register CTA stub) from
@@ -566,7 +570,7 @@ export async function fetchAgentRuntime(agentId: string): Promise<AgentRuntime |
 
 // startAgentRuntime / stopAgentRuntime — owner-only writes
 // (RequirePermission 'agent.runtime.control', AL-4.2 server). Non-owner
-// → 403; admin → 401 (god-mode 不入写, ADM-0 §1.4 红线). Both endpoints
+// → 403; admin → 401 (no admin bypass writes, ADM-0 §1.4 redline). Both endpoints
 // return the updated runtime row (#379 v2 §1 拆段 AL-4.2).
 export async function startAgentRuntime(agentId: string): Promise<AgentRuntime> {
   const data = await request<{ runtime: AgentRuntime }>(

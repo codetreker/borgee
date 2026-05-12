@@ -1,7 +1,8 @@
 // useUserLayout.ts — CHN-3.3 client SPA personal layout hook.
 //
 // Spec: docs/implementation/modules/chn-3-spec.md §1 CHN-3.3 段 + §0
-// 立场 ⑥ "ordering 是 client 端事" + #366 立场 ⑥ "GET-PUT loading is separate from push".
+// stance ⑥ "ordering is handled on the client" + #366 stance ⑥
+// "GET-PUT loading is separate from push".
 // Server: packages/server-go/internal/api/layout.go (#412, stacked off
 // CHN-3.1 schema v=19).
 // Content lock: docs/qa/chn-3-content-lock.md §1 ④ (failure toast 文案
@@ -10,20 +11,20 @@
 //
 // Behavior:
 //   1. On mount, GET /me/layout once — populate local layout map keyed
-//      by channel_id. 偏好缺失 → fallback 作者侧顺序 (立场 ② 同 #366
-//      "偏好缺失 = fallback 作者顺序").
+//      by channel_id. Missing preferences fall back to the author-side order
+//      (stance ②, same as #366 "missing preference = fallback author order").
 //   2. setCollapsed(channelId, collapsed) / pinChannel(channelId) /
 //      reorder(channelId, newPosition) write to local state immediately
-//      (optimistic) and queue a debounced PUT (200ms, 跟 #366 立场 ⑥
-//      "拖拽完成立即 PUT debounce 200ms" + acceptance §3.5 同源).
+//      (optimistic) and queue a debounced PUT (200ms, aligned with #366 stance ⑥
+//      "PUT immediately after drag completion with 200ms debounce" + acceptance §3.5).
 //   3. PUT failure → toast "侧栏顺序保存失败, 请重试" byte-identical
 //      (#371 / acceptance §3.5 / #402 ④ / #412 server const 5 源).
 //      Layout state rolled back to last server-confirmed snapshot.
 //
-// 反约束:
-//   - Do not subscribe to a push frame (#366 立场 ⑥ + #371 立场
-//     ③ + 文案锁 ⑥; reverse grep frame name in ws/ count==0).
-//   - 不缓存到 IndexedDB (v3+ 留账; #366 立场 ⑥ + 文案锁 ⑥).
+// Constraints:
+//   - Do not subscribe to a push frame (#366 stance ⑥ + #371 stance
+//     ③ + content-lock ⑥; reverse grep frame name in ws/ count==0).
+//   - Do not cache in IndexedDB (tracked for v3+; #366 stance ⑥ + content-lock ⑥).
 //   - pin is computed client-side: position = MIN(已有 position) - 1.0, using
 //     a smaller numeric position each time (立场 ③ + 文案锁 ③; server 不算 MIN-1.0 反约束 #412 注释).
 
@@ -88,7 +89,7 @@ export function useUserLayout() {
     } catch (err) {
       // 立场 ⑥: failure toast must stay byte-identical, then roll back state.
       // ApiError carries status — we don't show raw error.message (隐私 +
-      // UX 反约束 文案锁 ④).
+      // UX constraint, content-lock ④).
       const _ = err instanceof ApiError ? err.status : 0;
       showToast(LAYOUT_SAVE_TOAST);
       // Rollback dirty rows to confirmed snapshot.
@@ -138,8 +139,8 @@ export function useUserLayout() {
   /**
    * pinChannel — 立场 ③ + 文案锁 ③: position = MIN(已有 position) - 1.0,
    * using a smaller numeric position each time. This moves the channel to the front of the current layout.
-   * Multiple pins are allowed (#366 立场 ③ "个人 pin 数量不限"). 反约束: 不裂 pinned BOOL 双源
-   * 排序 (反向 grep `pinned\s+BOOL` 0 hit).
+   * Multiple pins are allowed (#366 stance ③ "个人 pin 数量不限"). Constraint: do not split
+   * ordering into a second pinned BOOL source (reverse grep `pinned\s+BOOL` 0 hit).
    */
   const pinChannel = useCallback(
     (channelId: string) => {
