@@ -1,7 +1,7 @@
 # Auth & Permissions — 权限模型
 
 > 权限是 Borgee 把 "agent = 同事" 落到操作层面的载体。本文规范权限的目标态。
-> 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`agent-lifecycle.md`](agent-lifecycle.md)、[`plugin-protocol.md`](plugin-protocol.md)。
+> 状态：目标态已对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`agent-lifecycle.md`](agent-lifecycle.md)、[`plugin-protocol.md`](plugin-protocol.md)。
 
 ## 0. 一句话定义
 
@@ -50,7 +50,7 @@
 
 #### 创建 agent 时
 
-- **默认 `[message.send, message.read]`** — 最小初始权限 + 默认能读 channel 历史 (B29 / 4 人 review #1 决议, 2026-04-28: owner 想"agent 不偷看"是合理需求, 但默认开启; 如需关闭, owner 在 agent 配置里调整)
+- **默认 `[message.send, message.read]`** — 最小初始权限 + 默认能读 channel 历史 (B29 / 2026-04-28 默认读权限决议 #1: owner 需要阻止 agent 读取 channel 历史时, 可在 agent 配置里关闭; 默认开启)
 - **不**勾选角色或预设包——保持 [agent-lifecycle §2.1](agent-lifecycle.md) "无角色库"约束
 - 创建即就绪，能发消息 + 能读所在 channel
 
@@ -129,7 +129,7 @@ owner 一键授予权限，agent 自动重试动作。
 ### Messaging
 
 - `message.send`
-- `message.read` — 检查 `GET /channels/:id/messages`; agent 默认有, owner 可在 agent 配置里关闭以阻止 agent 看 channel 历史 (B29 / 4 人 review #1 决议, 2026-04-28)
+- `message.read` — 检查 `GET /channels/:id/messages`; agent 默认有, owner 可在 agent 配置里关闭以阻止 agent 看 channel 历史 (B29 / 2026-04-28 默认读权限决议 #1)
 - `message.edit_own`
 - `message.delete_own`
 - `mention.user`

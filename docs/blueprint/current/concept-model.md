@@ -1,7 +1,7 @@
 # Concept Model — 组织、人、agent
 
 > Borgee 的核心建模单位是**组织**，不是单个 user。本文是对系统的概念层定义，是其它设计文档的前置阅读。
-> 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。
+> 状态：目标态已对齐（2026-04-27）。
 
 ## 0. 一句话定义
 
@@ -35,7 +35,7 @@
 ### 1.3 Agent 间独立协作允许，但有边界
 
 - 飞马 @ 野马在同一 channel 协作合法，**owner 不必在场**——这是"同事"定位的必然推论。
-- **协作的最小可观测语义 (烈马 R2 锁定)**: 协作 = message 路径 + capability 调用 (留下审计日志), **不含** secret 共享 / 凭证传递。任何超出此边界的"协作"按扩权处理。
+- **协作的最小可观测语义 (R2 决议)**: 协作 = message 路径 + capability 调用 (留下审计日志), **不含** secret 共享 / 凭证传递。任何超出此边界的"协作"按扩权处理。
 - **边界：协作可以，扩权不行。** Agent 不能主动发起需要 owner 授权的动作（如邀请第三方 agent 进新 channel、修改自己的权限范围、把资源转移给 owner 之外的人）。
 
 ### 1.4 主体验：团队感知 + DM 对话
@@ -96,7 +96,7 @@
 
 ### 4.1 离线 fallback 规则（已落定）
 
-**决策（飞马 + 野马 2026-04-27）**：选 B（实用主义），既不让 owner 失明（破坏体验），也不让原始消息泄露（破坏 agent 隐私边界）。
+**决策（2026-04-27）**：选 B（实用主义），既不让 owner 失明（破坏体验），也不让原始消息泄露（破坏 agent 隐私边界）。
 
 - **触发条件**：mention 路由层判定目标 agent 当前**没有 active session**（无 WS / plugin / poll 连接）。
 - **行为**：给 agent 的 owner 写一条 `type=system` message 到 owner 与该 agent 之间的内置 DM 频道，文本形如"飞马 当前离线，#foo 中有人 @ 了它，你可能需要处理"。
@@ -107,7 +107,7 @@
 
 ### 4.2 跨 org 邀请 agent 进 channel（已落定）
 
-**决策（飞马 + 野马 2026-04-27）**：默认 B（异步邀请审批） + 可选 C（agent 级别例外开关）。
+**决策（2026-04-27）**：默认 B（异步邀请审批） + 可选 C（agent 级别例外开关）。
 
 - **默认流程（B）**：
   1. 任何 channel 成员触发"邀请 X org 的 agent"。
@@ -156,14 +156,14 @@
 | Human user | `users` 行，`role IN ('member','agent')` (注: 不含 admin — admin 是平台运维角色, 走独立 `admins` 表 + 独立 cookie path, 不在协作圈, 详见 [`admin-model.md`](admin-model.md) §3) |
 | Agent | `users` 行，`role='agent'`，`owner_id` 必填 |
 | Owner | `users.owner_id` → 同 org 内的人类 |
-| Admin | `admins` 行 (独立表), env bootstrap 第一个; 走 `/admin-api/auth/login` 独立 cookie; 永远不出现在 `users` 表 (4 人 review 2026-04-28 立场冲突 #2 决议: B29 路线) |
+| Admin | `admins` 行 (独立表), env bootstrap 第一个; 走 `/admin-api/auth/login` 独立 cookie; 永远不出现在 `users` 表 (2026-04-28 原则冲突 #2 决议: B29 路线) |
 | Cross-org collaboration | 多 org 成员同处一个 `channel_members` |
 | Agent 代表自己 | mention/DM/通知按 sender_id 路由，不展开到 owner |
 | 资源归属 | `created_by` 字段；将来用 `org_id` 直查 |
 
 ## 10. 新用户第一分钟旅程 (Onboarding 硬产出)
 
-> **2026-04-28 4 人 review #6 决议 (野马 + 飞马盲点 B 联合)**: 缺端到端"新用户第一分钟"旅程 = §1.4 团队感知主体验体感断档。**注册路径硬产出**: 业主第一分钟必须看到非空屏。
+> **2026-04-28 onboarding 决议 #6**: 缺端到端"新用户第一分钟"旅程 = §1.4 团队感知主体验缺口。**注册路径硬产出**: 业主第一分钟必须看到非空屏。
 
 ### 必落硬产出 (CM-onboarding milestone)
 
@@ -174,14 +174,14 @@
 3. **auto-write 1 条 system message** 到 `#welcome`: "欢迎! 试试创建你的第一个 agent 协作伙伴 →"
 4. **auto-select** `#welcome` 作为业主登录后的默认进入 channel (App.tsx 现状显示空屏要改)
 
-### 完整 onboarding journey (野马补 doc 路径)
+### 完整 onboarding journey (落地文档路径)
 
-> 野马 1 周内出 `docs/implementation/00-foundation/onboarding-journey.md`, 含以下 5 步 + error/empty/skip 三态:
+> 需交付 `docs/implementation/00-foundation/onboarding-journey.md`, 含以下 5 步 + error/empty/skip 三态:
 >
 > 1. 注册成功 → 默认进 `#welcome` system channel (空 org 不是空白)
 > 2. 收到 system message "你的第一个 agent 还没创建, 试试?"
 > 3. 创建 agent 流程 (3 步内, host-bridge 装时不问, §1.3)
 > 4. agent 上线 → 左栏出现 + subject 文案 ("正在熟悉环境")
-> 5. **产品口播**: "未来你会看到 agent 互相协作" (§1.3 体感断档兜底, 野马盲点 B2 — agent↔agent 在 CM-5/Phase 4, 中间 6 个月不能让用户感觉 agent 是单兵木偶)
+> 5. **产品口播**: "未来你会看到 agent 互相协作" (§1.3 团队感知兜底; agent↔agent 在 CM-5/Phase 4, 中间 6 个月不能让用户误解 agent 只能单独执行任务)
 
-野马签字 `onboarding-journey.md` + 飞马/战马反推产品界面缺口 + 建军签字确认 → 进 Phase 2 验收。
+完成 `onboarding-journey.md` + 反推产品界面缺口 + 最终确认 → 进 Phase 2 验收。
