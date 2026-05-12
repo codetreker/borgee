@@ -1,24 +1,25 @@
-// tests/comment-markdown-render.spec.ts — comment markdown 渲染 + sanitize.
+// tests/comment-markdown-render.spec.ts — comment markdown rendering + sanitize.
 //
-// 状态: SKIP+followup (gh#716 + gh#724 §1).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1.
 //
-// 跳过原因: ArtifactCommentBody 在 client SPA 当前没有 production mount,
-// 走真 UI 路径不可达. 现 spec 走 REST 直调 + page.evaluate 调内部 lib
-// (反模式 F3+F4), 不算 e2e. v2 mount 后 unskip + 改真 UI 输入 + DOM 断渲染.
+// Skip reason: ArtifactCommentBody currently has no production mount in the client SPA,
+// so the real UI path is unreachable. This spec currently uses direct REST calls plus page.evaluate against an internal library,
+// which makes it a backend/client contract check rather than an e2e test. After the v2 mount lands,
+// unskip and convert it to real UI input plus DOM rendering assertions.
 //
-// 3 case (v2 unskip 时验):
-//   - server 存 raw markdown, POST → GET round-trip 字面相等 (无后端渲染)
-//   - client renderMarkdown 真渲染, DOM 含 strong / em / code 元素
-//   - sanitize 防 XSS: <script> 输入后 DOM 内 0 个 script 元素
+// 3 cases to verify after v2 unskip:
+//   - Server stores raw markdown; POST → GET round-trip remains byte-identical with no server-side rendering
+//   - Client renderMarkdown renders strong / em / code elements in the DOM
+//   - Sanitizer blocks XSS: after <script> input, the DOM contains 0 script elements
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/cv-11.md §3
-//   - 单测: vitest ArtifactCommentBody.test.tsx (DOM / sanitize 锁)
-//   - 后续: gh#724 §1 (mount)
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/cv-11.md §3
+//   - Unit test: vitest ArtifactCommentBody.test.tsx (DOM / sanitize lock)
+//   - Follow-up: gh#724 §1 (mount)
 //
-// 实施约束 (unskip 后):
-//   - 真 UI 走浏览器 (textarea input + DOM 断)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints after unskip:
+//   - Browser-driven UI path (textarea input + DOM assertions).
+//   - Do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 
 import { test, expect, request as apiRequest } from '@playwright/test';
 
@@ -81,7 +82,7 @@ test.describe.skip('comment markdown 渲染 (gh#716 SKIP+followup, 等 v2 mount 
     // (lightweight browser check; the strict lock is the vitest unit suite).
     //
     // Practical check: page loads without error, the client module bundle
-    // includes 'marked' and 'dompurify' (反向断 spec lib 单源).
+    // includes 'marked' and 'dompurify', preserving the spec's single library source.
     const html = await page.content();
     expect(html.length).toBeGreaterThan(0);
   });

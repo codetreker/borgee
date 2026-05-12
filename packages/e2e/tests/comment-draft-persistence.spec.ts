@@ -1,26 +1,25 @@
-// tests/comment-draft-persistence.spec.ts — comment 草稿 localStorage 持久化 + 离开提醒.
+// tests/comment-draft-persistence.spec.ts — comment draft localStorage persistence + leave warning.
 //
-// 状态: SKIP+followup (gh#716 + gh#724 §1).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1.
 //
-// 跳过原因: ArtifactCommentDraftInput 在 client SPA 当前没有 production
-// mount, 走真 UI 路径不可达. 现 spec 走 page.evaluate(localStorage)
-// 模拟浏览器层 unsaved-state, 不是真 UI input/click 路径 (反模式 F2 边界).
-// v2 ArtifactComments mount 落地后 unskip + 改真 textarea input + reload
-// + DOM 断.
+// Skip reason: ArtifactCommentDraftInput currently has no production mount in the client SPA,
+// so the real UI path is unreachable. This spec currently uses page.evaluate(localStorage)
+// to simulate browser unsaved-state behavior, which is not a real UI input/click path.
+// After the v2 ArtifactComments mount lands, unskip and convert it to real textarea input + reload + DOM assertions.
 //
-// 3 case (v2 unskip 时验):
-//   - 输入 → reload → localStorage 仍持有 draft
+// 3 cases to verify after v2 unskip:
+//   - Input → reload → localStorage still contains draft
 //   - submit → localStorage 清空
-//   - 含未保存草稿离开页面: 单测层覆盖 prompt, e2e 仅断 key 仍存在
+//   - Leaving with an unsaved draft: unit tests cover the prompt; e2e only asserts the key still exists
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/cv-10.md §2
-//   - 单测: vitest ArtifactCommentDraftInput.test.tsx
-//   - 后续: gh#724 §1 (mount)
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/cv-10.md §2
+//   - Unit test: vitest ArtifactCommentDraftInput.test.tsx
+//   - Follow-up: gh#724 §1 (mount)
 //
-// 实施约束 (unskip 后):
-//   - 真 textarea input + reload + DOM 断
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints after unskip:
+//   - Real textarea input + reload + DOM assertions.
+//   - Do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 
 import { test, expect } from '@playwright/test';
 
@@ -42,7 +41,7 @@ test.describe.skip('comment 草稿持久化 (gh#716 SKIP+followup, 等 v2 mount 
     const draftBody = 'unsaved review of section 2 lock TTL';
 
     // Simulate hook write (CV-10 hook writes localStorage with this exact
-    // key namespace 跟 cv-10-content-lock §3 byte-identical).
+    // key namespace remains byte-identical with cv-10-content-lock §3).
     await page.evaluate(([k, v]) => {
       localStorage.setItem(k, v);
     }, [key, draftBody]);

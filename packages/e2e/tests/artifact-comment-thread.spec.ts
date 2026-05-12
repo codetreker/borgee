@@ -1,25 +1,25 @@
-// tests/artifact-comment-thread.spec.ts — artifact comment 主流 (人评论 / agent reject / 跨频道 / cursor / admin god-mode 隔离).
+// tests/artifact-comment-thread.spec.ts — artifact comment main path (human comments / agent reject / cross-channel / cursor / admin isolation).
 //
-// 状态: SKIP+followup (gh#716 + gh#724 §1).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1.
 //
-// 跳过原因: ArtifactComments 系列在 client SPA 当前没有 production mount,
-// 走 page.click + DOM 断的真 UI 路径还跑不通. 现 spec 走 REST 直调后端,
-// 算后端 contract test (反模式 F3), 不算 e2e. 等 v2 ArtifactComments 系列
-// UI 落地后, 这里改 page.click + DOM 断真验, 同时 unskip.
+// Skip reason: ArtifactComments currently has no production mount in the client SPA,
+// so the browser path using page.click and DOM assertions is not reachable. This spec currently calls the backend through REST,
+// which makes it a backend contract test rather than an e2e test. After the v2 ArtifactComments UI lands,
+// convert this to page.click plus DOM assertions and unskip it.
 //
-// 测试范围 (v2 mount 后 unskip 时验):
-//   - 人评论 round-trip (POST 后 GET 返回, channel_id 在 artifact: 命名空间)
+// Test scope after v2 mount and unskip:
+//   - Human comment round-trip (POST then GET returns it, channel_id remains in the artifact namespace)
 //   - agent thinking subject 必带, 5 模式 reject 400
-//   - 跨频道非成员访问 → 403
-//   - cursor 单调递增 (跟 RT-1.1 ArtifactUpdated 共序)
-//   - admin god-mode 不消费此 frame, GET /api/v1/artifacts/:id/comments 不挂 admin
+//   - Cross-channel non-member access returns 403
+//   - Cursor increases monotonically and shares ordering with RT-1.1 ArtifactUpdated
+//   - Admin routes do not consume this frame; GET /api/v1/artifacts/:id/comments is not registered under admin
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/cv-5.md §3
-//   - 后续: gh#724 §1 (ArtifactComments 系列 v2 mount)
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/cv-5.md §3
+//   - Follow-up: gh#724 §1 (ArtifactComments v2 mount)
 //
-// 实施约束 (unskip 后):
-//   - 真 UI 走浏览器, 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints after unskip:
+//   - Browser-driven UI path; do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
@@ -117,7 +117,7 @@ test.describe.skip('artifact comments 主流 (gh#716 SKIP+followup, 等 v2 mount
       /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9A-HJKMNP-TV-Z]{26})$/i,
     );
 
-    // GET list returns it (立场 ① comment 落 messages 表 → list 拉得到).
+    // GET list returns it because comments are stored in messages and must be listable.
     const list = await owner.ctx.get(`/api/v1/artifacts/${artId}/comments`);
     expect(list.ok()).toBe(true);
     const j = (await list.json()) as { comments: Array<{ id: string; body: string }> };
@@ -207,7 +207,7 @@ test.describe.skip('artifact comments 主流 (gh#716 SKIP+followup, 等 v2 mount
     });
     expect(commit.ok(), `commit: ${commit.status()} ${await commit.text()}`).toBe(true);
 
-    // Now post 3 comments and assert cursor monotonic (RT-3 共序锚).
+    // Now post 3 comments and assert cursor monotonicity for the RT-3 shared ordering point.
     let prev = 0;
     for (let i = 0; i < 3; i++) {
       const r = await owner.ctx.post(`/api/v1/artifacts/${artId}/comments`, {

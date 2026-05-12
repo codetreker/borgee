@@ -1,25 +1,26 @@
-// tests/comment-thread-reply.spec.ts — comment thread 回复 (深度限 + 类型校验 + 跨频道).
+// tests/comment-thread-reply.spec.ts — comment thread replies (depth limit + type validation + cross-channel access).
 //
-// 状态: SKIP+followup (gh#716 + gh#724 §1).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1.
 //
-// 跳过原因: ArtifactComments 系列 client UI 0 production mount, 走真 UI
-// 路径不可达. 现 spec 走 REST 直调后端 (反模式 F3), 不算 e2e.
-// v2 ArtifactComments mount 落地后 unskip + 改 page.click + DOM 断.
+// Skip reason: ArtifactComments currently has no production mount in the client SPA,
+// so the real UI path is unreachable. This spec currently calls the backend through REST,
+// which makes it a backend contract test rather than an e2e test.
+// After the v2 ArtifactComments mount lands, unskip and convert it to page.click plus DOM assertions.
 //
-// 6 case (v2 unskip 时验):
-//   - 人在 artifact_comment 类型父消息上回复 (POST 200 + reply_to_id 链接)
-//   - agent 回复 thinking 触发 4 模式校验 reject
+// 6 cases to verify after v2 unskip:
+//   - Human replies to an artifact_comment parent message (POST 200 + reply_to_id links)
+//   - Agent reply with thinking placeholder triggers placeholder-pattern validation reject
 //   - 回复回复 (depth=2) → 400 comment.thread_depth_exceeded
 //   - 回复纯文本消息 → 400 comment.reply_target_invalid
-//   - 跨频道非成员回复 → 403
-//   - 反向: 非 comment 类型消息回复不创出 thread
+//   - Cross-channel non-member reply → 403
+//   - Non-comment message types cannot create a thread
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/cv-8.md §3
-//   - 后续: gh#724 §1 (mount)
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/cv-8.md §3
+//   - Follow-up: gh#724 §1 (mount)
 //
-// 实施约束 (unskip 后):
-//   - 真 UI 走浏览器, 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints after unskip:
+//   - Browser-driven UI path; do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 

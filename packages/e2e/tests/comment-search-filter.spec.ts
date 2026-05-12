@@ -1,24 +1,24 @@
-// tests/comment-search-filter.spec.ts — comment 搜索关键字过滤 + 跨频道防越权.
+// tests/comment-search-filter.spec.ts — comment keyword search + cross-channel access control.
 //
-// 状态: SKIP+followup (gh#716 + gh#724 §1).
+// Status: skipped with follow-up work tracked in gh#716 + gh#724 §1.
 //
-// 跳过原因: ArtifactCommentSearchBox 在 client SPA 当前没有 production
-// mount, 走真 UI 路径不可达. 现 spec 走 REST 直调后端 (反模式 F3),
-// 不算 e2e. v2 ArtifactComments mount 落地后 unskip + 改 page.fill +
-// DOM 断结果列表.
+// Skip reason: ArtifactCommentSearchBox currently has no production mount in the client SPA,
+// so the real UI path is unreachable. This spec currently calls the backend through REST,
+// which makes it a backend contract test rather than an e2e test. After the v2 ArtifactComments mount lands,
+// unskip and convert it to page.fill plus DOM assertions on the results list.
 //
-// 3 case (v2 unskip 时验):
-//   - seed 3 条消息 → 搜 "needle" → 1 hit
+// 3 cases to verify after v2 unskip:
+//   - Seed 3 messages → search "needle" → 1 hit
 //   - 搜 "absent-xyz" → 0 hit
-//   - 跨频道非成员搜索 → 403
+//   - Cross-channel non-member search → 403
 //
-// 关联文档:
-//   - 验收: docs/_archive/qa/acceptance-templates/cv-12.md §3
-//   - 后续: gh#724 §1 (mount)
+// Related docs:
+//   - Acceptance: docs/_archive/qa/acceptance-templates/cv-12.md §3
+//   - Follow-up: gh#724 §1 (mount)
 //
-// 实施约束 (unskip 后):
-//   - 真 UI 走浏览器 (search input + DOM 断结果)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints after unskip:
+//   - Browser-driven UI path (search input + DOM assertions on results).
+//   - Do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
 
 const ADMIN_LOGIN = 'e2e-admin';
