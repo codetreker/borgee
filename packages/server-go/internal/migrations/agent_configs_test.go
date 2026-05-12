@@ -22,7 +22,7 @@ func runAL2A1(t *testing.T, db *gorm.DB) {
 
 // TestAL_CreatesAgentConfigsTable pins acceptance §数据契约 row 1: the
 // table has the contract columns (agent_id PK / schema_version int / blob
-// JSON / updated_at) with the right NOT NULL shape. 脱节 here breaks
+// JSON / updated_at) with the right NOT NULL shape. Drift here breaks
 // AL-2a.2 PATCH /api/v1/agents/:id/config or 4.1.a 并发 update schema_
 // version 严格递增 implementation. 跟 CHN-3.1 #410
 // TestCHN31_CreatesUserChannelLayoutTable 同模式.
@@ -60,7 +60,7 @@ func TestAL_CreatesAgentConfigsTable(t *testing.T) {
 
 // TestAgentConfigs_NoDomainBleed pins acceptance §数据契约 row 2 反向约束 — 列名
 // 反向断言: runtime-only 字段不在 schema 层 (blob TEXT JSON, runtime 校验
-// 走 AL-2a.2 server REST API 层 + 4.1.c reflect scan); cursor 不挂
+// 走 AL-2a.2 server REST API 层 + 4.1.c reflect scan); cursor 不添加
 // (AL-2a 不含 BPP frame, 蓝图 §1.5); org_id 不重复持有 (走 users.org_id
 // 单一来源).
 func TestAgentConfigs_NoDomainBleed(t *testing.T) {
@@ -76,8 +76,8 @@ func TestAgentConfigs_NoDomainBleed(t *testing.T) {
 		"temperature",
 		"token_limit",
 		"retry_policy",
-		// AL-2a 不含 BPP frame (蓝图 §1.5, 走轮询 reload 不挂 push frame),
-		// schema 不挂 cursor (跟 al_3_1 / al_4_1 / cv_1_1 / cv_2_1 /
+		// AL-2a 不含 BPP frame (蓝图 §1.5, 走轮询 reload 不添加 push frame),
+		// schema 不添加 cursor (跟 al_3_1 / al_4_1 / cv_1_1 / cv_2_1 /
 		// dm_2_1 / cv_4_1 / chn_3_1 同模式).
 		"cursor",
 		// org 隔离走 server-side ACL (users.org_id 单一来源 CM-1 #176), schema
@@ -123,8 +123,8 @@ func TestAL_PKEnforcesSingleRowPerAgent(t *testing.T) {
 }
 
 // TestAL_AcceptsMonotonicSchemaVersion pins acceptance §行为不变量
-// 4.1.a — schema_version 单调递增. INSERT 不同 version 值; schema 不挂
-// CHECK constraint (留 server 校验 server-stamp 递增, 跟 CHN-3.1 position
+// 4.1.a — schema_version 单调递增. INSERT 不同 version 值; schema 不添加
+// CHECK constraint (server 校验 server-stamp 递增, 跟 CHN-3.1 position
 // REAL 同模式 — schema 受值, server 算).
 func TestAL_AcceptsMonotonicSchemaVersion(t *testing.T) {
 	t.Parallel()
@@ -145,7 +145,7 @@ func TestAL_AcceptsMonotonicSchemaVersion(t *testing.T) {
 }
 
 // TestAgentConfigs_HasAgentIDIndex pins acceptance §数据契约 row 1 — 显式命名
-// idx_agent_configs_agent_id (PATCH/GET /api/v1/agents/:id/config 热路径,
+// idx_agent_configs_agent_id (PATCH/GET /api/v1/agents/:id/config hot path,
 // 单一来源 lookup). 跟 AL-4.1 #398 TestAL41_HasAgentIDIndex / CHN-3.1 #410
 // TestCHN31_HasUserIDIndex 同模式.
 func TestAgentConfigs_HasAgentIDIndex(t *testing.T) {

@@ -6,13 +6,13 @@ import "gorm.io/gorm"
 //
 // Spec: docs/implementation/modules/dl-2-spec.md §1 DL2.1.
 // Blueprint: data-layer.md §4.A.4 (蓝图 §3.4 必落 4 类: perm grant/revoke /
-// impersonate / agent state / admin force action — 全 global-scoped 不绑
+// impersonate / agent state / admin force action — all global-scoped, not bound to
 // channel).
 //
 // Schema (v=47, global-scoped events):
 //   - lex_id      TEXT NOT NULL PRIMARY KEY  (ULID, monotonic)
 //   - kind        TEXT NOT NULL              (e.g. "perm.grant", "impersonate.start")
-//   - payload     TEXT NOT NULL DEFAULT ''   (JSON-serialized event body)
+//   - payload     TEXT NOT NULL DEFAULT ”   (JSON-serialized event body)
 //   - created_at  INTEGER NOT NULL           (UnixMilli)
 //   - retention_days INTEGER                 (NULL = use sweeper default)
 //
@@ -21,8 +21,8 @@ import "gorm.io/gorm"
 //   - idx_global_events_created  (created_at) — sweeper scan
 //
 // 反约束 (dl-2-spec.md §0):
-//   - 跟 channel_events 各自单表分立 (channel-scoped vs global-scoped, 反
-//     混表抓不到隐私契约 4 类必落).
+//   - 跟 channel_events 各自单表分立 (channel-scoped vs global-scoped, so
+//     privacy contracts for the 4 required event classes stay enforceable).
 //   - retention_days NULL → mustPersistKinds 4 类永久 + 默认 90 天 + 其他
 //     per-kind 覆盖 (SSOT enum 在 must_persist_kinds.go).
 //

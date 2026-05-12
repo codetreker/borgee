@@ -7,8 +7,8 @@ import (
 )
 
 // runHB31 runs migration v=27 (HB-3.1 host_grants) on a memory DB.
-// 跟 al_2a_1_agent_configs_test runAL2A1 同模式; SQLite FK off, 不 seed
-// users 上游表 (logical FK).
+// 跟 al_2a_1_agent_configs_test runAL2A1 同模式; SQLite FK off, so this test
+// does not seed users 上游表 (logical FK).
 func runHB31(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	e := New(db)
@@ -134,7 +134,7 @@ func TestHB_TtlKindEnumReject(t *testing.T) {
 }
 
 // TestHB_NoDomainBleed pins 约束 §2 设计 ② 字典分立 (host vs runtime),
-// 反向断言 schema 不挂 user_permissions / runtime / cursor / org_id 等
+// 反向断言 schema 不添加 user_permissions / runtime / cursor / org_id 等
 // 跨域字段 (跟 al_2a_1_agent_configs_test::TestAL2A1_NoDomainBleed 同模式).
 func TestHB_NoDomainBleed(t *testing.T) {
 	t.Parallel()
@@ -142,13 +142,13 @@ func TestHB_NoDomainBleed(t *testing.T) {
 	runHB31(t, db)
 	// 反向断言 forbidden columns (字典分立守门).
 	forbidden := []string{
-		"permission",         // user_permissions schema 复用反断
-		"is_admin",           // admin god-mode 反断 (ADM-0 §1.3)
-		"cursor",             // RT-1 envelope cursor 边界明确
-		"org_id",             // org 隔离走 users.org_id 唯一来源
-		"source",             // BPP 唯一来源跟 AL-1b 同模式
-		"set_by",             // 反人工伪造
-		"runtime_id",         // host vs runtime 字典分立
+		"permission", // user_permissions schema 复用反断
+		"is_admin",   // admin god-mode exclusion (ADM-0 §1.3)
+		"cursor",     // RT-1 envelope cursor 边界明确
+		"org_id",     // org 隔离走 users.org_id 唯一来源
+		"source",     // BPP 唯一来源跟 AL-1b 同模式
+		"set_by",     // 反人工伪造
+		"runtime_id", // host vs runtime 字典分立
 	}
 	type col struct{ Name string }
 	var cols []col
@@ -182,8 +182,8 @@ func TestHB_NoDomainBleed(t *testing.T) {
 	}
 }
 
-// TestHB_HasIndexes pins acceptance §1.1 idx_user_id + idx_agent_id 守
-// (cross-user 403 ACL + daemon SELECT 热路径).
+// TestHB_HasIndexes pins acceptance §1.1 idx_user_id + idx_agent_id guards
+// (cross-user 403 ACL + daemon SELECT hot path).
 func TestHB_HasIndexes(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)

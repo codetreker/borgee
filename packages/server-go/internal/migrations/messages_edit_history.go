@@ -8,10 +8,10 @@ import "gorm.io/gorm"
 // docs/implementation/modules/dm-7-spec.md §0 设计 ① + §1 拆段 DM-7.1.
 //
 // What this migration does (跟 AL-7.1 admin_actions ADD archived_at +
-// HB-5.1 agent_state_log ADD archived_at + AP-1.1+AP-3.1+AP-2.1 跨七
-// milestone ALTER ADD COLUMN nullable 同模式):
+// HB-5.1 agent_state_log ADD archived_at + AP-1.1+AP-3.1+AP-2.1 across seven
+// nullable ALTER ADD COLUMN migrations):
 //
-//   ALTER TABLE messages ADD COLUMN edit_history TEXT NULL
+//	ALTER TABLE messages ADD COLUMN edit_history TEXT NULL
 //
 // edit_history is a JSON array of `{old_content, ts, reason}` entries
 // appended each time UpdateMessage runs (DM-4 #553 既有 PATCH path 单源
@@ -19,9 +19,9 @@ import "gorm.io/gorm"
 // 零变.
 //
 // 反约束 (dm-7-spec.md §0 设计 ①+④):
-//   - 不挂 NOT NULL — edit_history NULL = 无历史 (跟 AL-7.1 archived_at
+//   - 不添加 NOT NULL — edit_history NULL = 无历史 (跟 AL-7.1 archived_at
 //     NULL = active 同精神).
-//   - 不挂 default 值 — NULL 是合法终态.
+//   - 不添加 default 值 — NULL 是合法终态.
 //   - 不另起 message_edit_history 表 — JSON array on messages 列单源
 //     (grep 检查 `message_edit_history\|message_history_log\|dm7_history`
 //     0 hit, 设计 ① 守).
