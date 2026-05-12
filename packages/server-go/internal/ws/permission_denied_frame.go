@@ -9,7 +9,7 @@
 // `required_capability`, `current_scope`).
 // Spec: docs/implementation/modules/bpp-3.1-spec.md.
 //
-// Behaviour contract — keep this byte-identical with the shared sequencing
+// Behaviour contract — keep this aligned with the shared sequencing
 // pattern used by PushArtifactUpdated, PushAnchorCommentAdded,
 // PushMentionPushed, PushIterationStateChanged, and PushAgentConfigUpdate:
 //
@@ -71,7 +71,7 @@ type PermissionDeniedPusher interface {
 //     enqueued to its send channel. false otherwise (plugin offline /
 //     no allocator / channel buffer full).
 //
-// Frame field assignment is byte-identical with bpp.PermissionDeniedFrame
+// Frame field assignment must match bpp.PermissionDeniedFrame
 // (spec §1 design ①, 8 fields); reordering arguments here without updating
 // the frame struct is a CI failure caught by frame_schemas_test.go reflection
 // lint.
@@ -82,7 +82,7 @@ type PermissionDeniedPusher interface {
 //   - attemptedAction: must be one of the seven BPP-2.1 operation allow-list
 //     values (`bpp.SemanticOp*` const) or a REST endpoint name. Values outside
 //     the v2+ enum must not reach this path.
-//   - requiredCapability / currentScope: must remain byte-identical with the
+//   - requiredCapability / currentScope: must remain in sync with the
 //     AP-1 abac.go 403 body. Any change must update all three references:
 //     blueprint §4.1, AP-1, and BPP-3.1.
 //   - deniedAt: Unix-ms semantic timestamp. Cursor remains the ordering source.

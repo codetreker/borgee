@@ -1,5 +1,5 @@
 // Package bpp — session_resume_test.go: RT-1.3 (#293) acceptance pin
-// for the three-mode resume resolver + the反约束 (no implicit `full`).
+// for the three-mode resume resolver + the negative assertion (no implicit `full`).
 //
 // Subtests map 1:1 to spec items:
 //
@@ -9,8 +9,8 @@
 //             → TestResolveResumeNone
 //   §1.3 (c) `full`        — replay from 0 (agent-explicit)
 //             → TestResolveResumeFull
-//   §1.3 (d) 反约束          — unknown / empty / "FULL" / "Full" never
-//                            resolves to Full
+//   §1.3 (d) Negative assertion — unknown / empty / "FULL" / "Full"
+//                                never resolves to Full
 //             → TestParseResumeModeNeverDefaultsFull
 //   §1.3 (e) byte-form     — request/ack JSON layout matches blueprint
 //             → TestSessionResumeFrameFieldOrder
@@ -99,7 +99,7 @@ func TestResolveResumeIncremental(t *testing.T) {
 	}
 	for _, e := range events {
 		if e.Cursor <= 2 {
-			t.Fatalf("incremental returned cursor %d <= since=2 (反约束 broken)", e.Cursor)
+			t.Fatalf("incremental returned cursor %d <= since=2 (negative assertion failed)", e.Cursor)
 		}
 	}
 	if lister.gotSince != 2 {
@@ -122,10 +122,10 @@ func TestResolveResumeUnknownModeFallsBackIncremental(t *testing.T) {
 		if err != nil {
 			t.Fatalf("mode=%q: unexpected err %v", raw, err)
 		}
-		// Reverse assertion: NEVER full. Full would return all 3 events
+		// Negative assertion: NEVER full. Full would return all 3 events
 		// from cursor 0; incremental from since=1 returns 2 events.
 		if ack.Count == 3 {
-			t.Fatalf("mode=%q: 反约束 broken — unknown mode resolved to full (got count=3)", raw)
+			t.Fatalf("mode=%q: negative assertion failed: unknown mode resolved to full (got count=3)", raw)
 		}
 		if ack.Count != 2 {
 			t.Fatalf("mode=%q: incremental count = %d, want 2", raw, ack.Count)
@@ -185,7 +185,7 @@ func TestResolveResumeFull(t *testing.T) {
 	}
 }
 
-// (d) 反约束 — ParseResumeMode never resolves anything other than the
+// (d) Negative assertion — ParseResumeMode never resolves anything other than the
 // literal "full" string into ResumeModeFull.
 func TestParseResumeModeNeverDefaultsFull(t *testing.T) {
 	t.Parallel()
@@ -208,13 +208,13 @@ func TestParseResumeModeNeverDefaultsFull(t *testing.T) {
 	} {
 		got := bpp.ParseResumeMode(raw)
 		if got == bpp.ResumeModeFull {
-			t.Fatalf("反约束 broken: ParseResumeMode(%q) = full (expected anything but full)", raw)
+			t.Fatalf("negative assertion failed: ParseResumeMode(%q) = full (expected anything but full)", raw)
 		}
 	}
 }
 
 // (d') Reverse-grep guard inlined as a code-shape test — the resolver
-// must not have a "default → full" path. We sanity-check by feeding a
+// must not have a "default → full" path. We check by feeding a
 // flooded set of bogus modes and asserting none of them produce the
 // `full` branch's behaviour (replay from 0).
 func TestResolverNeverDefaultsToFullBranch(t *testing.T) {
@@ -240,9 +240,8 @@ func TestResolverNeverDefaultsToFullBranch(t *testing.T) {
 	}
 }
 
-// (e) frame layout — JSON field order/names byte-identical with the
-// blueprint. If the struct tags are reordered or renamed this test
-// flips red.
+// (e) frame layout — JSON field order/names match the blueprint. If the
+// struct tags are reordered or renamed this test flips red.
 func TestSessionResumeFrameFieldOrder(t *testing.T) {
 	t.Parallel()
 	req := bpp.SessionResumeRequest{

@@ -19,7 +19,7 @@ import (
 	"borgee-server/internal/bpp"
 )
 
-// TestBPP_TaskStartedFrameFieldOrder pins 6-field byte-identical
+// TestBPP_TaskStartedFrameFieldOrder pins 6-field exact
 // envelope order. JSON key order follows struct declaration order.
 func TestBPP_TaskStartedFrameFieldOrder(t *testing.T) {
 	t.Parallel()
@@ -37,11 +37,11 @@ func TestBPP_TaskStartedFrameFieldOrder(t *testing.T) {
 	}
 	want := `{"type":"task_started","task_id":"task-A","agent_id":"agent-X","channel_id":"ch-Y","subject":"Drafting PRD section 2","started_at":1700000000000}`
 	if string(b) != want {
-		t.Fatalf("TaskStarted envelope byte-identity broken:\n got: %s\nwant: %s", b, want)
+		t.Fatalf("TaskStarted envelope JSON mismatch:\n got: %s\nwant: %s", b, want)
 	}
 }
 
-// TestBPP_TaskFinishedFrameFieldOrder pins 7-field byte-identical
+// TestBPP_TaskFinishedFrameFieldOrder pins 7-field exact
 // envelope order.
 func TestBPP_TaskFinishedFrameFieldOrder(t *testing.T) {
 	t.Parallel()
@@ -60,7 +60,7 @@ func TestBPP_TaskFinishedFrameFieldOrder(t *testing.T) {
 	}
 	want := `{"type":"task_finished","task_id":"task-A","agent_id":"agent-X","channel_id":"ch-Y","outcome":"failed","reason":"api_key_invalid","finished_at":1700000000001}`
 	if string(b) != want {
-		t.Fatalf("TaskFinished envelope byte-identity broken:\n got: %s\nwant: %s", b, want)
+		t.Fatalf("TaskFinished envelope JSON mismatch:\n got: %s\nwant: %s", b, want)
 	}
 }
 
@@ -103,7 +103,7 @@ func TestBPP_ValidateTaskStarted_RejectsEmpty(t *testing.T) {
 }
 
 // TestBPP_ValidateTaskFinished_AcceptsThreeOutcomes pins acceptance
-// §2.2 — 3 outcome enum 全过 (completed/failed/cancelled byte-identical).
+// §2.2 — all 3 outcome enum values pass (completed/failed/cancelled spellings match).
 func TestBPP_ValidateTaskFinished_AcceptsThreeOutcomes(t *testing.T) {
 	cases := []struct {
 		outcome string
@@ -222,7 +222,7 @@ func TestBPP_ValidateTaskFinished_CompletedRejectsReason(t *testing.T) {
 }
 
 // TestTaskLifecycle_ErrorCodeLiteralsByteIdentical pins content-lock §1 ⑥
-// 错误码字面 byte-identical.
+// error code strings match expected literals.
 func TestTaskLifecycle_ErrorCodeLiteralsByteIdentical(t *testing.T) {
 	cases := []struct{ got, want string }{
 		{bpp.TaskErrCodeSubjectEmpty, "bpp.task_subject_empty"},

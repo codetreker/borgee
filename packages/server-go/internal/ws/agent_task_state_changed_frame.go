@@ -16,16 +16,16 @@
 // CV-2.2 AnchorCommentAdded / DM-2.2 MentionPushed / CV-4.2
 // IterationStateChanged / AL-2b AgentConfigUpdate (RT-3 is the 6th shared-sequence frame):
 //
-//   1. Cursor uses hub.cursors.NextCursor() and shares the same monotonic
-//      sequence as the five upstream frames (no separate agent-only push channel).
-//   2. Field order contract: type / cursor / agent_id / state / subject / reason /
-//      changed_at — 7 字段, 跟 BPP-2.2 task_started/finished frame field
-//      顺序一致 (subject byte-identical 跟 plugin 上行 source frame).
-//   3. JSON tags must match client ws-frames.ts field names (BPP-1 #304 envelope
-//      CI lint + RT-3.2 client wiring).
-//   4. Multi-device fanout — BroadcastToChannel walks every client subscription, so one
-//      user with multiple ws sessions receives all frames (same rule as P1MultiDeviceWebSocket #197 +
-//      Hub.onlineUsers map[userID]map[*Client]bool 数据结构).
+//  1. Cursor uses hub.cursors.NextCursor() and shares the same monotonic
+//     sequence as the five upstream frames (no separate agent-only push channel).
+//  2. Field order contract: type / cursor / agent_id / state / subject / reason /
+//     changed_at. The 7-field order matches BPP-2.2 task_started/finished;
+//     subject matches the plugin upstream source frame.
+//  3. JSON tags must match client ws-frames.ts field names (BPP-1 #304 envelope
+//     CI lint + RT-3.2 client wiring).
+//  4. Multi-device fanout — BroadcastToChannel walks every client subscription, so one
+//     user with multiple ws sessions receives all frames (same rule as P1MultiDeviceWebSocket #197 +
+//     Hub.onlineUsers map[userID]map[*Client]bool structure).
 //
 // Negative constraints (rt-3-spec §0 point 1 + blueprint §1.1):
 //   - state ∈ 2-enum {'busy', 'idle'}; 中间态 reject (跟 BPP-2.2 outcome
@@ -38,7 +38,8 @@
 //     matching BPP-2.2 task_lifecycle.go ValidateTaskStarted.
 //   - idle 态 subject 必为空 (prevents stale subject text, matching BPP-2.2
 //     cancelled/completed reason-empty behavior).
-//   - reason 仅 idle+failed-derived 时填, ∈ AL-1a 6 字典 byte-identical
+//   - reason is only set for idle frames derived from failed tasks, using the
+//     same AL-1a six-value dictionary strings
 //     (复用 internal/agent/state.go::Reason* SSOT).
 package ws
 
@@ -65,9 +66,9 @@ type AgentTaskStateChangedFrame struct {
 	Type      string `json:"type"`
 	Cursor    int64  `json:"cursor"`
 	AgentID   string `json:"agent_id"`
-	State     string `json:"state"`   // 'busy' | 'idle'
-	Subject   string `json:"subject"` // busy 时必带非空; idle 时空 (蓝图 §1.1 ⭐)
-	Reason    string `json:"reason"`  // idle + failed-derived 时填 AL-1a 6 字典; 否则空
+	State     string `json:"state"`      // 'busy' | 'idle'
+	Subject   string `json:"subject"`    // non-empty for busy; empty for idle (blueprint §1.1 ⭐)
+	Reason    string `json:"reason"`     // set only for idle + failed-derived; otherwise empty
 	ChangedAt int64  `json:"changed_at"` // Unix ms 语义戳; cursor IS the order
 }
 

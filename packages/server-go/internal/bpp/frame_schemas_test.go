@@ -2,15 +2,15 @@
 // CI lint. Reflection-based reverse assertions that pin the 5
 // invariants the spec brief calls out:
 //
-//   ① Each registered envelope has the RT-0 #237 byte-identical layout
+//   ① Each registered envelope has the RT-0 #237 matching layout
 //      (`Type` is field 0, tagged `json:"type"`, no extra envelope-
 //      level meta fields like `v` / `ts` — the discriminator IS the
 //      envelope).
 //   ② Control plane (6 frames) — direction lock = Server→Plugin.
 //   ③ Data plane (3 frames)    — direction lock = Plugin→Server.
-//   ④ Whitelist closure — every exported `*Frame` struct in package bpp
+//   ④ Allow-list closure — every exported `*Frame` struct in package bpp
 //      that satisfies BPPEnvelope is in `BPPEnvelopeWhitelist`, and
-//      every whitelist entry has a matching struct (no orphans).
+//      every allow-list entry has a matching struct (no orphans).
 //   ⑤ godoc anchor — `BPP-1.*byte-identical.*RT-0` count >= 1 in the
 //      bpp package source.
 //
@@ -36,11 +36,11 @@ import (
 
 // TestBPPEnvelopeFrameWhitelist pins invariant ④. The lint walks every
 // envelope returned by AllBPPEnvelopes(), maps it to its FrameType(),
-// then asserts the whitelist exactly covers that set.
+// then asserts the allow-list exactly covers that set.
 //
 // AL-2b (#452) extended data plane to 4 frames (added agent_config_ack)
 // → total 10 envelopes (6 control + 4 data). 跟 acceptance §1.2 字面
-// byte-identical — direction lock plugin→server.
+// exact match — direction lock plugin→server.
 func TestBPPEnvelopeFrameWhitelist(t *testing.T) {
 	t.Parallel()
 	envs := bpp.AllBPPEnvelopes()
@@ -49,7 +49,7 @@ func TestBPPEnvelopeFrameWhitelist(t *testing.T) {
 	}
 	wl := bpp.BPPEnvelopeWhitelist()
 	if got, want := len(wl), 15; got != want {
-		t.Fatalf("whitelist size: got %d, want %d", got, want)
+		t.Fatalf("allow-list size: got %d, want %d", got, want)
 	}
 	seen := map[string]struct{}{}
 	for _, e := range envs {
@@ -67,14 +67,14 @@ func TestBPPEnvelopeFrameWhitelist(t *testing.T) {
 	}
 	for ft := range wl {
 		if _, ok := seen[ft]; !ok {
-			t.Fatalf("whitelist has %q but no matching envelope struct", ft)
+			t.Fatalf("allow-list has %q but no matching envelope struct", ft)
 		}
 	}
 }
 
 // TestBPPEnvelopeDirectionLock pins invariants ② + ③. Walks every
 // envelope, calls FrameDirection(), and asserts it matches the
-// whitelist value. Also asserts the control-plane / data-plane counts
+// allow-list value. Also asserts the control-plane / data-plane counts
 // match the §2.1 / §2.2 row counts.
 func TestBPPEnvelopeDirectionLock(t *testing.T) {
 	t.Parallel()
@@ -104,7 +104,7 @@ func TestBPPEnvelopeDirectionLock(t *testing.T) {
 	}
 }
 
-// TestBPPEnvelopeFieldOrder pins invariant ① — the byte-identical lock
+// TestBPPEnvelopeFieldOrder pins invariant ① — the wire-layout lock
 // with RT-0 #237 / RT-1.1 #290. Every envelope's first struct field
 // MUST be `Type string` tagged `json:"type"`. This is the dispatcher
 // contract — change it and every wire decoder breaks at once.
@@ -132,7 +132,7 @@ func TestBPPEnvelopeFieldOrder(t *testing.T) {
 }
 
 // TestBPPEnvelopeGodocAnchor pins invariant ⑤. The package documents
-// the RT-0 byte-identical lock in a godoc comment so a reverse grep
+// the RT-0 wire-layout lock in a godoc comment so a reverse grep
 // catches deletions. We accept any file in internal/bpp/ matching
 // `BPP-1.*byte-identical.*RT-0` (count >= 1).
 func TestBPPEnvelopeGodocAnchor(t *testing.T) {
@@ -176,7 +176,7 @@ func TestBPPEnvelopeReverseGrepNoFullDefault(t *testing.T) {
 		}
 		for _, re := range bad {
 			if loc := re.FindIndex(code); loc != nil {
-				t.Errorf("forbidden pattern %q hit in %s at byte %d (反约束 — server MUST NOT default to full replay)",
+				t.Errorf("forbidden pattern %q hit in %s at byte %d (negative assertion: server must not default to full replay)",
 					re.String(), filepath.Base(path), loc[0])
 			}
 		}
