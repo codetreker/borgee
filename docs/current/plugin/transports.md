@@ -1,55 +1,63 @@
-# Transports
+# Plugin Transports
 
-This page documents OpenClaw-side Borgee transports. Server endpoint behavior is referenced as an interface and detailed in `../server/realtime-and-events.md`.
+## Role
 
-## Transport Selection
+Transports are how the OpenClaw plugin receives Borgee events and keeps a cursor high-water mark. SSE and poll are the current reliable event paths; WS exists in code as a plugin socket path with caveats listed in `../known-gaps.md`.
 
-Responsible for: plugin-side transport choice and retry loops. Not responsible for: server cursor allocation or browser `/ws` reconnect.
+## Boundary
+
+| Transport | Role | Collaborators | Out Of Scope |
+| --- | --- | --- | --- |
+| SSE | Preferred streaming event path | server event stream | Server cursor generation |
+| Poll | Long-poll fallback or forced mode | server poll endpoint | Browser reconnect policy |
+| Plugin WS | Optional RPC/request path and code-present event path | server plugin socket | Guaranteed event broadcast |
+| Cursor store | Local resume hint | transport loops | Durable source of truth |
+
+## Internal Architecture
 
 ```mermaid
 stateDiagram-v2
-  [*] --> bootstrap
-  bootstrap --> ws: transport == "ws"
-  bootstrap --> poll: transport == "poll"
-  bootstrap --> probe_sse: transport == "auto" or "sse"
-  probe_sse --> sse: HEAD /api/v1/stream available
-  probe_sse --> stopped: 401 or 403
-  probe_sse --> poll: auto and SSE unavailable
-  probe_sse --> retry_sse: forced sse and unavailable
-  retry_sse --> probe_sse
-  poll --> probe_sse: auto recovery timer
-  sse --> probe_sse: reconnect loop after non-auth close
-  ws --> [*]: abort closes client
+  [*] --> startup
+  startup --> poll: forced poll
+  startup --> ws: code path ws
+  startup --> probe: auto or forced sse
+  probe --> sse: stream available
+  probe --> poll: auto fallback
+  probe --> stop: auth failure
+  sse --> probe: non-auth disconnect
+  poll --> probe: recovery probe
 ```
 
-`startBorgeeGateway` validates account config, fetches bot identity from `GET /api/v1/users/me` when needed, sets runtime status, loads a persisted cursor, and then selects `ws`, `poll`, or auto/SSE. Evidence: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/api-client.ts`, `packages/plugins/openclaw/src/cursor-store.ts`.
+## Key Flows
 
-## SSE Transport
+### SSE
 
-Responsible for: streaming server events and preserving cursor progress. Not responsible for: server SSE race avoidance implementation.
+The plugin opens the server event stream with bearer auth and an optional last event id. Incoming frames are parsed into event name, id, and data. Any bytes count as liveness; heartbeat frames do not become inbound messages. Non-auth disconnects reconnect with backoff.
 
-SSE connects to `/api/v1/stream` with bearer auth and optional `Last-Event-ID`. The parser reads `event`, `id`, and `data`; comment lines count as byte-level liveness but do not emit events. Heartbeat timeout defaults to 30 seconds in `runSSEOnce`; `runSSELoop` reconnects with exponential backoff up to 60 seconds and resets the backoff after a stable 30 second connection. Evidence: `packages/plugins/openclaw/src/sse-client.ts`.
+### Poll
 
-On each message, SSE dispatch converts the frame into a `BorgeeEvent`, filters unsupported kinds, skips self messages, enforces `requireMention` for non-DM messages, and persists the cursor after successful dispatch. Auth failures return `reason: "auth"` and stop the loop. Evidence: `packages/plugins/openclaw/src/sse-client.ts`, `packages/plugins/openclaw/src/inbound.ts`.
+Poll sends the current cursor and timeout to the server. If events arrive, the plugin advances and persists the cursor, then dispatches supported event kinds through the same inbound path as SSE. Consecutive errors back off.
 
-## Poll Transport
+### Auto Recovery
 
-Responsible for: long-poll fallback when SSE is unavailable or forced off. Not responsible for: server waiters implementation.
+Auto mode probes SSE first. If unavailable, it falls back to poll and periodically probes SSE again. A successful recovery probe aborts the poll session and returns to SSE.
 
-Poll calls `POST /api/v1/poll` with `{cursor, timeout_ms, channel_ids}` and bearer auth. On events, it updates the local cursor reference, persists the returned cursor, filters to message/edit/delete/reaction events, skips self events, and dispatches through the same inbound path as SSE. Consecutive poll errors back off from 1 second to 30 seconds. Evidence: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/api-client.ts`, `packages/plugins/openclaw/src/inbound.ts`.
+### WS Code Path
 
-In `auto` mode, a failed SSE probe starts poll and a recovery timer re-probes SSE every 5 minutes; when SSE is available again, the poll session is aborted and the gateway returns to SSE probing. In forced `sse` mode, failed probes retry SSE every 30 seconds instead of falling back. Evidence: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/sse-client.ts`.
+The WS branch connects to the plugin socket, can send RPC requests, and can answer server `request` frames for local file reads. It also has an event-frame handler, but current server behavior makes SSE/poll the event path to rely on.
 
-## WS Transport Code Path
+## Invariants
 
-Responsible for: documenting the code-present plugin websocket branch. Not responsible for: claiming it is reachable through current config schema.
+- Cursor persistence is best-effort and local to the plugin process.
+- Event filtering happens before OpenClaw inbound dispatch.
+- Auth failures stop the transport loop instead of silently switching accounts.
+- `ws` is not exposed by the current config schema even though the code branch exists.
 
-The `ws` branch constructs `PluginWsClient`, connects to `/ws/plugin` with bearer auth, registers an event handler for `{type:"event", event, data}` frames, registers a request handler for `read_file`, attaches the client to the resolved account for outbound WS-first calls, and closes on abort. Evidence: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/ws-client.ts`, `packages/plugins/openclaw/src/file-access.ts`, `packages/plugins/openclaw/src/ws-util.ts`.
+## Implementation Anchors
 
-Current caveats: `ws` is not allowed by `config-schema.ts`, and the inspected server `/ws/plugin` path does not emit `{type:"event"}` frames. The server does support `/ws/plugin` RPC and BPP upstream routing. Evidence: `packages/plugins/openclaw/src/config-schema.ts`, `packages/plugins/openclaw/src/types.ts`, `packages/server-go/internal/ws/plugin.go`, `packages/server-go/internal/bpp/plugin_frame_dispatcher.go`.
-
-## Cursor Lifecycle
-
-Responsible for: plugin-side high-water persistence. Not responsible for: server durable event cursor generation.
-
-At gateway start, the plugin reads the local cursor file. If the cursor is absent or invalid, `bootstrapCursor` performs a short poll from cursor `0` and persists the server-returned cursor; if bootstrap fails, it starts from `0`. SSE obtains `Last-Event-ID` from the persisted cursor; poll uses the in-memory `cursorRef`. Evidence: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/cursor-store.ts`, `packages/plugins/openclaw/src/sse-client.ts`.
+- Gateway selection: `packages/plugins/openclaw/src/gateway.ts`, `startBorgeeGateway`
+- SSE client: `packages/plugins/openclaw/src/sse-client.ts`, `connectSSE`, `runSSELoop`
+- Poll client: `packages/plugins/openclaw/src/api-client.ts`, `pollBorgeeEvents`
+- WS client: `packages/plugins/openclaw/src/ws-client.ts`, `PluginWsClient`
+- Cursor store: `packages/plugins/openclaw/src/cursor-store.ts`
+- Transport config: `packages/plugins/openclaw/src/config-schema.ts`, `packages/plugins/openclaw/src/types.ts`

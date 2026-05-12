@@ -1,103 +1,71 @@
 # Realtime And Events
 
-This page covers only server-side realtime and event delivery. Browser hook behavior is cited only as an interface consumer, and OpenClaw package internals are covered under `../plugin/`.
+## Role
 
-## Responsibility Boundary
+The server realtime layer turns committed collaboration changes into live signals, and gives disconnected consumers a cursor-based way to catch up. It serves browsers, plugins, and remote agents, but keeps their socket protocols separate.
 
-| Area | Responsible For | Not Responsible For | Interfaces | Evidence |
-| --- | --- | --- | --- | --- |
-| `ws.Hub` | In-memory browser clients, plugin connections, remote connections, event waiters, cursor allocator, broadcast helpers | Durable event history, OpenClaw account config, browser reducers | `BroadcastToChannel`, `BroadcastToUser`, `SubscribeEvents`, `SignalNewEvents`, plugin/remote maps | `packages/server-go/internal/ws/hub.go` |
-| `/ws` | Browser websocket auth, subscribe/unsubscribe, typing, send_message, command registration, heartbeat | SSE/poll fallback, plugin BPP dispatch, remote-agent request proxy | WebSocket `/ws` | `packages/server-go/internal/ws/client.go` |
-| `/api/v1/poll` and `/api/v1/stream` | Cursor fallback, long-poll waiters, SSE event stream, reconnect backfill | Browser UI merge logic, plugin package retry policy | `POST /api/v1/poll`, `GET/HEAD /api/v1/stream`, `GET /api/v1/events` | `packages/server-go/internal/api/poll.go` |
-| `/ws/plugin` | Plugin socket auth, RPC replay into server HTTP handler, upstream BPP frame routing, plugin liveness timestamp | OpenClaw transport selection, SDK package API | WebSocket `/ws/plugin` | `packages/server-go/internal/ws/plugin.go`, `packages/server-go/internal/bpp/plugin_frame_dispatcher.go` |
-| `/ws/remote` | Remote node token auth, online map, request/response frame plumbing | remote-agent local filesystem implementation | WebSocket `/ws/remote` | `packages/server-go/internal/ws/remote.go` |
+## Boundary
 
-## Hub Object Model
+| Surface | Role | Collaborators | Out Of Scope |
+| --- | --- | --- | --- |
+| Browser websocket | Low-latency user fanout and channel subscription | User SPA, Hub, store | Plugin control protocol |
+| Poll and SSE | Cursor-based event recovery and plugin-friendly streaming | Store, Hub waiters, browser/plugin clients | UI merge policy |
+| Plugin websocket | Plugin RPC plus BPP ingress boundary | OpenClaw plugin, BPP dispatcher | General event broadcast to plugins |
+| Remote websocket | Remote node liveness and request/response transport | remote-agent, remote REST handlers | Local filesystem policy |
 
-```mermaid
-classDiagram
-  class Hub {
-    clients
-    onlineUsers
-    plugins
-    remotes
-    eventWaiters
-    cursors
-    pluginFrameRouter
-  }
-  class Client {
-    userID
-    sessionID
-    subscribed
-    alive
-  }
-  class PluginConn {
-    agentID
-    apiKey
-    pending
-    lastSeenAt
-  }
-  class RemoteConn {
-    nodeID
-    userID
-    pending
-  }
-  Hub "1" --> "many" Client
-  Hub "1" --> "many" PluginConn
-  Hub "1" --> "many" RemoteConn
-```
-
-`ws.Hub` owns five in-memory coordination maps: browser `clients`, `onlineUsers`, plugin connections by agent/user id, remote connections by node id, and long-poll/SSE event waiters. It also owns `CursorAllocator`, the command store, optional presence writer, and the plugin BPP frame router seam. Evidence: `packages/server-go/internal/ws/hub.go`.
-
-Browser `Client` objects carry user id, session id, optional agent id, subscribed channel set, send queue, and heartbeat liveness. Register/unregister updates Hub maps and, when the presence writer is wired, `presence_sessions`. Evidence: `packages/server-go/internal/ws/client.go`, `packages/server-go/internal/ws/hub.go`, `packages/server-go/internal/server/server.go`.
-
-`PluginConn` carries agent id, API key, send queue, pending RPC request map, and `lastSeenAt`; every inbound frame touches `lastSeenAt`. `RemoteConn` carries node id, user id, send queue, and pending request map. Evidence: `packages/server-go/internal/ws/plugin.go`, `packages/server-go/internal/ws/remote.go`, `packages/server-go/internal/ws/hub.go`.
-
-## Browser `/ws`
-
-`/ws` authenticates by WebSocket subprotocol `Bearer,<api_key>`, `Authorization: Bearer`, `?token=`, auth cookie, or development bypass. After accept, the server registers the client, updates `last_seen`, broadcasts presence, starts a write pump, and reads JSON messages. Evidence: `packages/server-go/internal/ws/client.go`.
-
-Supported inbound browser message types are `ping`, `pong`, `subscribe`, `unsubscribe`, `typing`, `send_message`, and `register_commands`. `send_message` validates channel membership/content type, writes the message, inserts a `store.Event`, signals event waiters, and broadcasts `new_message` to subscribed clients. Evidence: `packages/server-go/internal/ws/client.go`, `packages/server-go/internal/store/models.go`, `packages/server-go/internal/store/queries.go`.
-
-The browser heartbeat is server-driven every 30 seconds: `Hub.StartHeartbeat` calls `heartbeatTick`; alive clients receive `{"type":"ping"}`, while stale clients are closed asynchronously. Evidence: `packages/server-go/internal/ws/hub.go`.
-
-Client-side `useWebSocket` expects this interface: it re-subscribes channels on open, sends client pings every 25 seconds, persists numeric cursors, fetches `/api/v1/events` on reconnect, and normalizes wrapped versus direct push frame shapes. Evidence: `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`.
-
-## Event Cursor, Poll, SSE, Backfill
+## Internal Architecture
 
 ```mermaid
-sequenceDiagram
-  participant Producer as API or WS producer
-  participant Store as store.Event
-  participant Hub as ws.Hub waiters
-  participant Poll as /api/v1/poll
-  participant SSE as /api/v1/stream
-  participant Backfill as /api/v1/events
+flowchart LR
+  ws[/Browser /ws/]
+  poll[/Poll, SSE, events/]
+  plugin[/Plugin /ws/plugin/]
+  remote[/Remote /ws/remote/]
+  hub[Hub]
+  store[(Event store)]
+  bpp[BPP dispatcher]
 
-  Producer->>Store: insert event with cursor
-  Producer->>Hub: SignalNewEvents
-  Poll->>Store: GetEventsSinceWithChanges(cursor)
-  SSE->>Hub: SubscribeEvents before connected flush
-  SSE->>Store: GetLatestCursor and live fetch
-  Backfill->>Store: GetEventsSinceWithChanges(since)
+  ws --> hub
+  ws --> store
+  poll --> store
+  poll --> hub
+  plugin --> hub
+  plugin --> bpp
+  remote --> hub
 ```
 
-The hot fallback cursor is `store.Event.Cursor`. `POST /api/v1/poll`, `GET /api/v1/stream`, and `GET /api/v1/events` all read through `GetEventsSinceWithChanges` or related cursor helpers, filtered to the authenticated user's accessible channels. Evidence: `packages/server-go/internal/api/poll.go`, `packages/server-go/internal/store/models.go`, `packages/server-go/internal/store/queries_phase3.go`.
+The Hub is the in-memory coordination point. It tracks browser clients, online users, plugin connections, remote connections, event waiters, and a cursor allocator for typed push frames. Durable event history stays in the store; the Hub only wakes waiters and fans out live frames.
 
-`POST /api/v1/poll` accepts bearer/body API key/cookie auth, `cursor` or `since_id`, optional `timeout_ms`, and optional `channel_ids`. It clamps timeout to 60 seconds, returns up to 100 events, and waits on `Hub.SubscribeEvents` when no events are immediately available. Evidence: `packages/server-go/internal/api/poll.go`.
+## Key Flows
 
-`GET /api/v1/stream` is SSE. It authenticates by bearer, `api_key` query, or cookie; subscribes to Hub waiters and snapshots `GetLatestCursor()` before writing `:connected`; sends heartbeat events every 15 seconds; refreshes channel membership every 60 seconds; supports `Last-Event-ID` backfill; and emits `event`, `id`, and `data` fields. Evidence: `packages/server-go/internal/api/poll.go`.
+### Browser Push Plus Backfill
 
-`GET /api/v1/events?since=N&limit=M` is synchronous reconnect backfill. It requires `since`, returns only `cursor > since`, clamps limit to 500, filters by channel membership, and mirrors the poll response envelope. Evidence: `packages/server-go/internal/api/poll.go`, `packages/server-go/internal/api/events_backfill_test.go`.
+A browser websocket can subscribe to channels and send messages. The server validates and commits the write, records an event cursor, broadcasts a frame to subscribed clients, and wakes poll/SSE waiters. On reconnect, the browser asks for events after its last cursor before doing broader message reconciliation.
 
-`CursorAllocator` is separate from the durable `store.Event` autoincrement. It is seeded from the latest durable cursor and is used for typed push frames such as `artifact_updated`, `agent_config_update`, `permission_denied`, and `agent_task_state_changed`. Evidence: `packages/server-go/internal/ws/cursor.go`, `packages/server-go/internal/ws/agent_config_push.go`, `packages/server-go/internal/ws/permission_denied_frame.go`, `packages/server-go/internal/ws/agent_task_state_changed_frame.go`.
+### SSE And Poll
 
-## Plugin And Remote Sockets As Realtime Peers
+SSE is a streaming view over the same cursor model, with heartbeat events and `Last-Event-ID` backfill. Poll is the long-poll fallback: it returns available events immediately or waits on a Hub signal until timeout. Both filter events through channel membership.
 
-`/ws/plugin` authenticates by bearer header or `?apiKey=`, resolves the key to a user, registers that user id as the plugin `agentID`, and reads frames. RPC frames use `{type,id,data}` for `api_request`, `api_response`, and `response`; `api_request` is replayed into the server HTTP handler with the plugin API key as bearer auth. Non-RPC frames are treated as BPP frames and routed through `PluginFrameDispatcher`. Evidence: `packages/server-go/internal/ws/plugin.go`, `packages/server-go/internal/server/server.go`, `packages/server-go/internal/bpp/plugin_frame_dispatcher.go`.
+### Plugin Socket
 
-`/ws/remote` authenticates by bearer token or `?token=`, looks up `remote_nodes.connection_token`, updates last seen, registers a `RemoteConn`, and handles `ping`, `pong`, and `response`. REST remote-node handlers call the Hub adapter, which checks `Hub.GetRemote` and sends a request frame. Evidence: `packages/server-go/internal/ws/remote.go`, `packages/server-go/internal/api/remote.go`, `packages/server-go/internal/server/server.go`.
+The plugin socket has two shapes. RPC frames let a plugin call server HTTP handlers over the socket. Non-RPC frames are treated as plugin-to-server BPP frames and passed to the BPP dispatcher.
 
-## Server-Side Non-Responsibilities
+### Remote Socket
 
-This page does not document OpenClaw account config, transport fallback implementation, outbound action mapping, or plugin local cursor files; those belong in `../plugin/`. It also does not describe admin SPA rendering or client reducer state; those belong in `../admin/` and `../client/`.
+The remote socket authenticates a remote node token and gives server REST handlers a live request/response channel to that node. The remote-agent process owns local filesystem operations.
+
+## Invariants
+
+- Durable event ordering is cursor-based.
+- Live websocket fanout is best-effort; recovery uses poll/SSE/backfill or REST pull paths.
+- Browser, plugin, and remote sockets are distinct protocols even though they share the Hub process.
+- Plugin liveness is interpreted from plugin socket activity; browser heartbeat is separate.
+
+## Implementation Anchors
+
+- Hub model: `packages/server-go/internal/ws`, `Hub`, `Client`, `PluginConn`, `RemoteConn`, `CursorAllocator`
+- Browser websocket: `packages/server-go/internal/ws/client.go`
+- Plugin websocket: `packages/server-go/internal/ws/plugin.go`
+- Remote websocket: `packages/server-go/internal/ws/remote.go`
+- Poll, SSE, backfill: `packages/server-go/internal/api/poll.go`
+- Browser consumer contract: `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`
