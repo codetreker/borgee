@@ -1,28 +1,30 @@
-// cm-5-content-lock.test.ts — CM-5.3 client SPA 文案 + DOM attr lock.
+// cm-5-content-lock.test.ts — CM-5.3 client SPA copy + DOM attribute lock.
 //
-// Spec: docs/implementation/modules/cm-5-spec.md §1.3 + §3 client UI 段.
+// Spec: docs/implementation/modules/cm-5-spec.md §1.3 + §3 client UI section.
 // Acceptance: docs/qa/acceptance-templates/cm-5.md §3.1-§3.4.
-// Blueprint: concept-model.md §1.3 §185 (透明协作 — agent↔agent 协作
-// 用户感知 owner-first 不被 ai_only 隐藏).
+// Blueprint: concept-model.md §1.3 §185 (transparent collaboration: agent↔agent
+// collaboration remains owner-visible and is not hidden behind ai_only).
 //
-// Sources cross-referenced (byte-identical 多源 同根, 改一处必改全部):
-//   - X2 conflict toast 字面 `正在被 agent {name} 处理` (锁 lib/cm5-toast.ts
-//     formatCM5X2ConflictToast + acceptance §3.2 + spec §1.3 三源同源)
-//   - DOM hover anchor `data-cm5-collab-link` 锁 ChannelMembersModal agent
-//     行 (跟 mention render @{display_name} DM-2.3 #388 同源, hover 显示
+// Cross-referenced sources (byte-identical across all sources; change all of them together):
+//   - X2 conflict toast literal `正在被 agent {name} 处理` (locks lib/cm5-toast.ts
+//     formatCM5X2ConflictToast + acceptance §3.2 + spec §1.3)
+//   - DOM hover anchor `data-cm5-collab-link` locks the ChannelMembersModal agent
+//     row (same source as mention render @{display_name} DM-2.3 #388; hover shows
 //     "正在协作")
-//   - 约束: 反向断言 ai_only / agent_only / visibility_scope DOM attr 在
-//     channel/agent UI 0 hit (蓝图 §185 透明协作设计 — owner-first 视角
-//     看到完整链, 反 owner_visibility_scope 多源)
-//   - 约束: 不订阅 push frame — `agent_config_update` 单引号代码字面 0
-//     hit (BPP frame 留 AL-2b + BPP-3, CM-5 设计 ① 走人 path 不开新 frame)
-//   - X2 toast 错码字面跟历史一致 — 反向断言 CM-5 自起 X2 错码同义词 0 hit
+//   - Constraint: ai_only / agent_only / visibility_scope DOM attributes must have
+//     0 hits in channel/agent UI (blueprint §185 transparent collaboration keeps
+//     the full chain visible to the owner and rejects owner_visibility_scope variants)
+//   - Constraint: no push-frame subscription — `agent_config_update` single-quoted
+//     code literal has 0 hits (BPP frame remains for AL-2b + BPP-3; CM-5 design ①
+//     uses the human collaboration path and adds no new frame)
+//   - X2 toast error-code literals stay historically consistent: CM-5-specific
+//     X2 error-code synonyms must have 0 hits
 //     (cm5.x2_conflict / agent_collision / artifact.x2_conflict / x2_lock_held)
-//     强制复用 CV-4 #380 ⑦ 既有路径 (server-side 约束 grep 守见
+//     and must reuse the existing CV-4 #380 ⑦ path (server-side grep guard:
 //     cm5stance.TestCM51_X2ConflictLiteralReuse)
 
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error — node:module 没 @types/node, vitest node 上下文可达.
+// @ts-expect-error — node:module has no @types/node here; Vitest node context can resolve it.
 import { createRequire } from 'module';
 import {
   formatCM5X2ConflictToast,
@@ -59,7 +61,7 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
     // Suffix + prefix const literals (used by reverse-grep).
     expect(CM5_X2_CONFLICT_TOAST_PREFIX).toBe('正在被 agent ');
     expect(CM5_X2_CONFLICT_TOAST_SUFFIX).toBe(' 处理');
-    // Lib source must contain the prefix literal (锁定 — mismatch detection).
+    // Lib source must contain the prefix literal for mismatch detection.
     expect(toastLib).toContain('正在被 agent ');
     expect(toastLib).toContain(' 处理');
   });
@@ -71,32 +73,33 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
   });
 
   it('③ 约束 ai_only / agent_only DOM attr 不渲染 (channel/agent UI)', () => {
-    // 蓝图 §185 透明协作设计 — 反 owner_visibility scope 多源.
-    // membersModal 是 channel/agent UI 真渲染 source — 反向断言 0 hit.
-    // (toastLib 只是 lib 定义这些为约束 const, 出现在反向断言 array 内
-    // 是 intentional, 不算 leak.)
+    // Blueprint §185 transparent collaboration rejects owner_visibility scope variants.
+    // membersModal is the actual channel/agent UI render source, so it must have 0 hits.
+    // toastLib only defines these strings in the constraint array; that is intentional
+    // and does not count as a leak.
     for (const forbidden of CM5_FORBIDDEN_VISIBILITY_DOM_ATTRS) {
       expect(membersModal).not.toContain(forbidden);
     }
   });
 
   it('④ 约束 不订阅 push frame (BPP frame 留 AL-2b + BPP-3)', () => {
-    // CM-5 设计 ① 走人 path 不开新 frame. 单引号字面 (代码使用形式) 0 hit.
-    const FRAME = 'agent_config' + '_update'; // 拼接防 lint 自 trip.
+    // CM-5 design ① uses the human collaboration path and adds no new frame.
+    // The single-quoted code literal form must have 0 hits.
+    const FRAME = 'agent_config' + '_update'; // concatenate to avoid tripping this lint check.
     expect(membersModal).not.toContain(`'${FRAME}'`);
     expect(membersModal).not.toContain(`"${FRAME}"`);
     expect(toastLib).not.toContain(`'${FRAME}'`);
     expect(toastLib).not.toContain(`"${FRAME}"`);
-    // 反向 ws subscription / hub.subscribe 调用 0 hit in CM-5 lib.
+    // Reverse check: ws subscription / hub.subscribe calls have 0 hits in CM-5 lib.
     expect(toastLib).not.toContain('subscribeWS');
     expect(toastLib).not.toContain('hub.subscribe');
   });
 
   it('⑤ 约束 X2 错码同义词 0 hit (强制复用 CV-4 #380 ⑦ 既有路径)', () => {
-    // CM-5 设计 ③ 字面: X2 冲突复用 CV-4 既有错码 `artifact.locked_by_
-    // another_iteration` byte-identical. 反向 reject CM-5 自起同义词
-    // (跟 cm5stance.TestCM51_X2ConflictLiteralReuse server-side 约束
-    // 守同源).
+    // CM-5 design ③: X2 conflicts reuse the existing CV-4 error code
+    // `artifact.locked_by_another_iteration` byte-identical. Reject CM-5-specific
+    // synonyms and keep this aligned with the server-side constraint
+    // cm5stance.TestCM51_X2ConflictLiteralReuse.
     for (const drift of [
       'cm5.x2_conflict',
       'agent_collision',
@@ -111,8 +114,8 @@ describe('CM-5.3 content-lock literals + DOM attrs', () => {
   });
 
   it('约束: X2 toast 同义词漂移 0 hit (字面唯一根)', () => {
-    // 反向同义词 byte-identical reject — 改 toast 必须改 spec/acceptance/
-    // server const 三处同源.
+    // Byte-identical synonym rejection: changing the toast requires changing the
+    // spec, acceptance text, and server const together.
     for (const drift of [
       '正在被 agent 占用',
       '正在被 agent 锁定',

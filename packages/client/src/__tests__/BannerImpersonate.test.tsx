@@ -1,10 +1,10 @@
-// BannerImpersonate.test.tsx — ADM-2.2 acceptance §4.2.a 红横幅 DOM 锁.
+// BannerImpersonate.test.tsx — ADM-2.2 acceptance §4.2.a red banner DOM lock.
 //
 // Pins:
-//   - `[data-banner="impersonate-active"]` 仅在 active grant 时渲染
-//   - 字面 byte-identical 跟 docs/qa/adm-2-content-lock.md §2 同源
-//   - 无 grant / 已 revoked / 已过期 → 不渲染 (反向断言)
-//   - `[立即撤销]` 入口存在 + 调用 revokeGrant
+//   - `[data-banner="impersonate-active"]` renders only for an active grant
+//   - text stays byte-identical with docs/qa/adm-2-content-lock.md §2
+//   - no grant / revoked / expired grant → no banner (negative assertion)
+//   - `[立即撤销]` entry exists and calls revokeGrant
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
