@@ -1,19 +1,19 @@
 // AdminAuditLogPage — ADM-2.2 admin SPA audit-log 页 (#484).
 //
-// Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 (admin 写动作必须留迹 +
-// admin 之间互可见 — 立场 ③).
+// Blueprint: docs/blueprint/current/admin-model.md §1.4 rule: admin write actions
+// must be audited and visible across admins.
 // Spec: docs/current/admin/README.md §6 admin API GET /admin-api/v1/audit-log
-//   - Stance ③: default has no WHERE; the three filters
+//   - Default query has no WHERE; the three filters
 //     (?actor_id / ?action / ?target_user_id) are UI narrowing, not buckets.
 //   - Admin-cookie routing is separate from user cookies
 //     (user cookie → 401, REG-ADM0-002 baseline).
 // Content lock: docs/qa/adm-2-content-lock.md §5 (admin SPA cross-surface literals,
-//   admin 端英文 enum vs 用户端中文动词 byte-identical).
+//   admin English enum values stay aligned with user-side Chinese verbs).
 //
 // DOM 锚: `[data-page="admin-audit-log"]` + 每行 `[data-action-row]` + 每
 // filter input `[data-filter="{actor|action|target}"]`.
 //
-// Cross-surface literal lock (constraint stance):
+// Cross-surface literal lock (constraint summary):
 //   - This page uses English enum action literals (delete_channel/suspend_user/...).
 //   - 用户端 Settings/AdminActionsList 走中文动词字面 (ACTION_VERBS map
 //     in the user SPA; admin SPA must not import it. See
@@ -21,14 +21,14 @@
 //   - 改 enum = 改 server CHECK constraint + 此 admin SPA + 用户端 SPA 三处.
 //   - Constraint: admin must not render Chinese verbs; admin SPA displays the
 //     English enum directly, while Chinese verbs are user-facing.
-//   - Constraint: admin SPA renders actor_id (admins can see each other,
-//     stance ③); the user side does not render raw actor_id and uses admin
-//     lookup to show admin_username instead (stance ④).
+//   - Constraint: admin SPA renders actor_id (admins can see each other);
+//     the user side does not render raw actor_id and uses admin
+//     lookup to show admin_username instead.
 
 import React, { useEffect, useState } from 'react';
 import { fetchAdminAuditLog, type AdminActionRow, type AuditLogFilters } from '../api';
 
-// ACTION_ENUM — English enum literals stay byte-identical with the server CHECK constraint
+// ACTION_ENUM — English enum literals match the server CHECK constraint
 // (admin_actions 表 CHECK (action IN ('delete_channel', 'suspend_user', ...))).
 // 改这里 = 改 server migration v=22 + user SPA AdminActionsList ACTION_VERBS.
 const ACTION_ENUM = [
@@ -79,7 +79,7 @@ export default function AdminAuditLogPage() {
   return (
     <div data-page="admin-audit-log" data-adm2-audit-list="true">
       {/* ADM-2-FOLLOWUP REG-011 — red banner active when impersonate session is in effect.
-          字面 byte-identical 跟 content-lock §1 + admin-2-followup-stance §1. */}
+          Literal text follows content-lock §1 + admin-2-followup-stance §1. */}
       <div data-adm2-red-banner="active" className="admin-impersonate-banner" role="alert">
         当前以业主身份操作 — 该会话受 24h 时限
       </div>
@@ -127,8 +127,8 @@ export default function AdminAuditLogPage() {
             placeholder="UUID"
           />
         </label>
-        {/* ADMIN-SPA-ARCHIVED-UI-FOLLOWUP: AL-8 §0 立场 ③ archived 三态
-            filter toggle. 默认 "active" (空字面 = active 跟 server byte-identical).
+        {/* ADMIN-SPA-ARCHIVED-UI-FOLLOWUP: AL-8 §0 archived tri-state
+            filter toggle. 默认 "active" (empty value maps to server active default).
             content-lock §1: 3 label "Active" / "Archived" / "All" 字面单源. */}
         <label>
           View
@@ -185,7 +185,7 @@ export default function AdminAuditLogPage() {
                 data-action-row
                 data-action={row.action}
                 data-adm2-actor-kind="admin"
-                /* ADMIN-SPA-SHAPE-FIX D4: AL-8 §0 立场③ archived 三态 row class.
+                /* ADMIN-SPA-SHAPE-FIX D4: AL-8 §0 archived tri-state row class.
                    server sanitizeAdminAction nil-safe surface archived_at —
                    null/缺 = active, non-null = archived. */
                 data-archived-state={row.archived_at != null ? 'archived' : 'active'}

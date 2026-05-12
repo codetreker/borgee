@@ -3,7 +3,7 @@ import { fetchAdminRuntimes } from '../api';
 import type { AdminRuntime } from '../api';
 
 // ADMIN-SPA-UI-COVERAGE-WAVE2: GET /admin-api/v1/runtimes admin god-mode
-// metadata read (AL-4.2 #398). 立场: readonly 全 agent_runtimes 视图,
+// metadata read (AL-4.2 #398). Readonly full agent_runtimes view;
 // last_error_reason server-side OMITTED (ADM-0 §1.3 隐私). 0 server 改.
 
 export default function RuntimesPage() {

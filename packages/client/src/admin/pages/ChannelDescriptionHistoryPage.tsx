@@ -4,8 +4,8 @@ import { fetchAdminChannelDescriptionHistory } from '../api';
 import type { ChannelDescriptionHistoryEntry } from '../api';
 
 // ADMIN-SPA-UI-COVERAGE-WAVE2: GET /admin-api/v1/channels/{id}/description/history
-// (CHN-14 #429). 立场: readonly 描述变更历史 viewer; entry shape `{old_content, ts, reason}`
-// 3 字段 byte-identical 跟 server queries.go SSOT. 0 server 改.
+// (CHN-14 #429). Readonly description-history viewer; entry shape
+// `{old_content, ts, reason}`. 3 fields match server queries.go. No server changes.
 
 export default function ChannelDescriptionHistoryPage() {
   const { id } = useParams();

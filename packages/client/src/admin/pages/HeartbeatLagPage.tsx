@@ -3,8 +3,8 @@ import { fetchAdminHeartbeatLag } from '../api';
 import type { LagSnapshot } from '../api';
 
 // ADMIN-SPA-UI-COVERAGE-WAVE2: GET /admin-api/v1/heartbeat-lag (HB-5 #408).
-// 立场: readonly 30s rolling window LagSnapshot 9 字段 byte-identical 跟
-// server SSOT. 0 server 改.
+// Readonly 30s rolling window LagSnapshot; 9 fields match the server shape.
+// No server changes.
 
 export default function HeartbeatLagPage() {
   const [snap, setSnap] = useState<LagSnapshot | null>(null);

@@ -4,11 +4,11 @@
 // Spec: docs/implementation/modules/adm-3-spec.md §1 ADM3.2.
 //
 // Intent:
-//   - 4 source enum single source of truth (server/plugin/host_bridge/agent)
-//     must stay byte-identical with server-side AuditSources; changes require
+//   - 4 source enum literals (server/plugin/host_bridge/agent)
+//     must match server-side AuditSources; changes require
 //     updating the server const, this page, and the i18n entries together.
 //   - Admin path stays separate under ADM-0 §1.3: only
-//     /admin-api/v1/audit/multi-source is exposed, with no user API path drift.
+//     /admin-api/v1/audit/multi-source is exposed, with no user API path added.
 //   - DOM anchor: `[data-page="admin-audit-multi-source"]` + each row
 //     `[data-source-row="{source}"]`.
 
@@ -20,7 +20,7 @@ import {
   MultiSourceAuditRow,
 } from '../api';
 
-// SOURCE_LABEL — 4 sources and 4 i18n keys. Keep byte-identical with the
+// SOURCE_LABEL — 4 sources and 4 i18n keys. Keep aligned with the
 // server const and content-lock §1.
 const SOURCE_LABEL: Record<AuditSource, string> = {
   server: 'Server',
