@@ -1,44 +1,44 @@
-# server-go — agent runtime 三态 (AL-1a)
+# server-go — agent runtime three-state model (AL-1a)
 
-> AL-1a (#R3 Phase 2 起步) · 蓝图 `agent-lifecycle.md §2.3` · 不持久化, AL-3 才落表
+> AL-1a (#R3 Phase 2 start) · blueprint `agent-lifecycle.md §2.3` · not persisted until AL-3
 
-## 1. 适用范围
+## 1. Scope
 
-Phase 2 只承诺 **online / offline + error 旁路** 三态. busy / idle 跟 BPP 同期 (Phase 4 AL-1) 落地——因为 source 必须是 plugin 上行 frame, 没 BPP 就只能 stub, stub 上 v1 要拆掉 = 白写 (2026-04-28 4 人 review #5 决议).
+Phase 2 only commits to the **online / offline + error-side** three-state model. busy / idle land with BPP (Phase 4 AL-1), because their source must be an upstream plugin frame; without BPP they would be stubs that v1 would later remove (2026-04-28 four-person review #5 decision).
 
-## 2. 服务端 API
+## 2. Server API
 
-| 文件 | 角色 |
+| File | Role |
 |------|------|
-| `internal/agent/state.go` | `RuntimeState` enum + `Reason*` 常量 + `Tracker` (error map) + `ClassifyProxyError` |
-| `internal/api/agents.go` | `AgentRuntimeProvider` interface + `withState` JSON 折入 + plugin 调用故障旁路 |
-| `internal/server/server.go` | `agentRuntimeAdapter` 把 `*ws.Hub.GetPlugin` + `*agent.Tracker` 合成单次查询 |
+| `internal/agent/state.go` | `RuntimeState` enum + `Reason*` constants + `Tracker` (error map) + `ClassifyProxyError` |
+| `internal/api/agents.go` | `AgentRuntimeProvider` interface + `withState` JSON merge + plugin-call error side path |
+| `internal/server/server.go` | `agentRuntimeAdapter` combines `*ws.Hub.GetPlugin` + `*agent.Tracker` into a single query |
 
-行为:
+Behavior:
 
-- **online**: `hub.GetPlugin(agentID) != nil` 且无 error 记录.
-- **offline**: 没 plugin 在线, 也没 error 记录. 默认值.
-- **error**: `Tracker.SetError(id, reason)` 写入. 优先级最高 (有 error 记录无视 plugin presence, 防 owner 看到"绿点 + 实际不通").
-- **disabled**: `users.disabled = true` 时强制 offline (蓝图 §2.4 禁用 = 停接消息).
+- **online**: `hub.GetPlugin(agentID) != nil` and there is no error record.
+- **offline**: no plugin is online and there is no error record. This is the default.
+- **error**: written by `Tracker.SetError(id, reason)`. This has highest priority; an error record overrides plugin presence so the owner does not see a green status when the runtime is actually unreachable.
+- **disabled**: `users.disabled = true` forces offline (blueprint §2.4: disabled means no longer accepting messages).
 
-## 3. 故障旁路触发点
+## 3. Error-Side Trigger
 
-`handleGetAgentFiles` 调 `Hub.ProxyPluginRequest`, 失败时 `ClassifyProxyError(status, err)` 分类:
+`handleGetAgentFiles` calls `Hub.ProxyPluginRequest`; on failure, `ClassifyProxyError(status, err)` classifies the result:
 
-| 信号 | reason |
+| Signal | reason |
 |------|--------|
-| `status == 401` 或 err 含 "api key" / "unauthorized" | `api_key_invalid` |
+| `status == 401` or err contains "api key" / "unauthorized" | `api_key_invalid` |
 | `status == 429` | `quota_exceeded` |
 | `status >= 500` | `runtime_crashed` |
-| err 含 "timeout" / "deadline exceeded" | `runtime_timeout` |
-| err 含 "not connected" / "connection refused" / "unreachable" | `network_unreachable` |
-| 其它非空 err | `unknown` |
+| err contains "timeout" / "deadline exceeded" | `runtime_timeout` |
+| err contains "not connected" / "connection refused" / "unreachable" | `network_unreachable` |
+| any other non-empty err | `unknown` |
 
-非空 reason → `setter.SetAgentError(id, reason)`. owner 下次 GET 立即看到红条 + 修复入口.
+Non-empty reason → `setter.SetAgentError(id, reason)`. The owner sees the error banner and repair entry on the next GET.
 
 ## 4. JSON wire schema
 
-GET `/api/v1/agents` / GET `/api/v1/agents/{id}` 在原 sanitize 字段上多加:
+GET `/api/v1/agents` / GET `/api/v1/agents/{id}` add these fields to the existing sanitized payload:
 
 ```
 state              : "online" | "offline" | "error"   (always emit)
@@ -46,21 +46,21 @@ reason             : string (仅 error 态)
 state_updated_at   : Unix ms (仅 error 态, error 时刻)
 ```
 
-文案锁定见 `packages/client/src/lib/agent-state.ts` (野马 #190 §11): "在线" / "已离线" / "故障 (api_key_invalid)" 等. 改 reason 字符串 = 改两边 + 改 `__tests__/agent-state.test.ts` 锁定断言.
+Copy lock is in `packages/client/src/lib/agent-state.ts` (#190 §11): "在线" / "已离线" / "故障 (api_key_invalid)" and related labels. Changing a reason string requires changing both sides plus `__tests__/agent-state.test.ts` lock assertions.
 
-## 5. 不在范围
+## 5. Out of Scope
 
-- 不带 migration. 状态全部驻 `Tracker` map (内存). 重启全清, owner 触发任意 plugin 调用即重新分类.
-- 不实现 busy / idle. 没 BPP 不能 stub.
-- 不主动 push state 变更. 客户端依赖 RT-0 (#40) 已有的 `/events` long-poll wakeup 路径; AL-1b (Phase 4 BPP cutover) 再考虑专属 frame.
+- No migration. State lives only in the in-memory `Tracker` map. Restart clears it, and any owner-triggered plugin call reclassifies it.
+- No busy / idle implementation. Without BPP, do not ship stubs.
+- No active state-change push. The client relies on the existing RT-0 (#40) `/events` long-poll wakeup path; AL-1b (Phase 4 BPP cutover) can add a dedicated frame.
 
 ## 6. AL-4.2 — runtime process descriptor API (PR #414)
 
-> AL-1a 三态是内存瞬时态 (online/offline/error); AL-4.2 落 `agent_runtimes` 表 (`schema_migrations` v=16, PR #398) — plugin process descriptor 持久化, 跟 AL-1a 内存态真分清 (蓝图 `agent-lifecycle.md §2.2`)。
+> AL-1a's online/offline/error state is in-memory and transient; AL-4.2 adds the `agent_runtimes` table (`schema_migrations` v=16, PR #398) for persistent plugin process descriptors, keeping that data separate from AL-1a's transient state (blueprint `agent-lifecycle.md §2.2`).
 
-文件: `internal/api/runtimes.go` (`RuntimeHandler` user-rail + `AdminRuntimeHandler` admin-rail 双 mux 隔离)。
+File: `internal/api/runtimes.go` (`RuntimeHandler` user rail + `AdminRuntimeHandler` admin rail, separated by mux).
 
-Endpoints (acceptance §2 字面, owner-only 除标注):
+Endpoints (acceptance §2 literals; owner-only unless noted):
 
 ```
 POST /api/v1/agents/{id}/runtime/register   create agent_runtimes row
@@ -72,14 +72,13 @@ GET  /api/v1/agents/{id}/runtime            owner-only metadata read
 GET  /admin-api/v1/runtimes                 admin god-mode whitelist (no last_error_reason raw)
 ```
 
-start + stop 二次防护 = `auth.RequirePermission(s, "agent.runtime.control", nil)` middleware (acceptance §4.6 字面 grep `RequirePermission..agent\.runtime\.control` count≥2 锁定两路命中)。
+start + stop use a second guard: `auth.RequirePermission(s, "agent.runtime.control", nil)` middleware (acceptance §4.6 literal grep `RequirePermission..agent\.runtime\.control` count≥2 locks both paths).
 
-设计原则反查 (al-4-spec.md §0 + acceptance §4):
+Design cross-checks (al-4-spec.md §0 + acceptance §4):
 
-- ① Borgee 不带 runtime: server 仅记 process descriptor, 不存 `llm_provider` / `model_name` / `api_key` / `prompt_template` (schema 闸位已就位 #398).
-- ② admin god-mode 元数据 only: admin endpoint 返白名单不写; `last_error_reason` raw 不返 (admin-rail grep 检查 `admin.*runtime.*start|admin.*runtime.*stop` count==0).
-- ③ runtime status ≠ presence: heartbeat 写 `agent_runtimes.last_heartbeat_at` 不写 `presence_sessions` (跟 AL-3 SessionsTracker 边界真分清 — schema 闸位已就位 #398, handler 不 import `internal/presence` 写表).
-- ④ status DM 文案锁定 byte-identical: "{agent_name} 已启动" / "已停止" / "出错: {reason}" 跟野马 #321 三处单测同源.
-- ⑤ reason 复用 AL-1a #249 6 reason 枚举字面 + AL-4 stub fail-closed 加 `runtime_not_registered` 第 7 reason — 不另起字典 (跟 `agent/state.go Reason*` + `lib/agent-state.ts REASON_LABELS` byte-identical).
-- ⑥ 走 BPP-1 既有 frame 不拆 namespace: register / start / stop **不发** `runtime.start` / `runtime.stop` 自造 frame type (acceptance §4.4 grep 检查 count==0).
-
+- ① Borgee does not host the runtime: server stores only the process descriptor, not `llm_provider` / `model_name` / `api_key` / `prompt_template` (schema guard already in place in #398).
+- ② Admin metadata only: the admin endpoint returns a whitelist and does not write; raw `last_error_reason` is not returned (admin-rail grep check `admin.*runtime.*start|admin.*runtime.*stop` count==0).
+- ③ Runtime status is not presence: heartbeat writes `agent_runtimes.last_heartbeat_at`, not `presence_sessions` (separate from the AL-3 SessionsTracker boundary; schema guard already in place in #398, and the handler does not import `internal/presence` for writes).
+- ④ Status DM copy is byte-identical: "{agent_name} 已启动" / "已停止" / "出错: {reason}" share the same lock as the three #321 tests.
+- ⑤ Reasons reuse the AL-1a #249 six reason literals, plus AL-4 fail-closed stub reason `runtime_not_registered`; do not create another dictionary (`agent/state.go Reason*` + `lib/agent-state.ts REASON_LABELS` stay byte-identical).
+- ⑥ Use the existing BPP-1 frame and do not split the namespace: register / start / stop **do not send** custom `runtime.start` / `runtime.stop` frame types (acceptance §4.4 grep check count==0).
