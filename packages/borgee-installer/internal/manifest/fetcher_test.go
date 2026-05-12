@@ -94,7 +94,7 @@ func TestHB1B_VerifyManifest_EmptySig_Reject(t *testing.T) {
 }
 
 func TestHB1B_Reasons7DictByteIdentical(t *testing.T) {
-	// Drift guard: these seven literals must stay byte-identical with spec §3.2
+	// Regression check: these seven literals must exactly match spec §3.2
 	// and server-side HB1AllReasons.
 	want := []string{
 		"ok",

@@ -2,10 +2,10 @@
 
 // Package main — borgee-installer-darwin: HB-1B-INSTALLER macOS .pkg installer.
 //
-// hb-1b-installer-spec §0.2: 真 ed25519 manifest verify + permission popup
+// hb-1b-installer-spec §0.2: ed25519 manifest verification + permission popup
 // + sudo /usr/sbin/installer + launchd unit deployment from borgee-helper install assets.
 //
-// CLI mirror borgee-installer-linux 但 .pkg 走 /usr/sbin/installer + launchctl.
+// CLI mirrors borgee-installer-linux; .pkg uses /usr/sbin/installer + launchctl.
 //
 // Boundary: installer implementation stays in this module and uses user sudo;
 // it does not add an installer admin API path.
@@ -77,8 +77,8 @@ func main() {
 		if *dryRun {
 			continue
 		}
-		// 真 sudo /usr/sbin/installer + launchctl: 反向 grep `sudo /usr/sbin/installer`
-		// + `launchctl` ≥1 hit per 命令 (REG-HB1B-004).
+		// Keep sudo /usr/sbin/installer and launchctl visible for REG-HB1B-004
+		// coverage.
 		cmd := exec.CommandContext(ctx, "sh", "-c", step)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

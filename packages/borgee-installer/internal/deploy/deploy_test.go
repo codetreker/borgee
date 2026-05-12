@@ -33,7 +33,7 @@ func TestHB1B_PlanForCurrentOS_KnownGOOS(t *testing.T) {
 	if err != nil {
 		// windows / other -> err with a reserved-for-v2 message.
 		if !strings.Contains(err.Error(), "v2") {
-			t.Errorf("expected v2 留账 in err, got: %v", err)
+			t.Errorf("expected reserved-for-v2 message in err, got: %v", err)
 		}
 		return
 	}

@@ -13,7 +13,7 @@
 // service unit deployment wrapping borgee-helper.{service,plist}).
 //
 // Boundaries (hb-1b-installer-spec §0):
-//   - HB-1 #589 server endpoint and HB-2 v0(D) #617 daemon remain sources of truth
+//   - HB-1 #589 server endpoint and HB-2 v0(D) #617 daemon remain canonical sources
 //   - installer implementation stays in this module and uses helper install assets
 //   - no installer admin API path (ADM-0 §1.3 red line)
 module borgee-installer
