@@ -1,29 +1,29 @@
 // tests/rt-1-2-backfill-on-reconnect.spec.ts — RT-1.2 (#290 follow) e2e.
 //
-// 立场锚 (RT-1 spec §1.2):
+// Behavioral anchors (RT-1 spec §1.2):
 //   ① WS 断 → 重连后 client 调 GET /api/v1/events?since=<last_seen_cursor>
 //      把断线期间漏掉的 event 拉回来 (≤3s 完成)
-//   ② 反约束: cold start (sessionStorage 空) 不 default 拉全 history —
+//   ② Negative constraint: cold start (sessionStorage empty) must not default to fetching all history —
 //      since=0 时 client 跳过 backfill, 不打 /api/v1/events
 //   ③ server 永不返回 cursor <= since 的事件 (服务端契约, 客户端
 //      `last_seen_cursor` dedup fail-closed)
 //
-// 实现说明: 完整的 "断线 5s + 5 commit" 跑路场景需要在 server 侧
-// 注入 ArtifactUpdated 事件; CV-1 artifact 表还没落 (Phase 3+), 所以
-// 这里走 messages → events 的现成链路。
+// Implementation note: the full "disconnect 5s + 5 commits" scenario needs the
+// server to inject ArtifactUpdated events. The CV-1 artifact table is not landed
+// yet (Phase 3+), so this test uses the existing messages → events path.
 //
-// **触发 reconnect 的方式 (P0 真 bug 修法)** —
-// `page.context().setOffline(true)` 只阻断新 socket / 新 HTTP, **不会**
-// 关闭已经握手成功的 WebSocket frame stream. 浏览器 view 下 WS 仍 OPEN,
-// `onclose` 永不 fire, `scheduleReconnect` 不被调, `wasReconnect` 永远
-// 是 false → backfill 永远不触发. 这就是 #297 e2e 反复 flake 的根因
-// (不是 timing flake — `backfillCalls.length` 始终 0).
+// **Reconnect trigger** — `page.context().setOffline(true)` only blocks new
+// sockets / new HTTP. It does not close an already-open WebSocket frame stream.
+// In the browser view, WS stays OPEN, `onclose` never fires, `scheduleReconnect`
+// is not called, and `wasReconnect` remains false, so backfill never triggers.
+// That was the root cause of repeated #297 e2e flakes; it was not a timing flake
+// because `backfillCalls.length` stayed 0.
 //
-// 修法: `addInitScript` 包一层 `window.WebSocket` 把每次新建的 instance
-// 挂在 `window.__lastWS`, 测试里直接 `evaluate` 调 `.close()` 触发
-// onclose → reconnect → backfill. 这样触发链跟用户真断网时一致 (用户
-// 真断网 OS 会 RST 连接 → 浏览器收到 close frame), Playwright 的
-// `setOffline` 没有这个语义。
+// Fix: `addInitScript` wraps `window.WebSocket`, stores each new instance on
+// `window.__lastWS`, and the test calls `.close()` through `evaluate` to trigger
+// onclose → reconnect → backfill. That matches the user-visible network-drop
+// chain: OS resets the connection and the browser receives a close frame.
+// Playwright `setOffline` does not provide that behavior.
 
 import { test, expect, request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
 

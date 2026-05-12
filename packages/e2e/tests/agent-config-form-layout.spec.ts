@@ -1,25 +1,26 @@
-// tests/agent-config-form-layout.spec.ts — Agent 配置 form 排版多 viewport 自适应 (gh#698).
+// tests/agent-config-form-layout.spec.ts — Agent config form layout across viewports (gh#698).
 //
-// 测试范围:
-//   - 6 个 label 各占独立行不重叠 (修前 800px 父容器下 inline 流水重叠)
-//   - 5 个 text/textarea label 用 inline style display:'block'
-//   - 1 个 checkbox label 用 inline style display:'flex'
-//   - data-agent-config-field 6 个标记位齐全
-//   - 多 viewport 自适应: 1280 / 1024 / 480
-//   - a11y 反向断走浏览器层 (真量 inline style, 不走 vitest)
+// Test scope:
+//   - Six labels each occupy their own non-overlapping row; before the fix, the
+//     inline flow overlapped inside an 800px parent container.
+//   - Five text/textarea labels use inline style display:'block'.
+//   - One checkbox label uses inline style display:'flex'.
+//   - All six data-agent-config-field markers are present.
+//   - Responsive behavior across 1280 / 1024 / 480 viewports.
+//   - Accessibility negative checks run in the browser layer by measuring inline styles.
 //
-// 不在范围:
-//   - label htmlFor 隐式关联 (设计层 §3 已论证, 不在 e2e 覆盖)
-//   - 新 CSS class 验证 (本修选方案 A 内联 style, 不引 class)
-//   - al-2a content lock 漂移 (gh#701 后续, 不在本 spec)
+// Out of scope:
+//   - label htmlFor implicit association; design §3 covers it, not this e2e test.
+//   - New CSS class validation; this fix chose option A, inline style, without adding a class.
+//   - al-2a content-lock drift, tracked separately in gh#701.
 //
-// 关联文档:
-//   - 设计: docs/tasks/698-agent-config-form-overlap/design.md §7 测试策略 + §4 边界
+// Related docs:
+//   - Design: docs/tasks/698-agent-config-form-overlap/design.md §7 test strategy + §4 boundaries
 //   - QA review: liema #1 / #3 / #4
 //
-// 实施约束:
-//   - 真 UI 走浏览器 (page.goto + 真 viewport 切换 + getBoundingClientRect 真量)
-//   - 不允许 fs.* / page.evaluate(fetch) 走 cookie 直调 / 只打 API / noop
+// Implementation constraints:
+//   - Browser-driven UI path: page.goto, viewport changes, and getBoundingClientRect measurement.
+//   - Do not use fs.*, page.evaluate(fetch) with cookies, API-only checks, or empty placeholder tests.
 
 import {
   test,
@@ -107,24 +108,25 @@ async function createAgent(
 
 /**
  * Open AgentConfigPanel by going to /agents → expand first agent's Manage.
- * AgentConfigPanel 在 Manage 展开后渲染.
+ * AgentConfigPanel renders after Manage is expanded.
  *
- * gh#698 e2e CI fail 修: 480px mobile viewport 下 sidebar 默认折叠 (App.tsx
- * isMobile = innerWidth < 768, sidebar-wrapper sidebar-closed), [data-testid=
- * "sidebar-nav-agents"] 在 closed sidebar 里不可点. 加 hamburger 守卫: 如果
- * mobile 路径 .hamburger-btn 可见, 先点开 sidebar 再点 agents nav. desktop
- * (≥768px) hamburger-btn 不渲染 (App.tsx L204 {isMobile && ...}), 直接点 nav.
- * (跟 PR #699 cv-1-3-canvas-modal-a11y.spec.ts mobile case 同款修法.)
+ * gh#698 e2e CI fix: at a 480px mobile viewport, the sidebar starts collapsed
+ * (App.tsx isMobile = innerWidth < 768, sidebar-wrapper sidebar-closed), so
+ * [data-testid="sidebar-nav-agents"] is not clickable inside the closed sidebar.
+ * If the mobile .hamburger-btn is visible, open the sidebar before clicking the
+ * agents nav. On desktop (≥768px), hamburger-btn is not rendered
+ * (App.tsx L204 {isMobile && ...}), so the nav can be clicked directly. This
+ * matches the mobile handling used by PR #699 cv-1-3-canvas-modal-a11y.spec.ts.
  */
 async function openAgentConfigPanel(page: Page) {
   await page.goto('/');
-  // mobile: 等 hamburger 出来 (mobile 必有); desktop: 等 sidebar-title
-  // (desktop 必有). 用 first() 避 strict mode .or() 双命中坑 (PR #699 踩过).
+  // Mobile waits for hamburger; desktop waits for sidebar-title. first() avoids
+  // strict-mode .or() double-match failures seen in PR #699.
   await expect(
     page.locator('.hamburger-btn, .sidebar-title').first(),
   ).toBeVisible({ timeout: 10_000 });
-  // mobile 路径: hamburger 可见 → 点开 sidebar (desktop 路径 hamburger DOM
-  // 不渲染, count == 0, isVisible() == false, 跳过).
+  // Mobile path: visible hamburger means the sidebar must be opened first.
+  // Desktop does not render hamburger, so count == 0 and this branch is skipped.
   const hamburger = page.locator('.hamburger-btn');
   const isMobile = await hamburger.count() > 0 && await hamburger.isVisible();
   if (isMobile) {
@@ -132,29 +134,26 @@ async function openAgentConfigPanel(page: Page) {
   }
   await page.locator('[data-testid="sidebar-nav-agents"]').click();
   await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
-  // gh#698 e2e v6: 本地 reproduce 真因. mobile sidebar-overlay (z 199, inset 0)
-  // 全屏遮 .main-content, Manage button 在 overlay 之下不可点. v3-v5 反复试
-  // overlay click / force click 都有坑 (overlay 被 sidebar 遮 / React onClick
-  // 不 fire / force click manageBtn 跳 React handler). v6 直接走 page.evaluate
-  // 找 React fiber 上的 click handler — 不靠 Playwright hit-testing 也不靠 raw
-  // mouse event. mobile 路径用 evaluate, desktop 路径走原生 click.
+  // gh#698 e2e v6: local reproduction showed the mobile sidebar overlay
+  // (z 199, inset 0) covers .main-content, making the Manage button unclickable
+  // under the overlay. Earlier attempts with overlay click / force click were
+  // unreliable because the overlay can be covered by the sidebar, React onClick
+  // may not fire, and forced Manage clicks can skip React handlers. The mobile
+  // path closes the overlay through page.evaluate; desktop keeps native click.
   if (isMobile) {
-    // 找 sidebar-overlay 元素直接调 onClick (closeSidebar) 关 sidebar.
-    // overlay 是 React-rendered <div onClick={closeSidebar}>, 找元素上的
-    // React props 触发 onClick. 简化: 直接 evaluate dispatch 一个 React 能
-    // 接的 click event (bubbles + cancelable + 走 React event delegation).
+    // Find sidebar-overlay and click it so React's closeSidebar handler runs.
     await page.evaluate(() => {
       const overlay = document.querySelector('.sidebar-overlay') as HTMLElement | null;
       if (overlay) {
-        overlay.click();  // native click 走 React event delegation, 触发 closeSidebar
+        overlay.click();  // native click uses React event delegation and closes the sidebar
       }
     });
     await expect(page.locator('.sidebar-overlay')).toHaveCount(0, { timeout: 5_000 });
   }
-  // Manage 展开 (展开后才会 mount AgentConfigPanel — design §1 路径).
+  // Expand Manage; AgentConfigPanel mounts only after this design §1 path.
   const manageBtn = page.locator('.agent-card button.btn-sm', { hasText: 'Manage' }).first();
   await manageBtn.click();
-  // AgentConfigPanel 渲染锚: data-agent-config="root".
+  // AgentConfigPanel render anchor: data-agent-config="root".
   await expect(page.locator('[data-agent-config="root"]')).toBeVisible({ timeout: 5_000 });
 }
 
@@ -172,8 +171,8 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openAgentConfigPanel(page);
 
-    // 6 个 label 各自占独立行 (y 不同). 用 data-agent-config-field 锚定 input,
-    // 然后量每个 input 的 boundingRect: 6 个 input 应占 6 个不同 y.
+    // Six labels occupy separate rows. Use data-agent-config-field to anchor each
+    // input, then measure boundingRect: the six inputs should have six distinct y values.
     const fields = ['name', 'avatar', 'prompt', 'model', 'memory_ref', 'enabled'];
     const ys: number[] = [];
     for (const field of fields) {
@@ -182,7 +181,7 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
       );
       ys.push(rect.y);
     }
-    // 每个 field 跟下一个 field 的 y 间距 ≥ 8px (marginTop), 反 inline 流水重叠.
+    // Adjacent fields need at least 8px y spacing (marginTop), guarding against inline-flow overlap.
     for (let i = 1; i < ys.length; i++) {
       expect(
         ys[i]! - ys[i - 1]!,
@@ -195,7 +194,7 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openAgentConfigPanel(page);
 
-    // liema review #1 反向断言: 防"加新字段忘加 style".
+    // QA review #1 negative assertion: adding a text field must include the style.
     const textFields = ['name', 'avatar', 'prompt', 'model', 'memory_ref'];
     for (const field of textFields) {
       const display = await page.locator(`[data-agent-config-field="${field}"]`).first()
@@ -211,7 +210,7 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openAgentConfigPanel(page);
 
-    // checkbox 例外: 跟 CreateAgentModal Permissions 块同款 inline.
+    // Checkbox exception: same inline pattern as CreateAgentModal Permissions.
     const display = await page.locator('[data-agent-config-field="enabled"]').first()
       .evaluate((el) => {
         const label = el.closest('label');
@@ -231,7 +230,7 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
         (el) => el.getBoundingClientRect(),
       );
       ys.push(rect.y);
-      // 反溢出: 每个 field 不应超出 viewport.
+      // Overflow check: each field should stay inside the viewport.
       expect(rect.x, `${field} x=${rect.x} 应 ≥ 0 (不左溢)`).toBeGreaterThanOrEqual(0);
       expect(rect.x + rect.width, `${field} 右边界 ${rect.x + rect.width} 应 ≤ 480 (不右溢)`).toBeLessThanOrEqual(480);
     }
@@ -265,11 +264,11 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
     for (const field of expectedFields) {
       await expect(page.locator(`[data-agent-config-field="${field}"]`)).toHaveCount(1);
     }
-    // header / version / save 锚也不动.
+    // Header / version / save anchors are also locked.
     await expect(page.locator('[data-agent-config="root"]')).toBeVisible();
     await expect(page.locator('[data-agent-config-version]')).toBeVisible();
     await expect(page.locator('[data-agent-config-action="save"]')).toBeVisible();
-    // 标题字面 byte-identical "Agent 配置" (al-2a-content-lock.test.ts 现锁此字面).
+    // Title literal remains byte-identical with "Agent 配置" as locked by al-2a-content-lock.test.ts.
     await expect(page.locator('[data-agent-config="root"] h3')).toHaveText('Agent 配置');
   });
 });

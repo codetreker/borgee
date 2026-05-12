@@ -1,21 +1,21 @@
-// tests/admin-audit-deletion-followup.spec.ts — admin 审计日志页 + 红横幅渲染 + G4.2 demo 截屏.
+// tests/admin-audit-deletion-followup.spec.ts — admin audit-log page + red banner rendering + G4.2 demo screenshots.
 //
-// 测试范围:
-//   - admin SPA `/admin/audit-log` 真渲染审计列表 DOM
-//   - admin god-mode 红色横幅在会话内渲染并显示 24h 时限文案
-//   - 截屏存档 docs/qa/screenshots/g4.2-adm2-audit-list.png
-//   - 截屏存档 docs/qa/screenshots/g4.2-adm2-red-banner.png
+// Test scope:
+//   - admin SPA `/admin/audit-log` renders the audit-list DOM.
+//   - admin elevated-access red banner renders during the session and shows the 24h limit copy.
+//   - Screenshot archive docs/qa/screenshots/g4.2-adm2-audit-list.png.
+//   - Screenshot archive docs/qa/screenshots/g4.2-adm2-red-banner.png.
 //
-// 关联文档:
-//   - 蓝图: docs/blueprint/current/admin-model.md §1.3 (admin god-mode 路径独立)
-//   - 验收: docs/_archive/qa/acceptance-templates/adm-2-followup.md §1+§2
+// Related docs:
+//   - Blueprint: docs/blueprint/current/admin-model.md §1.3 (admin elevated-access path is separate)
+//   - Acceptance: docs/_archive/qa/acceptance-templates/adm-2-followup.md §1+§2
 //
-// 实施约束:
-//   - 真 UI 走浏览器 (page.goto + page.click + DOM 断)
-//   - admin cookie 走 `/admin-api/auth/login` 拿, 注入 BrowserContext 后访问 admin SPA
-//   - 红横幅文案字面相等: "当前以业主身份操作 — 该会话受 24h 时限"
-//   - 不引用 user SPA 中文动词 (admin/user 文案分叉)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints:
+//   - Browser-driven UI path: page.goto, page.click, and DOM assertions.
+//   - Obtain admin cookie through `/admin-api/auth/login`, inject it into BrowserContext, then visit admin SPA.
+//   - Red banner copy remains byte-identical: "当前以业主身份操作 — 该会话受 24h 时限".
+//   - Do not reuse user-SPA Chinese verbs; admin/user copy intentionally differs.
+//   - Do not use fs.*, page.evaluate(fetch), API-only checks, or empty placeholder tests.
 
 import {
   test,
@@ -76,24 +76,24 @@ test.describe('ADM-2-FOLLOWUP — REG-ADM2-011 admin SPA audit-log 页 + G4.2 �
     await attachAdminCookie(ctx, adminToken);
     const page = await ctx.newPage();
 
-    // Vite dev does not auto-serve admin.html for /admin/* paths; push
-    // history so BrowserRouter mounts at /admin/audit-log target. (跟
-    // adm-3-audit-events.spec.ts case-1 admin SPA 加载模式同源 — Prod
-    // 走 server-go SPA fallback, dev 走 admin.html.)
+    // Vite dev does not auto-serve admin.html for /admin/* paths; push history
+    // so BrowserRouter mounts at /admin/audit-log. This matches
+    // adm-3-audit-events.spec.ts case-1 admin SPA loading: production uses the
+    // server-go SPA fallback, while dev uses admin.html.
     await page.addInitScript(() => {
       window.history.replaceState({}, '', '/admin/audit-log');
     });
     await page.goto(`${clientURL()}/admin.html`);
     await page.waitForLoadState('domcontentloaded');
 
-    // DOM 锚反查 — admin SPA AdminAuditLogPage 渲染.
+    // DOM anchor check: admin SPA AdminAuditLogPage renders.
     await expect(page.locator('[data-page="admin-audit-log"]')).toBeVisible();
     await expect(page.locator('[data-adm2-audit-list="true"]')).toBeVisible();
 
-    // 中文 title byte-identical (反 English "Audit Log" h2).
+    // Chinese title remains byte-identical; do not regress to English "Audit Log" h2.
     await expect(page.locator('h2', { hasText: '审计日志' })).toBeVisible();
 
-    // §2.1 G4.2 截屏 #1 — audit list 首屏.
+    // §2.1 G4.2 screenshot #1: audit-list first viewport.
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g4.2-adm2-audit-list.png'),
       fullPage: false,
@@ -117,12 +117,12 @@ test.describe('ADM-2-FOLLOWUP — REG-ADM2-011 admin SPA audit-log 页 + G4.2 �
     await page.goto(`${clientURL()}/admin.html`);
     await page.waitForLoadState('domcontentloaded');
 
-    // 红 banner DOM 锚 + 字面 byte-identical (蓝图 §1.4 红线 1).
+    // Red banner DOM anchor + byte-identical literal (blueprint §1.4 boundary 1).
     const banner = page.locator('[data-adm2-red-banner="active"]');
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('当前以业主身份操作 — 该会话受 24h 时限');
 
-    // §2.2 G4.2 截屏 #2 — 红 banner 常驻.
+    // §2.2 G4.2 screenshot #2: persistent red banner.
     await banner.scrollIntoViewIfNeeded();
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g4.2-adm2-red-banner.png'),
