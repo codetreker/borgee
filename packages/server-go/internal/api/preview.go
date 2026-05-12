@@ -55,8 +55,8 @@ var PreviewableKinds = []string{
 	ArtifactKindPDFLink,
 }
 
-// IsPreviewableKind reports whether kind k requires a preview thumbnail
-// path. It uses the same gate as PreviewableKinds; grep checks keep
+// IsPreviewableKind reports whether kind k requires a preview URL. It uses
+// the same gate as PreviewableKinds; grep checks keep
 // `markdown.*preview_url|code.*preview_url` at count==0 because markdown/code
 // do not use preview.
 func IsPreviewableKind(k string) bool {
