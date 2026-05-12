@@ -11,13 +11,13 @@ This document defines the cross-module security boundaries that keep user API, a
 The boundary is the rail. Requests are first classified by rail, then authenticated and authorized by that rail's own mechanism. Shared storage does not imply shared authority.
 
 **Collaborators**
-The security model spans user auth, admin sessions, capability checks, plugin WebSocket auth, remote node tokens, host grants, helper ACL, installer manifest verification, and audit surfaces.
+The security model spans user auth, admin sessions, capability checks, plugin WebSocket auth, remote node tokens, host grants, helper ACL, the installer manifest gate, and audit surfaces.
 
 **Internal Architecture**
 
 - Identity rails: user, admin, plugin agent, remote node, helper agent, installer operator.
-- Authorization sources: user permissions, admin sessions, API keys, remote node tokens, host grants, manifest signatures.
-- Enforcement points: HTTP middleware, WebSocket handshake, helper IPC handshake, helper ACL, installer verification.
+- Authorization sources: user permissions, admin sessions, API keys, remote node tokens, host grants, and local operator confirmation.
+- Enforcement points: HTTP middleware, WebSocket handshake, helper IPC handshake, helper ACL, and installer manifest-gate verification.
 - Privacy surfaces: serializers, metadata-only admin views, user-scoped audit, local helper audit.
 
 **Key Flows**
@@ -26,9 +26,9 @@ The security model spans user auth, admin sessions, capability checks, plugin We
 user API:      user credential -> user context -> owner/capability/resource checks
 admin API:     admin session cookie -> admin context -> admin rail only
 plugin WS:     API key -> agent/plugin connection -> scoped API bridge
-remote WS:     remote node token -> remote connection -> file request tunnel
+remote WS:     remote node token -> remote connection -> intended list/read tunnel
 helper IPC:    local agent id -> ACL -> host grant lookup -> local action
-installer:     manifest fetch -> signature verify -> local operator deploy
+installer:     manifest fetch -> signature gate -> local artifact deploy
 ```
 
 **Invariants**
@@ -48,14 +48,14 @@ installer:     manifest fetch -> signature verify -> local operator deploy
 | Admin API | opaque admin session cookie | admin session row joined to admin identity | admin middleware | admin views use explicit whitelists for sensitive metadata | admin is not represented as user god-mode |
 | Capability checks | authenticated user context | user permission rows and scoped resources | authorization helper or legacy permission middleware | no direct serializer surface | app capabilities do not authorize host helper grants |
 | Plugin WebSocket | API key | user/agent row behind the key | plugin connection in hub | plugin lifecycle audit uses server audit source where wired | plugin API bridge is not Remote Agent |
-| Remote Agent | remote node token | remote node ownership plus online connection | reverse WebSocket and local allowlist | remote token hidden from node JSON | remote token is not a host grant |
+| Remote Agent | remote node token | remote node ownership plus online connection | reverse WebSocket and intended local allowlist; current envelope caveat applies | remote token hidden from node JSON | remote token is not a host grant |
 | Host Bridge helper | local handshake agent id | host grant row by agent and scope | UDS IPC, ACL, sandbox, read-only IO | local JSONL audit | helper cannot create grants |
-| Installer | optional fetch Bearer plus ed25519 public key | manifest signature and operator confirmation | local package/service manager | no app data surface | installation does not authorize later helper requests |
+| Installer | optional fetch Bearer plus ed25519 public key | manifest authenticity gate and operator confirmation | local package/service manager for caller-supplied artifact path | no app data surface | installation does not authorize later helper requests and does not yet bind local artifact integrity to manifest entry |
 
 ## Key Security Invariants
 
 **Rail separation**
-Each rail has a distinct credential and entry point. Cross-rail reuse is intentionally limited: API keys can authenticate user API and plugin handshake paths, but not admin sessions; remote node tokens can authenticate remote WebSocket connections, but not user API; host grants can be consumed by helper ACL, but not by Remote Agent.
+Each rail has a distinct credential and entry point. Cross-rail reuse is intentionally limited: API keys can authenticate user API and plugin handshake paths, but not admin sessions; remote node tokens can authenticate remote WebSocket connections, but not user API; host grants can be consumed by helper ACL, but not by Remote Agent. Current Remote Agent filesystem proxying still carries an implementation caveat, so the rail boundary should be described as ownership and connection separation rather than as a settled filesystem-security guarantee.
 
 **Owner before capability**
 Resource ownership gates appear alongside capability checks. Remote nodes, host grants, runtime owner actions, and user privacy audit views all use owner scoping to keep cross-user access from being implied by broad credentials.
@@ -70,12 +70,12 @@ Server admin actions, plugin lifecycle events, helper IPC, and host grant change
 
 This page does not define new privileges or future unification. It records the current rail model and the invariants maintainers should preserve when changing auth, remote access, host grants, helper IPC, or admin audit.
 
-## Known Gaps
+## Boundary Impact Summary
 
-- Legacy permission middleware and the newer capability helper do not have identical wildcard semantics for agents.
-- Helper audit is local and best-effort, not yet ingested as a durable server audit source.
-- Remote node token delivery is not clearly modeled in the user API.
-- Some admin write paths have durable audit hooks and others do not.
+- Some rails have intentionally separate but not yet unified audit sinks, so cross-source audit completeness varies by module.
+- Remote Agent's rail separation is clearer than its current end-to-end filesystem proxy contract.
+- Installer verification is a manifest gate; artifact integrity remains a separate limitation.
+- Capability and legacy permission checks are close but not identical, which matters for agent wildcard reasoning.
 
 ## Implementation Anchors
 

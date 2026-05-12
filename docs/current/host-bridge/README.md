@@ -18,7 +18,7 @@ Host Bridge collaborates with the user API for grants, server storage for grant 
 - Grant control plane: user-owned rows describing host capability consent.
 - Helper data plane: local UDS IPC carrying agent-scoped requests.
 - Enforcement stack: handshake identity, action allowlist, path/scope normalization, grant lookup, read-only IO, audit, sandbox.
-- Installer path: signed manifest verification and platform service deployment.
+- Installer path: manifest-signature gate, local operator confirmation, and platform service deployment. The current installer does not yet bind the local package artifact integrity to a manifest entry.
 
 **Key Flows**
 
@@ -31,8 +31,8 @@ Helper request flow:
   -> ACL decision -> SQLite grant lookup -> IO or rejection -> local audit
 
 Install flow:
-  installer fetches signed manifest -> verifies signature -> user confirms
-  -> package manager installs helper -> platform service starts daemon
+  installer fetches manifest -> verifies manifest signature -> user confirms
+  -> package manager installs the local artifact path -> platform service starts daemon
 ```
 
 **Invariants**
@@ -56,7 +56,7 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 ## Known Gaps
 
 - Helper sandbox paths are static at daemon start, while grant lookup is dynamic per request.
-- Host Bridge audit is split between local helper JSONL and server-side logs; server admin multi-source audit does not yet ingest helper JSONL rows.
+- Installer manifest verification and local artifact integrity are still separate concerns.
 
 ## Implementation Anchors
 

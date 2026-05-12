@@ -1,14 +1,14 @@
 # Remote Agent
 
-Remote Agent is the user-owned path for making selected local directories visible to Borgee while the agent process is running. It is a reverse WebSocket bridge with a local read-only executor. It is separate from Host Bridge: Remote Agent is for user-selected remote filesystem browsing; Host Bridge is for host capabilities mediated by grants, helper IPC, audit, and sandboxing.
+Remote Agent is the user-owned path intended to make selected local directories visible to Borgee while the agent process is running. It is a reverse WebSocket bridge with a local read-only executor, but the current server/agent request envelope is not aligned, so the filesystem proxy should be treated as a partially wired capability. It is separate from Host Bridge: Remote Agent is for user-selected remote filesystem browsing; Host Bridge is for host capabilities mediated by grants, helper IPC, audit, and sandboxing.
 
 ## Overview
 
 **Role**
-Remote Agent gives a signed-in user a way to attach a machine to their Borgee account, bind selected paths to channels, and let the server proxy directory listing and file reads to that machine. The server never mounts the filesystem directly; it asks the connected agent to perform bounded local operations.
+Remote Agent gives a signed-in user a way to attach a machine to their Borgee account, bind selected paths to channels, and use the server as an intended proxy for directory listing and file reads to that machine. The server never mounts the filesystem directly; in the intended contract it asks the connected agent to perform bounded local operations.
 
 **Boundary**
-The boundary is the remote node. A node belongs to one user, authenticates with its own connection token, and is only reachable through that user's remote API requests. Local filesystem access is further constrained by the agent's startup directory allowlist.
+The boundary is the remote node plus the current protocol caveat. A node belongs to one user, authenticates with its own connection token, and is only reachable through that user's remote API requests. Local filesystem access is intended to be constrained by the agent's startup directory allowlist, but maintainers should account for the current envelope mismatch before treating server-triggered list/read as a reliable filesystem boundary.
 
 **Collaborators**
 Remote Agent collaborates with the user API control plane, the WebSocket hub data plane, the remote node store, channel remote bindings, and the local filesystem boundary. It does not collaborate with host grants or helper daemon IPC.
@@ -23,10 +23,14 @@ The design splits into three layers:
 **Key Flows**
 
 ```text
-create node -> obtain connection token -> start agent with server/token/dirs
-agent connects -> server marks node online -> user requests ls/read
-server checks owner + online state -> WebSocket request -> agent filesystem executor
-agent response -> server HTTP response or mapped error
+intended contract:
+  create node -> obtain connection token -> start agent with server/token/dirs
+  agent connects -> server marks node online -> user requests ls/read
+  server checks owner + online state -> WebSocket request -> agent filesystem executor
+  agent response -> server HTTP response or mapped error
+
+current caveat:
+  server and TypeScript agent disagree on where request path is carried
 ```
 
 **Invariants**
@@ -34,7 +38,7 @@ agent response -> server HTTP response or mapped error
 - Remote nodes are user-owned resources; cross-user node access is rejected.
 - The remote WebSocket token is node-specific and not the same credential as the user cookie, API key, plugin API key, or helper grant.
 - Remote reads are online-only; no offline queue or cached filesystem snapshot is part of this path.
-- Directory exposure is selected at agent startup and enforced locally by the agent process.
+- Directory exposure is selected at agent startup and enforced locally by the agent process once the agent receives a correctly shaped filesystem request.
 - Remote Agent is not an execution channel, installer, network egress broker, or host grant consumer.
 
 ## Module Map
@@ -46,10 +50,10 @@ agent response -> server HTTP response or mapped error
 
 Remote Agent does not provide host-wide privileges, OS sandboxing, package installation, command execution, or helper audit integration. Those belong to the Host Bridge capability path.
 
-## Known Gaps
+## Current Status And Boundary Caveats
 
 - The node token handoff path is not clearly exposed by the current API shape.
-- The server-to-agent request envelope and the TypeScript agent's expected path location are not aligned.
+- The server-to-agent request envelope and the TypeScript agent's expected path location are not aligned; remote filesystem behavior should be described as intended until that contract is reconciled.
 
 ## Implementation Anchors
 
