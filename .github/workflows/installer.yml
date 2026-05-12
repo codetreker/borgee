@@ -2,10 +2,11 @@ name: HB-1B Installer Build Matrix
 
 # HB-1B-INSTALLER spec §1 #2 — cross-platform installer build matrix.
 # Linux .deb + macOS .pkg cross-compile + GitHub artifact upload.
-# Windows v2 留账 (per user dispatch).
+# Windows remains a v2 follow-up because notarization and Authenticode require
+# external setup.
 #
-# fail-fast: false (跟 HB-2.0 #605 IPC matrix 同精神 — 不让单平台 fail
-# 拖死其他).
+# fail-fast: false matches the HB-2.0 #605 IPC matrix: one platform failure
+# should not cancel the other platform builds.
 
 on:
   pull_request:
@@ -33,7 +34,7 @@ jobs:
             runner: macos-latest
             cmd: borgee-installer-darwin
             artifact: borgee-installer-darwin-amd64
-          # windows: 留 v2 follow-up (notarization / Authenticode 外部依赖).
+          # windows: v2 follow-up (notarization / Authenticode external setup).
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

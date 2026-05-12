@@ -27,7 +27,7 @@ jobs:
           BODY=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq .body)
 
           # Map: code_prefix -> docs_prefix (kept in sync with .github/lint-current-sync.yml)
-          # Note: admin SPA lives physically under packages/client/src/ but is its
+          # Note: admin single-page app lives physically under packages/client/src/ but is its
           # own module with separate cookie / auth / docs. Longest-prefix-wins
           # below ensures admin/* files don't also trigger the generic client rule.
           declare -A MAP=(

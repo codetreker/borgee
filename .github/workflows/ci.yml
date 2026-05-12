@@ -23,7 +23,8 @@ jobs:
     # REG-RT0-006 et al: client-side vitest. Runs in jsdom (see
     # packages/client/vitest.config.ts) so window-dispatching tests
     # like ws-invitation.test.ts actually execute. Was previously
-    # absent from CI entirely — fake-green guard.
+    # absent from CI entirely, so a passing CI run did not prove these
+    # tests had executed.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,29 +50,28 @@ jobs:
       - name: Install dependencies
         run: cd packages/server-go && go mod download
       - name: Run tests with race detector (no coverage)
-        # CI race budget: 180s 跟 go-test-race-heavy sub-job (line 76) byte-identical.
-        # 真因 (#649 panic 真凿实): race detector ~3x slower + ubuntu CI runner cold-build
-        # /JIT warmup + 738 api test cumulative + 5 background sweeper/monitor goroutine
-        # per test (ThresholdMonitor / EventsArchive / EventsRetention / RetentionSweeper /
-        # HeartbeatRetentionSweeper, 全 ctx-aware 真无 leak). 本地 race 12s, CI 慢 runner
-        # 命中 120s 边界 panic. 调 180s 跟 heavy 对齐 50% headroom.
-        # 反 mask cov: 阈值是 cov %, 不是 timeout — race regression 早期信号通过 cumulative
-        # job time slope 监测 (CI runner 总时长), 不靠 timeout 抓.
-        # 历史 TEST-FIX-3 立场 ③ 维持 120s 阻"全局 bump mask" — 但 #649 panic 凿实 race
-        # 真测试 cumulative 已逼 120s 边界, 反信号 mask 真因 = budget 不足. 调 180s 是
-        # giving real budget, 不是 mask race regression — race regression 仍由 stack
-        # dump/data race 真信号抓 (panic 显示 race detector 触发还是 timeout 触发不同).
+        # CI race budget: keep this 180s timeout byte-identical with the
+        # go-test-race-heavy sub-job. Issue #649 showed the previous 120s
+        # budget could fail from legitimate runtime cost rather than a leaked
+        # goroutine: the race detector is roughly 3x slower, cold Ubuntu CI
+        # runners add build and toolchain warmup time, the API suite is large,
+        # and each test starts several context-aware sweeper/monitor goroutines.
+        #
+        # Coverage quality is not hidden by this timeout. Coverage thresholds
+        # are enforced by go-test-cov, while race regressions remain visible
+        # through stack dumps, data-race reports, and overall job runtime.
         run: cd packages/server-go && go test -tags sqlite_fts5 -timeout=180s -race ./...
 
   go-test-race-heavy:
-    # TEST-FIX-3: race-heavy sub-job, 单独跑 `//go:build race_heavy` tag 文件
-    # (TestClosedStoreInternalErrorBranches 11 sub-test, race-heavy serialize 长).
-    # 跟主 go-test-race job 并行不互拖. timeout 180s (50% 余量, 不是 mask —
-    # 真因 race-heavy sub-test 本质需更长预算, 隔离 budget 是诚实做法,
-    # 不是吞下 timeout 阈值).
+    # TEST-FIX-3: isolated race-heavy sub-job for files guarded by the
+    # `//go:build race_heavy` tag. TestClosedStoreInternalErrorBranches has
+    # 11 serialized sub-tests, so it needs a separate time budget instead of
+    # stretching the main go-test-race job.
     #
-    # 真因诊断 (#608 TEST-FIX-2 已修 goroutine leak; 主 race job 仍贴近 120s
-    # 间歇性 flake 因 race-heavy sub-test 集中. 隔离后主路径稳定).
+    # Root-cause note: #608 TEST-FIX-2 fixed the goroutine leak, but the main
+    # race job still approached the old 120s timeout because these race-heavy
+    # sub-tests were concentrated there. Isolating them kept the main path
+    # stable while preserving the race-heavy coverage.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -99,20 +99,23 @@ jobs:
       - name: Install dependencies
         run: cd packages/server-go && go mod download
       - name: Run tests + coverage analysis (haystack-derived tool)
-        # TEST-FIX-3-COV: 切到 scripts/lib/coverage/ haystack-derived 工具
-        # 替代既有 grep|awk 简陋 grep. 优点 (跟既有 137 行 main.go 同精神扩):
-        #   - 4 阈值 (Func / Package / Print / Total) 比单 total 更细
+        # TEST-FIX-3-COV: use scripts/lib/coverage/ instead of the previous
+        # grep-based coverage check. The Go tool gives more precise controls:
+        #   - 4 thresholds (Func / Package / Print / Total) instead of only total
         #   - CI mode (GitHub Actions error format)
-        #   - ExcludePackages / ExcludeFiles / ExcludeFuncs (per-func 排除)
-        #   - UncoveredLimit + AST analysis (精准定位 uncovered block)
-        # 阈值: ThresholdTotal=85 / ThresholdFunc=50 / ThresholdPackage=70
-        # (跟 #612 cov 真补 85.2% 对齐, 反 #610 84% drop). race_heavy build
-        # tag 走 BuildTags env (跟 TEST-FIX-3 #610 race_heavy 立场承袭, 11
-        # sub-test 走此 tag 包含覆盖). CI=true 自动触发 -race + GitHub
-        # error format. FAIL_ON_CRITICAL_BLOCKS 默认关 (haystack AST 分析
-        # 30+ CRITICAL uncovered block 一齐 fail 不现实, 留账 ramp).
-        # 立场承袭: 不降 cov 阈值铁律 (no_lower_test_coverage). 实测 85.2%
-        # ≥ 85% 不靠 flaky CI scheduler (deterministic 真补 + race_heavy tag).
+        #   - ExcludePackages / ExcludeFiles / ExcludeFuncs (per-function excludes)
+        #   - UncoveredLimit + AST analysis to locate uncovered blocks
+        # Thresholds: ThresholdTotal=85 / ThresholdFunc=50 / ThresholdPackage=70
+        # These match the #612 coverage recovery to 85.2% and protect against
+        # the #610 drop to 84%. The race_heavy build tag is passed through
+        # BUILD_TAGS so the 11 tagged sub-tests count toward coverage. CI=true
+        # enables GitHub error formatting. FAIL_ON_CRITICAL_BLOCKS stays false
+        # because enabling 30+ current critical-block findings at once would be
+        # a separate cleanup ramp.
+        #
+        # Coverage policy: do not lower the threshold. The measured 85.2% result
+        # is produced by deterministic coverage additions plus the race_heavy tag,
+        # not by depending on scheduler variance in CI.
         env:
           CI: "true"
           THRESHOLD_TOTAL: "85"
@@ -126,10 +129,10 @@ jobs:
         run: cd packages/server-go && go run ./scripts/lib/coverage/
 
   bpp-envelope-lint:
-    # BPP-1 (#274/#280) envelope CI lint — G2.6 真落.
+    # BPP-1 (#274/#280) envelope CI lint for G2.6 enforcement.
     # Pins 5 invariants (byte-identical with RT-0 #237, direction lock
     # control 6 / data 3, frame whitelist closure, godoc anchor) +
-    # reverse-grep guard against stray full-replay defaults.
+    # reverse-grep guard against unintended full-replay defaults.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -143,8 +146,9 @@ jobs:
 
   e2e:
     # INFRA-2: Playwright dual-server smoke. Boots server-go (4901) + vite (5174)
-    # via playwright.config webServer; smoke is 3 assertions (~5s) but chromium
-    # install dominates (~1min). RT-0 / CM-onboarding / G2.4 will pile on here.
+    # via playwright.config webServer. The smoke test has 3 assertions (~5s),
+    # while Chromium installation dominates runtime (~1min). RT-0,
+    # CM-onboarding, and G2.4 tests are expected to extend this job.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -180,7 +184,8 @@ jobs:
     # HB-2.0 prerequisite — IPC primitive smoke per OS (Linux UDS / macOS UDS
     # / Windows Named Pipe). Build-tag-per-platform; matrix runs each smoke
     # test on its native runner. Gates HB-2 v0(C) host-bridge daemon
-    # (packages/borgee-helper/ Go cmd 真启 IPC server 反约束 build-tag drift).
+    # by running the real packages/borgee-helper/ Go command as an IPC server,
+    # which verifies the build tags stay aligned with host-bridge behavior.
     strategy:
       fail-fast: false
       matrix:

@@ -47,11 +47,11 @@ jobs:
 
       - name: Build and push
         # no-hardcoded-domain: VITE_AGENT_WS_SERVER baked at build time.
-        # staging+prod 共用同一 image (deploy-prod re-tags build_tag → prod
-        # via Harbor API, see step below). 复用 prod URL 因 staging 是
-        # smoke-test prod artifact 的环境 (admin UI 无 real users); 反差
-        # 化为单独 staging build 的 deploy 复杂度. testing 独立 build 走
-        # deploy-test.yml (testing-borgee.codetrek.cn URL).
+        # Staging and production use the same image: deploy-prod re-tags
+        # build_tag as prod through the Harbor API below. Staging intentionally
+        # uses the production WebSocket URL because it validates the exact
+        # production artifact and the admin UI has no real users there. The
+        # testing environment keeps its own build and URL in deploy-test.yml.
         run: |
           docker build \
             -f packages/server-go/Dockerfile \
@@ -71,9 +71,10 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee-staging
-            # 服务器上 docker-compose.yml + .env 由人工管, yaml 不再写
-            # docker-compose.override.yml. 环境变量 (CORS_ORIGIN /
-            # BORGEE_ADMIN_* / JWT_SECRET 等) 都在 .env 里.
+            # On the server, docker-compose.yml and .env are managed manually.
+            # This workflow no longer writes docker-compose.override.yml.
+            # Runtime variables such as CORS_ORIGIN, BORGEE_ADMIN_*, and
+            # JWT_SECRET live in .env.
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
@@ -108,9 +109,10 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/dockers/borgee
-            # 服务器上 docker-compose.yml + .env 由人工管, yaml 不再写
-            # docker-compose.override.yml. 环境变量 (CORS_ORIGIN /
-            # BORGEE_ADMIN_* / JWT_SECRET 等) 都在 .env 里.
+            # On the server, docker-compose.yml and .env are managed manually.
+            # This workflow no longer writes docker-compose.override.yml.
+            # Runtime variables such as CORS_ORIGIN, BORGEE_ADMIN_*, and
+            # JWT_SECRET live in .env.
             docker compose pull
             docker compose up -d --force-recreate
             sleep 5
