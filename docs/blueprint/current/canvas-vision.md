@@ -1,7 +1,7 @@
 # Canvas Vision — Workspace + Artifact 协作
 
 > Borgee 的"对着文档讨论"愿景：在每个 channel 里，AI 团队（PM、Dev、QA、Designer 等）和人一起围绕产物（artifact）协作。
-> 状态：建军 + 飞马 + 野马 对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`channel-model.md`](channel-model.md)。
+> 状态：评审对齐完成（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`channel-model.md`](channel-model.md)。
 
 ## 0. 一句话定义
 
