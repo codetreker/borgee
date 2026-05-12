@@ -1,8 +1,8 @@
 // pushSubscribe — DL-4.5 client Web Push subscription helper.
 //
 // Blueprint: docs/blueprint/current/client-shape.md L22 (Mobile PWA + Web Push
-// VAPID) + L37 ("没推送 = AI 团队像后台脚本不像同事") + L42 (manifest +
-// install prompt + Web Push + standalone).
+// VAPID) + L37 ("without push, the AI team feels like a background script,
+// not a coworker") + L42 (manifest + install prompt + Web Push + standalone).
 // Spec: docs/implementation/modules/dl-4-spec.md §1 DL-4.5.
 //
 // What this module does:
@@ -17,10 +17,10 @@
 //   4. getCurrentSubscriptionState() — query browser current state
 //      ('granted' | 'denied' | 'default' | 'unsupported').
 //
-// 设计沿用 DL-4 spec §0:
-//   - VAPID 公钥 client 持 (server env 持私钥单源)
-//   - subscription 对象由 browser 生成 (endpoint + p256dh + auth)
-//   - 退订单源: PushManager.unsubscribe + server DELETE 双侧同步
+// Design follows DL-4 spec §0:
+//   - Client holds the VAPID public key; server env is the single source for the private key.
+//   - Browser generates the subscription object (endpoint + p256dh + auth).
+//   - Unsubscribe has two synchronized sides: PushManager.unsubscribe + server DELETE.
 
 const PUSH_SUBSCRIBE_URL = '/api/v1/push/subscribe';
 
@@ -123,7 +123,8 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubsc
 
 /**
  * unsubscribeFromPush — full unsubscribe flow: PushManager.unsubscribe +
- * server DELETE. Idempotent: 重复退订仍 OK (server returns 204 either way).
+ * server DELETE. Idempotent: repeated unsubscribe is still OK because the server
+ * returns 204 either way.
  */
 export async function unsubscribeFromPush(): Promise<void> {
   if (!isPushSupported()) return;
@@ -138,8 +139,8 @@ export async function unsubscribeFromPush(): Promise<void> {
 
 /**
  * postSubscriptionToServer — POST /api/v1/push/subscribe with the 4
- * client-side public fields (跟 server-side pushSubscribeRequest shape
- * byte-identical: endpoint / p256dh / auth / user_agent).
+ * client-side public fields, byte-identical with the server-side
+ * pushSubscribeRequest shape: endpoint / p256dh / auth / user_agent.
  *
  * Uses raw fetch (no api.ts request<T> dep) to keep this module
  * self-contained — push registration runs early in main.tsx before the
@@ -166,7 +167,7 @@ async function postSubscriptionToServer(sub: PushSubscription): Promise<void> {
 
 /**
  * deleteSubscriptionFromServer — DELETE /api/v1/push/subscribe?endpoint=...
- * Idempotent on server side (跟 layout DELETE 同模式).
+ * Idempotent on the server side, matching the layout DELETE pattern.
  */
 async function deleteSubscriptionFromServer(endpoint: string): Promise<void> {
   const url = `${PUSH_SUBSCRIBE_URL}?endpoint=${encodeURIComponent(endpoint)}`;

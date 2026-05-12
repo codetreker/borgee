@@ -1,16 +1,17 @@
 // useArtifactPanel — CS-1.1 4-state state machine for AppShell right column.
 //
-// 4 状态 (蓝图 client-shape.md §1.2 byte-identical):
-//   - 'closed'     无 artifact 引用, 右栏不渲染
-//   - 'drawer'     首次点击 artifact 引用 → 380px 右侧抽屉 (轻量预览)
-//   - 'split'      显式动作 (拖拽 OR 二次点击) → 主区 + artifact 50/50
-//   - 'fullscreen' mobile (≤768px) 降级 → 全屏 modal
+// 4 states, byte-identical with blueprint client-shape.md §1.2:
+//   - 'closed'     no artifact reference, right column not rendered
+//   - 'drawer'     first artifact-reference click → 380px right drawer (light preview)
+//   - 'split'      explicit action (drag OR second click) → main area + artifact 50/50
+//   - 'fullscreen' mobile (≤768px) fallback → fullscreen modal
 //
-// 反约束 (spec §0 设计 ②): closed → split 直接 reject (必先经 drawer);
-// state 单源不另起多 state.
+// Required transition (spec §0 design ②): closed → split is rejected directly;
+// callers must pass through drawer first. Keep one state source rather than
+// adding parallel state.
 //
-// AST/grep 锚: grep 检查 `SplitView.*directOpen|artifact.*autoSplit|setMode\("split"\)`
-// 仅命中 ArtifactDrawer drag handler 一处.
+// AST/grep anchor: grep check `SplitView.*directOpen|artifact.*autoSplit|setMode\("split"\)`
+// should only hit the ArtifactDrawer drag handler.
 
 import { useCallback, useState } from 'react';
 
@@ -27,8 +28,9 @@ export function useArtifactPanel(initial: ArtifactPanelMode = 'closed') {
     artifactId: null,
   });
 
-  // open(artifactId) — 首次点击 artifact 引用 → drawer.
-  // closed → drawer 允许; drawer/split/fullscreen → 复用既有 mode (仅切 artifactId).
+  // open(artifactId) — first artifact-reference click → drawer.
+  // closed → drawer is allowed; drawer/split/fullscreen reuse the current mode
+  // and only switch artifactId.
   const open = useCallback((artifactId: string) => {
     setState((prev) => ({
       mode: prev.mode === 'closed' ? 'drawer' : prev.mode,
@@ -36,8 +38,8 @@ export function useArtifactPanel(initial: ArtifactPanelMode = 'closed') {
     }));
   }, []);
 
-  // promoteToSplit() — 拖拽 OR 二次点击 → drawer → split.
-  // 反约束: 仅 drawer → split 允许; closed → split 直接 reject (返回 false).
+  // promoteToSplit() — drag OR second click → drawer → split.
+  // Only drawer → split is allowed; closed → split rejects directly and returns false.
   const promoteToSplit = useCallback((): boolean => {
     let promoted = false;
     setState((prev) => {
@@ -51,20 +53,20 @@ export function useArtifactPanel(initial: ArtifactPanelMode = 'closed') {
     return promoted;
   }, []);
 
-  // demoteToDrawer() — split → drawer (允许).
+  // demoteToDrawer() — split → drawer is allowed.
   const demoteToDrawer = useCallback(() => {
     setState((prev) =>
       prev.mode === 'split' ? { ...prev, mode: 'drawer' } : prev,
     );
   }, []);
 
-  // close() — 任何状态 → closed (清 artifactId).
+  // close() — any state → closed and clears artifactId.
   const close = useCallback(() => {
     setState({ mode: 'closed', artifactId: null });
   }, []);
 
-  // setFullscreen(on) — mobile (≤768px) 降级 trigger.
-  // closed 状态保持 closed; 否则切 fullscreen / 退回 drawer.
+  // setFullscreen(on) — mobile (≤768px) fallback trigger.
+  // closed stays closed; other states switch to fullscreen or back to drawer.
   const setFullscreen = useCallback((on: boolean) => {
     setState((prev) => {
       if (prev.mode === 'closed') return prev;
