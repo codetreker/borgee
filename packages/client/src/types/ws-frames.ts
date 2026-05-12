@@ -3,11 +3,11 @@
 //
 // Phase 2 路线: server pushes these via the existing /ws hub; Phase 4 BPP
 // will swap the wire layer without changing the schema. The CI lint
-// (frame_schemas.go vs ws/event_schemas.go byte-identical) is the strict
+// (frame_schemas.go vs ws/event_schemas.go exact match) is the strict
 // schema contract — these TS interfaces match that contract so client handlers
 // remain unchanged across the swap.
 //
-// 字段顺序保留 (跟 server Go struct 字面对得上):
+// Field order is preserved to match the server Go struct:
 //   pending : invitation_id, requester_user_id, agent_id, channel_id,
 //             created_at, expires_at
 //   decided : invitation_id, state, decided_at
@@ -19,7 +19,7 @@
 /**
  * `agent_invitation_pending` — owner receives a notification that another
  * user requested adding the owner's agent to a channel. Replaces the 60s
- * polling on the bell badge per 野马 G2.4 latency requirement (latency ≤ 3s).
+ * polling on the bell badge per G2.4 latency requirement (latency ≤ 3s).
  */
 export interface AgentInvitationPendingFrame {
   type: 'agent_invitation_pending';
@@ -69,8 +69,7 @@ export type InvitationDecidedEvent = CustomEvent<AgentInvitationDecidedFrame>;
 // ─── CV-1.2 ArtifactUpdated frame (RT-1.1 #290 envelope) ────
 //
 // Spec: docs/implementation/modules/cv-1-spec.md §1 + cv-1.md §2.5.
-// 锁: server 端 internal/ws/cursor.go::ArtifactUpdatedFrame — 7 字段顺序
-// byte-identical:
+// Lock: server side internal/ws/cursor.go::ArtifactUpdatedFrame — exact 7-field order:
 //   {type, cursor, artifact_id, version, channel_id, updated_at, kind}
 // Push is signal-only: no body or committer; client must fetch
 // GET /api/v1/artifacts/:id before rendering. `kind` is 'commit' / 'rollback'.
@@ -99,8 +98,8 @@ export type ArtifactUpdatedEvent = CustomEvent<ArtifactUpdatedFrame>;
 //
 // Spec: docs/implementation/modules/dm-2.3-spec.md §0 rules ②③; issue #362
 // defines the 8-field envelope.
-// 锁: server 端 internal/ws/mention_pushed_frame.go::MentionPushedFrame
-// — 8 字段顺序 byte-identical:
+// Lock: server side internal/ws/mention_pushed_frame.go::MentionPushedFrame
+// — exact 8-field order:
 //   {type, cursor, message_id, channel_id, sender_id,
 //    mention_target_id, body_preview, created_at}
 // body_preview is rune-truncated to 80 chars server-side
@@ -135,7 +134,7 @@ export type MentionPushedEvent = CustomEvent<MentionPushedFrame>;
 //
 // Spec: docs/implementation/modules/cv-2-spec.md §0 rule ③ + v3 field lock.
 // Server lock: packages/server-go/internal/ws/anchor_comment_frame.go
-//   AnchorCommentAddedFrame — 10 字段 byte-identical:
+//   AnchorCommentAddedFrame — exact 10-field order:
 //   {type, cursor, anchor_id, comment_id, artifact_id,
 //    artifact_version_id, channel_id, author_id, author_kind, created_at}
 // 注: 第 9 字段 `author_kind` (不是 `kind` / `committer_kind`) — anchor
@@ -174,19 +173,19 @@ export type AnchorCommentAddedEvent = CustomEvent<AnchorCommentAddedFrame>;
 //
 // Spec: docs/implementation/modules/cv-4-spec.md §1 CV-4.2 + §0 rule ②.
 // Server lock: packages/server-go/internal/ws/iteration_state_frame.go
-//   IterationStateChangedFrame — 9 字段 byte-identical:
+//   IterationStateChangedFrame — exact 9-field order:
 //   {type, cursor, iteration_id, artifact_id, channel_id, state,
 //    error_reason, created_artifact_version_id, completed_at}
 //
-// Push 仅信号 (跟 ArtifactUpdated/AnchorComment/MentionPushed 同模式):
+// Push is signal-only (same pattern as ArtifactUpdated/AnchorComment/MentionPushed):
 // No intent_text (admin privileged field whitelist excludes intent_text — ADM-0
 // §1.3 constraint + AL-3 #303 ⑦ + AL-4 #379 v2 alignment); body is fetched via
 // GET /api/v1/artifacts/:id/iterations/:iid.
 //
-// state 4 states are byte-identical with cv-4-content-lock §1 ③
+// state 4 states exactly match cv-4-content-lock §1 ③
 // ('pending' | 'running' | 'completed' | 'failed').
 //
-// error_reason uses AL-1a #249 6 reason byte-identical values (aligned with
+// error_reason uses AL-1a #249 6 reason values exactly (aligned with
 // lib/agent-state.ts REASON_LABELS — changing reason values requires updates
 // in #249, AL-3 #305, and this frame).
 
@@ -220,7 +219,7 @@ export type IterationStateChangedEvent = CustomEvent<IterationStateChangedFrame>
 //
 // Spec: docs/implementation/modules/cv-5-spec.md §0 rule ② + §1.
 // Server lock: packages/server-go/internal/ws/artifact_comment_added_frame.go
-//   ArtifactCommentAddedFrame — 9 字段 byte-identical:
+//   ArtifactCommentAddedFrame — exact 9-field order:
 //   {type, cursor, comment_id, artifact_id, channel_id,
 //    sender_id, sender_role, body_preview, created_at}
 //

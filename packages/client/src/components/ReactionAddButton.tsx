@@ -2,17 +2,17 @@
 //   1. 消息已经有 reaction 时: 出现在 ReactionBar 末尾, 用 reaction-pill 样式
 //   2. 消息没 reaction 时:    出现在 .message-actions 工具栏, 用 message-action-btn 样式
 //
-// design 锚: docs/implementation/design/686-message-spacing-reaction-position.md
-// - §4 #11 乐观渲染 + 失败 toast (yema 拍 X 方案)
-// - §4 #11b REMOVE 按 user_id 不按 emoji (feima R2 race 修法)
+// Design reference: docs/implementation/design/686-message-spacing-reaction-position.md
+// - §4 #11 optimistic render + failure toast
+// - §4 #11b REMOVE by user_id, not only emoji (race fix)
 // - §4 #12 双击防御 (busy state)
 // - §4 #15 键盘 a11y (aria-label/aria-haspopup/aria-expanded)
-// - §6.1 文案锁: 失败 toast 字面 "添加 reaction 失败, 请重试" byte-identical
+// - §6.1 text lock: failure toast text "添加 reaction 失败, 请重试" must match exactly
 //
-// 反约束:
+// Constraints:
 //   - 不复制 Picker 组件 (只一份)
 //   - 不另起 fetch (调既有 lib/api.addReaction)
-//   - 不 dangerouslySetInnerHTML (heima Security 锁)
+//   - 不 dangerouslySetInnerHTML (security constraint)
 //   - 不引 floating-ui / popper.js / react-focus-lock 第三方 (本次只是 bug fix)
 import React, { useState, useRef, useEffect } from 'react';
 import Picker from '@emoji-mart/react';
@@ -24,7 +24,7 @@ import { useToast } from './Toast';
 interface Props {
   channelId: string;
   messageId: string;
-  /** 当前用户 id, 用于乐观 dispatch + 失败按 user_id 撤回 (反 race 误删别人 reaction). */
+  /** 当前用户 id, 用于乐观 dispatch + 失败按 user_id 撤回，避免误删别人的 reaction. */
   currentUserId: string;
   /**
    * 决定渲染样式. inline-pill = 跟 reaction 列那行同款圆角药丸;
@@ -33,7 +33,7 @@ interface Props {
   variant: 'inline-pill' | 'toolbar-btn';
 }
 
-// design §6.1 文案锁: 失败 toast 字面 byte-identical, 改 = 改三处
+// Design §6.1 text lock: failure toast must match exactly; change it in three places
 // (此 const + design doc + 单元测试断言).
 const ADD_REACTION_FAILED_TOAST = '添加 reaction 失败, 请重试';
 
@@ -45,7 +45,7 @@ export default function ReactionAddButton({ channelId, messageId, currentUserId,
   const btnRef = useRef<HTMLButtonElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // design §4 #15 键盘 a11y: Escape 关 picker (跟既有 ReactionBar 一致).
+  // Design §4 #15 keyboard a11y: Escape closes picker (consistent with ReactionBar).
   // outside-click 关 picker.
   useEffect(() => {
     if (!open) return;
@@ -65,14 +65,14 @@ export default function ReactionAddButton({ channelId, messageId, currentUserId,
     };
   }, [open]);
 
-  // design §4 #11 乐观渲染 + #11b race 修法: dispatch optimistic add, 然后
-  // await api.addReaction; 失败时按 user_id 撤回 (不按 emoji 删整条) +
-  // showToast.
+  // Design §4 #11 optimistic render + #11b race fix: dispatch optimistic add,
+  // then await api.addReaction; on failure, remove by user_id instead of
+  // deleting the whole emoji row, then showToast.
   const handlePickerSelect = async (emoji: { native: string }) => {
     if (busy) return; // §4 #12 双击防御
     setOpen(false);
     setBusy(true);
-    // ① 乐观 dispatch — 立刻在 UI 显新 pill
+    // ① Optimistic dispatch: show the new pill immediately.
     dispatch({
       type: 'ADD_REACTION_OPTIMISTIC',
       channelId,
@@ -81,12 +81,12 @@ export default function ReactionAddButton({ channelId, messageId, currentUserId,
       userId: currentUserId,
     });
     try {
-      // ② await 服务器
+      // ② Await server confirmation.
       await api.addReaction(messageId, emoji.native);
-      // ③ 成功 — 不动. 服务器 ack 后 WS 会推 UPDATE_REACTIONS 整列替换
-      // (服务器端按 user_id + emoji dedupe), 不会重复加 pill.
+      // ③ Success: no local change. Server ack triggers WS UPDATE_REACTIONS
+      // with the full row (server dedupes by user_id + emoji), so no duplicate pill is added.
     } catch {
-      // ④ 失败 — 按 user_id 撤回 (反 race 误删别人 reaction) + toast.
+      // ④ Failure: remove by user_id to avoid deleting another user's reaction, then toast.
       dispatch({
         type: 'REMOVE_REACTION_OPTIMISTIC',
         channelId,

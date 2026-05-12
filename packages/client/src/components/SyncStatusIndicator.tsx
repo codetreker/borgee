@@ -1,12 +1,12 @@
-// CS-4 — SyncStatusIndicator (cs-4-content-lock §2 + 沉默胜于假 loading).
+// CS-4 — SyncStatusIndicator (cs-4-content-lock §2 + no unconfirmed loading text).
 //
-// DOM 字面锁:
+// DOM text/attribute lock:
 //   <span data-cs4-sync-state="{offline_cache_hit|synced|syncing|cache_miss}">{label}</span>
 //
-// 反约束:
-//   - cache_miss 时 return null (不准 fallback toast)
-//   - syncing 时 ≤3s return null (沉默胜于假 loading; 跟 RT-1 §1.1 字面承袭)
-//   - 不准 spinner 旁路 (走 DOM data-attr 单源)
+// Constraints:
+//   - cache_miss returns null (no fallback toast)
+//   - syncing returns null for ≤3s (avoid unconfirmed loading text; follows RT-1 §1.1)
+//   - no spinner path; use the DOM data-attr source above
 import React, { useEffect, useState } from 'react';
 import { type SyncState, SYNC_STATE_LABELS, SYNCING_LABEL_DELAY_MS } from '../lib/cs4-sync-state';
 
