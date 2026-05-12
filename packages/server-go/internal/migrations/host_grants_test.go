@@ -143,7 +143,7 @@ func TestHB_NoDomainBleed(t *testing.T) {
 	// 反向断言 forbidden columns (字典分立守门).
 	forbidden := []string{
 		"permission", // user_permissions schema 复用反断
-		"is_admin",   // admin god-mode exclusion (ADM-0 §1.3)
+		"is_admin",   // admin privilege column exclusion (ADM-0 §1.3)
 		"cursor",     // RT-1 envelope cursor 边界明确
 		"org_id",     // org 隔离走 users.org_id 唯一来源
 		"source",     // BPP 唯一来源跟 AL-1b 同模式
