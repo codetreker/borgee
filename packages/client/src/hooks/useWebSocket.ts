@@ -547,7 +547,7 @@ export function useWebSocket() {
         // /api/v1/artifacts/:id/comments for full body.
         // Schema lock: docs/implementation/modules/cv-5-spec.md §0 rule ②
         // + artifact_comment_added_frame.go::ArtifactCommentAddedFrame
-        // (9-field schema match, RT-3 cursor 共序锚).
+        // (9-field schema match, aligned with RT-3 cursor ordering).
         dispatchArtifactCommentAdded(data as unknown as ArtifactCommentAddedFrame);
         break;
       }

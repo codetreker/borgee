@@ -26,7 +26,7 @@
 //     ③ + content-lock ⑥; reverse grep frame name in ws/ count==0).
 //   - Do not cache in IndexedDB (tracked for v3+; #366 rule ⑥ + content-lock ⑥).
 //   - pin is computed client-side: position = MIN(已有 position) - 1.0, using
-//     a smaller numeric position each time (layout rule ③ + 文案锁 ③; server must not compute MIN-1.0 per #412 comment).
+//     a smaller numeric position each time (layout rule ③ + content-lock rule ③; server must not compute MIN-1.0 per #412 comment).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, type LayoutRow, getMyLayout, putMyLayout } from '../lib/api';
@@ -137,7 +137,7 @@ export function useUserLayout() {
   );
 
   /**
-   * pinChannel — layout rule ③ + 文案锁 ③: position = MIN(已有 position) - 1.0,
+   * pinChannel — layout rule ③ + content-lock rule ③: position = MIN(已有 position) - 1.0,
    * using a smaller numeric position each time. This moves the channel to the front of the current layout.
    * Multiple pins are allowed (#366 rule ③ "个人 pin 数量不限"). Constraint: do not split
    * ordering into a second pinned BOOL source (reverse grep `pinned\s+BOOL` 0 hit).
@@ -167,7 +167,7 @@ export function useUserLayout() {
 
   /**
    * unpinChannel — reverse pin: reset position to current MAX + 1.0 (move to the end,
-   * 作者侧 fallback applies again). 文案锁 ③ "取消置顶" label must match exactly.
+   * 作者侧 fallback applies again). The "取消置顶" label must match content-lock rule ③ exactly.
    */
   const unpinChannel = useCallback(
     (channelId: string) => {
