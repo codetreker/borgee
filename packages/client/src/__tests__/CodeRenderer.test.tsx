@@ -3,7 +3,7 @@
 // 锚: docs/qa/cv-3-content-lock.md §1 ②③ + acceptance §2.2 §2.3 +
 //     spec §0 设计 ① 11 项语言白名单字面.
 //
-// table-driven 12 项白名单 byte-identical (跟 server ValidCodeLanguages
+// table-driven 12 项白名单 exact-match (跟 server ValidCodeLanguages
 // 同源) + 反向 reject 全名同义词 'golang'/'typescript'/'python'/
 // 'shell'/'bash'/'plaintext'.
 import React from 'react';
@@ -40,7 +40,7 @@ function render(node: React.ReactElement) {
 }
 
 describe('CodeRenderer — 11 项白名单 + text fallback (12 项)', () => {
-  it('CODE_LANGUAGES is byte-identical 跟 server ValidCodeLanguages 同源', () => {
+  it('CODE_LANGUAGES is exact-match 跟 server ValidCodeLanguages 同源', () => {
     expect(CODE_LANGUAGES).toEqual([
       'go', 'ts', 'js', 'py', 'md', 'sh',
       'sql', 'yaml', 'json', 'html', 'css',
@@ -73,7 +73,7 @@ describe('CodeRenderer — 11 项白名单 + text fallback (12 项)', () => {
   });
 });
 
-describe('CodeRenderer DOM byte-identical', () => {
+describe('CodeRenderer DOM exact-match', () => {
   it('renders <span class="code-lang-badge" data-lang> with uppercase label', () => {
     render(<CodeRenderer body="package main" language="go" />);
     const badge = container!.querySelector('.code-lang-badge');
@@ -110,7 +110,7 @@ describe('CodeRenderer 复制按钮', () => {
       await Promise.resolve();
     });
     expect(writeText).toHaveBeenCalledWith('hello world');
-    // toast item rendered with 已复制 文案锁 byte-identical.
+    // toast item rendered with 已复制 文案锁 exact-match.
     const toastTexts = Array.from(container!.querySelectorAll('.toast-item')).map((el) => el.textContent);
     expect(toastTexts).toContain('已复制');
   });

@@ -1,10 +1,10 @@
 // DescriptionEditor.test.tsx — CHN-10.3 5 vitest cases pin content-lock.
 //
 // Cases:
-//   ① title `频道说明` + save `保存` + cancel `取消` byte-identical
-//   ② counter `{n}/500` 字面 + maxLength=500 byte-identical
+//   ① title `频道说明` + save `保存` + cancel `取消` exact-match
+//   ② counter `{n}/500` 字面 + maxLength=500 exact-match
 //   ③ click save → setChannelDescription called + onSaved fired
-//   ④ length > 500 → error `频道说明不能超过 500 字符` byte-identical
+//   ④ length > 500 → error `频道说明不能超过 500 字符` exact-match
 //   ⑤ 同义词反向 reject — source grep 0 hit (data-testid + className 例外)
 //   + ChannelHeader empty description → null (不渲染)
 
@@ -54,7 +54,7 @@ async function flushAsync() {
 }
 
 describe('CHN-10.3 DescriptionEditor content lock', () => {
-  it('① title `频道说明` + save `保存` + cancel `取消` byte-identical', () => {
+  it('① title `频道说明` + save `保存` + cancel `取消` exact-match', () => {
     act(() => {
       root!.render(
         <DescriptionEditor
@@ -76,7 +76,7 @@ describe('CHN-10.3 DescriptionEditor content lock', () => {
     ).toBe('取消');
   });
 
-  it('② counter `{n}/500` 字面 + maxLength=500 byte-identical', () => {
+  it('② counter `{n}/500` 字面 + maxLength=500 exact-match', () => {
     act(() => {
       root!.render(
         <DescriptionEditor
@@ -93,7 +93,7 @@ describe('CHN-10.3 DescriptionEditor content lock', () => {
       '[data-testid="description-editor-input"]',
     ) as HTMLTextAreaElement;
     expect(ta.maxLength).toBe(500);
-    // DESCRIPTION_MAX_LENGTH byte-identical 跟 server const + GORM size:500.
+    // DESCRIPTION_MAX_LENGTH exact-match 跟 server const + GORM size:500.
     expect(api.DESCRIPTION_MAX_LENGTH).toBe(500);
   });
 
@@ -125,7 +125,7 @@ describe('CHN-10.3 DescriptionEditor content lock', () => {
     expect(savedWith).toBe('hello');
   });
 
-  it('④ length > 500 → error 文案 byte-identical', async () => {
+  it('④ length > 500 → error 文案 exact-match', async () => {
     const setSpy = vi
       .spyOn(api, 'setChannelDescription')
       .mockResolvedValue({} as never);
@@ -186,7 +186,7 @@ describe('CHN-10.3 DescriptionEditor content lock', () => {
     expect(err).not.toBeNull();
     expect(err!.textContent).toBe('频道说明不能超过 500 字符');
     // setSpy may or may not have been called depending on browser maxLength
-    // clamp; the byte-identical literal is what's locked.
+    // clamp; the exact literal is what's locked.
     void setSpy;
   });
 

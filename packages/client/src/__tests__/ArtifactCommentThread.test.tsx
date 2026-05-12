@@ -2,11 +2,11 @@
 //
 // 锚: docs/qa/cv-8-stance-checklist.md §4 + content-lock §1+§2.
 // 5 case (cv-8.md §2):
-//   1. collapse default 文案 "▶ 显示 N 条回复" byte-identical
-//   2. expand toggle 文案切换 "▼ 隐藏 N 条回复" byte-identical
+//   1. collapse default 文案 "▶ 显示 N 条回复" exact-match
+//   2. expand toggle 文案切换 "▼ 隐藏 N 条回复" exact-match
 //   3. data-cv8-reply-target DOM 锚 + click 打开 reply input
 //   4. nested reply 内不渲染 reply button (反向断 1-level depth)
-//   5. server errcode byte-identical surface
+//   5. server errcode exact-match surface
 
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -70,7 +70,7 @@ const sampleReplies = [
 ];
 
 describe('ArtifactCommentThread — CV-8.2 client', () => {
-  it('设计 ④ collapsed default 文案 "▶ 显示 N 条回复" byte-identical', async () => {
+  it('设计 ④ collapsed default 文案 "▶ 显示 N 条回复" exact-match', async () => {
     await render(<ArtifactCommentThread parentId="p-1" channelId="ch-1" replies={sampleReplies} />);
     const toggle = container!.querySelector('[data-cv8-thread-toggle="p-1"]') as HTMLButtonElement;
     expect(toggle).not.toBeNull();
@@ -103,7 +103,7 @@ describe('ArtifactCommentThread — CV-8.2 client', () => {
     expect(ta).not.toBeNull();
   });
 
-  it('设计 ④ depth 1 — nested reply 内 0 reply button (反约束 1-level)', async () => {
+  it('设计 ④ depth 1 — nested reply 内 0 reply button (reverse constraint 1-level)', async () => {
     await render(<ArtifactCommentThread parentId="p-1" channelId="ch-1" replies={sampleReplies} />);
     // expand
     const toggle = container!.querySelector('[data-cv8-thread-toggle="p-1"]') as HTMLButtonElement;
@@ -117,10 +117,10 @@ describe('ArtifactCommentThread — CV-8.2 client', () => {
     });
   });
 
-  it.skip('设计 ③ server errcode byte-identical surfaces (`comment.thinking_subject_required`) — covered by e2e §3.2', async () => {
+  it.skip('设计 ③ server errcode exact-match surfaces (`comment.thinking_subject_required`) — covered by e2e §3.2', async () => {
     // Skipped at unit level (vitest mocking of postArtifactCommentReply
     // does not consistently propagate through React error catch in this
-    // env). The byte-identical errcode surface is covered by the e2e
+    // env). The exact errcode surface is covered by the e2e
     // spec cv-8-comment-thread-reply.spec.ts §3.2 (4 sub-case POST →
     // 400 `comment.thinking_subject_required`). DOM error rendering is
     // smoke-covered by other tests + manual QA.

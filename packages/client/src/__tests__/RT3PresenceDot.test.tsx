@@ -1,10 +1,10 @@
 // RT-3 ⭐ presence dot tests (vitest, react-dom/client pattern).
 //
 // 设计沿用 (rt-3-spec.md §0 + content-lock §1+§2):
-//   - 4 态 UI 渲染 byte-identical (online / offline / away / thinking)
-//   - DOM data-attr SSOT (data-rt3-presence-dot/last-seen/cursor-user)
-//   - 字面 byte-identical (`在线` / `离线` / `刚刚活跃` / `最近活跃 N 分钟前`)
-//   - thinking subject 反约束 — 空 subject thinking → drop (反"假 loading" 漂)
+//   - 4 态 UI 渲染 exact-match (online / offline / away / thinking)
+//   - DOM data-attr source of truth (data-rt3-presence-dot/last-seen/cursor-user)
+//   - 字面 exact-match (`在线` / `离线` / `刚刚活跃` / `最近活跃 N 分钟前`)
+//   - thinking subject reverse constraint — 空 subject thinking → drop (防"假 loading" 漂)
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
@@ -49,7 +49,7 @@ function dot(): Element {
   return el;
 }
 
-describe('RT-3 ⭐ presence dot — content-lock §1+§2 byte-identical', () => {
+describe('RT-3 ⭐ presence dot — content-lock §1+§2 exact-match', () => {
   it('§1.1 online state renders `在线` tooltip + data-rt3-presence-dot=online', async () => {
     markRT3Presence('user-A', 'online', undefined);
     await render(<RT3PresenceDot userID="user-A" now={() => 1_700_000_000_000} />);
@@ -113,7 +113,7 @@ describe('RT-3 ⭐ presence dot — content-lock §1+§2 byte-identical', () => 
     expect(entry?.subject).toBe('tool: bash');
   });
 
-  it('§4 RT3_AWAY_THRESHOLD_MS const = 5min byte-identical', () => {
+  it('§4 RT3_AWAY_THRESHOLD_MS const = 5min exact-match', () => {
     expect(RT3_AWAY_THRESHOLD_MS).toBe(300_000);
   });
 });

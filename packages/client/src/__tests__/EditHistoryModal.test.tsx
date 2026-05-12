@@ -1,10 +1,10 @@
 // EditHistoryModal.test.tsx — DM-7.3 5 vitest cases pin content-lock §1+§2.
 //
 // Cases:
-//   ① title `编辑历史` 4 字 + count `共 N 次编辑` byte-identical
-//   ② RFC3339 timestamp byte-identical (ISO string)
+//   ① title `编辑历史` 4 字 + count `共 N 次编辑` exact-match
+//   ② RFC3339 timestamp exact-match (ISO string)
 //   ③ 空 history (length === 0) → return null (modal 不渲染)
-//   ④ 加载失败 toast `加载编辑历史失败` byte-identical
+//   ④ 加载失败 toast `加载编辑历史失败` exact-match
 //   ⑤ 同义词反向 reject — 文件源 grep history(English text) / changes /
 //      revisions / 版本 / 修订 / 变更 / 回退 0 hit (data-testid 例外)
 
@@ -53,7 +53,7 @@ async function flushAsync() {
 }
 
 describe('DM-7.3 EditHistoryModal content lock', () => {
-  it('① title `编辑历史` + count `共 N 次编辑` byte-identical', async () => {
+  it('① title `编辑历史` + count `共 N 次编辑` exact-match', async () => {
     vi.spyOn(api, 'getEditHistory').mockResolvedValue({
       history: [
         { old_content: 'v1', ts: 1700000000000, reason: 'unknown' },
@@ -74,7 +74,7 @@ describe('DM-7.3 EditHistoryModal content lock', () => {
     );
   });
 
-  it('② RFC3339 timestamp byte-identical', async () => {
+  it('② RFC3339 timestamp exact-match', async () => {
     const ts = 1700000000000;
     vi.spyOn(api, 'getEditHistory').mockResolvedValue({
       history: [{ old_content: 'old', ts, reason: 'unknown' }],
@@ -103,7 +103,7 @@ describe('DM-7.3 EditHistoryModal content lock', () => {
     expect(container!.querySelector('[data-testid="edit-history-modal"]')).toBeNull();
   });
 
-  it('④ load failure → `加载编辑历史失败` byte-identical', async () => {
+  it('④ load failure → `加载编辑历史失败` exact-match', async () => {
     vi.spyOn(api, 'getEditHistory').mockRejectedValue(new Error('boom'));
     act(() => {
       root!.render(
@@ -124,7 +124,7 @@ describe('DM-7.3 EditHistoryModal content lock', () => {
       'EditHistoryModal.tsx',
     );
     const src: string = fs.readFileSync(compPath, 'utf8');
-    // forbidden Chinese tokens (永久拆死 — 我们用 `编辑`).
+    // forbidden Chinese tokens (permanently separated — 我们用 `编辑`).
     for (const tok of ['版本', '修订', '变更', '回退']) {
       expect(src.includes(tok)).toBe(false);
     }

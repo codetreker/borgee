@@ -1,20 +1,20 @@
 // chn-3-content-lock.test.ts — CHN-3.3 client SPA 文案 + DOM attr lock.
 //
-// Pins the 6 byte-identical literals + DOM attrs from
+// Pins the 6 exact literals + DOM attrs from
 // docs/qa/chn-3-content-lock.md so mismatch in SortableChannelItem.tsx /
 // GroupHeader.tsx / ChannelContextMenu.tsx / useUserLayout.ts is caught
 // pre-merge instead of post-merge by reverse grep.
 //
-// Sources cross-referenced (5 字面 byte-identical 多源 同根, 改一处必
+// Sources cross-referenced (5 字面 exact-match 多源 同根, 改一处必
 // 改全部 — 这就是 content-lock test 的存在理由):
 //   - 拖拽 handle DOM ⋮⋮ + aria-label "拖拽调整顺序" (#371 spec §1
-//     CHN-3.3, byte-identical 锁)
+//     CHN-3.3, exact-match 锁)
 //   - 失败 toast "侧栏顺序保存失败, 请重试" (5 源: #371 spec / #376
 //     acceptance §3.5 / #402 文案锁 ④ / #412 server const layoutSaveErrorMsg
 //     / 本 client useUserLayout LAYOUT_SAVE_TOAST)
 //   - 右键菜单 "置顶" / "取消置顶" (双菜单项 字面锁)
 //   - data-collapsed 二态锁 (group header)
-//   - DM 行约束 (5 源 byte-identical, ChannelList 不为 DM 渲染 —
+//   - DM 行约束 (5 源 exact-match, ChannelList 不为 DM 渲染 —
 //     DM 走 Sidebar.MergedDmList 完全独立路径)
 
 import { describe, it, expect } from 'vitest';
@@ -42,21 +42,21 @@ describe('CHN-3 content-lock literals + DOM attrs', () => {
   const contextMenu = read('components/ChannelContextMenu.tsx');
   const useLayout = read('hooks/useUserLayout.ts');
 
-  it('① drag handle DOM byte-identical: data-sortable-handle + aria-label "拖拽调整顺序" + ⋮⋮', () => {
+  it('① drag handle DOM exact-match: data-sortable-handle + aria-label "拖拽调整顺序" + ⋮⋮', () => {
     expect(sortableItem).toContain('data-sortable-handle=""');
     expect(sortableItem).toContain('aria-label="拖拽调整顺序"');
     expect(sortableItem).toContain('⋮⋮');
   });
 
-  it('② group folding DOM byte-identical: data-collapsed 二态 + aria-label "折叠分组"', () => {
+  it('② group folding DOM exact-match: data-collapsed 二态 + aria-label "折叠分组"', () => {
     expect(groupHeader).toMatch(/data-collapsed=\{collapsed \?/);
     expect(groupHeader).toContain('aria-label="折叠分组"');
-    // ▶ 折叠 / ▼ 展开 二 icon byte-identical 跟 #371 + 文案锁 ② 同源.
+    // ▶ 折叠 / ▼ 展开 二 icon exact-match 跟 #371 + 文案锁 ② 同源.
     expect(groupHeader).toContain('▶');
     expect(groupHeader).toContain('▼');
   });
 
-  it('③ pin menu literals byte-identical: "置顶" / "取消置顶"', () => {
+  it('③ pin menu literals exact-match: "置顶" / "取消置顶"', () => {
     expect(contextMenu).toContain("'置顶'");
     expect(contextMenu).toContain("'取消置顶'");
     // grep 检查 ≥2 — 双菜单项各 1 hit.
@@ -65,12 +65,12 @@ describe('CHN-3 content-lock literals + DOM attrs', () => {
     expect((matches ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('③ pin menu DOM byte-identical: data-context="channel-pin" + role="menu"', () => {
+  it('③ pin menu DOM exact-match: data-context="channel-pin" + role="menu"', () => {
     expect(contextMenu).toContain('data-context="channel-pin"');
     expect(contextMenu).toContain('role="menu"');
   });
 
-  it('④ failure toast 字面 byte-identical 5 源: "侧栏顺序保存失败, 请重试"', () => {
+  it('④ failure toast 字面 exact-match 5 源: "侧栏顺序保存失败, 请重试"', () => {
     expect(useLayout).toContain("'侧栏顺序保存失败, 请重试'");
   });
 

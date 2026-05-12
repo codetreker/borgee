@@ -1,6 +1,6 @@
 // anchor-content-lock.test.ts — CV-2.3 content-lock literal guard.
 //
-// Pins the 4 byte-identical 文案 from docs/qa/cv-2-content-lock.md so
+// Pins the 4 exact literals from docs/qa/cv-2-content-lock.md so
 // drift in AnchorThreadPanel.tsx / ArtifactPanel.tsx 文案 is caught
 // pre-merge instead of post-merge by the reverse grep step.
 //
@@ -32,27 +32,27 @@ describe('CV-2 content-lock literals', () => {
   const threadPanel = read('components/AnchorThreadPanel.tsx');
   const artifactPanel = read('components/ArtifactPanel.tsx');
 
-  it('① anchor entry tooltip = "评论此段" byte-identical', () => {
+  it('① anchor entry tooltip = "评论此段" exact literal', () => {
     expect(artifactPanel).toContain("'评论此段'");
   });
 
-  it('② thread header = "段落讨论" byte-identical', () => {
+  it('② thread header = "段落讨论" exact literal', () => {
     expect(threadPanel).toContain("'段落讨论'");
   });
 
-  it('③ textarea placeholder = "针对此段写下你的 review…" byte-identical', () => {
+  it('③ textarea placeholder = "针对此段写下你的 review…" exact literal', () => {
     expect(threadPanel).toContain('针对此段写下你的 review…');
   });
 
-  it('⑥ resolve button = "标为已解决" byte-identical', () => {
+  it('⑥ resolve button = "标为已解决" exact literal', () => {
     expect(threadPanel).toContain("'标为已解决'");
   });
 
-  it('⑥ reopen button = "重新打开" byte-identical', () => {
+  it('⑥ reopen button = "重新打开" exact literal', () => {
     expect(threadPanel).toContain("'重新打开'");
   });
 
-  it('⑦ stale label includes "锚点指向 v" + "文档已更新到 v" byte-identical', () => {
+  it('⑦ stale label includes "锚点指向 v" + "文档已更新到 v" exact literals', () => {
     // staleLabel template lives in AnchorThreadPanel; we also render it
     // inline in ArtifactPanel anchor row — both sites must carry the
     // literal so DOM grep matches in either entry path.
@@ -62,7 +62,7 @@ describe('CV-2 content-lock literals', () => {
     expect(artifactPanel).toContain('文档已更新到 v');
   });
 
-  it('反约束: synonyms NOT present (cv-2-content-lock.md §2 reverse grep)', () => {
+  it('reverse assertion: synonyms NOT present (cv-2-content-lock.md §2 reverse grep)', () => {
     for (const forbidden of ['"Resolve"', '"Close"', "'Resolve'", "'Close'"]) {
       expect(threadPanel).not.toContain(forbidden);
     }

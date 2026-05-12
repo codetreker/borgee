@@ -1,13 +1,13 @@
 // al-2a-content-lock.test.ts — AL-2a.3 client SPA 文案 + DOM attr lock.
 //
-// Pins byte-identical literals + DOM attrs from AgentConfigPanel.tsx +
+// Pins exact literals + DOM attrs from AgentConfigPanel.tsx +
 // lib/api.ts so mismatch is caught pre-merge instead of post-merge by reverse
 // grep.
 //
-// Sources cross-referenced (byte-identical across multiple sources; change all together):
+// Sources cross-referenced (exact-match across multiple sources; change all together):
 //   - 失败 toast "agent 配置保存失败, 请重试" — 跟 server-go
-//     internal/api/agent_config.go const agentConfigSaveErrorMsg byte-
-//     identical to the server source (blueprint §1.4 single-source design,
+//     internal/api/agent_config.go const agentConfigSaveErrorMsg exactly matches
+//     the server source (blueprint §1.4 single-source design,
 //     AL-2a content-lock ①).
 //   - allowedConfigKeys 白名单 — 跟 server-go internal/api/agent_config.go
 //     allowedConfigKeys map 同源 (name / avatar / prompt / model /
@@ -40,34 +40,34 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
   const panel = read(COMPONENT);
   const api = read(API_LIB);
 
-  it('① failure toast 字面 byte-identical: "agent 配置保存失败, 请重试"', () => {
+  it('① failure toast 字面 exact-match: "agent 配置保存失败, 请重试"', () => {
     const TOAST = 'agent 配置保存失败, 请重试';
     expect(panel).toContain(TOAST);
-    // Const export: byte-identical anchor shared with the server.
+    // Const export: exact-match anchor shared with the server.
     expect(panel).toContain(`AGENT_CONFIG_SAVE_TOAST = '${TOAST}'`);
   });
 
-  it('② allowedConfigKeys 白名单 7 字段 byte-identical (跟 server allowedConfigKeys 同源)', () => {
+  it('② allowedConfigKeys 白名单 7 字段 exact-match (跟 server allowedConfigKeys 同源)', () => {
     for (const key of ['name', 'avatar', 'prompt', 'model', 'capabilities', 'enabled', 'memory_ref']) {
       expect(panel).toContain(`'${key}'`);
     }
   });
 
-  it('③ form input 字段 data-agent-config-field 二态锁 (DOM attr byte-identical)', () => {
+  it('③ form input 字段 data-agent-config-field 二态锁 (DOM attr exact-match)', () => {
     for (const field of ['name', 'avatar', 'prompt', 'model', 'enabled', 'memory_ref']) {
       expect(panel).toContain(`data-agent-config-field="${field}"`);
     }
   });
 
-  it('④ DOM root + version display + save button DOM byte-identical', () => {
+  it('④ DOM root + version display + save button DOM exact-match', () => {
     expect(panel).toContain('data-agent-config="root"');
     expect(panel).toContain('data-agent-config="loading"');
     expect(panel).toContain('data-agent-config-version');
     expect(panel).toContain('data-agent-config-action="save"');
   });
 
-  it('⑤ API endpoint path byte-identical 跟 server-go agent_config.go RegisterRoutes', () => {
-    // GET + PATCH /api/v1/agents/{id}/config — server 路径 byte-identical.
+  it('⑤ API endpoint path exact-match 跟 server-go agent_config.go RegisterRoutes', () => {
+    // GET + PATCH /api/v1/agents/{id}/config — server 路径 exact-match.
     expect(api).toMatch(/\/api\/v1\/agents\/\$\{id\}\/config/);
     expect(api).toContain("method: 'PATCH'");
     expect(api).toContain('fetchAgentConfig');
@@ -159,7 +159,7 @@ describe('AL-2a content-lock literals + DOM attrs', () => {
         }
       }
     }
-    // 0 hits: the container stays byte-identical as section, not form.
+    // 0 hits: the container stays exact as section, not form.
     expect(hits).toEqual([]);
   });
 });

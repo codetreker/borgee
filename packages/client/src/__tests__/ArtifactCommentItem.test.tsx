@@ -3,8 +3,8 @@
 // 锚: docs/qa/cv-7-stance-checklist.md §4 + content-lock §1+§2.
 // 4 case (cv-7.md §2):
 //   1. own comment 渲染 data-cv7-edit-btn (sender==current user)
-//   2. other comment 不渲染 data-cv7-edit-btn (反约束)
-//   3. delete confirm 文案 byte-identical "确认删除这条评论?"
+//   2. other comment 不渲染 data-cv7-edit-btn (reverse constraint)
+//   3. delete confirm 文案 exact-match "确认删除这条评论?"
 //   4. reaction button 渲染 data-cv7-reaction-target
 
 import React from 'react';
@@ -56,7 +56,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(btn!.getAttribute('data-cv7-edit-btn-target')).toBe('msg-1');
   });
 
-  it('设计 ② other comment does NOT render data-cv7-edit-btn (反约束)', async () => {
+  it('设计 ② other comment does NOT render data-cv7-edit-btn (reverse constraint)', async () => {
     await render(
       <ArtifactCommentItem
         commentId="msg-2"
@@ -70,7 +70,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(btn).toBeNull();
   });
 
-  it('设计 ④ delete confirm 文案 byte-identical "确认删除这条评论?"', async () => {
+  it('设计 ④ delete confirm 文案 exact-match "确认删除这条评论?"', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const delSpy = vi.spyOn(api, 'deleteMessage').mockResolvedValue();
     await render(
@@ -120,7 +120,7 @@ describe('ArtifactCommentItem — CV-7.2 client', () => {
     expect(reactSpy).toHaveBeenCalledWith('msg-4', '👍');
   });
 
-  it('设计 ③ thinking 5-pattern reject — surfaces errcode byte-identical CV-5', async () => {
+  it('设计 ③ thinking 5-pattern reject — surfaces errcode exact-match CV-5', async () => {
     const ApiErrCtor = api.ApiError;
     vi.spyOn(api, 'editMessage').mockRejectedValue(
       new ApiErrCtor(400, 'comment.thinking_subject_required: thinking-only body rejected'),

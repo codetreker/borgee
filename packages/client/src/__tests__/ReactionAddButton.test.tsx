@@ -114,7 +114,7 @@ describe('ReactionAddButton — gh#686 §6 4 类断言', () => {
   });
 
   describe('② 失败时撤回乐观 + showToast (§4 #11)', () => {
-    it('addReaction reject → dispatch REMOVE_REACTION_OPTIMISTIC + showToast 字面 byte-identical', async () => {
+    it('addReaction reject → dispatch REMOVE_REACTION_OPTIMISTIC + showToast 字面 exact-match', async () => {
       vi.mocked(api.addReaction).mockRejectedValueOnce(new Error('5xx'));
       render(<ReactionAddButton {...baseProps} variant="toolbar-btn" />);
       const btn = container!.querySelector('button[data-reaction-add-variant]') as HTMLButtonElement;
@@ -146,7 +146,7 @@ describe('ReactionAddButton — gh#686 §6 4 类断言', () => {
         userId: 'u-current',
       });
 
-      // §6.1 文案锁: byte-identical "添加 reaction 失败, 请重试"
+      // §6.1 文案锁: exact-match "添加 reaction 失败, 请重试"
       expect(mockShowToast).toHaveBeenCalledWith('添加 reaction 失败, 请重试');
     });
 
@@ -193,7 +193,7 @@ describe('ReactionAddButton — gh#686 §6 4 类断言', () => {
   });
 
   describe('④ a11y 字面 (§4 #15)', () => {
-    it('aria-label / aria-haspopup / aria-expanded 字面 byte-identical', () => {
+    it('aria-label / aria-haspopup / aria-expanded 字面 exact-match', () => {
       render(<ReactionAddButton {...baseProps} variant="toolbar-btn" />);
       const btn = container!.querySelector('button[data-reaction-add-variant]') as HTMLButtonElement;
       expect(btn.getAttribute('aria-label')).toBe('添加表情');
@@ -204,12 +204,12 @@ describe('ReactionAddButton — gh#686 §6 4 类断言', () => {
     });
   });
 
-  describe('反向断言 — §6.1 文案锁 byte-identical', () => {
-    it('showToast 收到的字面 byte-identical 跟 design §6.1 一致', () => {
+  describe('反向断言 — §6.1 文案锁 exact-match', () => {
+    it('showToast 收到的字面 exact-match 跟 design §6.1 一致', () => {
       // §6.1 文案锁: 改 = 改三处 (design + 这里 + ReactionAddButton.tsx).
       // grep 检查 防近义词漂移那一条是 source-file 层面的 grep, 不是 runtime
       // 字符串 substring (例如 "reaction 失败" 自然是 "添加 reaction 失败,
-      // 请重试" 的子串, 不能用 not.toContain). 这里只锁 byte-identical 全等.
+      // 请重试" 的子串, 不能用 not.toContain). 这里只锁 exact 全等.
       const ALLOWED = '添加 reaction 失败, 请重试';
       vi.mocked(api.addReaction).mockRejectedValueOnce(new Error('5xx'));
       render(<ReactionAddButton {...baseProps} variant="toolbar-btn" />);
