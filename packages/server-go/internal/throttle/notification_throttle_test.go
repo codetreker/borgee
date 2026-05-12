@@ -1,6 +1,6 @@
-// G2.3 5-test matrix per 飞马 #229: T1 const pin, T2 first call, T3 within-
-// window suppress, T4 cross-window reset, T5 二维 key 隔离. clock.Fake only —
-// no wall-clock sleeps (G2.3 拒收红线 #4).
+// G2.3 five-test matrix from #229: T1 const pin, T2 first call, T3 within-
+// window suppress, T4 cross-window reset, T5 two-dimensional key isolation.
+// Use clock.Fake only; no wall-clock sleeps (G2.3 blocking constraint #4).
 package throttle
 
 import (
