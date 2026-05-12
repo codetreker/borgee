@@ -29,9 +29,10 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 export interface AdminSession {
   // ADMIN-SPA-SHAPE-FIX D2: server `internal/admin/auth.go::handleMe`
-  // (auth.go:281,314) byte-identical 真返 `{id, login}` 2 字段, 不返 role /
-  // username / admin_id / expires_at. 之前 `{role, username}` 是 client 自创
-  // 假字段 (UI render undefined). 改 client interface 跟 server SSOT 锁.
+  // (auth.go:281,314) returns exactly `{id, login}`. It does not return role /
+  // username / admin_id / expires_at. The previous `{role, username}` fields
+  // were client-only assumptions that rendered undefined, so keep this
+  // interface locked to the server source of truth.
   id: string;
   login: string;
 }
@@ -70,9 +71,10 @@ export interface AdminChannel {
   visibility: string;
   created_at: number;
   deleted_at?: number | null;
-  // ADMIN-SPA-SHAPE-FIX D3: `member_count` 死字段删 — server `Channel`
-  // gorm json (`store/models.go::Channel`) 不返 member_count, 客户端永显
-  // undefined. 反向 grep `member_count` in client/admin/ 0 hit (post-fix).
+  // ADMIN-SPA-SHAPE-FIX D3: `member_count` was removed. Server `Channel`
+  // JSON (`store/models.go::Channel`) does not return member_count, so the
+  // client always rendered undefined. Reverse grep `member_count` in
+  // client/admin/ should stay at 0 hits after the fix.
 }
 
 export interface InviteCode {
@@ -83,14 +85,14 @@ export interface InviteCode {
   used_by?: string | null;
   used_at?: number | null;
   // ADMIN-SPA-SHAPE-FIX D5: server `store.InviteCode.Note string \`json:"note"\``
-  // 真返 non-null (默认 ""). client 类型 narrowing 守.
+  // returns non-null (default ""). Client type narrowing depends on that shape.
   note: string;
 }
 
 export async function adminLogin(login: string, password: string): Promise<AdminSession> {
   // ADMIN-SPA-SHAPE-FIX D1+D2: server `loginRequest{Login,Password}` (auth.go)
-  // — body 字段 `login` 不是 `username`. response (auth.go:281) 返
-  // `{id, login}` 不是 `{token}` (token 走 Set-Cookie cookie 不在 body).
+  // Body field is `login`, not `username`. Response (auth.go:281) returns
+  // `{id, login}`, not `{token}`; the token is sent via Set-Cookie, not body.
   return request<AdminSession>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ login, password }),
@@ -232,20 +234,21 @@ export async function deleteInvite(code: string): Promise<void> {
   await request<{ ok: boolean }>(`/invites/${encodeURIComponent(code)}`, { method: 'DELETE' });
 }
 
-// ADM-2.2 admin-rail audit-log endpoint (#484, blueprint admin-model.md §1.4
-// 立场 ③ admin 互可见 + 三 filter UI 收敛). admin cookie 路径分叉守
-// (REG-ADM0-002 共享底线: user cookie → 401 反向断言).
+// ADM-2.2 admin API audit-log endpoint (#484, blueprint admin-model.md §1.4
+// stance ③: admins can see each other + three-filter UI convergence). Keep
+// admin-cookie routing separate (REG-ADM0-002 baseline: user cookie → 401).
 //
-// 跨端字面拆死: admin 端走英文 enum action (delete_channel/suspend_user/
-// change_role/reset_password/start_impersonation), 用户端 Settings/AdminActionsList
-// 走中文动词字面 (ACTION_VERBS map). 改 enum = 改 server admin_actions CHECK
-// constraint + admin SPA + user SPA 三处.
+// Cross-surface literal lock: admin surfaces use English enum actions
+// (delete_channel/suspend_user/change_role/reset_password/start_impersonation),
+// while user Settings/AdminActionsList uses Chinese verbs (ACTION_VERBS map).
+// Changing the enum requires updating the server admin_actions CHECK constraint,
+// admin SPA, and user SPA together.
 export interface AdminActionRow {
   id: string;
   actor_id: string; // admin_view=true 包含 (UUID 字符串)
   target_user_id: string;
   action: string;   // 英文 enum (跟 server CHECK constraint byte-identical)
-  metadata: string; // JSON 字符串 (server 不挂 body/content/text/artifact 字段, god-mode 仅元数据)
+  metadata: string; // JSON string; server omits body/content/text/artifact fields, admin sees metadata only
   created_at: number; // Unix ms
   // ADMIN-SPA-SHAPE-FIX D4: AL-8 §0 立场 ③ archived 三态. server `sanitizeAdminAction`
   // (admin_endpoints.go) nil-safe surface — null/缺 = active, non-null = archived.
@@ -257,8 +260,8 @@ export interface AuditLogFilters {
   action?: string;
   target_user_id?: string;
   // ADMIN-SPA-ARCHIVED-UI-FOLLOWUP: AL-8 §0 立场 ③ archived 三态 filter.
-  // server `?archived=active|archived|all`; 空 = "active" 默认 (跟 server
-  // admin_endpoints.go::handleAdminAuditLog 字面 byte-identical, drift = 改两处).
+  // server `?archived=active|archived|all`; empty means the "active" default.
+  // Keep byte-identical with server admin_endpoints.go::handleAdminAuditLog.
   archived?: 'active' | 'archived' | 'all';
 }
 
@@ -277,8 +280,8 @@ export async function fetchAdminAuditLog(filters: AuditLogFilters = {}): Promise
 // server / plugin / host_bridge / agent). 4 source enum byte-identical 跟
 // server-side AuditSources 同源 (改 = 改 server const + 此处 + i18n 三处).
 //
-// admin god-mode 路径独立 (ADM-0 §1.3 红线): 仅 /admin-api/v1/audit/multi-source
-// 暴露, 反 user-rail 漂.
+// Admin path is separate (ADM-0 §1.3 separation constraint): expose only
+// /admin-api/v1/audit/multi-source, with no user API drift.
 export const AUDIT_SOURCES = ['server', 'plugin', 'host_bridge', 'agent'] as const;
 export type AuditSource = typeof AUDIT_SOURCES[number];
 
@@ -314,7 +317,7 @@ export async function fetchMultiSourceAudit(filters: MultiSourceAuditFilters = {
 //   - GET /admin-api/v1/heartbeat-lag                    (host_lag.go:52)
 //   - GET /admin-api/v1/channels/archived                (channel_archived.go:44)
 //   - GET /admin-api/v1/channels/{id}/description/history (channel_history.go:48)
-// 0 server / 0 endpoint / 0 schema 改; admin god-mode readonly (ADM-0 §1.3).
+// No server, endpoint, or schema changes; admin access is read-only (ADM-0 §1.3).
 
 /**
  * AdminRuntime — server `runtimes.go::handleListRuntimes` row shape.

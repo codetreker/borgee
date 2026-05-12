@@ -66,11 +66,11 @@ const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 // gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
 // byte-identical, 改这些 = 改 design + grep 检查 e2e 真验报告).
 //   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
-//   ARTIFACT_CREATE_FAIL_PREFIX — 创建失败 modal 内文案前缀 (yema C 混合)
-//   ARTIFACT_CREATE_NETWORK_ERR — 网络错时模糊兜底
+//   ARTIFACT_CREATE_FAIL_PREFIX — prefix for create failure text inside the modal
+//   ARTIFACT_CREATE_NETWORK_ERR — generic fallback for network failures
 //   ARTIFACT_ROLLBACK_CONFIRM_TEMPLATE — 回滚 modal 文案模板 (跟原 confirm 字面 byte-identical)
-//   ARTIFACT_ROLLBACK_FAIL_TOAST — 回滚失败 toast (yema C 混合, 跟 CONFLICT_TOAST 风格一致)
-//   ARTIFACT_CREATE_MODAL_TITLE_ID / ARTIFACT_ROLLBACK_MODAL_TITLE_ID — aria-labelledby (liema a11y)
+//   ARTIFACT_ROLLBACK_FAIL_TOAST — rollback failure toast, aligned with CONFLICT_TOAST style
+//   ARTIFACT_CREATE_MODAL_TITLE_ID / ARTIFACT_ROLLBACK_MODAL_TITLE_ID — aria-labelledby ids
 const ARTIFACT_CREATE_MODAL_TITLE = '新建 Markdown artifact';
 const ARTIFACT_CREATE_INPUT_LABEL = 'Artifact 标题:';
 const ARTIFACT_CREATE_DEFAULT_TITLE = '未命名 artifact';
@@ -108,10 +108,10 @@ export default function ArtifactPanel({ channelId }: Props) {
   // modal-overlay + modal-content 风格统一 (跟 CreateGroupModal /
   // ConfirmDeleteModal 同款).
   //   - createDraftTitle: 创建 modal 当前输入. null = modal 关; 非 null = 打开.
-  //   - createErrMsg: yema C 混合 — 创建失败时 modal 不关, 错误显在 modal 内.
+  //   - createErrMsg: on create failure, keep the modal open and show the error inside it.
   //   - pendingRollbackVersion: 待确认回滚的目标版本号. null = 回滚 modal 关.
-  //   - createTriggerRef / rollbackTriggerRef: liema a11y #3 — 关 modal 后
-  //     focus 回原触发按钮; fallback 落 .artifact-panel (触发按钮可能 unmount).
+  //   - createTriggerRef / rollbackTriggerRef: after the modal closes, return focus
+  //     to the triggering button; fall back to .artifact-panel if that button unmounts.
   const [createDraftTitle, setCreateDraftTitle] = useState<string | null>(null);
   const [createErrMsg, setCreateErrMsg] = useState<string | null>(null);
   const [pendingRollbackVersion, setPendingRollbackVersion] = useState<number | null>(null);
@@ -126,7 +126,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   // CV-4.3 diff view state — "对比" tab + URL `?diff=v3..v2` deep-link
   // (content-lock §1 ⑤ + spec #365 §0 设计 ③).
   // diffPair 是当前活跃的 N..M 对比; null = 不在 diff 模式.
-  // 设计 ③ — client jsdiff, 不裂 server diff.
+  // Design ③: use client-side jsdiff; do not add a separate server diff path.
   const [diffPair, setDiffPair] = useState<{ newV: number; oldV: number } | null>(() => {
     if (typeof window === 'undefined') return null;
     const raw = new URLSearchParams(window.location.search).get('diff');
@@ -289,16 +289,17 @@ export default function ArtifactPanel({ channelId }: Props) {
     setSelection({ start, end: start + text.length });
   }, [artifact, editing]);
 
-  // gh#691 + design §4 yema C 混合: 修前用 window.prompt 弹原生 dialog 阻塞
-  // 主线程, 改成应用内 modal. handleCreate 仅打开 modal + 记触发按钮 ref;
-  // doCreate 真创建.
-  //   失败行为 (C 混合): modal 不关 + setCreateErrMsg 给 modal 内显 + input
-  //   保留用户输入 + busy=false 让 "创建" 按钮 enable. 用户可改 title 重试.
+  // gh#691 + design §4: replace the previous blocking window.prompt with an
+  // in-app modal. handleCreate only opens the modal and records the trigger;
+  // doCreate performs the create request.
+  //   Failure behavior: keep the modal open, show createErrMsg inside it,
+  //   preserve the input, and set busy=false so the user can edit the title and retry.
   //   (跟 CreateGroupModal 失败留 modal 模式一致.)
   //
-  // 反约束 (heima Security): 不在 client 对 title 做 sanitize. server 端字段
-  // 验证 + 渲染时 marked + DOMPurify 双层防护已足够 (跟蓝图 §4 markdown ONLY
-  // 同源, 反 client sanitize 重复).
+  // Security constraint: do not sanitize the title on the client. Server field
+  // validation plus render-time marked + DOMPurify provide the intended defense
+  // layers (aligned with blueprint §4 markdown ONLY); client sanitization would
+  // duplicate that contract.
   const handleCreate = (e?: ReactMouseEvent<HTMLButtonElement>) => {
     if (e) createTriggerRef.current = e.currentTarget;
     setCreateErrMsg(null);
@@ -319,7 +320,7 @@ export default function ArtifactPanel({ channelId }: Props) {
       setCreateDraftTitle(null);
       restoreFocus(createTriggerRef);
     } catch (err) {
-      // C 混合: 失败 modal 不关, 错误显 modal 内, input 保留.
+      // On failure, keep the modal open, show the error inside it, and preserve input.
       const msg = err instanceof Error
         ? `${ARTIFACT_CREATE_FAIL_PREFIX}${err.message}`
         : ARTIFACT_CREATE_NETWORK_ERR;
@@ -386,9 +387,10 @@ export default function ArtifactPanel({ channelId }: Props) {
     }
   };
 
-  // gh#691 + design §4 yema C 混合: 修前用 window.confirm, 改成应用内 modal.
-  // handleRollback 仅打开确认 modal + 记触发按钮 ref; doRollback 真回滚.
-  //   失败行为 (C 混合): 关 modal + showToast — 跟 ConfirmDeleteModal 模式一致.
+  // gh#691 + design §4: replace the previous window.confirm with an in-app modal.
+  // handleRollback only opens the confirm modal and records the trigger; doRollback
+  // performs the rollback request.
+  //   Failure behavior: close the modal and show a toast, matching ConfirmDeleteModal.
   //   回滚是单按钮零输入操作, 失败关 modal + toast 反馈符合"已点确认等结果"心智.
   const handleRollback = (
     toVersion: number,
@@ -415,7 +417,7 @@ export default function ArtifactPanel({ channelId }: Props) {
         showToast(CONFLICT_TOAST);
         await reload(artifact.id);
       } else {
-        // C 混合: 非 409 失败也走 toast (modal 已关), 跟 CONFLICT_TOAST 风格一致.
+        // Non-409 failures also use a toast after the modal closes, aligned with CONFLICT_TOAST.
         showToast(ARTIFACT_ROLLBACK_FAIL_TOAST);
       }
     } finally {

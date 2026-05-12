@@ -24,20 +24,22 @@ import { usePresence } from '../hooks/usePresence';
 
 // #684 — Mask helper for API keys.
 //
-// 渲染 `bgr_...{last4}` 形式 (前缀 + ... + 末 4), 反 OpenAI `sk-` 误抄
-// (yema brief v3 §3 文案锁; heima Sec 设计 1 末 4 位露够认人不够暴破解).
+// Render `bgr_...{last4}` (prefix + ... + last four chars) to avoid copying
+// OpenAI-style `sk-` examples. The last four chars are enough to identify the
+// key but not enough to brute-force it.
 //
-// 反约束: 完整明文 key 不进 DOM (Sec by-construction); 这个 helper **只**
-// 接末 4 位字符串 (caller 只在 fetch 后 `key.slice(-4)`, 立刻丢完整 key),
-// 不接全 key. 反 dev 误传完整 key 进来 mask 后字符串还在 React state.
+// Constraint: the full plaintext key must not enter the DOM. This helper accepts
+// only the last four chars; callers slice after fetch and immediately drop the
+// full key so it cannot be kept in React state.
 //
 // 前缀 `bgr_` 写死 — server-go `GenerateAPIKey()` 真值 (queries_phase2b.go:440).
-// 跟 brief §2.3 + §2.4 grep 守卫一致, 不允许 `sk-` 出现.
+// Matches brief §2.3 + §2.4 grep guards; `sk-` must not appear.
 function formatMaskedApiKey(last4: string): string {
   return `bgr_...${last4}`;
 }
 
-// #684 — Auto-clear delay 60 秒 (heima Sec 设计 3 + 1Password / Bitwarden 行业值).
+// #684 — Auto-clear delay: 60 seconds, matching the security design and common
+// password-manager behavior.
 const API_KEY_AUTO_CLEAR_MS = 60_000;
 
 const KNOWN_PERMISSIONS = [
@@ -135,12 +137,11 @@ function AgentCard({
 }) {
   const [permissions, setPermissions] = useState<PermissionDetail[]>([]);
   const [loadingPerms, setLoadingPerms] = useState(false);
-  // #684 — API Key 显示策略. 反约束: 完整 plaintext key 永不进 React state /
-  // ref, 只在 fetch closure 临时持有, 走 `key.slice(-4)` 拿 last4 后立即丢
-  // (heima Sec 设计 by-construction + yema brief v3 §2.3).
+  // #684 — API key display policy. Constraint: the full plaintext key never
+  // enters React state or refs. It is held only inside the fetch closure, sliced
+  // with `key.slice(-4)`, then discarded.
   //
-  // 之前的 visibleKey / newKey state 删掉 — 那俩存完整 plaintext, by-construction
-  // 反约束.
+  // Previous visibleKey / newKey state was removed because it stored the full plaintext key.
   const [last4, setLast4] = useState<string | null>(null);
   const [loadingKey, setLoadingKey] = useState(false);
   const [copying, setCopying] = useState(false);
@@ -150,10 +151,10 @@ function AgentCard({
   const { showToast } = useToast();
   const [joinChannelId, setJoinChannelId] = useState('');
 
-  // AL-4.3 (#379 §1 拆段): runtime 卡片状态. fetchAgentRuntime 返回
-  // null 表示该 agent 还没注册 runtime (graceful degrade — 设计 ①
-  // "Borgee 不带 runtime", 不假装有). expanded 时按需拉, 不在 list
-  // 视图浪费 N 次请求.
+  // AL-4.3 (#379 §1 split): runtime card state. fetchAgentRuntime returns
+  // null when the agent has not registered a runtime yet (graceful degradation,
+  // design ① "Borgee 不带 runtime"). Load only when expanded to avoid one
+  // request per list row.
   const { state: appState } = useAppContext();
   const viewerUserID = appState.currentUser?.id ?? null;
   const [runtime, setRuntime] = useState<AgentRuntime | null>(null);
@@ -163,7 +164,8 @@ function AgentCard({
       const rt = await fetchAgentRuntime(agent.id);
       setRuntime(rt);
     } catch {
-      // 静默失败 (沉默胜于假 loading §11; transient error 不阻 expanded 展开).
+      // Silent failure: §11 prefers silence over fake loading; a transient error
+      // should not block the expanded panel.
       setRuntime(null);
     } finally {
       setRuntimeLoaded(true);
@@ -180,22 +182,21 @@ function AgentCard({
     }
   }, [agent.id]);
 
-  // #684 — Load last4 of API key on expand. yema brief Q1 方案 B + Q2 现有
-  // endpoint slice(-4) 立即丢: fetch 完整 key, 取末 4 位放进 state, **不存
-  // 完整 key 任何位置** (反 by-construction). const localKey 走出 closure
-  // 后被 GC.
+  // #684 — Load the API key mask on expand. Fetch the full key, store only the
+  // last four chars in state, and do not keep the full key anywhere after the
+  // closure exits.
   const loadKeyMask = useCallback(async () => {
     setLoadingKey(true);
     try {
       const data = await fetchAgent(agent.id);
-      // 反约束: 只取 slice(-4), 不 setState 完整 key.
+      // Constraint: store only slice(-4), never the full key.
       if (typeof data.api_key === 'string' && data.api_key.length >= 4) {
         setLast4(data.api_key.slice(-4));
       } else {
         setLast4(null);
       }
     } catch {
-      // 失败仅 inline 显示 — 跟 RuntimeCard "沉默胜于假 loading" 同模式.
+      // Failure is shown inline only, matching RuntimeCard's no-fake-loading pattern.
       setLast4(null);
     } finally {
       setLoadingKey(false);
@@ -210,10 +211,9 @@ function AgentCard({
     }
   }, [expanded, loadPerms, loadRuntime, loadKeyMask]);
 
-  // #684 — Cleanup auto-clear timer on unmount. 反 dirty timer 在 component
-  // 卸载后还触发 (用户切走 sidepane / 刷新页面). cleanup 不主动 writeText
-  // 那次 — 用户 unmount 之后剪贴板状态由用户掌控, 不擅自动手, 跟 Sec 设计 3
-  // "auto-clear 是 ux 安全提升, 不是强制权限" 一致.
+  // #684 — Clean up the auto-clear timer on unmount so it cannot fire after the
+  // user leaves the sidepane or refreshes. Cleanup does not write to the
+  // clipboard; after unmount, clipboard contents remain under user control.
   useEffect(() => {
     return () => {
       if (autoClearTimerRef.current) {
@@ -223,10 +223,10 @@ function AgentCard({
     };
   }, []);
 
-  // #684 — 复制 + auto-clear 60s. 反约束: 完整 key 仅在本 fn closure 临时持有,
-  // setLast4 后局部变量出作用域被 GC. setTimeout 60s 后 readText 比对, 只在
-  // 剪贴板里还是这把 key 时才清 (yema brief §2.3 边界 — 用户 60s 内主动改剪
-  // 贴板内容时不动他).
+  // #684 — Copy + auto-clear after 60s. The full key is held only inside this
+  // function closure. After setLast4, it falls out of scope. The timer clears
+  // the clipboard only if it still contains this exact key, so user changes made
+  // during the 60s window are preserved.
   const handleCopyKey = async () => {
     setCopying(true);
     try {
@@ -237,7 +237,7 @@ function AgentCard({
         return;
       }
       await navigator.clipboard.writeText(key);
-      // mask 同步刷新 (新 rotate 后 last4 跟 fetch 来的一致, 反竞态).
+      // Refresh the mask so last4 matches the freshly fetched key and avoids races.
       setLast4(key.slice(-4));
       showToast('API Key 已复制, 60 秒后自动清空');
       // 启动 60s auto-clear: closure 捕获本次 key, setTimeout 触发时
@@ -252,16 +252,16 @@ function AgentCard({
             await navigator.clipboard.writeText('');
             showToast('剪贴板已清空 (安全保护)');
           }
-          // 不等 (例如用户已经主动复制别的) → 不动剪贴板, 不 toast 减打扰.
+          // If it differs, the user copied something else; leave the clipboard alone.
         } catch {
-          // readText 可能被 permission 拒 (Firefox 默认拒 readText). 降级:
-          // 不读不清, 让用户掌控. 反约束: 不主动 writeText('') 因为可能覆
-          // 盖用户手工复制的内容.
+          // readText may be denied (Firefox denies by default). In that case,
+          // do not clear anything; blindly writing '' could erase user-copied content.
         }
       }, API_KEY_AUTO_CLEAR_MS);
     } catch (err) {
-      // 浏览器不支持 clipboard / 非 https 走 fallback. document.execCommand
-      // 已 deprecated 但仍是 fallback 唯一选项, 反第三方库 (heima Sec 设计 4).
+      // Fallback for browsers without clipboard support or non-HTTPS contexts.
+      // document.execCommand is deprecated but remains the available fallback
+      // here, avoiding an extra third-party dependency.
       try {
         const data = await fetchAgent(agent.id);
         const key = data.api_key ?? '';
@@ -291,7 +291,7 @@ function AgentCard({
   const handleRotateKey = async () => {
     try {
       const key = await rotateAgentApiKey(agent.id);
-      // 不进 DOM, 直接走 clipboard + mask (跟 handleCopyKey 同模式).
+      // Do not put the full key in the DOM; write it to the clipboard and update the mask.
       await navigator.clipboard.writeText(key);
       setLast4(key.slice(-4));
       showToast('API Key 已复制, 60 秒后自动清空');
@@ -306,7 +306,7 @@ function AgentCard({
             showToast('剪贴板已清空 (安全保护)');
           }
         } catch {
-          // readText 拒, 降级不动剪贴板.
+          // If readText is denied, leave the clipboard untouched.
         }
       }, API_KEY_AUTO_CLEAR_MS);
     } catch (err) {
@@ -343,8 +343,7 @@ function AgentCard({
 
   return (
     <div className="agent-card">
-      {/* #684 — Identity 卡 (Header). yema brief §2.1 第 1 卡: 头像 + 名 +
-          状态 + ID + Created + 顶部按钮. */}
+      {/* #684 — Identity card (header): avatar, name, state, ID, Created, and top buttons. */}
       <section className="agent-detail-card agent-detail-card-identity">
         <div className="admin-card-row">
           <div className="admin-card-info" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -377,10 +376,10 @@ function AgentCard({
 
       {expanded && (
         <>
-          {/* #684 — Credentials 卡 (yema brief §2.1 第 2 卡 + §2.3 重点).
-              默认显 mask `bgr_...{last4}`, 没 Show 按钮. 完整 plaintext key 永
-              不进 DOM (heima Sec by-construction); 复制按钮按需 fetch + clipboard
-              + auto-clear 60s + readText 比对. */}
+          {/* #684 — Credentials card. Show the `bgr_...{last4}` mask by default,
+              with no Show button. The full plaintext key never enters the DOM;
+              copy fetches on demand, writes to clipboard, auto-clears after 60s,
+              and first verifies clipboard contents with readText. */}
           <section className="agent-detail-card agent-detail-card-credentials">
             <strong>API Key</strong>
             <div className="api-key-box" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -402,11 +401,10 @@ function AgentCard({
             </div>
           </section>
 
-          {/* #684 — Runtime 卡 (第 3 卡). AL-4.3 (#379 §1 拆段) — fetchAgentRuntime
-              null → graceful degrade omit (设计 ① "Borgee 不带 runtime");
-              非 owner → owner-only DOM gate 走 RuntimeCard 内部 isOwner 判断
-              (反约束: 非 owner 看到 status badge 但看不到 start/stop btn,
-              跟 #321 §2 同源). */}
+          {/* #684 — Runtime card. AL-4.3 (#379 §1 split): fetchAgentRuntime null
+              means graceful degradation, so omit the card (design ① "Borgee 不带 runtime").
+              RuntimeCard handles the owner-only DOM gate: non-owners can see the
+              status badge but not start/stop buttons (#321 §2). */}
           {runtimeLoaded && (
             <section className="agent-detail-card agent-detail-card-runtime">
               <RuntimeCard
@@ -418,12 +416,12 @@ function AgentCard({
             </section>
           )}
 
-          {/* #684 — Config 卡 (第 4 卡). AL-2a.3 (#447 + #480 mount) — agent
-              config SSOT editor (name / avatar / prompt / model / capabilities
-              / enabled / memory_ref). 蓝图 §1.4 SSOT 字段划界, server-side
-              allowedConfigKeys whitelist fail-closed; 反约束 设计 ⑤ runtime-only
-              字段 (api_key / temperature / token_limit / retry_policy) 此 form
-              不渲染. AgentConfigPanel 内部已有 "Agent 配置" 标题, 删外层冗余. */}
+          {/* #684 — Config card. AL-2a.3 (#447 + #480 mount): agent config SSOT
+              editor (name / avatar / prompt / model / capabilities / enabled /
+              memory_ref). Blueprint §1.4 defines the SSOT boundary; server-side
+              allowedConfigKeys fail closed. Runtime-only fields (api_key /
+              temperature / token_limit / retry_policy) are not rendered here.
+              AgentConfigPanel already includes the "Agent 配置" heading. */}
           <section className="agent-detail-card agent-detail-card-config">
             <AgentConfigPanel agentId={agent.id} />
           </section>
@@ -468,13 +466,12 @@ function AgentCard({
 }
 
 // AL-1a (#R3 Phase 2) — Agent state inline badge.
-// 故障态点 reason label 直接给 owner 故障原因 (蓝图 §2.3 "可解释").
-// data-state 让 Playwright (REG-AL1A-*) 锁住 selector.
+// Error-state reason label gives the owner an explainable failure reason
+// (blueprint §2.3). data-state keeps the Playwright selector stable (REG-AL1A-*).
 //
-// AL-3.3 (#R3 Phase 2): 接 usePresence cache — WS `presence.changed` frame
-// 推来的实时态比 fetchAgents() 快照新, 优先用 cache. cache miss (没收到
-// frame 或刚连上) 走 agent.state 兜底; 都没有再 describeAgentState 兜回
-// "已离线" (野马 §11 不准灰糊弄).
+// AL-3.3 (#R3 Phase 2): usePresence cache receives `presence.changed` WebSocket
+// frames, which are fresher than the fetchAgents() snapshot. Prefer the cache;
+// on cache miss, fall back to agent.state, then to describeAgentState's "已离线".
 function AgentStateBadge({ agent }: { agent: Agent }) {
   const live = usePresence(agent.id);
   const state = live?.state ?? agent.state;
@@ -505,9 +502,9 @@ function CreateAgentModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
-  // #682: 注册未保存改动守卫. 用户在表单里填了东西但还没提交时,
-  // 切换到别的 sidepane 会先弹 confirmation. 已提交 (createdKey 有值) 后
-  // 不再算 dirty — 那时表单是结果展示, 不是待保存改动.
+  // #682: register the unsaved-changes guard. If the user has filled the form
+  // but not submitted it, switching sidepanes prompts for confirmation. After
+  // submit (createdKey is set), the form is a result view and no longer dirty.
   useUnsavedChangesGuard(
     () => createdKey === null && (displayName.trim() !== '' || agentId.trim() !== ''),
     'Create Agent 表单有填写但还没提交, 离开会丢失. 确认离开吗?',

@@ -2,31 +2,33 @@
 //
 // Blueprint: docs/blueprint/current/admin-model.md §1.4 红线 (admin 写动作必须留迹 +
 // admin 之间互可见 — 立场 ③).
-// Spec: docs/current/admin/README.md §6 admin-rail GET /admin-api/v1/audit-log
-//   - 立场 ③ 默认无 WHERE; 三 filter (?actor_id / ?action / ?target_user_id)
-//     是 UI 收敛, 不是分桶
-//   - admin cookie 路径分叉守 (user cookie → 401, REG-ADM0-002 共享底线)
-// Content lock: docs/qa/adm-2-content-lock.md §5 (admin SPA 跨端字面拆死,
+// Spec: docs/current/admin/README.md §6 admin API GET /admin-api/v1/audit-log
+//   - Stance ③: default has no WHERE; the three filters
+//     (?actor_id / ?action / ?target_user_id) are UI narrowing, not buckets.
+//   - Admin-cookie routing is separate from user cookies
+//     (user cookie → 401, REG-ADM0-002 baseline).
+// Content lock: docs/qa/adm-2-content-lock.md §5 (admin SPA cross-surface literals,
 //   admin 端英文 enum vs 用户端中文动词 byte-identical).
 //
 // DOM 锚: `[data-page="admin-audit-log"]` + 每行 `[data-action-row]` + 每
 // filter input `[data-filter="{actor|action|target}"]`.
 //
-// 跨端字面拆死 (反约束 立场):
-//   - 此 page 走英文 enum action 字面 (delete_channel/suspend_user/...).
+// Cross-surface literal lock (constraint stance):
+//   - This page uses English enum action literals (delete_channel/suspend_user/...).
 //   - 用户端 Settings/AdminActionsList 走中文动词字面 (ACTION_VERBS map
-//     在用户 SPA 内, admin SPA 不引用 — 跨端字面拆死, 反查见
-//     adm-2-admin-spa-cross-end.test.ts).
+//     in the user SPA; admin SPA must not import it. See
+//     adm-2-admin-spa-cross-end.test.ts for the reverse check.
 //   - 改 enum = 改 server CHECK constraint + 此 admin SPA + 用户端 SPA 三处.
-//   - 反约束: admin 不渲染中文动词 (admin SPA 读英文 enum 直查; 中文动词是
-//     用户视角).
-//   - 反约束: admin SPA 渲染 actor_id (admin 互可见, 立场 ③); 用户端不渲染
-//     actor_id raw (走 admin lookup 翻 admin_username, 立场 ④).
+//   - Constraint: admin must not render Chinese verbs; admin SPA displays the
+//     English enum directly, while Chinese verbs are user-facing.
+//   - Constraint: admin SPA renders actor_id (admins can see each other,
+//     stance ③); the user side does not render raw actor_id and uses admin
+//     lookup to show admin_username instead (stance ④).
 
 import React, { useEffect, useState } from 'react';
 import { fetchAdminAuditLog, type AdminActionRow, type AuditLogFilters } from '../api';
 
-// ACTION_ENUM — 英文 enum 字面跟 server CHECK constraint 字面 byte-identical
+// ACTION_ENUM — English enum literals stay byte-identical with the server CHECK constraint
 // (admin_actions 表 CHECK (action IN ('delete_channel', 'suspend_user', ...))).
 // 改这里 = 改 server migration v=22 + user SPA AdminActionsList ACTION_VERBS.
 const ACTION_ENUM = [
@@ -40,7 +42,7 @@ const ACTION_ENUM = [
 function formatTs(ms: number): string {
   const d = new Date(ms);
   const pad = (n: number) => n.toString().padStart(2, '0');
-  // Server side `time.Format("2006-01-02 15:04")` 字面同源 (跨端拆死).
+  // Server-side `time.Format("2006-01-02 15:04")` uses the same literal format.
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 

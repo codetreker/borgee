@@ -1,11 +1,11 @@
-// RuntimeCard.test.tsx — AL-4.3 (#379 §3 + #321 §2) DOM 字面锁单测.
+// RuntimeCard.test.tsx — AL-4.3 (#379 §3 + #321 §2) DOM literal-lock tests.
 //
 // 闭环 acceptance §3.1-§3.4 + content-lock §2 grep 检查:
 //   §3.1 设计 ② 4 态 data-runtime-status DOM lock — 'registered' /
 //        'running' / 'stopped' / 'error' 严闭 (反约束: 不准
 //        'starting' / 'stopping' / 'restarting' 中间态 v0)
-//   §3.2 设计 ② owner-only btn DOM omit 反向断言 — 非 owner 视图无
-//        start/stop btn (不仅 disabled, 直接 omit; 反约束:
+//   §3.2 design ② owner-only button DOM omission — non-owner view has no
+//        start/stop button (omitted entirely, not merely disabled; constraint:
 //        disabled.*owner_id 0 hit)
 //   §3.3 error 态 reason badge byte-identical 跟 lib/agent-state.ts
 //        REASON_LABELS 同源 (改 = 改三处, AL-1a #249 设计 ④)
@@ -98,7 +98,8 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
   });
 
   it('§3.1 反约束 — 不准 starting/stopping/restarting 中间态出现', () => {
-    // 字面禁守 — RUNTIME_STATUS_LABELS keys 必须严格 4 态 (CHECK 镜像).
+    // Literal guard: RUNTIME_STATUS_LABELS keys must stay at exactly four states
+    // to mirror the CHECK constraint.
     const allowed = new Set(['registered', 'running', 'stopped', 'error']);
     const got = Object.keys(RUNTIME_STATUS_LABELS);
     expect(got.length).toBe(4);
@@ -111,19 +112,19 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
   });
 
   it('§3.2 owner-only — non-owner viewer DOM omit start/stop button', () => {
-    // 非 owner 视图: viewerUserID !== agent.owner_id.
+    // Non-owner view: viewerUserID !== agent.owner_id.
     render({
       agent,
       runtime: makeRuntime({ status: 'stopped' }),
       viewerUserID: otherID,
       onRefresh: vi.fn(),
     });
-    // 反约束 (CV-1 ⑦ 同模式): button omit 不仅 disabled.
+    // Constraint (same pattern as CV-1 ⑦): buttons are omitted, not disabled.
     expect(container!.querySelector('[data-runtime-action="start"]')).toBeNull();
     expect(container!.querySelector('[data-runtime-action="stop"]')).toBeNull();
     // status badge 仍渲染 (let non-owner see state, just not act on it).
     expect(container!.querySelector('[data-runtime-status="stopped"]')).toBeTruthy();
-    // No actions wrapper at all (反约束 belt — `disabled.*owner_id` 0 hit).
+    // No actions wrapper at all; this supports the `disabled.*owner_id` 0-hit guard.
     expect(container!.querySelector('[data-runtime-actions="owner"]')).toBeNull();
   });
 
@@ -152,7 +153,7 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
   });
 
   it('§3.2 反约束 — undefined / null viewerUserID 不渲染 start/stop btn', () => {
-    // 防 leak — 未登录 / state 加载中 都视作非 owner 路径.
+    // Avoid owner leaks: unauthenticated / loading viewers follow the non-owner path.
     render({
       agent,
       runtime: makeRuntime({ status: 'stopped' }),
@@ -173,25 +174,25 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
       });
       const badge = container!.querySelector(`[data-error-reason="${reason}"]`);
       expect(badge, `reason badge missing for ${reason}`).toBeTruthy();
-      // 字面 byte-identical 跟 REASON_LABELS 同源 (改 = 改三处:
+      // Labels stay byte-identical with REASON_LABELS (change all three together:
       // server agent/state.go + lib/agent-state.ts + 此).
       expect(badge!.textContent).toBe(REASON_LABELS[reason]);
     }
   });
 
   it('§3.4 反约束 — 不显示 endpoint_url / last_heartbeat_at 原始时间戳 (#321 §2)', () => {
-    // 沉默胜于假精确 (#321 §2 + #11). endpoint_url 是进程内部细节,
-    // last_heartbeat_at 时间戳暴露 = 假精确.
+    // Prefer silence over false precision (#321 §2 + #11). endpoint_url is a
+    // process internal, and raw last_heartbeat_at would imply false precision.
     const rt = makeRuntime({
       endpoint_url: 'ws://shouldnotleak:9000/secret-token',
       last_heartbeat_at: 1700000099999,
     });
     render({ agent, runtime: rt, viewerUserID: ownerID, onRefresh: vi.fn() });
     const text = container!.textContent ?? '';
-    // 反向断言: endpoint_url 字串不进文本.
+    // Reverse assertion: endpoint_url content does not enter text.
     expect(text).not.toContain('shouldnotleak');
     expect(text).not.toContain('secret-token');
-    // 反向断言: last_heartbeat_at 原始 Unix ms 不进文本.
+    // Reverse assertion: raw last_heartbeat_at Unix ms does not enter text.
     expect(text).not.toContain('1700000099999');
   });
 
@@ -207,8 +208,8 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
   });
 
   it('STATUS_TONES — 跟 PresenceDot/AL-1a 三色调一致 (改 = 改两处)', () => {
-    // belt: 4 态 tone enum 严闭 ('ok' | 'muted' | 'error') 跟 lib/agent-state.ts
-    // AgentStateLabel.tone 字面对齐.
+    // Guard: the four-state tone enum is closed over ('ok' | 'muted' | 'error')
+    // and aligned with lib/agent-state.ts AgentStateLabel.tone.
     const allowed = new Set(['ok', 'muted', 'error']);
     for (const [s, t] of Object.entries(RUNTIME_STATUS_TONES)) {
       expect(allowed.has(t), `tone "${t}" outside palette for status "${s}"`).toBe(true);

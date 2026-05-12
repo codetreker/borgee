@@ -7,29 +7,29 @@
 // 于假 loading); README.md §1 设计 #7 (Borgee 不带 runtime, plugin
 // process descriptor only).
 //
-// Spec: docs/implementation/modules/al-4-spec.md (飞马 #313 v0 → #379
-// v2, merged 962fec7) §0 设计 ①②③ + §1 拆段 AL-4.3. Stance: PR #387
-// v0.1 (野马). Acceptance: PR #318 (烈马) §3 — agent settings 卡片
-// owner-only 启停按钮 + 4 态 badge + reason_label.
+// Spec: docs/implementation/modules/al-4-spec.md (#313 v0 → #379
+// v2, merged 962fec7) §0 design ①②③ + §1 AL-4.3 split. Stance: PR #387
+// v0.1. Acceptance: PR #318 §3 — agent settings card with owner-only
+// start/stop buttons, four-state badge, and reason_label.
 //
 // 设计反查 (acceptance §3.1-§3.4):
 //   ② owner-only — 非 owner 视图 DOM 直接 omit start/stop 按钮 (跟
 //     CV-1 ⑦ rollback owner-only DOM gate 同模式, 不仅是 disabled).
-//     反约束: disabled.*owner_id 0 hit (grep 检查 + 单测 belt; disabled
-//     leak owner 信息 = 设计漂).
+//     Constraint: disabled.*owner_id must have 0 hits (grep check + unit test);
+//     a disabled button would leak owner information.
 //   ③ runtime status ≠ presence — `data-runtime-status` 锁 4 态严闭
 //     ('registered','running','stopped','error'), v0 不开 'starting'
-//     / 'stopping' / 'restarting' 中间态 (跟野马 #321 §2 同源 — 同步
-//     API 直接 UPDATE, 无异步 pending 期).
+//     / 'stopping' / 'restarting' intermediate states (#321 §2). The synchronous
+//     API directly UPDATEs status, with no async pending period.
 //   reason 复用 AL-1a #249 6 reason — REASON_LABELS 跟 lib/agent-state.ts
 //     同源 (改 = 改三处 — server agent/state.go + 此 const + AL-3 PresenceDot;
-//     设计 ④ 字面禁分裂).
+//     design ④ requires these labels to stay unified).
 //
 // 反约束 (#321 §2 grep 检查 + #379 §3):
 //   - ❌ 不显示 endpoint_url / last_heartbeat_at 原始时间戳 (#321 §2
-//     反约束 — 沉默胜于假精确, runtime 进程内部细节不外暴; 设计 ① 同精神).
+//     constraint: avoid false precision and do not expose runtime process internals).
 //   - ❌ 不发 toast / 浏览器通知 (#321 §1 通用反约束 — 走 system DM
-//     不走 UI 旁路, §11 沉默胜于假 loading).
+//     do not add a parallel UI notification path; §11 prefers silence over fake loading).
 //   - ❌ data-runtime-status 不准出现 'starting' / 'stopping' /
 //     'restarting' (#321 §2 反约束).
 //   - ❌ start/stop button 非 owner DOM 直接 omit, 不是 disabled
@@ -46,10 +46,9 @@ import {
 } from '../lib/api';
 import { REASON_LABELS } from '../lib/agent-state';
 
-// STATUS_LABELS — 4 态字面 byte-identical 跟野马 #321 + spec §0 设计 ③
-// 同源. 'registered' 是 AL-4.2 server 注册后未启动的态 — UI 显示但不
-// 给 owner 展示 "已启动" 误导 (反约束: registered ≠ running, 蓝图
-// §2.3 拆死).
+// STATUS_LABELS — four-state labels kept byte-identical with #321 + spec §0
+// design ③. 'registered' means the server has registered the runtime but it has
+// not started; do not show owners "已启动" because registered !== running.
 const STATUS_LABELS: Record<AgentRuntimeStatus, string> = {
   registered: '未启动',
   running: '运行中',
@@ -57,8 +56,8 @@ const STATUS_LABELS: Record<AgentRuntimeStatus, string> = {
   error: '故障',
 };
 
-// STATUS_TONES — 颜色 token 跟 AL-1a #249 PresenceDot 三态调色板对齐
-// (改 = 改两处 — 此 const + PresenceDot.tsx; 设计 ④ 字面禁分裂).
+// STATUS_TONES — color tokens align with the AL-1a #249 PresenceDot palette
+// (change both this const and PresenceDot.tsx together; design ④ keeps them unified).
 const STATUS_TONES: Record<AgentRuntimeStatus, 'ok' | 'muted' | 'error'> = {
   registered: 'muted',
   running: 'ok',
@@ -91,9 +90,9 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
       await startAgentRuntime(agent.id);
       onRefresh();
     } catch (err) {
-      // 设计 ⑤ 沉默胜于假 loading — error 仅 inline, 不发 toast (#321
-      // §1 通用反约束 — runtime 状态变化只走 system DM, UI 是 owner 自
-      // 主操作的 inline feedback 例外).
+      // Design ⑤: prefer silence over fake loading. Show errors inline only,
+      // with no toast (#321 §1); runtime status changes use system DMs, while
+      // this owner-initiated action gets local inline feedback.
       setError(err instanceof ApiError ? err.message : '启动失败');
     } finally {
       setBusy(null);
@@ -114,8 +113,8 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
     }
   }, [agent.id, busy, onRefresh]);
 
-  // No runtime registered yet — graceful degrade. Hide entirely (设计
-  // ① "Borgee 不带 runtime" — 没注册的 agent 不假装有 runtime).
+  // No runtime registered yet: hide the card entirely. Design ① "Borgee 不带 runtime"
+  // means an unregistered agent should not pretend to have a runtime.
   if (!runtime) {
     return null;
   }
@@ -146,7 +145,7 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
 
       <div className="runtime-card-body">
         <div className="runtime-card-meta">
-          {/* process_kind 显 — v1 仅 'openclaw' (蓝图 §2.2). 反约束:
+          {/* Show process_kind; v1 exposes only 'openclaw' (blueprint §2.2). Constraint:
               endpoint_url / last_heartbeat_at 原始时间戳 NOT shown
               (#321 §2 反约束). */}
           <span className="runtime-meta-process" data-process-kind={runtime.process_kind}>
@@ -192,7 +191,7 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
   );
 }
 
-// Exported for test access — file-local consts that pin文案锁 byte-identical
-// 跟 #321 §2 + AL-1a #249 同源.
+// Exported for test access: file-local consts that keep labels byte-identical
+// with #321 §2 + AL-1a #249.
 export const RUNTIME_STATUS_LABELS = STATUS_LABELS;
 export const RUNTIME_STATUS_TONES = STATUS_TONES;
