@@ -1,21 +1,21 @@
 // RT-3 presence: multi-device delivery and four states (blueprint §1.4).
 //
 // Policy inherited from rt-3-spec.md §0:
-//   - 4-state enum single source of truth, byte-identical with server
+//   - 4-state enum must match the server
 //     `internal/datalayer/presence.go` PresenceState const
 //     (online / away / offline / thinking).
-//   - Display text is byte-identical with content-lock §1+§2 (`在线` / `离线` /
+//   - Display text must match content-lock §1+§2 (`在线` / `离线` /
 //     `刚刚活跃` / `最近活跃 ${N} 分钟前` + DOM data attrs
 //     `data-rt3-presence-dot|last-seen|cursor-user`).
-//   - Prevent false-loading indicator wording drift (content-lock §3) and
-//     thought-process 5-pattern drift (content-lock §4; RT-3 extends that guard).
+//   - Keep false-loading indicator wording (content-lock §3) and
+//     thought-process 5-pattern checks aligned (content-lock §4; RT-3 extends that guard).
 //   - Do not duplicate the existing AL-3 usePresence hook. That hook is for
 //     agent presence cache; RT-3 is for human multi-device presence.
 //
 // Tests: __tests__/RT3PresenceDot.test.tsx + presence-reverse-grep.test.ts (extended).
 import { useEffect, useState } from 'react';
 
-/** RT-3 four-state enum; byte-identical with server PresenceState const. */
+/** RT-3 four-state enum; must match the server PresenceState const. */
 export type RT3PresenceState = 'online' | 'away' | 'offline' | 'thinking';
 
 /** RT-3 presence cache entry. */
@@ -56,9 +56,9 @@ function notify(store: RT3PresenceStore, userID: string): void {
 
 /**
  * markRT3Presence — client entry point: WS multi-device fanout frame → cache.
- * Thinking state requires a non-empty subject, preventing false-loading state
- * drift. Empty subject follows the byte-identical `thinking.subject_required`
- * server reject path (RT-3 principle ②).
+ * Thinking state requires a non-empty subject, preventing false-loading
+ * indicators. Empty subject follows the `thinking.subject_required`
+ * server reject path (RT-3 rule ②).
  */
 export function markRT3Presence(
   userID: string,
@@ -68,7 +68,7 @@ export function markRT3Presence(
 ): void {
   if (!userID) return;
   // Thinking state requires a non-empty subject. Empty subject is dropped here;
-  // the server also rejects it through the ValidateTaskStarted single source of truth.
+  // the server also rejects it through the server-side ValidateTaskStarted validator.
   if (state === 'thinking' && (!subject || subject.trim() === '')) {
     return;
   }

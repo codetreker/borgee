@@ -2,11 +2,11 @@
 // persistence across page reloads. Pure localStorage; no server code.
 //
 // Spec: docs/implementation/modules/cv-10-spec.md §0 principle ①.
-// Stance: docs/qa/cv-10-stance-checklist.md §1.
+// Checklist: docs/qa/cv-10-stance-checklist.md §1.
 // Content-lock: docs/qa/cv-10-content-lock.md §3 (key namespace).
 //
 // Policy checks:
-//   - ① localStorage is the single source, with byte-identical key namespace
+//   - ① localStorage is the authoritative local store, with exact key namespace
 //     `borgee.cv10.comment-draft:<artifactId>` (same pattern as existing DM-4
 //     `borgee.dm.draft:`).
 //   - ② save is debounced (500ms), avoiding a localStorage write on every keystroke; clear()

@@ -1,45 +1,45 @@
 // useUserLayout.ts — CHN-3.3 client SPA personal layout hook.
 //
 // Spec: docs/implementation/modules/chn-3-spec.md §1 CHN-3.3 段 + §0
-// stance ⑥ "ordering is handled on the client" + #366 stance ⑥
+// rule ⑥ "ordering is handled on the client" + #366 rule ⑥
 // "GET-PUT loading is separate from push".
 // Server: packages/server-go/internal/api/layout.go (#412, stacked off
 // CHN-3.1 schema v=19).
 // Content lock: docs/qa/chn-3-content-lock.md §1 ④ (failure toast 文案
-// "侧栏顺序保存失败, 请重试" 5 源 byte-identical) + ⑥ (GET pull only, no
+// "侧栏顺序保存失败, 请重试" 5-source exact match) + ⑥ (GET pull only, no
 // push frame).
 //
 // Behavior:
 //   1. On mount, GET /me/layout once — populate local layout map keyed
 //      by channel_id. Missing preferences fall back to the author-side order
-//      (stance ②, same as #366 "missing preference = fallback author order").
+//      (rule ②, same as #366 "missing preference = fallback author order").
 //   2. setCollapsed(channelId, collapsed) / pinChannel(channelId) /
 //      reorder(channelId, newPosition) write to local state immediately
-//      (optimistic) and queue a debounced PUT (200ms, aligned with #366 stance ⑥
+//      (optimistic) and queue a debounced PUT (200ms, aligned with #366 rule ⑥
 //      "PUT immediately after drag completion with 200ms debounce" + acceptance §3.5).
-//   3. PUT failure → toast "侧栏顺序保存失败, 请重试" byte-identical
+//   3. PUT failure → toast "侧栏顺序保存失败, 请重试" must match exactly
 //      (#371 / acceptance §3.5 / #402 ④ / #412 server const 5 源).
 //      Layout state rolled back to last server-confirmed snapshot.
 //
 // Constraints:
-//   - Do not subscribe to a push frame (#366 stance ⑥ + #371 stance
+//   - Do not subscribe to a push frame (#366 rule ⑥ + #371 rule
 //     ③ + content-lock ⑥; reverse grep frame name in ws/ count==0).
-//   - Do not cache in IndexedDB (tracked for v3+; #366 stance ⑥ + content-lock ⑥).
+//   - Do not cache in IndexedDB (tracked for v3+; #366 rule ⑥ + content-lock ⑥).
 //   - pin is computed client-side: position = MIN(已有 position) - 1.0, using
-//     a smaller numeric position each time (立场 ③ + 文案锁 ③; server 不算 MIN-1.0 反约束 #412 注释).
+//     a smaller numeric position each time (layout rule ③ + content-lock rule ③; server must not compute MIN-1.0 per #412 comment).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, type LayoutRow, getMyLayout, putMyLayout } from '../lib/api';
 import { useToast } from '../components/Toast';
 
-// 文案锁 byte-identical 跟 #371 / acceptance §3.5 / #402 ④ / #412 server
-// 5 源. Changing this string breaks the reverse grep guard (anchor-content-lock 同模式).
+// LAYOUT_SAVE_TOAST must match #371 / acceptance §3.5 / #402 ④ / #412 server
+// across 5 sources. Changing this string breaks the reverse grep guard (anchor-content-lock 同模式).
 export const LAYOUT_SAVE_TOAST = '侧栏顺序保存失败, 请重试';
 
 const PUT_DEBOUNCE_MS = 200;
 
 export interface UserLayout {
-  /** Map keyed by channel_id; an absent key falls back to 作者顺序 (立场 ②). */
+  /** Map keyed by channel_id; an absent key falls back to 作者顺序 (rule ②). */
   byChannel: Map<string, LayoutRow>;
   loaded: boolean;
 }
@@ -87,7 +87,7 @@ export function useUserLayout() {
       // Persist to confirmed snapshot.
       for (const r of dirty) confirmedRef.current.set(r.channel_id, r);
     } catch (err) {
-      // 立场 ⑥: failure toast must stay byte-identical, then roll back state.
+      // Rule ⑥: failure toast must match exactly, then roll back state.
       // ApiError carries status — we don't show raw error.message (隐私 +
       // UX constraint, content-lock ④).
       const _ = err instanceof ApiError ? err.status : 0;
@@ -137,9 +137,9 @@ export function useUserLayout() {
   );
 
   /**
-   * pinChannel — 立场 ③ + 文案锁 ③: position = MIN(已有 position) - 1.0,
+   * pinChannel — layout rule ③ + content-lock rule ③: position = MIN(已有 position) - 1.0,
    * using a smaller numeric position each time. This moves the channel to the front of the current layout.
-   * Multiple pins are allowed (#366 stance ③ "个人 pin 数量不限"). Constraint: do not split
+   * Multiple pins are allowed (#366 rule ③ "个人 pin 数量不限"). Constraint: do not split
    * ordering into a second pinned BOOL source (reverse grep `pinned\s+BOOL` 0 hit).
    */
   const pinChannel = useCallback(
@@ -167,7 +167,7 @@ export function useUserLayout() {
 
   /**
    * unpinChannel — reverse pin: reset position to current MAX + 1.0 (move to the end,
-   * 作者侧 fallback applies again). 文案锁 ③ "取消置顶" 字面 byte-identical.
+   * 作者侧 fallback applies again). The "取消置顶" label must match content-lock rule ③ exactly.
    */
   const unpinChannel = useCallback(
     (channelId: string) => {

@@ -65,10 +65,10 @@ export function dispatchInvitationDecided(frame: AgentInvitationDecidedFrame): v
  * Hook that registers callbacks for invitation push events. Returns
  * void; cleans up listeners on unmount. The callbacks receive the
  * full frame so consumers can decide whether to re-fetch (cheap +
- * authoritative) or splice locally (cheaper but risks drift).
+ * authoritative) or splice locally (cheaper but can diverge from REST state).
  *
- * Bell badge / inbox both opt for re-fetch in v1: server is the source
- * of truth, and push is only the wake-up signal.
+ * Bell badge / inbox both opt for re-fetch in v1: server remains
+ * authoritative, and push is only the wake-up signal.
  */
 export function useInvitationFrames(handlers: {
   onPending?: (frame: AgentInvitationPendingFrame) => void;

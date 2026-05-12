@@ -483,7 +483,7 @@ export function useWebSocket() {
         // RT-0 (#40): owner-side push — replaces the 60s bell-badge
         // poll. Bridge to a window CustomEvent so InvitationsInbox /
         // Sidebar can subscribe without coupling to this hook.
-        // Schema lock: docs/blueprint/current/realtime.md §2.3 (BPP-byte-identical).
+        // Schema lock: docs/blueprint/current/realtime.md §2.3 (exact BPP schema match).
         dispatchInvitationPending(data as unknown as AgentInvitationPendingFrame);
         break;
       }
@@ -494,60 +494,60 @@ export function useWebSocket() {
       }
       case 'artifact_updated': {
         // CV-1.2 (#342): server → client signal that an artifact's head
-        // moved (commit or rollback). Envelope is signal-only (stance ⑤),
+        // moved (commit or rollback). Envelope is signal-only (rule ⑤),
         // ArtifactPanel re-fetches GET /artifacts/:id for body+committer.
         // Schema lock: docs/blueprint/current/realtime.md §2.3 + cursor.go::ArtifactUpdatedFrame
-        // (BPP-1 #304 envelope CI lint enforces byte-identical wire shape).
+        // (BPP-1 #304 envelope CI lint enforces the exact wire shape).
         dispatchArtifactUpdated(data as unknown as ArtifactUpdatedFrame);
         break;
       }
       case 'mention_pushed': {
         // DM-2.2 (#372): server → client signal that the current user has
-        // been @-mentioned in a message. Envelope is signal-only (stance ②);
+        // been @-mentioned in a message. Envelope is signal-only (rule ②);
         // MessageList listens via useMentionPushed and refreshes the
         // channel via actions.loadMessages. body_preview is server-truncated
         // to 80 runes; the client must not re-parse it (privacy §13 constraint,
         // full body arrives via the existing message backfill path).
-        // Schema lock: docs/implementation/modules/dm-2.3-spec.md §0 立场
+        // Schema lock: docs/implementation/modules/dm-2.3-spec.md §0 rule
         // ② + mention_pushed_frame.go::MentionPushedFrame (BPP-1 #304
-        // envelope CI lint enforces byte-identical wire shape).
+        // envelope CI lint enforces the exact wire shape).
         dispatchMentionPushed(data as unknown as MentionPushedFrame);
         break;
       }
       case 'anchor_comment_added': {
         // CV-2.2 (#360): server → client signal that a comment landed
-        // on an anchor thread. Envelope is signal-only (立场 ③ 同 ⑤
-        // 模式 — frame 无 body); AnchorThreadPanel listens via
+        // on an anchor thread. Envelope is signal-only, matching the
+        // rule ③ / ⑤ no-body pattern; AnchorThreadPanel listens via
         // useAnchorCommentAdded and refetches anchors via
         // GET /api/v1/artifacts/:id/anchors + GET /anchors/:id/comments.
-        // Schema lock: docs/implementation/modules/cv-2-spec.md §0 立场 ③
-        // + anchor_comment_frame.go::AnchorCommentAddedFrame (10 字段
-        // byte-identical, BPP-1 #304 envelope CI lint).
+        // Schema lock: docs/implementation/modules/cv-2-spec.md §0 rule ③
+        // + anchor_comment_frame.go::AnchorCommentAddedFrame (10-field
+        // schema match, BPP-1 #304 envelope CI lint).
         dispatchAnchorCommentAdded(data as unknown as AnchorCommentAddedFrame);
         break;
       }
       case 'iteration_state_changed': {
         // CV-4.2 (#409): server → client signal that an artifact_iterations
         // row transitioned state (pending → running → completed|failed).
-        // Envelope is signal-only (立场 ② + ⑦ — frame 无 intent_text);
+        // Envelope is signal-only (rules ② + ⑦ — frame has no intent_text);
         // IteratePanel listens via useIterationStateChanged and refetches
         // GET /artifacts/:id/iterations/:iid for full body + intent_text.
         // Schema lock: docs/implementation/modules/cv-4-spec.md §1 CV-4.2
         // + iteration_state_frame.go::IterationStateChangedFrame (9 字段
-        // byte-identical, BPP-1 #304 envelope CI lint).
+        // schema match, BPP-1 #304 envelope CI lint).
         dispatchIterationStateChanged(data as unknown as IterationStateChangedFrame);
         break;
       }
       case 'artifact_comment_added': {
         // CV-5: server → client signal that a comment landed on an
         // artifact's `artifact:<id>` namespace channel. Envelope is
-        // signal-only (立场 ② 同模式) — body_preview is server-truncated
+        // signal-only, matching rule ② — body_preview is server-truncated
         // to 80 runes (隐私 §13); ArtifactComments listens via
         // useArtifactCommentAdded and refetches GET
         // /api/v1/artifacts/:id/comments for full body.
-        // Schema lock: docs/implementation/modules/cv-5-spec.md §0 立场 ②
+        // Schema lock: docs/implementation/modules/cv-5-spec.md §0 rule ②
         // + artifact_comment_added_frame.go::ArtifactCommentAddedFrame
-        // (9 字段 byte-identical, RT-3 cursor 共序锚).
+        // (9-field schema match, aligned with RT-3 cursor ordering).
         dispatchArtifactCommentAdded(data as unknown as ArtifactCommentAddedFrame);
         break;
       }
