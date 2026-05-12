@@ -157,11 +157,12 @@ func (h *LayoutHandler) handlePutMyLayout(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Pre-validate every row BEFORE writing — atomic accept-or-reject so
-	// partial writes don't leak cross-row 脱节. acceptance §2.4 字面.
-	// REFACTOR-1 R1.1: per-row 4-step preamble 走 requireChannelMember
-	// helper-1 (RejectDM=true + member-only). channel_id="" 仍 user-rail
-	// 直查 (helper 不接 empty path; layout PUT 设计 ⑤ invalid_payload 字面).
+	// Pre-validate every row BEFORE writing, giving the request atomic
+	// accept-or-reject behavior so partial writes cannot leave rows inconsistent.
+	// Acceptance §2.4 expects this behavior. REFACTOR-1 R1.1: each row uses
+	// requireChannelMember helper-1 (RejectDM=true + member-only). channel_id=""
+	// still uses this handler's direct validation because the helper does not
+	// accept an empty path; layout PUT design ⑤ requires invalid_payload.
 	for _, row := range req.Layout {
 		if row.ChannelID == "" {
 			writeJSONErrorCode(w, http.StatusBadRequest, "layout.invalid_payload", "channel_id required")

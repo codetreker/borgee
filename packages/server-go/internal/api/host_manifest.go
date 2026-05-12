@@ -107,12 +107,12 @@ var PluginManifestEntries = []PluginManifestEntry{
 	},
 }
 
-// PluginManifestHandler hosts the user-rail GET endpoint that returns
-// signed plugin manifest for install-butler (HB-1b Rust client) consumption.
+// PluginManifestHandler serves the authenticated GET endpoint that returns
+// the signed plugin manifest for install-butler (HB-1b Rust client).
 type PluginManifestHandler struct {
 	Logger *slog.Logger
-	// SigningKey is the ed25519 private key used to sign manifest payload
-	// (设计 ④). nil = signature 走空字面占位 (test seam; production 必填).
+	// SigningKey is the ed25519 private key used to sign the manifest payload.
+	// Nil leaves an empty signature placeholder for tests; production must set it.
 	SigningKey ed25519.PrivateKey
 	// NowMs is injected for test (default time.Now().UnixMilli when nil).
 	NowMs func() int64
@@ -122,16 +122,17 @@ type PluginManifestHandler struct {
 
 const defaultManifestValidityMs int64 = 24 * 60 * 60 * 1000
 
-// RegisterRoutes wires GET /api/v1/plugin-manifest behind authMw (Bearer
-// api-key 鉴权; 设计 ①). admin god-mode 不挂 — 无 RegisterAdminRoutes
-// (ADM-0 §1.3 红线).
+// RegisterRoutes registers GET /api/v1/plugin-manifest behind authMw
+// (Bearer API-key authentication). It is intentionally not mounted on
+// the admin API; there is no RegisterAdminRoutes entry for this handler.
 func (h *PluginManifestHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/plugin-manifest",
 		authMw(http.HandlerFunc(h.handleGet)))
 }
 
-// handleGet — GET /api/v1/plugin-manifest. Bearer api-key (authMw 已守).
-// Returns signed manifest payload byte-identical 跟 content-lock §1 shape.
+// handleGet — GET /api/v1/plugin-manifest. authMw has already enforced
+// Bearer API-key authentication. The response payload stays byte-identical
+// with the content-lock §1 shape.
 func (h *PluginManifestHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {

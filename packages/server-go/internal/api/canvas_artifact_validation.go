@@ -108,8 +108,8 @@ func IsValidCodeLanguage(lang string) bool {
 var ValidImageLinkKinds = []string{"image", "link"}
 
 // IsValidImageLinkKind reports whether k is one of the two accepted
-// image_link sub-kinds. Empty string returns false; 缺失 metadata.kind →
-// HTTP 400 (acceptance §1.4).
+// image_link sub-kinds. Empty string returns false; missing metadata.kind
+// maps to HTTP 400 (acceptance §1.4).
 func IsValidImageLinkKind(k string) bool {
 	for _, v := range ValidImageLinkKinds {
 		if k == v {
@@ -120,9 +120,9 @@ func IsValidImageLinkKind(k string) bool {
 }
 
 // ValidateImageLinkURL parses rawURL and returns nil iff it's a syntactically
-// valid absolute https URL. 反向约束 (XSS 红线第一道, #370 §1 ④ +
-// content-lock §2 grep 检查 + spec §3 出处): javascript: / data: / data:image /
-// http: / file: / chrome: / 任何非 https scheme 全 reject. Also rejects
+// valid absolute https URL. Constraint (first XSS gate, #370 §1 ④ +
+// content-lock §2 grep checks + spec §3): javascript: / data: / data:image /
+// http: / file: / chrome: / any non-HTTPS scheme must be rejected. Also rejects
 // non-absolute / empty / scheme-relative URLs (`//host/path`) which would
 // inherit the page's scheme and bypass the gate.
 //
@@ -138,13 +138,14 @@ func ValidateImageLinkURL(rawURL string) error {
 	if err != nil {
 		return errInvalidImageLinkURL("url unparseable")
 	}
-	// 必须是 absolute URL 携带 scheme + host. url.Parse 对 `//host` 等
-	// scheme-relative 形式不报错但 Scheme=="", Host!="" — 显式拒绝.
+	// Require an absolute URL with both scheme and host. url.Parse accepts
+	// scheme-relative forms such as `//host` with Scheme=="" and Host!="";
+	// reject them explicitly.
 	if u.Scheme == "" {
 		return errInvalidImageLinkURL("url scheme is required")
 	}
-	// 严格 https only — 反向约束闸. 比较小写以容忍 'HTTPS' 等大小写脱节
-	// (RFC 3986 scheme is ASCII-case-insensitive).
+	// Enforce HTTPS only. EqualFold allows case variants such as 'HTTPS'
+	// because RFC 3986 schemes are ASCII-case-insensitive.
 	if !strings.EqualFold(u.Scheme, "https") {
 		return errInvalidImageLinkURL("url scheme must be https")
 	}

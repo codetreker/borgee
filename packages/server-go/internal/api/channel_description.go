@@ -35,17 +35,19 @@ import (
 // 改一处 = 改三处 (server const + GORM size + client const) 反向锁守门.
 const DescriptionMaxLength = 500
 
-// ChannelDescriptionHandler hosts the user-rail PUT endpoint for setting
-// channel description (= channels.topic 列, owner-only 互补于既有
-// member-level PUT /topic CHN-2 #406 path byte-identical 不动).
+// ChannelDescriptionHandler serves the authenticated PUT endpoint for setting
+// the channel description (= channels.topic column). It is owner-only and
+// complements the existing member-level PUT /topic CHN-2 #406 path, which
+// remains byte-identical.
 type ChannelDescriptionHandler struct {
 	Store  *store.Store
 	Logger *slog.Logger
 }
 
-// RegisterUserRoutes wires the user-rail endpoint behind authMw. 设计 ③
-// owner-only — channel.CreatedBy == user.ID 反向断 member-level reject 403.
-// admin god-mode 不挂 — 无 RegisterAdminRoutes (ADM-0 §1.3 红线).
+// RegisterUserRoutes registers the authenticated endpoint behind authMw.
+// Design ③ is owner-only: channel.CreatedBy must equal user.ID, otherwise
+// member-level callers receive 403. It is intentionally not mounted on the
+// admin API; there is no RegisterAdminRoutes entry for this handler.
 func (h *ChannelDescriptionHandler) RegisterUserRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("PUT /api/v1/channels/{channelId}/description",
 		authMw(http.HandlerFunc(h.handlePut)))
@@ -57,9 +59,9 @@ type chn10DescriptionRequest struct {
 
 // handlePut — PUT /api/v1/channels/{channelId}/description.
 //
-// owner-only: caller must equal channel.CreatedBy. length cap 500
-// (DescriptionMaxLength const byte-identical 跟 client). Writes via
-// store.UpdateChannel single-source (same column as 既有 PUT /topic).
+// owner-only: caller must equal channel.CreatedBy. The length cap is 500
+// (DescriptionMaxLength stays byte-identical with the client). Writes use
+// store.UpdateChannel as the single source for the same column as PUT /topic.
 func (h *ChannelDescriptionHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {

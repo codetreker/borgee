@@ -38,7 +38,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 
@@ -128,8 +127,8 @@ type anchorCommentRow struct {
 	CreatedAt  int64  `gorm:"column:created_at"`
 }
 
-// loadAnchor fetches the anchor row + parent artifact row in one shot
-// so 设计 ⑦ channel-scope check + 设计 ② version pin can be applied.
+// loadAnchor fetches the anchor row and parent artifact row together so
+// design ⑦ channel-scope checks and design ② version pinning can be applied.
 func (h *AnchorHandler) loadAnchor(id string) (*anchorRow, *artifactRow, error) {
 	var rows []anchorRow
 	if err := h.Store.DB().Raw(`SELECT
@@ -171,9 +170,9 @@ FROM artifacts WHERE id = ?`, id).Scan(&rows).Error; err != nil {
 	return &rows[0], nil
 }
 
-// authorKindForUser mirrors committerKindForUser in artifacts.go but
-// returns the AnchorAuthorKind* constants — column naming is distinct
-// per spec v2 (anchor 是评论作者非 commit 提交者).
+// authorKindForUser mirrors committerKindForUser in artifacts.go but returns
+// the AnchorAuthorKind* constants. The column naming is distinct per spec v2:
+// anchors record comment authors, not commit submitters.
 func (h *AnchorHandler) authorKindForUser(u *store.User) string {
 	if u == nil {
 		return AnchorAuthorKindHuman
@@ -184,7 +183,7 @@ func (h *AnchorHandler) authorKindForUser(u *store.User) string {
 	return AnchorAuthorKindHuman
 }
 
-// canAccessChannel — 设计 ⑦ channel-scope ACL (CHN-1 双轴隔离同).
+// canAccessChannel applies design ⑦ channel-scope ACL rules from CHN-1.
 func (h *AnchorHandler) canAccessChannel(channelID, userID string) bool {
 	if !h.Store.IsChannelMember(channelID, userID) {
 		return h.Store.CanAccessChannel(channelID, userID)
@@ -211,8 +210,9 @@ WHERE artifact_id = ? AND version = ?`, artifactID, version).Scan(&row)
 }
 
 // threadHasHumanAuthor returns true iff any comment in the anchor thread
-// has author_kind='human'. 设计 ① 反向约束: agent reply 必须落在已含 human
-// 的 thread, 不允许 agent 自循环新建 / 在 agent-only thread 接龙.
+// has author_kind='human'. Design ① constraint: an agent reply must land in
+// a thread that already contains a human author; agents cannot create or
+// continue agent-only threads.
 //
 // The anchor itself was created by a human (server enforces 创锚 owner-only)
 // but the anchor row records `created_by` (user_id), not author_kind. We

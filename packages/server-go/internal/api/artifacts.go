@@ -50,7 +50,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 
@@ -83,7 +82,7 @@ const (
 	FrameKindRollback = "rollback"
 )
 
-// ArtifactPusher is the seam between the api package and ws.Hub for the
+// ArtifactPusher is the boundary between the api package and ws.Hub for the
 // RT-1.1 ArtifactUpdated frame (mirrors AgentInvitationPusher pattern in
 // agent_invitations.go so the api package doesn't import internal/ws).
 //
@@ -97,7 +96,7 @@ type ArtifactPusher interface {
 // ArtifactHandler exposes the CV-1.2 HTTP surface. Hub may be nil in
 // unit tests that don't assert push behaviour; nil-safe at call sites.
 //
-// IterationPusher is the CV-4.2 seam — when a commit carries
+// IterationPusher is the CV-4.2 integration boundary: when a commit carries
 // `?iteration_id=<uuid>` (设计 ② commit 单一来源) we transition the
 // iteration row from running→completed and emit IterationStateChanged.
 // Optional: nil disables the iteration completion path (历史 commit
@@ -147,22 +146,22 @@ func (h *ArtifactHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Ha
 // add a model in store/models.go because CV-1.2 is API-only (#334 owns
 // the schema) and this struct is private to the handler.
 type artifactRow struct {
-	ID                string
-	ChannelID         string  `gorm:"column:channel_id"`
-	Type              string
-	Title             string
-	Body              string
-	CurrentVersion    int64   `gorm:"column:current_version"`
-	CreatedAt         int64   `gorm:"column:created_at"`
-	ArchivedAt        *int64  `gorm:"column:archived_at"`
-	LockHolderUserID  *string `gorm:"column:lock_holder_user_id"`
-	LockAcquiredAt    *int64  `gorm:"column:lock_acquired_at"`
+	ID               string
+	ChannelID        string `gorm:"column:channel_id"`
+	Type             string
+	Title            string
+	Body             string
+	CurrentVersion   int64   `gorm:"column:current_version"`
+	CreatedAt        int64   `gorm:"column:created_at"`
+	ArchivedAt       *int64  `gorm:"column:archived_at"`
+	LockHolderUserID *string `gorm:"column:lock_holder_user_id"`
+	LockAcquiredAt   *int64  `gorm:"column:lock_acquired_at"`
 	// CV-2 v2 (#cv-2-v2) — server-recorded thumbnail/poster URL (https only).
-	PreviewURL        *string `gorm:"column:preview_url"`
+	PreviewURL *string `gorm:"column:preview_url"`
 	// CV-3 v2 (#cv-3-v2) — server-recorded code/markdown thumbnail URL
 	// (https only). 跟 PreviewURL 字段拆: PreviewURL 给 image/video/pdf
 	// media kind, ThumbnailURL 给 markdown/code text kind (二端互斥).
-	ThumbnailURL      *string `gorm:"column:thumbnail_url"`
+	ThumbnailURL *string `gorm:"column:thumbnail_url"`
 }
 
 type versionRow struct {
@@ -544,11 +543,11 @@ WHERE artifact_id = ? AND version = ?`, id, newVersion).Scan(&versionPKRow).Erro
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{
-		"artifact_id":     id,
-		"version":         newVersion,
-		"committer_id":    user.ID,
-		"committer_kind":  committerKind,
-		"updated_at":      nowMs,
+		"artifact_id":    id,
+		"version":        newVersion,
+		"committer_id":   user.ID,
+		"committer_kind": committerKind,
+		"updated_at":     nowMs,
 	})
 }
 
@@ -661,10 +660,10 @@ FROM artifact_versions WHERE artifact_id = ? AND version = ?`,
 	// 不污染 fanout, v1 supplement ⑦ "system message 不发").
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{
-		"artifact_id":             id,
-		"version":                 newVersion,
+		"artifact_id":              id,
+		"version":                  newVersion,
 		"rolled_back_from_version": rollbackFrom,
-		"updated_at":              nowMs,
+		"updated_at":               nowMs,
 	})
 }
 
@@ -706,15 +705,15 @@ func (h *ArtifactHandler) fanoutAgentCommitMessage(channelID, agentName, artifac
 
 func (h *ArtifactHandler) serializeArtifact(a *artifactRow, committerKind, committerID string) map[string]any {
 	out := map[string]any{
-		"id":               a.ID,
-		"channel_id":       a.ChannelID,
-		"type":             a.Type,
-		"title":            a.Title,
-		"body":             a.Body,
-		"current_version":  a.CurrentVersion,
-		"created_at":       a.CreatedAt,
-		"committer_kind":   committerKind,
-		"committer_id":     committerID,
+		"id":              a.ID,
+		"channel_id":      a.ChannelID,
+		"type":            a.Type,
+		"title":           a.Title,
+		"body":            a.Body,
+		"current_version": a.CurrentVersion,
+		"created_at":      a.CreatedAt,
+		"committer_kind":  committerKind,
+		"committer_id":    committerID,
 	}
 	if a.ArchivedAt != nil {
 		out["archived_at"] = *a.ArchivedAt
@@ -738,11 +737,11 @@ func (h *ArtifactHandler) serializeArtifact(a *artifactRow, committerKind, commi
 
 func (h *ArtifactHandler) serializeVersion(v *versionRow) map[string]any {
 	out := map[string]any{
-		"version":         v.Version,
-		"body":            v.Body,
-		"committer_kind":  v.CommitterKind,
-		"committer_id":    v.CommitterID,
-		"created_at":      v.CreatedAt,
+		"version":        v.Version,
+		"body":           v.Body,
+		"committer_kind": v.CommitterKind,
+		"committer_id":   v.CommitterID,
+		"created_at":     v.CreatedAt,
 	}
 	if v.RolledBackFromVersion != nil {
 		out["rolled_back_from_version"] = *v.RolledBackFromVersion

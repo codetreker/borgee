@@ -69,7 +69,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 
@@ -129,18 +128,18 @@ func (h *RuntimeHandler) newID() string {
 	return idgen.NewID()
 }
 
-// RegisterRoutes mounts the user-rail runtime endpoints. The admin
-// god-mode metadata read path (`GET /admin-api/v1/runtimes`) is registered
-// separately by AdminRuntimeHandler.RegisterRoutes (admin.go-side rail).
+// RegisterRoutes registers the authenticated runtime endpoints. The admin
+// metadata read path (`GET /admin-api/v1/runtimes`) is registered separately
+// by AdminRuntimeHandler.RegisterRoutes in admin.go.
 //
-// Defense-in-depth (acceptance §4.6 出处): start + stop wrap with
+// Defense-in-depth (acceptance §4.6): start + stop wrap with
 // `auth.RequirePermission(s, "agent.runtime.control", nil)` so a future
-// GrantDefaultPermissions adjustment can narrow ownership without
-// changing this file. v0 owner check is still inline (handlers do
-// OwnerID 直比 — wildcard `(*, *)` AP-0 grant covers
-// `agent.runtime.control` so existing humans pass through; non-owners
-// then 403 via inline check). Reverse-grep §4.6: count≥2 for start +
-// stop literal `agent.runtime.control` 命中此文件.
+// GrantDefaultPermissions adjustment can narrow ownership without changing
+// this file. The v0 owner check remains inline: handlers compare OwnerID
+// directly. The wildcard `(*, *)` AP-0 grant covers `agent.runtime.control`,
+// so existing humans pass through, while non-owners still receive 403 from
+// the inline check. Reverse-grep §4.6 expects the start + stop literal
+// `agent.runtime.control` to appear in this file at least twice.
 func (h *RuntimeHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	wrap := func(f http.HandlerFunc) http.Handler { return authMw(f) }
 	// start + stop: defense-in-depth permission gate (acceptance §4.6).
@@ -166,15 +165,15 @@ func (h *RuntimeHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Han
 // runtimeRow — raw shape (private to handler, 跟 anchorRow / iterationRow
 // 同模式).
 type runtimeRow struct {
-	ID               string  `gorm:"column:id"`
-	AgentID          string  `gorm:"column:agent_id"`
-	EndpointURL      string  `gorm:"column:endpoint_url"`
-	ProcessKind      string  `gorm:"column:process_kind"`
-	Status           string  `gorm:"column:status"`
-	LastErrorReason  *string `gorm:"column:last_error_reason"`
-	LastHeartbeatAt  *int64  `gorm:"column:last_heartbeat_at"`
-	CreatedAt        int64   `gorm:"column:created_at"`
-	UpdatedAt        int64   `gorm:"column:updated_at"`
+	ID              string  `gorm:"column:id"`
+	AgentID         string  `gorm:"column:agent_id"`
+	EndpointURL     string  `gorm:"column:endpoint_url"`
+	ProcessKind     string  `gorm:"column:process_kind"`
+	Status          string  `gorm:"column:status"`
+	LastErrorReason *string `gorm:"column:last_error_reason"`
+	LastHeartbeatAt *int64  `gorm:"column:last_heartbeat_at"`
+	CreatedAt       int64   `gorm:"column:created_at"`
+	UpdatedAt       int64   `gorm:"column:updated_at"`
 }
 
 // loadOwnerCheckedAgent loads agent + verifies caller owns it. Returns
@@ -306,9 +305,9 @@ func (h *RuntimeHandler) handleStart(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf(RuntimeStatusDMTemplateStart, agent.DisplayName), nowMs)
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{
-		"id":        rt.ID,
-		"agent_id":  rt.AgentID,
-		"status":    RuntimeStatusRunning,
+		"id":         rt.ID,
+		"agent_id":   rt.AgentID,
+		"status":     RuntimeStatusRunning,
 		"updated_at": nowMs,
 	})
 }

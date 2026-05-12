@@ -37,7 +37,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 
@@ -94,7 +93,7 @@ func violatesThinkingSubject(body string) bool {
 	return false
 }
 
-// ArtifactCommentPusher is the seam between api and ws.Hub for the
+// ArtifactCommentPusher is the boundary between api and ws.Hub for the
 // `artifact_comment_added` frame (mirrors AnchorCommentPusher pattern,
 // CV-2.2 anchors.go). Cursor goes through hub.cursors.NextCursor —
 // shared sequence with RT-1.1 / RT-3 / DM-2.2 / BPP-2 / BPP-3.1.
@@ -193,8 +192,8 @@ func (h *ArtifactCommentsHandler) ensureArtifactChannel(artifactID, hostChannelI
 	if err := h.Store.DB().Create(ch).Error; err != nil {
 		return nil, err
 	}
-	// Copy host channel members so artifact comment ACL byte-identical to
-	// host channel ACL (设计 ④ ACL 继承).
+	// Copy host channel members so the artifact comment ACL stays
+	// byte-identical to the host channel ACL (design ④ ACL inheritance).
 	members, err := h.Store.ListChannelMembers(hostChannelID)
 	if err == nil {
 		for _, m := range members {
@@ -210,7 +209,8 @@ func (h *ArtifactCommentsHandler) ensureArtifactChannel(artifactID, hostChannelI
 	return ch, nil
 }
 
-// senderRoleFor — 'agent' or 'human' (mirrors ArtifactHandler.committerKindForUser).
+// senderRoleFor returns 'agent' or 'human', mirroring
+// ArtifactHandler.committerKindForUser.
 func (h *ArtifactCommentsHandler) senderRoleFor(u *store.User) string {
 	if u != nil && u.Role == "agent" {
 		return "agent"
