@@ -11,9 +11,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// setupHostGrantsDB creates an in-memory sqlite DB seeded with the
-// HB-3 host_grants schema (byte-identical 跟 packages/server-go/internal/
-// migrations/host_grants.go) and returns the dsn + raw db handle for
+// setupHostGrantsDB creates an in-memory sqlite DB seeded with the HB-3
+// host_grants schema, byte-identical with packages/server-go/internal/
+// migrations/host_grants.go, and returns the dsn plus raw db handle for
 // seeding rows.
 func setupHostGrantsDB(t *testing.T) (string, *sql.DB) {
 	t.Helper()
@@ -85,10 +85,11 @@ func TestHB2D_SQLiteConsumer_NotFound(t *testing.T) {
 	}
 }
 
-// TestHB2D_SQLiteConsumer_RevocationImmediate — verifies revoke visibility under 100ms (HB-3 §1.5
-// 行为 invariant). UPDATE revoked_at = now → 下次 Lookup 立即 0 行. server-go
-// 路径 internal/api/host_grants_test.go::TestHB_DELETE_RevokeStampsRevokedAt
-// checks the same invariant, keeping the SQL behavior consistent end to end.
+// TestHB2D_SQLiteConsumer_RevocationImmediate verifies revoke visibility under
+// 100ms (HB-3 §1.5 behavior invariant). UPDATE revoked_at = now means the next
+// Lookup immediately returns 0 rows. The server-go path
+// internal/api/host_grants_test.go::TestHB_DELETE_RevokeStampsRevokedAt checks
+// the same invariant, keeping the SQL behavior consistent end to end.
 func TestHB2D_SQLiteConsumer_RevocationImmediate(t *testing.T) {
 	t.Parallel()
 	dsn, rw := setupHostGrantsDB(t)

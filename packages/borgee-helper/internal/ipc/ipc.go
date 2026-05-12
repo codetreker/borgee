@@ -1,6 +1,7 @@
-// Package ipc — HB-2 IPC server (JSON-line request/response, request_id
-// 多路复用单连接). 平台 transport (UDS / Named Pipe) 由 cmd 层选择;
-// 本包提供 protocol 解析 + 处理器编织, 跨平台 byte-identical.
+// Package ipc implements the HB-2 IPC server: JSON-line request/response with
+// request_id multiplexing on a single connection. The cmd layer selects the
+// platform transport (UDS or Named Pipe); this package provides protocol
+// parsing and handler wiring that stays byte-identical across platforms.
 //
 // hb-2-spec.md §3.1 IPC contract + §5.5 sandbox build tags keep platforms distinct.
 package ipc
@@ -19,7 +20,7 @@ import (
 	"borgee-helper/internal/reasons"
 )
 
-// Request 是 plugin → host-bridge wire format (hb-2-spec.md §3.1).
+// Request is the plugin-to-host-bridge wire format (hb-2-spec.md §3.1).
 type Request struct {
 	RequestID string                 `json:"request_id"`
 	Action    string                 `json:"action"`
@@ -27,7 +28,7 @@ type Request struct {
 	Params    map[string]interface{} `json:"params"`
 }
 
-// Response 是 host-bridge → plugin wire format.
+// Response is the host-bridge-to-plugin wire format.
 type Response struct {
 	RequestID   string      `json:"request_id"`
 	Status      string      `json:"status"` // "ok" | "rejected" | "failed"
@@ -36,19 +37,20 @@ type Response struct {
 	AuditLogID  string      `json:"audit_log_id,omitempty"`
 }
 
-// Handler 处理单连接 — handshake (首消息携 agent_id) → 多路复用 request loop.
+// Handler processes one connection: handshake with agent_id in the first
+// message, then a multiplexed request loop.
 type Handler struct {
 	Gate    *acl.Gate
 	Audit   *audit.Logger
 }
 
-// New 构造 handler.
+// New constructs a Handler.
 func New(g *acl.Gate, a *audit.Logger) *Handler {
 	return &Handler{Gate: g, Audit: a}
 }
 
-// Serve 接管单 net.Conn 走 JSON-line protocol 直到 EOF / 错误.
-// 首行 = handshake {agent_id}; 后续行 = Request stream.
+// Serve owns one net.Conn and runs the JSON-line protocol until EOF or error.
+// The first line is handshake {agent_id}; later lines are the Request stream.
 func (h *Handler) Serve(ctx context.Context, conn net.Conn) error {
 	defer conn.Close()
 	r := bufio.NewReader(conn)
@@ -116,7 +118,8 @@ func (h *Handler) writeResp(w *bufio.Writer, resp Response) error {
 	return w.Flush()
 }
 
-// handle 走 ACL gate + audit (含 reject); 返回 Response.
+// handle applies the ACL gate and audit logging, including rejected requests,
+// then returns a Response.
 //
 // v0(D) real IO: after ACL passes, read_file / list_files actions use the
 // fileio package (os.ReadFile / os.ReadDir); Landlock already limits paths.
@@ -155,7 +158,7 @@ func (h *Handler) handle(ctx context.Context, handshakeAgentID string, req Reque
 	} else {
 		resp.Status = "rejected"
 	}
-	// 审计 (含 reject); 5 字段单一来源.
+	// Audit every request, including rejects; the 5-field schema has one source.
 	if h.Audit != nil {
 		_ = h.Audit.Write(audit.Event{
 			Actor:  req.AgentID,
