@@ -1,15 +1,15 @@
-// MultiSourceAuditPage — ADM-3 multi-source audit 合并查询 admin SPA 页.
+// MultiSourceAuditPage — ADM-3 multi-source audit merged-query admin SPA page.
 //
 // Blueprint: docs/blueprint/current/admin-model.md §1.4 来源透明 (人/agent/admin/混合).
 // Spec: docs/implementation/modules/adm-3-spec.md §1 ADM3.2.
 //
-// 立场:
-//   - 4 source enum SSOT (server/plugin/host_bridge/agent) — byte-identical
-//     跟 server-side AuditSources 同源 (改 = 改 server const + 此 page +
-//     i18n 三处).
-//   - admin god-mode 路径独立 (ADM-0 §1.3 红线): 仅 /admin-api/v1/audit/multi-source
-//     暴露, 反 user-rail 漂.
-//   - DOM 锚: `[data-page="admin-audit-multi-source"]` + 每行
+// Intent:
+//   - 4 source enum single source of truth (server/plugin/host_bridge/agent)
+//     must stay byte-identical with server-side AuditSources; changes require
+//     updating the server const, this page, and the i18n entries together.
+//   - Admin path stays separate under ADM-0 §1.3: only
+//     /admin-api/v1/audit/multi-source is exposed, with no user API path drift.
+//   - DOM anchor: `[data-page="admin-audit-multi-source"]` + each row
 //     `[data-source-row="{source}"]`.
 
 import React, { useEffect, useState } from 'react';
@@ -20,8 +20,8 @@ import {
   MultiSourceAuditRow,
 } from '../api';
 
-// SOURCE_LABEL — 4 source 4 i18n key. 跟 server const + content-lock §1
-// 字面 byte-identical.
+// SOURCE_LABEL — 4 sources and 4 i18n keys. Keep byte-identical with the
+// server const and content-lock §1.
 const SOURCE_LABEL: Record<AuditSource, string> = {
   server: 'Server',
   plugin: 'Plugin',

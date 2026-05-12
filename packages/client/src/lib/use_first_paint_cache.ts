@@ -1,14 +1,14 @@
 // CS-4 — useFirstPaintCache hook (蓝图 client-shape.md §1.4 cursor sync).
 //
-// 设计 ② (cs-4-stance-checklist):
-//   - mount 时 IDB.get 返 cached + 同时触发 server cursor backfill
-//   - cache miss 时不阻塞 UI (cached=null → 直接走 server fetch)
-//   - offline 时 (navigator.onLine=false) skip server fetch 走 cache hit
-//   - syncing ≥3s 才显示 label (沉默胜于假 loading)
+// Design ② (cs-4-stance-checklist):
+//   - on mount, IDB.get returns cached data and also starts server cursor backfill
+//   - cache miss does not block UI (cached=null → go directly to server fetch)
+//   - offline mode (navigator.onLine=false) skips server fetch and uses cache hit
+//   - show the syncing label only after >=3s (silence is better than fake loading)
 //
-// 真 server fetch wiring 由 caller 注入 (cursorBackfillFn) — hook 不绑定
-// 具体 RT-1 lib 路径, caller 用 `import { fetchMessages }` 等既有 lib.
-// CS-4 仅落 IDB cache + sync state machine.
+// Real server fetch wiring is caller-supplied through cursorBackfillFn. This
+// hook does not bind to a specific RT-1 lib path; callers use existing libs such
+// as `import { fetchMessages }`. CS-4 only owns the IDB cache and sync state machine.
 
 import { useEffect, useState, useRef } from 'react';
 import { openCS4DB, cs4Get, cs4Put, STORE_MESSAGES } from './cs4-idb';
@@ -34,7 +34,7 @@ export interface FirstPaintCacheResult {
  *
  * @param channelID - which channel to load
  * @param cursorBackfillFn - caller-supplied fn: (sinceCursor) → Promise<CachedMessage[]>
- *                          (走 RT-1 既有 lib; CS-4 不绑定具体 import path)
+ *                          (uses existing RT-1 libs; CS-4 does not bind a specific import path)
  * @param now - injectable clock for tests
  */
 export function useFirstPaintCache(
@@ -51,7 +51,7 @@ export function useFirstPaintCache(
     startedAtRef.current = now();
 
     (async () => {
-      // 1) IDB.get — 不阻塞 UI; 若 cached present 立即设态
+      // 1) IDB.get does not block UI; set state immediately when cached data exists.
       let cachedFromIDB: CachedMessage[] | null = null;
       try {
         const db = await openCS4DB();
@@ -92,14 +92,14 @@ export function useFirstPaintCache(
       try {
         const fresh = await cursorBackfillFn(sinceCursor);
         if (cancelled) return;
-        // 3) IDB.put 覆盖 (走 cursor key, 设计 ②)
+        // 3) IDB.put overwrite using the cursor key from design ②.
         try {
           const db = await openCS4DB();
           for (const msg of fresh) {
             await cs4Put(db, STORE_MESSAGES, msg);
           }
         } catch {
-          // best-effort; 不阻塞 UI
+          // best-effort; do not block UI
         }
         // Merge: cached + fresh
         const merged = [...(cachedFromIDB ?? []), ...fresh];
@@ -108,7 +108,7 @@ export function useFirstPaintCache(
           setSyncState('synced');
         }
       } catch {
-        // server fail → if had cache, fall back to offline_cache_hit; else cache_miss
+        // Server failure: use offline_cache_hit when cache exists; otherwise cache_miss.
         if (!cancelled) {
           if (cachedFromIDB && cachedFromIDB.length > 0) {
             setSyncState('offline_cache_hit');

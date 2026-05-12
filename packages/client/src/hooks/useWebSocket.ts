@@ -36,7 +36,7 @@ const AUTH_FAILURE_CODES = new Set([4001, 4003]);
  *   1. `BroadcastEventToAll` (hub.go:284-289): `{type, data: payload}`
  *      where payload can be `{group: {...}}`; these payload fields are nested
  *      under `data`.
- *   2. 直接 push frame (例如 PushArtifactUpdated, 见 cursor_test.go:175):
+ *   2. Direct push frame (for example PushArtifactUpdated, see cursor_test.go:175):
  *      `{type, cursor, ...fields}`; these payload fields are already top-level.
  *
  * `handleMessage` reads top-level fields such as data.group / data.channel /
@@ -147,7 +147,7 @@ export function useWebSocket() {
       // running high-water mark and persistLastSeenCursor is
       // monotonic).
       //
-      // 反约束 (RT-1 spec §1.2): we do NOT default to full history.
+      // RT-1 spec §1.2 constraint: we do NOT default to full history.
       // If `loadLastSeenCursor()` returns 0 (cold start), skip the
       // backfill — full reconciliation is the per-channel
       // fetchMessages path below. This is the line that distinguishes
@@ -211,7 +211,7 @@ export function useWebSocket() {
         if (typeof frame?.cursor === 'number') {
           persistLastSeenCursor(frame.cursor);
         }
-        // 平铺 envelope (#680 修): 见模块顶部 flattenWsFrame 注释.
+        // Flatten the envelope (#680 fix); see the flattenWsFrame comment above.
         handleMessageRef.current(flattenWsFrame(frame));
       } catch {
         // Invalid JSON
