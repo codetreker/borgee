@@ -1,6 +1,6 @@
 // Package store — agent_invitation.go: CM-4.0 model + state machine helper.
 //
-// Blueprint: concept-model.md §4.2 跨 org 邀请 agent 进 channel.
+// Blueprint: concept-model.md §4.2 cross-org invitation for adding an agent to a channel.
 //
 // Scope (CM-4.0): only the data model + transition rules. No HTTP handler,
 // no BPP frame, no client UI, no creation/accept/decline API. Those land in
@@ -55,9 +55,9 @@ func (s AgentInvitationState) IsTerminal() bool {
 // AgentInvitation is the GORM model for the agent_invitations table.
 //
 // Columns mirror the migration 1:1. Use json tags so existing serializers
-// don't accidentally leak gorm internals (规则: 永不 auto-marshal model — see
-// admin sanitizer pattern). Handlers in CM-4.1 must still hand-build response
-// payloads from this struct.
+// don't accidentally leak gorm internals (rule: never auto-marshal the model;
+// see the admin sanitizer pattern). Handlers in CM-4.1 must still hand-build
+// response payloads from this struct.
 type AgentInvitation struct {
 	ID          string               `gorm:"primaryKey;size:36"             json:"id"`
 	ChannelID   string               `gorm:"not null;size:36;index"         json:"channel_id"`

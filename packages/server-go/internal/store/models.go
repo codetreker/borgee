@@ -14,16 +14,17 @@ type Channel struct {
 	// OrgID is the channel's organization (CM-3.1). Stamped at create time
 	// from creator.OrgID. Column added by migration cm_1_1_organizations
 	// (NOT NULL DEFAULT ''); v=9 backfills legacy rows. Blueprint §1.1 forbids
-	// UI exposure → json:"-".
+	// UI exposure, so this field uses json:"-".
 	OrgID string `gorm:"column:org_id;not null;default:'';size:36;index" json:"-"`
 	// ArchivedAt is the soft-archive marker (CHN-1.1, migration v=11). nil = active;
 	// non-nil = archived (channel is read-only, hidden from default lists).
-	// Distinct from DeletedAt — archive preserves history per channel-model §2 不变量。
+	// Distinct from DeletedAt: archive preserves history per the channel-model §2 invariant.
 	ArchivedAt *int64 `gorm:"column:archived_at" json:"archived_at,omitempty"`
 	// DescriptionEditHistory is a JSON array of edit-history entries appended
 	// by UpdateChannelDescription each time channel.topic changes via CHN-10
-	// owner-only PUT path (CHN-14.2 SSOT 跟 DM-7 messages.edit_history 同模式
-	// byte-identical). NULL = 无历史 / 老 channel 行 byte-identical 不动.
+	// owner-only PUT path (CHN-14.2 single source, matching DM-7
+	// messages.edit_history). NULL = no history; legacy channel rows stay
+	// byte-identical.
 	// Migration v=44 (chn_14_1_channels_description_edit_history).
 	DescriptionEditHistory *string `gorm:"column:description_edit_history" json:"description_edit_history,omitempty"`
 }
@@ -51,7 +52,7 @@ type User struct {
 	DeletedAt      *int64  `gorm:"index" json:"deleted_at,omitempty"`
 	Disabled       bool    `gorm:"not null;default:false" json:"disabled"`
 	// OrgID is the user's organization (CM-1.2). Blueprint §1.1 forbids UI
-	// exposure, hence json:"-" — every API serializer is hand-built map and
+	// exposure, hence json:"-". Every API serializer is a hand-built map and
 	// must NOT include org_id. Column added by migration cm_1_1_organizations
 	// (NOT NULL DEFAULT '').
 	OrgID string `gorm:"column:org_id;not null;default:'';size:36;index" json:"-"`
@@ -59,7 +60,7 @@ type User struct {
 
 // Organization is the data-layer container for a person's resources
 // (CM-1.2, blueprint concept-model §1.1 + §2). 1 person = 1 org in v0; UI
-// permanently does not expose org_id.
+// does not expose org_id in v0.
 type Organization struct {
 	ID        string `gorm:"primaryKey;size:36" json:"id"`
 	Name      string `gorm:"not null;size:100" json:"name"`
@@ -84,14 +85,14 @@ type Message struct {
 	// sender.OrgID. Column added by migration cm_1_1_organizations.
 	OrgID string `gorm:"column:org_id;not null;default:'';size:36;index" json:"-"`
 	// EditHistory is a JSON array of edit-history entries appended by
-	// UpdateMessage when the content changes. NULL = no edits (DM-7
-	// 立场 ①). Format: [{old_content, ts, reason}].
+	// UpdateMessage when the content changes. NULL = no edits (DM-7 stance 1).
+	// Format: [{old_content, ts, reason}].
 	EditHistory *string `gorm:"column:edit_history" json:"edit_history,omitempty"`
 	// PinnedAt is Unix ms when the message was pinned (DM-10.1). NULL =
 	// unpinned. DM scope only — server REJECTS pin on non-DM channels
-	// (跟 chn_7_mute DM-only mirror, 立场 ②). Sparse partial idx
-	// `idx_messages_pinned_at WHERE pinned_at IS NOT NULL` (跟 AL-7.1
-	// archived_at + HB-5.1 archived_at sparse 同模式).
+	// (matching the chn_7_mute DM-only mirror, stance 2). Sparse partial idx
+	// `idx_messages_pinned_at WHERE pinned_at IS NOT NULL` follows the same
+	// pattern as AL-7.1 archived_at and HB-5.1 archived_at.
 	PinnedAt *int64 `gorm:"column:pinned_at;index:,where:pinned_at IS NOT NULL" json:"pinned_at,omitempty"`
 }
 
@@ -132,14 +133,15 @@ type UserPermission struct {
 	GrantedBy  *string `gorm:"size:36" json:"granted_by,omitempty"`
 	GrantedAt  int64   `gorm:"not null" json:"granted_at"`
 	// AP-1.1 (v=24): expires_at is a SCHEMA-only slot per spec §5
-	// (蓝图 auth-permissions.md §1.2 字面 "v1 schema 保留, UI/runtime 不做").
-	// 字段保留以备 v2+ 业务化, server 端不读 (HasCapability 不消费).
+	// (blueprint auth-permissions.md §1.2 literal: "v1 schema reserved,
+	// UI/runtime do not use it"). The field is reserved for v2+ product logic;
+	// server authorization does not read it (HasCapability does not consume it).
 	ExpiresAt *int64 `gorm:"column:expires_at" json:"expires_at,omitempty"`
 	// AP-2 #ap-2 (v=30): revoked_at is the soft-delete sentinel — sweeper
-	// goroutine writes this when expires_at < now (forward-only audit, 跟
-	// AL-1 #492 state_log + ADM-2.1 #484 admin_actions forward-only 同精神,
-	// row 不真删). NULL = active. ListUserPermissions 排除 NOT NULL 行
-	// (改 = 改 queries.go WHERE 一处, AP-1 SSOT 同精神).
+	// goroutine writes this when expires_at < now (forward-only audit, matching
+	// AL-1 #492 state_log and ADM-2.1 #484 admin_actions; never a real row
+	// delete). NULL = active. ListUserPermissions excludes NOT NULL rows; that
+	// filter is single-sourced in queries.go.
 	RevokedAt *int64 `gorm:"column:revoked_at" json:"revoked_at,omitempty"`
 }
 
