@@ -1,28 +1,28 @@
 // tests/cv-4-iterate.spec.ts — CV-4.3 client iterate UI + G3.4 demo 4 截屏.
 //
-// 闭环 cv-4.md acceptance §3 (client) + §4 (e2e):
-//   §3.1 iterate 按钮 owner-only DOM omit (跟 #347 line 254 同模式)
+// Covers cv-4.md acceptance §3 (client) + §4 (E2E):
+//   §3.1 iterate 按钮 owner-only DOM omit (same pattern as #347 line 254)
 //   §3.2 intent textarea + agent picker (placeholder + agent-only 候选)
-//   §3.3 state 4 态 inline (data-iteration-state byte-identical)
+//   §3.3 state 4 态 inline (data-iteration-state exact value)
 //   §3.4 iteration completed 自动 navigate 到新版本 + kindBadge 🤖
 //   §3.5 diff view "对比" + jsdiff 蓝绿 + ARIA + deep-link `?diff=v3..v2`
 //   §4 G3.4 demo 4 截屏归档 (iterate-pending / running / completed / failed)
 //
-// 立场反查 (cv-4-stance-checklist.md):
+// Related constraints (cv-4-stance-checklist.md):
 //   ② CV-1 commit 单源 (commit?iteration_id=) — runtime stub via direct
-//      owner commit (CV-4 接管前 walkaround), 不 mock server.
-//   ③ client jsdiff 不裂 server diff
+//      owner commit before CV-4 takes over this path; no server mock.
+//   ③ client jsdiff does not add a server diff endpoint
 //   ⑥ owner-only DOM omit (defense-in-depth)
-//   ⑦ failed UI 不渲染重试按钮 (失败状态机锁死)
+//   ⑦ failed UI does not render a retry button
 //
-// 实现说明: server CV-4.2 #409 待 merge — 本 e2e 在 endpoint 缺失时
-// 走 graceful 反向断言 (UI 不 throw, listIterations 404 静默, panel 仍
-// 渲染表单). G3.4 demo 截屏走 mock state — 4 张分别在 iterate panel
-// 渲染时 page.evaluate 注入 active iteration mock 触发.
+// Implementation note: server CV-4.2 #409 is pending. When the endpoint is
+// missing, this E2E verifies graceful behavior: UI does not throw,
+// listIterations 404 is quiet, and the panel still renders the form. G3.4 demo
+// screenshots use mock state injected by page.evaluate after the iterate panel renders.
 //
-// 注: 4 截屏的 active state 注入依赖 server 端有 GET /iterations 返回 — server
-// 未 merge 时这些截屏走 graceful skip (test passes but screenshot may be
-// the empty-form state). server #409 merge 后 unskip.
+// Note: active state injection for the 4 screenshots depends on server GET
+// /iterations. Before server #409 merges, those screenshots use a graceful skip
+// path; the test passes, but screenshots may show the empty-form state.
 import {
   test,
   expect,
@@ -90,15 +90,17 @@ function clientURL(): string {
 
 async function attachToken(ctx: BrowserContext, token: string): Promise<void> {
   const url = new URL(clientURL());
-  await ctx.addCookies([{
-    name: 'borgee_token',
-    value: token,
-    domain: url.hostname,
-    path: '/',
-    httpOnly: true,
-    secure: false,
-    sameSite: 'Lax',
-  }]);
+  await ctx.addCookies([
+    {
+      name: 'borgee_token',
+      value: token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+    },
+  ]);
 }
 
 async function createChannel(user: RegisteredUser, name: string): Promise<string> {
@@ -117,8 +119,8 @@ async function createMarkdownArtifact(
   body: string,
 ): Promise<string> {
   // Kept for future REST-side use (e.g. multi-user setup); current e2e
-  // path走 createArtifactViaUI 因为 ArtifactPanel v1 没有 list endpoint
-  // (CV-1.3 spec §3 字面, 仅渲染 user UI session 创的 artifact).
+  // path uses createArtifactViaUI because ArtifactPanel v1 has no list endpoint
+  // and only renders artifacts created in the current user UI session.
   const r = await user.ctx.post(`/api/v1/channels/${channelId}/artifacts`, {
     data: { type: 'markdown', title, body },
   });
@@ -135,11 +137,12 @@ async function gotoCanvas(page: Page, channelName: string): Promise<void> {
   await expect(page.locator('.artifact-panel')).toBeVisible();
 }
 
-/** Drive the empty-state create button — UI path 默认 type='markdown'.
+/** Drive the empty-state create button; the UI path defaults to type='markdown'.
  *
- * gh#691: 创建路径从 window.prompt (浏览器原生 dialog) 改成应用内 modal.
- * 守卫 pattern (liema review): 标志位 + 末尾断言, 不用 listener throw
- * (listener 内 throw 是异步 unhandled rejection, 不 fail 当前 step).
+ * gh#691: creation moved from window.prompt (native browser dialog) to an
+ * in-app modal. Track whether a native dialog fires and assert at the end;
+ * throwing inside the listener would be an async unhandled rejection and would
+ * not fail the current step reliably.
  */
 async function createArtifactViaUI(page: Page, title: string): Promise<string> {
   let nativeDialogTriggered = false;
@@ -168,7 +171,9 @@ async function createArtifactViaUI(page: Page, title: string): Promise<string> {
 }
 
 test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
-  test('§3.1 §3.2 — iterate panel owner-only + intent placeholder + agent picker label', async ({ browser }) => {
+  test('§3.1 §3.2 — iterate panel owner-only + intent placeholder + agent picker label', async ({
+    browser,
+  }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -184,41 +189,42 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
     const page = await ctx.newPage();
     await gotoCanvas(page, chName);
 
-    // ArtifactPanel v1 仅渲染 user UI session 创的 artifact (CV-1.3 spec §3
-    // 字面无 list endpoint). 走 UI 创建 path → markdown artifact + IteratePanel
-    // 装配 (artifact.type === 'markdown' 才显示, ArtifactPanel.tsx 立场 ⑥).
+    // ArtifactPanel v1 only renders artifacts created in the current user UI
+    // session and has no list endpoint. Use the UI creation path to create a
+    // markdown artifact and mount IteratePanel.
     await createArtifactViaUI(page, 'CV-4 iterate demo');
 
-    // 立场 ⑥ — owner 视角 iterate panel 渲染.
+    // Owner view must render the iterate panel.
     await expect(page.locator('.iterate-panel[data-section="iterate"]')).toBeVisible();
 
-    // 立场 ② — placeholder byte-identical (content-lock §1 ②).
+    // Placeholder text must match content-lock §1 ②.
     const intent = page.locator('.iterate-intent');
     await expect(intent).toHaveAttribute('placeholder', '告诉 agent 你希望它做什么…');
 
-    // 立场 ② — agent picker label byte-identical.
+    // Agent picker label must match the locked label.
     await expect(page.locator('.iterate-agent-label')).toContainText('选择 agent');
 
-    // 立场 ① — iterate trigger 按钮 byte-identical (icon 锁 🔄 + tooltip 中文双绑).
+    // Iterate trigger button must keep the locked icon and tooltip strings.
     const trigger = page.locator('.iterate-trigger-btn');
     await expect(trigger).toHaveAttribute('title', '请求 agent 迭代');
     await expect(trigger).toHaveAttribute('aria-label', '请求 agent 迭代');
     await expect(trigger).toHaveText('🔄');
 
-    // §4 G3.4 demo 截屏 — iterate-pending baseline (server #409 merge 后切真 pending state).
+    // §4 G3.4 demo screenshot: iterate-pending baseline. After server #409
+    // merges, this can switch to the real pending state.
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-pending.png'),
       fullPage: false,
     });
   });
 
-  // §3.3 — state 4 态 inline DOM: audit真删 (DEFERRED-UNWIND). 4 态
-  // (data-iteration-state byte-identical) 已 100% 由 vitest 单测锁源头
-  // (IteratePanel.test.tsx::stateLabel + REASON_LABELS 6 reason byte-
-  // identical), e2e 加层重复无新覆盖. 反向 grep `data-iteration-state`
-  // 在 client/src/__tests__/ ≥1 hit 守.
+  // §3.3 state 4 inline DOM coverage was intentionally removed in
+  // DEFERRED-UNWIND. The 4 state labels are already locked by Vitest unit tests
+  // (IteratePanel.test.tsx::stateLabel + REASON_LABELS 6 reasons), so repeating
+  // that check in E2E would not add coverage. The reverse grep check is that
+  // `data-iteration-state` appears at least once in client/src/__tests__/.
 
-  test('§3.4 — iteration completed kindBadge 🤖 byte-identical 跟 #347 同源', async ({ browser }) => {
+  test('§3.4 — iteration completed kindBadge 🤖 matches #347 source', async ({ browser }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -236,15 +242,17 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
 
     await createArtifactViaUI(page, 'completed demo');
 
-    // CV-1 既有 kindBadge 二元锁 (跟 #347 line 251 byte-identical) — owner
-    // 自己 UI 创建 → version row 必为 👤 (人). 这层锁是 5 处 byte-identical
-    // 单测锁源头之一 (CV-1 #347 + CV-2 #355 + DM-2 #314 + CV-4 #380 + 本).
+    // Existing CV-1 kindBadge check from #347 line 251: owner-created UI artifact
+    // must show 👤 in the version row. This is one of five checks for the locked
+    // value across CV-1 #347, CV-2 #355, DM-2 #314, CV-4 #380, and this spec.
     const versionKind = page.locator('.artifact-version-kind').first();
     await expect(versionKind).toHaveText('👤');
   });
 
-  test('§3.5 — DiffView "对比" tab + jsdiff data-diff-line + ?diff=v2..v1 deep-link + server diff endpoint 反向断言 404', async ({ browser }) => {
-    // 立场 ③ — server 端 /api/v1/diff endpoint 不存在 (client jsdiff only).
+  test('§3.5 — DiffView "对比" tab + jsdiff data-diff-line + ?diff=v2..v1 deep-link + no server diff endpoint', async ({
+    browser,
+  }) => {
+    // Server /api/v1/diff endpoint must not exist; diffs are client-side jsdiff only.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -263,10 +271,10 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
     const page = await ctx.newPage();
     await gotoCanvas(page, chName);
 
-    // 创 markdown artifact (UI path) → v1, then commit v2 with edits.
+    // Create markdown artifact through the UI path, then commit v2 with edits.
     const artifactId = await createArtifactViaUI(page, 'CV-4 diff demo');
 
-    // commit v2 via REST — body changes trigger jsdiff add/del rows.
+    // Commit v2 via REST; body changes trigger jsdiff add/delete rows.
     const v2Body = '# diff demo\n\n- new line A\n- new line B\n';
     const c1 = await owner.ctx.post(`/api/v1/artifacts/${artifactId}/commits`, {
       data: { expected_version: 1, body: v2Body },
@@ -274,36 +282,37 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
     expect(c1.ok(), `commit v2: ${c1.status()}`).toBe(true);
     await expect(page.locator('.artifact-version-tag')).toHaveText('v2', { timeout: 10_000 });
 
-    // 立场 ⑤ — "对比" tab byte-identical (单字, content-lock §1 ⑤).
+    // "对比" tab text must match content-lock §1 ⑤.
     const diffBtn = page.locator('.artifact-diff-btn');
     await expect(diffBtn).toBeVisible();
     await expect(diffBtn).toHaveText('对比');
     await diffBtn.click();
 
-    // 立场 ③ — DiffView 渲染 + data-diff-line 三 enum (a11y ARIA 替代仅
-    // 颜色辨识反约束). add 行至少 ≥1 (v1 → v2 增了 "new line A" 等).
+    // DiffView renders with the three data-diff-line enum values. ARIA labels
+    // provide a non-color-only signal; at least one add row should exist because
+    // v2 adds "new line A" and related content.
     await expect(page.locator('.diff-view')).toBeVisible();
     await expect(page.locator('.diff-view .diff-title')).toHaveText('v2 ↔ v1');
     const addRows = page.locator('[data-diff-line="add"]');
     await expect(addRows.first()).toBeVisible();
 
-    // ARIA byte-identical (色盲反约束).
+    // ARIA label provides the non-color-only signal.
     await expect(addRows.first()).toHaveAttribute('aria-label', '增行');
 
-    // deep-link byte-identical (#380 ⑤ 同源).
+    // Deep-link shape must match #380 ⑤.
     await expect(page).toHaveURL(/[?&]diff=v2\.\.v1\b/);
 
-    // 返回 → URL 清 + 渲染回 markdown body.
+    // Exit diff view, clear the URL query, and render the markdown body again.
     await page.locator('.artifact-diff-exit-btn').click();
     await expect(page.locator('.diff-view')).toHaveCount(0);
     await expect(page).not.toHaveURL(/[?&]diff=/);
   });
 
-  // §4 G3.4 demo 4 截屏 (iterate-pending/running/completed/failed): audit真删
-  // (DEFERRED-UNWIND). pending baseline 截屏由本 spec §3.1 就近落地
-  // (g3.4-cv4-iterate-pending.png line 197+); 其他 3 态 (running/completed/failed)
-  // 真路径要 (a) BPP-3 plugin 端 host_grants 真 deliver IteratePushFrame, (b)
-  // 状态机 transition timer 触发 — 都属 e2e fixture 重 infra 范围, 实际值
-  // < 维护成本. running/completed 态由 IteratePanel.test.tsx::stateLabel 单
-  // 测锁源头 byte-identical 守, failed 态由 REASON_LABELS 6 reason 锁守.
+  // §4 G3.4 demo screenshots (iterate-pending/running/completed/failed) were
+  // intentionally reduced in DEFERRED-UNWIND. The pending baseline screenshot
+  // is captured near §3.1 in this spec. The other real paths require BPP-3
+  // plugin host_grants delivery of IteratePushFrame plus state-machine timer
+  // transitions, which would add heavy fixture infrastructure for little value.
+  // running/completed are covered by IteratePanel.test.tsx::stateLabel, and
+  // failed is covered by the REASON_LABELS 6-reason checks.
 });

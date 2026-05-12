@@ -11,10 +11,10 @@
 //   - 验收: docs/_archive/qa/acceptance-templates/adm-1.md §1+§2+§3+§4
 //
 // 实施约束:
-//   - 真 UI 走浏览器 (page.goto + page.click + DOM 断)
+//   - UI 验证通过浏览器执行 (page.goto + page.click + DOM 断言)
 //   - seed 用 REST (admin login + invite + register), 测试主体走 UI
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
-//   - 真 server-go(4901) + vite(5174), 不 mock
+//   - 不允许 fs.* / page.evaluate(fetch) / API-only / noop
+//   - 使用 server-go(4901) + vite(5174), 不 mock
 import {
   test,
   expect,
@@ -32,8 +32,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_DIR = path.resolve(__dirname, '../../../docs/qa/screenshots');
 
-// ADM-1 三承诺字面 byte-identical (admin-model.md §4.1 + spec §2).
-// 改 = 改 admin-model.md §4.1 + PRIVACY_PROMISES 常量 + 此 e2e 三处 (drift CI 拦).
+// ADM-1 privacy promise text must match admin-model.md §4.1 + spec §2.
+// When changing it, update admin-model.md §4.1, PRIVACY_PROMISES, and this E2E.
 const PRIVACY_PROMISE_FRAGMENTS = [
   'Admin 是平台运维, 不是协作者',
   '永不出现在 channel / DM / 团队列表里',
@@ -43,7 +43,7 @@ const PRIVACY_PROMISE_FRAGMENTS = [
   '看不到正文',
 ];
 
-// 八行表格 category 字面 byte-identical (PRIVACY_TABLE_ROWS 同源).
+// Eight table category labels must match PRIVACY_TABLE_ROWS.
 const TABLE_CATEGORIES = [
   '用户名 / 邮箱',
   'channel 名 / 列表',
@@ -102,28 +102,32 @@ function clientURL(): string {
 
 async function attachToken(ctx: BrowserContext, token: string): Promise<void> {
   const url = new URL(clientURL());
-  await ctx.addCookies([{
-    name: 'borgee_token',
-    value: token,
-    domain: url.hostname,
-    path: '/',
-    httpOnly: true,
-    secure: false,
-    sameSite: 'Lax',
-  }]);
+  await ctx.addCookies([
+    {
+      name: 'borgee_token',
+      value: token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+    },
+  ]);
 }
 
 async function gotoSettings(page: Page): Promise<void> {
   await page.goto(`${clientURL()}/`);
   await expect(page.locator('.sidebar-title')).toBeVisible();
-  // ⚙️ 按钮 (Sidebar.tsx data-action="open-settings", 跟 onAgentsOpen
-  // /onWorkspacesOpen 同模式).
+  // Settings button in Sidebar.tsx, using the same data-action pattern as
+  // onAgentsOpen and onWorkspacesOpen.
   await page.locator('[data-action="open-settings"]').click();
   await expect(page.locator('[data-page="settings"]')).toBeVisible();
 }
 
 test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () => {
-  test('§1+§2 — 三承诺字面 1:1 + 八行表格 byte-identical + 三色锁 + G4.1 截屏', async ({ browser }) => {
+  test('§1+§2 — privacy promises, eight-row table, row classes, and G4.1 screenshot', async ({
+    browser,
+  }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -141,7 +145,7 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     await expect(privacyTab).toHaveText('隐私');
     await expect(privacyTab).toHaveClass(/active/);
 
-    // §1 三承诺字面 byte-identical 跟 admin-model §4.1 同源 (drift 锁).
+    // §1 privacy promise text must match admin-model §4.1.
     const promiseList = page.locator('.privacy-promise-list');
     await expect(promiseList).toBeVisible();
     const items = page.locator('.privacy-promise-item');
@@ -156,15 +160,15 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
       fullPage: false,
     });
 
-    // §2 八行表格 category 字面 byte-identical + 顺序不变.
+    // §2 eight table category labels must match and keep their order.
     const rows = page.locator('.privacy-promise-table tbody tr');
     await expect(rows).toHaveCount(8);
     for (let i = 0; i < TABLE_CATEGORIES.length; i++) {
       await expect(rows.nth(i).locator('td').first()).toHaveText(TABLE_CATEGORIES[i]!);
     }
 
-    // §3 三色锁 — allow (gray) / deny (#d33 加粗) / impersonate (#d97706 amber).
-    // Class names 反查; computed style 走 vitest unit (此处 class lock 已够).
+    // §3 row classes: allow (gray), deny (#d33 bold), impersonate (#d97706 amber).
+    // Computed style is covered by Vitest; this E2E locks the class names.
     await expect(rows.nth(0)).toHaveClass(/privacy-row-allow/);
     await expect(rows.nth(0)).toHaveAttribute('data-row-kind', 'allow');
     await expect(rows.nth(3)).toHaveClass(/privacy-row-deny/);
@@ -172,7 +176,7 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     await expect(rows.nth(7)).toHaveClass(/privacy-row-impersonate/);
     await expect(rows.nth(7)).toHaveAttribute('data-row-kind', 'impersonate');
 
-    // 八行 mark 字面 byte-identical (✅ × 3 / ❌ × 4 / ✅ (临时) × 1).
+    // Eight-row mark text must match (✅ x 3 / ❌ x 4 / ✅ (临时) x 1).
     await expect(rows.nth(0).locator('td').nth(1)).toHaveText('✅');
     await expect(rows.nth(3).locator('td').nth(1)).toHaveText('❌');
     await expect(rows.nth(7).locator('td').nth(1)).toHaveText('✅ (临时)');
@@ -185,7 +189,9 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     });
   });
 
-  test('§2 反约束 — privacy section 默认展开不可折叠 (反 details-element)', async ({ browser }) => {
+  test('§2 privacy section is expanded by default and not wrapped in details', async ({
+    browser,
+  }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -197,8 +203,8 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     const page = await ctx.newPage();
     await gotoSettings(page);
 
-    // 反向断言 — settings page 全树无 details-element 包裹.
-    // 野马 R3 + acceptance §2.3 字面: privacy 区块默认展开不可折叠.
+    // Settings page must not wrap the privacy section in a details element.
+    // Acceptance §2.3 requires the privacy section to be expanded by default.
     const detailsCount = await page.locator('details').count();
     expect(detailsCount, 'privacy section 不应被 details-element 包裹').toBe(0);
 
@@ -207,17 +213,17 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     await expect(promise).toBeVisible();
   });
 
-  test('§4 反向断言 — admin/user 路径分叉 (跟 admin SPA SettingsPage 共存不混用)', async ({ browser }) => {
-    // ADM-0 红线: admin SPA 跟 user SPA cookie 拆 + 路径分叉. 此 test 反向
-    // 断言用户 SPA SettingsPage 跟 admin/pages/SettingsPage.tsx 不混用 —
-    // user 视角访问 /admin/* 应 reject (admin cookie 缺).
+  test('§4 admin and user paths stay isolated', async ({ browser }) => {
+    // ADM-0 requires separate admin SPA and user SPA cookies and paths. This test
+    // verifies the user SPA SettingsPage is not mixed with admin/pages/SettingsPage.tsx:
+    // user access to /admin/* must reject when the admin cookie is missing.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
     const inv = await mintInvite(adminCtx, 'adm-1-e2e-isolation');
     const user = await registerUser(serverURL, inv);
 
-    // user cookie 调 admin-api → 401 (ADM-0.2 cookie 拆守).
+    // A user cookie calling admin-api must return 401/403 (ADM-0.2 cookie split).
     const res = await user.ctx.get('/admin-api/auth/me');
     expect([401, 403], `user cookie 调 admin-api 应 reject; got ${res.status()}`).toContain(
       res.status(),

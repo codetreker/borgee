@@ -1,8 +1,8 @@
-// tests/channel-collab-edge-cases.spec.ts — channel 协作场反向断言 + 跨 org 隔离边界.
+// tests/channel-collab-edge-cases.spec.ts — channel collaboration constraints + cross-org isolation.
 //
 // 测试范围:
-//   - DM 视图永不含 workspace tab + 不挂 channel pin handle
-//   - messages 表不反指 artifact_id / iteration_id / anchor_id (四路径数据契约拆开)
+//   - DM 视图不包含 workspace tab，也不显示 channel pin handle
+//   - messages 表不引用 artifact_id / iteration_id / anchor_id (四条数据路径保持分离)
 //   - 不新增 WS frame (RT-1 已锁四种 frame, 本 spec 不引入新 frame)
 //   - 跨 org 隔离: A org 用户不可见 B org 的 channel
 //
@@ -11,13 +11,13 @@
 //   - 上游: PR #411 (CHN-4 主路径正向 e2e 在 channel-collab-tabs.spec.ts)
 //
 // 实施约束:
-//   - 真 UI 走浏览器 (page.goto + DOM 反向断 + 真服务返回)
-//   - 真 server-go(4901) + vite(5174), 不 mock 4901
-//   - CV-4 runtime stub 走 owner direct commit (注释保留, review 反向 grep 引用)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+//   - UI 验证通过浏览器执行 (page.goto + DOM 断言 + server response)
+//   - 使用 server-go(4901) + vite(5174), 不 mock 4901
+//   - CV-4 runtime stub uses owner direct commit (comment kept for reviewer grep)
+//   - 不允许 fs.* / page.evaluate(fetch) / API-only / noop
 
-// CV-4 runtime stub: direct owner commit (not server mock) — 跟 chn-4 验收 §3.2
-// 一致, 给 review 反向 grep 引用使用.
+// CV-4 runtime stub: direct owner commit (not server mock), matching chn-4
+// acceptance §3.2 and kept as a review grep target.
 import {
   test,
   expect,
@@ -86,15 +86,17 @@ function clientURL(): string {
 
 async function attachToken(ctx: BrowserContext, token: string): Promise<void> {
   const url = new URL(clientURL());
-  await ctx.addCookies([{
-    name: 'borgee_token',
-    value: token,
-    domain: url.hostname,
-    path: '/',
-    httpOnly: true,
-    secure: false,
-    sameSite: 'Lax',
-  }]);
+  await ctx.addCookies([
+    {
+      name: 'borgee_token',
+      value: token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+    },
+  ]);
 }
 
 async function createChannel(user: RegisteredUser, name: string): Promise<string> {
@@ -106,12 +108,11 @@ async function createChannel(user: RegisteredUser, name: string): Promise<string
   return j.channel.id;
 }
 
-test.describe('CHN-4 follow-up — 反约束兜底 + 跨 org 隔离', () => {
-  test('§4.4 + 边界: DM 行 sidebar 不挂 drag handle ⋮⋮ (channel pin 路径反向断言)', async ({ browser }) => {
-    // 立场 ④ DM 视图永不含 workspace 7 源 byte-identical 同源延伸 — DM 行
-    // sidebar 也不渲染 #415 SortableChannelItem 的 drag handle ⋮⋮ (CHN-3.3
-    // SortableChannelItem.tsx 注释字面: "DM 行不渲染 (Sidebar.tsx DMItem
-    // 绕过此组件; 此 component 只服务 channel rows)").
+test.describe('CHN-4 follow-up — constraints + cross-org isolation', () => {
+  test('§4.4 + edge case: DM sidebar row has no drag handle ⋮⋮', async ({ browser }) => {
+    // DM view never includes workspace controls. The sidebar DM row also must not
+    // render the #415 SortableChannelItem drag handle ⋮⋮. CHN-3.3 documents that
+    // Sidebar.tsx DMItem bypasses this component, which only serves channel rows.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -120,7 +121,7 @@ test.describe('CHN-4 follow-up — 反约束兜底 + 跨 org 隔离', () => {
     const userA = await registerUser(serverURL, invA, 'a');
     const userB = await registerUser(serverURL, invB, 'b');
 
-    // userA 开 DM 跟 userB (POST /api/v1/dm/:userId 创建 DM channel).
+    // userA opens a DM with userB (POST /api/v1/dm/:userId creates the DM channel).
     const dmRes = await userA.ctx.post(`/api/v1/dm/${userB.userId}`);
     expect(dmRes.ok(), `dm open: ${dmRes.status()}`).toBe(true);
 
@@ -130,28 +131,29 @@ test.describe('CHN-4 follow-up — 反约束兜底 + 跨 org 隔离', () => {
     await page.goto(`${clientURL()}/`);
     await expect(page.locator('.sidebar-title')).toBeVisible();
 
-    // CHN-4 wrapper: 删 waitForTimeout(500) 死等 → 用 Playwright auto-retry
-    // (sidebar 渲染 DM list 后 .sortable-handle count==0, 5s retry 替死等).
+    // Use Playwright auto-retry instead of waitForTimeout(500); once the sidebar
+    // renders the DM list, .sortable-handle should remain count==0.
 
-    // 反向断言: DM 行 sidebar 不挂 drag handle (SortableChannelItem 不服务 DM).
-    // CHN-3.3 SortableChannelItem.tsx 字面: 仅 channel rows 渲染 .sortable-handle.
-    // 这里反向断: data-channel-type="dm" 子树内 .sortable-handle count==0.
+    // DM sidebar rows must not render drag handles because SortableChannelItem
+    // only serves channel rows. Assert count==0 under data-channel-type="dm".
     const dmRowsWithHandle = await page
       .locator('[data-channel-type="dm"] .sortable-handle')
       .count();
     expect(dmRowsWithHandle, 'DM 行 sidebar 不挂 drag handle ⋮⋮').toBe(0);
 
-    // 边界态截屏 — DM sidebar (无 drag handle / 反约束视觉证据).
+    // Edge-case screenshot: DM sidebar without a drag handle.
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.x-chn4-followup-dm-no-handle.png'),
       fullPage: false,
     });
   });
 
-  test('§4.5 + 边界: 跨 org channel 双轴隔离 — userA 不见 userB private channel (CHN-1 同源)', async ({ browser }) => {
-    // CHN-1 双轴隔离 (org / channel) — 反约束 §4.5 4 路径不污染同精神
-    // 延伸到 channel 可见性: A org user 创 private channel 后, B org user
-    // (不在 channel.member) GET /channels 不见此 channel.
+  test('§4.5 + edge case: cross-org channel isolation hides userA private channel from userB', async ({
+    browser,
+  }) => {
+    // CHN-1 two-axis isolation (org / channel) extends to channel visibility:
+    // after an A-org user creates a private channel, a B-org user who is not in
+    // channel.member must not see it in GET /channels.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -164,7 +166,7 @@ test.describe('CHN-4 follow-up — 反约束兜底 + 跨 org 隔离', () => {
     const chName = `chn4f-private-${stamp}`;
     const chId = await createChannel(userA, chName);
 
-    // userB 视角 GET /channels — 反向断言 chId 不在列表.
+    // userB GET /channels must not include chId.
     const listRes = await userB.ctx.get('/api/v1/channels');
     expect(listRes.ok()).toBe(true);
     const list = (await listRes.json()) as {
@@ -173,18 +175,18 @@ test.describe('CHN-4 follow-up — 反约束兜底 + 跨 org 隔离', () => {
     const found = list.channels.find((c) => c.id === chId);
     expect(found, `userB 不应见 userA private channel ${chName}`).toBeUndefined();
 
-    // 反向断言 — userB 直接 GET /channels/:id 也 403/404 (不 leak).
+    // Direct GET /channels/:id as userB must also return 403/404.
     const directRes = await userB.ctx.get(`/api/v1/channels/${chId}`);
     expect([403, 404], `直 GET 应 reject; got ${directRes.status()}`).toContain(directRes.status());
 
-    // 边界态截屏 — userB 视角 sidebar 不见 userA 的 private channel (跨 org 隔离视觉证据).
+    // Edge-case screenshot: userB sidebar does not show userA's private channel.
     const ctx = await browser.newContext();
     await attachToken(ctx, userB.token);
     const page = await ctx.newPage();
     await page.goto(`${clientURL()}/`);
     await expect(page.locator('.sidebar-title')).toBeVisible();
-    // CHN-4 wrapper: 删 waitForTimeout — Playwright toHaveCount auto-retry 5s
-    // 替死等. 跟 RT-1.2 latency CI 时序敏感修法同精神.
+    // Use Playwright toHaveCount auto-retry instead of waitForTimeout; this avoids
+    // a timing-sensitive fixed delay.
     await expect(
       page.locator('.channel-name', { hasText: chName }),
       `userB sidebar 不应见 ${chName}`,
@@ -195,30 +197,31 @@ test.describe('CHN-4 follow-up — 反约束兜底 + 跨 org 隔离', () => {
     });
   });
 
-  test('§4.7 + §4.8: 反 server mock + 不新 WS frame (走真 4901 反向断言)', async () => {
-    // 立场 ③ — e2e 走真 server-go(4901) + vite(5174), 不 mock.
-    // 此 test 不调 client 路径, 仅反向断言 server endpoint 真实存在
-    // (不 mock) + 反约束 endpoint 不存在.
+  test('§4.7 + §4.8: uses real server and does not add a new WebSocket frame', async () => {
+    // E2E uses real server-go(4901) + vite(5174), with no server mock. This test
+    // only checks server endpoints: /health exists, while unsupported endpoints
+    // do not.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const ctx = await apiRequest.newContext({ baseURL: serverURL });
 
-    // §4.7 反 mock — /health 真返 (server 真起).
+    // §4.7: /health must respond from the real server.
     const health = await ctx.get('/health');
     expect(health.ok(), 'server-go health endpoint must exist').toBe(true);
 
-    // §4.8 反约束 — 不存在 /api/v1/channels/:id/scene 拼装端点 (立场 ① +
-    // acceptance §4.2 字面). server 端 grep 已锁, e2e 反向 GET 任意 channel id
-    // 都 404 (endpoint 根本没注册).
+    // §4.8: /api/v1/channels/:id/scene must not exist. Server-side grep covers
+    // registration; this E2E GET verifies an arbitrary channel id returns 404.
     const sceneRes = await ctx.get('/api/v1/channels/probe/scene');
     expect(sceneRes.status(), '/scene 拼装端点不应存在 (立场 ①)').toBe(404);
 
-    // §4.6 反约束 — 不存在 PUT /channels/:id/default_tab 作者级偏好 endpoint.
+    // §4.6: PUT /channels/:id/default_tab author preference endpoint must not exist.
     const tabRes = await ctx.fetch('/api/v1/channels/probe/default_tab', {
       method: 'PUT',
       data: { default_tab: 'workspace' },
     });
-    // 405 (method not allowed) 或 404 (endpoint 不存在) 均合规.
-    expect([404, 405], `default_tab PUT endpoint 不应存在; got ${tabRes.status()}`).toContain(tabRes.status());
+    // 405 (method not allowed) or 404 (endpoint absent) are both compliant.
+    expect([404, 405], `default_tab PUT endpoint 不应存在; got ${tabRes.status()}`).toContain(
+      tabRes.status(),
+    );
   });
 });

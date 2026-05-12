@@ -5,8 +5,8 @@
 //   - 分组折叠二态: data-collapsed + aria-label "折叠分组" + ▶/▼ icon
 //   - 右键菜单 "置顶" / "取消置顶" + role="menu" + data-context="channel-pin"
 //   - 保存失败 toast 文案: "侧栏顺序保存失败, 请重试"
-//   - DM 行反向断: 无拖拽 handle + 无右键 pin 菜单 (DM 走独立 MergedDmList 路径)
-//   - SPA reload 后 GET /me/layout 拉, 拖拽顺序 + 折叠状态恢复 (不挂 push frame)
+//   - DM 行不显示拖拽 handle，也不显示右键 pin 菜单 (DM 使用独立 MergedDmList 路径)
+//   - SPA reload 后 GET /me/layout 拉取并恢复拖拽顺序 + 折叠状态 (不依赖 push frame)
 //   - G3.x demo 截屏归档 g3.x-chn3-sidebar-reorder.png
 //
 // 关联文档:
@@ -14,11 +14,17 @@
 //   - 上游: PR #410 (schema), #412 (server REST), #415 (client wiring)
 //
 // 实施约束:
-//   - 真 UI 走浏览器 (page.dragTo + page.click + DOM 断)
+//   - UI 验证通过浏览器执行 (page.dragTo + page.click + DOM 断言)
 //   - 失败 toast 文案在 e2e / server const / client / acceptance / 本 spec 五处一致
 //   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
-import { test, expect, request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
+import {
+  test,
+  expect,
+  request as apiRequest,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,7 +33,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
 
-// 文案锁 byte-identical 5 源 (改一处 → 改五处单测锁).
+// Locked copy shared by five sources; update all related tests when changing it.
 const TOAST_LITERAL = '侧栏顺序保存失败, 请重试';
 const PIN_LITERAL = '置顶';
 const UNPIN_LITERAL = '取消置顶';
@@ -78,15 +84,17 @@ async function registerUser(
 async function attachToken(page: Page, baseURL: string, token: string) {
   const url = new URL(baseURL);
   await page.context().clearCookies();
-  await page.context().addCookies([{
-    name: 'borgee_token',
-    value: token,
-    domain: url.hostname,
-    path: '/',
-    httpOnly: true,
-    secure: false,
-    sameSite: 'Lax',
-  }]);
+  await page.context().addCookies([
+    {
+      name: 'borgee_token',
+      value: token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+    },
+  ]);
 }
 
 async function createChannel(serverURL: string, token: string, name: string): Promise<string> {
@@ -101,7 +109,10 @@ async function createChannel(serverURL: string, token: string, name: string): Pr
 }
 
 test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
-  test('① drag handle DOM byte-identical + aria-label + ⋮⋮ icon visible on channel rows', async ({ page, baseURL }) => {
+  test('① drag handle DOM byte-identical + aria-label + ⋮⋮ icon visible on channel rows', async ({
+    page,
+    baseURL,
+  }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -112,23 +123,30 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
 
     await page.goto('/');
     await expect(page.locator('.sidebar-title')).toBeVisible();
-    // 反约束 ① — drag handle DOM 字面 byte-identical (chn-3-content-lock §1 ①)
+    // Constraint ①: drag handle DOM text must match chn-3-content-lock §1 ①.
     const handles = page.locator('.channel-list [data-sortable-handle]');
     await expect(handles.first()).toBeVisible({ timeout: 10_000 });
     const aria = await handles.first().getAttribute('aria-label');
     expect(aria, '① aria-label 字面 byte-identical 跟 #402 §1 ①').toBe('拖拽调整顺序');
-    // ⋮⋮ icon 字面 (反约束: 不准 "Drag" / 拖动 / 排序 同义词).
+    // The icon text must be ⋮⋮, not a synonym such as "Drag", 拖动, or 排序.
     const text = await handles.first().textContent();
     expect(text?.trim()).toBe('⋮⋮');
   });
 
-  test('③ right-click channel → pin menu shows "置顶" / "取消置顶" + role="menu" + data-context', async ({ page, baseURL }) => {
+  test('③ right-click channel → pin menu shows "置顶" / "取消置顶" + role="menu" + data-context', async ({
+    page,
+    baseURL,
+  }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
     const inviteCode = await mintInvite(adminCtx, 'chn-3.3-pin');
     const owner = await registerUser(serverURL, inviteCode, 'pinner');
-    const chID = await createChannel(serverURL, owner.token, `chn33-pin-${Date.now().toString(36)}`);
+    const chID = await createChannel(
+      serverURL,
+      owner.token,
+      `chn33-pin-${Date.now().toString(36)}`,
+    );
     await attachToken(page, baseURL!, owner.token);
 
     await page.goto('/');
@@ -136,18 +154,18 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
 
     // Capture PUT /me/layout request to assert pin path.
     const putPromise = page.waitForResponse(
-      r => r.url().endsWith('/api/v1/me/layout') && r.request().method() === 'PUT',
+      (r) => r.url().endsWith('/api/v1/me/layout') && r.request().method() === 'PUT',
       { timeout: 10_000 },
     );
 
     const channelRow = page.locator(`.channel-list [data-sortable-handle]`).first();
     await channelRow.click({ button: 'right' });
 
-    // ③ menu DOM byte-identical (chn-3-content-lock §1 ③).
+    // ③ menu DOM must match chn-3-content-lock §1 ③.
     const menu = page.locator('menu[role="menu"][data-context="channel-pin"]');
     await expect(menu).toBeVisible({ timeout: 5_000 });
 
-    // First open: not pinned → "置顶" 字面 byte-identical.
+    // First open: not pinned, so the menu shows the locked "置顶" text.
     const pinBtn = menu.getByText(PIN_LITERAL, { exact: true });
     await expect(pinBtn).toBeVisible();
 
@@ -169,7 +187,10 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
     expect(pinned!.position, 'position = MIN-1.0 单调小数 (立场 ③)').toBeLessThan(0);
   });
 
-  test('⑤ DM row 反约束: no drag handle + no pin menu (5 源 byte-identical)', async ({ page, baseURL }) => {
+  test('⑤ DM row 反约束: no drag handle + no pin menu (5 源 byte-identical)', async ({
+    page,
+    baseURL,
+  }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -194,15 +215,15 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
     const dmList = page.locator('.dm-list[data-kind="dm"]');
     await expect(dmList).toBeVisible({ timeout: 10_000 });
 
-    // ⑤ 反约束 — DM 行无拖拽 handle (5 源 byte-identical).
+    // ⑤ DM rows must not render a drag handle.
     const dmHandles = dmList.locator('[data-sortable-handle]');
     expect(await dmHandles.count(), 'DM rows MUST NOT render sortable handle').toBe(0);
 
-    // ⑤ 反约束 — DM 行右键不弹 pin 菜单.
+    // ⑤ Right-clicking a DM row must not open the pin menu.
     // DM rows live in dm-list, ChannelList right-click only fires inside
-    // .channel-list (反约束 omit-not-disable: DM 行不进 ChannelList).
+    // .channel-list; DM rows are omitted from ChannelList rather than disabled.
     const dmRow = dmList.locator('.channel-item').first();
-    if (await dmRow.count() > 0) {
+    if ((await dmRow.count()) > 0) {
       await dmRow.click({ button: 'right' });
       // No channel-pin menu should appear.
       const menu = page.locator('menu[data-context="channel-pin"]');
@@ -210,8 +231,11 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
     }
   });
 
-  test('G3.x demo screenshot — sidebar reorder + folding + DM 反约束', async ({ page, baseURL }) => {
-    // 截屏路径 byte-identical 跟 #391 §1 + chn-3-content-lock §3 同源.
+  test('G3.x demo screenshot — sidebar reorder + folding + DM constraints', async ({
+    page,
+    baseURL,
+  }) => {
+    // Screenshot path matches #391 §1 + chn-3-content-lock §3.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -225,9 +249,11 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
 
     await page.goto('/');
     await expect(page.locator('.sidebar-title')).toBeVisible();
-    await expect(page.locator('.channel-list [data-sortable-handle]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.channel-list [data-sortable-handle]').first()).toBeVisible({
+      timeout: 10_000,
+    });
 
-    // Capture the sidebar — handle ⋮⋮ + DM row no handle 都框在内.
+    // Capture the sidebar with the ⋮⋮ handle and the DM row no-handle state.
     const sidebar = page.locator('.sidebar');
     await sidebar.screenshot({
       path: path.join(HERE, '../../../docs/qa/screenshots/g3.x-chn3-sidebar-reorder.png'),
