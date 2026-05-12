@@ -118,7 +118,7 @@ func TestBPP_NoFrameRedefinition(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ① broken: SDK redefines frame structs (must reuse server envelope): %v", hits)
+		t.Errorf("BPP-7 frame schema reuse constraint broken: SDK redefines frame structs (must reuse server envelope): %v", hits)
 	}
 }
 
@@ -158,7 +158,7 @@ func TestBPP_NoForeignWSLib(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ② broken: SDK imports foreign ws lib: %v", hits)
+		t.Errorf("BPP-7 WebSocket library constraint broken: SDK imports a non-server WebSocket library: %v", hits)
 	}
 }
 
@@ -202,13 +202,13 @@ func TestBPP_NoClientDispatcher(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ⑤ broken: SDK introduces client-side dispatcher: %v", hits)
+		t.Errorf("BPP-7 server-side dispatch constraint broken: SDK introduces client-side dispatcher: %v", hits)
 	}
 }
 
-// TestBPP_AdminGodModeNotMounted — acceptance §1.4 ADM-0 §1.3.
+// TestBPP_AdminOnlySDKPathNotMounted — acceptance §1.4 ADM-0 §1.3.
 // admin*.go in internal/api/ must not reference SDK / BPP-7 paths.
-func TestBPP_AdminGodModeNotMounted(t *testing.T) {
+func TestBPP_AdminOnlySDKPathNotMounted(t *testing.T) {
 	dir := "../../internal/api"
 	entries, err := os.ReadDir(dir)
 	if err != nil {
