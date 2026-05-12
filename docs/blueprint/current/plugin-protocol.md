@@ -82,11 +82,11 @@ request_clarification    # 跟某个 user 索要更多信息
   - runtime 自己的私有 opaque blob 字段（Borgee 不解读，只透明传递）
 - Borgee UI 通用渲染 model 选择器，**不写死** OpenClaw / Hermes 的具体模型列表
 
-#### Memory 边界（v1 不踩坑）
+#### Memory 边界（v1 防止职责越界）
 
 - **memory_ref 在 Borgee**：用户在 Borgee UI 选择 agent 用哪份 memory（指针）
 - **memory 内容在 runtime**：实际向量库 / RAG 索引由 runtime 维护
-- v1 不让 Borgee 变向量库基础设施
+- v1 不让 Borgee 承担向量库基础设施职责
 
 > 这条直接让 [agent-lifecycle.md §2.1](agent-lifecycle.md) 的"用户完全自定义 agent" **明确**为：用户在 **Borgee UI** 完成配置，不去 OpenClaw 配置。配置面与运行时分离，跟"Borgee 不内置 runtime"不矛盾。
 
