@@ -1,35 +1,38 @@
-// Package auth — heartbeat_retention_sweeper.go: HB-5.2 原则 ① archived_at
-// soft-archive sweeper for agent_state_log + 原则 ④ time.Ticker (no scheduler
-// framework) + 原则 ⑤ best-effort.
+// Package auth — heartbeat_retention_sweeper.go: HB-5.2 archived_at
+// soft-archive sweeper for agent_state_log, using time.Ticker instead of a
+// scheduler framework and best-effort logging.
 //
 // Blueprint: agent-lifecycle.md §2.3 forward-only state log + AL-7 #533
-// archived_at retention 模式延伸. Spec: docs/implementation/modules/
-// hb-5-spec.md (战马D v0) §0 原则 ① + §1 拆段 HB-5.2.
+// archived_at retention pattern. Spec: docs/implementation/modules/
+// hb-5-spec.md (v0) §0 principle 1 + §1 HB-5.2.
 //
 // What this does (one round-trip closes the HB-5 retention loop):
 //
 //   - On each tick (1h DefaultRetentionInterval reused from AL-7) UPDATE
 //     agent_state_log SET archived_at = now WHERE ts < (now -
 //     HeartbeatRetentionDays*24h) AND archived_at IS NULL.
-//   - 不真删 — UPDATE not DELETE (反向 grep DELETE FROM agent_state_log
-//     在 production 0 hit; forward-only 跟 AL-1 + AL-7 原则一致).
-//   - 不另起 archive 表 — agent_state_log.archived_at 列单一来源 (反向 grep
-//     heartbeat_archive_table 等 0 hit, 原则 ① 守).
-//   - 不引入 scheduler 框架 — time.Ticker (跟 AP-2 / AL-7 sweeper 同模式).
-//   - reason 复用 AL-1a 6-dict — HeartbeatSweeperReason = reasons.Unknown
-//     byte-identical 跟 AL-7 SweeperReason 同源 (AL-1a 守护链第 17 处, 原则 ②).
+//   - Soft-archives only: UPDATE, never DELETE (reverse-grep reference
+//     DELETE FROM agent_state_log has zero production hits; this matches the
+//     AL-1 and AL-7 forward-only rule).
+//   - Does not add a separate archive table: agent_state_log.archived_at is
+//     the single source (reverse-grep references such as heartbeat_archive_table
+//     have zero hits).
+//   - Does not add a scheduler framework: time.Ticker matches AP-2 / AL-7 sweepers.
+//   - Reuses the AL-1a six-reason set: HeartbeatSweeperReason = reasons.Unknown
+//     stays byte-identical with AL-7 SweeperReason.
 //
-// Public surface (跟 AL-7 RetentionSweeper 同模式 nil-safe):
+// Public surface (nil-safe like AL-7 RetentionSweeper):
 //   - HeartbeatRetentionSweeper{Store, Logger, RetentionDays, Interval, Now}
 //   - (s *HeartbeatRetentionSweeper) Start(ctx) — goroutine 1h ticker.
 //   - (s *HeartbeatRetentionSweeper) RunOnce(ctx) (count int, err error).
 //
-// 反向约束 (hb-5-spec.md §0 + 原则 ①④⑤⑥):
-//   - 不真删 row — UPDATE archived_at, 不 DELETE.
-//   - 不拆表 — 复用 agent_state_log.
-//   - 不引入 scheduler 框架 — time.Ticker only.
-//   - 不开 retention queue — AST 守护链延伸第 9 处 forbidden token 0 hit.
-//   - heartbeat retention 30d 字面单一来源 — HeartbeatRetentionDays = 30.
+// Constraints (hb-5-spec.md §0 + principles 1, 4, 5, and 6):
+//   - Do not delete rows: write archived_at with UPDATE, never DELETE.
+//   - Do not split data into a new table: reuse agent_state_log.
+//   - Do not introduce a scheduler framework: use time.Ticker only.
+//   - Do not open a retention queue: forbidden-token scans stay at zero hits.
+//   - Keep the 30-day heartbeat retention literal single-sourced:
+//     HeartbeatRetentionDays = 30.
 package auth
 
 import (
@@ -42,26 +45,27 @@ import (
 )
 
 // HeartbeatRetentionDays is the default heartbeat/agent_state_log
-// retention window in days. 蓝图 hb-5-spec.md §0.6 字面 30d (心跳频次
-// 高于 audit, 30d cover 1 month rolling). Admin override (POST
+// retention window in days. Blueprint hb-5-spec.md §0.6 pins the 30d literal
+// because heartbeat rows are more frequent than audit rows and should cover a
+// rolling month. Admin override (POST
 // /admin-api/v1/heartbeat-retention/override) writes one admin_actions
 // row reusing AL-7 'audit_retention_override' action with metadata
-// target='heartbeat' (反向 enum 脱节; 原则 ② 守).
+// target='heartbeat' to keep the enum aligned.
 const HeartbeatRetentionDays = 30
 
 // HeartbeatTargetLabel is the byte-identical metadata.target literal
-// written by HB-5 admin override (跟 AL-7 audit override target='admin_
-// actions' 二选一字面区分). 原则 ②: HB-5 复用 AL-7 既有 action.
+// written by HB-5 admin override; it is the counterpart to the AL-7 audit
+// override target='admin_actions'. HB-5 intentionally reuses the AL-7 action.
 const HeartbeatTargetLabel = "heartbeat"
 
 // HeartbeatSweeperReason is the AL-1a 6-dict byte-identical const
-// referenced by the heartbeat retention sweeper. AL-1a reason 守护链第
-// 17 处 (AL-7 SweeperReason #15 + AL-8 #16 不变不脱节). 原则 ②: HB-5 不
-// 另起 reason 字典 — 复用 reasons.Unknown.
+// referenced by the heartbeat retention sweeper. This is another entry in the
+// AL-1a reason alignment chain. HB-5 does not create a new reason dictionary;
+// it reuses reasons.Unknown.
 const HeartbeatSweeperReason = reasons.Unknown
 
 // HeartbeatRetentionSweeper periodically archives expired agent_state_log
-// rows by UPDATE archived_at = now (forward-only soft-archive, 不真删).
+// rows by UPDATE archived_at = now (forward-only soft-archive, never a real delete).
 //
 // All fields optional (nil-safe). Pattern mirrors AL-7 RetentionSweeper
 // #533 for cross-milestone consistency.
@@ -94,8 +98,8 @@ func (s *HeartbeatRetentionSweeper) now() time.Time {
 	return time.Now()
 }
 
-// Start launches the sweeper goroutine. nil-safe ctx-aware shutdown 跟
-// AL-7 RetentionSweeper 同模式.
+// Start launches the sweeper goroutine with nil-safe, ctx-aware shutdown like
+// AL-7 RetentionSweeper.
 func (s *HeartbeatRetentionSweeper) Start(ctx context.Context) {
 	if s == nil || s.Store == nil {
 		return
@@ -123,8 +127,8 @@ func (s *HeartbeatRetentionSweeper) Start(ctx context.Context) {
 // instant returns count==0 (already-archived rows excluded by WHERE
 // archived_at IS NULL).
 //
-// 原则 ①: UPDATE not DELETE (forward-only soft-archive). 反向 grep
-// `DELETE FROM agent_state_log` 在 production *.go 0 hit.
+// Principle 1: UPDATE, not DELETE (forward-only soft-archive). Reverse-grep
+// reference `DELETE FROM agent_state_log` has zero hits in production *.go files.
 func (s *HeartbeatRetentionSweeper) RunOnce(ctx context.Context) (int, error) {
 	if s == nil || s.Store == nil {
 		return 0, nil

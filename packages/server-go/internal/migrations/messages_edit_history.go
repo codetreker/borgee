@@ -4,30 +4,31 @@ import "gorm.io/gorm"
 
 // messagesEditHistory is migration v=34 — Phase 6 / DM-7.1.
 //
-// Blueprint锚: dm-model.md §3 audit forward-only history. Spec brief:
-// docs/implementation/modules/dm-7-spec.md §0 设计 ① + §1 拆段 DM-7.1.
+// Blueprint reference: dm-model.md §3 audit forward-only history. Spec brief:
+// docs/implementation/modules/dm-7-spec.md §0 design point 1 + §1 DM-7.1.
 //
-// What this migration does (跟 AL-7.1 admin_actions ADD archived_at +
+// What this migration does (same nullable ALTER ADD COLUMN pattern as AL-7.1
+// admin_actions ADD archived_at,
 // HB-5.1 agent_state_log ADD archived_at + AP-1.1+AP-3.1+AP-2.1 across seven
 // nullable ALTER ADD COLUMN migrations):
 //
 //	ALTER TABLE messages ADD COLUMN edit_history TEXT NULL
 //
 // edit_history is a JSON array of `{old_content, ts, reason}` entries
-// appended each time UpdateMessage runs (DM-4 #553 既有 PATCH path 单源
-// 不漂). NULL = no edits / 老消息行 byte-identical 不动 / 现网行为
-// 零变.
+// appended each time UpdateMessage runs; the existing DM-4 #553 PATCH path is
+// the single source. NULL = no edits; legacy message rows stay byte-identical;
+// current behavior is unchanged.
 //
-// 反约束 (dm-7-spec.md §0 设计 ①+④):
-//   - 不添加 NOT NULL — edit_history NULL = 无历史 (跟 AL-7.1 archived_at
-//     NULL = active 同精神).
-//   - 不添加 default 值 — NULL 是合法终态.
-//   - 不另起 message_edit_history 表 — JSON array on messages 列单源
-//     (grep 检查 `message_edit_history\|message_history_log\|dm7_history`
-//     0 hit, 设计 ① 守).
+// Constraints (dm-7-spec.md §0 design points 1 and 4):
+//   - Do not add NOT NULL: edit_history NULL = no history, matching AL-7.1
+//     archived_at NULL = active.
+//   - Do not add a default: NULL is the valid terminal value.
+//   - Do not create a message_edit_history table: the JSON array on messages is
+//     the single source. Grep reference
+//     `message_edit_history\|message_history_log\|dm7_history` stays at zero hits.
 //
 // v=34 sequencing: AL-7.1 v=33 (#536 merged) → DM-7.1 **v=34** (本
-// migration). registry.go 字面锁; 顺位.
+// migration). registry.go pins the literal version and ordering.
 //
 // v0 stance: forward-only, no Down().
 var messagesEditHistory = Migration{
@@ -39,7 +40,7 @@ var messagesEditHistory = Migration{
 		} else if !exists {
 			return nil
 		}
-		// Idempotent guard 跟 AL-7.1 / HB-5.1 同模式.
+		// Idempotent guard matching AL-7.1 / HB-5.1.
 		if has, err := hasColumn(tx, "messages", "edit_history"); err != nil {
 			return err
 		} else if has {
