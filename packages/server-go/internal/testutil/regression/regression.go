@@ -3,11 +3,11 @@
 //
 // INFRA-1b.3 — see docs/current/server/testing.md (testutil/regression).
 //
-// Why: 闸 5 of README.md mandates that every merged milestone's "4.1 acceptance
-// invariant" automatically rolls into the regression suite from that point on.
-// Without a registry the human (烈马) must remember which tests count as
-// regression. With a registry, the test files declare themselves at init() and
-// `make regression` runs the union.
+// Why: README.md gate 5 requires every merged milestone's "4.1 acceptance
+// invariant" to be included in the regression suite from that point on.
+// Without a registry, maintainers must remember which tests count as regression
+// coverage. With a registry, test files declare themselves at init() and
+// `make regression` runs the combined set.
 //
 // The mechanism is deliberately minimal:
 //

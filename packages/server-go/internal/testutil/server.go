@@ -24,16 +24,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// PERF: ADM-0.1/0.2 require BORGEE_ADMIN_* env at server.New()'s admin.Bootstrap.
-// Pre-2026-04-29 NewTestServer used t.Setenv per call — that flips t.Parallel
-// into a serial path (Setenv-bearing tests cannot Parallel). Moved env setup
-// to package init so callers can `t.Parallel()` freely. The values are stable
-// test-only literals (bcrypt cost=10 hash of "password123") that never reach
-// production.
+// Performance note: ADM-0.1/0.2 require BORGEE_ADMIN_* env vars when
+// server.New() runs admin.Bootstrap. Before 2026-04-29, NewTestServer used
+// t.Setenv per call, which prevents tests from using t.Parallel. Env setup now
+// lives in package init so callers can use `t.Parallel()` freely. The values
+// are stable test-only literals (bcrypt cost=10 hash of "password123") that
+// never reach production.
 func init() {
 	os.Setenv("BORGEE_ADMIN_LOGIN", "test-admin")
 	os.Setenv("BORGEE_ADMIN_PASSWORD_HASH", "$2a$10$1TyjYX4YfwjnX5EpcGsH2uY5IUVuZZm4HFZBtMz1m5yBO4qM9Ulr6")
-	// TEST-FIX-3-COV PERF: lower bcrypt cost in tests to MinCost (4) so admin
+	// TEST-FIX-3-COV performance: lower bcrypt cost in tests to MinCost (4) so admin
 	// /users register paths run ~1ms instead of ~150ms (cost=10). Production
 	// keeps cost=10 (var BcryptCost defaults via env BORGEE_TEST_FAST_BCRYPT
 	// not set in production cmd/*). Direct override to bypass env-once init.
@@ -43,11 +43,11 @@ func init() {
 func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config) {
 	t.Helper()
 
-	// TEST-FIX-3-COV: 走 store.MigratedStoreFromTemplate 替代 store.Open(":memory:")
-	// + Migrate. ~26ms → ~7ms per call (3.7x). 120+ tests files 用此 helper,
-	// internal/api 750+ tests 估省 ~14s wall clock. byte-identical schema
-	// (template 跑同一份 Migrate); reproducible per-test isolation (各 test
-	// file-backed clone, single-conn SQLite, t.Cleanup 清盘).
+	// TEST-FIX-3-COV: use store.MigratedStoreFromTemplate instead of
+	// store.Open(":memory:") + Migrate. This reduces setup from ~26ms to ~7ms
+	// per call. The schema stays byte-identical because the template runs the
+	// same migration path, while each test still gets an isolated file-backed
+	// SQLite clone and t.Cleanup handles teardown.
 	s := store.MigratedStoreFromTemplate(t)
 
 	// PERF (was t.Setenv blocking parallel): admin env now in package init.
@@ -65,10 +65,10 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	}
 
 	// ADM-0.3 (v=10): users.role enum collapsed to {'member', 'agent'}; admin
-	// authority lives exclusively on the /admin-api/* rail behind admin sessions
-	// (see admin-model.md §1.2). Owner + admin fixtures here are user-rail
+	// authority lives exclusively on /admin-api/* behind admin sessions
+	// (see admin-model.md §1.2). Owner + admin fixtures here are user API
 	// `member` accounts with the AP-0 default `(*, *)` wildcard — they retain
-	// every user-API capability without re-introducing the role short-circuit.
+	// every user API capability without re-introducing the role short-circuit.
 	// The ADM-0.2 explicit `(*, *)` splice is now redundant (the member default
 	// grant covers it) and the ADM-0.3 migration sweeps any leftover wildcard
 	// rows belonging to deleted role='admin' users.
@@ -98,7 +98,7 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	admin := &store.User{
 		// Display name retained for back-compat with existing tests that
 		// resolve users by name (`testutil.GetUserIDByName(... "Admin")`).
-		// ADM-0.3: this is a user-rail member fixture, NOT a god-mode admin.
+		// ADM-0.3: this is a user API member fixture, not an admin bypass account.
 		DisplayName:  "Admin",
 		Role:         "member",
 		Email:        &adminEmail,
@@ -107,7 +107,7 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	if err := s.CreateUser(admin); err != nil {
 		t.Fatalf("create admin: %v", err)
 	}
-	// CM-3: admin shares owner's org so existing single-tenant tests still see
+	// CM-3: this fixture shares the owner's org so existing single-tenant tests still see
 	// shared resources.
 	if err := s.UpdateUser(admin.ID, map[string]any{"org_id": owner.OrgID}); err != nil {
 		t.Fatalf("set admin org_id: %v", err)
@@ -180,10 +180,10 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 //	tok1 := testutil.LoginAs(t, ts.URL, "admin@test.com", "password123")
 //	fake.Advance(2 * time.Second)
 //	tok2 := testutil.LoginAs(t, ts.URL, "admin@test.com", "password123")
-//	// tok1 != tok2 (different iat byte-identical 跟 prod 1s sleep 等价)
+//	// tok1 != tok2 (different iat, equivalent to the production 1s sleep path)
 //
-// Production path 不变 — server.New() 默认 clk=nil, AuthHandler.now() 走
-// time.Now() byte-identical 跟 PERF-JWT-CLOCK 前.
+// Production path is unchanged: server.New() defaults clk=nil, and
+// AuthHandler.now() uses time.Now() as it did before PERF-JWT-CLOCK.
 func NewTestServerWithFakeClock(t *testing.T) (*httptest.Server, *store.Store, *config.Config, *clock.Fake) {
 	t.Helper()
 	ts, s, cfg := NewTestServer(t)
@@ -236,7 +236,7 @@ func LoginAsAdmin(t *testing.T, serverURL string) string {
 }
 
 // AdminJSON sends a request authenticated by the borgee_admin_session cookie.
-// User-rail JSON helper does not work for admin-rail endpoints anymore.
+// User API JSON helper does not work for admin API endpoints anymore.
 func AdminJSON(t *testing.T, method, url, sessionToken string, body any) (*http.Response, map[string]any) {
 	t.Helper()
 	var reqBody io.Reader
@@ -303,10 +303,10 @@ func JSON(t *testing.T, method, url, token string, body any) (*http.Response, ma
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		// ADM-0.2: /admin-api/* is gated by admin.RequireAdmin which only
-		// recognises the borgee_admin_session cookie. /api/* is gated by
+		// ADM-0.2: /admin-api/* is gated by admin.RequireAdmin, which only
+		// recognizes the borgee_admin_session cookie. /api/* is gated by
 		// auth.AuthMiddleware which uses borgee_token + Bearer. Same helper
-		// signature picks the right rail by URL prefix.
+		// signature picks the right API path by URL prefix.
 		if strings.Contains(url, "/admin-api/") {
 			req.AddCookie(&http.Cookie{Name: "borgee_admin_session", Value: token})
 		} else {
