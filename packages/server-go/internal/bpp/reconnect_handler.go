@@ -24,8 +24,8 @@
 //
 // Negative constraints (acceptance §4):
 //   - cross-owner reject, matching the BPP-3 / BPP-4 ACL pattern.
-//   - cursor 倒退 trust-but-log (warn `bpp.reconnect_cursor_regression`
-//     but do not reject; strict rejection is deferred to v2).
+//   - cursor regression uses trust-but-log: warn `bpp.reconnect_cursor_regression`
+//     but do not reject; strict rejection is deferred to v2.
 
 package bpp
 
@@ -89,8 +89,8 @@ func NewReconnectHandler(events EventLister, scope ChannelScopeResolver,
 	}
 }
 
-// errReconnectCrossOwnerReject — cross-owner ACL fail (跟 BPP-3 ack
-// dispatcher errAckCrossOwnerReject 同模式).
+// errReconnectCrossOwnerReject — cross-owner ACL failure, matching the BPP-3 ack
+// dispatcher errAckCrossOwnerReject pattern.
 var errReconnectCrossOwnerReject = errors.New(
 	"bpp: reconnect_handshake cross-owner reject")
 

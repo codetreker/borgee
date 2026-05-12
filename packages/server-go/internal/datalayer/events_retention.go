@@ -2,13 +2,14 @@
 //
 // Spec: docs/implementation/modules/dl-2-spec.md §1 DL2.2.
 //
-// 立场 (跟 AL-7 / HB-5 audit retention sweeper 同精神承袭):
-//   - per-kind retention 阈值: RetentionDaysForKind (must-persist=-1 永不删 /
-//     channel/message=30 / agent_task/artifact=60 / 其他=90).
-//   - row-level retention_days 列覆盖 default (NULL = use kind default).
-//   - ctx-aware Start(ctx) — ctx cancel 触发 graceful shutdown, 反 goroutine
-//     leak (跟 #608 ctx wiring + heartbeat_retention_sweeper 同精神).
-//   - tick interval 测试可注入 (default 1h, 测试用 0 触发 immediate run).
+// Policy (matching the AL-7 / HB-5 audit retention sweeper pattern):
+//   - per-kind retention threshold: RetentionDaysForKind (must-persist=-1 never
+//     reaped / channel+message=30 / agent_task+artifact=60 / other=90).
+//   - row-level retention_days overrides the default (NULL = use kind default).
+//   - Start(ctx) is ctx-aware: ctx cancel triggers graceful shutdown and avoids
+//     goroutine leaks, matching #608 ctx wiring + heartbeat_retention_sweeper.
+//   - tick interval is injectable for tests (default 1h; tests use 0 to drive
+//     RunOnce manually).
 
 package datalayer
 

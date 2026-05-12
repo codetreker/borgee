@@ -1,13 +1,14 @@
-// Package datalayer — events_threshold.go: DL-3 §1 阈值哨 4 metric.
+// Package datalayer — events_threshold.go: DL-3 §1 threshold monitor for 4 metrics.
 //
 // Spec: docs/implementation/modules/dl-3-spec.md §1 DL3.1.
-// Blueprint: data-layer.md §5 阈值哨 (db_size / wal_pending / write_lock / row_count).
+// Blueprint: data-layer.md §5 threshold monitor (db_size / wal_pending / write_lock / row_count).
 //
-// 立场 (跟 DL-2 #615 retention sweeper 同精神承袭):
-//   - 4 阈值常量字面 byte-identical 跟蓝图 §5
-//   - level 双档 enum (WARN / CRITICAL), 反 inline 字面漂
-//   - ctx-aware Start(ctx), 反 goroutine leak (#608 / #614 / #615 立场承袭)
-//   - slog Logger.Warn/Error 输出, 反 admin god-mode endpoint (ADM-0 §1.3 红线)
+// Policy (matching the DL-2 #615 retention sweeper pattern):
+//   - 4 threshold constants are byte-identical with blueprint §5.
+//   - level has two alert tiers (WARN / CRITICAL), avoiding scattered inline literals.
+//   - Start(ctx) is ctx-aware to avoid goroutine leaks (#608 / #614 / #615).
+//   - Alerts go through slog Logger.Warn/Error; there is no admin endpoint for
+//     this path (ADM-0 §1.3 prohibition).
 
 package datalayer
 
@@ -44,9 +45,9 @@ func (l ThresholdLevel) String() string {
 	}
 }
 
-// DBThreshold is the canonical 4-metric SSOT for v1 single-machine阈值哨.
+// DBThreshold is the canonical 4-metric SSOT for the v1 single-machine threshold monitor.
 //
-// v1 估算值 (蓝图 §5 byte-identical), 上线后可调 follow-up tune:
+// v1 estimates (byte-identical with blueprint §5), tunable in a follow-up after rollout:
 //   - db_size_mb         WARN=5000  CRITICAL=10000
 //   - wal_pending_pages  WARN=1000  CRITICAL=5000
 //   - write_lock_wait_ms WARN=100   CRITICAL=1000
@@ -58,7 +59,7 @@ type DBThreshold struct {
 }
 
 // DefaultThresholds returns the 4 canonical metrics with v1 estimates.
-// 立场: 单源 const 不散落, 反 inline literal drift.
+// Policy: keep threshold constants in one place to avoid inline literal drift.
 func DefaultThresholds() []DBThreshold {
 	return []DBThreshold{
 		{Name: "db_size_mb", Warn: 5000, Critical: 10000},
@@ -86,8 +87,8 @@ type MetricCollector interface {
 }
 
 // ThresholdMonitor periodically reads 4 metrics, classifies vs DBThreshold,
-// emits slog Warn/Error on threshold crossings. ctx-aware Start(ctx) graceful
-// shutdown 跟 DL-2 EventsRetentionSweeper 同模式承袭.
+// emits slog Warn/Error on threshold crossings. Start(ctx) performs graceful
+// shutdown with the same ctx-aware pattern as DL-2 EventsRetentionSweeper.
 type ThresholdMonitor struct {
 	collectors map[string]MetricCollector // metric name → collector
 	thresholds []DBThreshold
@@ -105,7 +106,7 @@ func NewThresholdMonitor(db *gorm.DB, logger *slog.Logger, interval time.Duratio
 	collectors := map[string]MetricCollector{
 		"db_size_mb":         &sqliteDBSizeCollector{db: db},
 		"wal_pending_pages":  &sqliteWALPagesCollector{db: db},
-		"write_lock_wait_ms": &noopCollector{}, // v1 placeholder (SQLite 单写, no contention metric)
+		"write_lock_wait_ms": &noopCollector{}, // v1 placeholder (SQLite single-writer, no contention metric)
 		"events_row_count":   &sqliteRowCountCollector{db: db, table: "channel_events"},
 	}
 	return &ThresholdMonitor{

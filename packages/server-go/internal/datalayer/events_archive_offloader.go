@@ -2,17 +2,20 @@
 // offload.
 //
 // Spec: docs/implementation/modules/dl-3-spec.md §1 DL3.2.
-// Blueprint: data-layer.md §5 阈值哨 + cold archive offload.
+// Blueprint: data-layer.md §5 threshold monitor + cold archive offload.
 //
-// 立场 (跟 DL-2 #615 EventStore + retention sweeper 同精神承袭):
-//   - 当 channel_events 行数超 offload threshold → 走 SQLite ATTACH 旁库
-//     INSERT SELECT 把 created_at < cutoff 的 row 搬到 archive_<yyyy-mm>.db,
-//     源表 DELETE 同事务 — v1 单机磁盘, v2+ 切 Storage interface (蓝图 §4.B.8).
-//   - audit log "events.archive_offload" 走 DL-2 EventBus.Publish 必落 kind
-//     (跟 must_persist_kinds.go admin.force_* 同精神承袭, EventBus 不挂
-//     admin god-mode endpoint, ADM-0 §1.3 红线).
-//   - ctx-aware RunOnce(ctx), 反 goroutine leak (DL-2 retention sweeper 立场
-//     承袭).
+// Policy (matching DL-2 #615 EventStore + retention sweeper):
+//   - When channel_events exceeds the offload threshold, use SQLite ATTACH on a
+//     side database, INSERT SELECT rows with created_at < cutoff into
+//     archive_<yyyy-mm>.db, then DELETE source rows in the same transaction. v1
+//     uses single-machine disk; v2+ moves through the Storage interface
+//     (blueprint §4.B.8).
+//   - Audit log "events.archive_offload" goes through DL-2 EventBus.Publish as a
+//     must-persist kind, matching must_persist_kinds.go admin.force_*. EventBus
+//     does not expose an admin endpoint for manual offload control (ADM-0 §1.3
+//     prohibition).
+//   - RunOnce(ctx) is ctx-aware to avoid goroutine leaks, matching the DL-2
+//     retention sweeper policy.
 
 package datalayer
 
@@ -47,10 +50,10 @@ type EventsArchiveOffloader struct {
 }
 
 // NewEventsArchiveOffloader constructs an offloader. archiveDir is created
-// on first run. threshold=0 → use default 1_000_000 (蓝图 §5 events_row_count
+// on first run. threshold=0 → use default 1_000_000 (blueprint §5 events_row_count
 // WARN). cutoffAge=0 → 30 days (channel.* default retention). interval=0
 // disables background ticker (caller drives via RunOnce for tests); WIRE-1
-// production wires interval=time.Hour 跟 ThresholdMonitor 同精神 ctx-aware.
+// production wires interval=time.Hour with the same ctx-aware pattern as ThresholdMonitor.
 func NewEventsArchiveOffloader(db *gorm.DB, bus EventBus, logger *slog.Logger, archiveDir string, threshold int64, cutoffAge, interval time.Duration) *EventsArchiveOffloader {
 	if threshold <= 0 {
 		threshold = 1_000_000
@@ -76,8 +79,8 @@ func NewEventsArchiveOffloader(db *gorm.DB, bus EventBus, logger *slog.Logger, a
 
 // Start runs the offloader loop until ctx cancels. Returns immediately;
 // caller may `<-offloader.Done()` after ctx cancel to ensure clean shutdown
-// (反 goroutine leak, 跟 DL-2 EventsRetentionSweeper / DL-3 ThresholdMonitor
-// 同模式承袭).
+// to avoid goroutine leaks, matching DL-2 EventsRetentionSweeper and
+// DL-3 ThresholdMonitor.
 func (o *EventsArchiveOffloader) Start(ctx context.Context) {
 	if o.interval <= 0 {
 		o.stopOnce.Do(func() { close(o.stopped) })
@@ -197,8 +200,9 @@ func (o *EventsArchiveOffloader) RunOnce(ctx context.Context) (OffloadResult, er
 		return res, txErr
 	}
 
-	// Audit via DL-2 EventBus (must-persist kind admin.force_* 邻域;
-	// kind = "events.archive_offload" 跟 spec §0 立场 ② 字面 byte-identical).
+	// Audit via DL-2 EventBus. This is in the must-persist neighborhood of
+	// admin.force_*; kind = "events.archive_offload" is byte-identical with spec
+	// §0 principle ②.
 	if o.bus != nil {
 		payload := []byte(fmt.Sprintf(
 			`{"archive_path":%q,"rows_archived":%d,"rows_deleted":%d,"cutoff_ms":%d}`,

@@ -2,10 +2,11 @@
 // for the `anchor_comment_added` push frame. Anchors review-comments
 // posted on artifact_versions to the artifact's channel members.
 //
-// Blueprint reference: docs/blueprint/current/canvas-vision.md §1.6 (锚点对话 = owner
-// review agent 产物的工具). Spec brief: docs/implementation/modules/cv-2-spec.md
+// Blueprint reference: docs/blueprint/current/canvas-vision.md §1.6 (anchor
+// conversation = owner review tool for agent artifacts). Spec brief:
+// docs/implementation/modules/cv-2-spec.md
 // §0 points 1 + 3 + §1 CV-2.2 breakdown + spec v2 envelope (10 fields, field name
-// `author_kind` 不复用 CV-1 `committer_kind`).
+// `author_kind`, not CV-1 `committer_kind`).
 //
 // Behaviour contract — follows the same wire pattern as RT-1.1 ArtifactUpdatedFrame
 // (cursor is the second field and uses the same CursorAllocator monotonic sequence):
@@ -14,9 +15,9 @@
 //      (RT-1 spec §1.1: no separate channel).
 //   2. Field order contract: type/cursor/anchor_id/comment_id/artifact_id/
 //      artifact_version_id/channel_id/author_id/author_kind/created_at
-//      (cv-2-spec.md §0 立场 ③ + 飞马 v2 changelog 字面 — 第 9 字段
-//      `author_kind` 不是 `kind`, 跟 anchor_comments.author_kind 列名
-//      一致, anchor 是评论作者非 commit 提交者).
+//      (cv-2-spec.md §0 principle ③ + v2 changelog wording: the 9th field is
+//      `author_kind`, not `kind`, matching the anchor_comments.author_kind column;
+//      the anchor records the comment author, not the commit author).
 //   3. JSON tags must match client ws-frames.ts field names (BPP-1 #304 envelope
 //      CI lint).
 //
@@ -44,7 +45,7 @@ type AnchorCommentAddedFrame struct {
 	ArtifactVersionID int64  `json:"artifact_version_id"`
 	ChannelID         string `json:"channel_id"`
 	AuthorID          string `json:"author_id"`
-	AuthorKind        string `json:"author_kind"` // 'human' | 'agent' (注: 不是 committer_kind)
+	AuthorKind        string `json:"author_kind"` // 'human' | 'agent' (not committer_kind)
 	CreatedAt         int64  `json:"created_at"`  // Unix ms
 }
 

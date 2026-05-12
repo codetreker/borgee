@@ -33,8 +33,8 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// AckErrCode* — error code literals byte-identical 跟 BPP-2.2
-// task_outcome_unknown / BPP-2.3 config_field_disallowed 命名同模式.
+// AckErrCode* — error code literals are byte-identical with the BPP-2.2
+// task_outcome_unknown / BPP-2.3 config_field_disallowed naming pattern.
 const (
 	AckErrCodeStatusUnknown    = "bpp.ack_status_unknown"
 	AckErrCodeReasonUnknown    = "bpp.ack_reason_unknown"
@@ -43,8 +43,7 @@ const (
 
 // errAckStatusUnknown / errAckReasonUnknown / errAckCrossOwnerReject
 // — sentinels callers can errors.Is against to map to wire-level error
-// codes (跟 BPP-2.1 errSemanticOpUnknown / BPP-2.2 errOutcomeUnknown
-// 同模式).
+// codes, matching BPP-2.1 errSemanticOpUnknown / BPP-2.2 errOutcomeUnknown.
 var (
 	errAckStatusUnknown    = errors.New("bpp: agent_config_ack status unknown (3-enum: applied/rejected/stale)")
 	errAckReasonUnknown    = errors.New("bpp: agent_config_ack reason unknown (not in AL-1a 6 dict)")
@@ -52,17 +51,17 @@ var (
 )
 
 // IsAckStatusUnknown / IsAckReasonUnknown / IsAckCrossOwnerReject —
-// sentinel matchers (跟 BPP-2.1 IsSemanticOpUnknown / BPP-2.2
-// IsTaskOutcomeUnknown 同模式).
+// sentinel matchers, matching BPP-2.1 IsSemanticOpUnknown / BPP-2.2
+// IsTaskOutcomeUnknown.
 func IsAckStatusUnknown(err error) bool { return errors.Is(err, errAckStatusUnknown) }
 func IsAckReasonUnknown(err error) bool { return errors.Is(err, errAckReasonUnknown) }
 func IsAckCrossOwnerReject(err error) bool {
 	return errors.Is(err, errAckCrossOwnerReject)
 }
 
-// validAckStatuses — 3-enum membership set byte-identical 跟 acceptance
-// §1.2 CHECK enum (跟 al_2b_frames_test.go::isValidAckStatus 同源, 此处
-// 提到 prod 路径).
+// validAckStatuses — 3-enum membership set byte-identical with acceptance
+// §1.2 CHECK enum (same source as al_2b_frames_test.go::isValidAckStatus;
+// this is the production path reference).
 var validAckStatuses = map[string]bool{
 	AgentConfigAckStatusApplied:  true,
 	AgentConfigAckStatusRejected: true,
@@ -72,9 +71,9 @@ var validAckStatuses = map[string]bool{
 // validAL1aReason — REFACTOR-REASONS moved the single source to
 // internal/agent/reasons.
 //
-// 历史: 此处原 inline 6 字面 byte-identical 跟 agent/state.go Reason*
-// (#249/#305/#321/#380/#454/#458/#481/#492 八处单测守护链), REFACTOR-REASONS
-// 一 PR dedupe 到 internal/agent/reasons 单一来源 包.
+// History: this file previously had inline 6 literals byte-identical with
+// agent/state.go Reason* (#249/#305/#321/#380/#454/#458/#481/#492 test-lock
+// chain). REFACTOR-REASONS deduped them to the internal/agent/reasons SSOT.
 func validAL1aReason(s string) bool { return reasons.IsValid(s) }
 
 // AckSessionContext is the per-plugin-connection context the
@@ -93,11 +92,11 @@ type AckSessionContext struct {
 // AgentConfigAckHandler is the seam between the bpp package and the api
 // package for processing a validated AgentConfigAckFrame. The api
 // package implements one handler that:
-//   - Looks up agent_configs.schema_version 单一来源 当前值;
+//   - Looks up the current agent_configs.schema_version SSOT value;
 //   - Compares against frame.SchemaVersion (mismatch → log stale, skip
-//     last_applied_at 更新);
+//     last_applied_at update);
 //   - For Status==applied: UPDATE agent_configs.last_applied_at;
-//   - For Status∈{rejected,stale}: log warn (best-effort, 不 block).
+//   - For Status∈{rejected,stale}: log warn (best-effort, non-blocking).
 //
 // Negative constraint: bpp does not import internal/api; handler is injected
 // through an interface.
@@ -106,10 +105,10 @@ type AgentConfigAckHandler interface {
 }
 
 // OwnerResolver resolves an agent_id to its owner user UUID for cross-
-// owner ACL. The api package wires this to the agents table (跟 既有
-// REST handler owner-only ACL 同闸 — 出处 #360 / DM-2 #372 同模式).
+// owner ACL. The api package wires this to the agents table, using the same
+// gate as existing REST handler owner-only ACL (#360 / DM-2 #372 pattern).
 //
-// Returns ("", error) when agent_id 不存在; the dispatcher treats this
+// Returns ("", error) when agent_id does not exist; the dispatcher treats this
 // as a soft reject (frame from disconnected agent — log warn but don't
 // crash).
 type OwnerResolver interface {
@@ -119,18 +118,18 @@ type OwnerResolver interface {
 // AckDispatcher routes validated AgentConfigAckFrame instances to the
 // registered AgentConfigAckHandler. Validation order:
 //
-//  1. frame.Status ∈ validAckStatuses (3-enum). enum 外 → errAckStatusUnknown.
-//  2. when Status ∈ {rejected, stale} 且 Reason 非空: Reason ∈
-//     validAL1aReasons (AL-1a 6-dict). 字典外 → errAckReasonUnknown.
+//  1. frame.Status ∈ validAckStatuses (3-enum). Values outside the enum → errAckStatusUnknown.
+//  2. when Status ∈ {rejected, stale} and Reason is non-empty: Reason ∈
+//     validAL1aReasons (AL-1a 6-dict). Values outside the dictionary → errAckReasonUnknown.
 //  3. cross-owner check: resolver.OwnerOf(frame.AgentID) == sess.OwnerUserID.
 //     mismatch → errAckCrossOwnerReject.
 //  4. Delegate to handler.HandleAck(frame, sess).
 //
-// 反向约束 (acceptance §4):
-//   - admin god-mode 不入此路径 (handler.HandleAck 走 owner-only ACL,
-//     CI 反向 grep 守 al-2b-spec §3 第 3 行).
-//   - 不接 raw HTTP / REST endpoint (interface seam, dispatcher 零
-//     internal/api import — 跟 BPP-2.1 同模式).
+// Negative constraints (acceptance §4):
+//   - admin routes do not enter this path. handler.HandleAck uses owner-only
+//     ACL, and CI reverse grep guards al-2b-spec §3 line 3.
+//   - no raw HTTP / REST endpoint here. The interface seam keeps dispatcher with
+//     zero internal/api imports, matching BPP-2.1.
 type AckDispatcher struct {
 	handler  AgentConfigAckHandler
 	resolver OwnerResolver
@@ -163,7 +162,7 @@ func (d *AckDispatcher) Dispatch(frame AgentConfigAckFrame, sess AckSessionConte
 			errAckStatusUnknown, frame.Status)
 	}
 
-	// 2. Reason 字典 (仅 rejected/stale 且 Reason 非空时校验).
+	// 2. Reason dictionary (validate only when rejected/stale and Reason is non-empty).
 	if frame.Status != AgentConfigAckStatusApplied && frame.Reason != "" {
 		if !validAL1aReason(frame.Reason) {
 			return fmt.Errorf("%w: reason=%q (AL-1a 6-dict: api_key_invalid/quota_exceeded/network_unreachable/runtime_crashed/runtime_timeout/unknown)",

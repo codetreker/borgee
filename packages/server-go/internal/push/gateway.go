@@ -1,28 +1,30 @@
 // Package push — gateway.go: DL-4.3 Web Push gateway (server → browser
 // push via VAPID).
 //
-// Blueprint锚: docs/blueprint/current/client-shape.md L46 字面 "manifest.json +
-// push subscription endpoint + VAPID key 生成 + server-go 一个 push
-// 通道接 data-layer §3.4 global_events fan-out".
+// Blueprint anchor: docs/blueprint/current/client-shape.md L46 wording:
+// "manifest.json + push subscription endpoint + VAPID key generation + one
+// server-go push channel wired to data-layer §3.4 global_events fan-out".
 // Spec brief: docs/implementation/modules/dl-4-spec.md §1 DL-4.3.
 //
 // What this gateway does:
 //   1. Read VAPID private/public/subject from server env at construction
-//      (Bootstrap fail-loud if missing — 跟 admin Bootstrap env 同模式).
+//      (Bootstrap fails loudly if missing, matching the admin Bootstrap env pattern).
 //   2. Send(userID, payload) — query web_push_subscriptions WHERE
 //      user_id=? → for each row, web-push library encrypt + POST endpoint.
 //   3. 410 Gone response → DELETE subscription row (browser unsubscribed,
-//      表 GC). Other errors → log warn, continue.
+//      table cleanup). Other errors → log warn, continue.
 //   4. Best-effort: caller (mention dispatch / agent_task_state_changed
-//      派生) doesn't await; failures don't propagate (跟 DM-2.2 #372
-//      mention dispatch 同模式).
+//      derive) doesn't await; failures don't propagate, matching DM-2.2 #372
+//      mention dispatch.
 //
-// 反约束 (蓝图 L22 + spec §0 立场 ①②③):
-//   - VAPID 私钥仅 server env 读, 不入表 / 不入 request body / 不入 log.
+// Negative constraints (blueprint L22 + spec §0 principles ①②③):
+//   - VAPID private key is read only from server env. It is not stored in a
+//     table, request body, or log.
 //   - Push 不走 hub.cursors sequence (fire-and-forget).
-//   - 不开 admin god-mode 主动 push 给特定用户路径 (反向 grep
-//     `admin.*push\.Gateway|admin.*PushSubscribe` count==0).
-//   - subscription 410 Gone → DELETE row (单源退订, 不开 enabled=false).
+//   - There is no admin route for actively pushing to a specific user. The
+//     reverse-grep check is `admin.*push\.Gateway|admin.*PushSubscribe` count==0.
+//   - subscription 410 Gone → DELETE row. Unsubscribe state has one source: the
+//     row is deleted instead of keeping an enabled=false flag.
 package push
 
 import (
@@ -94,8 +96,9 @@ func (g *noopGateway) Send(ctx context.Context, userID string, payload map[strin
 //   - BORGEE_VAPID_SUBJECT     (mailto:admin@example.com OR https://...)
 //
 // Returns (Gateway, nil) on success; (nil, error) on missing env. Caller
-// MAY fall back to NewNoopGateway in dev (跟 admin Bootstrap 区分: admin
-// 必须 fail-loud panic, push 是体验补丁不阻 server 启动).
+// MAY fall back to NewNoopGateway in dev. This differs from admin Bootstrap,
+// which must panic on missing env; push is a user-experience add-on and should
+// not block server startup.
 func NewGateway(s *store.Store, logger *slog.Logger) (Gateway, error) {
 	pub := os.Getenv("BORGEE_VAPID_PUBLIC_KEY")
 	priv := os.Getenv("BORGEE_VAPID_PRIVATE_KEY")
@@ -131,7 +134,8 @@ type subscriptionRow struct {
 // do not propagate — caller is fire-and-forget (跟 DM-2.2 #372 同模式).
 //
 // Per-row error handling:
-//   - 410 Gone: subscription expired/unsubscribed → DELETE row (单源 GC).
+//   - 410 Gone: subscription expired/unsubscribed → DELETE row as the single
+//     cleanup source.
 //   - Other 4xx/5xx: log warn, do not delete.
 //   - Transport error: log warn, do not delete (transient).
 func (g *vapidGateway) Send(ctx context.Context, userID string, payload map[string]any) int {
@@ -181,7 +185,7 @@ func (g *vapidGateway) sendOne(ctx context.Context, body []byte, row subscriptio
 		Subscriber:      g.subject,
 		VAPIDPublicKey:  g.publicKey,
 		VAPIDPrivateKey: g.privateKey,
-		TTL:             30, // seconds — short-lived, AI 团队感不延迟
+		TTL:             30, // seconds — short-lived so AI-team status feels current
 	})
 	if err != nil {
 		return fmt.Errorf("send: %w", err)
@@ -189,7 +193,8 @@ func (g *vapidGateway) sendOne(ctx context.Context, body []byte, row subscriptio
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
-		// Subscription dead — DELETE row (单源 GC, 蓝图 L22 退订单源).
+		// Subscription dead — DELETE row; blueprint L22 makes row deletion the
+		// single unsubscribe state.
 		if err := g.store.DB().Exec(`DELETE FROM web_push_subscriptions WHERE id = ?`, row.ID).Error; err != nil {
 			return fmt.Errorf("410 GC delete failed: %w", err)
 		}

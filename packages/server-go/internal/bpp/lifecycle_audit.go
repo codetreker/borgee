@@ -43,10 +43,10 @@ import (
 // actor='system'. Changes must be coordinated with BPP-4 and AP-2.
 const LifecycleSystemActor = "system"
 
-// Action constants — admin_actions CHECK enum 5 条 plugin_* 字面
-// byte-identical 跟 migration v=31 (bpp_8_1_admin_actions_plugin_actions.go)
-// CHECK 字面同源. 改 = 改 migration CHECK + 此 const + acceptance §1
-// 同步.
+// Action constants — the 5 plugin_* literals in the admin_actions CHECK enum
+// are byte-identical with migration v=31 (bpp_8_1_admin_actions_plugin_actions.go)
+// CHECK literals. Any change must update the migration CHECK, these consts, and
+// acceptance §1 together.
 const (
 	LifecycleActionConnect          = "plugin_connect"
 	LifecycleActionDisconnect       = "plugin_disconnect"
@@ -68,8 +68,8 @@ type LifecycleAuditor interface {
 }
 
 // LifecycleAuditStore is the seam to *store.Store's InsertAdminAction
-// helper — bpp 包不直 import store 业务边界, 走 interface 注入 (跟
-// BPP-3/4/5/6 同模式).
+// helper. The bpp package does not import store directly across the business
+// boundary; it uses interface injection, matching BPP-3/4/5/6.
 type LifecycleAuditStore interface {
 	InsertAdminAction(actorID, targetUserID, action, metadata string) (string, error)
 }
@@ -136,10 +136,10 @@ func (a *AdminActionsLifecycleAuditor) RecordReconnect(pluginID, agentID string,
 
 // RecordColdStart — BPP-6 #522 cold_start_handler.go hook.
 //
-// 设计 ② reason 复用 AL-1a 6-dict — caller passes restartReason (typically
-// reasons.RuntimeCrashed byte-identical 跟 BPP-6 + BPP-7 SDK 同源, AL-1a
-// reason 对齐位第 13 处). 反向断言: caller 必走 reasons.* const 不
-// hardcode "runtime_crashed" 字符串.
+// Design ②: reason reuses the AL-1a 6-dict. Caller passes restartReason
+// (typically reasons.RuntimeCrashed, byte-identical with BPP-6 + BPP-7 SDK and
+// the AL-1a reason alignment point). Negative assertion: caller must use the
+// reasons.* const instead of hardcoding the "runtime_crashed" string.
 func (a *AdminActionsLifecycleAuditor) RecordColdStart(pluginID, agentID, restartReason string) {
 	a.recordEvent(LifecycleActionColdStart, agentID, map[string]any{
 		"plugin_id":      pluginID,
@@ -149,12 +149,12 @@ func (a *AdminActionsLifecycleAuditor) RecordColdStart(pluginID, agentID, restar
 
 // RecordHeartbeatTimeout — BPP-4 #499 watchdog hook.
 //
-// 设计 ② reason 字面 byte-identical=reasons.NetworkUnreachable (跟 BPP-4
-// watchdog SetError reason byte-identical, AL-1a 对齐位第 13 处).
+// Design ②: reason literal is byte-identical with reasons.NetworkUnreachable,
+// matching the BPP-4 watchdog SetError reason and AL-1a alignment point.
 func (a *AdminActionsLifecycleAuditor) RecordHeartbeatTimeout(pluginID, agentID string) {
 	a.recordEvent(LifecycleActionHeartbeatTimeout, agentID, map[string]any{
 		"plugin_id": pluginID,
-		"reason":    reasons.NetworkUnreachable, // AL-1a 对齐位第 13 处 byte-identical
+		"reason":    reasons.NetworkUnreachable, // AL-1a alignment point, byte-identical
 	})
 }
 

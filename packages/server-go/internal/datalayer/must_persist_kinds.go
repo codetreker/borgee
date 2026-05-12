@@ -1,13 +1,15 @@
-// Package datalayer — must_persist_kinds.go: DL-2 §3 必落 kind enum SSOT.
+// Package datalayer — must_persist_kinds.go: DL-2 §3 must-persist kind enum SSOT.
 //
-// Spec: docs/implementation/modules/dl-2-spec.md §0 立场 ② + 蓝图 §3.4
-// 隐私契约必落 4 类.
+// Spec: docs/implementation/modules/dl-2-spec.md §0 principle ② + blueprint
+// §3.4 privacy contract for 4 must-persist categories.
 //
-// 立场:
-//   - 4 类必落 kind (perm.grant / perm.revoke / impersonate.* / agent.state /
-//     admin.force_*) 永不 retention sweeper 删 (隐私契约 = 永久审计).
-//   - SSOT 单源, 反 inline 字面漂 (反向 grep `mustPersistKinds`/`MustPersistKind`
-//     count==1 hit, 跟 reasons.IsValid #496 / AP-4-enum #591 同精神承袭).
+// Policy:
+//   - 4 must-persist kind categories (perm.grant / perm.revoke / impersonate.* /
+//     agent.state / admin.force_*) are never deleted by the retention sweeper
+//     because the privacy contract requires permanent audit.
+//   - This SSOT avoids inline literal drift. Reverse grep for
+//     `mustPersistKinds`/`MustPersistKind` must find one definition, matching the
+//     reasons.IsValid #496 / AP-4-enum #591 pattern.
 
 package datalayer
 
@@ -16,11 +18,11 @@ import "strings"
 // MustPersistKindPrefixes is the canonical set of event kind prefixes that
 // MUST persist forever (never reaped by retention sweeper).
 //
-// 蓝图 §3.4 隐私契约 4 类:
-//  1. 权限授予/撤销 — `perm.grant`, `perm.revoke`
-//  2. 模拟会话 — `impersonate.start`, `impersonate.end`
-//  3. agent 上下线状态切换 — `agent.state` (busy/idle/error/offline)
-//  4. admin 强删/禁用 — `admin.force_delete`, `admin.force_disable`
+// Blueprint §3.4 privacy contract categories:
+//  1. permission grant/revoke — `perm.grant`, `perm.revoke`
+//  2. impersonation sessions — `impersonate.start`, `impersonate.end`
+//  3. agent state transitions — `agent.state` (busy/idle/error/offline)
+//  4. admin force-delete/disable — `admin.force_delete`, `admin.force_disable`
 var MustPersistKindPrefixes = []string{
 	"perm.",
 	"impersonate.",
@@ -40,7 +42,7 @@ func IsMustPersistKind(kind string) bool {
 }
 
 // DefaultRetentionDays for events not in MustPersistKindPrefixes and without
-// an explicit retention_days override. Per spec §0 立场 ②:
+// an explicit retention_days override. Per spec §0 principle ②:
 //   - default: 90 days
 //   - per-channel events (channel.*, message.*): 30 days
 //   - agent_task / artifact: 60 days

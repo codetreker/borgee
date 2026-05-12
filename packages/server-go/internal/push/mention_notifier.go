@@ -3,8 +3,9 @@
 // MentionPushNotifier interface that internal/api/mention_dispatch.go
 // expects.
 //
-// Blueprint锚: docs/blueprint/current/client-shape.md L37 ("@你, agent 完成长任务
-// — AI 团队异步协作的核心 UX") + DL-4 spec §1 DL-4.6 fan-out hook.
+// Blueprint anchor: docs/blueprint/current/client-shape.md L37 ("@ you, agent
+// finished a long task — core UX for async AI-team collaboration") + DL-4 spec
+// §1 DL-4.6 fan-out hook.
 //
 // What this adapter does:
 //   1. Translate (sender_id, channel_name, body_preview) → push payload
@@ -12,10 +13,10 @@
 //   2. Invoke Gateway.Send(targetUserID, payload) — best-effort, returns
 //      attempt count for observability.
 //
-// 反约束 (DL-4 spec §0 立场 ②③):
-//   - fire-and-forget: 不返 error, 仅返 attempts count.
-//   - payload 不带 secret / token (跟 蓝图 §1.4 隐私 + AL-2a #447 SSOT
-//     立场承袭, push payload 是 metadata only).
+// Negative constraints (DL-4 spec §0 principles ②③):
+//   - fire-and-forget: no error return, only an attempts count.
+//   - payload carries no secret or token. It follows blueprint §1.4 privacy
+//     and AL-2a #447 SSOT constraints: push payloads are metadata only.
 package push
 
 import "context"
@@ -39,17 +40,17 @@ func NewMentionNotifier(g Gateway) *MentionNotifier {
 // NotifyMention implements MentionPushNotifier — fires push to the
 // mention target (cross-device, best-effort).
 //
-// Payload shape (蓝图 client-shape.md L37 字面 "@你"):
+// Payload shape (blueprint client-shape.md L37 "@ you" wording):
 //
 //	{
 //	  "kind": "mention",
 //	  "from": <sender_id>,
-//	  "channel": <channel_name>,  // 不是 channel_id, 直接给人看
-//	  "body": <body_preview>,     // 已 80 rune 截断 (DM-2.2)
+//	  "channel": <channel_name>,  // channel name, not channel_id, for display
+//	  "body": <body_preview>,     // already truncated to 80 runes (DM-2.2)
 //	  "ts": <created_at>          // Unix ms
 //	}
 //
-// Returns attempts count (跟 Gateway.Send 同语义, observability only).
+// Returns attempts count with the same observability-only semantics as Gateway.Send.
 func (n *MentionNotifier) NotifyMention(targetUserID, senderID, channelName, bodyPreview string, createdAt int64) int {
 	if n == nil || n.gateway == nil {
 		return 0
@@ -65,8 +66,8 @@ func (n *MentionNotifier) NotifyMention(targetUserID, senderID, channelName, bod
 }
 
 // AgentTaskNotifier is the RT-3 agent_task_state_changed → push adapter.
-// Fired when an agent transitions busy↔idle (蓝图 client-shape.md L37
-// "agent 完成长任务"). Invoked from server-derive hook (RT-3.2 follow-up
+// Fired when an agent transitions busy↔idle (blueprint client-shape.md L37
+// "agent completed a long task"). Invoked from server-derive hook (RT-3.2 follow-up
 // commit) for each channel member's user_id.
 //
 // Multi-recipient fan-out: caller iterates channel members + invokes
@@ -92,14 +93,15 @@ func NewAgentTaskNotifier(g Gateway) *AgentTaskNotifier {
 //	  "kind": "agent_task",
 //	  "agent_id": <agent_id>,
 //	  "state": "busy"|"idle",
-//	  "subject": <subject>,    // busy 必带非空 (蓝图 §1.1 ⭐), idle 空
-//	  "reason": <reason>,      // idle+failed 时 AL-1a 6 字典, 否则空
+//	  "subject": <subject>,    // non-empty when busy (blueprint §1.1 ⭐); empty when idle
+//	  "reason": <reason>,      // AL-1a 6-reason dictionary for idle+failed; otherwise empty
 //	  "ts": <changed_at>
 //	}
 //
-// 反约束: 跟 RT-3 frame 同立场 — busy 态 subject 必带非空 (蓝图 §1.1
-// 字面 "沉默胜于假 loading"); 调用方有责任传非空 subject (validator
-// 在 RT-3.2 派生 hook 已守, 此 notifier 只 forward).
+// Negative constraint: same as the RT-3 frame. A busy state must include a
+// non-empty subject (blueprint §1.1: "silence is better than fake loading").
+// The caller must pass that subject; the RT-3.2 derive hook validates it, and
+// this notifier only forwards the payload.
 func (n *AgentTaskNotifier) NotifyAgentTask(targetUserID, agentID, state, subject, reason string, changedAt int64) int {
 	if n == nil || n.gateway == nil {
 		return 0
