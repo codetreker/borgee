@@ -2,7 +2,7 @@
 
 代码位置：`/workspace/borgee/packages/plugins/openclaw/`。
 
-这个 package 是给 OpenClaw 安装的 channel 插件——把 Borgee 包装成一个普通的 chat channel（同 Slack、Discord plugin 同等地位），让 OpenClaw 上的 agent 可以在 Borgee 的频道里收发消息。
+这个 package 是给 OpenClaw 安装的 channel 插件——把 Borgee 包装成一个普通的 chat channel（与 Slack、Discord plugin 同级），让 OpenClaw 上的 agent 可以在 Borgee 的频道里收发消息。
 
 ## 1. 元数据 & 发现
 
@@ -25,7 +25,7 @@
 | `allowFrom` | — | 只接受这些 sender ID 的消息 |
 | `defaultTo` | — | outbound 默认目标 |
 
-**多 account**（让一个 plugin 实例驱动多个 agent）：
+**多 account**（让一个 plugin 实例运行多个 agent）：
 
 ```yaml
 channels:
@@ -64,7 +64,7 @@ src/
 
 ## 4. Transport 自适应
 
-`gateway.ts: startBorgeeGateway` 是 per-account lifecycle，根据 `transport` 选分支：
+`gateway.ts: startBorgeeGateway` 是每个 account 的 lifecycle，根据 `transport` 选择传输路径：
 
 - `transport: "ws"` → `runWsTransport`：直接使用 `/ws/plugin`。
 - `transport: "poll"` → `runPollLoop`：只使用长轮询。
@@ -101,7 +101,7 @@ src/
 - `api_response` → 解决 `apiCall` 等待中的 promise；
 - `pong`。
 
-`apiCall(method, path, body)` 通过 WS 执行一次"等价 HTTP"调用，30s 超时。`outbound.ts` 优先用 WS，失败再 fallback 到直接 HTTP。
+`apiCall(method, path, body)` 通过 WS 执行一次等价的 HTTP 调用，30s 超时。`outbound.ts` 优先用 WS，失败再 fallback 到直接 HTTP。
 
 ### Cursor 持久化 (`cursor-store.ts`)
 
@@ -123,7 +123,7 @@ src/
 - `channel:<uuid>` → 直接 POST。
 - `dm:<userId>` → 先 `POST /api/v1/dm/{userId}` 拿/建 channel，再 POST 消息。
 
-所有 mutation（send / edit / delete / reaction）默认走 WS `apiCall`，连接不可用时自动 fallback HTTP。
+所有 mutation（send / edit / delete / reaction）默认走 WS `apiCall`，连接不可用时自动 fallback 到 HTTP。
 
 ## 6. 与 server-go 的对偶
 
