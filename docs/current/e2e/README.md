@@ -47,7 +47,7 @@ server-go 通过环境变量切换:
 - `DATABASE_PATH` 落 e2e tmp 目录
 - `JWT_SECRET=e2e-test-secret-not-for-prod` 固定 (跨 run 复用 token 没意义)
 - `ADMIN_USER` / `ADMIN_PASSWORD` env bootstrap (ADM-0 之后改吃 `admins` 表)
-- `BORGEE_ADMIN_LOGIN=e2e-admin` + `BORGEE_ADMIN_PASSWORD_HASH=$2a$10$...` — ADM-0.1 fail-loud bootstrap invariant: env 任一缺 → server panic, 所以 e2e webServer 必须显式提供。bcrypt cost=10, 明文 `e2e-admin-pass-12345` (e2e 专用, 永不进 prod)。改 hash = 同步改 `playwright.config.ts` 的 `BORGEE_ADMIN_PASSWORD_HASH` 字面。
+- `BORGEE_ADMIN_LOGIN=e2e-admin` + `BORGEE_ADMIN_PASSWORD_HASH=$2a$10$...` — ADM-0.1 startup must fail visibly when required env vars are missing: env 任一缺 → server panic, 所以 e2e webServer 必须显式提供。bcrypt cost=10, 明文 `e2e-admin-pass-12345` (e2e 专用, 永不进 prod)。改 hash = 同步改 `playwright.config.ts` 的 `BORGEE_ADMIN_PASSWORD_HASH` 字面。
 
 client 通过 **`VITE_E2E_API_TARGET`** 把 vite proxy 从写死的 `localhost:4900` 切到 e2e server 端口。`packages/client/vite.config.ts` 读这个 env, 默认仍是 `4900` (开发流不变)。
 
