@@ -47,7 +47,7 @@ func TestCV_ListIterations_LimitClamp(t *testing.T) {
 }
 
 // TestCv4v2Iterations_NoSchemaChange — acceptance §1.2 设计 ④ 0 schema 改.
-// Reverse-grep production migrations + bpp/api packages for forbidden
+// Scan production migrations + bpp/api packages for forbidden
 // CV-4 v2 history table / event sequence literals.
 func TestCv4v2Iterations_NoSchemaChange(t *testing.T) {
 	t.Parallel()

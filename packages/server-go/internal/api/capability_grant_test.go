@@ -2,11 +2,12 @@
 // (acceptance §1.1-§1.5).
 //
 // Pins:
-//   1.1 dispatcher ValidSemanticOps 7→8 加 request_capability_grant
-//   1.2 handler 调 既有 system DM path (DM-2 message + quick_action)
-//   1.3 quick_action JSON shape byte-identical 跟 content-lock §2
-//   1.4 capability 走 AP-1 auth.Capabilities const, hardcode 0 hit
-//   1.5 反向约束 grep — DM 不开新 channel 类型 / capability 不 hardcode
+//
+//	1.1 dispatcher ValidSemanticOps 7→8 加 request_capability_grant
+//	1.2 handler 调 既有 system DM path (DM-2 message + quick_action)
+//	1.3 quick_action JSON shape exactly matches content-lock §2
+//	1.4 capability 走 AP-1 auth.Capabilities const, hardcode 0 hit
+//	1.5 negative source scan — DM 不开新 channel 类型 / capability 不 hardcode
 package api_test
 
 import (
@@ -25,7 +26,7 @@ import (
 )
 
 // REG-BPP32-001 (acceptance §1.1) — ValidSemanticOps 7→8 + new const
-// SemanticOpRequestCapabilityGrant byte-identical 跟 spec §1 设计 ①.
+// SemanticOpRequestCapabilityGrant exactly matches spec §1 design ①.
 func TestBPP_ValidSemanticOps_8Ops(t *testing.T) {
 	t.Parallel()
 	if got, want := len(bpp.ValidSemanticOps), 8; got != want {
@@ -41,7 +42,7 @@ func TestBPP_ValidSemanticOps_8Ops(t *testing.T) {
 }
 
 // REG-BPP32-002 (acceptance §1.2 + §1.3) — handler emits system DM with
-// byte-identical body literal + quick_action JSON shape锁定.
+// exact body literal + quick_action JSON shape lock.
 func TestBPP_RequestGrant_WritesSystemDM(t *testing.T) {
 	_, s, _ := testutil.NewTestServer(t)
 
@@ -96,7 +97,7 @@ func TestBPP_RequestGrant_WritesSystemDM(t *testing.T) {
 		t.Fatal("no system DM written")
 	}
 
-	// §1.2 — DM body byte-identical 跟 content-lock §1.
+	// §1.2 — DM body exactly matches content-lock §1.
 	wantBody := agent.DisplayName + " 想 artifact.commit 但缺权限 artifact.commit"
 	if rows[0].Content != wantBody {
 		t.Errorf("DM body literal:\n got: %q\nwant: %q", rows[0].Content, wantBody)
@@ -174,12 +175,12 @@ func TestBPP_RequestGrant_CapabilityWhitelistGuard(t *testing.T) {
 	}
 }
 
-// REG-BPP32-004 (acceptance §1.5 反向约束 #2) — DM 不开新 channel 类型,
-// 走既有 type='system' channel (CM-onboarding #203). Reverse grep guard.
+// REG-BPP32-004 (acceptance §1.5 negative check #2) — DM 不开新 channel 类型,
+// 走既有 type='system' channel (CM-onboarding #203). Negative source-scan guard.
 func TestBPP_ReverseGrep_NoNewChannelType(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
-	// 反向约束 grep: 不出现新 channel type literal (e.g. "permission_dm" /
+	// Negative source scan: 不出现新 channel type literal (e.g. "permission_dm" /
 	// "capability_request").
 	bad := regexp.MustCompile(`"capability_request"|"permission_denied_dm"|system_message_kind\s*=\s*"permission`)
 	hits := []string{}
@@ -200,13 +201,13 @@ func TestBPP_ReverseGrep_NoNewChannelType(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反向约束 原则 §1 broken — DM 不应另起 channel 类型, hit: %v", hits)
+		t.Errorf("source scan failed — DM should reuse the existing system channel type, hit: %v", hits)
 	}
 }
 
-// REG-BPP32-005 (acceptance §1.5 反向约束 #1 + spec §3 反向约束 #1) —
+// REG-BPP32-005 (acceptance §1.5 negative check #1 + spec §3 negative check #1) —
 // hardcode capability 字面 hardcode 0 hit (走 auth.<Const>).
-// Equivalent to AP-1 反向约束 #1 same source.
+// Equivalent to AP-1 negative check #1 same source.
 func TestBPP_ReverseGrep_NoHardcodedGrantCapability(t *testing.T) {
 	t.Parallel()
 	apiDir := filepath.Join("..", "api")
@@ -229,7 +230,7 @@ func TestBPP_ReverseGrep_NoHardcodedGrantCapability(t *testing.T) {
 		return nil
 	})
 	if len(hits) > 0 {
-		t.Errorf("反向约束 spec §3 #1 broken — GrantPermission Permission: \"<literal>\" hit at: %v (走 auth.<Capability> const)", hits)
+		t.Errorf("negative check spec §3 #1 broken — GrantPermission Permission: \"<literal>\" hit at: %v (走 auth.<Capability> const)", hits)
 	}
 }
 

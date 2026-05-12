@@ -3,18 +3,18 @@
 //
 // 覆盖的设计约束 (cv-4-spec.md §0 + acceptance §2 + §4 + 文案锁定
 // #380):
-//   - 设计第 1 条 域隔离 — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
+//   - design rule 1 domain isolation — messages 不污染 (acceptance §1.5 + §4.2 grep 检查, repo-
 //     level CI lint, 非 unit).
-//   - 设计第 2 条 CV-1 commit 单一来源 — POST /commits?iteration_id= atomic UPDATE
+//   - design rule 2 commits still go through CV-1 — POST /commits?iteration_id= atomic UPDATE
 //     running→completed; 反向约束 不开 /iterations/:id/commit 旁路
 //     (acceptance §2.2 + §4.1).
-//   - 设计第 3 条 server 不算 diff — grep 检查 CI (acceptance §2.6 + §4.4).
-//   - 设计第 4 条 state machine 4 态前向锁定 — 反 completed→running / failed→pending
+//   - design rule 3 server does not compute diff — grep 检查 CI (acceptance §2.6 + §4.4).
+//   - design rule 4 state machine 4 态前向锁定 — 反 completed→running / failed→pending
 //     等回退 reject (acceptance §2.3 + §4.3).
-//   - 设计第 5 条 AL-4 stub 默认拒绝 — agent_runtimes.status != 'running' →
-//     state='failed' + error_reason='runtime_not_registered' 字节级一致
+//   - design rule 5 AL-4 stub 默认拒绝 — agent_runtimes.status != 'running' →
+//     state='failed' + error_reason='runtime_not_registered' exact match
 //     跟 AL-1a #249 6 reason 同源 (acceptance §2.5).
-//   - 设计第 6 条 owner-only — non-owner POST /iterate → 403 (acceptance §2.1).
+//   - design rule 6 owner-only — non-owner POST /iterate → 403 (acceptance §2.1).
 package api_test
 
 import (
@@ -84,7 +84,7 @@ func TestCV_IterateOwnerOnly(t *testing.T) {
 
 // TestCV_AL4StubFailClosed_RuntimeNotRegistered 覆盖 acceptance §2.5:
 // when no agent_runtimes row with status='running' exists, iteration
-// transitions pending→failed atomically with error_reason 字节级一致
+// transitions pending→failed atomically with exact-match error_reason
 // 'runtime_not_registered' (AL-1a #249 6 reason 同源 不另起字典).
 func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 	t.Parallel()
@@ -98,10 +98,10 @@ func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 		t.Fatalf("iterate stub-fail not 201: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["state"] != api.IterationStateFailed {
-		t.Errorf("state 字节级一致检查失败: got %v, want %q", data["state"], api.IterationStateFailed)
+		t.Errorf("state exact-match check failed: got %v, want %q", data["state"], api.IterationStateFailed)
 	}
 	if data["error_reason"] != api.IterationErrorReasonRuntimeNotRegistered {
-		t.Errorf("error_reason 字节级一致检查失败: got %v, want %q",
+		t.Errorf("error_reason exact-match check failed: got %v, want %q",
 			data["error_reason"], api.IterationErrorReasonRuntimeNotRegistered)
 	}
 }
@@ -110,7 +110,7 @@ func TestCV_AL4StubFailClosed_RuntimeNotRegistered(t *testing.T) {
 // agent_runtimes row exists with status='running', AL-4 stub treats this
 // as "live" and persists state='running' (real plugin dispatch lands
 // when AL-4 runtime hub plugin path is wired — out of scope CV-4.2,
-// the seam is here so AL-4 后续 does NOT need to re-thread the
+// this integration point keeps future AL-4 work from re-threading the
 // switch).
 func TestCV_AL4Live_StateRunning(t *testing.T) {
 	t.Parallel()
@@ -131,12 +131,12 @@ func TestCV_AL4Live_StateRunning(t *testing.T) {
 		t.Fatalf("iterate live not 201: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["state"] != api.IterationStateRunning {
-		t.Errorf("state 字节级一致检查失败: got %v, want %q", data["state"], api.IterationStateRunning)
+		t.Errorf("state exact-match check failed: got %v, want %q", data["state"], api.IterationStateRunning)
 	}
 }
 
 // TestCV_TargetAgentMustBeChannelMember 验证 acceptance §2.1 反向场景:
-// target_agent_id 不是 channel member → 400 字节级一致 error code
+// target_agent_id 不是 channel member → 400 exact-match error code
 // 'iteration.target_not_in_channel'.
 func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
 	t.Parallel()
@@ -158,13 +158,13 @@ func TestCV_TargetAgentMustBeChannelMember(t *testing.T) {
 		t.Fatalf("non-member target not 400: got %d (%v)", resp.StatusCode, data)
 	}
 	if data["code"] != api.IterationErrCodeTargetNotInChannel {
-		t.Errorf("error code 字节级一致检查失败: got %v, want %q",
+		t.Errorf("error code exact-match check failed: got %v, want %q",
 			data["code"], api.IterationErrCodeTargetNotInChannel)
 	}
 }
 
 // TestCV_CommitWithIterationIDAtomicUpdate 覆盖 acceptance §2.2 (CV-1
-// commit 单一来源): POST /commits?iteration_id= transitions
+// commit path): POST /commits?iteration_id= transitions
 // running→completed atomically + writes created_artifact_version_id.
 // 反向约束: 不开 /iterations/:id/commit 旁路 (verified by CI grep §4.1).
 func TestCV_CommitWithIterationIDAtomicUpdate(t *testing.T) {
@@ -369,7 +369,7 @@ func TestCV_Iterate_ErrorPaths(t *testing.T) {
 		t.Errorf("human target 400 expected, got %d", respHuman.StatusCode)
 	}
 	if dataHuman["code"] != api.IterationErrCodeTargetNotInChannel {
-		t.Errorf("human target error code 字节级一致检查失败: got %v", dataHuman["code"])
+		t.Errorf("human target error code exact-match check failed: got %v", dataHuman["code"])
 	}
 }
 
@@ -396,7 +396,7 @@ func TestCV_ListIterations_NotFoundOrCrossChannel(t *testing.T) {
 	}
 }
 
-// TestCV_Iterate_NonOwner_403 — 设计第 6 条 owner-only (acceptance §2.1) — a
+// TestCV_Iterate_NonOwner_403 — design rule 6 owner-only (acceptance §2.1) — a
 // channel member who is not the owner gets 403 (handler runs after
 // canAccessChannel passes). Different from TestCV_IterateOwnerOnly which
 // covers the *non-owner channel-member* 403 path; this extra case exercises
@@ -498,7 +498,7 @@ func TestCV_ListAnchorComments_Coverage(t *testing.T) {
 
 // TestCV42_HandleListIterations_PathValueEmpty covers the canAccessChannel
 // false branch of handleListIterations — outsider with no channel access
-// gets 404 (404 not 403 to not leak existence per 设计第 7 条 defense). This
+// gets 404 (404 not 403 to not leak existence per design rule 7 defense). This
 // exercises a branch the happy-path test in TestCV_ListIterationsHistory
 // doesn't reach.
 func TestCV_HandleListIterations_NonMember404(t *testing.T) {
