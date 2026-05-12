@@ -214,7 +214,7 @@ func (rl *rateLimiter) allow(ip string, isAuth bool) bool {
 
 // rateLimitMiddleware enforces token-bucket throttling per (IP, isAuth) bucket.
 //
-// E2E bypass (双 gate, env-gated, prod-safe):
+// E2E bypass (two gates, environment-gated, production-safe):
 //
 //	The Playwright e2e suite runs all 5 specs serially from 127.0.0.1 and
 //	shares a single global API bucket (100/min). Frontend boot per spec
@@ -224,8 +224,8 @@ func (rl *rateLimiter) allow(ip string, isAuth bool) bool {
 //
 //	When the request carries `X-E2E-Test: 1` AND the server is running
 //	with `NODE_ENV=development`, we skip rate limiting. Both gates are
-//	required — header alone is forgeable from outside, NODE_ENV alone
-//	would weaken dev hygiene. In production (NODE_ENV != "development")
+//	required: the header alone is forgeable from outside, and NODE_ENV alone
+//	would weaken local development hygiene. In production (NODE_ENV != "development"),
 //	the header is ignored entirely; the limiter is unmodified.
 //
 //	playwright.config.ts already injects `X-E2E-Test: 1` into every

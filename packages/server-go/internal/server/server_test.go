@@ -369,14 +369,14 @@ func TestRateLimitMiddlewareRejectsExhaustedClient(t *testing.T) {
 	}
 }
 
-// TestRateLimitBypass_RequiresBothHeaderAndDevMode pins the e2e bypass 双 gate:
+// TestRateLimitBypass_RequiresBothHeaderAndDevMode pins the two-gate e2e bypass:
 // only `IsDevelopment=true` AND `X-E2E-Test: 1` together skip the limiter.
 // Either gate alone (header in prod / dev without header / both off) MUST
 // fall through to the normal rate-limit path.
 //
-// 红线 / why both gates:
+// Why both gates are required:
 //   - header alone is forgeable from outside in prod → would be a DoS-bypass hole
-//   - dev mode alone weakens local dev hygiene (real browser tab traffic
+//   - dev mode alone weakens local development hygiene (real browser tab traffic
 //     would silently bypass the limiter, masking real client bugs)
 //
 // See middleware.go:rateLimitMiddleware doc comment for the full rationale.

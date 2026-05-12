@@ -1,6 +1,6 @@
 // Package agent — state_test.go: AL-1a state machine + reason classifier
-// 单测. 覆盖 review prep §S2 拒收红线: 三态优先级 / reason code 字面 /
-// 并发安全.
+// unit tests. Covers review prep §S2 blocking constraints: three-state priority,
+// reason-code literals, and concurrency safety.
 package agent
 
 import (
@@ -29,8 +29,8 @@ func TestTracker_OnlineWhenPluginPresent(t *testing.T) {
 }
 
 func TestTracker_ErrorOverridesPresence(t *testing.T) {
-	// 故障 > online > offline. 即使 plugin 还在 (短暂状态不同步),
-	// owner 看到的应该是 error 文案.
+	// Error takes priority over online and offline. Even if the plugin is still
+	// present during a short state mismatch window, the owner should see error copy.
 	tr := NewTracker()
 	tr.SetError("agent-1", ReasonAPIKeyInvalid)
 	got := tr.Resolve("agent-1", true)
@@ -118,8 +118,9 @@ func TestClassifyProxyError(t *testing.T) {
 }
 
 func TestSnapshot_JSONFieldNames(t *testing.T) {
-	// 字段名锁: 客户端 ws-frames + AgentManager.tsx 直接读 state / reason.
-	// 改名 = 改两边. omitempty 在 Reason 上是为了 online/offline 不带 reason.
+	// Field-name lock: client ws-frames and AgentManager.tsx read state / reason
+	// directly. Renaming requires changing both sides. Reason uses omitempty so
+	// online/offline states do not include reason.
 	s := Snapshot{State: StateError, Reason: ReasonAPIKeyInvalid, UpdatedAt: 1700000000000}
 	if s.State != "error" {
 		t.Errorf("state literal = %q, want %q", s.State, "error")

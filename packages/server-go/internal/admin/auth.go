@@ -1,13 +1,13 @@
 // Package admin implements the ADM-0 admin auth path — completely independent
 // from internal/auth (the user auth path).
 //
-// Blueprint: admin-model §1.2 (B env bootstrap, 无 promote) + §3 (admins
-// 独立表). Implementation R3 PR #189 lays out the 3 sub-PRs (ADM-0.1 / 0.2 /
-// 0.3); this file lands in ADM-0.1 and is extended in ADM-0.2 to back the
+// Blueprint: admin-model §1.2 (option-B environment bootstrap, no promote path) + §3
+// (separate admins table). Implementation R3 PR #189 lays out the 3 sub-PRs
+// (ADM-0.1 / 0.2 / 0.3); this file lands in ADM-0.1 and is extended in ADM-0.2 to back the
 // cookie value with a server-side `admin_sessions` row instead of carrying
 // the raw admin id.
 //
-// Hard constraints (review checklist §ADM-0.1 + §ADM-0.2 红线):
+// Hard constraints (review checklist §ADM-0.1 + §ADM-0.2):
 //   - cookie name MUST be the literal `borgee_admin_session`
 //   - cookie value MUST be an opaque session token, never a raw admin id
 //     (ADM-0.2: server-side session lookup, not parse)
@@ -42,18 +42,20 @@ import (
 )
 
 // CookieName is the literal cookie name for the new admin auth path.
-// Locked by blueprint admin-model §1.2 and review checklist §ADM-0.1 红线.
+// Locked by blueprint admin-model §1.2 and review checklist §ADM-0.1.
 // DO NOT change this value — tests assert the exact string.
 const CookieName = "borgee_admin_session"
 
-// Env var names — locked literals (review checklist 红线).
+// Env var names are locked literals from the review checklist.
 const (
 	EnvAdminLogin        = "BORGEE_ADMIN_LOGIN"
 	EnvAdminPasswordHash = "BORGEE_ADMIN_PASSWORD_HASH"
-	// EnvAdminPassword (ADMIN-PASSWORD-PLAIN-ENV B 方案): 明文 password env.
-	// 启动时 bcrypt.GenerateFromPassword 哈希后内存存, 不写盘. 跟
-	// EnvAdminPasswordHash **二选一** (两者同时设 → panic, 反 surprise).
-	// 推荐 prod 用 HASH (env 泄露仅泄哈希); dev/testing 用 PLAIN 简化部署.
+	// EnvAdminPassword (ADMIN-PASSWORD-PLAIN-ENV option B): plaintext password env.
+	// At startup, bcrypt.GenerateFromPassword hashes it before storing it in
+	// memory; this code never writes the plaintext to disk. It is mutually
+	// exclusive with EnvAdminPasswordHash, and setting both panics to avoid
+	// surprising precedence. Prefer HASH in production (env leaks expose only the
+	// hash); use PLAIN in development/testing to simplify deployment.
 	EnvAdminPassword = "BORGEE_ADMIN_PASSWORD"
 )
 
@@ -363,11 +365,12 @@ func Bootstrap(db *gorm.DB) error {
 // BootstrapWith is the testable form of Bootstrap. cmd/collab uses Bootstrap;
 // tests inject explicit values.
 //
-// ADMIN-PASSWORD-PLAIN-ENV B 方案: hash + plain 二选一.
-//   - hash != "" + plain == "": legacy path, 直接用 stored bcrypt hash.
-//   - hash == "" + plain != "": 新 path, bcrypt.GenerateFromPassword(plain) 内存哈希.
-//   - hash != "" + plain != "": panic 提示二选一 (反 surprise / 反 silent priority).
-//   - hash == "" + plain == "": panic 提示至少设一个.
+// ADMIN-PASSWORD-PLAIN-ENV option B: choose exactly one of hash or plain.
+//   - hash != "" + plain == "": existing path, use the stored bcrypt hash directly.
+//   - hash == "" + plain != "": new path, hash plain in memory with
+//     bcrypt.GenerateFromPassword.
+//   - hash != "" + plain != "": panic because the two inputs are mutually exclusive.
+//   - hash == "" + plain == "": panic because one input is required.
 func BootstrapWith(db *gorm.DB, login, hash, plain string) error {
 	if login == "" {
 		panic(fmt.Sprintf("admin bootstrap: %s is required (set to the admin login)", EnvAdminLogin))
@@ -391,8 +394,8 @@ func BootstrapWith(db *gorm.DB, login, hash, plain string) error {
 		hash = string(generated)
 	}
 
-	// Reject obviously-non-bcrypt or low-cost hashes — review checklist 红线
-	// "password_hash 不是 bcrypt (明文 / sha256 / md5)" + "bcrypt cost ≥ 10".
+	// Reject obviously non-bcrypt or low-cost hashes. The review checklist locks
+	// "password_hash 不是 bcrypt (明文 / sha256 / md5)" and "bcrypt cost ≥ 10".
 	cost, err := bcrypt.Cost([]byte(hash))
 	if err != nil {
 		panic(fmt.Sprintf("admin bootstrap: %s is not a valid bcrypt hash: %v", EnvAdminPasswordHash, err))

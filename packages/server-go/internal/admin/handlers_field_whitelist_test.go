@@ -1,12 +1,11 @@
 package admin_test
 
-// handlers_field_whitelist_test.go covers ADM-0.2 §1 反向断言 2.C: god-mode
-// endpoints (the read surface on /admin-api/v1/*) must be 元数据-only. The
-// test calls each god-mode-style endpoint, decodes the response, and walks
-// every nested map / slice asserting no key in the forbidden set
-// {body, content, text, artifact} appears. This is a fail-closed reflective
-// scan — adding a new endpoint that leaks one of these fields immediately
-// trips the test.
+// handlers_field_whitelist_test.go covers ADM-0.2 §1 negative assertion 2.C:
+// admin read endpoints on /admin-api/v1/* must be metadata-only. The test calls
+// each admin read endpoint, decodes the response, and walks every nested map /
+// slice asserting no key in the forbidden set {body, content, text, artifact}
+// appears. This is a fail-closed reflective scan: adding a new endpoint that
+// leaks one of these fields immediately trips the test.
 
 import (
 	"encoding/json"
@@ -53,9 +52,9 @@ func TestAdminFieldWhitelist_GodModeEndpointsAreMetadataOnly(t *testing.T) {
 	ts, _, _ := testutil.NewTestServer(t)
 	tok := testutil.LoginAsAdmin(t, ts.URL)
 
-	// All admin-rail read endpoints currently mounted. As new endpoints are
+	// All currently mounted admin read endpoints. As new endpoints are
 	// added under /admin-api/v1/*, append them here so the deny-list scan
-	// covers the full god-mode surface.
+	// covers the full admin read surface.
 	endpoints := []string{
 		"/admin-api/v1/stats",
 		"/admin-api/v1/users",
