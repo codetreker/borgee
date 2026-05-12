@@ -1,11 +1,11 @@
 // Package bpp (sdk/bpp) — client_test.go: BPP-7.1 unit tests.
 //
 // Cases (acceptance §1):
-//   1.1 ConnectFrame round-trip — server-defined ConnectFrame 5 字段
-//       byte-identical via JSON round-trip + reflect 字段集.
-//   1.2 frame schema byte-identical reflect 反断 — SDK 不重定义 frame.
-//   1.3 ws lib + client dispatcher reverse-grep.
-//   1.4 admin god-mode reverse-grep.
+//   1.1 ConnectFrame round-trip — server-defined ConnectFrame 5 fields
+//       stay byte-identical through JSON round-trip and reflection checks.
+//   1.2 frame schema byte-identical reflection check — SDK does not redefine frames.
+//   1.3 WebSocket library and client dispatcher grep checks.
+//   1.4 admin-only SDK path grep check.
 
 package bpp_test
 
@@ -56,7 +56,7 @@ func TestBPP_ConnectFrame_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestBPP_FrameSchemaByteIdentical — acceptance §1.2 立场 ① 反断.
+// TestBPP_FrameSchemaByteIdentical — acceptance §1.2 schema parity check.
 //
 // Reflect over server's bpp.AllBPPEnvelopes(); each frame must have a
 // non-empty Type field of kind string with json:"type" tag at field 0.
@@ -78,7 +78,7 @@ func TestBPP_FrameSchemaByteIdentical(t *testing.T) {
 	}
 }
 
-// TestBPP_NoFrameRedefinition — acceptance §1.2 立场 ① AST scan.
+// TestBPP_NoFrameRedefinition — acceptance §1.2 AST scan.
 //
 // SDK package sdk/bpp/ must NOT declare its own *Frame structs — all
 // envelope types must come from server's internal/bpp via import.
@@ -118,11 +118,11 @@ func TestBPP_NoFrameRedefinition(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ① broken: SDK redefines frame structs (must reuse server envelope): %v", hits)
+		t.Errorf("BPP-7 frame schema reuse constraint broken: SDK redefines frame structs (must reuse server envelope): %v", hits)
 	}
 }
 
-// TestBPP_NoForeignWSLib — acceptance §1.3 立场 ② ws library reverse grep.
+// TestBPP_NoForeignWSLib — acceptance §1.3 WebSocket library grep check.
 //
 // SDK must use github.com/coder/websocket (same as server). Reject
 // gorilla/websocket, gobwas/ws, nhooyr.io/websocket imports.
@@ -158,11 +158,11 @@ func TestBPP_NoForeignWSLib(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ② broken: SDK imports foreign ws lib: %v", hits)
+		t.Errorf("BPP-7 WebSocket library constraint broken: SDK imports a non-server WebSocket library: %v", hits)
 	}
 }
 
-// TestBPP_NoClientDispatcher — acceptance §1.3 立场 ⑤ AST scan.
+// TestBPP_NoClientDispatcher — acceptance §1.3 AST scan.
 // Reject SDKDispatcher / ClientFrameDispatcher identifiers in production.
 func TestBPP_NoClientDispatcher(t *testing.T) {
 	forbidden := []string{
@@ -202,13 +202,13 @@ func TestBPP_NoClientDispatcher(t *testing.T) {
 		})
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ⑤ broken: SDK introduces client-side dispatcher: %v", hits)
+		t.Errorf("BPP-7 server-side dispatch constraint broken: SDK introduces client-side dispatcher: %v", hits)
 	}
 }
 
-// TestBPP_AdminGodModeNotMounted — acceptance §1.4 立场 ⑦ ADM-0 §1.3.
+// TestBPP_AdminOnlySDKPathNotMounted — acceptance §1.4 ADM-0 §1.3.
 // admin*.go in internal/api/ must not reference SDK / BPP-7 paths.
-func TestBPP_AdminGodModeNotMounted(t *testing.T) {
+func TestBPP_AdminOnlySDKPathNotMounted(t *testing.T) {
 	dir := "../../internal/api"
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -242,11 +242,11 @@ func TestBPP_AdminGodModeNotMounted(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ⑦ broken: admin god-mode references SDK (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("BPP-7 admin-only SDK path constraint broken (ADM-0 §1.3): %v", hits)
 	}
 }
 
-// TestBPP_NilSafeCtor — acceptance §2.5 boot bug detection.
+// TestBPP_NilSafeCtor — acceptance §2.5 fail-fast constructor validation.
 func TestBPP_NilSafeCtor(t *testing.T) {
 	cases := []struct {
 		name string

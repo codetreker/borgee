@@ -2,28 +2,28 @@
 //
 // This package is the in-tree Go SDK for borgee plugin runtimes. It
 // lives inside the borgee-server module so envelope schemas (`internal/bpp`)
-// are shared by-import — no separate go.mod, no go.work overhead, byte-
-// identical frame definitions guaranteed at compile time.
+// are shared by import. There is no separate go.mod or go.work file, and
+// compile-time imports keep frame definitions byte-identical with the server.
 //
-// 立场 (跟 spec brief docs/implementation/modules/bpp-7-spec.md §0 +
-// stance docs/qa/bpp-7-stance-checklist.md §1+§2+§3 byte-identical):
+// Constraints aligned with docs/implementation/modules/bpp-7-spec.md §0 and
+// docs/qa/bpp-7-stance-checklist.md §1+§2+§3:
 //
-//   - ① **frame schema 跟 server byte-identical** — SDK 不重定义任何
-//     envelope struct, 必走 import "borgee-server/internal/bpp". reflect
-//     drift 反断 + AST scan `type.*Frame.*struct` 在 sdk/bpp/ 0 hit.
-//   - ② **SDK Go module + ws 库同源** — 在 borgee-server 同 module 内
-//     (sdk/bpp/) + `github.com/coder/websocket` 跟 server 同源. AST scan
+//   - ① **frame schemas are byte-identical with the server** — the SDK does
+//     not redefine envelope structs and imports "borgee-server/internal/bpp".
+//     Reflect tests and an AST scan for `type.*Frame.*struct` verify this.
+//   - ② **SDK package location + WebSocket library match the server** — sdk/bpp/
+//     lives inside the borgee-server module and uses `github.com/coder/websocket`.
+//     AST scan
 //     forbidden tokens (pendingSDKReconnect / sdkRetryQueue /
-//     deadLetterSDK) 0 hit (best-effort 锁链延伸第 4 处 — BPP-4 + BPP-5
-//     + BPP-6 + BPP-7).
+//     deadLetterSDK) must return 0 hits for BPP-4 through BPP-7.
 //   - ③ **BPP-3.2.3 retry + BPP-4 watchdog + BPP-5/6 reconnect/cold-start
-//     SDK side 真实施** — reason 复用 reasons SSOT 6-dict (#496 字面承袭,
-//     AL-1a reason 锁链 BPP-7 = 第 12 处). SDK ColdStart 走
-//     reasons.RuntimeCrashed byte-identical 跟 server BPP-6 handler.
+//     are implemented on the SDK side** — reason values reuse the canonical
+//     reasons package (#496, aligned with AL-1a). SDK ColdStart uses
+//     reasons.RuntimeCrashed, matching the server BPP-6 handler.
 //
-// 反约束:
-//   - admin god-mode 不挂 SDK 路径 (ADM-0 §1.3 红线)
-//   - SDK 不另开 client-side dispatcher (server-only 边界, BPP-3 #489)
+// Negative constraints:
+//   - admin-only SDK paths must not be mounted (ADM-0 §1.3).
+//   - SDK must not add a client-side dispatcher; dispatch remains server-only (BPP-3 #489).
 
 package bpp
 
@@ -41,9 +41,9 @@ import (
 	srvbpp "borgee-server/internal/bpp"
 )
 
-// HeartbeatInterval — BPP-4 #499 watchdog 周期 byte-identical (server
-// side stale threshold = 30s, SDK 主动发送周期匹配, 立场 ⑥). 改 = 改
-// server watchdog + 立场 ⑥ stance + 此 SDK const 同步.
+// HeartbeatInterval is the BPP-4 #499 watchdog interval. It must match the
+// server-side stale threshold of 30s; changes must be coordinated with the
+// server watchdog and BPP-4 documentation.
 const HeartbeatInterval = 30 * time.Second
 
 // Client is the BPP-7 plugin SDK client. One Client per (plugin
@@ -51,15 +51,15 @@ const HeartbeatInterval = 30 * time.Second
 // methods that swap the underlying ws.Conn but preserve cursor state
 // (Reconnect) or reset it (ColdStart).
 //
-// Construct via NewClient + Connect (4 deps panic on nil — boot bug,
-// 跟 server BPP-3/4/5/6 同模式 ctor pattern).
+// Construct via NewClient + Connect. Required constructor inputs panic when
+// empty, matching the BPP-3/4/5/6 fail-fast constructor pattern.
 type Client struct {
 	// PluginID identifies the plugin process to the server (BPP-1
 	// connect handshake field).
 	PluginID string
 	// AgentID is the agent this Client is bound to (BPP-5 reconnect /
 	// BPP-6 cold-start frame field). One Client = one agent in v1
-	// (multi-agent multiplexing 留 v2).
+	// (multi-agent multiplexing is deferred to v2).
 	AgentID string
 
 	logger *slog.Logger
@@ -69,12 +69,12 @@ type Client struct {
 	// lastKnownCursor advances as the SDK receives data-plane frames
 	// from the server. On Reconnect the SDK sends this in a
 	// ReconnectHandshakeFrame so the server can resume via RT-1.3
-	// ResolveResume (BPP-5 立场 ② 复用 RT-1.3, 不另起 sequence).
+	// ResolveResume (BPP-5 reuses RT-1.3 and does not create another sequence).
 	lastKnownCursor int64
 }
 
 // NewClient constructs a SDK Client. logger may be nil (defaults to
-// slog.Default). pluginID + agentID required (empty → panic boot bug).
+// slog.Default). pluginID and agentID are required; empty values panic.
 func NewClient(pluginID, agentID string, logger *slog.Logger) *Client {
 	if pluginID == "" {
 		panic("sdk/bpp: NewClient pluginID must not be empty")
@@ -90,7 +90,7 @@ func NewClient(pluginID, agentID string, logger *slog.Logger) *Client {
 
 // Connect dials the server's BPP socket and sends a ConnectFrame
 // (BPP-1 §2.1 control plane handshake — Type/PluginID/Token/Version/
-// Capabilities 5 字段 byte-identical 跟 server srvbpp.ConnectFrame).
+// Capabilities 5 fields, byte-identical with server srvbpp.ConnectFrame).
 //
 // On success the underlying ws.Conn is stored on the Client; callers
 // then loop on ReadFrame / Send for data-plane traffic.
@@ -142,8 +142,8 @@ func (c *Client) LastKnownCursor() int64 {
 
 // AdvanceCursor monotonically advances the SDK's last-known cursor.
 // Callers invoke this when a data-plane frame with a cursor field
-// arrives. Reverse-monotonic input is silently dropped (RT-1.3 单调
-// 立场承袭).
+// arrives. Non-increasing input is silently dropped, matching RT-1.3
+// monotonic cursor behavior.
 func (c *Client) AdvanceCursor(cursor int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

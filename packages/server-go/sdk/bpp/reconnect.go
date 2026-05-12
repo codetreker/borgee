@@ -4,23 +4,24 @@
 // These are the runtime methods that actually exercise BPP-3.2 / BPP-4 /
 // BPP-5 / BPP-6 protocols from the plugin side.
 //
-// 原则 (跟 docs/_archive/qa/bpp-7-stance-checklist.md §3 + spec §0.3):
+// Design constraints aligned with docs/_archive/qa/bpp-7-stance-checklist.md §3
+// and spec §0.3:
 //
 //   - Reconnect (BPP-5 #503) — socket dropped, plugin process alive,
 //     SDK still holds last_known_cursor. Sends ReconnectHandshakeFrame
 //     so server resumes via RT-1.3 ResolveResume incremental.
 //   - ColdStart (BPP-6 #522) — process restarted, no cursor, no resume.
 //     Sends ColdStartHandshakeFrame; reason is `reasons.RuntimeCrashed`
-//     byte-identical (AL-1a 6-dict 守护链第 12 处, reasons 单一来源 #496).
-//     字段集与 ReconnectHandshakeFrame 互斥反断 (BPP-6 spec §0.1 原则).
-//   - HeartbeatLoop — 30s ticker per HeartbeatInterval const (跟 BPP-4
-//     watchdog 周期 byte-identical).
+//     byte-identical with the AL-1a reason set from the reasons package (#496).
+//     Its field set intentionally differs from ReconnectHandshakeFrame (BPP-6 spec §0.1).
+//   - HeartbeatLoop — 30s ticker per HeartbeatInterval const, byte-identical
+//     with the BPP-4 watchdog interval.
 //   - GrantRetry (BPP-3.2.3) — same MaxPermissionRetries = 3 + RetryBackoff
 //     = 30s as server's RequestRetryCache (const re-used directly).
 //
-// Reverse 反向约束 (acceptance §2.4): AST scan forbidden tokens
+// Negative constraints (acceptance §2.4): AST scan forbidden tokens
 // `pendingSDKReconnect / sdkRetryQueue / deadLetterSDK / runtime_recovered
-// / sdk_specific_reason / 7th.*reason` 0 hit (best-effort 守护链延伸第 4 处).
+// / sdk_specific_reason / 7th.*reason` must return 0 hits.
 
 package bpp
 
@@ -52,8 +53,8 @@ const (
 //
 // Use this when the previous Connect's ws.Conn was dropped but the
 // plugin process is still alive. For full process restart (cursor lost),
-// use ColdStart instead — the two frames are 字段集 互斥反断 by design
-// (BPP-6 spec §0.1).
+// use ColdStart instead; the two frames intentionally have different field
+// sets (BPP-6 spec §0.1).
 func (c *Client) Reconnect(ctx context.Context, url string) error {
 	conn, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{})
 	if err != nil {
@@ -85,10 +86,10 @@ func (c *Client) Reconnect(ctx context.Context, url string) error {
 }
 
 // ColdStart dials a fresh ws.Conn and sends a ColdStartHandshakeFrame.
-// 原则 ② cold-start ≠ reconnect — frame 字段集互斥反断 (no cursor).
-// reason is `reasons.RuntimeCrashed` byte-identical 跟 server BPP-6
-// handler 同源 (AL-1a 守护链第 12 处). Resets SDK lastKnownCursor to 0
-// since process restart drops in-memory state.
+// Cold-start is not reconnect: the frame intentionally has no cursor.
+// reason is `reasons.RuntimeCrashed`, matching the server BPP-6 handler
+// and AL-1a reason values. Resets SDK lastKnownCursor to 0 since process
+// restart drops in-memory state.
 func (c *Client) ColdStart(ctx context.Context, url string) error {
 	conn, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{})
 	if err != nil {
@@ -99,7 +100,7 @@ func (c *Client) ColdStart(ctx context.Context, url string) error {
 		PluginID:      c.PluginID,
 		AgentID:       c.AgentID,
 		RestartAt:     time.Now().UnixMilli(),
-		RestartReason: reasons.RuntimeCrashed, // 6-dict byte-identical, 守护链第 12 处
+		RestartReason: reasons.RuntimeCrashed, // byte-identical with the AL-1a reason set
 	}
 	if err := writeFrame(ctx, conn, frame); err != nil {
 		_ = conn.Close(websocket.StatusInternalError, "cold-start frame send failed")
@@ -110,7 +111,7 @@ func (c *Client) ColdStart(ctx context.Context, url string) error {
 		_ = c.conn.Close(websocket.StatusNormalClosure, "")
 	}
 	c.conn = conn
-	c.lastKnownCursor = 0 // fresh start, BPP-6 spec §0.2 原则一致
+	c.lastKnownCursor = 0 // fresh start, matching BPP-6 spec §0.2
 	c.mu.Unlock()
 	c.logger.Info("sdk.bpp.cold_start_sent",
 		"plugin_id", c.PluginID, "agent_id", c.AgentID,
@@ -120,7 +121,7 @@ func (c *Client) ColdStart(ctx context.Context, url string) error {
 
 // HeartbeatLoop ticks every HeartbeatInterval and SendHeartbeat. Returns
 // when ctx is canceled. Errors during a single tick are logged and the
-// loop continues (best-effort 原则一致 BPP-4 §0.3).
+// loop continues, matching BPP-4 §0.3 best-effort behavior.
 func (c *Client) HeartbeatLoop(ctx context.Context) {
 	tick := time.NewTicker(HeartbeatInterval)
 	defer tick.Stop()
@@ -143,8 +144,8 @@ func (c *Client) HeartbeatLoop(ctx context.Context) {
 // times with RetryBackoff between attempts; returns nil on success or
 // `ErrSDKGrantRetryExhausted` after the third failure.
 //
-// Best-effort 原则: no persistent queue, no exponential backoff, no
-// dead-letter table — single in-memory counter. AST scan守门 forbidden
+// Best-effort behavior: no persistent queue, no exponential backoff, no
+// dead-letter table — single in-memory counter. AST scan forbidden
 // `pendingSDKReconnect/sdkRetryQueue/deadLetterSDK` 0 hit.
 func (c *Client) GrantRetry(ctx context.Context, op func(context.Context) error) error {
 	var attempts int32
