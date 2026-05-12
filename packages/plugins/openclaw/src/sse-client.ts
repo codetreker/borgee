@@ -53,7 +53,7 @@ class SSEParser {
       return;
     }
     if (line.startsWith(":")) {
-      // comment / heartbeat — caller sees via raw byte observation upstream
+      // SSE comment/heartbeat frames carry no event data; data handlers count the bytes as liveness.
       return;
     }
     const colon = line.indexOf(":");

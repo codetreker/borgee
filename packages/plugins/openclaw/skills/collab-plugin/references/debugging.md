@@ -1,4 +1,4 @@
-# Collab Plugin Debugging Guide
+# Borgee OpenClaw Plugin Debugging Guide
 
 ## Connection Issues
 
@@ -19,7 +19,7 @@
 ### SSE/Poll fallback
 
 If WS fails, plugin falls back to SSE (`/api/v1/stream`), then long-poll (`/api/v1/poll`).
-Check logs for `[collab] transport switched to ...` messages.
+Check logs for `[borgee-plugin] transport=...` and SSE fallback messages.
 
 ## Authentication Issues
 
