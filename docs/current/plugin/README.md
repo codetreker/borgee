@@ -41,7 +41,7 @@ channels:
     defaultAccount: pegasus
 ```
 
-`accounts.ts` 的 `resolveBorgeeAccount` 委托 SDK 的 `resolveMergedAccountConfig`，做"root → account" 深合并；`listEnabledBorgeeAccounts` 列出所有 `enabled: true` 的子账号——每个跑一个独立 gateway。
+`accounts.ts` 的 `resolveBorgeeAccount` 委托 SDK 的 `resolveMergedAccountConfig`，执行 "root → account" 深合并；`listEnabledBorgeeAccounts` 列出所有 `enabled: true` 的子账号，每个子账号运行一个独立 gateway。
 
 ## 3. 模块划分
 
@@ -52,7 +52,7 @@ src/
 ├── channel.ts        # borgeePlugin —— OpenClaw channel 接口实现
 ├── config-schema.ts  # zod schema
 ├── accounts.ts       # account 解析 / 列表
-├── api-client.ts     # 薄薄的 fetch 包装，统一 Bearer 头
+├── api-client.ts     # fetch wrapper，统一 Bearer 头
 ├── ws-client.ts      # /ws/plugin 长连，支持 api_request 反向调用
 ├── sse-client.ts     # /api/v1/stream 解析器 + 重连
 ├── cursor-store.ts   # 持久化 cursor 到 OPENCLAW_DATA_DIR
@@ -66,8 +66,8 @@ src/
 
 `gateway.ts: startBorgeeGateway` 是 per-account lifecycle，根据 `transport` 选分支：
 
-- `transport: "ws"` → `runWsTransport`：直接走 `/ws/plugin`。
-- `transport: "poll"` → `runPollLoop`：纯长轮询。
+- `transport: "ws"` → `runWsTransport`：直接使用 `/ws/plugin`。
+- `transport: "poll"` → `runPollLoop`：只使用长轮询。
 - `transport: "sse" | "auto"` → `runAutoOrSse`：
 
   ```
@@ -101,7 +101,7 @@ src/
 - `api_response` → 解决 `apiCall` 等待中的 promise；
 - `pong`。
 
-`apiCall(method, path, body)` 通过 WS 跑一次"等价 HTTP"，30s 超时。`outbound.ts` 优先用 WS，失败再 fallback 到直接 HTTP。
+`apiCall(method, path, body)` 通过 WS 执行一次"等价 HTTP"调用，30s 超时。`outbound.ts` 优先用 WS，失败再 fallback 到直接 HTTP。
 
 ### Cursor 持久化 (`cursor-store.ts`)
 
