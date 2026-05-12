@@ -160,7 +160,7 @@ test.describe.skip('comment thread 回复 (gh#716 SKIP+followup, 等 v2 mount �
       expect(j.code).toBe('comment.thinking_subject_required');
     }
 
-    // Sanity: concrete subject succeeds.
+    // Positive-control check: concrete subject succeeds.
     const ok = await agentCtx.post(`/api/v1/channels/${chId}/messages`, {
       data: { content: 'Section 2 tightening proposal v3.', content_type: 'artifact_comment', reply_to_id: parent.id },
     });
@@ -210,7 +210,7 @@ test.describe.skip('comment thread 回复 (gh#716 SKIP+followup, 等 v2 mount �
     expect([403, 404]).toContain(r.status());
   });
 
-  test('§3.6 立场 ④ sanity — text-typed message can NOT be parent of artifact_comment thread (反向断)', async () => {
+  test('§3.6 plain-text message can NOT be parent of artifact_comment thread', async () => {
     const adminCtx = await adminLogin(serverURL());
     const inv = await mintInvite(adminCtx, 'cv8-sanity');
     const owner = await registerUser(serverURL(), inv, 'sanity');
@@ -224,7 +224,7 @@ test.describe.skip('comment thread 回复 (gh#716 SKIP+followup, 等 v2 mount �
     const r1 = await postMessage(owner, chId, 'reply', 'artifact_comment', a.id);
     expect(r1.status).toBe(400);
     expect(r1.data.code).toBe('comment.reply_target_invalid');
-    // Distinct id — not a fluke: same code on b too.
+    // Distinct id — the same validation applies to a second text message.
     const r2 = await postMessage(owner, chId, 'reply2', 'artifact_comment', b.id);
     expect(r2.status).toBe(400);
     expect(r2.data.code).toBe('comment.reply_target_invalid');

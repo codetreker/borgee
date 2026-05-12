@@ -34,15 +34,15 @@ test('DL-4.4 PWA manifest endpoint returns W3C-compliant JSON', async ({ request
   expect(sizes).toContain('192x192');
   expect(sizes).toContain('512x512');
 
-  // 反约束 — manifest 不漏 secret 字面
+  // Manifest must not expose secret-bearing fields.
   const body = JSON.stringify(manifest).toLowerCase();
   for (const forbidden of ['vapid_secret', 'private_key', 'api_key', 'borgee_token']) {
     expect(body).not.toContain(forbidden);
   }
 });
 
-test('DL-4.4 命名拆死 — DL-4 不响应 HB-1 plugin-manifest 字面', async ({ request }) => {
-  // HB-1 #491 endpoint 字面 — DL-4 server 不冒充 (zhanma-a drift audit 锚源)
+test('DL-4.4 endpoint separation — DL-4 does not respond as HB-1 plugin-manifest', async ({ request }) => {
+  // HB-1 #491 endpoint — DL-4 server must not answer as that route.
   // Expect non-2xx (404 most likely — DL-4 没注册此路由).
   const res = await request.get('/api/v1/plugin-manifest');
   expect(res.status()).toBeGreaterThanOrEqual(400);
@@ -59,6 +59,6 @@ test('DL-4.5 service worker /sw.js loads + push handler exists', async ({ page }
   // Push event handler text-search lock — sw.js 必须含 push event listener.
   expect(swSrc).toContain("addEventListener('push'");
   expect(swSrc).toContain('showNotification');
-  // Click handler跳 SPA 路由
+  // Click handler opens the SPA route.
   expect(swSrc).toContain("addEventListener('notificationclick'");
 });

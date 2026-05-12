@@ -1,4 +1,4 @@
-// tests/smoke-app-loads.spec.ts — dual-service (server-go + vite) smoke check (INFRA-2).
+// tests/smoke-app-loads.spec.ts — dual-service (server-go + vite) startup check (INFRA-2).
 //
 // 测试范围:
 //   - server-go /health endpoint 返回 200 (Go 二进制启动成功)
@@ -13,11 +13,11 @@
 //
 // 实施约束:
 //   - Browser-driven path (request.get + page.goto)
-//   - Smoke failures should indicate infrastructure issues (port conflict / server crash / proxy misconfiguration), not product bugs
+//   - Startup-check failures should indicate infrastructure issues (port conflict / server crash / proxy misconfiguration), not product bugs
 //   - 不允许 fs.* / page.evaluate(fetch) / 只打 API 不开浏览器 / empty placeholder tests
 import { test, expect } from '@playwright/test';
 
-test.describe('INFRA-2 smoke', () => {
+test.describe('INFRA-2 service startup checks', () => {
   test('server-go /health returns ok', async ({ request }) => {
     // server-go was booted on E2E_SERVER_PORT (4901) by playwright.config.
     // We hit it directly (not via proxy) to isolate "is the server up?"
@@ -38,7 +38,7 @@ test.describe('INFRA-2 smoke', () => {
     // If VITE_E2E_API_TARGET wiring is wrong, vite proxies to localhost:4900
     // (the dev default), which is either nothing in CI (502) or a stale
     // dev binary on a developer's machine (would still 200 but for the
-    // wrong reason — that's why we'd want a marker, but for the smoke
+    // wrong reason — that's why we'd want a marker, but for this startup
     // test 200 is enough).
     const clientPort = process.env.E2E_CLIENT_PORT ?? '5174';
     const res = await request.get(`http://127.0.0.1:${clientPort}/health`);

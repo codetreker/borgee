@@ -4,7 +4,7 @@
 //   - agent 没注册 runtime 时 RuntimeCard 不渲染 (优雅降级 omit)
 //   - 非 owner 视图下 start/stop 按钮 DOM 不渲染 (前后端双层防越权)
 //   - data-runtime-status 仅渲染四态: registered / running / stopped / error
-//     反向检查同义词 busy/idle/starting/stopping/restarting 0 hit
+//     negative check: synonyms busy/idle/starting/stopping/restarting 0 hit
 //   - reason 标签 6 项跟 lib/agent-state.ts REASON_LABELS 文案一致
 //   - Agents 页面在 1280 viewport 下默认占满 800px max-width (gh#683 回归)
 //   - G2.7 demo 全景截屏归档
@@ -108,7 +108,7 @@ async function createAgent(serverURL: string, ownerToken: string, displayName: s
 }
 
 test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
-  test('立场 ① "Borgee 不带 runtime" — agent 无 runtime 时 RuntimeCard 不渲染 (graceful degrade omit)', async ({ page, baseURL }) => {
+  test('agent without runtime does not render RuntimeCard (graceful omit)', async ({ page, baseURL }) => {
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
     const inviteCode = await mintInvite(adminCtx, 'al-4.3-no-runtime');
@@ -129,14 +129,14 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     if (await manageBtn.count() > 0) {
       await manageBtn.click();
 
-      // 立场 ① — runtime 未注册时 RuntimeCard 不渲染.
+      // RuntimeCard must not render before a runtime is registered.
       const runtimeCard = page.locator('.runtime-card');
       expect(await runtimeCard.count(), 'runtime-card MUST NOT render when no runtime registered').toBe(0);
     }
   });
 
-  test('立场 ③ data-runtime-status 4 态严闭锁 (反约束 starting/stopping/restarting 同义词 0 hit)', async ({ page, baseURL }) => {
-    // 此测试通过源码反向 grep 锚断言, 不依赖真 runtime — 单跑就能验文案锁.
+  test('data-runtime-status allows only four states (no starting/stopping/restarting synonyms)', async ({ page, baseURL }) => {
+    // This test checks rendered source text, so it does not require a live runtime.
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
     const inviteCode = await mintInvite(adminCtx, 'al-4.3-status-lock');
@@ -146,21 +146,21 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     await page.goto('/');
     await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
 
-    // Visit AgentManager — DOM 字面 byte-identical 文案锁通过 page-level
-    // grep 验 (运行期 Mount 的 RuntimeCard 反约束已被 vitest 锁,
-    // 此 e2e 验 SPA bundle 不漏 starting/stopping 中间态字面).
+    // Visit AgentManager; this page-level check verifies the SPA bundle does
+    // not expose intermediate runtime-status strings.
     await page.locator('[data-testid="sidebar-nav-agents"]').click();
     await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
 
-    // 反约束 — bundle DOM 字面不应出现中间态 (#321 §3 反向 grep).
+    // The bundle DOM text must not contain intermediate states (#321 §3 grep check).
     const html = await page.content();
     for (const forbidden of ['data-runtime-status="starting"', 'data-runtime-status="stopping"', 'data-runtime-status="restarting"', 'data-runtime-status="busy"', 'data-runtime-status="idle"']) {
       expect(html, `data-runtime-status 4 态严闭 — ${forbidden} 不准出现 (立场 ③ 跟 AL-3 拆死)`).not.toContain(forbidden);
     }
   });
 
-  test('立场 ② owner-only DOM gate — 非 owner 视图 start/stop button DOM omit (defense-in-depth)', async ({ page, baseURL }) => {
-    // 反约束: non-owner 不在 /me/agents 路径, 看不到 RuntimeCard 入口 (整页隐藏);
+  test('owner-only DOM gate — non-owner view omits start/stop button DOM (defense-in-depth)', async ({ page, baseURL }) => {
+    // Non-owner users do not enter /me/agents for another user's agents, so
+    // they cannot see the RuntimeCard entry point;
     // owner 视角通过 RuntimeCard isOwner gate 验. 非 owner 路径 RuntimeCard
     // 永远不 mount (AgentManager 是 /me/agents — 仅当前用户的 agents).
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
@@ -174,7 +174,7 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     await page.locator('[data-testid="sidebar-nav-agents"]').click();
     await expect(page.locator('.agent-page')).toBeVisible();
 
-    // 反约束 ② — 没有 disabled leaking owner info (反向 grep 锚 al-4 spec §3.2).
+    // Owner info must not leak through disabled start/stop buttons.
     const startBtnDisabled = page.locator('[data-runtime-action="start"][disabled]:not([data-runtime-actions])');
     expect(await startBtnDisabled.count(), 'start button MUST NOT use disabled to gate owner info (omit not disable)').toBe(0);
     const stopBtnDisabled = page.locator('[data-runtime-action="stop"][disabled]:not([data-runtime-actions])');
@@ -225,9 +225,10 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     await page.locator('[data-testid="sidebar-nav-agents"]').click();
     await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
 
-    // 框 agent settings 全景 — agent card + (runtime card 占位 / future
-    // running / error 态) + permissions + API key. 跟 G2.7 三张截屏锚
-    // 同源 (start/stop/error 三态留 follow-up 时按真 runtime 路径补).
+    // Capture the agent settings view: agent card + runtime-card placeholder,
+    // future running/error states, permissions, and API key. This uses the same
+    // screenshot set as G2.7; start/stop/error coverage stays in follow-up work
+    // once the real runtime path is available.
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g2.7-runtime-agent-settings.png'),
       fullPage: false,

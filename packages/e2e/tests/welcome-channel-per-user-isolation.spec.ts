@@ -121,7 +121,7 @@ test.describe('每个用户只看见自己的 #welcome 频道 (防回归 bug-030
     const leaksA = channelNames.filter(n => n.includes(dnA));
     expect(leaksA, `B 的 sidebar 不应含 A 的 display_name "${dnA}"; got: ${JSON.stringify(channelNames)}`).toEqual([]);
 
-    // 反向 sanity: B 应至少看到 1 个频道 (自己的 welcome).
+    // Baseline check: B 应至少看到 1 个频道 (自己的 welcome).
     expect(channelNames.length, 'B 应至少看到 1 个频道 (自己的 welcome)').toBeGreaterThanOrEqual(1);
 
     await browserCtx.close();

@@ -1,9 +1,9 @@
 // tests/host-bridge-daemon-handshake.spec.ts — Host bridge v0(D) e2e (覆盖 HB-2 验收 §1+§2).
 //
 // 测试范围 (6 case):
-//   case-1: daemon 源码层启动检查 (Playwright 端验证 binary 构建 smoke 和生成证据;
+//   case-1: daemon 源码层启动检查 (Playwright 端验证 binary 构建检查和生成证据;
 //           Go integration 覆盖实际启动行为)
-//   case-2: IPC 握手源码层 smoke (UDS protocol 由 Go integration 覆盖; Playwright 端验证
+//   case-2: IPC 握手源码层检查 (UDS protocol 由 Go integration 覆盖; Playwright 端验证
 //           manifest endpoint Bearer 鉴权生效)
 //   case-3: sandbox build tag 矩阵检查 (Playwright 端验证 platform coverage)
 //   case-4: ed25519 manifest 签名验证 (调用 HB-1 endpoint + signature shape 检查 +
@@ -85,7 +85,7 @@ function ensureEvidenceDir(): void {
 }
 
 test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () => {
-  test('case-1 daemon source startup — go build smoke, binary generation, and screenshot evidence', async ({
+  test('case-1 daemon source startup — go build check, binary generation, and screenshot evidence', async ({
     page,
   }) => {
     // Source-level startup is covered by Go integration (e2e/daemon_startup_test.go).

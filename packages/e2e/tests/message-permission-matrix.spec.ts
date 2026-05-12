@@ -2,8 +2,8 @@
 //
 // 测试范围 (3 关键 case, heima 拍 ap-5 矩阵简化但 cross-user IDOR 不允许砍):
 //   - case-1: user B 真 UI navigate user A private channel URL → fallback UI (ChannelView channel-empty / message list 0 / MessageInput 不渲染)
-//   - case-2: server ACL gate sanity (F2 例外, heima 约束 3) — user B 浏览器登态下 fetch PUT /messages/{userA-msg-id} 验 server 403/404, 反向证 server 拦截不依赖 client UI hide
-//   - case-3: server ACL gate sanity (F2 例外, heima 约束 3) — user B fetch DELETE /messages/{userA-msg-id} 验 server 403/404
+//   - case-2: server ACL gate check (F2 例外, heima 约束 3) — user B 浏览器登态下 fetch PUT /messages/{userA-msg-id} 验 server 403/404, 反向证 server 拦截不依赖 client UI hide
+//   - case-3: server ACL gate check (F2 例外, heima 约束 3) — user B fetch DELETE /messages/{userA-msg-id} 验 server 403/404
 //
 // 矩阵简化原则 (heima 加分项 1): 3 case 覆盖 (read UI fallback + write PUT gate + write DELETE gate). 不允许砍 cross-user IDOR case 数 — 此版本 PUT + DELETE 都保, 反映原 spec 的 PUT/DELETE/PATCH 完整矩阵 (PATCH 复用 PUT 同路径 ACL gate, 已在 PUT case 覆盖).
 //
@@ -139,7 +139,7 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
       `user B channel title 不应含 user A private channel 名 (反向证: user B 真 reach 不到 user A 资源)`,
     ).toEqual([]);
 
-    // (c) server gate sanity (REWRITE-NAV F2 显式允许例外, heima 约束 3):
+    // (c) server gate check (REWRITE-NAV F2 显式允许例外, heima 约束 3):
     // user B fetch GET userA channel messages → server 真挡 403/404 不依赖 client UI hide
     const fetchResult = await pageB.evaluate(async (cid: string) => {
       const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {
@@ -156,7 +156,7 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
     await ctxB.close();
   });
 
-  test('case-2: server ACL gate sanity (F2 例外) — user B fetch PUT /messages/{userA-msgId} 验 server 403/404', async ({ browser }) => {
+  test('case-2: server ACL gate check (F2 例外) — user B fetch PUT /messages/{userA-msgId} 验 server 403/404', async ({ browser }) => {
     const { userB, messageId } = await setupCrossUserScenario('case2');
 
     const ctxB = await browser.newContext();
@@ -193,7 +193,7 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
     await ctxB.close();
   });
 
-  test('case-3: server ACL gate sanity (F2 例外) — user B fetch DELETE /messages/{userA-msgId} 验 server 403/404', async ({ browser }) => {
+  test('case-3: server ACL gate check (F2 例外) — user B fetch DELETE /messages/{userA-msgId} 验 server 403/404', async ({ browser }) => {
     const { userB, messageId } = await setupCrossUserScenario('case3');
 
     const ctxB = await browser.newContext();

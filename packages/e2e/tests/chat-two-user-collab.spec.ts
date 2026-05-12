@@ -14,7 +14,7 @@
 // 实施约束:
 //   - 真 UI: owner page.goto + page.click sidebar channel + page.click members modal button + screenshot (production UI 路径有)
 //   - REST seed: admin login + invite + register + agent + channel + members + artifact + commit (X2 stale commit 没真 UI 触发, REST 直调合规作 stale 模拟)
-//   - 反约束 §3.4 (不订阅 agent_config_update BPP frame) 走 vitest content-lock 单测覆盖, e2e 不深扫 ws stream
+//   - §3.4 agent_config_update BPP frame must not be subscribed here; vitest content-lock covers that, so e2e 不深扫 ws stream
 
 import {
   test,
@@ -110,8 +110,8 @@ test.describe('CM-5.3 client SPA — agent↔agent 协作场景', () => {
     const inv1 = await mintInvite(adminCtx);
     const owner = await registerOwner(inv1);
 
-    // Two agents owned by same owner (CM-5 立场 ①: agent 走人 path,
-    // cross-org case 留 AP-3 — fixture 简化跟 #476 server test 同根).
+    // Two agents owned by the same owner. Agent collaboration uses the user path;
+    // cross-org coverage is deferred to AP-3, matching #476 server test setup.
     const agentAID = await createAgent(owner.ctx, 'AgentA');
     const agentBID = await createAgent(owner.ctx, 'AgentB');
 
@@ -147,12 +147,12 @@ test.describe('CM-5.3 client SPA — agent↔agent 协作场景', () => {
     const membersBtn = ownerPage.locator('button[title*="member" i], button[aria-label*="成员" i], .channel-members-btn').first();
     if (await membersBtn.count() > 0) {
       await membersBtn.click().catch(() => {});
-      // Wait for modal — we don't fail if not opened (UI variability), just
-      // skip the in-modal assertion. Real锁 守 is in vitest content-lock.
+      // Wait for modal; if it does not open because of UI variation, skip the
+      // in-modal assertion. The strict DOM lock is in vitest content-lock.
       const collabLinks = ownerPage.locator('[data-cm5-collab-link]');
       const count = await collabLinks.count().catch(() => 0);
-      // 立场 ⑤ — agent rows have hover anchor for transparency.
-      // 不强 fail 即便 UI 路径变化, 立场 lock 在 vitest content-lock test ②.
+      // Agent rows expose a hover anchor for collaboration transparency.
+      // This E2E logs the count; vitest content-lock test ② owns the strict check.
       console.log(`[CM-5.3] data-cm5-collab-link count in DOM: ${count}`);
     }
 
@@ -189,9 +189,9 @@ test.describe('CM-5.3 client SPA — agent↔agent 协作场景', () => {
       console.log(`[CM-5.3] screenshot capture: ${err.message ?? err}`);
     });
 
-    // §3.4 反约束 — 不订阅 BPP frame `agent_config_update` (CM-5 立场
-    // ① 走人 path 不开新 frame). 反向 grep 守在 vitest content-lock.
-    // e2e 不 deep-inspect ws frame stream — 立场 lock 在 lib.
+    // §3.4: this path must not subscribe to BPP frame `agent_config_update`.
+    // The reverse-grep guard lives in vitest content-lock; this e2e does not
+    // deep-inspect the WebSocket frame stream.
 
     await ctx.close();
   });
