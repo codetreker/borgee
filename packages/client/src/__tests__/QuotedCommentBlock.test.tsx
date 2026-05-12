@@ -3,11 +3,11 @@
 // 锚: docs/qa/cv-13-stance-checklist.md §1-§5 + content-lock §1+§2.
 // 6 case (cv-13.md §2):
 //   1. happy-path render (parent existing) — DOM data-attr + author + body
-//   2. missing parent (null) → fallback "(原消息已删除)" byte-identical
+//   2. missing parent (null) → fallback "(原消息已删除)" exact-match
 //   3. deleted_at 非 null → 同 missing fallback
-//   4. collapse toggle (展开/收起) byte-identical 文案
+//   4. collapse toggle (展开/收起) exact-match 文案
 //   5. truncate 200 chars + "…" suffix (collapsed only); expanded 显示完整
-//   6. DOM 4 data-attr 锚 byte-identical
+//   6. DOM 4 data-attr 锚 exact-match
 
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -67,7 +67,7 @@ describe('CV-13.2 QuotedCommentBlock', () => {
     expect(container!.textContent).toContain('> parent body');
   });
 
-  it('§2.2 TestCV13_MissingFallback — null parent → "(原消息已删除)" byte-identical', () => {
+  it('§2.2 TestCV13_MissingFallback — null parent → "(原消息已删除)" exact-match', () => {
     act(() => {
       root = createRoot(container!);
       root.render(<QuotedCommentBlock quotedMessage={null} />);
@@ -86,7 +86,7 @@ describe('CV-13.2 QuotedCommentBlock', () => {
     expect(container!.textContent).toContain('(原消息已删除)');
   });
 
-  it('§2.3 TestCV13_CollapseToggle — 展开/收起 byte-identical (long body shows toggle)', () => {
+  it('§2.3 TestCV13_CollapseToggle — 展开/收起 exact-match (long body shows toggle)', () => {
     const longBody = 'x'.repeat(250);
     const msg = makeMsg({ content: longBody });
     act(() => {
@@ -122,7 +122,7 @@ describe('CV-13.2 QuotedCommentBlock', () => {
     expect(container!.textContent).toContain('a'.repeat(250));
   });
 
-  it('§2.5 TestCV13_DOMAttrs — 4 data-attr 锚 byte-identical', () => {
+  it('§2.5 TestCV13_DOMAttrs — 4 data-attr 锚 exact-match', () => {
     const msg = makeMsg();
     act(() => {
       root = createRoot(container!);

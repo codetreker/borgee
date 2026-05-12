@@ -1,10 +1,10 @@
 // DescriptionHistoryModal.test.tsx — CHN-14.3 5 vitest cases pin content-lock.
 //
 // Cases:
-//   ① title `编辑历史` 4 字 byte-identical
-//   ② empty `暂无编辑记录` 6 chars byte-identical (empty history renders an explicit empty state)
-//   ③ history row `: 修改了说明` byte-identical (colon prefix plus space)
-//   ④ 时间戳 RFC3339 byte-identical
+//   ① title `编辑历史` 4 字 exact-match
+//   ② empty `暂无编辑记录` 6 chars exact-match (empty history renders an explicit empty state)
+//   ③ history row `: 修改了说明` exact-match (colon prefix plus space)
+//   ④ 时间戳 RFC3339 exact-match
 //   ⑤ synonym rejection — source grep 0 hits (except data-testid)
 
 import React from 'react';
@@ -46,7 +46,7 @@ describe('CHN-14.3 DescriptionHistoryModal content-lock', () => {
     vi.restoreAllMocks();
   });
 
-  it('① title `编辑历史` byte-identical (跟 DM-7 EditHistoryModal 同源)', async () => {
+  it('① title `编辑历史` exact-match (跟 DM-7 EditHistoryModal 同源)', async () => {
     vi.spyOn(api, 'getChannelDescriptionHistory').mockResolvedValue({
       history: [{ old_content: 'old-v1', ts: 1700000000000, reason: 'unknown' }],
     });
@@ -62,7 +62,7 @@ describe('CHN-14.3 DescriptionHistoryModal content-lock', () => {
     expect(h3?.textContent).toBe('编辑历史');
   });
 
-  it('② 空 history 显示 `暂无编辑记录` byte-identical', async () => {
+  it('② 空 history 显示 `暂无编辑记录` exact-match', async () => {
     vi.spyOn(api, 'getChannelDescriptionHistory').mockResolvedValue({
       history: [],
     });
@@ -77,7 +77,7 @@ describe('CHN-14.3 DescriptionHistoryModal content-lock', () => {
     expect(empty!.textContent).toBe('暂无编辑记录');
   });
 
-  it('③ history 行 action `: 修改了说明` byte-identical', async () => {
+  it('③ history 行 action `: 修改了说明` exact-match', async () => {
     vi.spyOn(api, 'getChannelDescriptionHistory').mockResolvedValue({
       history: [{ old_content: 'foo', ts: 1700000000000, reason: 'unknown' }],
     });
@@ -90,7 +90,7 @@ describe('CHN-14.3 DescriptionHistoryModal content-lock', () => {
     expect(action!.textContent).toBe(': 修改了说明');
   });
 
-  it('④ 时间戳 RFC3339 byte-identical (跟 DM-7 + CHN-1.2 同源)', async () => {
+  it('④ 时间戳 RFC3339 exact-match (跟 DM-7 + CHN-1.2 同源)', async () => {
     const ts = 1700000000000;
     vi.spyOn(api, 'getChannelDescriptionHistory').mockResolvedValue({
       history: [{ old_content: 'foo', ts, reason: 'unknown' }],

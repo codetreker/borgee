@@ -1,12 +1,12 @@
 // ChannelPresenceList.test.tsx — RT-4.3 5 vitest cases pin content-lock.
 //
 // Cases:
-//   ① 文案 `当前在线 N 人` byte-identical (N 动态)
+//   ① 文案 `当前在线 N 人` exact-match (N 动态)
 //   ② ≤5 显示头像 + N>5 显示前 5 + `+M` overflow chip 字面
 //   ③ 空 onlineUserIds → return null (整个 list 不渲染)
-//   ④ data-presence-user-id 行级锚 byte-identical
+//   ④ data-presence-user-id 行级锚 exact-match
 //   ⑤ 同义词反向 reject — source grep user-visible Chinese 0 hit (className/
-//      data-testid 例外); 既有 RT-2 typing path byte-identical (grep 检查
+//      data-testid 例外); 既有 RT-2 typing path exact-match (grep 检查
 //      `rt_4|rt4|RT4` 在 TypingIndicator.tsx 0 hit).
 
 import React from 'react';
@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 describe('RT-4.3 ChannelPresenceList content lock', () => {
-  it('① count 文案 `当前在线 N 人` byte-identical', () => {
+  it('① count 文案 `当前在线 N 人` exact-match', () => {
     act(() => {
       root!.render(<ChannelPresenceList onlineUserIds={['u1', 'u2', 'u3']} />);
     });
@@ -94,7 +94,7 @@ describe('RT-4.3 ChannelPresenceList content lock', () => {
     ).toBeNull();
   });
 
-  it('④ data-presence-user-id 行级锚 byte-identical', () => {
+  it('④ data-presence-user-id 行级锚 exact-match', () => {
     act(() => {
       root!.render(<ChannelPresenceList onlineUserIds={['user-42']} />);
     });
@@ -104,7 +104,7 @@ describe('RT-4.3 ChannelPresenceList content lock', () => {
     expect(li.getAttribute('data-presence-user-id')).toBe('user-42');
   });
 
-  it('⑤ 同义词反向 reject + 既有 RT-2 typing byte-identical', () => {
+  it('⑤ 同义词反向 reject + 既有 RT-2 typing exact-match', () => {
     const compPath = nodePath.resolve(
       HERE,
       '..',

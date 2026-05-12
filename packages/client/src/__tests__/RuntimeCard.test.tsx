@@ -2,15 +2,15 @@
 //
 // 闭环 acceptance §3.1-§3.4 + content-lock §2 grep 检查:
 //   §3.1 设计 ② 4 态 data-runtime-status DOM lock — 'registered' /
-//        'running' / 'stopped' / 'error' 严闭 (反约束: 不准
+//        'running' / 'stopped' / 'error' 严闭 (reverse constraint: 不准
 //        'starting' / 'stopping' / 'restarting' 中间态 v0)
 //   §3.2 design ② owner-only button DOM omission — non-owner view has no
 //        start/stop button (omitted entirely, not merely disabled; constraint:
 //        disabled.*owner_id 0 hit)
-//   §3.3 error 态 reason badge byte-identical 跟 lib/agent-state.ts
+//   §3.3 error 态 reason badge exact-match 跟 lib/agent-state.ts
 //        REASON_LABELS 同源 (改 = 改三处, AL-1a #249 设计 ④)
-//   §3.4 反约束 — 不显示 endpoint_url / last_heartbeat_at 原始时间戳
-//        (#321 §2 反约束 — 沉默胜于假精确)
+//   §3.4 reverse constraint — 不显示 endpoint_url / last_heartbeat_at 原始时间戳
+//        (#321 §2 reverse constraint — 沉默胜于假精确)
 
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -97,7 +97,7 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
     }
   });
 
-  it('§3.1 反约束 — 不准 starting/stopping/restarting 中间态出现', () => {
+  it('§3.1 reverse constraint — 不准 starting/stopping/restarting 中间态出现', () => {
     // Literal guard: RUNTIME_STATUS_LABELS keys must stay at exactly four states
     // to mirror the CHECK constraint.
     const allowed = new Set(['registered', 'running', 'stopped', 'error']);
@@ -152,7 +152,7 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
     expect(container!.querySelector('[data-runtime-action="start"]')).toBeNull();
   });
 
-  it('§3.2 反约束 — undefined / null viewerUserID 不渲染 start/stop btn', () => {
+  it('§3.2 reverse constraint — undefined / null viewerUserID 不渲染 start/stop btn', () => {
     // Avoid owner leaks: unauthenticated / loading viewers follow the non-owner path.
     render({
       agent,
@@ -164,7 +164,7 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
     expect(container!.querySelector('[data-runtime-action="stop"]')).toBeNull();
   });
 
-  it('§3.3 error 态 reason badge byte-identical 跟 REASON_LABELS 同源 (#249 设计 ④)', () => {
+  it('§3.3 error 态 reason badge exact-match 跟 REASON_LABELS 同源 (#249 设计 ④)', () => {
     for (const reason of Object.keys(REASON_LABELS) as Array<keyof typeof REASON_LABELS>) {
       render({
         agent,
@@ -174,13 +174,13 @@ describe('RuntimeCard — AL-4.3 acceptance §3 + #321 §2', () => {
       });
       const badge = container!.querySelector(`[data-error-reason="${reason}"]`);
       expect(badge, `reason badge missing for ${reason}`).toBeTruthy();
-      // Labels stay byte-identical with REASON_LABELS (change all three together:
+      // Labels stay exact-match with REASON_LABELS (change all three together:
       // server agent/state.go + lib/agent-state.ts + 此).
       expect(badge!.textContent).toBe(REASON_LABELS[reason]);
     }
   });
 
-  it('§3.4 反约束 — 不显示 endpoint_url / last_heartbeat_at 原始时间戳 (#321 §2)', () => {
+  it('§3.4 reverse constraint — 不显示 endpoint_url / last_heartbeat_at 原始时间戳 (#321 §2)', () => {
     // Prefer silence over false precision (#321 §2 + #11). endpoint_url is a
     // process internal, and raw last_heartbeat_at would imply false precision.
     const rt = makeRuntime({

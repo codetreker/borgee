@@ -1,6 +1,6 @@
 // chn-2-content-lock.test.ts — CHN-2.2 client SPA 文案 + DOM attr lock.
 //
-// Pins the 5 byte-identical literals from docs/qa/chn-2-content-lock.md
+// Pins the 5 exact literals from docs/qa/chn-2-content-lock.md
 // + 设计 ③/⑤ DOM attrs (data-kind="dm" / "channel" + data-channel-type)
 // so drift in Sidebar.tsx / ChannelList.tsx / ChannelView.tsx is caught
 // pre-merge instead of post-merge by reverse grep.
@@ -32,7 +32,7 @@ describe('CHN-2 content-lock literals + DOM attrs', () => {
   const channelView = read('components/ChannelView.tsx');
   const slashBuiltins = read('commands/builtins.ts');
 
-  it('① sidebar DM section header = "私信" byte-identical (cv from chn-2-content-lock.md)', () => {
+  it('① sidebar DM section header = "私信" exact-match (cv from chn-2-content-lock.md)', () => {
     expect(sidebar).toContain('>私信</div>');
   });
 
@@ -44,7 +44,7 @@ describe('CHN-2 content-lock literals + DOM attrs', () => {
     expect(channelList).toMatch(/data-kind="channel"/);
   });
 
-  it('② DM tooltip = "私信 ${user.display_name}" byte-identical', () => {
+  it('② DM tooltip = "私信 ${user.display_name}" exact-match', () => {
     expect(sidebar).toContain('`私信 ${user.display_name}`');
   });
 
@@ -52,18 +52,18 @@ describe('CHN-2 content-lock literals + DOM attrs', () => {
     expect(slashBuiltins).toContain('打开与用户的私信');
   });
 
-  it('设计 ⑤ ChannelView data-channel-type attr — DM 跟 channel 拆死视觉', () => {
+  it('设计 ⑤ ChannelView data-channel-type attr — DM 跟 channel 视觉严格分离', () => {
     expect(channelView).toMatch(/data-channel-type=\{[^}]*'dm'[^}]*'channel'[^}]*\}/);
   });
 
-  it('反约束: DM 同义词漂移 0 hit (sidebar)', () => {
+  it('reverse assertion: DM 同义词漂移 0 hit (sidebar)', () => {
     // 字面 "私信" 唯一; 同义词 / 误用 0 hit.
     for (const forbidden of ['"DM"', '"Direct Message"', '"私聊"', '"对话框"', '"Chats"', '"聊天"']) {
       expect(sidebar).not.toContain(forbidden);
     }
   });
 
-  it('反约束: DM 升级 / 转换路径 0 hit (蓝图 §1.2 是新建非升级)', () => {
+  it('reverse assertion: DM 升级 / 转换路径 0 hit (蓝图 §1.2 是新建非升级)', () => {
     for (const file of [sidebar, channelList, channelView]) {
       expect(file).not.toMatch(/升级为频道|Convert to channel|Upgrade DM|转为频道|promote-to-channel/);
     }

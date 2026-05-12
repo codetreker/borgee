@@ -2,12 +2,12 @@
 //
 // al-3.md §3.1 acceptance: online → data-presence="online" + 文本 "在线";
 // offline → data-presence="offline" + 文本 "已离线"; error → data-presence=
-// "error" + 文本 "故障 (REASON)" (跟 #249 6 reason codes byte-identical).
+// "error" + 文本 "故障 (REASON)" (跟 #249 6 reason codes exact-match).
 //
-// §5.4 反约束: 每命中 .presence-dot 必带 sibling 文本 — 这里通过组件渲染
+// §5.4 reverse constraint: 每命中 .presence-dot 必带 sibling 文本 — 这里通过组件渲染
 // 保证 dot + text 永远成对出现, 测两个 sibling 都在 DOM 里.
 //
-// §5.1 反约束: 文本不准是 "busy" / "idle" / "忙" / "空闲" — 这里穷举状态
+// §5.1 reverse constraint: 文本不准是 "busy" / "idle" / "忙" / "空闲" — 这里穷举状态
 // 反查输出文本, 守 phase 2 仅 3 态.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -62,7 +62,7 @@ describe('PresenceDot DOM 字面锁 (al-3.md §3.1)', () => {
     expect(c.textContent).toBe('故障 (API key 失效)');
   });
 
-  it('error 6 reason codes byte-identical 文案 (跟 #249 lib/agent-state.ts 字面绑定)', () => {
+  it('error 6 reason codes exact-match 文案 (跟 #249 lib/agent-state.ts 字面绑定)', () => {
     const cases: Array<[Parameters<typeof PresenceDot>[0]['reason'], string]> = [
       ['api_key_invalid',     '故障 (API key 失效)'],
       ['quota_exceeded',      '故障 (已超出配额)'],
@@ -87,11 +87,11 @@ describe('PresenceDot DOM 字面锁 (al-3.md §3.1)', () => {
     const c = render(<PresenceDot state="online" reason={undefined} compact />);
     const wrap = c.querySelector('[data-presence]')! as HTMLElement;
     expect(wrap.getAttribute('title')).toBe('在线');
-    // sr-only 仍含文本 (a11y), 但视觉上不显. 反约束 §5.4 仍通过 sr-only 满足.
+    // sr-only 仍含文本 (a11y), 但视觉上不显. Reverse constraint §5.4 仍通过 sr-only 满足.
     expect(c.textContent).toContain('在线');
   });
 
-  it('反约束 AL-3 §5.1 (Phase 2 仅 3 态): online/offline/error 状态的 text 不准误漏 busy/idle 字面 (busy/idle 走独立 path AL-1b)', () => {
+  it('reverse constraint AL-3 §5.1 (Phase 2 仅 3 态): online/offline/error 状态的 text 不准误漏 busy/idle 字面 (busy/idle 走独立 path AL-1b)', () => {
     for (const state of ['online', 'offline', 'error'] as const) {
       const c = render(<PresenceDot state={state} reason={state === 'error' ? 'unknown' : undefined} />);
       const text = c.textContent ?? '';
@@ -132,8 +132,8 @@ describe('PresenceDot — AL-1b (#R3 Phase 4) busy/idle DOM 字面锁', () => {
     }
   });
 
-  // acceptance §3.4 — 文案锁反约束: 不准 "活跃" / "running" / "Standing by" / "等待中" 模糊词.
-  it('反约束 §3.4: busy/idle 文案不准用模糊词 ("活跃"/"running"/"Standing by"/"等待中")', () => {
+  // acceptance §3.4 — 文案锁 reverse constraint: 不准 "活跃" / "running" / "Standing by" / "等待中" 模糊词.
+  it('reverse constraint §3.4: busy/idle 文案不准用模糊词 ("活跃"/"running"/"Standing by"/"等待中")', () => {
     for (const state of ['busy', 'idle'] as const) {
       const c = render(<PresenceDot state={state} reason={undefined} />);
       const text = c.textContent ?? '';
