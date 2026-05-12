@@ -18,9 +18,9 @@ agent 详情页 ("Manage" 展开区) 重组成 6 卡 section, 视觉分层"读"v
 ## 2. agents page width (gh#683 / PR #694)
 
 `packages/client/src/components/AgentManager.tsx`:
-- 顶层容器 `width: 100%` — 反 flex cross-axis 默认 `width: auto` 缩到 334px (内容最小宽度), Manage 展开后撑大闪跳到 800px (visual jank)
+- 顶层容器 `width: 100%` — 反 flex cross-axis 默认 `width: auto` 缩到 334px (内容最小宽度), Manage 展开后撑大闪跳到 800px (visible layout jump)
 
-跟 #694 PR body 一致, 1 行 CSS 改 (`.agent-page { width: 100%; }`) 反 jank.
+跟 #694 PR body 一致, 1 行 CSS 改 (`.agent-page { width: 100%; }`) 防止 layout jump.
 
 ## 3. 6 卡 section 重组 (gh#684 / PR #710)
 
@@ -56,7 +56,7 @@ DOM 出处:
 - `<section className="agent-detail-card agent-detail-card-permissions">`
 - `<section className="agent-detail-card agent-detail-card-channels">`
 
-state hoist 全在 `AgentCard` 顶层 (反 prop drilling): `last4` / `loadingKey` / `copying` / `autoClearTimerRef` / `permissions` / `runtime` / `joinChannelId`. 子卡片只 React `<section>` wrapper + class CSS, 0 跨段共享 state 脱节.
+state 全在 `AgentCard` 顶层集中管理 (反 prop drilling): `last4` / `loadingKey` / `copying` / `autoClearTimerRef` / `permissions` / `runtime` / `joinChannelId`. 子卡片只 React `<section>` wrapper + class CSS, 0 跨段共享 state 脱节.
 
 ## 4. Credentials 卡 mask + 复制 + auto-clear (gh#684)
 

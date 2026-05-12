@@ -13,7 +13,7 @@
 - ③ 反复制 hook 行为脱节 — 5 form 不各自写 beforeunload, hook 内统一加 (反 5 个 form 各写一份 listener 行为脱节)
 - ④ 多守卫合并消息一次弹 — 同时 N form dirty 不弹 N 次, 拼一条消息
 
-## 2. API surface (`packages/client/src/hooks/useUnsavedChangesGuard.ts`)
+## 2. Public API (`packages/client/src/hooks/useUnsavedChangesGuard.ts`)
 
 3 export + 1 internal helper + React hook:
 
@@ -38,12 +38,12 @@ sidepane 切换 → App.tsx::requestMainView() 调 runUnsavedGuards()
       ↓
 关 tab / 刷 / ctrl+W → window 触发 beforeunload event
       → handler 检 isDirtyRef.current() → preventDefault + returnValue=''
-      → 浏览器弹原生提示 (现代浏览器忽略 message 字面)
+      → 浏览器弹内置提示 (现代浏览器忽略 message 字面)
       ↓
 unmount → 反注册 guards.delete(guard) + removeEventListener
 ```
 
-## 4. closure staleness 修法 (PR #695 feima review)
+## 4. stale closure 修法 (PR #695 feima review)
 
 调用方常这么写:
 
@@ -58,7 +58,7 @@ useUnsavedChangesGuard(
 
 修法: `useRef` 装 *引用*, 每次 render 把最新 isDirty 写进 `isDirtyRef.current`, useEffect 只在 mount 时把"调 ref" 注册进 Set. 这样 Set 里那条永远调当前 render 的 isDirty, 拿到当前 React state.
 
-## 5. 5 form 真量 + dirty 推算两模式
+## 5. Five forms + two dirty-state rules
 
 `packages/client/src/components/` grep 检查 `useUnsavedChangesGuard` = 5 处:
 
@@ -74,28 +74,28 @@ useUnsavedChangesGuard(
 
 ## 6. beforeunload listener (PR #709)
 
-hook 内统一加 (5 form 自动获益, 反每 form 各自写漂):
+hook 内统一加 (5 form 自动获益, 反每 form 各自写导致行为漂移):
 
 ```ts
 useEffect(() => {
   const handler = (e: BeforeUnloadEvent) => {
-    if (!isDirtyRef.current()) return;  // 早返回反污染浏览器 unload 链路
+    if (!isDirtyRef.current()) return;  // clean form: leave browser unload handling untouched
     e.preventDefault();
-    e.returnValue = '';  // 触发原生提示, 现代浏览器忽略 message 字面
+    e.returnValue = '';  // 触发浏览器内置提示, 现代浏览器忽略 message 字面
   };
   window.addEventListener('beforeunload', handler);
   return () => window.removeEventListener('beforeunload', handler);
 }, []);  // 空 deps OK — handler 关 ref 不 staleness
 ```
 
-跟 CV-10 ArtifactCommentDraftInput 自己写的 beforeunload 共存 — 都 preventDefault 是幂等, 浏览器只弹一次原生提示. CV-10 迁 hook 留 followup.
+跟 CV-10 ArtifactCommentDraftInput 自己写的 beforeunload 共存 — 都 preventDefault 是幂等, 浏览器只弹一次内置提示. CV-10 迁 hook 留 followup.
 
 ## 7. 反向约束 (硬性)
 
 源码层:
 - `packages/client/src/components/` grep 检查 `beforeunload` 命中 1 处 (CV-10 ArtifactCommentDraftInput) — 5 form 自己不写 (复用 hook), 反复制行为脱节
 - `packages/client/src/hooks/useUnsavedChangesGuard.ts` grep 检查 `beforeunload` 命中 1 处 (统一 listener)
-- 不引第三方 modal 库 (react-modal / sweetalert) — 走 `window.confirm` 原生 + 浏览器 beforeunload 原生
+- 不引第三方 modal 库 (react-modal / sweetalert) — 走浏览器 `window.confirm` + beforeunload 内置提示
 
 ## 8. 测试
 
@@ -105,7 +105,7 @@ useEffect(() => {
   - `CreateNodeForm-dirty-guard.test.tsx` 4 case (mount 不算 / 输入 name 算 / 空格 only 不算 / unmount 反注册)
   - `AddBinding-dirty-guard.test.tsx` 4 case (showAddBinding=false 不算 / 全空不算 / bindPath 非空算 / bindLabel 非空算)
   - `useUnsavedChangesGuard-beforeunload.test.tsx` 3 case (干净不 preventDefault / dirty 调 preventDefault / unmount 反注册)
-- React 18 受控 input/textarea 测试用 native value setter (反 ta.value=X 不通过 React 属性 setter 不触发 onChange)
+- React 18 受控 input/textarea 测试用 React DOM value setter (反 ta.value=X 不通过 React 属性 setter 不触发 onChange)
 
 ## 9. 出处
 

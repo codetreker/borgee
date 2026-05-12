@@ -8,7 +8,7 @@
 
 | 文件 | 角色 |
 |---|---|
-| `packages/client/src/components/AppShell.tsx` | 三栏 grid container; 根据 `artifactMode` 派生 `grid-template-columns`; mobile (≤768px) 降级 |
+| `packages/client/src/components/AppShell.tsx` | 三栏 grid layout container; 根据 `artifactMode` 派生 `grid-template-columns`; mobile (≤768px) 降级 |
 | `packages/client/src/lib/use_artifact_panel.ts` | 4-态 state machine hook (`useArtifactPanel`); transition 谓词单一来源 |
 | `packages/client/src/components/ArtifactDrawer.tsx` | 右栏渲染容器 (mode != 'closed' 才挂 DOM); 详见 [`artifact-drawer.md`](artifact-drawer.md) |
 
@@ -24,7 +24,7 @@
 └──────────┴──────────────────┴───────────────────┘
 ```
 
-three-pane 字面是单一来源，避免 inline 文案分散后不一致.
+three-pane 字面是单一来源，避免 literal 文案分散后不一致.
 
 桌面 grid-template-columns (`computeGridColumns(mode, isMobile=false)`):
 
@@ -35,7 +35,7 @@ three-pane 字面是单一来源，避免 inline 文案分散后不一致.
 | `split`      | `240px 1fr 1fr` |
 | `fullscreen` | `240px 1fr` (artifact overlay 覆盖) |
 
-字面常量单一来源 (改 = 改一处, 避免 inline 散落):
+字面常量单一来源 (改 = 改一处, 避免 literal values 散落):
 
 | const | 字面 | 来源 |
 |---|---|---|
@@ -80,7 +80,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 
 ## 移动 (≤768px) 降级
 
-`AppShell` 接 `isMobile: boolean` prop (caller 据 viewport breakpoint 算):
+`AppShell` 接 `isMobile: boolean` prop (calling component 据 viewport breakpoint 算):
 - 三栏 → 单栏 (`grid-template-columns: 1fr`); 主区 full width
 - 侧栏 → overlay drawer; 由 `sidebarOpen` + `onSidebarClose` props 控制
 - artifact split → 全屏 modal (`mode='fullscreen'`); `role="dialog" aria-modal="true"`
@@ -102,7 +102,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 
 | 出处 | 期望 |
 |---|---|
-| `useArtifactPanel` 调用 单一来源 | 仅 AppShell 顶层 caller 一处 (避免 hook 调用分散) |
+| `useArtifactPanel` 调用 单一来源 | 仅 AppShell 顶层 calling component 一处 (避免 hook 调用分散) |
 | `setMode\(['"]split['"]\)` 直调 | 仅 useArtifactPanel.ts 内部一处 (caller 走 `promoteToSplit()`) |
-| inline `'240px 1fr 380px'` 字面 | 仅 `computeGridColumns` 内一处 (避免 inline 字面分散后不一致) |
+| inline `'240px 1fr 380px'` 字面 | 仅 `computeGridColumns` 内一处 (避免 literal 字面分散后不一致) |
 | `closed → split` 直接 transition | 0 hit (反向约束硬性强制) |

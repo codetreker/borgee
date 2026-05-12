@@ -48,7 +48,7 @@ Artifact 引用遵循两级展开，避免首次点击就进入 split view:
 |---|---|---|
 | 显式按钮 | `button[data-testid="artifact-drawer-promote"]` | `onPromoteToSplit()` |
 | drag handle | `div[data-testid="artifact-drawer-drag-handle"]` mouseUp | `onPromoteToSplit()` |
-| (二次点击 artifact 引用) | 来自 caller 上层 ArtifactReference | `onPromoteToSplit()` |
+| (二次点击 artifact 引用) | 来自调用方上层 ArtifactReference | `onPromoteToSplit()` |
 
 三个入口都调用同一个 `onPromoteToSplit` callback，并由 `useArtifactPanel.promoteToSplit()` 统一处理 transition。
 
@@ -61,10 +61,10 @@ Artifact 引用遵循两级展开，避免首次点击就进入 split view:
 | 出处 | 期望 |
 |---|---|
 | `mode === 'closed'` 时仍挂载 DOM | 无匹配；`mode==='closed'` 直接 `return null` |
-| `setMode\(['"]split['"]\)` 直调 | 无匹配；caller 必须走 `onPromoteToSplit` callback |
+| `setMode\(['"]split['"]\)` 直调 | 无匹配；调用方必须走 `onPromoteToSplit` callback |
 | drag handle 字面 `cursor` style 脱节 | 仅在 `artifact-drawer-drag-handle` className 一处 |
 
-## 不在范围 (留尾)
+## 不在范围 (deferred work)
 
 - artifact body 渲染；继续走 `children` ArtifactPanel，CS-1 不改
 - mobile drag handle 触摸事件支持；现仅 mouse，touch 走 fullscreen 直 modal

@@ -12,14 +12,14 @@
 ## Why
 
 CV-6 closes the artifact full-text search loop on the client side —
-SearchBox debounces user input + posts to GET /artifacts/search;
+SearchBox debounces user input and calls GET /artifacts/search;
 SearchResultList renders title + server-side `<mark>...</mark>`
-highlighted snippet. HTML5 native; no fuzzy-search libs (fuse.js /
+highlighted snippet. It uses the browser `<input type="search">`; no fuzzy-search libraries (fuse.js /
 minisearch / fuzzysort / flexsearch).
 
 ## 原则 (cv-6-spec.md §0 + content-lock)
 
-- **server-side 单一来源** (FTS5). No client-side fuzzy lib (grep 检查
+- **server-side 单一来源** (FTS5). No client-side fuzzy-search library (grep 检查
   package.json count==0 by 5 keyword).
 - **debounce 300ms** — 反每键发 HTTP, useEffect cleanup pattern.
 - **kbd shortcut**: `/` focuses input (不在编辑态时); `Escape` clears
@@ -44,11 +44,11 @@ minisearch / fuzzysort / flexsearch).
 
 字面锁定:
 
-- `type="search"` (HTML5 native, 反 type="text").
+- `type="search"` (browser search input, 反 type="text").
 - `placeholder` byte-identical "搜索 artifact (按 / 聚焦)".
 - `maxlength="256"` 跟 server `SearchQueryMaxLen` byte-identical.
 - `data-testid="artifact-search-input"` (e2e 出处).
-- `aria-label="搜索 artifact"` (a11y 反向断言).
+- `aria-label="搜索 artifact"` (accessibility 反向断言).
 
 ### SearchResultList row
 
@@ -101,13 +101,13 @@ future 脱节.
   const byte-identical.
 - DOM `data-testid` + `data-artifact-kind` byte-identical 跟 server
   endpoint spec docs/current/server/api/artifact-search.md.
-- 不引入 client-side fuzzy lib — 跟 CV-2 v2 / CV-3 v2 设计 "不引入重 lib"
+- 不引入 client-side fuzzy-search library — 跟 CV-2 v2 / CV-3 v2 设计 "不引入重 lib"
   同精神 (grep 检查 package.json count==0 on `fuse\|minisearch\|fuzzysort
   \|flexsearch`).
 
 ## 不在范围
 
-- 客户端高亮 (server-side `<mark>` 已带, client 不另起 highlight lib).
+- 客户端高亮 (server-side `<mark>` 已带, client 不另起 highlight library).
 - 跨 channel global search (server v0 不开, 留 v2+).
 - search 历史 / saved query (留 v2+ 走 user_settings).
 - ChannelView sidebar 集成 (留后续 PR — v0 把 SearchBox 当独立

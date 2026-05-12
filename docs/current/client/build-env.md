@@ -12,9 +12,9 @@ NodeManager.tsx 实际使用 `import.meta.env.VITE_AGENT_WS_SERVER` 字面 (Vite
 | 环境 | URL |
 |---|---|
 | prod | `wss://borgee.codetrek.cn` |
-| staging | `wss://borgee.codetrek.cn` (共用, staging 是 smoke-test prod artifact 的环境) |
+| staging | `wss://borgee.codetrek.cn` (共用, staging runs smoke tests against the production artifact) |
 | testing | `wss://testing-borgee.codetrek.cn` |
-| dev (fallback) | `wss://localhost:4900` (NodeManager.tsx 真挂 fallback when env unset) |
+| dev (fallback) | `wss://localhost:4900` (NodeManager.tsx uses this fallback when env unset) |
 
 ### Build-time inject (Dockerfile)
 

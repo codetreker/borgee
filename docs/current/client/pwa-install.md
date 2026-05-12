@@ -26,7 +26,7 @@ export const PUSH_PERMISSION_LABELS: Record<PushPermissionState, string> = {
   granted: '已开启通知',
   denied: '通知已被浏览器拒绝, 请到浏览器设置开启',
   default: '开启通知',
-  unsupported: '', // 不渲染 (沉默胜于假活物感)
+  unsupported: '', // 不渲染 (避免显示误导性的可用状态)
 };
 
 export const INSTALL_BUTTON_LABEL = '安装 Borgee 桌面应用';
@@ -75,6 +75,6 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 - IndexedDB 乐观缓存 (留 CS-4)
 - Web Notifications API 自定义渲染 (走 sw.js DL-4 路径)
 - background sync (跟蓝图 §1.1 字面一致)
-- iOS Safari beforeinstallprompt 真支持 (留 v2)
+- iOS Safari beforeinstallprompt actual support (留 v2)
 - per-device 多端管理 UI (留 v1)
 - 永久不得挂载或暴露 ADM-0 §1.3 管理端 PWA install / push 管理入口
