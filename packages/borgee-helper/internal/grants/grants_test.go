@@ -50,8 +50,9 @@ func TestHB23_GrantExpired(t *testing.T) {
 	}
 }
 
-// TestHB23_RevocationLessThan100ms negative assertion: the next Lookup rejects immediately after revoke
-// (HB-4 §1.5 release gate 第 5 行 < 100ms; grep 检查 grantsCache 0 hit).
+// TestHB23_RevocationLessThan100ms negative assertion: the next Lookup rejects
+// immediately after revoke (HB-4 §1.5 release gate line 5 requires <100ms; grep
+// check expects 0 grantsCache hits).
 func TestHB23_RevocationImmediate(t *testing.T) {
 	t.Parallel()
 	c := NewMemoryConsumer()
