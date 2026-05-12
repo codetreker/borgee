@@ -44,24 +44,24 @@ import (
 //      agent_id 同模式 — 显式命名让 EXPLAIN QUERY PLAN 可读 + 反查 grep 可断.
 //
 // 反约束 (al-1b-spec.md §0 + §4 + acceptance §1.* + 设计 ① 拆三路径):
-//   - 设计 ① "拆三路径": 表无 `is_online` / `presence` 列 (跟 AL-3
-//     presence_sessions 拆死 — agent 在 task in-flight 但 hub 心跳超时
+//   - 设计 ① "拆三路径": 表无 `is_online` / `presence` 列 (kept separate
+//     from AL-3 presence_sessions — agent 在 task in-flight 但 hub 心跳超时
 //     是合法态, 不能用一列 is_online 替代两表两路径).
 //   - 设计 ① 反 AL-4: 表无 `last_error_reason` / `endpoint_url` /
 //     `process_kind` 列 (那是 AL-4 agent_runtimes process-level — busy/idle
-//     是 task-level, 拆死).
-//   - 设计 ② "BPP 单源": 表无 `source` / `set_by` 列 (反人工伪造 — busy/idle
-//     state machine 唯一 source = BPP frame, server 端 state machine 守, 不
+//     is task-level and kept separate).
+//   - 设计 ② "BPP-originated": 表无 `source` / `set_by` 列 (反人工伪造 — busy/idle
+//     state machine input = BPP frame, server 端 state machine 守, 不
 //     在 schema 层暴露).
-//   - 不挂 cursor 列 (跟 RT-1 envelope cursor 拆死, 同 al_3_1 / al_4_1 /
+//   - 不挂 cursor 列 (kept separate from RT-1 envelope cursor, 同 al_3_1 / al_4_1 /
 //     cv_*_1 / dm_2_1 模式).
 //   - 不挂 ON DELETE CASCADE (蓝图 §2.3 字面 "保留状态历史"; agent 删后
 //     status row 留账 — admin 审计路径).
 //
-// v0 stance: forward-only, no Down(). 表本身 v0 新增, IF NOT EXISTS 守
+// Migration policy: forward-only, no Down(). 表本身 v0 新增, IF NOT EXISTS 守
 // idempotency. 跟 al_3_1 / al_4_1 / cv_2_1 / dm_2_1 / cm_4_0 同模式逻辑 FK.
 //
-// v=21 sequencing (字面延续, 跟 spec brief §2 byte-identical):
+// v=21 sequencing (keeps spec brief §2 ordering):
 // CV-2.1 v=14 ✅ #359 / DM-2.1 v=15 ✅ #361 / AL-4.1 v=16 ✅ #398 /
 // CV-3.1 v=17 ✅ #396 / CV-4.1 v=18 ✅ #405 / CHN-3.1 v=19 ✅ #410 /
 // CHN-4.1 v=20 ✅ #411 (占位无 schema 改) / **AL-1b.1 v=21** (本 migration) /

@@ -249,7 +249,7 @@ func (s *Store) ConsumeInviteCode(code string, userID string) error {
 func (s *Store) ListUserPermissions(userID string) ([]UserPermission, error) {
 	var perms []UserPermission
 	// AP-2 #ap-2 原则 ⑥: revoked_at IS NOT NULL 行被排除 (sweeper 软删
-	// 路径; AP-1 单一来源 同精神, 改 = 改此处一处, HasCapability 路径自动
+	// 路径; AP-1 central query pattern, 改 = 改此处一处, HasCapability 路径自动
 	// 返 false 对 revoked 行). NULL = active (跟 expires_at NULL = 永久
 	// + org_id NULL = 历史 同精神).
 	err := s.db.Where("user_id = ? AND revoked_at IS NULL", userID).Find(&perms).Error
@@ -613,10 +613,10 @@ func (s *Store) CreateMessageFull(channelID, senderID, content, contentType stri
 func (s *Store) UpdateMessage(messageID, content string) (*MessageWithSender, error) {
 	now := time.Now().UnixMilli()
 	// DM-7.2 原则 ②: SELECT old content + edit_history FIRST so we can
-	// append a new history entry. UpdateMessage 单一来源 — DM-4 #553 既有
-	// PATCH path 调用方 byte-identical 不动. AL-1a reason 守护链第 18 处
-	// (复用 reasons.Unknown byte-identical 跟 AL-7 SweeperReason / HB-5
-	// HeartbeatSweeperReason 同源 — DM-7 不另起 reason 字典).
+	// append a new history entry. UpdateMessage is the central update path —
+	// DM-4 #553 既有 PATCH caller unchanged. AL-1a reason alignment point 18
+	// (复用 reasons.Unknown literal 跟 AL-7 SweeperReason / HB-5
+	// HeartbeatSweeperReason shared dictionary — DM-7 不另起 reason 字典).
 	var existing Message
 	if err := s.db.Select("content", "edit_history").
 		Where("id = ?", messageID).First(&existing).Error; err != nil {
@@ -626,14 +626,14 @@ func (s *Store) UpdateMessage(messageID, content string) (*MessageWithSender, er
 		"content":   content,
 		"edited_at": now,
 	}
-	// Skip history append when content is byte-identical (idempotent
+	// Skip history append when content is unchanged (idempotent
 	// PATCH — 原则 ② "重复 PATCH 同 content 不重复入 history").
 	if existing.Content != content {
 		entry := map[string]any{
 			"old_content": existing.Content,
 			"ts":          now,
-			// AL-1a reason 守护链第 18 处 — 字面 "unknown" byte-identical
-			// 跟 reasons.Unknown / AL-7 SweeperReason / HB-5 同源.
+			// AL-1a reason alignment point 18 — 字面 "unknown" matches
+			// reasons.Unknown / AL-7 SweeperReason / HB-5.
 			"reason": "unknown",
 		}
 		var arr []map[string]any
@@ -847,12 +847,12 @@ func (s *Store) ListChannelsPublic() ([]ChannelWithCounts, error) {
 // out unless the user is still a member, so a creator who archives a
 // channel can still see it but org peers stop seeing it.
 //
-// CHN-13 设计 ②: optional `q` filter — 空 q 走原 SQL byte-identical;
+// CHN-13 设计 ②: optional `q` filter — 空 q 走原 SQL unchanged;
 // q != "" 加 `AND c.name LIKE '%' || ? || '%' COLLATE NOCASE` 子串
 // 大小写不敏感. 既有 ordering (position ASC, created_at ASC) 不变.
 func (s *Store) ListChannelsWithUnread(userID, q string) ([]ChannelWithCounts, error) {
 	var results []ChannelWithCounts
-	// CHN-13 设计 ④: 空 q 路径 byte-identical 跟既有 SQL 同源.
+	// CHN-13 设计 ④: 空 q 路径 reuses the existing SQL shape.
 	if q == "" {
 		err := s.db.Raw(`
 			SELECT c.*,
@@ -980,7 +980,7 @@ func (s *Store) SetNotifPrefBits(userID, channelID string, shift, mask, pref int
 // fan-out / WS frame / messages 表 (设计 ③ mute 不 drop messages).
 //
 // MuteBit is sourced from internal/api package to avoid a cycle; caller
-// must pass the const literal value (= 2 byte-identical 跟 client).
+// must pass the const literal value (= 2, matching the client).
 func (s *Store) IsMutedForUser(userID, channelID string, muteBit int64) (bool, error) {
 	var collapsed int64
 	err := s.db.Raw(`SELECT COALESCE(collapsed, 0)
@@ -1038,7 +1038,7 @@ func (s *Store) ListAllArchivedChannelsForAdmin() ([]ChannelWithCounts, error) {
 
 // PinChannelLayout upserts user_channel_layout with the supplied
 // pinned position (CHN-6 原则 ③: caller stamps `-(nowMs)` for ASC-asc
-// sort). 跟 CHN-3.2 PUT /me/layout upsert 同模式 byte-identical.
+// sort). Uses the same upsert pattern as CHN-3.2 PUT /me/layout.
 //
 // 反向约束 (chn-6-spec.md §0 原则 ②): user_id 必传 (per-user pin); caller
 // 在 handler 层走 IsChannelMember + DM reject 红线; 此函数仅写入.
@@ -1216,18 +1216,18 @@ func (s *Store) UpdateChannel(id string, updates map[string]any) error {
 	return s.db.Model(&Channel{}).Where("id = ?", id).Updates(updates).Error
 }
 
-// UpdateChannelDescription is the CHN-14.2 单一来源 wrapper for description
+// UpdateChannelDescription is the CHN-14.2 canonical wrapper for description
 // edits — SELECT old topic + edit_history → JSON append `{old_content, ts,
 // reason='unknown'}` → UPDATE topic + description_edit_history. CHN-10
 // #561 owner-only PUT /channels/:id/description path (chn_10_description.
 // go::handlePut) 调用此包装代替泛通用 UpdateChannel; 同 owner-only ACL +
-// length cap 500 路径 byte-identical 不变.
+// length cap 500 path unchanged.
 //
 // 原则 (chn-14-spec.md §0):
-//   - ② 单一来源: SELECT old → JSON append → UPDATE 单一来源 (反向 grep inline
+//   - ② central path: SELECT old → JSON append → UPDATE in one wrapper (反向 grep inline
 //     UPDATE channels.*topic 在 chn_10/chn_14 之外 production 0 hit).
-//   - ⑤ AL-1a reason 守护链停在 HB-6 #19 — reason='unknown' 字面 byte-identical
-//     跟 DM-7 #558 / AL-7 SweeperReason / HB-5 HeartbeatSweeperReason 同源.
+//   - ⑤ AL-1a reason alignment point HB-6 #19 — reason='unknown' literal matches
+//     DM-7 #558 / AL-7 SweeperReason / HB-5 HeartbeatSweeperReason.
 //   - ② idempotent — same-content PUT 不重复入 history (跟 DM-7 同精神).
 func (s *Store) UpdateChannelDescription(channelID, newDescription string) error {
 	now := time.Now().UnixMilli()
@@ -1237,14 +1237,14 @@ func (s *Store) UpdateChannelDescription(channelID, newDescription string) error
 		return err
 	}
 	updates := map[string]any{"topic": newDescription}
-	// Skip history append when description is byte-identical (idempotent
+	// Skip history append when description is unchanged (idempotent
 	// PUT — 原则 ② "重复 PUT 同 description 不重复入 history").
 	if existing.Topic != newDescription {
 		entry := map[string]any{
 			"old_content": existing.Topic,
 			"ts":          now,
-			// AL-1a reason 守护链停在 HB-6 #19 — 字面 "unknown" byte-identical
-			// 跟 DM-7 #558 reasons.Unknown / AL-7 SweeperReason / HB-5 同源.
+			// AL-1a reason alignment point HB-6 #19 — 字面 "unknown" matches
+			// DM-7 #558 reasons.Unknown / AL-7 SweeperReason / HB-5.
 			"reason": "unknown",
 		}
 		var arr []map[string]any

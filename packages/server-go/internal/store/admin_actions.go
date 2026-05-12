@@ -8,7 +8,7 @@
 // Public surface (跟 ADM-1 deferred 2 行兑现锚):
 //   - InsertAdminAction(actorID, targetUserID, action, metadata) — 写一行 audit
 //   - EmitAdminActionSystemDM(actorLogin, targetUserID, action, ts, ctx) — 受
-//     影响者必收 system DM, body 字面 byte-identical 跟 content-lock §1
+//     影响者必收 system DM, body text matches content-lock §1
 //   - ListAdminActionsForTargetUser(userID, limit) — user 侧 GET
 //     /api/v1/me/admin-actions 走此 (WHERE target_user_id=)
 //   - ListAdminActionsForAdmin(filters, limit) — admin 侧 GET
@@ -55,7 +55,7 @@ func (AdminAction) TableName() string { return "admin_actions" }
 // AdminActionListFilters narrows the admin-side audit log query.
 // All fields optional. Empty string = no filter on that axis.
 //
-// AL-8 additive filter (跟 ADM-2.2 既有 3 字段 byte-identical 不动, 顺位
+// AL-8 additive filter (ADM-2.2 既有 3 字段 unchanged, 顺位
 // append 新字段): Since/Until int64 ms epoch (BETWEEN created_at, nil =
 // no filter); ArchivedView 三态 ("" or "active" = archived_at IS NULL 默认
 // / "archived" = archived_at IS NOT NULL 走 AL-7.1 sparse idx /
@@ -175,7 +175,7 @@ type AdminActionDMContext struct {
 }
 
 // RenderAdminActionDMBody returns the system DM body for the given action.
-// 字面 byte-identical 跟 docs/qa/adm-2-content-lock.md §1 5 模板.
+// Matches docs/qa/adm-2-content-lock.md §1 5 templates.
 //
 // 约束 (约定 §2 ADM2-NEG-001 + ADM2-NEG-009):
 //   - actorLogin 必须是 admins.Login (具体名), 调用方传; 此函数不接受 admin
@@ -285,7 +285,7 @@ func (s *Store) ActiveImpersonationGrant(userID string) (*ImpersonationGrant, er
 
 // EmitAdminActionSystemDM writes the system-DM into the target user's
 // existing #welcome channel (CM-onboarding type='system' channel; created
-// at registration). Body byte-identical 跟 content-lock §1 5 模板; 设计 ②
+// at registration). Body matches content-lock §1 5 templates; 设计 ②
 // "受影响者必感知 + admin_username 非 raw UUID".
 //
 // Returns nil even when target user has no system channel — system DM is
@@ -318,7 +318,7 @@ func (s *Store) EmitAdminActionSystemDM(actorLogin, targetUserID, action string,
 }
 
 // EmitAdminActionAudit is the joint helper: write audit row + emit system DM.
-// Wraps the two store calls; admin handler audit hook 走 single 调用. 设计
+// Wraps the two store calls; admin handler audit hook uses one helper call. 设计
 // ① 每写必留痕 + 设计 ② 受影响者必感知 同时兑现.
 func (s *Store) EmitAdminActionAudit(actorID, actorLogin, targetUserID, action, metadata string, ctx AdminActionDMContext) (string, error) {
 	id, err := s.InsertAdminAction(actorID, targetUserID, action, metadata)

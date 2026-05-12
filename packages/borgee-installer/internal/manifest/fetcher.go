@@ -3,12 +3,12 @@
 //
 // It calls the HB-1 server endpoint `/api/v1/plugin-manifest`, whose
 // server-side PluginManifestEntries const slice in hb_1_plugin_manifest.go is
-// the source of truth, then verifies the ed25519 detached signature.
+// canonical, then verifies the ed25519 detached signature.
 //
-// The seven-reason dictionary must stay byte-identical with server-side
+// The seven-reason dictionary must exactly match server-side
 // HB1AllReasons. Changes must update server hb_1_plugin_manifest.go,
 // fetcher.go, and installer/cmd/* together. manifest_test.go contains the
-// source-text drift check.
+// source-text parity check.
 //
 // Signature verification invariant: ed25519.Verify must run. Bad signatures return
 // ReasonManifestSignatureInvalid instead of being skipped.
@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// The 7-reason dictionary must match server-side HB1AllReasons byte-for-byte
+// The 7-reason dictionary must exactly match server-side HB1AllReasons
 // (hb_1_plugin_manifest.go). REG-HB1B-002 source-text tests cover these seven
 // literals and the server-side 7 literals.
 const (
@@ -39,7 +39,7 @@ const (
 	ReasonUnknownPlugin            = "unknown_plugin"
 )
 
-// AllReasons lists the seven values used by the source-text drift check.
+// AllReasons lists the seven values used by the source-text parity check.
 var AllReasons = []string{
 	ReasonOK,
 	ReasonManifestSignatureInvalid,
@@ -50,7 +50,7 @@ var AllReasons = []string{
 	ReasonUnknownPlugin,
 }
 
-// PluginEntry mirrors the server-side PluginManifestEntry shape byte-for-byte
+// PluginEntry mirrors the server-side PluginManifestEntry JSON shape
 // (hb_1_plugin_manifest.go §3.1 content-lock §1).
 type PluginEntry struct {
 	ID        string   `json:"id"`
@@ -61,7 +61,7 @@ type PluginEntry struct {
 	Platforms []string `json:"platforms"`
 }
 
-// Envelope mirrors the server-side PluginManifestResponse shape byte-for-byte:
+// Envelope mirrors the server-side PluginManifestResponse JSON shape:
 // {"entries":[...], "signed_at": <unix-ms>, "signature": "<base64>"}.
 type Envelope struct {
 	Entries   []PluginEntry `json:"entries"`
@@ -120,8 +120,8 @@ func Fetch(ctx context.Context, client *http.Client, endpoint, bearerToken strin
 }
 
 // CanonicalSignedBytes returns the byte sequence that the server signs:
-// JSON of {entries, signed_at}, matching server canonicalization byte-for-byte
-// (entries sorted by ID and stable json.Marshal output). Keep this in sync with
+// JSON of {entries, signed_at}, using the same byte sequence as server
+// canonicalization (entries sorted by ID and stable json.Marshal output). Keep this in sync with
 // server hb_1_plugin_manifest.go SignManifestPayload.
 func CanonicalSignedBytes(env *Envelope) ([]byte, error) {
 	type signedShape struct {
