@@ -1,17 +1,17 @@
 # Canvas Modal (gh#691) — implementation note
 
 > gh#691 — 替换 canvas 路径上的 `window.confirm` / `window.prompt` 系统弹窗.
-> 蓝图: `canvas-vision.md` §1.1 (canvas 是 artifact 工作面) + §1.6 (canvas modal a11y).
+> 蓝图: `canvas-vision.md` §1.1 (canvas 是 artifact 工作面) + §1.6 (canvas modal accessibility).
 
 ## 1. 设计
 
-canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window.confirm` / `window.prompt` 浏览器原生弹窗. Native browser dialogs do not match the Borgee UI, are not customizable, and render inconsistently in mobile web views. These flows use the in-app `InlineConfirmModal` instead.
+canvas 上的"删除 artifact?"/"输入名字?"等用户决定**不**走 `window.confirm` / `window.prompt` 浏览器原生弹窗. Browser-native dialogs do not match the Borgee UI, are not customizable, and render inconsistently in mobile web views. These flows use the in-app `InlineConfirmModal` instead.
 
 Negative constraints:
 
-- ① canvas path grep for `window.confirm` / `window.prompt` returns 0 hits (prevents native dialogs from being reintroduced)
+- ① canvas code path grep for `window.confirm` / `window.prompt` returns 0 hits (prevents browser-native dialogs from being reintroduced)
 - ② no third-party modal library (react-modal / radix-ui); use `InlineConfirmModal` so the UI remains consistent
-- ③ complete a11y behavior (role=dialog + aria-modal + aria-labelledby + autoFocus + focus return)
+- ③ complete accessibility behavior (role=dialog + aria-modal + aria-labelledby + autoFocus + focus return)
 - ④ mobile / IME guards (form onSubmit + onKeyDown isComposing prevents accidental submit from Chinese IME Enter)
 
 ## 2. Component (`packages/client/src/components/InlineConfirmModal.tsx`)
@@ -29,7 +29,7 @@ Negative constraints:
 />
 ```
 
-a11y 出处:
+accessibility 出处:
 
 - `role="dialog"`
 - `aria-modal="true"`
@@ -54,7 +54,7 @@ a11y 出处:
 />
 ```
 
-IME guard (Chinese IME Enter selects text and should not submit):
+IME submission guard (Chinese IME Enter selects text and should not submit):
 
 - `<form onSubmit={handleSubmit}>` wrapper: Enter in the input triggers form submit, while browsers usually suppress Enter during IME composition.
 - `onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit(); }}` is the fallback for browsers/IME combinations that do not suppress Enter.
@@ -83,9 +83,9 @@ grep 检查:
 - canvas 路径 `alert(` 命中 0 (走 Toast)
 - `<InlineConfirmModal` / `<InlineInputModal` 命中 ≥1 (替换真有)
 
-## 6. e2e guard pattern (#691 design v2 upgrade)
+## 6. e2e dialog detection pattern (#691 design v2 upgrade)
 
-Earlier tests used a Playwright `page.on('dialog')` listener that threw when a native dialog appeared. That throw became an asynchronous unhandled rejection and did not fail the test step reliably. The guard now uses a flag-based pattern:
+Earlier tests used a Playwright `page.on('dialog')` listener that threw when a browser-native dialog appeared. That throw became an asynchronous unhandled rejection and did not fail the test step reliably. The check now uses a flag-based pattern:
 
 <!-- prettier-ignore -->
 ```ts
@@ -102,11 +102,11 @@ canvas-modal-accessibility / comment-anchor-scroll / artifact-renderer-types / c
 
 ## 7. 测试
 
-- `packages/client/src/__tests__/InlineConfirmModal.test.tsx` (≥6 case): 渲染 / a11y attrs / autoFocus / ESC 关 / focus return / variant=danger 红色按钮
+- `packages/client/src/__tests__/InlineConfirmModal.test.tsx` (≥6 case): 渲染 / accessibility attrs / autoFocus / ESC 关 / focus return / variant=danger 红色按钮
 - `packages/client/src/__tests__/InlineInputModal.test.tsx`: + IME composition Enter swallow + onSubmit 调用
 - `packages/e2e/tests/canvas-modal-accessibility.spec.ts`: 真 UI input/click + flag-based dialog listener
 
 ## 8. 出处
 
-- 蓝图: `canvas-vision.md` §1.1 (canvas artifact 工作面) + §1.6 (a11y)
+- 蓝图: `canvas-vision.md` §1.1 (canvas artifact 工作面) + §1.6 (accessibility)
 - design: `docs/implementation/design/691-canvas-modal-replace-system-dialogs.md`

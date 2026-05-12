@@ -11,12 +11,12 @@
 CV-3 v2 adds client-side thumbnails for text artifacts. markdown / code
 artifacts get a 256x256 lazy `<img>` thumbnail, or an icon-only fallback
 when `thumbnail_url` has not been generated yet. The server records
-`thumbnail_url` through the CV-3 v2 endpoint. Rendering uses native HTML5
+`thumbnail_url` through the CV-3 v2 endpoint. Rendering uses browser HTML5
 elements and does not add client-side renderer libraries.
 
 ## 原则 (cv-3-v2-spec.md §0)
 
-- **HTML5 native primitives.** `<img loading="lazy">` 256x256; no
+- **Browser HTML5 elements.** `<img loading="lazy">` 256x256; no
   html2canvas / dom-to-image / puppeteer-client / shiki client-side
   renderer (package.json reverse grep count==0).
 - **XSS 红线 #1 (https only).** 复用 `ImageLinkRenderer.isHttpsURL`
@@ -60,8 +60,8 @@ CSS 盒子 (`.artifact-thumbnail-fallback`) 由样式表控制：固定 256x256
 ## XSS 红线 #1 fallback
 
 非 https `thumbnailUrl` → 不渲染 `<img>`, 走 fallback div. 防把 unsafe
-URL 推入 DOM (`<img src>` 是 XSS attack vector); 反向断言 `img` count==0
-是 vitest 出处.
+URL 推入 DOM (`<img src>` 是 XSS 注入路径); vitest 用 `img` count==0
+验证 unsafe URL 不会生成图片节点.
 
 ## 二端互斥 (跟 CV-2 v2 MediaPreview)
 

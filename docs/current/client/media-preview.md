@@ -10,14 +10,14 @@
 ## Why
 
 CV-2 v2 adds client-side previews for multimedia artifacts. image_link /
-video_link / pdf_link kinds use native HTML5 previews without adding large
+video_link / pdf_link kinds use browser HTML5 previews without adding large
 inline rendering libraries. The server records `preview_url` (https-only); the
 client uses it first for image thumbnails and as the video poster. PDF previews
-use the browser's native `<embed>`.
+use the browser's built-in `<embed>` support.
 
 ## Principles (cv-2-v2-media-preview-spec.md §0 + 设计 ②)
 
-- **HTML5 native primitives.** image uses `<img loading="lazy">`; video uses
+- **Browser HTML5 elements.** image uses `<img loading="lazy">`; video uses
   `<video controls preload="metadata">`; pdf uses
   `<embed type="application/pdf">`. No video.js / hls.js / dash.js /
   shaka-player / pdf.js / react-pdf — package.json reverse grep count==0.
@@ -99,7 +99,7 @@ same URL vector.
 ## Out of scope
 
 - HLS / DASH 流媒体 (server-side transcoding, 拆 BPP-4+).
-- inline pdf.js / react-pdf 渲染 (蓝图 §1.4 "首屏快读不是浏览器内全量
+- inline pdf.js / react-pdf rendering (蓝图 §1.4 "首屏快读不是浏览器内全量
   解码").
 - thumbnail 实时刷新 (preview_url 是静态 CDN 字段，不订阅 WebSocket frame;
   client 下次 GET /artifacts/:id 时拉取最新值).
