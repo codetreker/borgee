@@ -1,7 +1,7 @@
 // Package dialog builds the HB-1B-INSTALLER permission confirmation dialog.
 //
 // Per hb-1b-installer-spec §0.2 required item 3: the four grant_type literals must
-// stay byte-identical with the HB-3 #520 host_grants schema CHECK enum
+// exactly match the HB-3 #520 host_grants schema CHECK enum
 // (read/write/exec/network). Any change must also update the server migration
 // host_grants v=24 CHECK constraint and the GrantTypes list below.
 //
@@ -17,8 +17,8 @@ import (
 	"strings"
 )
 
-// GrantTypes is the four-value source of truth that matches the HB-3 #520
-// host_grants CHECK enum byte-for-byte. Changes must update server migrations,
+// GrantTypes is the canonical four-value list matching the HB-3 #520
+// host_grants CHECK enum. Changes must update server migrations,
 // this slice, and the REG-HB1B-005 source-text check.
 var GrantTypes = []string{
 	"read",

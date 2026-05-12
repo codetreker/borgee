@@ -58,7 +58,7 @@ import (
 //   - 不添加 `read_at` / `acknowledged_at` (mention 阅读态由 Phase 5+ 覆盖,
 //     acceptance §6 反约束).
 //
-// v0 stance: forward-only, no Down(). 表本身 v0 新增, IF NOT EXISTS 守
+// Migration policy: forward-only, no Down(). 表本身 v0 新增, IF NOT EXISTS 守
 // idempotency. 跟 cv_1_1 / cv_2_1 / al_3_1 / cm_4_0 同模式逻辑 FK.
 //
 // v=15 sequencing (#312 spec §1 / #356 spec v2 §2): DM-2.1 / CV-2.1 /

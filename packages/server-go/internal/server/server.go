@@ -29,7 +29,7 @@ type Server struct {
 	cfg    *config.Config
 	logger *slog.Logger
 	store  *store.Store
-	// dl is the DL-1 single source bundle (Storage / Presence / EventBus / 3 Repository).
+	// dl is the DL-1 canonical bundle (Storage / Presence / EventBus / 3 Repository).
 	// Wired once in New(); handlers receive it via DI to avoid direct store
 	// dependency. v3+ swaps underlying implementations in datalayer.NewDataLayer only.
 	dl           *datalayer.DataLayer
@@ -53,8 +53,8 @@ type Server struct {
 
 // SetClock injects a clock for JWT mint. Tests use *clock.Fake to advance
 // JWT iat (1s granularity) without time.Sleep. Production never calls this —
-// New() leaves clk nil and AuthHandler falls back to time.Now() (byte-identical
-// to pre-refactor path).
+// New() leaves clk nil and AuthHandler falls back to time.Now() (matching the
+// pre-refactor path).
 func (s *Server) SetClock(c clock.Clock) {
 	s.clk = c
 	// Re-wire AuthHandler.Clock — handler was constructed in SetupRoutes
@@ -80,8 +80,8 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 		logger.Error("presence tracker init failed (continuing without presence_sessions writes)", "err", err)
 	}
 
-	// DL-1.2: wire the single-source 4-interface bundle (Storage / Presence / EventBus
-	// / 3 Repository). v1 wraps existing store + presence byte-identical.
+	// DL-1.2: wire the canonical 4-interface bundle (Storage / Presence / EventBus
+	// / 3 Repository). v1 preserves existing store + presence behavior.
 	dl := datalayer.NewDataLayer(s, presenceTracker, logger)
 
 	srv := &Server{
@@ -117,7 +117,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 	// BPP-5 reconnect handshake — plugin upstream signals reconnect
 	// with last_known_cursor; handler resolves cursor via RT-1.3
 	// ResolveResume (incremental mode) + clears agent error (AL-1
-	// 5-state error → online valid edge, agent.Tracker.Clear single source).
+	// 5-state error → online valid edge, agent.Tracker.Clear is the central reset).
 	// Reuses the BPP-3 PluginFrameDispatcher boundary.
 	reconnectHandler := bpp.NewReconnectHandler(s,
 		&channelScopeAdapter{store: s},
@@ -129,7 +129,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 	// BPP-6 cold-start handshake — plugin upstream signals process restart
 	// (state is lost, no cursor; distinct from BPP-5 reconnect). Handler uses
 	// AL-1 #492 AppendAgentStateTransition any→online + agent.Tracker.Clear;
-	// reason reuses `runtime_crashed` from the byte-identical AL-1a reason set.
+	// reason reuses `runtime_crashed` from the existing AL-1a reason set.
 	// Reuses the BPP-3 PluginFrameDispatcher boundary.
 	coldStartHandler := bpp.NewColdStartHandler(s, ownerResolver, srv.agentTracker, logger)
 	pfd.Register(bpp.FrameTypeBPPColdStartHandshake, coldStartHandler)
@@ -262,7 +262,7 @@ func (s *Server) SetupRoutes() {
 	meGrantsHandler := &api.MeGrantsHandler{Store: s.store, Logger: s.logger}
 	meGrantsHandler.RegisterRoutes(s.mux, authMw)
 
-	// AL-2a.2 agent_configs — single-source REST endpoints (owner-only,
+	// AL-2a.2 agent_configs — canonical REST endpoints (owner-only,
 	// fail-closed runtime-field reject, acceptance #264 §4.1.a-d). After PATCH,
 	// fanout uses hub.PushAgentConfigUpdate best-effort; offline plugins miss the
 	// frame and fetch the latest config after reconnect.
@@ -273,9 +273,9 @@ func (s *Server) SetupRoutes() {
 	}
 	agentConfigHandler.RegisterRoutes(s.mux, authMw)
 
-	// HB-3.1 host_grants single-source REST endpoints. Owner-only ACL; admin API
+	// HB-3.1 host_grants canonical REST endpoints. Owner-only ACL; admin API
 	// does not handle user-owned grant writes (ADM-0 §1.3). Audit log fields stay
-	// byte-identical with HB-1 / HB-2 / BPP-4.
+	// aligned with HB-1 / HB-2 / BPP-4.
 	hostGrantsHandler := &api.HostGrantsHandler{
 		Store:  s.store,
 		Logger: s.logger,
@@ -296,13 +296,13 @@ func (s *Server) SetupRoutes() {
 	// BPP-8.2 plugin lifecycle audit list — owner-only GET
 	// /api/v1/agents/{agentId}/lifecycle (复用 admin_actions audit forward-only,
 	// 跟 ADM-2.1 + AP-2 + BPP-4 跨四 milestone audit 同精神 锁链第 5 处;
-	// admin god-mode 不挂 ADM-0 §1.3 红线).
+	// no admin override route is mounted; ADM-0 §1.3 prohibits that path).
 	bpp8Handler := &api.PluginListHandler{Store: s.store, Logger: s.logger}
 	bpp8Handler.RegisterRoutes(s.mux, authMw)
 	// HB-3 v2 heartbeat decay list — owner-only GET
 	// /api/v1/agents/{agentId}/heartbeat-decay (decay 状态从 agent_runtimes.
 	// last_heartbeat_at 反向 derive, 0 schema 改; AL-1a 锁链第 14 处 复用
-	// reasons.NetworkUnreachable; admin god-mode 不挂 ADM-0 §1.3 红线).
+	// reasons.NetworkUnreachable; no admin override route is mounted per ADM-0 §1.3).
 	hb3v2Handler := &api.HostDecayListHandler{Store: s.store, Logger: s.logger}
 	hb3v2Handler.RegisterRoutes(s.mux, authMw)
 
@@ -317,13 +317,14 @@ func (s *Server) SetupRoutes() {
 	// DL-4.4 PWA Web App Manifest — GET /api/v1/pwa/manifest (公开 endpoint,
 	// 浏览器 install prompt 在 login 前 fetch). 蓝图 client-shape.md L42
 	// (manifest + install prompt + Web Push + standalone).
-	// ⚠️ 命名拆死锚: 跟 HB-1 #491 GET /api/v1/plugin-manifest (binary plugin
-	// manifest, 双签必需) 不同 endpoint 不同安全模型 (zhanma-a drift audit).
+	// Endpoint naming note: distinct from HB-1 #491 GET /api/v1/plugin-manifest
+	// (binary plugin manifest, dual signatures required). Different endpoint,
+	// different security model; keep names distinct during endpoint review.
 	pwaManifestHandler := &api.PWAManifestHandler{}
 	pwaManifestHandler.RegisterRoutes(s.mux)
 
 	// HB-1 install-butler server-side `GET /api/v1/plugin-manifest` (v0 [A]
-	// scope). Bearer api-key 鉴权 (authMw 已守 立场 ①); admin god-mode 不挂.
+	// scope). Bearer api-key auth is enforced by authMw; no admin override route.
 	// manifest data 走 const slice (PluginManifestEntries 0 schema 立场 ②);
 	// ed25519 detached signature non-empty (立场 ④, sequoia/openpgp 双签
 	// 留 HB-1b Rust client). SigningKey 留 nil 走 test placeholder, production
@@ -346,37 +347,37 @@ func (s *Server) SetupRoutes() {
 	channelHandler.RegisterCHN6Routes(s.mux, authMw)
 	// CHN-7 channel mute/unmute — owner-only user-rail POST/DELETE; 0 schema
 	// 改 (复用 CHN-3.1 user_channel_layout, collapsed bitmap bit 1 = mute).
-	// admin god-mode 不挂 (ADM-0 §1.3 红线 — mute 是 per-user preference).
+	// No admin override route is mounted (ADM-0 §1.3; mute is a per-user preference).
 	channelHandler.RegisterCHN7Routes(s.mux, authMw)
 	// CHN-15 channel readonly toggle — owner-only user-rail PUT/DELETE; 0
 	// schema 改 (复用 user_channel_layout.collapsed bitmap bit 4 走
-	// channel.created_by 单行 SSOT). admin god-mode 不挂 (ADM-0 §1.3).
+	// channel.created_by canonical row). No admin override route is mounted (ADM-0 §1.3).
 	channelHandler.RegisterCHN15Routes(s.mux, authMw)
 	// CHN-10 channel description (owner-only PUT /channels/:id/description,
-	// 0 schema 改 复用 channels.topic 既有列, 500 字符上限 byte-identical
+	// 0 schema 改 复用 channels.topic 既有列, 500 字符上限 matches
 	// 跟 GORM size:500 + client DESCRIPTION_MAX_LENGTH 同源 — 双向锁守门).
-	// admin god-mode 不挂 (ADM-0 §1.3 红线); 既有 PUT /topic member-level
-	// path byte-identical 不变 (CHN-2 #406 既有 path 不破).
+	// No admin override route is mounted (ADM-0 §1.3); 既有 PUT /topic member-level
+	// path unchanged (CHN-2 #406 既有 path 不破).
 	chn10DescHandler := &api.ChannelDescriptionHandler{Store: s.store, Logger: s.logger}
 	chn10DescHandler.RegisterUserRoutes(s.mux, authMw)
 	// CHN-14 channel description edit history audit — owner-only user-rail GET.
 	// schema v=44 ALTER channels ADD COLUMN description_edit_history TEXT NULL
 	// (跟 DM-7.1 #558 messages.edit_history 同模式; 跨八 milestone ALTER ADD
-	// nullable). UpdateChannelDescription SSOT 包装 SELECT old + JSON append
-	// + UPDATE; CHN-10 #561 既有 PUT path 调用此包装 byte-identical (length
+	// nullable). UpdateChannelDescription canonical wrapper SELECT old + JSON append
+	// + UPDATE; CHN-10 #561 既有 PUT path 调用此包装 unchanged (length
 	// cap 500 + owner-only ACL 不变). admin readonly GET 在 adminMw 段挂.
 	chn14HistoryHandler := &api.ChannelDescriptionHistoryHandler{Store: s.store, Logger: s.logger}
 	chn14HistoryHandler.RegisterUserRoutes(s.mux, authMw)
 	// CHN-8 channel notification preferences — owner-only PUT three states
 	// (`all`/`mention`/`none`). 0 schema 改 (复用 user_channel_layout.collapsed
-	// bits 2-3 跟 CHN-3 bit 0 + CHN-7 bit 1 拆死). admin god-mode 不挂
-	// (ADM-0 §1.3 红线 — pref 是 per-user preference).
+	// bits 2-3 kept separate from CHN-3 bit 0 + CHN-7 bit 1). No admin override
+	// route is mounted (ADM-0 §1.3; pref is a per-user preference).
 	channelHandler.RegisterCHN8Routes(s.mux, authMw)
 
 	// RT-4 channel presence indicator — member-only GET /channels/:id/presence;
 	// 0 schema (复用 AL-3.1 #277 presence_sessions). 0 新 WS frame (presence
-	// push 留 v3). admin god-mode 不挂 (ADM-0 §1.3 红线). 既有 RT-2 typing
-	// path byte-identical 不变.
+	// push 留 v3). No admin override route is mounted (ADM-0 §1.3). 既有 RT-2 typing
+	// path unchanged.
 	rt4Tracker, _ := presence.NewSessionsTracker(s.store.DB())
 	rt4PresenceHandler := &api.RealtimePresenceHandler{
 		Store:   s.store,
@@ -424,14 +425,14 @@ func (s *Server) SetupRoutes() {
 	// host_bridge (HB-1 placeholder) / agent (DL-2 channel_events + global_events).
 	(&api.AdminAuditMultiSourceHandler{Store: s.store, Logger: s.logger}).RegisterAdminRoutes(s.mux, adminMw)
 	// DM-7 message edit history — sender-only user-rail GET + admin readonly
-	// admin-rail GET (admin god-mode 不挂 PATCH/DELETE — ADM-0 §1.3 红线).
+	// admin-rail GET (admin route is readonly; no PATCH/DELETE per ADM-0 §1.3).
 	dm7EditHistoryHandler := &api.MessageEditHistoryHandler{Store: s.store, Logger: s.logger}
 	dm7EditHistoryHandler.RegisterUserRoutes(s.mux, authMw)
 	dm7EditHistoryHandler.RegisterAdminRoutes(s.mux, adminMw)
 	// CV-15 artifact comment edit history — 0 schema 改 (复用 messages.edit_history
 	// DM-7.1 v=34 既有列), GET endpoint scoped to content_type='artifact_comment'
 	// (避免跟 DM-7 既有 /messages/{id}/edit-history 混淆). user-rail sender-only +
-	// admin readonly admin-rail (admin god-mode 不挂 PATCH/DELETE/PUT, ADM-0 §1.3).
+	// admin readonly admin-rail (no admin PATCH/DELETE/PUT routes, ADM-0 §1.3).
 	cv15CommentEditHistoryHandler := &api.CanvasCommentEditHistoryHandler{Store: s.store, Logger: s.logger}
 	cv15CommentEditHistoryHandler.RegisterUserRoutes(s.mux, authMw)
 	cv15CommentEditHistoryHandler.RegisterAdminRoutes(s.mux, adminMw)
@@ -444,7 +445,7 @@ func (s *Server) SetupRoutes() {
 	// /admin-api/v1/heartbeat-lag (synchronous 30s rolling-window aggregate
 	// from agent_runtimes.last_heartbeat_at, 0 schema 改). admin readonly
 	// 不挂 PATCH/POST/DELETE (ADM-0 §1.3 红线). Reuses BPP-4 watchdog
-	// 30s threshold byte-identical via WindowSeconds const.
+	// 30s threshold via the shared WindowSeconds const.
 	hb6LagHandler := &api.HostLagHandler{Store: s.store, Logger: s.logger}
 	hb6LagHandler.RegisterAdminRoutes(s.mux, adminMw)
 	// AL-7.2 retention sweeper goroutine (1h ticker, ctx-aware shutdown). Same
@@ -482,8 +483,8 @@ func (s *Server) SetupRoutes() {
 	agentHandler.RegisterRoutes(s.mux, authMw)
 
 	// AL-4.2 runtime registry user-rail (acceptance §2.1-§2.5 + §2.7) —
-	// owner-only via inline OwnerID check (跟 agents.go handleDeleteAgent /
-	// handleRotateAPIKey 同模式). admin god-mode 不入此 rail (admin path
+	// owner-only via the same inline OwnerID check used by agents.go handleDeleteAgent /
+	// handleRotateAPIKey. Admin traffic does not enter this rail (admin path
 	// 只 read 元数据 via AdminRuntimeHandler above).
 	runtimeHandler := &api.RuntimeHandler{Store: s.store, Logger: s.logger}
 	runtimeHandler.RegisterRoutes(s.mux, authMw)
@@ -526,8 +527,8 @@ func (s *Server) SetupRoutes() {
 
 	// CV-1.2 artifacts (canvas-vision §0; channel-scoped artifact CRUD +
 	// commit + rollback + WS push). Pusher routes to ws.Hub which owns
-	// the RT-1.1 ArtifactUpdated frame envelope (#290 byte-identical).
-	// IterationPusher (CV-4.2 立场 ② commit 单源) routes the
+	// the RT-1.1 ArtifactUpdated frame envelope (#290 contract).
+	// IterationPusher (CV-4.2 commit path) routes the
 	// running→completed transition push when commit carries
 	// `?iteration_id=` query.
 	artifactHandler := &api.ArtifactHandler{
@@ -541,7 +542,7 @@ func (s *Server) SetupRoutes() {
 
 	// CV-2.2 anchor comments (canvas-vision §1.6; per-version anchor threads
 	// + WS push). Pusher routes to ws.Hub which owns the AnchorCommentAdded
-	// frame envelope (10 fields, byte-identical 跟 spec v2 字面).
+	// frame envelope (10 fields, matching spec v2 literals).
 	anchorHandler := &api.AnchorHandler{
 		Store:  s.store,
 		Logger: s.logger,
@@ -552,8 +553,8 @@ func (s *Server) SetupRoutes() {
 
 	// CV-5 artifact comments (canvas-vision §0 L24 字面 "Linear issue +
 	// comment"). Comment row falls into messages table + virtual
-	// `artifact:<id>` namespace channel (跟 DM-2 dm: 同模式 — 立场 ①
-	// 单源不裂表). Pusher routes to ws.Hub which owns the
+	// `artifact:<id>` namespace channel (follows the DM-2 dm: namespace pattern — messages remains
+	// the canonical table). Pusher routes to ws.Hub which owns the
 	// ArtifactCommentAdded frame envelope (9 字段, RT-3 cursor 共序).
 	artifactCommentsHandler := &api.ArtifactCommentsHandler{
 		Store:  s.store,
@@ -565,7 +566,7 @@ func (s *Server) SetupRoutes() {
 	// CV-4.2 iterations (canvas-vision §1.4 + §1.5; owner-only iterate
 	// orchestration + state machine + WS push). Pusher routes to ws.Hub
 	// which owns the IterationStateChanged frame envelope (9 字段
-	// byte-identical 跟 spec #365 字面).
+	// matching spec #365 literals).
 	iterationHandler := &api.IterationHandler{
 		Store:  s.store,
 		Logger: s.logger,
@@ -760,8 +761,8 @@ func (a *hubArtifactCommentAdapter) PushArtifactCommentAdded(
 
 // hubIterationAdapter exposes ws.Hub.PushIterationStateChanged through the
 // api.IterationStatePusher interface so internal/api stays free of the
-// internal/ws import (mirrors hubAnchorAdapter pattern). CV-4.2 立场 ②
-// commit 单源 — same hub instance routes commit → completed push.
+// internal/ws import (mirrors hubAnchorAdapter pattern). CV-4.2 commit path —
+// same hub instance routes commit → completed push.
 type hubIterationAdapter struct {
 	hub *ws.Hub
 }
@@ -814,7 +815,7 @@ func (a *agentRuntimeAdapter) SetAgentError(agentID, reason string) {
 // pluginFrameRouterAdapter wires *bpp.PluginFrameDispatcher into the
 // ws.PluginFrameRouter interface (跟 hubArtifactAdapter / hubAnchorAdapter
 // 同模式 — internal/ws 不 import internal/bpp; bpp.PluginSessionContext
-// 跟 ws.PluginSessionContext byte-identical 单字段 OwnerUserID).
+// matches ws.PluginSessionContext's single OwnerUserID field).
 type pluginFrameRouterAdapter struct {
 	pfd *bpp.PluginFrameDispatcher
 }
