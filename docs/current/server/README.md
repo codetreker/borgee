@@ -1,85 +1,137 @@
 # Server
 
-`server-go` 是当前后端的中心 runtime。生产入口在 `packages/server-go/cmd/collab/main.go`，组合根在 `packages/server-go/internal/server/server.go`；它启动 SQLite/GORM store、执行迁移、bootstrap admin、组装 REST/WS/BPP/datalayer/presence/push/admin/auth，并把这些模块挂到同一个 `http.Server` handler 上。
+## Role
+
+`server-go` is the central runtime for Borgee. It owns the process that accepts client, admin, plugin, and remote-node traffic; coordinates the live collaboration plane; and persists the canonical server-side state. It is intentionally a composition runtime: domain handlers, realtime sockets, plugin protocol handling, persistence, presence, push, and background maintenance are assembled here into one HTTP server.
+
+The server is also the system's policy boundary. User traffic, admin traffic, plugin traffic, and remote-node traffic enter through different rails with different credentials and different authority. The server may connect those rails through explicit adapters, but a rail does not inherit another rail's identity or permissions.
 
 ```mermaid
 flowchart TB
-  main[cmd/collab/main.go]
-  server[internal/server\ncomposition root]
-  api[internal/api\nREST handlers]
-  auth[internal/auth\nuser rail]
-  admin[internal/admin\nadmin rail]
-  ws[internal/ws\nclient/plugin/remote sockets]
-  bpp[internal/bpp\nplugin protocol]
-  store[internal/store\nSQLite/GORM]
-  dl[internal/datalayer\nrepos + event bus]
-  presence[internal/presence\npresence_sessions]
-  push[internal/push\nWeb Push]
+  clients[Browser and PWA clients]
+  admins[Admin console]
+  plugins[Agent plugins]
+  remotes[Remote nodes]
 
-  main --> server
-  server --> api
-  server --> auth
-  server --> admin
-  server --> ws
-  server --> bpp
-  server --> dl
-  server --> presence
-  server --> push
+  subgraph runtime[server-go runtime]
+    http[HTTP surface]
+    comp[Composition root]
+    api[REST application layer]
+    auth[User auth and capability]
+    admin[Admin auth and audit rail]
+    ws[Realtime hub]
+    bpp[Plugin protocol]
+    dl[Data layer seam]
+    jobs[Background runtime]
+  end
+
+  store[(SQLite store)]
+  push[Web Push]
+  presence[Presence sessions]
+
+  clients --> http
+  admins --> http
+  plugins --> ws
+  remotes --> ws
+  http --> comp
+  comp --> api
+  comp --> auth
+  comp --> admin
+  comp --> ws
+  comp --> bpp
+  comp --> dl
+  comp --> jobs
   api --> store
-  api --> dl
-  api --> ws
-  api --> push
   ws --> store
-  ws --> bpp
-  bpp --> store
   bpp --> ws
+  bpp --> store
   dl --> store
   dl --> presence
-  presence --> store
-  push --> store
+  api --> push
 ```
 
-## 负责什么
+## Boundary
 
-`server-go` 负责进程生命周期：加载配置与 logger，打开 store，运行 baseline migration 与 forward-only migrations，bootstrap admin，创建 `server.Server`，启动 `http.Server`，并在 SIGINT/SIGTERM 后用 15 秒 timeout 关闭 HTTP server。证据：`packages/server-go/cmd/collab/main.go`、`packages/server-go/internal/store/db.go`、`packages/server-go/internal/store/migrations.go`、`packages/server-go/internal/migrations/migrations.go`、`packages/server-go/internal/admin/auth.go`。
+The server owns state that must be trusted across clients: users, channels, messages, permissions, admin sessions, audit rows, remote node registrations, artifact data, agent runtime descriptors, hot realtime cursors, cold event records, presence sessions, and push subscriptions.
 
-`internal/server` 负责运行时装配和调用方向。`server.New` 创建 `ws.Hub`、DB-backed presence writer、`datalayer.DataLayer`、BPP plugin frame dispatcher、push notifier 和后台 jobs；`SetupRoutes` 统一挂载 REST、admin、WS、upload、static routes。证据：`packages/server-go/internal/server/server.go`、`packages/server-go/internal/ws/hub.go`、`packages/server-go/internal/datalayer/factory.go`、`packages/server-go/internal/bpp/plugin_frame_dispatcher.go`。
+The server does not own the local agent runtime process or the model/provider internals behind an agent. It records agent descriptors, routes plugin frames, and enforces server-side permissions, but plugin execution remains outside the server process.
 
-`internal/api` 负责 HTTP handler 的请求解析、校验、权限调用、响应 shape 和业务写入。多数 handler 直接依赖 `store.Store`，部分新路径通过 `datalayer.DataLayer` 或 server 提供的小接口触发 realtime/push side effect。证据：`packages/server-go/internal/api/channels.go`、`packages/server-go/internal/api/messages.go`、`packages/server-go/internal/api/agents.go`、`packages/server-go/internal/api/artifacts.go`、`packages/server-go/internal/server/server.go`。
+The server exposes four externally visible rails:
 
-`internal/store` 是当前持久化事实源：SQLite/GORM 连接、baseline schema、forward migration 入口、核心模型和查询 helper 都在这里或从这里进入。证据：`packages/server-go/internal/store/db.go`、`packages/server-go/internal/store/models.go`、`packages/server-go/internal/store/migrations.go`、`packages/server-go/internal/store/queries.go`。
+- User rail: browser/PWA REST, browser WebSocket, poll/SSE/backfill, uploads, and static client hosting.
+- Admin rail: separate admin authentication, metadata views, audit and operational controls.
+- Plugin rail: agent plugin WebSocket with BPP frames and in-process API proxying.
+- Remote rail: remote-node WebSocket plus REST management around node bindings.
 
-`internal/ws` 负责浏览器 `/ws`、plugin `/ws/plugin`、remote node `/ws/remote` 的 live connection 管理、broadcast、event waiters、cursor allocation 和 plugin API proxy。证据：`packages/server-go/internal/ws/hub.go`、`packages/server-go/internal/ws/client.go`、`packages/server-go/internal/ws/plugin.go`、`packages/server-go/internal/ws/remote.go`、`packages/server-go/internal/ws/cursor.go`。
+## Collaborators
 
-`internal/bpp` 负责 plugin protocol 的 frame schema、方向校验、dispatcher、task lifecycle、config ack、reconnect、cold-start 和 heartbeat watchdog 逻辑；它通过接口接收 `internal/server` 注入的 store/ws adapter。证据：`packages/server-go/internal/bpp/envelope.go`、`packages/server-go/internal/bpp/plugin_frame_dispatcher.go`、`packages/server-go/internal/bpp/task_lifecycle.go`、`packages/server-go/internal/bpp/heartbeat_watchdog.go`、`packages/server-go/internal/server/server.go`。
+The REST application layer owns request/response semantics and domain validation. It relies on the store for canonical rows, the realtime hub for live fanout, push notifiers for background delivery, and capability checks for user authority.
 
-`internal/datalayer` 是当前的 data seam：v1 实现包装 `store.Store`、`presence.PresenceTracker`、in-process event bus 和 SQLite cold event store。证据：`packages/server-go/internal/datalayer/factory.go`、`packages/server-go/internal/datalayer/repository.go`、`packages/server-go/internal/datalayer/v1_sqlite.go`、`packages/server-go/internal/datalayer/events_store.go`。
+The realtime hub owns live browser, plugin, and remote-node connections. It is the only component that should know which sockets are currently connected, which users are online in-memory, and which plugin or remote node can receive a direct request.
 
-`internal/presence` 和 `internal/push` 是 leaf services。presence 的 `SessionsTracker` 读写 `presence_sessions`，由 hub register/unregister 写入；push gateway 读取 web push subscription，并为 mention/task 通知提供 notifier。证据：`packages/server-go/internal/presence/tracker.go`、`packages/server-go/internal/ws/hub.go`、`packages/server-go/internal/push/gateway.go`、`packages/server-go/internal/push/mention_notifier.go`、`packages/server-go/internal/api/push_subscriptions.go`。
+The plugin protocol layer owns BPP frame schemas, frame direction, validation, task lifecycle semantics, reconnect/cold-start handling, and heartbeat liveness. The composition root supplies store and hub adapters so BPP can remain protocol-focused.
 
-## 不负责什么
+The data layer seam groups storage, presence, event bus, and repository interfaces. Its current implementation wraps the SQLite store and presence tracker, giving newer code a stable boundary while existing handlers still use the store directly.
 
-`server-go` 不承载 LLM runtime，也不保存 plugin 内部的 model、API key、prompt、temperature 等 runtime-only 字段；agent runtime 在 server 侧只是 `agent_runtimes` 的 process descriptor 与 plugin/BPP 连接状态。证据：`packages/server-go/internal/migrations/agent_runtimes.go`、`packages/server-go/internal/api/runtimes.go`、`packages/server-go/internal/bpp/agent_config_update_test.go`。
+The admin subsystem is separate from user auth. Admin identity is backed by admin sessions, and admin read surfaces are constrained to metadata-oriented views unless a route explicitly owns a narrow operation.
 
-`server-go` 不把 admin 建模成 user。admin 使用独立 `admins` / `admin_sessions`，admin cookie 是 `borgee_admin_session`；user rail 仍使用 `users`、`user_permissions` 和 `borgee_token`。证据：`packages/server-go/internal/admin/auth.go`、`packages/server-go/internal/admin/middleware.go`、`packages/server-go/internal/migrations/admin_admins.go`、`packages/server-go/internal/auth/middleware.go`。
+## Internal Architecture
 
-`server-go` 不让 admin rail 直接继承 user rail 权限。`RequirePermission` 明确没有 `users.role == admin` shortcut，admin endpoints 通过 `admin.RequireAdmin` 挂在 `/admin-api/*`。证据：`packages/server-go/internal/auth/permissions.go`、`packages/server-go/internal/admin/middleware.go`、`packages/server-go/internal/server/server.go`。
+The architecture is centered on a composition root. Startup builds the store, migrations, admin bootstrap, hub, data layer, BPP dispatchers, route surface, middleware stack, and background jobs. After composition, most runtime behavior flows through injected collaborators rather than global state.
 
-`server-go` 不把所有 realtime frame 都持久化到同一张事件表。当前有 hot `events.cursor` 路径，也有 datalayer cold `channel_events` / `global_events` 路径；是否进入哪条流由具体调用点决定。证据：`packages/server-go/internal/store/models.go`、`packages/server-go/internal/store/queries_phase3.go`、`packages/server-go/internal/ws/cursor.go`、`packages/server-go/internal/datalayer/events_store.go`。
+The primary call direction is top-down: composition root to handlers, handlers to store/data layer, handlers to hub/push through small interfaces, hub to store for connection authentication and replay support, BPP to store/hub through server-owned adapters. Cross-package adapters are concentrated in the composition root so protocol, HTTP, and socket packages do not become mutually dependent.
 
-## 和其他模块的接口
+The server has two event planes. The hot plane serves user-facing realtime delivery and cursor replay. The cold plane is the data-layer event stream for retained events and operational retention/offload work. A caller must intentionally choose which plane it writes to; a WebSocket frame is not automatically a cold event, and a cold event is not automatically a user replay cursor.
 
-对 client 的接口是 REST、WS、SSE/poll/backfill、uploads 和静态文件 hosting。REST 主要在 `/api/v1/*`，admin 在 `/admin-api/*`，WS 在 `/ws`、`/ws/plugin`、`/ws/remote`，static fallback 从 `cfg.ClientDist` 服务 SPA。证据：`packages/server-go/internal/server/server.go`、`packages/server-go/internal/api/auth.go`、`packages/server-go/internal/api/poll.go`、`packages/server-go/internal/ws/client.go`、`packages/server-go/internal/ws/plugin.go`、`packages/server-go/internal/ws/remote.go`。
+## Key Flows
 
-对 plugin/agent runtime 的接口是 `/ws/plugin` 与 BPP frames。`ws/plugin.go` 处理 RPC envelope，非 RPC BPP frame 交给 `PluginFrameDispatcher`；server 在启动时注册 config ack、reconnect、cold-start、task started、task finished。证据：`packages/server-go/internal/ws/plugin.go`、`packages/server-go/internal/server/server.go`、`packages/server-go/internal/bpp/plugin_frame_dispatcher.go`、`packages/server-go/internal/bpp/envelope.go`。
+Process startup loads config, opens the store, runs baseline and forward-only migrations, bootstraps admin identity, builds the server runtime, and starts the HTTP server. Shutdown is coordinated through the HTTP server and the shared server lifetime context.
 
-对 remote node 的接口是 REST remote routes 与 `/ws/remote`。remote node 通过 connection token 连接，server 用 hub proxy 远端 `ls/read` 等请求。证据：`packages/server-go/internal/api/remote.go`、`packages/server-go/internal/ws/remote.go`、`packages/server-go/internal/server/server.go`、`packages/server-go/internal/store/models.go`。
+User requests enter the user rail, authenticate as a user or agent, optionally pass capability checks, mutate or read canonical state, and may fan out through WebSocket, poll/SSE wakeups, cold events, or push notification depending on the operation.
 
-对 persistence 的接口是 `store.Store` 与 `datalayer.DataLayer`。当前 handler 仍大量直接使用 `store.Store`；datalayer 提供 User/Channel/Message repo、PresenceStore、Storage 和 EventBus 的统一 bundle。证据：`packages/server-go/internal/store/db.go`、`packages/server-go/internal/datalayer/factory.go`、`packages/server-go/internal/datalayer/repository.go`、`packages/server-go/internal/server/server.go`。
+Admin requests enter the admin rail, resolve an opaque admin session, then operate on explicitly mounted admin surfaces. Admin traffic is not treated as a user acting inside channels or artifacts unless a specific user-facing grant flow exists.
 
-## 子文档
+Plugin connections authenticate as agents, register into the hub, exchange RPC-style API proxy frames, and send BPP event frames for lifecycle and task state. The server converts accepted plugin events into server-side state transitions, realtime fanout, and push fanout where appropriate.
 
-- `startup-routing.md` 展开 `cmd/collab/main.go`、`server.New`、route mount、middleware、static hosting 和后台 jobs。
-- `data-model-and-migrations.md` 展开 SQLite/GORM store、核心模型、baseline/forward migrations、hot events/cursor 和 datalayer cold events。
-- `api-auth-admin-rails.md` 展开 user rail、admin rail、auth/session/token/capability、admin metadata/privacy boundary。
-- `realtime-and-events.md` 与 `bpp-internals.md` 属于相邻 server 子域；本文件只给边界，细节由对应文档展开。
+Remote nodes authenticate with node connection tokens, register a live connection, and receive proxied filesystem-style requests from user-owned remote routes.
+
+## Invariants
+
+- User identity and admin identity are separate authority systems.
+- The composition root is the place where REST, WS, BPP, datalayer, presence, push, and background jobs are wired together.
+- Store rows are the canonical persisted state; hub state is live connection state.
+- Agent runtime metadata is not the same as plugin socket presence or task busy/idle state.
+- Hot cursor replay and cold data-layer events are separate streams.
+- Admin read surfaces must avoid content-bearing payloads unless a route is intentionally designed otherwise.
+- New cross-module calls should prefer narrow interfaces and server-owned adapters over direct package coupling.
+
+## Non-Goals
+
+The server does not run LLMs, own plugin-local secrets, or collapse admin authority into user authority.
+
+## Subdocuments
+
+- `startup-routing.md`: composition root, HTTP surface, middleware, static hosting, and background runtime.
+- `data-model-and-migrations.md`: data ownership, core aggregates, migration strategy, and event/cursor layering.
+- `api-auth-admin-rails.md`: user, admin, plugin, and remote rails with permission isolation.
+- `realtime-and-events.md`: detailed realtime frame and event behavior.
+- `bpp-internals.md`: detailed plugin protocol behavior.
+
+## Implementation Anchors
+
+- `packages/server-go/cmd/collab/main.go`
+- `packages/server-go/internal/server/server.go`
+- `packages/server-go/internal/server/middleware.go`
+- `packages/server-go/internal/api/`
+- `packages/server-go/internal/auth/`
+- `packages/server-go/internal/admin/`
+- `packages/server-go/internal/store/`
+- `packages/server-go/internal/migrations/`
+- `packages/server-go/internal/datalayer/`
+- `packages/server-go/internal/ws/`
+- `packages/server-go/internal/bpp/`
+- `packages/server-go/internal/presence/`
+- `packages/server-go/internal/push/`
+- `server.Server`
+- `ws.Hub`
+- `datalayer.DataLayer`
