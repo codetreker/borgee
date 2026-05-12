@@ -40,5 +40,5 @@
 (allow network-bind (local unix))
 (allow network-outbound (local unix))
 
-; v1 不挂网络出站 (反约束 §3 不在范围).
-; (allow network-outbound (remote tcp))  ; 永久不挂 (蓝图 §3)
+; v1 requires remote outbound network access to remain permanently disabled under blueprint §3.
+; (allow network-outbound (remote tcp))  ; permanently prohibited by blueprint §3

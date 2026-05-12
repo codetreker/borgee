@@ -2,11 +2,12 @@
 
 // Package sandbox applies the Linux Landlock LSM sandbox. It uses raw syscalls
 // (SYS_LANDLOCK_CREATE_RULESET=444, SYS_LANDLOCK_ADD_RULE=445,
-// SYS_LANDLOCK_RESTRICT_SELF=446) 不依赖 landlock-lsm/go-landlock 第三方包
-// — golang.org/x/sys/unix 提供 LANDLOCK_* 常量足够.
+// SYS_LANDLOCK_RESTRICT_SELF=446) instead of a third-party Landlock wrapper;
+// golang.org/x/sys/unix provides the required LANDLOCK_* constants.
 //
-// hb-2-v0d-spec.md §0.2: kernel ≥5.13 applies Landlock; <5.13 fallback no-op
-// + warn (生产 daemon 启动时 main.go 检 sandbox.Apply 错误决是否 abort).
+// hb-2-v0d-spec.md §0.2: kernel >=5.13 applies Landlock; older kernels use
+// the documented no-op fallback. daemon startup decides whether Apply errors
+// should abort startup.
 //
 // This layer uses Landlock path restrictions, not cgroups.
 
@@ -21,12 +22,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// landlockRulesetAttr 是 landlock_ruleset_attr struct (kernel 5.13 ABI).
+// landlockRulesetAttr mirrors landlock_ruleset_attr from the kernel 5.13 ABI.
 type landlockRulesetAttr struct {
 	HandledAccessFS uint64
 }
 
-// landlockPathBeneathAttr 是 landlock_path_beneath_attr struct.
+// landlockPathBeneathAttr mirrors landlock_path_beneath_attr.
 type landlockPathBeneathAttr struct {
 	AllowedAccess uint64
 	ParentFd      int32
@@ -37,20 +38,21 @@ const (
 	// LANDLOCK_RULE_PATH_BENEATH = 1 (kernel 5.13).
 	landlockRulePathBeneath = 1
 
-	// 全 read 类访问 (helper reads only; write-class IPC is rejected by ACL).
+	// Read access only; write-class IPC is rejected by ACL.
 	allowedReadAccess = unix.LANDLOCK_ACCESS_FS_READ_FILE |
 		unix.LANDLOCK_ACCESS_FS_READ_DIR
 )
 
-// Apply 应用 Profile 走 landlock LSM 限制 daemon 真路径访问.
+// Apply applies Profile through Landlock LSM path restrictions.
 //
-// 流程 (kernel man landlock):
+// Flow (kernel landlock man page):
 //  1. landlock_create_ruleset(attr, sizeof(attr), 0) → ruleset_fd
 //  2. for each path: open(path, O_PATH) → fd; landlock_add_rule(ruleset_fd, ...)
 //  3. landlock_restrict_self(ruleset_fd, 0)
 //  4. close(ruleset_fd)
 //
-// 错误处理: ENOSYS (kernel <5.13) → return nil + 调用方记 warn; 其他 errno → return err.
+// Error handling: ENOSYS (kernel <5.13) returns nil for the documented fallback;
+// other errno values return errors.
 func Apply(p Profile) error {
 	if len(p.ReadPaths) == 0 {
 		// No grants means deny-by-default.
@@ -60,8 +62,8 @@ func Apply(p Profile) error {
 	rulesetFD, err := createRuleset()
 	if err != nil {
 		if errors.Is(err, syscall.ENOSYS) {
-			// kernel 不支持 landlock (≤5.12) — fallback no-op.
-			// 生产 main.go 应记 audit log; 此处仅返 nil 让 daemon 起.
+			// Kernel does not support Landlock (<=5.12); use the documented no-op fallback.
+			// main.go is responsible for recording the startup warning.
 			return nil
 		}
 		return fmt.Errorf("landlock_create_ruleset: %w", err)
@@ -121,8 +123,8 @@ func addPathBeneathRule(rulesetFD int, path string) error {
 	return nil
 }
 
-// restrictEmptyRuleset deny-by-default: 创建 ruleset 但不加任何 rule
-// → daemon 真 read 任何路径 都 reject (fail-closed start).
+// restrictEmptyRuleset starts deny-by-default: create a ruleset without adding
+// rules, so daemon reads are rejected fail-closed.
 func restrictEmptyRuleset() error {
 	attr := landlockRulesetAttr{HandledAccessFS: allowedReadAccess}
 	r1, _, errno := syscall.Syscall(
@@ -149,9 +151,9 @@ func restrictEmptyRuleset() error {
 // Profile describes the sandbox configuration.
 type Profile struct {
 	ReadPaths    []string // derived from exact host_grants.scope values such as fs:<path>
-	AuditLogPath string   // daemon 唯一允许写 (走 OS perms; landlock 限 read 已足)
-	TmpCachePath string   // 临时缓存
+	AuditLogPath string   // daemon's only write path; OS permissions enforce writes
+	TmpCachePath string   // temporary cache path
 }
 
-// Platform 出处 — 单测断 build tag 选对.
+// Platform identifies the Linux implementation selected by this build tag.
 const Platform = "linux"
