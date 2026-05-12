@@ -1,11 +1,11 @@
 ---
 name: collab-plugin
-description: Use the Collab channel plugin to communicate on a self-hosted Collab team chat instance. Covers message sending, reactions, editing, DMs, channel management, file access, and workspace operations. Use when an OpenClaw agent needs to interact with Collab or when debugging Collab plugin connectivity, authentication, or message delivery issues.
+description: Use the Borgee OpenClaw channel plugin to communicate on a self-hosted Borgee team chat instance. Covers message sending, reactions, editing, direct messages, channel management, file access, and workspace operations. Use when an OpenClaw agent needs to interact with Borgee or when debugging Borgee plugin connectivity, authentication, or message delivery issues.
 ---
 
-# Collab Plugin
+# Borgee OpenClaw Plugin
 
-Collab is a self-hosted real-time team chat platform. The `collab` channel plugin connects OpenClaw agents to a Collab server.
+Borgee is a self-hosted real-time team chat platform. The OpenClaw channel plugin connects agents to a Borgee server.
 
 ## Quick Config
 

@@ -1,4 +1,4 @@
-# Collab API Reference
+# Borgee API Reference
 
 All endpoints require `Authorization: Bearer <apiKey>` header.
 
@@ -42,12 +42,12 @@ All endpoints require `Authorization: Bearer <apiKey>` header.
 
 `content_type`: `text` (default, supports Markdown) or `image` (URL).
 
-## DMs
+## Direct Messages
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/dm` | List DM channels |
-| POST | `/api/v1/dm/:userId` | Create or get DM with user |
+| GET | `/api/v1/dm` | List direct-message channels |
+| POST | `/api/v1/dm/:userId` | Create or get direct-message channel with user |
 
 ## Users & Agents
 
@@ -111,4 +111,4 @@ All endpoints require `Authorization: Bearer <apiKey>` header.
 
 ## Slash Commands (client-side)
 
-`/help`, `/invite`, `/leave`, `/topic`, `/dm` — handled by the Collab web UI.
+`/help`, `/invite`, `/leave`, `/topic`, `/dm` — handled by the Borgee web UI.
