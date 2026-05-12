@@ -9,9 +9,9 @@
 //   2. Field-order discipline guard — drift here breaks server↔client
 //      schema lock checked by BPP-1 #304 envelope CI lint on the server.
 //   3. Event-name lock pins the literal so ArtifactPanel's listener
-//      keeps subscribing to the same channel post-rename.
+//      keeps subscribing to the same channel after a rename.
 //
-// Why mock-only: useWebSocket.ts's switch arm is a 4-line passthrough
+// Why mock-only: useWebSocket.ts's switch arm is a short passthrough
 // (case 'artifact_updated' → dispatchArtifactUpdated(data)). Once the
 // dispatcher is proven, the wire integration is by inspection. The real
 // WS + UI ≤3s contract is the playwright spec (cv-1-3-canvas.spec.ts).
@@ -69,7 +69,7 @@ describe('dispatchArtifactUpdated', () => {
     const evt = listener.mock.calls[0][0] as CustomEvent<ArtifactUpdatedFrame>;
     // Drift guard: server cursor.go::ArtifactUpdatedFrame field order is
     // checked by BPP-1 #304 envelope CI lint server-side. This pins the
-    // client-side mirror so type rename here breaks loud.
+    // client-side mirror so a type rename fails clearly.
     expect(Object.keys(evt.detail)).toEqual([
       'type',
       'cursor',
@@ -97,10 +97,10 @@ describe('dispatchArtifactUpdated', () => {
     expect(kinds).toEqual(['commit', 'rollback']);
   });
 
-  it('reverse — frame envelope must NOT leak body or committer (设计 ⑤)', () => {
+  it('frame envelope must NOT include body or committer fields (design ⑤)', () => {
     // Push is signal-only per cv-1.md §2.5: body + committer come from
-    // GET /api/v1/artifacts/:id. If a future frame schema slips body or
-    // committer_kind in, this test catches it (frame keys must stay 7).
+    // GET /api/v1/artifacts/:id. If a future frame schema adds body or
+    // committer_kind, this test catches it (frame keys must stay 7).
     const keys = Object.keys(commitFrame);
     expect(keys).not.toContain('body');
     expect(keys).not.toContain('committer_id');
@@ -111,8 +111,8 @@ describe('dispatchArtifactUpdated', () => {
 
 describe('event-name lock', () => {
   // Drift guard: ArtifactPanel.tsx subscribes via useArtifactUpdated which
-  // hard-codes this constant — if the literal renames, the canvas tab
-  // silently stops refreshing on commit/rollback.
+  // hard-codes this constant. If the literal changes, the canvas tab
+  // stops refreshing on commit/rollback.
   it('ARTIFACT_UPDATED_EVENT === borgee:artifact-updated', () => {
     expect(ARTIFACT_UPDATED_EVENT).toBe('borgee:artifact-updated');
   });

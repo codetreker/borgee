@@ -9,9 +9,9 @@
 //   2. Field-order discipline guard — drift here breaks server↔client
 //      schema lock checked by BPP-1 #304 envelope CI lint on the server.
 //   3. Event-name lock pins the literal so MessageList's listener keeps
-//      subscribing to the same channel post-rename.
+//      subscribing to the same channel after a rename.
 //
-// Why mock-only: useWebSocket.ts's switch arm is a 4-line passthrough
+// Why mock-only: useWebSocket.ts's switch arm is a short passthrough
 // (case 'mention_pushed' → dispatchMentionPushed(data)). Once the
 // dispatcher is proven, the wire integration is by inspection. The real
 // WS + UI ≤3s contract is the playwright spec (dm-2-3-mention.spec.ts).
@@ -50,16 +50,15 @@ describe('dispatchMentionPushed', () => {
 
   it('event name is the locked literal', () => {
     // Pin the event channel name. MessageList subscribes to this exact
-    // string via useMentionPushed; rename without coordinated update
-    // silently breaks the dispatch pipeline.
+    // string via useMentionPushed; renaming it without a coordinated update
+    // breaks the dispatch pipeline.
     expect(MENTION_PUSHED_EVENT).toBe('borgee:mention-pushed');
   });
 
   it('frame field set is the 8-field byte-identical contract', () => {
-    // Pin the field order + count. Drift here and the server↔client
-    // lock (mention_pushed_frame.go) is broken — BPP CI lint on the
-    // server is the byte-identity guard but this test is the client
-    // mirror so refactors notice fast.
+    // Pin the field order and count. Drift here breaks the server↔client
+    // lock (mention_pushed_frame.go). BPP CI lint on the server is the
+    // byte-identity guard; this client-side mirror catches local refactors.
     const keys = Object.keys(onlineFrame);
     expect(keys).toEqual([
       'type',
@@ -74,10 +73,10 @@ describe('dispatchMentionPushed', () => {
     expect(keys).toHaveLength(8);
   });
 
-  it('反约束: frame schema has no owner_id / target_owner / fanout fields', () => {
-    // 设计 ③ (蓝图 §4): mention 永不抄送 owner — frame surface 不
-    // 暴露 owner 路由信息. offline owner-fallback 走独立 system DM,
-    // 不复用此 envelope.
+  it('frame schema excludes owner_id / target_owner / fanout fields', () => {
+    // Design ③ (blueprint §4): mentions never copy the owner on this
+    // frame. Owner routing stays out of this frame surface; offline
+    // owner fallback uses a separate system DM instead of this envelope.
     const keys = Object.keys(onlineFrame);
     for (const forbidden of ['owner_id', 'target_owner_id', 'fanout_to_owner', 'cc_owner']) {
       expect(keys).not.toContain(forbidden);

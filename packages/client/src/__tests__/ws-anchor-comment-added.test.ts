@@ -9,9 +9,9 @@
 //   2. Field-order discipline guard — drift here breaks server↔client
 //      schema lock checked by BPP-1 #304 envelope CI lint on the server.
 //   3. Event-name lock pins the literal so AnchorThreadPanel's listener
-//      keeps subscribing to the same channel post-rename.
+//      keeps subscribing to the same channel after a rename.
 //
-// Why mock-only: useWebSocket.ts's switch arm is a 4-line passthrough
+// Why mock-only: useWebSocket.ts's switch arm is a short passthrough
 // (case 'anchor_comment_added' → dispatchAnchorCommentAdded(data)). Once
 // the dispatcher is proven, the wire integration is by inspection. The
 // real WS + UI ≤3s contract is the playwright spec
@@ -67,7 +67,7 @@ describe('dispatchAnchorCommentAdded', () => {
   it('preserves the 10-field byte-identical key order (cv-2-spec.md v3 lock)', () => {
     // Drift guard: server anchor_comment_frame.go::AnchorCommentAddedFrame
     // field order is checked by BPP-1 #304 envelope CI lint server-side.
-    // This pins the client-side mirror so type rename here breaks loud.
+    // This pins the client-side mirror so a type rename fails clearly.
     expect(Object.keys(humanFrame)).toEqual([
       'type',
       'cursor',
@@ -99,16 +99,17 @@ describe('dispatchAnchorCommentAdded', () => {
     expect(kinds).toEqual(['human', 'agent']);
   });
 
-  it('反约束: frame envelope must NOT leak comment body or anchor offsets (设计 ③ signal-only)', () => {
-    // Push is signal-only per cv-2-spec.md §0 设计 ③: body comes from
-    // GET /api/v1/anchors/:id/comments. If a future frame schema slips
-    // body / start_offset / end_offset in, this catches it.
+  it('frame envelope must NOT include comment body or anchor offsets (design ③ signal-only)', () => {
+    // Push is signal-only per cv-2-spec.md §0 design ③: body comes from
+    // GET /api/v1/anchors/:id/comments. If a future frame schema adds
+    // body / start_offset / end_offset, this catches it.
     const keys = Object.keys(humanFrame);
     expect(keys).not.toContain('body');
     expect(keys).not.toContain('start_offset');
     expect(keys).not.toContain('end_offset');
-    // 设计 ③ env naming lock: column is `author_kind`, NOT `committer_kind`
-    // (anchor 是评论作者非 commit 提交者; 飞马 v2 changelog 字面).
+    // Design ③ envelope naming lock: the column is `author_kind`, NOT
+    // `committer_kind` (anchors use comment authors, not committers; this
+    // matches the v2 changelog wording).
     expect(keys).toContain('author_kind');
     expect(keys).not.toContain('committer_kind');
     expect(keys).not.toContain('kind');
@@ -117,8 +118,8 @@ describe('dispatchAnchorCommentAdded', () => {
 
 describe('event-name lock', () => {
   // Drift guard: AnchorThreadPanel.tsx subscribes via useAnchorCommentAdded
-  // which hard-codes this constant — if the literal renames, the canvas
-  // anchor side panel silently stops refreshing.
+  // which hard-codes this constant. If the literal changes, the canvas
+  // anchor side panel stops refreshing.
   it('ANCHOR_COMMENT_ADDED_EVENT === borgee:anchor-comment-added', () => {
     expect(ANCHOR_COMMENT_ADDED_EVENT).toBe('borgee:anchor-comment-added');
   });
