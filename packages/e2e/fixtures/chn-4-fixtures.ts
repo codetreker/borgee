@@ -4,7 +4,7 @@
 // duplicating setup code in specs. This avoids drift in repeated setup
 // blocks and avoids fixed waits for asynchronous setup.
 //
-// Pattern: Playwright `test.beforeAll` 钩子调 seedCHN4Fixtures(serverURL)
+// Pattern: Playwright `test.beforeAll` calls `seedCHN4Fixtures(serverURL)`.
 // → returns fixture handles: { ownerToken, ownerCtx, agentID, dmID,
 // publicChID }. Specs only perform page navigation and assertion
 // auto-retry; user, channel, and agent setup happens through REST.
