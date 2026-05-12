@@ -1,22 +1,24 @@
-// Package api — chn_5_archived.go: CHN-5 channel archived UI 列表 + admin
-// readonly + unarchive system DM 互补二式.
+// Package api — chn_5_archived.go: CHN-5 archived-channel UI list + admin
+// readonly view + matching unarchive system DM.
 //
-// Blueprint: channel-model.md §2 不变量 #3 archive 留 history. Spec:
-// docs/implementation/modules/chn-5-spec.md (战马D v0). 0 schema 改 —
-// channels.archived_at 列复用 CHN-1.1 #267 既有.
+// Blueprint: channel-model.md §2 invariant #3: archive keeps history. Spec:
+// docs/implementation/modules/chn-5-spec.md. No schema change: reuse the
+// existing CHN-1.1 #267 channels.archived_at column.
 //
 // Public surface:
 //   - (h *ChannelHandler) RegisterCHN5Routes(mux, authMw) — user-rail GET
 //   - (h *ChannelHandler) RegisterCHN5AdminRoutes(mux, adminMw) — admin GET
-//   - (h *ChannelHandler) fanoutUnarchiveSystemMessage(...) — 互补 archive
+//   - (h *ChannelHandler) fanoutUnarchiveSystemMessage(...) — archive complement
 //
-// 反约束 (chn-5-spec.md §0):
-//   - 设计 ② owner-only — GET /api/v1/me/archived-channels 只见 user 自己
-//     member 的 archived 频道; admin god-mode **不挂 PATCH** 路径.
-//   - 设计 ③ unarchive system DM 互补二式 — 文案 byte-identical 跟
-//     content-lock §1 (`channel #{name} 已被 {owner} 恢复于 {ts}`).
-//   - 设计 ④ admin-rail readonly — admin GET only, 无 PATCH/PUT/DELETE.
-//   - 设计 ⑥ AST 锁链延伸第 10 处 forbidden 3 token 0 hit.
+// Constraints (chn-5-spec.md §0):
+//   - Design ② owner-only: GET /api/v1/me/archived-channels returns only
+//     archived channels where the current user is a member; no admin PATCH route
+//     is mounted.
+//   - Design ③ unarchive system DM mirrors archive; text stays byte-identical
+//     with content-lock §1 (`channel #{name} 已被 {owner} 恢复于 {ts}`).
+//   - Design ④ admin rail is readonly: admin GET only, no PATCH/PUT/DELETE.
+//   - Design ⑥ AST check site 10 requires zero matches for the three forbidden
+//     tokens.
 package api
 
 import (
@@ -32,7 +34,7 @@ import (
 )
 
 // RegisterCHN5Routes wires the user-rail archived channels GET endpoint.
-// 设计 ② owner-only via current-user filter (no admin god-mode 路径).
+// Design ② owner-only via current-user filter; no admin route is mounted.
 func (h *ChannelHandler) RegisterCHN5Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/me/archived-channels",
 		authMw(http.HandlerFunc(h.handleListMyArchivedChannels)))
@@ -48,7 +50,7 @@ func (h *ChannelHandler) RegisterCHN5AdminRoutes(mux *http.ServeMux, adminMw fun
 // handleListMyArchivedChannels — GET /api/v1/me/archived-channels.
 //
 // Returns the user's archived channels (membership-scoped, cross-org
-// filtered跟 ListChannelsWithUnread 同精神). 设计 ② owner-only.
+// filtered, matching ListChannelsWithUnread). Design ② owner-only.
 func (h *ChannelHandler) handleListMyArchivedChannels(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
@@ -67,8 +69,8 @@ func (h *ChannelHandler) handleListMyArchivedChannels(w http.ResponseWriter, r *
 
 // handleAdminListArchivedChannels — GET /admin-api/v1/channels/archived.
 //
-// admin 全 org readonly 视图. 设计 ④: GET only, 无 PATCH/PUT/DELETE
-// (admin god-mode ADM-0 §1.3 红线 — admin 看 audit, 不直接改).
+// Admin all-org readonly view. Design ④: GET only, no PATCH/PUT/DELETE
+// (ADM-0 §1.3: admin inspects audit/history rather than modifying directly).
 func (h *ChannelHandler) handleAdminListArchivedChannels(w http.ResponseWriter, r *http.Request) {
 	a := admin.AdminFromContext(r.Context())
 	if a == nil {
@@ -87,13 +89,14 @@ func (h *ChannelHandler) handleAdminListArchivedChannels(w http.ResponseWriter, 
 }
 
 // fanoutUnarchiveSystemMessage delivers a system DM to every member of
-// the un-archived channel — CHN-5.2 设计 ③ 互补 fanoutArchiveSystemMessage
-// 二式. Content format byte-identical 跟 content-lock §1:
+// the un-archived channel, mirroring fanoutArchiveSystemMessage under CHN-5.2
+// design ③. Content format is byte-identical with content-lock §1:
 //
 //	"channel #{name} 已被 {owner_name} 恢复于 {ts}"
 //
-// 跟 CHN-1.2 archive (`关闭于`) 互补字面 (`恢复于`); ts RFC3339 + owner
-// DisplayName fallback 'system' 跟既有 fanoutArchiveSystemMessage 同源.
+// Complements the CHN-1.2 archive literal (`关闭于`) with `恢复于`; timestamp is
+// RFC3339 and owner DisplayName falls back to 'system', matching the existing
+// fanoutArchiveSystemMessage behavior.
 func (h *ChannelHandler) fanoutUnarchiveSystemMessage(channelID, channelName, ownerID string, unarchiveTs int64) {
 	h.fanoutChannelStateMessage(channelStateMessageArgs{
 		channelID:    channelID,
@@ -108,9 +111,9 @@ func (h *ChannelHandler) fanoutUnarchiveSystemMessage(channelID, channelName, ow
 }
 
 // channelStateMessageArgs carries the per-call differences across the
-// archive ↔ unarchive互补二式 (4 字面: 动词 / event 名 / payload key /
-// error log prefix). content-lock §1 字面 `"关闭于"` / `"恢复于"` 严守
-// caller 端; helper 不漂.
+// archive ↔ unarchive pair: verb literal, event name, payload key, and error log
+// prefix. content-lock §1 literals `"关闭于"` / `"恢复于"` stay owned by callers;
+// this helper does not change them.
 type channelStateMessageArgs struct {
 	channelID, channelName, ownerID string
 	ts                              int64
@@ -120,10 +123,11 @@ type channelStateMessageArgs struct {
 	errLogPrefix                    string
 }
 
-// fanoutChannelStateMessage is the SSOT body shared by archive and
-// unarchive fanout. Behavior byte-identical 跟原 2 处 inline (REFACTOR-2
-// helper-8): owner DisplayName fallback 'system' / RFC3339 ts / system
-// DM Create + Hub broadcast event payload {channel_id, <eventTSKey>, content}.
+// fanoutChannelStateMessage is the single shared body for archive and
+// unarchive fanout. Behavior is byte-identical with the original two inline
+// sites (REFACTOR-2 helper-8): owner DisplayName fallback 'system', RFC3339
+// timestamp, system DM Create, and Hub broadcast event payload
+// {channel_id, <eventTSKey>, content}.
 func (h *ChannelHandler) fanoutChannelStateMessage(a channelStateMessageArgs) {
 	owner, err := h.Store.GetUserByID(a.ownerID)
 	ownerName := "system"

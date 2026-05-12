@@ -7,19 +7,20 @@
 //   - ChannelDescriptionHandler{Store, Logger}
 //   - (h *ChannelDescriptionHandler) RegisterUserRoutes(mux, authMw)
 //   - DescriptionMaxLength (= 500, byte-identical 跟 channels.topic GORM
-//     size:500 同源, 双向锁守门 跟 client DESCRIPTION_MAX_LENGTH).
+//     size:500 and client DESCRIPTION_MAX_LENGTH).
 //
-// 反约束 (chn-10-spec.md §0 设计 ②③ 边界 ⑥):
-//   - owner-only ACL 锁链第 20 处 (DM-7 #19 + CHN-9 #14 承袭) — handler
-//     走 channel.CreatedBy == user.ID 反向断言, 反 member-level (跟 既有
-//     PUT /topic CHN-2 #406 互补 byte-identical 不动).
-//   - admin god-mode 不挂 — RegisterAdminRoutes 不存在; grep 检查
-//     `admin-api/v[0-9]+/.*description` PATCH/PUT/POST/DELETE 0 hit (ADM-0
-//     §1.3 红线).
-//   - 既有 PUT /topic byte-identical 不变 — channels.go::handleSetTopic
-//     不动; CHN-10 写入相同 channels.topic 列 (store.UpdateChannel 单源).
-//   - AST 锁链延伸第 17 处 — internal best-effort write path 不引入 retry
-//     queue / dead-letter 异步 sink (grep 守门 _test.go).
+// Constraints (chn-10-spec.md §0 designs ②③ boundary ⑥):
+//   - Owner-only ACL reference site 20, following DM-7 #19 + CHN-9 #14: handler
+//     requires channel.CreatedBy == user.ID and rejects member-level writes. The
+//     existing CHN-2 #406 PUT /topic path remains byte-identical.
+//   - No admin route is mounted: there is no RegisterAdminRoutes, and grep checks
+//     require zero PATCH/PUT/POST/DELETE matches for
+//     `admin-api/v[0-9]+/.*description` (ADM-0 §1.3).
+//   - Existing PUT /topic behavior stays byte-identical: channels.go::handleSetTopic
+//     is unchanged; CHN-10 writes the same channels.topic column through
+//     store.UpdateChannel as the single source.
+//   - AST check site 17: the internal best-effort write path must not add a
+//     retry queue or dead-letter async sink; _test.go grep checks cover this.
 package api
 
 import (
@@ -32,7 +33,7 @@ import (
 
 // DescriptionMaxLength — server-side 长度上限, byte-identical 跟
 // channels.topic GORM size:500 + client DESCRIPTION_MAX_LENGTH 同源.
-// 改一处 = 改三处 (server const + GORM size + client const) 反向锁守门.
+// Changing this requires updating the server const, GORM size, and client const.
 const DescriptionMaxLength = 500
 
 // ChannelDescriptionHandler serves the authenticated PUT endpoint for setting
@@ -73,7 +74,7 @@ func (h *ChannelDescriptionHandler) handlePut(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusNotFound, "Channel not found")
 		return
 	}
-	// 设计 ② owner-only — creator-only ACL (CHN-9 manage_visibility 同精神).
+	// Design ② owner-only: creator-only ACL, matching CHN-9 manage_visibility.
 	if ch.CreatedBy != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Only the channel owner can update description")
 		return
@@ -83,7 +84,7 @@ func (h *ChannelDescriptionHandler) handlePut(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	// 设计 ③ length cap 500 — channels.topic GORM size:500 byte-identical.
+	// Design ③ length cap 500: byte-identical with channels.topic GORM size:500.
 	if len(req.Description) > DescriptionMaxLength {
 		writeJSONError(w, http.StatusBadRequest,
 			"Description must be 500 characters or less")

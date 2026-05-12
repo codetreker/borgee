@@ -1,20 +1,23 @@
 // Package api — chn_7_mute.go: CHN-7 channel mute/unmute REST endpoints.
 //
 // Blueprint: channel-model.md §3 layout per-user. Spec:
-// docs/implementation/modules/chn-7-spec.md (战马D v0). 0 schema 改 —
-// user_channel_layout 列复用 CHN-3.1 #410 既有, mute 状态走 collapsed
-// INTEGER bitmap 字面约定:
-//   - bit 0 (=1) = 折叠态 (CHN-3 既有)
-//   - bit 1 (=2) = 静音态 (CHN-7 新增)
+// docs/implementation/modules/chn-7-spec.md. No schema change:
+// user_channel_layout reuses the existing CHN-3.1 #410 column, and mute state
+// is encoded in the collapsed INTEGER bitmap:
+//   - bit 0 (=1) = collapsed state (CHN-3 existing)
+//   - bit 1 (=2) = muted state (CHN-7)
 // MuteBit=2 const 双向锁跟 client lib/mute.ts::MUTE_BIT byte-identical.
 //
-// 反约束 (chn-7-spec.md §0):
-//   - 设计 ① 0 schema — collapsed bitmap, 不另起 muted/muted_until 列.
-//   - 设计 ② owner-only — POST/DELETE per-user; admin god-mode 不挂.
-//     owner-only ACL 锁链第 15 处 (CHN-6 #14 承袭).
-//   - 设计 ③ mute 不 drop messages — CreateMessage/RT-3 fan-out/WS frame
-//     全 byte-identical 不动. mute 仅 DL-4 push notifier skip (设计 ③).
-//   - 设计 ⑥ AST 锁链延伸第 12 处 forbidden 3 token 0 hit.
+// Constraints (chn-7-spec.md §0):
+//   - Design ① no schema change: use the collapsed bitmap; do not add
+//     muted/muted_until columns.
+//   - Design ② owner-only: POST/DELETE are per-user; no admin route is mounted.
+//     Owner-only ACL reference site 15, following CHN-6 #14.
+//   - Design ③ muting leaves message creation and delivery unchanged:
+//     CreateMessage, RT-3 fan-out, and WS frames remain byte-identical. Mute only
+//     affects DL-4 push notifier skips.
+//   - Design ⑥ AST check site 12 requires zero matches for the three forbidden
+//     tokens.
 package api
 
 import (
@@ -26,21 +29,23 @@ import (
 // existing CHN-3 collapsed state, so legacy clients writing
 // collapsed=0/1 keep their behavior (bit 1 defaults to 0 = unmuted).
 //
-// 双向锁: 跟 packages/client/src/lib/mute.ts::MUTE_BIT byte-identical
-// = 2. 改一处 = 改两处. 设计 ③ + content-lock §4 (跟 CHN-6 PinThreshold
-// 双向锁模式承袭).
+// Cross-layer invariant: byte-identical with
+// packages/client/src/lib/mute.ts::MUTE_BIT (=2). Changing this requires
+// updating both sides. Design ③ + content-lock §4 follows the CHN-6
+// PinThreshold pattern.
 const MuteBit = 2
 
 // IsMuted reports whether a user_channel_layout.collapsed bitmap value
-// represents a muted channel. Single-source predicate; 调用方禁止 inline
-// 重写 (grep 检查 `collapsed\s*&\s*2` 在 production 仅命中此函数).
+// represents a muted channel. Single-source predicate; callers must not inline
+// this bit check. Grep checks require `collapsed\s*&\s*2` to match only this
+// function in production code.
 func IsMuted(collapsed int64) bool {
 	return collapsed&int64(MuteBit) != 0
 }
 
 // RegisterCHN7Routes wires POST + DELETE /api/v1/channels/{channelId}/mute
-// behind authMw. user-rail only (admin god-mode 不挂 ADM-0 §1.3 红线 +
-// CHN-3.2 设计沿用). 设计 ②.
+// behind authMw. User rail only; no admin route is mounted (ADM-0 §1.3,
+// following CHN-3.2 design). Design ②.
 func (h *ChannelHandler) RegisterCHN7Routes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/channels/{channelId}/mute",
 		authMw(http.HandlerFunc(h.handleMuteChannel)))
@@ -51,8 +56,9 @@ func (h *ChannelHandler) RegisterCHN7Routes(mux *http.ServeMux, authMw func(http
 // handleMuteChannel — POST /api/v1/channels/{channelId}/mute.
 //
 // Sets bit 1 of user_channel_layout.collapsed for (user, channel)
-// preserving bit 0 (CHN-3 collapsed state). 设计 ② owner-only (cm.user_id
-// 走 IsChannelMember + DM reject byte-identical 跟 CHN-3.2 / CHN-6 同源).
+// preserving bit 0 (CHN-3 collapsed state). Design ② owner-only uses
+// IsChannelMember, and the DM reject path stays byte-identical with CHN-3.2 /
+// CHN-6.
 func (h *ChannelHandler) handleMuteChannel(w http.ResponseWriter, r *http.Request) {
 	h.handleMuteToggle(w, r, true)
 }
