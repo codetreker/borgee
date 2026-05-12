@@ -6,7 +6,7 @@
 // (hot-reload levels + idempotent reload + runtime does not cache) + §2.1
 // (control-plane row `agent_config_update`).
 // Spec: AL-2b acceptance #452 §2.1 + AL-2b.1 frames PR #472 (BPP envelope
-// 7+7 字段 byte-identical).
+// 7+7 field wire layout).
 //
 // Behaviour contract — follows the same wire pattern as RT-1.1 PushArtifactUpdated /
 // CV-2.2 PushAnchorCommentAdded / DM-2.2 PushMentionPushed / CV-4.2
@@ -58,15 +58,15 @@ import (
 //     enqueued to its send channel. false otherwise (plugin offline /
 //     no allocator / channel buffer full).
 //
-// Frame field assignment is byte-identical with bpp.AgentConfigUpdateFrame
+// Frame field assignment must match bpp.AgentConfigUpdateFrame
 // (AL-2b.1 PR #472 + acceptance §1.1 7 fields); reordering arguments here
 // without updating the frame struct is a CI red caught by
 // al_2b_frames_test.go reflect lint.
 //
 // Caller responsibilities:
-//   - blob: pre-marshalled JSON of SSOT whitelisted fields (acceptance §3.2).
+//   - blob: pre-marshalled JSON of SSOT allowed fields (acceptance §3.2).
 //     Server-side validation lives in AL-2a PATCH handler (allowedConfigKeys
-//     whitelist fail-closed); this method trusts the input.
+//     allow-list fail-closed); this method trusts the input.
 //   - idempotencyKey: stable per-PATCH key the plugin uses to dedup reload
 //     (acceptance §2.2); typical impl is `agent_id + ":" + schema_version`
 //     or a request-scoped uuid (no constraint here — plugin contract).
@@ -104,7 +104,7 @@ func (h *Hub) PushAgentConfigUpdate(
 		// cache", reconnect time triggers GET /agents/:id/config pull.
 		//
 		// BPP-4.2 dead-letter audit log: log warn `bpp.frame_dropped_plugin_offline`
-		// with 5-field schema byte-identical with HB-1/HB-2 audit (acceptance
+		// with the same 5-field schema as HB-1/HB-2 audit (acceptance
 		// §2.2 + content-lock §1.③). Constraint: do not use a persistent queue or
 		// timer retry — RT-1.3 #296 cursor replay is the fallback (plugin pulls missing
 		// frame after reconnect). Acceptance §4.3 reverse grep expects 0 hits for

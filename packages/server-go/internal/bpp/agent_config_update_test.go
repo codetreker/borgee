@@ -3,7 +3,7 @@
 //
 // Stance pins exercised (bpp-2-spec.md §0 立场 ③ + acceptance §3 +
 // content-lock §1 ②):
-//   - 6 fields 白名单 byte-identical 跟蓝图 §1.4 表字面
+//   - 6 allowed fields match the blueprint §1.4 table text
 //   - runtime 调优字段 (api_key/temperature) reject
 //   - config 单源 server→plugin (plugin 不上行 config — frame 方向锁)
 //   - 幂等 reload (同 (agent_id, config_rev) 重复推送 no-op)
@@ -15,8 +15,8 @@ import (
 	"borgee-server/internal/bpp"
 )
 
-// TestBPP_ValidConfigFieldsWhitelist pins content-lock §1 ② — 6 项
-// byte-identical 跟蓝图 §1.4 表左列字面.
+// TestBPP_ValidConfigFieldsWhitelist pins content-lock §1 ② — the six
+// fields match the blueprint §1.4 left-column text.
 func TestBPP_ValidConfigFieldsWhitelist(t *testing.T) {
 	t.Parallel()
 	want := []string{
@@ -29,16 +29,16 @@ func TestBPP_ValidConfigFieldsWhitelist(t *testing.T) {
 	}
 	for _, f := range want {
 		if !bpp.ValidConfigFields[f] {
-			t.Errorf("field %q missing from 6-whitelist", f)
+			t.Errorf("field %q missing from 6-field allow-list", f)
 		}
 	}
 	if len(bpp.ValidConfigFields) != len(want) {
-		t.Errorf("whitelist length mismatch: got %d, want 6", len(bpp.ValidConfigFields))
+		t.Errorf("allow-list length mismatch: got %d, want 6", len(bpp.ValidConfigFields))
 	}
 }
 
 // TestBPP_ValidatePayload_AcceptsWhitelistedFields pins acceptance
-// §3.2 happy path — payload with 6-whitelist fields parses + returns
+// §3.2 happy path — payload with the six allowed fields parses + returns
 // the typed map.
 func TestBPP_ValidatePayload_AcceptsWhitelistedFields(t *testing.T) {
 	t.Parallel()
@@ -53,10 +53,10 @@ func TestBPP_ValidatePayload_AcceptsWhitelistedFields(t *testing.T) {
 	}
 	for _, payload := range cases {
 		frame := bpp.AgentConfigUpdateFrame{
-			Type:      bpp.FrameTypeBPPAgentConfigUpdate,
-			AgentID:   "agent-X",
+			Type:          bpp.FrameTypeBPPAgentConfigUpdate,
+			AgentID:       "agent-X",
 			SchemaVersion: 1,
-			Blob:   payload,
+			Blob:          payload,
 		}
 		parsed, err := bpp.ValidateConfigPayload(frame)
 		if err != nil {
@@ -85,10 +85,10 @@ func TestBPP_ValidatePayload_RejectsRuntimeFields(t *testing.T) {
 		`{"unknown_field":"value"}`,
 	} {
 		frame := bpp.AgentConfigUpdateFrame{
-			Type:      bpp.FrameTypeBPPAgentConfigUpdate,
-			AgentID:   "agent-X",
+			Type:          bpp.FrameTypeBPPAgentConfigUpdate,
+			AgentID:       "agent-X",
 			SchemaVersion: 1,
-			Blob:   payload,
+			Blob:          payload,
 		}
 		_, err := bpp.ValidateConfigPayload(frame)
 		if err == nil {
@@ -113,10 +113,10 @@ func TestBPP_ValidatePayload_RejectsMalformedJSON(t *testing.T) {
 		``,
 	} {
 		frame := bpp.AgentConfigUpdateFrame{
-			Type:      bpp.FrameTypeBPPAgentConfigUpdate,
-			AgentID:   "agent-X",
+			Type:          bpp.FrameTypeBPPAgentConfigUpdate,
+			AgentID:       "agent-X",
 			SchemaVersion: 1,
-			Blob:   payload,
+			Blob:          payload,
 		}
 		_, err := bpp.ValidateConfigPayload(frame)
 		if err == nil {
@@ -184,7 +184,7 @@ func TestBPP_ConfigRevTracker_NegativeRev(t *testing.T) {
 }
 
 // TestAgentConfigUpdate_ErrorCodeLiteralsByteIdentical pins content-lock §1 ⑥
-// 错误码字面 byte-identical.
+// error code strings match expected literals.
 func TestAgentConfigUpdate_ErrorCodeLiteralsByteIdentical(t *testing.T) {
 	t.Parallel()
 	if bpp.ConfigErrCodeFieldDisallowed != "bpp.config_field_disallowed" {

@@ -15,8 +15,8 @@ import (
 )
 
 // REG-BPP31-001 — basic path: hub.PushPermissionDenied emits
-// PermissionDeniedFrame with byte-identical wire JSON; cursor 单调
-// 发号; sent=true.
+// PermissionDeniedFrame with exact wire JSON; cursor is monotonic;
+// sent=true.
 func TestBPP_PushPermissionDenied_Basic(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -48,10 +48,10 @@ func TestBPP_PushPermissionDenied_Basic(t *testing.T) {
 		`"attempted_action":"artifact.commit","required_capability":"artifact.commit",` +
 		`"current_scope":"artifact:art-1","denied_at":1700000000000}`
 	if wire != want {
-		t.Fatalf("wire byte-identity broken:\n got: %s\nwant: %s", wire, want)
+		t.Fatalf("wire JSON mismatch:\n got: %s\nwant: %s", wire, want)
 	}
 
-	// Round-trip sanity.
+	// Round-trip validation.
 	var frame bpp.PermissionDeniedFrame
 	if err := json.Unmarshal([]byte(wire), &frame); err != nil {
 		t.Fatalf("frame unmarshal: %v", err)
@@ -60,7 +60,7 @@ func TestBPP_PushPermissionDenied_Basic(t *testing.T) {
 		t.Errorf("frame.Type = %q, want %q", frame.Type, bpp.FrameTypeBPPPermissionDenied)
 	}
 	if frame.RequiredCapability != "artifact.commit" || frame.CurrentScope != "artifact:art-1" {
-		t.Errorf("payload byte-identity broken: %+v", frame)
+		t.Errorf("payload mismatch: %+v", frame)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestBPP_DirectionLock_ServerToPlugin(t *testing.T) {
 		t.Fatalf("permission_denied not in BPPEnvelopeWhitelist")
 	}
 	if dir != bpp.DirectionServerToPlugin {
-		t.Errorf("permission_denied direction = %q, want %q (反约束: plugin 永不发)",
+		t.Errorf("permission_denied direction = %q, want %q (negative assertion: plugin never sends it)",
 			dir, bpp.DirectionServerToPlugin)
 	}
 	// 反向: ensure FrameDirection() instance method 同源.
@@ -101,9 +101,9 @@ func TestBPP_PushPermissionDenied_PluginOffline(t *testing.T) {
 	}
 }
 
-// REG-BPP31-004 — cursor 共序: BPP-3.1 push 跟 RT-1 PushArtifactUpdated +
-// AL-2b PushAgentConfigUpdate 共一根 sequence (反约束 §1 立场 ① 不另起
-// plugin-only 通道).
+// REG-BPP31-004 — shared cursor sequence: BPP-3.1 push shares the same
+// sequence as RT-1 PushArtifactUpdated and AL-2b PushAgentConfigUpdate
+// (negative assertion §1: no plugin-only channel).
 func TestBPP_PushPermissionDenied_SharedSequence(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -132,8 +132,8 @@ func TestBPP_PushPermissionDenied_SharedSequence(t *testing.T) {
 	}
 }
 
-// REG-BPP31-005 — field byte-identity (filled + zero-tail). 反约束 8 字段
-// 全序列化, 不挂 omitempty.
+// REG-BPP31-005 — field-level wire shape (filled + zero-tail). Negative
+// assertion: all 8 fields serialize; no omitempty.
 func TestBPP_PushPermissionDenied_FieldByteIdentity(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -153,9 +153,9 @@ func TestBPP_PushPermissionDenied_FieldByteIdentity(t *testing.T) {
 		`,"agent_id":"agent-Z","request_id":"","attempted_action":"",` +
 		`"required_capability":"","current_scope":"","denied_at":0}`
 	if wire != want {
-		t.Fatalf("zero-tail wire byte-identity broken:\n got: %s\nwant: %s", wire, want)
+		t.Fatalf("zero-tail wire JSON mismatch:\n got: %s\nwant: %s", wire, want)
 	}
-	// 8 字段全序列化 (反 omitempty).
+	// All 8 fields serialize (no omitempty drift).
 	if count := strings.Count(wire, ":"); count < 8 {
 		t.Errorf("wire must serialize all 8 fields; saw %d ':' (omitempty drift)", count)
 	}

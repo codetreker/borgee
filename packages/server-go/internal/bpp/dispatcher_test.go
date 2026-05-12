@@ -2,14 +2,14 @@
 // (战马E #460 4 件套 v0 lock → BPP-2.1 dispatch 实施第一段).
 //
 // Stance pins exercised (bpp-2-spec.md §0 + acceptance §1 + content-lock §1):
-//   - ① 7 v1 op 白名单 byte-identical 跟蓝图 §1.3 字面 (7 op 全过 +
-//     'list_users' / 'delete_org' / v2+ 列表 reject)
+//   - ① 7 v1 operation allow-list matches the blueprint §1.3 text
+//     (all 7 ops pass; 'list_users' / 'delete_org' / v2+ ops reject)
 //   - ① dispatcher 不开 raw REST 旁路 (plugin 不下穿协议红线)
 //   - ① permission 走 AP-0 RequirePermission (跟既有 REST 同闸 — 此层不
 //     bypass)
-//   - 错误码字面 byte-identical (`bpp.semantic_op_unknown` 跟
+//   - Error code strings match expected literals (`bpp.semantic_op_unknown`
 //     anchor.create_owner_only #360 / dm.workspace_not_supported #407 /
-//     iteration.target_not_in_channel #409 同模式)
+//     iteration.target_not_in_channel #409 naming pattern)
 package bpp_test
 
 import (
@@ -39,8 +39,8 @@ func (f *fakeHandler) HandleAction(frame bpp.SemanticActionFrame, sess bpp.Sessi
 	return f.result, f.err
 }
 
-// TestBPP_OpWhitelist pins acceptance §1.2: v1 ops byte-identical
-// 跟蓝图 plugin-protocol.md §1.3 字面. Order matters — content-lock
+// TestBPP_OpWhitelist pins acceptance §1.2: v1 ops match the
+// blueprint plugin-protocol.md §1.3 text. Order matters — content-lock
 // §1 ① bytes the op list directly.
 //
 // BPP-3.2.1 (#494 follow-up) extends 7→8 with `request_capability_grant`
@@ -59,11 +59,11 @@ func TestBPP_OpWhitelist(t *testing.T) {
 	}
 	for _, op := range want {
 		if !bpp.ValidSemanticOps[op] {
-			t.Errorf("v1 whitelist missing op %q (蓝图 §1.3 字面承袭)", op)
+			t.Errorf("v1 allow-list missing op %q (must match blueprint §1.3 text)", op)
 		}
 	}
 	if len(bpp.ValidSemanticOps) != len(want) {
-		t.Errorf("v1 whitelist length mismatch: got %d, want %d (反约束 v2+ 列表不进 v1)",
+		t.Errorf("v1 allow-list length mismatch: got %d, want %d (negative assertion: v2+ ops stay out of v1)",
 			len(bpp.ValidSemanticOps), len(want))
 	}
 }
@@ -98,7 +98,7 @@ func TestBPP_RejectsUnknownOp(t *testing.T) {
 			Nonce:   "n-1",
 		}, bpp.SessionContext{AgentUserID: "u-1", PluginID: "p-1"})
 		if err == nil {
-			t.Errorf("op=%q accepted — should reject (v1 whitelist严闭)", bad)
+			t.Errorf("op=%q accepted — should reject (v1 allow-list is fail-closed)", bad)
 			continue
 		}
 		if !bpp.IsSemanticOpUnknown(err) {
@@ -109,7 +109,7 @@ func TestBPP_RejectsUnknownOp(t *testing.T) {
 
 // TestBPP_DispatchRoutesToHandler pins acceptance §1.3: a registered
 // handler is invoked for a valid op + the frame + session context are
-// passed through byte-identical (handler is the AP-0 perm gate, not
+// passed through unchanged (handler is the AP-0 perm gate, not
 // dispatcher).
 func TestBPP_DispatchRoutesToHandler(t *testing.T) {
 	t.Parallel()
@@ -187,14 +187,14 @@ func TestBPP_DispatchAllSevenOps(t *testing.T) {
 }
 
 // TestBPP_NoHandlerRegistered pins the boot-order edge case: an op
-// in the v1 whitelist with no registered handler returns an error
+// in the v1 allow-list with no registered handler returns an error
 // distinct from the unknown-op error (so the api package can surface
 // 503 service-unavailable, not 400 bad-request).
 func TestBPP_NoHandlerRegistered(t *testing.T) {
 	t.Parallel()
 	d := bpp.NewDispatcher()
 	// Register only one op so the test specifically targets the
-	// no-handler branch on a different (whitelisted) op.
+	// no-handler branch on a different allowed op.
 	_ = d.RegisterHandler(bpp.SemanticOpCreateArtifact, &fakeHandler{})
 
 	_, err := d.Dispatch(bpp.SemanticActionFrame{
@@ -217,7 +217,7 @@ func TestBPP_NoHandlerRegistered(t *testing.T) {
 }
 
 // TestBPP_RegisterHandlerRejectsUnknownOp pins boot-time invariant:
-// registering a handler for an op outside the v1 whitelist is a
+// registering a handler for an op outside the v1 allow-list is a
 // programming bug (typo or stale op name) and must fail loud.
 func TestBPP_RegisterHandlerRejectsUnknownOp(t *testing.T) {
 	t.Parallel()
@@ -230,7 +230,7 @@ func TestBPP_RegisterHandlerRejectsUnknownOp(t *testing.T) {
 	} {
 		err := d.RegisterHandler(bad, &fakeHandler{})
 		if err == nil {
-			t.Errorf("RegisterHandler(%q) accepted — should reject (v1 whitelist 严闭)", bad)
+			t.Errorf("RegisterHandler(%q) accepted — should reject (v1 allow-list is fail-closed)", bad)
 		}
 	}
 }
@@ -270,7 +270,7 @@ func TestBPP_HandlerForUnregistered(t *testing.T) {
 }
 
 // TestBPP_DispatchErrorCodeLiteral pins acceptance + content-lock
-// §1 ⑥ — the error code surfaced to the plugin must be byte-identical
+// §1 ⑥ — the error code surfaced to the plugin must match
 // `bpp.semantic_op_unknown` (跟 anchor.create_owner_only #360 /
 // dm.workspace_not_supported #407 / iteration.target_not_in_channel
 // #409 命名同模式).

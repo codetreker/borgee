@@ -28,7 +28,7 @@ import (
 // TestRT_AgentTaskStateChangedFrame_FieldOrder pins acceptance §1 — 7
 // field-order envelope:
 //
-//   {type, cursor, agent_id, state, subject, reason, changed_at}
+//	{type, cursor, agent_id, state, subject, reason, changed_at}
 //
 // JSON key order follows struct declaration order. Drift here breaks
 // the wire contract + RT-3.2 client wiring simultaneously.
@@ -50,7 +50,7 @@ func TestRT_AgentTaskStateChangedFrame_FieldOrder(t *testing.T) {
 	}
 	want := `{"type":"agent_task_state_changed","cursor":42,"agent_id":"agent-A","state":"busy","subject":"writing section 3","reason":"","changed_at":1700000000000}`
 	if string(b) != want {
-		t.Fatalf("envelope byte-identity broken:\n got: %s\nwant: %s", string(b), want)
+		t.Fatalf("envelope JSON mismatch:\n got: %s\nwant: %s", string(b), want)
 	}
 
 	// idle 态 — subject 空, reason 可填或空
@@ -69,7 +69,7 @@ func TestRT_AgentTaskStateChangedFrame_FieldOrder(t *testing.T) {
 	}
 	wantIdle := `{"type":"agent_task_state_changed","cursor":43,"agent_id":"agent-A","state":"idle","subject":"","reason":"runtime_timeout","changed_at":1700000000001}`
 	if string(b) != wantIdle {
-		t.Fatalf("idle envelope byte-identity broken:\n got: %s\nwant: %s", string(b), wantIdle)
+		t.Fatalf("idle envelope JSON mismatch:\n got: %s\nwant: %s", string(b), wantIdle)
 	}
 }
 
@@ -171,10 +171,10 @@ func TestRT_ReverseGrep_NoSubjectFallback(t *testing.T) {
 	// fallback patterns that would silently hide the "subject required"
 	// 立场 ① rule.
 	patterns := []string{
-		`\bsubject\s*=\s*""`,            // explicit empty default
-		`defaultSubject\b`,              // default-named symbol
-		`fallbackSubject\b`,             // fallback-named symbol
-		`Subject\s*:\s*"thinking"`,      // hard-coded vague string (蓝图 §1.1 ❌)
+		`\bsubject\s*=\s*""`,             // explicit empty default
+		`defaultSubject\b`,               // default-named symbol
+		`fallbackSubject\b`,              // fallback-named symbol
+		`Subject\s*:\s*"thinking"`,       // hard-coded vague string (blueprint §1.1)
 		`Subject\s*:\s*"AI is thinking"`, // ditto
 	}
 	res := make([]*regexp.Regexp, 0, len(patterns))
@@ -239,7 +239,7 @@ func TestRT_SharedSequence_WithRT1_CV2_DM2_CV4_AL2b(t *testing.T) {
 			cursorField.Type.Kind())
 	}
 	if tag := cursorField.Tag.Get("json"); tag != "cursor" {
-		t.Errorf("Cursor json tag = %q, want %q (字段名跟 5 上游 frame byte-identical)", tag, "cursor")
+		t.Errorf("Cursor json tag = %q, want %q (field name must match 5 upstream frames)", tag, "cursor")
 	}
 
 	// Sibling frames share the same Cursor field shape.

@@ -12,7 +12,7 @@ package ws
 //      短 lived ticker 真测 (NewTicker(time.Microsecond) 让 select 真触发 case)
 //
 // 立场:
-//   - 0 行为改 (heartbeatTick body byte-identical 跟原 inline)
+//   - no behavior change (heartbeatTick body matches the original inline code)
 //   - 0 race scheduler 依赖 (deterministic cov)
 //   - 不 skip / 不 mask (真补)
 
@@ -55,7 +55,7 @@ func newHeartbeatTestClient(alive bool) *Client {
 // alive==true 的 client → 走 SendPing (ping frame 入 send chan).
 //
 // 验收: heartbeatTick 调一次, alive client send chan 有 ping frame, 不
-// Close. (跟原 inline body byte-identical, 仅抽出可测.)
+// Close. (matches the original inline body; only extracted for testing.)
 func TestHubHeartbeatTick_AliveSendsPing(t *testing.T) {
 	t.Parallel()
 	h := newHubForHeartbeatTest(t)
@@ -100,7 +100,7 @@ func TestHubHeartbeatTick_DeadAsyncClose(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("expected dead client done chan to close via async Close()")
 	}
-	// 反约束: dead client 不应收 ping (送 send chan 应 ==0)
+	// Negative assertion: dead clients should not receive ping frames.
 	select {
 	case <-c.send:
 		t.Fatal("dead client should not receive ping frame")

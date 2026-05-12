@@ -6,8 +6,8 @@
 //
 //   - Cursor allocator emits monotonic int64 across pushes (live hub)
 //   - Multi-device: 2 ws sessions of same user both receive the frame
-//   - Subject byte-identical 跟 push 入参 (反约束: server 不重写 subject,
-//     plugin 上行字面承袭).
+//   - Subject matches the push input (negative assertion: server does not
+//     rewrite subject; plugin upstream text is preserved).
 package ws_test
 
 import (
