@@ -1,13 +1,14 @@
 // Package api_test — chn_13_search_test.go: CHN-13 server search filter
-// + grep 检查 (CHN-13 仅 server LIKE filter + client SPA; 0 schema 改).
+// + grep checks (CHN-13 only adds the server LIKE filter and client SPA; no schema change).
 //
-// 覆盖的检查点:
-//   REG-CHN13-001 TestChn13search_NoSchemaChange (filepath.Walk migrations/)
-//   REG-CHN13-002 TestCHN_ListChannelsWithQuery (q="" 与既有响应一致
-//                  + q="match" 子串过滤)
-//   REG-CHN13-003 TestCHN_QueryCaseInsensitive + QuerySubstringMatch
-//   REG-CHN13-004 TestCHN_NoSearchQueue (AST 对齐检查第 21 处)
-//   REG-CHN13-005 TestCHN_NoAdminSearchPath (admin 权限不挂)
+// Covered checks:
+//
+//	REG-CHN13-001 TestChn13search_NoSchemaChange (filepath.Walk migrations/)
+//	REG-CHN13-002 TestCHN_ListChannelsWithQuery (q="" matches existing response
+//	               + q="match" substring filter)
+//	REG-CHN13-003 TestCHN_QueryCaseInsensitive + QuerySubstringMatch
+//	REG-CHN13-004 TestCHN_NoSearchQueue (AST alignment check)
+//	REG-CHN13-005 TestCHN_NoAdminSearchPath (admin API must not mount search)
 package api_test
 
 import (
@@ -23,7 +24,7 @@ import (
 	"borgee-server/internal/testutil"
 )
 
-// REG-CHN13-001 — 0 schema 改 (grep 检查 migrations/chn_13_*).
+// REG-CHN13-001 — no schema change (grep check for migrations/chn_13_*).
 func TestChn13search_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
@@ -38,7 +39,7 @@ func TestChn13search_NoSchemaChange(t *testing.T) {
 	}
 }
 
-// REG-CHN13-002 — GET /api/v1/channels?q= happy + 空 q 与既有响应一致.
+// REG-CHN13-002 — GET /api/v1/channels?q= happy path + empty q matches existing response.
 func TestCHN_ListChannelsWithQuery(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -60,7 +61,7 @@ func TestCHN_ListChannelsWithQuery(t *testing.T) {
 		}
 	}
 
-	// Empty q — full list (跟既有 path 响应一致).
+	// Empty q — full list, matching the existing path response.
 	resp, body := testutil.JSON(t, http.MethodGet,
 		ts.URL+"/api/v1/channels", ownerToken, nil)
 	if resp.StatusCode != http.StatusOK {
@@ -89,7 +90,7 @@ func TestCHN_ListChannelsWithQuery(t *testing.T) {
 	}
 }
 
-// REG-CHN13-003 — q LIKE COLLATE NOCASE 大小写不敏感 + 子串.
+// REG-CHN13-003 — q LIKE COLLATE NOCASE is case-insensitive + substring match.
 func TestCHN_QueryCaseInsensitive(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -120,7 +121,7 @@ func TestCHN_QueryCaseInsensitive(t *testing.T) {
 	}
 }
 
-// REG-CHN13-003b — 子串匹配 (中间字符).
+// REG-CHN13-003b — substring match in the middle of the channel name.
 func TestCHN_QuerySubstringMatch(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -150,7 +151,7 @@ func TestCHN_QuerySubstringMatch(t *testing.T) {
 	}
 }
 
-// REG-CHN13-004 — AST 对齐检查第 21 处 forbidden 3 token.
+// REG-CHN13-004 — AST alignment check for 3 forbidden tokens.
 func TestCHN_NoSearchQueue(t *testing.T) {
 	t.Parallel()
 	forbidden := []string{
@@ -176,9 +177,9 @@ func TestCHN_NoSearchQueue(t *testing.T) {
 	})
 }
 
-// REG-CHN13-005 — admin 权限不挂 search ?q= path (ADM-0 §1.3 限制;
-// search 是 user-rail filter, admin /admin-api/v1/channels 既有列表已含
-// 全 org, 不需要另外 search).
+// REG-CHN13-005 — admin API must not mount the search ?q= path (ADM-0 §1.3).
+// Search is a user API filter; admin /admin-api/v1/channels already lists the
+// full org and does not need a separate search path.
 func TestCHN_NoAdminSearchPath(t *testing.T) {
 	t.Parallel()
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}

@@ -1,15 +1,15 @@
 // Package api — cv_3_2_artifact_validation_test.go: CV-3.2 (#363/#397)
 // server validation acceptance tests.
 //
-// 覆盖的检查点:
-//   - acceptance §1.3 — code MUST carry metadata.language ∈ 11 项允许集合
-//   - 'text' fallback (12 项); 约束 短码唯一不接全名同义词
+// Covered checks:
+//   - acceptance §1.3 — code MUST carry metadata.language ∈ 11 allowed values
+//   - 'text' fallback (12 values); short-code uniqueness rejects full-name synonyms
 //     ('golang'/'typescript'/'python'/'shell'/'bash'/'plaintext') (#370 §1 第 2 条).
 //   - acceptance §1.4 — image_link MUST carry metadata.kind ∈ ('image',
-//     'link') + URL 必 https; 约束 javascript:/data:/data:image/http:/
-//     file: 全 reject (XSS 红线第一道, #370 §1 第 4 条).
-//   - 约束 — CV-1.2 设计第 4 条 旧 400 文案 'type must be markdown (v1)'
-//     已删 (spec #397 mismatch 3 字面).
+//     'link') + URL must be https; javascript:/data:/data:image/http:/file:
+//     all reject as the first XSS guard (#370 §1 第 4 条).
+//   - constraint — old CV-1.2 400 text 'type must be markdown (v1)' was removed
+//     (spec #397 mismatch 3 literal).
 package api
 
 import (
@@ -33,7 +33,7 @@ func TestIsValidArtifactKind(t *testing.T) {
 	}
 }
 
-// ---- IsValidCodeLanguage 11 项 + text (#370 §1 第 2 条) ------------------
+// ---- IsValidCodeLanguage 11 values + text (#370 §1 第 2 条) ---------------
 
 func TestIsValidCodeLanguage_11WhitelistPlusText(t *testing.T) {
 	t.Parallel()
@@ -48,17 +48,17 @@ func TestIsValidCodeLanguage_11WhitelistPlusText(t *testing.T) {
 	}
 }
 
-// TestIsValidCodeLanguage_RejectsFullNameSynonyms 验证 #370 §1 第 2 条约束
-// — 短码唯一: 不接 'golang' / 'typescript' / 'python' / 'shell' /
-// 'bash' / 'plaintext' 全名同义词 (跟 acceptance §4.4 grep 检查 同源).
+// TestIsValidCodeLanguage_RejectsFullNameSynonyms verifies #370 §1 第 2 条:
+// short-code uniqueness rejects full-name synonyms ('golang' / 'typescript' /
+// 'python' / 'shell' / 'bash' / 'plaintext').
 func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{
-		// 全名同义词 — 约束闸 (#370 §1 第 2 条).
+		// Full-name synonyms rejected by #370 §1 第 2 条.
 		"golang", "typescript", "python", "shell", "bash", "plaintext",
-		// 大小写变化 — 短码 ASCII case-sensitive.
+		// Case variants — short codes are ASCII case-sensitive.
 		"GO", "TS", "Py", "MD",
-		// spec 外语言 — 允许集合收窄 (跟 spec §3 grep 检查 同精神).
+		// Languages outside the spec are rejected to keep the allowed set narrow.
 		"rust", "c", "cpp", "java", "kotlin", "swift", "ruby", "php",
 		"yml", // 'yaml' 已收, 'yml' 不接 (短码唯一)
 		// 空字串.
@@ -70,7 +70,7 @@ func TestIsValidCodeLanguage_RejectsFullNameSynonyms(t *testing.T) {
 	}
 }
 
-// ---- ValidateImageLinkURL — XSS 红线第一道 (#370 §1 第 4 条) -----------
+// ---- ValidateImageLinkURL — first XSS guard (#370 §1 第 4 条) ------------
 
 func TestValidateImageLinkURL_AcceptsHttpsAbsolute(t *testing.T) {
 	t.Parallel()
@@ -87,9 +87,9 @@ func TestValidateImageLinkURL_AcceptsHttpsAbsolute(t *testing.T) {
 	}
 }
 
-// TestValidateImageLinkURL_RejectsNonHttpsSchemes 验证 #370 §1 第 4 条 XSS 红线
-// 第一道 — javascript: / data: / data:image / http: / file: / chrome: 全
-// reject (跟 spec §3 grep 检查 + acceptance §4.2 同源).
+// TestValidateImageLinkURL_RejectsNonHttpsSchemes verifies the first XSS guard
+// in #370 §1 第 4 条: javascript: / data: / data:image / http: / file: /
+// chrome: all reject.
 func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{
@@ -98,16 +98,16 @@ func TestValidateImageLinkURL_RejectsNonHttpsSchemes(t *testing.T) {
 		"javascript://example.com/a",
 		"data:image/png;base64,AAA",
 		"data:text/html,<script>",
-		// 混合内容 (mixed-content downgrade) — http: 拒.
+		// Mixed-content downgrade — http: rejects.
 		"http://example.com/img.png",
 		"http://insecure.test/",
-		// File scheme — 本地资源访问漏洞.
+		// File scheme — local resource access risk.
 		"file:///etc/passwd",
 		"file://share/x",
-		// Chrome / 浏览器内部.
+		// Chrome / browser-internal schemes.
 		"chrome://settings",
 		"chrome-extension://abcdef/x",
-		// FTP — 不在范围, 留 Phase 5+.
+		// FTP — out of scope for this phase.
 		"ftp://files.example.com/x.zip",
 	} {
 		if err := ValidateImageLinkURL(bad); err == nil {

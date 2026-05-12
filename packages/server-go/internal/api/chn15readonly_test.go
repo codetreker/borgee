@@ -1,7 +1,7 @@
 // Package api_test — chn_15_readonly_test.go: CHN-15 acceptance tests.
 //
 // Acceptance pins (docs/qa/acceptance-templates/chn-15.md):
-//   - 1.1 0 schema 改 反向断言
+//   - 1.1 no schema change reverse assertion
 //   - 1.2 ReadonlyBit 字节级一致 + IsReadonly truth table
 //   - 2.1-2.6 endpoints owner-only + send gate + admin not mounted +
 //     错码字节级一致
@@ -47,8 +47,8 @@ func TestCHN_ReadonlyBit_ByteIdentical(t *testing.T) {
 	}
 }
 
-// TestChn15readonly_NoSchemaChange — filepath.Walk migrations/ grep 检查
-// chn_15_\d+ 0 hit + sqlite_master 反向. 设计第 1 条.
+// TestChn15readonly_NoSchemaChange — filepath.Walk migrations/ grep check:
+// chn_15_\d+ has 0 hits, plus sqlite_master reverse assertion.
 func TestChn15readonly_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	root := chn15RepoRoot(t)
@@ -60,7 +60,7 @@ func TestChn15readonly_NoSchemaChange(t *testing.T) {
 	}
 }
 
-// TestCHN_ChannelErrCode_ByteIdentical — server const 字面单源.
+// TestCHN_ChannelErrCode_ByteIdentical — server const is the single source.
 func TestCHN_ChannelErrCode_ByteIdentical(t *testing.T) {
 	t.Parallel()
 	if got, want := api.ChannelErrCodeReadonlyNoSend, "channel.readonly_no_send"; got != want {
@@ -167,7 +167,7 @@ func TestCHN_SendAllowedForCreator_WhenReadonly(t *testing.T) {
 }
 
 // TestCHN_SendAllowedForNonCreator_WhenNotReadonly — control: non-
-// creator can send when channel is NOT readonly (反向断言不误伤).
+// creator can send when channel is NOT readonly (reverse assertion: avoid false positives).
 func TestCHN_SendAllowedForNonCreator_WhenNotReadonly(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
