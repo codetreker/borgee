@@ -13,7 +13,7 @@
 // (sqlite ≥3.23, build tag sqlite_serialize is default for the driver). We
 // reach the underlying *sqlite3.SQLiteConn via Conn.Raw().
 //
-// Invariants (test守):
+// Invariants (covered by tests):
 //   - Serialize is deterministic (same migrations → same bytes)
 //   - Deserialize replaces the entire DB content (rows + schema)
 //   - Per-test isolation preserved: each test deserializes into its own
@@ -22,8 +22,9 @@
 //   - Fallback: if Serialize fails (older sqlite / build-tag mismatch),
 //     callers fall back to full Migrate (no API change required)
 //
-// SSOT: this file owns the serialize/deserialize seam; testutil/server.go
-// is the single caller (NewTestServer 二阶段 init: snapshot once + restore N).
+// Single source of truth: this file owns the serialize/deserialize boundary;
+// testutil/server.go is the single caller (NewTestServer two-phase init:
+// snapshot once + restore N times).
 
 package store
 

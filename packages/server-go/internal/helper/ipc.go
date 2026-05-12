@@ -1,5 +1,5 @@
 // Package helper — IPC primitive selectors for borgee-helper host-bridge
-// daemon (HB-2 v0(C) prerequisite SSOT).
+// daemon (HB-2 v0(C) prerequisite single source of truth).
 //
 // HB-2.0 #TBD: this package is the cross-platform IPC primitive
 // selector. Daemon (HB-2 v0(C)) calls IPCEndpointDefault to resolve
@@ -8,28 +8,29 @@
 // gate the "IPC primitive choice" decision so HB-2 v0(C) can build
 // portable Cargo workspace OR portable Go cmd without re-deciding.
 //
-// Blueprint锚: docs/blueprint/current/host-bridge.md §1.2 + §1.4.
+// Blueprint reference: docs/blueprint/current/host-bridge.md §1.2 + §1.4.
 // Spec: docs/implementation/modules/hb-2-0-spec.md §1 (CI matrix
 // prerequisite — `os: [ubuntu-latest, macos-latest, windows-latest]`
-// + 3 IPC unit per platform 反向断 IPC primitive 路径选对).
+// + 3 IPC unit tests per platform verifying the chosen IPC primitive path).
 //
 // Why this lives in internal/helper (not internal/bpp / internal/api):
 //   - HB-2 v0(C) host-bridge daemon is a separate binary path
 //     (not the borgee-server REST/WS API surface).
-//   - 反 cross-package concern bleed — the ws.Hub / api.Handler don't
-//     import this; only future HB-2 daemon glue will.
+//   - Prevent cross-package concern bleed: ws.Hub and api.Handler do not
+//     import this; only future HB-2 daemon glue should.
 //
-// 反约束:
-//   - 不挂 daemon lifecycle (留 HB-2 v0(C))
-//   - 不挂 IPC server (留 HB-2 v0(C))
-//   - 不挂 grants consumer (留 HB-2 v0(C) + HB-3 schema 真定义后)
-//   - 不挂 sandbox config (留 HB-2 v0(C) — systemd unit + launchd unit
-//     + sandbox-exec profile)
+// Explicit non-goals:
+//   - Does not include daemon lifecycle (left to HB-2 v0(C)).
+//   - Does not include the IPC server (left to HB-2 v0(C)).
+//   - Does not include the grants consumer (left to HB-2 v0(C) after the
+//     HB-3 schema is defined).
+//   - Does not include sandbox config (left to HB-2 v0(C): systemd unit,
+//     launchd unit, and sandbox-exec profile).
 
 package helper
 
-// IPCPlatform is the per-OS IPC primitive label byte-identical 跟
-// HB-2 spec §3.1 IPC contract.
+// IPCPlatform is the per-OS IPC primitive label; values must remain
+// byte-identical with the HB-2 spec §3.1 IPC contract.
 type IPCPlatform string
 
 const (
@@ -47,8 +48,9 @@ const (
 // current OS. Used by HB-2 v0(C) daemon at start; tests override per
 // platform via build tag (cf ipc_test.go).
 //
-// Defaults (跟 HB-1 install-butler audit log path 同精神 — XDG/macOS
-// standards; Windows %LOCALAPPDATA%):
+// Defaults follow the same platform-directory intent as the HB-1
+// install-butler audit log path: XDG/macOS standards and Windows
+// %LOCALAPPDATA%.
 //   - Linux:   $XDG_RUNTIME_DIR/borgee-helper.sock OR /run/borgee-helper/borgee-helper.sock
 //   - macOS:   ~/Library/Application Support/Borgee/borgee-helper.sock
 //   - Windows: \\.\pipe\borgee-helper

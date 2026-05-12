@@ -1,17 +1,19 @@
 // Package store — chn_15_readonly.go: CHN-15 channel readonly helpers.
 //
-// Spec: docs/implementation/modules/chn-15-spec.md §1 拆段 CHN-15.1.
+// Spec: docs/implementation/modules/chn-15-spec.md §1, CHN-15.1 split.
 //
 // Behaviour: readonly is channel-wide state stored on the **creator's**
 // user_channel_layout.collapsed row at bit 4 (=16). All members read
 // the same single row to determine the channel's readonly state; only
 // the creator can mutate it (handler-layer ACL).
 //
-// 反约束 (chn-15-spec.md §0 立场 ①+⑤):
-//   - 改 = 改此一处 — handler / api 层不直接 SQL touch bit 4.
-//   - GetChannelReadonly 走 channel.CreatedBy → user_channel_layout 单行查
-//     (反向断言: 不读 non-creator 行).
-//   - SetChannelReadonly wrap SetMuteBit (复用 #550 SSOT).
+// Explicit non-goals (chn-15-spec.md §0 stance ①+⑤):
+//   - Keep bit 4 writes centralized here; handler / api layers must not
+//     update it with direct SQL.
+//   - GetChannelReadonly reads the single user_channel_layout row for
+//     channel.CreatedBy, and must not read non-creator rows.
+//   - SetChannelReadonly wraps SetMuteBit, reusing the #550 single source of
+//     truth for bitmask writes.
 package store
 
 import (
@@ -26,7 +28,7 @@ const readonlyBitInternal = 16
 
 // GetChannelReadonly reports whether channelID is currently flagged as
 // readonly. Reads the **creator's** user_channel_layout.collapsed row
-// (channel-wide state via creator-single-row SSOT, 立场 ⑤).
+// (channel-wide state via the creator's single-row source of truth, stance ⑤).
 //
 // Returns (false, nil) when the channel exists but the creator has no
 // layout row yet (NULL = no bits set = not readonly).
@@ -55,7 +57,7 @@ func (s *Store) GetChannelReadonly(channelID string) (bool, error) {
 // for the bitmask write — preserves bits 0/1/2-3.
 //
 // Caller MUST validate that the requesting user is channel.CreatedBy
-// before calling (handler-layer ACL, 立场 ②).
+// before calling (handler-layer ACL, stance ②).
 func (s *Store) SetChannelReadonly(channelID string, readonly bool) (int64, error) {
 	if channelID == "" {
 		return 0, errors.New("channelID required")
