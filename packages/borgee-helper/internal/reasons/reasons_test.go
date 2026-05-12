@@ -1,4 +1,4 @@
-// Package reasons — 8-dict byte-identical 反断 (跟 hb-2-spec.md §3.3).
+// Package reasons verifies the HB-2 8-dict reason set stays byte-identical with hb-2-spec.md §3.3.
 package reasons
 
 import "testing"
@@ -26,7 +26,8 @@ func TestHB2_Reason8DictByteIdentical(t *testing.T) {
 	}
 }
 
-// TestHB2_NoSeventhDictBleed 反 HB-1 7-dict / AL-1a 6-dict 字典污染 — 三字典分立.
+// TestHB2_NoSeventhDictBleed ensures the HB-1 7-dict install-butler reasons and
+// AL-1a 6-dict runtime reasons do not contaminate the HB-2 reason dictionary.
 func TestHB2_NoSeventhDictBleed(t *testing.T) {
 	t.Parallel()
 	forbidden := []Reason{

@@ -76,7 +76,7 @@ func TestHB24_GrantExpired(t *testing.T) {
 	}
 }
 
-// TestHB24_WriteActions100PercentRejected — 反向约束 #7 反向枚举出处.
+// TestHB24_WriteActions100PercentRejected — negative constraint #7 reverse-enumeration source.
 func TestHB24_WriteActions100PercentRejected(t *testing.T) {
 	t.Parallel()
 	g, mc := newGate(t)

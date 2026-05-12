@@ -24,9 +24,9 @@ import (
 // 调用方 (cmd/borgee-helper/main.go) 应:
 //  1. install-butler 启 daemon 时走 `sandbox-exec -f /path/profile.sb borgee-helper`
 //  2. daemon 启动后调 sandbox.Apply 仅校验 wrapper 生效 (no-op 当前)
-//  3. 真 read/write 决策由 kernel sandbox enforce
+//  3. real read/write decisions are enforced by the kernel sandbox
 func Apply(_ Profile) error {
-	// 真 self-sandbox 不可达 (macOS sandbox_init private). 走 wrapper-only 模式.
+	// self-sandboxing is unavailable because macOS sandbox_init is private; use wrapper-only mode.
 	return nil
 }
 

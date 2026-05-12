@@ -21,7 +21,7 @@ func TestHB22_AuditEvent5FieldSchemaByteIdentical(t *testing.T) {
 		t.Fatalf("Write err: %v", err)
 	}
 	line := strings.TrimSpace(buf.String())
-	// 字面 byte-identical 5-field schema (跟 HB-1 audit log 同单一来源).
+	// Literal byte-identical 5-field schema (same source as the HB-1 audit log).
 	want := `{"actor":"agent-uuid-1","action":"read_file","target":"/Users/me/projects/foo.txt","when":1714492800000,"scope":"fs:/Users/me/projects"}`
 	if line != want {
 		t.Errorf("audit JSON 脱节:\n got=%s\nwant=%s", line, want)
