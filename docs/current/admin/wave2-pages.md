@@ -5,7 +5,7 @@
 ## 0. 设计沿用
 
 - **ADM-0 §1.3 admin god-mode 路径独立** — 4 page 仅访问 `/admin-api/*`, 不串 user-rail
-- **shape 单一来源 byte-identical 跟 server** — TS interface 字段名+类型跟 server JSON struct tag byte-identical (改 = 改两处)
+- **shape 与 server response 保持一致** — TS interface 字段名+类型跟 server JSON struct tag 保持一致 (改 = 改两处)
 - **admin-spa-ui-coverage 第一波 #639** — `data-asuc-*` 模式沿用 → `data-asuc2-*`
 - **readonly admin god-mode** — 4 page 仅 GET, 0 mutation (server 都 readonly)
 

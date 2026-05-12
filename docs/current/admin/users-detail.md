@@ -5,15 +5,15 @@
 ## 0. 设计沿用
 
 - **ADM-0 §1.3 admin god-mode 路径独立** — UserDetailPage 仅访问 `/admin-api/*` 走 admin api 模块, 不串 user-rail (`/api/v1/`) + 不 import user-rail `lib/api`
-- **CAPABILITY-DOT #628 14 const 单一来源 byte-identical** — UserDetailPage 走 `lib/capabilities::CAPABILITY_TOKENS` 单一来源, 不准 hardcode 字面散落
-- **ADMIN-SPA-SHAPE-FIX #633 D6 server gate + 本 milestone client UI dropdown** — server `auth.IsValidCapability` 守入口, client dropdown 限定 14 dot-notation, 双侧守门同源校验
+- **CAPABILITY-DOT #628 14 const 字面值一致** — UserDetailPage 以 `lib/capabilities::CAPABILITY_TOKENS` 为准, 不准在页面里重复写死这些 token
+- **ADMIN-SPA-SHAPE-FIX #633 D6 server gate + 本 milestone client UI dropdown** — server `auth.IsValidCapability` 守入口, client dropdown 限定 14 dot-notation, 双侧守门校验保持一致
 
 ## 1. 文件 + 范围
 
 | 文件 | 改动 |
 |---|---|
-| `packages/client/src/admin/api.ts` | 加 `UserPermissionDetail` interface (4 字段 byte-identical 跟 server `sanitize` admin.go:393-403) + `UserPermissionsResponse` interface + `fetchUserPermissions` / `grantUserPermission` / `revokeUserPermission` 3 helper byte-identical 跟 server admin.go:39-41; `patchUser` body 扩 5 字段 (`display_name?` / `password?` / `disabled?` + `role?` + `require_mention?`) byte-identical 跟 server `handleUpdateUser` admin.go:205-211 |
-| `packages/client/src/admin/pages/UserDetailPage.tsx` | 重写 4 段 UI (账号信息既有 + 账号操作新 + 能力授权新 + 当前授权新 + Agents 既有不动); 15 DOM 锚 `data-asuc-*` byte-identical (跟 ADM-2-FOLLOWUP `data-adm2-*` + ADMIN-SPA-SHAPE-FIX `data-asf-*` 模式沿用) |
+| `packages/client/src/admin/api.ts` | 加 `UserPermissionDetail` interface (4 字段与 server `sanitize` admin.go:393-403 保持一致) + `UserPermissionsResponse` interface + `fetchUserPermissions` / `grantUserPermission` / `revokeUserPermission` 3 helper 对齐 server admin.go:39-41; `patchUser` body 扩 5 字段 (`display_name?` / `password?` / `disabled?` + `role?` + `require_mention?`) 与 server `handleUpdateUser` admin.go:205-211 保持一致 |
+| `packages/client/src/admin/pages/UserDetailPage.tsx` | 重写 4 段 UI (账号信息既有 + 账号操作新 + 能力授权新 + 当前授权新 + Agents 既有不动); 15 个 DOM 标记 `data-asuc-*` 保持一致 (跟 ADM-2-FOLLOWUP `data-adm2-*` + ADMIN-SPA-SHAPE-FIX `data-asf-*` 模式沿用) |
 
 ## 2. UI 段 (4 段)
 
