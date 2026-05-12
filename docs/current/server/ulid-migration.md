@@ -2,13 +2,13 @@
 
 > 落地: PR feat/ulid-migration · UM.1 idgen.NewID() 单一来源 + UM.2 ~42 callsite migration + UM.3 closure
 > Spec 出处: [`ulid-migration-spec.md`](../../implementation/modules/ulid-migration-spec.md) §0 ① forward-compat + ② 0 endpoint/column 改 + ③ post-#621 gate
-> 蓝图出处: data-layer.md §4.A.1 ULID lock-in + §4.A.4 cursor lex_id (RT-1 #290 已 ULID byte-identical 不动)
+> 蓝图出处: data-layer.md §4.A.1 ULID lock-in + §4.A.4 cursor lex_id (RT-1 #290 已 ULID 不动)
 
 ## 1. 文件清单
 
 | 文件 | 行 | 角色 |
 |---|---|---|
-| `internal/idgen/idgen.go` | 45 | NewID() 单一来源 helper (ulid.Make + ulid.Monotonic + sync.Mutex 串行 entropy reader 反 across-goroutine 脱节) |
+| `internal/idgen/idgen.go` | 45 | NewID() shared helper (ulid.Make + ulid.Monotonic + sync.Mutex 串行 entropy reader; prevents across-goroutine drift) |
 | `internal/idgen/idgen_test.go` | 90 | 4 unit (LengthIs26 + Unique + Monotonic_SerialCalls + GoroutineSafe 16×200 0 collision) |
 | `go.mod` 扩 | +1 | `github.com/oklog/ulid/v2 v2.1.1` |
 | `internal/admin/auth.go` + `internal/api/{19 files}` + `internal/store/{4 files}` + `internal/ws/{3 files}` + `internal/migrations/cm_onboarding_welcome.go` | -42/+42 | `uuid.NewString()` → `idgen.NewID()` callsite 真改 (跨 19 文件), `github.com/google/uuid` import 删 (post-migration 0 production hit) |
@@ -32,7 +32,7 @@
 
 ## 3. 跨 milestone byte-identical 守护链 (17 处)
 
-DL-2 #615 events lex_id ULID (newULID hex monotonic) → idgen.NewID 走 canonical Base32 (跟 RT-1.3 cursor 同精神) · ADM-3 #586 RENAME forward-compat (既有数据不动) · reasons.IsValid #496 / NAMING-1 #614 / DL-1 单一来源 helper 模式 (跟 BPP-3 PluginFrameDispatcher 同精神 — idgen.NewID 单一来源, 反 inline 散落) · 蓝图 §4.A.1 ULID lock-in 字面 byte-identical · post-#621 haystack gate 三轨守门
+DL-2 #615 events lex_id ULID (newULID hex monotonic) → idgen.NewID 走 shared Base32 (跟 RT-1.3 cursor same approach) · ADM-3 #586 RENAME forward-compat (既有数据不动) · reasons.IsValid #496 / NAMING-1 #614 / DL-1 shared helper 模式 (跟 BPP-3 PluginFrameDispatcher same approach — idgen.NewID 作为 shared helper, avoids inline scatter) · 蓝图 §4.A.1 ULID lock-in literal 保持一致 · post-#621 haystack gate 三轨 check
 
 ## 4. acceptance 校准回退
 
@@ -48,7 +48,7 @@ acceptance v0 草稿超 spec scope (proposed schema migration v=N+1 + view alias
 
 ## 6. grep 守门 (spec §2 15 检查项)
 
-- ID 生成器单一来源 (反 inline 散落): `grep -cE '^func NewID' idgen.go` ==1
+- ID 生成器 shared helper (avoid inline scatter): `grep -cE '^func NewID' idgen.go` ==1
 - ULID 库引入: `grep -nE 'github.com/oklog/ulid/v2' go.mod` ≥1
 - ~42 callsite 真改: `grep -rE 'idgen\.NewID\(\)' internal/` ≥42 hit + `grep -rE 'uuid\.NewString\(\)' internal/api/ internal/store/ | grep -v _test` 0 hit
 - 0 ALTER COLUMN type: `grep -rE 'ALTER COLUMN.*TYPE\|MODIFY COLUMN' internal/migrations/` 0 hit

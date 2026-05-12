@@ -11,9 +11,9 @@
 
 **Phase 4 加 (BPP-1 主体)**:
 
-- `session.resume` / `session.resume_ack` — RT-1.3 (#293), runtime 重连后的 replay 握手. 三 mode `incremental` (default) / `none` (cold start) / `full` (agent 显式); server must not choose `full` by default (反向约束). 详见 [`bpp/session-resume.md`](./bpp/session-resume.md).
+- `session.resume` / `session.resume_ack` — RT-1.3 (#293), runtime 重连后的 replay 握手. 三 mode `incremental` (default) / `none` (cold start) / `full` (agent 显式); server must not choose `full` by default (constraint). 详见 [`bpp/session-resume.md`](./bpp/session-resume.md).
 - `agent_runtime_state` — 复用 #249 enum (`online/offline/error`) + 6 reason codes; 替代当前 GET 内联 `state` 字段的 poll 模式.
-- `agent_config_update` / `agent_config_ack` — **AL-2b** (#452 acceptance + 本 PR 实施), owner 改 agent 配置后 server → plugin 推送 + plugin → server ack 路径. AgentConfigUpdateFrame 7 字段 `{type, cursor, agent_id, schema_version, blob, idempotency_key, created_at}` server→plugin direction 锁定 (蓝图 §1.5 热更新 + §2.1 控制面). AgentConfigAckFrame 7 字段 `{type, cursor, agent_id, schema_version, status, reason, applied_at}` plugin→server direction 锁定 + status CHECK ('applied','rejected','stale') fail-closed: rejects unrecognized status values (反向约束: reject 'unknown' and informal synonyms). cursor 走 hub.cursors 单调跟 RT-1/CV-2/DM-2/CV-4 5-frame 共 sequence (反向约束: 不另起 plugin-only 通道). idempotency_key 蓝图 §1.5 字面 "幂等 reload" — 同 key 重发 reload 仅 1 次. 单一来源反向约束 (跟 AL-2a #447 同源): blob 不含 api_key/temperature/token_limit/retry_policy runtime-only 字段.
+- `agent_config_update` / `agent_config_ack` — **AL-2b** (#452 acceptance + 本 PR 实施), owner 改 agent 配置后 server → plugin 推送 + plugin → server ack 路径. AgentConfigUpdateFrame 7 字段 `{type, cursor, agent_id, schema_version, blob, idempotency_key, created_at}` server→plugin direction fixed (蓝图 §1.5 热更新 + §2.1 控制面). AgentConfigAckFrame 7 字段 `{type, cursor, agent_id, schema_version, status, reason, applied_at}` plugin→server direction fixed; status CHECK remains the exact three-value contract and fails closed for unrecognized status values, including `unknown` and informal synonyms. cursor 走 hub.cursors 单调跟 RT-1/CV-2/DM-2/CV-4 5-frame 共 sequence (constraint: no separate plugin-only channel). idempotency_key 蓝图 §1.5 literal "幂等 reload" — 同 key 重发 reload 仅 1 次. shared payload check (跟 AL-2a #447 same check): blob 不含 api_key/temperature/token_limit/retry_policy runtime-only 字段.
 - `agent_busy_started` / `agent_idle_started` — AL-1b, runtime → server, 触发 #249 deferred 的 busy/idle 子态 (4 人 review #5 决议: 没 BPP 不准 stub).
 - `agent_disable` / `agent_resume` — AL-4, owner 操作 → server → runtime, runtime 收到 disable 立即停接消息 (蓝图 §2.4).
 
@@ -21,7 +21,7 @@
 
 - WebSocket 单向 server→client (`/ws` 已有, `/ws/plugin` runtime 端).
 - Reverse channel: client→server 走 `POST /ws/upstream` (REST shim, BPP-2 升 WS bidirectional).
-- frame schema 锁定: byte-identical between blueprint §schemas + `internal/ws/event_schemas.go` + `packages/client/src/types/ws-frames.ts`. CI lint G2.6 (Phase 4 加) catch mismatch.
+- frame schema exact match: blueprint §schemas + `internal/ws/event_schemas.go` + `packages/client/src/types/ws-frames.ts` must stay byte-identical. CI lint G2.6 (Phase 4 加) catch mismatch.
 
 **不带 migration** — BPP 是协议层, 不动 schema. AL-3 落表是分开的 task (state 持久化 hook 已在 #249 Tracker 接口形参化).
 

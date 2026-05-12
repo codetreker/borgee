@@ -2,7 +2,7 @@
 
 > Landed in PR feat/rt-3: RT-3.1 server (PresenceState enum + ThinkingErrCodeSubjectRequired const) + RT-3.2 client (useRT3Presence hook + RT3PresenceDot component) + closure (REG-RT3-007/008)
 > Blueprint source: [`realtime.md`](../../blueprint/current/realtime.md) §0 + §1.1 (thinking subject ⭐) + §1.4 (four presence states)
-> Design source: [`rt-3-spec.md`](../../implementation/modules/rt-3-spec.md) §0 ① DL-1+RT-1 byte-identical + ② four-state enum single source + thinking subject required + ③ no schema/endpoint changes
+> Design source: [`rt-3-spec.md`](../../implementation/modules/rt-3-spec.md) §0 ① DL-1+RT-1 unchanged + ② four-state enum source + thinking subject required + ③ no schema/endpoint changes
 
 ## 1. PresenceState Four-State Enum (`internal/datalayer/presence.go`)
 
@@ -17,25 +17,25 @@
 
 ## 2. thinking subject Constraint (蓝图 §1.1 ⭐)
 
-`internal/bpp/task_lifecycle.go` adds `ThinkingErrCodeSubjectRequired = "thinking.subject_required"` as the single source for the wire-level reason code. The server rejects empty subjects through `ValidateTaskStarted` (errSubjectEmpty sentinel); the client-side `markRT3Presence` guard drops thinking updates with an empty subject to avoid fake loading states.
+`internal/bpp/task_lifecycle.go` adds `ThinkingErrCodeSubjectRequired = "thinking.subject_required"` as the shared wire-level reason code. The server returns an error for empty subjects through `ValidateTaskStarted` (errSubjectEmpty sentinel); the client-side `markRT3Presence` guard drops thinking updates with an empty subject to avoid fake loading states.
 
-This follows the chn-3 content-lock pattern for five byte-identical sources: changing it requires updating this const, acceptance §2.3, and content-lock §3 together.
+This follows the chn-3 content-lock pattern across five literal locations: changing it requires updating this const, acceptance §2.3, and content-lock §3 together.
 
 ## 3. client UI (`packages/client/src/`)
 
 | 文件 | 范围 |
 |---|---|
 | `hooks/useRT3Presence.ts` (97 行) | four-state enum + markRT3Presence + getRT3Presence + useRT3Presence hook + RT3_AWAY_THRESHOLD_MS=5min const + thinking subject guard |
-| `components/RT3PresenceDot.tsx` (54 行) | four-state UI + DOM data-attr single source + tooltip text byte-identical |
+| `components/RT3PresenceDot.tsx` (54 行) | four-state UI + DOM data-attr source + tooltip text literal match |
 | `__tests__/RT3PresenceDot.test.tsx` (9 case PASS) | four states + last-seen + thinking constraint + multi-device last-write-wins behavior |
-| `__tests__/rt3-content-lock-reverse-grep.test.ts` (4 case PASS) | typing 9 同义词 0 hit + 5-pattern 0 hit + 4 态 enum + DOM attr 单一来源 |
+| `__tests__/rt3-content-lock-reverse-grep.test.ts` (4 case PASS) | typing 9 同义词 0 hit + 5-pattern 0 hit + 4 态 enum + DOM attr source |
 
 ## 4. 跨 milestone byte-identical 守护链
 
 - **DL-1 #609** EventBus + PresenceStore interface signature 不破 (RT-3 仅扩 PresenceState enum, 不改 method 签名)
-- **RT-1 #290** cursor 协议 ULID `kind+ulid` byte-identical 沿用 (RT-3 multi-device fanout 走 hub.cursors 单一来源)
-- **reasons.IsValid #496** / **AP-4-enum #591** / **NAMING-1 #614** enum 单一来源 同模式 (PresenceState 4 态单一来源)
-- **chn-3 content-lock §1** 字面锁定 (thinking.subject_required 5 源 byte-identical)
+- **RT-1 #290** cursor 协议 ULID `kind+ulid` 沿用不变 (RT-3 multi-device fanout 走 hub.cursors shared path)
+- **reasons.IsValid #496** / **AP-4-enum #591** / **NAMING-1 #614** enum source pattern (PresenceState 4 态 same pattern)
+- **chn-3 content-lock §1** literal check (thinking.subject_required 5 源保持一致)
 - **thought-process 5-pattern 守护链 RT-3 = 第 N+1 处延伸** (跟 BPP-3 + CV-* + DM-* 既有守护链一致)
 - **admin path isolation** (ADM-0 §1.3; RT-3 is not exposed through admin paths)
 
@@ -43,7 +43,7 @@ This follows the chn-3 content-lock pattern for five byte-identical sources: cha
 
 | 检查项 | 期望 | 当前 |
 |---|---|---|
-| `PresenceStateOnline\|Away\|Offline\|Thinking` const | 4 hit (单一来源) | ✅ 4 |
+| `PresenceStateOnline\|Away\|Offline\|Thinking` const | 4 hit (source) | ✅ 4 |
 | `ThinkingErrCodeSubjectRequired = "thinking.subject_required"` | 1 hit | ✅ 1 |
 | `data-rt3-presence-dot/last-seen/cursor-user` | 3 hit | ✅ 3 |
 | typing 9 同义词 (英 5 + 中 4) in RT-3 path | 0 hit | ✅ 0 |

@@ -1,6 +1,6 @@
 # DM Search — cross-DM message search REST endpoint
 
-> **Single-source pointer.** Code at
+> **Canonical pointer.** Code at
 > `packages/server-go/internal/api/message_search.go` (handler) +
 > `packages/server-go/internal/store/dm_11_search_queries.go` (store
 > helper). Route registration at server boot in
@@ -87,7 +87,7 @@ requires updating two places (handler + content-lock §1).
 ## Reverse-grep checks (required for the DM-11 implementation PR)
 
 ```
-git grep -nE 'dm_search_index|dm_search_table|dm_11_search_log' packages/server-go/internal/  # 0 hit (单一来源 messages.content 列)
+git grep -nE 'dm_search_index|dm_search_table|dm_11_search_log' packages/server-go/internal/  # 0 hit (messages.content 列)
 git grep -nE 'admin.*dm.*search|/admin-api/.*dm/search'         packages/server-go/internal/api/admin*.go  # 0 hit (ADM-0 §1.3)
 git grep -nE 'fts5|MATCH.*dm_search|VIRTUAL TABLE.*dm'          packages/server-go/internal/  # 0 hit (FTS5 不走留 v2)
 git diff origin/main -- packages/server-go/internal/migrations/ | grep -c '^\+'                  # 0 production 行
@@ -111,7 +111,7 @@ Regression rows: `REG-DM11-001..006` in
 - ❌ FTS5 via the `artifacts_fts` pattern — leave for v2, after DM message volume
   warrants revisiting cross-table join complexity.
 - ❌ Sort by relevance — leave for v2. Current `ORDER BY created_at DESC` remains
-  the single source and keeps the same design constraint as messages search #467.
+  the shared ordering and keeps the same design constraint as messages search #467.
 - ❌ Admin-wide cross-user search — permanently unregistered (ADM-0 §1.3 boundary).
 - ❌ Cross-org search — leave for the AP-3 timeframe, reusing existing store.CrossOrg.
 - ❌ Search history persistence — 留 v3.

@@ -21,9 +21,9 @@ https-only XSS validation; client renders with HTML5 native primitives.
 
 | Constraint | Contract |
 |---|---|
-| Server CDN thumbnail, not inline media | `preview_url` is an HTTPS URL field. Server validation reuses the same source as `ValidateImageLinkURL` for validation guardrail #1. The client uses only `<img src>` / `<video poster>` and adds no inline rendering library. |
+| Server CDN thumbnail, not inline media | `preview_url` is an HTTPS URL field. Server validation reuses the same source as `ValidateImageLinkURL` for validation check #1. The client uses only `<img src>` / `<video poster>` and adds no inline rendering library. |
 | Native HTML5 rendering | Video uses `<video controls>`; PDF uses `<embed type="application/pdf">`. QA grep for `video.js|hls.js|dash.js|shaka-player|pdf.js|react-pdf` in package.json must return `count==0`. |
-| Kind enum shares the CV-3 schema source | Migration v=28 uses a 12-step table rebuild to extend `markdown/code/image_link/video_link/pdf_link`. The schema CHECK, `ValidArtifactKinds` slice, and client `ArtifactKind` must stay byte-identical. A change requires updating all three. Do not split storage into `artifact_video` / `artifact_pdf`; sqlite_master checks for those tables should return 0 hits. |
+| Kind enum shares the CV-3 schema source | Migration v=28 uses a 12-step table rebuild to extend `markdown/code/image_link/video_link/pdf_link`. The schema CHECK, `ValidArtifactKinds` slice, and client `ArtifactKind` must literal match. A change requires updating all three. Do not split storage into `artifact_video` / `artifact_pdf`; sqlite_master checks for those tables should return 0 hits. |
 
 ## Schema (v=28)
 
@@ -68,7 +68,7 @@ Validation rules:
 - `preview_url` empty / unparseable / scheme ∉ {`https`} →
   **400 `preview.url_must_be_https`** (scheme mismatch) or
   **400 `preview.url_invalid`** (other validation failures). Reuse the
-  `ValidateImageLinkURL` source for XSS guardrail #1; reject
+  `ValidateImageLinkURL` source for XSS check #1; blocks
   `javascript:`, `data:`, `data:image`, `http:`, `file:`, scheme-relative
   `//host`, and empty values.
 
@@ -109,7 +109,7 @@ PreviewErrCodeArtifactNotFound  = "preview.artifact_not_found"
 
 Mismatch between these consts and handler inline strings is caught at
 test time by `preview_test.go` substring asserts (`preview.url_` prefix +
-`preview.not_owner` / `preview.kind_not_previewable` byte-identical).
+`preview.not_owner` / `preview.kind_not_previewable` literals must match exactly).
 
 ## Cross-milestone byte-identical locks
 
@@ -117,9 +117,9 @@ test time by `preview_test.go` substring asserts (`preview.url_` prefix +
   schema CHECK + `ValidArtifactKinds` slice + client `ArtifactKind`.
 - `PreviewableKinds` (3-tuple `[image_link, video_link, pdf_link]`)
   byte-identical with client `PREVIEWABLE_KINDS` (bidirectional vitest lock).
-- HTTPS-only XSS guardrail #1 byte-identical with the CV-3.2 #400
+- HTTPS-only XSS check #1 byte-identical with the CV-3.2 #400
   `ValidateImageLinkURL` source.
-- Owner-only ACL byte-identical with CV-1.2 #342 rollback design ⑦
+- Owner-only ACL literal match with CV-1.2 #342 rollback design ⑦
   channel.created_by check.
 
 ## Out of scope

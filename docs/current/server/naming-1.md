@@ -18,7 +18,7 @@
 
 - A 类 git mv: 169 .go 文件 (internal/api/ + internal/migrations/ + internal/store/ + internal/auth/ + internal/ws/ + internal/bpp/ + internal/server/ + sdk/bpp/)
 - B 类 (struct + migration var): 89 文件 (handler 调用 caller 跟随 + migration registry)
-- C 类 (test func): 137 文件 (test func 调用 + 注释引用 byte-identical 跟随)
+- C 类 (test func): 137 文件 (test func 调用 + 注释引用 literal 跟随)
 - E 类: 11 + 11 跨 doc ref 文件
 - 5 处 hardcoded 路径修 (channel_history_test / message_history_test / host_agent_state_log_archived_at_test / canvas_edit_history_test / lifecycle_audit_test)
 - 二次清理 awkward dup-domain (message_messages_edit_history → messages_edit_history / channel_channels_description_edit_history → channels_description_edit_history)
@@ -27,9 +27,9 @@
 
 | 字面 | baseline | 当前 | 反查 |
 |---|---|---|---|
-| HTTP status code 字面 | byte-identical | byte-identical ✅ | rename 仅动文件路径 / 类型符号 / 测试函数名 |
+| HTTP status code literals | unchanged | unchanged ✅ | rename 仅动文件路径 / 类型符号 / 测试函数名 |
 | error reason code 字面 (`layout.dm_not_grouped` ≥19 / `dm.edit_only_in_dm` 7 / `pin.dm_only_path` 等) | baseline | baseline ✅ | 跟 REFACTOR-1/2 守护链一致 |
-| audit log 字段 + WS broadcast event 名 | byte-identical | byte-identical ✅ | rename 不动 audit/ws |
+| audit log 字段 + WS broadcast event 名 | unchanged | unchanged ✅ | rename 不动 audit/ws |
 | migration Version 数值 (v=1..v=45) | 不动 | 不动 ✅ | git diff origin/main -- migrations/ \| grep '^+.*Version:' 0 hit |
 | DB schema column 名 | 不动 | 不动 ✅ | rename 仅 var 名不动 column |
 | TestAP5_*PostRemovalReject 3 测试 | PASS | PASS ✅ | C 类 test func rename 0 行为改 |
@@ -38,7 +38,7 @@
 
 - INFRA-3 #594 git mv rename detection 同模式 (PROGRESS 子文件迁同精神)
 - REFACTOR-1 #611 / REFACTOR-2 #613 字面 content-lock 必修条件沿用
-- BPP-3 / reasons.IsValid 单一来源精神 (rename 后单一来源不脱节)
+- BPP-3 / reasons.IsValid source pattern (rename 后不 drift)
 - TEST-FIX-3-COV #612 haystack gate 三轨 (Func=50/Pkg=70/Total=85, rename 后必过)
 - 0-行为-改 wrapper 决策树**变体** (跟 REFACTOR-1/2 / INFRA-3/4 / CV-15 / TEST-FIX-3 同源)
 
@@ -53,7 +53,7 @@
 ## 6. Tests + verify
 
 - `go build -tags sqlite_fts5 ./...` ✅
-- `go test -tags sqlite_fts5 -timeout=300s ./...` 24 包全 PASS (含 TestAP5_*PostRemovalReject byte-identical) ✅
+- `go test -tags sqlite_fts5 -timeout=300s ./...` 24 包全 PASS (含 TestAP5_*PostRemovalReject literal behavior) ✅
 - `go vet ./...` 0 redeclared ✅
 - post-#613 haystack gate TOTAL 85.5%, no func<50%, no pkg<70% ✅
 

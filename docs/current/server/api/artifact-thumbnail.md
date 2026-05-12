@@ -22,7 +22,7 @@ render → 256x256 PNG) integration deferred to v1+.
 - **① Server CDN thumbnail is not inline** — handler accepts a precomputed
   URL from the worker (same record-only URL handoff pattern as CV-2 v2 preview.go).
 - **② thumbnail_url MUST be https** — reuse `auth.ValidateImageLinkURL`
-  as the first XSS guardrail (same helper as CV-2 v2 design ② + CV-3 #400).
+  as the first XSS check (same helper as CV-2 v2 design ② + CV-3 #400).
 - **③ thumbnail_url and preview_url are separate fields (mutually exclusive paths)** —
   `ThumbnailableKinds = [markdown, code]` slice and `PreviewableKinds =
   [image_link, video_link, pdf_link]` are mutually exclusive; `artifacts.thumbnail_url`
@@ -118,15 +118,15 @@ ThumbnailErrCodeArtifactNotFound    = "thumbnail.artifact_not_found"
   video_link, pdf_link}` (all five kinds covered)
 
 Cross-endpoint rejection (`TestCV3V22_KindNotThumbnailable_ImageLink` +
-`TestCV3V22_KindNotThumbnailable_VideoAndPDF`) byte-identical, keeping
-client paths aligned.
+`TestCV3V22_KindNotThumbnailable_VideoAndPDF`) keeps literal-match checks,
+so client paths remain exact.
 
 ## Cross-Milestone Byte-Identical Locks
 
 - Same pattern as CV-2 v2 #517 server CDN thumbnail record-only URL handoff +
-  ValidateImageLinkURL XSS guardrail + ACL check (channel.created_by). Changing
+  ValidateImageLinkURL XSS check + ACL check (channel.created_by). Changing
   this requires changing both thumbnail.go + preview.go, while keeping the helper
-  as the single source.
+  as the shared helper.
 - Byte-identical with CV-3 #408 three-kind enum (CV-3 v2 does not add kinds; it
   only adds the thumbnail path).
 - Same **five ALTER ADD COLUMN NULL** pattern as AP-1.1 #493 + AP-3 #521 +

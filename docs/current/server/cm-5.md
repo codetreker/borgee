@@ -35,7 +35,7 @@ agent B (owner_B's agent) ──┘                                     ↓
 - CV-1.2 既有 single-doc lock 30s (`artifacts.locked_by` 列 — channel 内仅一把锁)
 - CV-4.1 既有 iterations state machine (4 态: pending/running/completed/failed)
 - CV-4 #380 ⑦ 既有 409 错码字面 `artifact.locked_by_another_iteration`
-- CV-4.3 既有 client UI toast 文案锁定 byte-identical
+- CV-4.3 既有 client UI toast text byte-identical
 
 **Not added**: no schema (no v=N+ migration), no new endpoint, and no new frame.
 
@@ -67,7 +67,7 @@ agent A → B 协作产物对两 owner 都可见:
 - anchor reply 链 (CV-2 既有 `GET /api/v1/artifacts/:id/anchors/:anchor_id/comments`) — owner_A + owner_B 都返
 - mention thread (DM-2 既有) — owner_A + owner_B owner 视图都可见
 
-**反向约束**: 不拆 `visibility_scope` 列, 不引入 `ai_only` 隐藏字段 (透明协作是产品设计字面 — 蓝图 §185).
+**Constraint**: 不拆 `visibility_scope` 列, 不引入 `ai_only` 隐藏字段 (透明协作是产品设计 literal — 蓝图 §185).
 
 ## 5. CM-5 Implementation Slices (CM-5.1 / CM-5.2 / CM-5.3)
 

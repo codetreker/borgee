@@ -2,7 +2,7 @@
 
 > Landed in PR feat/dl-3: DL3.1 (ThresholdMonitor 4 metrics) + DL3.2 (EventsArchiveOffloader cold archive) + DL3.3 closure
 > Blueprint source: data-layer.md §5 threshold monitor (db_size / wal_pending / write_lock / row_count)
-> Design source: [`dl-3-spec.md`](../../implementation/modules/dl-3-spec.md) §0 ① DL-1+DL-2 byte-identical + ② no schema changes + four threshold metrics as a single source + auto cold archive + ③ no endpoint changes + no admin endpoint
+> Design source: [`dl-3-spec.md`](../../implementation/modules/dl-3-spec.md) §0 ① DL-1+DL-2 unchanged + ② no schema changes + four threshold metrics as a source + auto cold archive + ③ no endpoint changes + no admin endpoint
 
 ## 1. 文件清单
 
@@ -23,7 +23,7 @@
 | write_lock_wait_ms | 100 | 1000 | v1 noop placeholder; single-writer SQLite has no contention here |
 | events_row_count | 1_000_000 | 10_000_000 | SELECT COUNT(*) FROM channel_events |
 
-`DefaultThresholds()` is the single source; inline literal drift is intentionally rejected.
+`DefaultThresholds()` is the shared definition; inline literal drift intentionally fails the check.
 
 ## 3. cold archive offload Trigger Flow
 
@@ -38,15 +38,15 @@
 
 | 字面 | baseline | 当前 | 反查 |
 |---|---|---|---|
-| DL-1 4 interface signature | DL-1 #609 | byte-identical ✅ | EventBus / Repository / PresenceStore / Storage 0 改 |
-| DL-2 EventStore + RetentionSweeper | DL-2 #615 | byte-identical ✅ | only Publish callers were added; store/retention is unchanged |
-| 0 endpoint URL 改 | byte-identical | byte-identical ✅ | server.go 仅加 ThresholdMonitor.Start |
-| 0 schema 改 (复用 DL-2 表) | byte-identical | byte-identical ✅ | 0 migration v 号 + registry.go 不动 |
-| admin path does not expose event thresholds (ADM-0 §1.3) | byte-identical | byte-identical ✅ | slog stdout only, 0 /admin-api/threshold |
+| DL-1 4 interface signature | DL-1 #609 | unchanged ✅ | EventBus / Repository / PresenceStore / Storage 0 改 |
+| DL-2 EventStore + RetentionSweeper | DL-2 #615 | unchanged ✅ | only Publish callers were added; store/retention is unchanged |
+| 0 endpoint URL 改 | unchanged | unchanged ✅ | server.go 仅加 ThresholdMonitor.Start |
+| 0 schema 改 (复用 DL-2 表) | unchanged | unchanged ✅ | 0 migration v 号 + registry.go 不动 |
+| admin path does not expose event thresholds (ADM-0 §1.3) | unchanged | unchanged ✅ | slog stdout only, 0 /admin-api/threshold |
 
 ## 5. 跨 milestone byte-identical 守护链
 
-- DL-1 #609 4 interface (EventBus byte-identical)
+- DL-1 #609 4 interface (EventBus unchanged)
 - DL-2 #615 EventStore + retention sweeper + must_persist_kinds (offloader audit 走 cold consumer)
 - 蓝图 §5 阈值哨 4 metric 字面 (db_size/wal_pending/write_lock/row_count)
 - ADM-0 §1.3 admin path isolation: event threshold controls are not exposed as admin endpoints

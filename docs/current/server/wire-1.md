@@ -36,21 +36,21 @@
 
 ## 3. 行为不变量 byte-identical 反查
 
-| 字面 | baseline | 当前 | 反查 |
+| Literal | baseline | Current | Check |
 |---|---|---|---|
-| DL-1+DL-2+DL-3+DL-4 interface signature | byte-identical | byte-identical ✅ | 仅 NewEventsArchiveOffloader 加 interval 参数, NewDataLayer 加 logger 参数 (callsite 跟随) |
-| 0 endpoint URL 改 | byte-identical | byte-identical ✅ | server.go 仅 +Start / +SetPushFanout, 0 HandleFunc |
-| 0 schema 改 | byte-identical | byte-identical ✅ | migrations/ 0 行 |
+| DL-1+DL-2+DL-3+DL-4 interface signature | unchanged | unchanged ✅ | 仅 NewEventsArchiveOffloader 加 interval 参数, NewDataLayer 加 logger 参数 (callsite 跟随) |
+| 0 endpoint URL 改 | unchanged | unchanged ✅ | server.go 仅 +Start / +SetPushFanout, 0 HandleFunc |
+| 0 schema 改 | unchanged | unchanged ✅ | migrations/ 0 行 |
 | admin path must not expose wire paths (ADM-0 §1.3) | 0 hit | 0 hit ✅ | grep 检查 `admin.*EventsArchiveOffloader\|admin.*AgentTaskNotifier\|/admin-api/.*offload` 0 hit |
-| context-aware leak prevention | byte-identical | ✅ | Start(s.ctx) across RetentionSweeper / ThresholdMonitor / EventsArchiveOffloader + sync.Once + Done() chan |
+| context-aware leak prevention | unchanged | ✅ | Start(s.ctx) across RetentionSweeper / ThresholdMonitor / EventsArchiveOffloader + sync.Once + Done() chan |
 
 ## 4. 跨 milestone byte-identical 守护链
 
-- DL-2 #615 EventStore + EventsRetentionSweeper byte-identical 不破
-- DL-3 #618 ThresholdMonitor / EventsArchiveOffloader 字面 byte-identical (仅加 Start/Done/runOnceLog ctx-aware)
-- DL-4 #485 AgentTaskNotifier nil-safe 同模式
-- RT-3 #616 TaskLifecycleHandler 字面 byte-identical (SetPushFanout 是 setter 加, BPP-3 既有 wire 模式不破)
-- TEST-FIX-2 #608 ctx-aware shutdown 同模式 (反 goroutine leak)
+- DL-2 #615 EventStore + EventsRetentionSweeper 保持不破
+- DL-3 #618 ThresholdMonitor / EventsArchiveOffloader literals remain unchanged (仅加 Start/Done/runOnceLog ctx-aware)
+- DL-4 #485 AgentTaskNotifier nil-safe same pattern
+- RT-3 #616 TaskLifecycleHandler literals remain unchanged (SetPushFanout 是 setter 加, BPP-3 既有 wire 模式不破)
+- TEST-FIX-2 #608 ctx-aware shutdown same pattern (prevents leaked goroutines)
 - ADM-0 §1.3 admin path isolation (prevents user-rail coupling)
 - post-#621 haystack gate Func=50/Pkg=70/Total=85 (跟 TEST-FIX-3-COV 一致)
 

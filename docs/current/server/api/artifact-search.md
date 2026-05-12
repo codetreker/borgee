@@ -24,7 +24,7 @@ meilisearch / sonic / bleve.
   member → 403 `search.channel_not_member`; cross-org → 403
   `search.cross_org_denied` (enforced through AP-3 `auth.HasCapability`).
 - **③ Do not add `search_index_table`** — FTS5 contentless stays tied to
-  artifacts as the single source;
+  artifacts as the source table;
   no separate schema, no cron reindex.
 
 ## Schema (v=34)
@@ -97,7 +97,7 @@ Result row shape:
 }
 ```
 
-`snippet()` args are byte-identical with content-lock §1 + principle ⑧:
+`snippet()` args must literal match content-lock §1 + principle ⑧:
 
 ```
 snippet(artifacts_fts, 1, '<mark>', '</mark>', '...', 32)
@@ -126,10 +126,10 @@ Mismatch is caught by content-lock §4 two-way grep and acceptance §1.7 unit co
 
 ## Cross-Milestone Byte-Identical Locks
 
-- Shares the same five-kind enum and artifact single-source rule as CV-1 #348 / CV-3 #408 / CV-2 v2 #517 / CV-3 v2 #528 (FTS5 contentless index, no split table, existing schema unchanged).
+- Shares the same five-kind enum and artifact storage rule as CV-1 #348 / CV-3 #408 / CV-2 v2 #517 / CV-3 v2 #528 (FTS5 contentless index, no split table, no schema change).
 - Keeps the same owner-only ACL design constraint as CV-1.2 #342 + CV-2 v2 + CV-3 v2 + CV-4 + AL-5 + AP-3 cross-org paths.
-- Uses the AP-1 #493 `HasCapability` single source and AP-3 #521 cross-org check (the search path automatically passes through the cross-org check).
-- Uses the same error-code literal single-source + content-lock two-way docs pattern as CV-2 v2 / CV-3 v2.
+- Uses the AP-1 #493 `HasCapability` helper and AP-3 #521 cross-org check (the search path automatically passes through the cross-org check).
+- Uses the same error-code literal source + content-lock two-way docs pattern as CV-2 v2 / CV-3 v2.
 
 ## Out of Scope
 
@@ -137,4 +137,4 @@ Mismatch is caught by content-lock §4 two-way grep and acceptance §1.7 unit co
 - BM25 custom ranking / saved query / cross-channel global search / agent search
   action — left for v2+.
 - elasticsearch / opensearch / typesense / meilisearch / sonic / bleve —
-  excluded to keep the blueprint's SQLite single-source rule.
+  excluded to keep the blueprint's SQLite storage rule.

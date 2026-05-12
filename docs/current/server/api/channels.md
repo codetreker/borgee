@@ -1,6 +1,6 @@
 # CHN-10 + CHN-14 — channel description + edit history endpoints contract
 
-> **单一来源 pointer.** Schema in
+> **Canonical pointer.** Schema in
 > `packages/server-go/internal/migrations/chn_14_1_channels_description_edit_history.go` (v=44).
 > Owner-only PUT handler in `packages/server-go/internal/api/chn_10_description.go`.
 > Owner-only + admin readonly history GET handlers in
@@ -8,7 +8,7 @@
 > Routes are registered at server boot via `CHN10DescriptionHandler.RegisterUserRoutes` +
 > `CHN14DescriptionHistoryHandler.RegisterUserRoutes/RegisterAdminRoutes`
 > in `packages/server-go/internal/server/server.go`.
-> Store single-source entry point `Store.UpdateChannelDescription` in
+> Store shared entry point `Store.UpdateChannelDescription` in
 > `packages/server-go/internal/store/queries.go`.
 
 ## Why
@@ -26,7 +26,7 @@ CHN-14.1. 不另起 history table.
   NULL on channels (no separate table). Migration `chn_14_1_channels_
   description_edit_history` registry name is part of the migration contract.
   老 channel 行保持原值; `NULL` means no history.
-- **② UpdateChannelDescription 单一来源.** PUT /channels/:id/description 走
+- **② UpdateChannelDescription shared path.** PUT /channels/:id/description 走
   store.UpdateChannelDescription entry point: SELECT old topic + edit_history
   → JSON append `{old_content, ts, reason='unknown'}` → UPDATE atomic.
   Production writes to `channels.topic` for this API should stay behind that
@@ -85,7 +85,7 @@ Validation:
   DESCRIPTION_MAX_LENGTH share the same 500-character limit)
 
 Side-effects on success (200):
-- `Store.UpdateChannelDescription(channelID, newDescription)` single-source entry point:
+- `Store.UpdateChannelDescription(channelID, newDescription)` shared entry point:
   SELECT old topic + edit_history → JSON append `{old_content, ts,
   reason='unknown'}` → UPDATE topic + description_edit_history.
 - **idempotent** — same-content PUT 不入 history (跟 DM-7 #558 同精神).
@@ -130,7 +130,7 @@ history but cannot directly modify it through this API (ADM-0 §1.3).
 
 - ALTER ADD COLUMN nullable follows the same pattern across eight milestones
   (DM-7.1 + AL-7.1 + HB-5.1 + AP-1.1 + AP-3.1 + AP-2.1 + CV-6.1 + CHN-14.1).
-- UpdateChannelDescription 单一来源模式跟 DM-7 #558 UpdateMessage 单一来源 一致.
+- UpdateChannelDescription shared path 跟 DM-7 #558 UpdateMessage shared path 一致.
 - owner-only ACL follows the same channel-owner authorization pattern as
   CHN-10 #20 + DM-7 #19.
 - audit inline JSON 列模式 (跟 DM-7 #558 设计 ⑤ 同精神, 不入 admin_actions).
@@ -140,7 +140,7 @@ history but cannot directly modify it through this API (ADM-0 §1.3).
 ## QA Notes
 
 - Repository search should show no production `inline UPDATE channels.*topic`
-  writes outside the CHN-10/CHN-14 single-source path.
+  writes outside the CHN-10/CHN-14 shared path.
 - Repository search should show no production references to
   `pendingDescriptionAudit`, `descriptionHistoryQueue`, or
   `deadLetterDescriptionHistory`.

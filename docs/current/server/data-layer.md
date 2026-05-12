@@ -2,23 +2,23 @@
 
 > 落地: PR feat/dl-1 · DL-1.1 4 interface + factory + 12 unit + DL-1.2 server.go wire + 5 sample handler 注入 + CI dl1-no-direct-store
 > 蓝图出处: [`data-layer.md`](../../blueprint/current/data-layer.md) §4 B "可换 4 条 (接口抽象, 迁移低成本)"
-> 设计沿用: [`dl-1-spec.md`](../../implementation/modules/dl-1-spec.md) §0 ① 4 interface byte-identical + ② factory + DI seam + ③ 0 schema/0 endpoint
+> 设计沿用: [`dl-1-spec.md`](../../implementation/modules/dl-1-spec.md) §0 ① 4 interface unchanged + ② factory + DI seam + ③ 0 schema/0 endpoint
 
 ## 1. interface 4 条单一来源 (`internal/datalayer/`)
 
 | Interface | 方法 | v1 实现 | v3+ 切换路径 |
 |---|---|---|---|
 | `Storage` | `GetURL / PutBlob / Delete` | `localDBStorage` (DB blob 占位, `db://artifact/{key}` URL) | `S3Storage / R2Storage` (DL-3 阈值哨触发) |
-| `PresenceStore` | `IsOnline / Sessions` | `inMemoryPresence` wrap AL-3 #324 `presence.SessionsTracker` byte-identical | `DistributedPresence` (Redis / NATS, 留 DL-3) |
+| `PresenceStore` | `IsOnline / Sessions` | `inMemoryPresence` wrap AL-3 #324 `presence.SessionsTracker` unchanged | `DistributedPresence` (Redis / NATS, 留 DL-3) |
 | `EventBus` | `Publish / Subscribe` | `inProcessEventBus` (in-process map + buffered chan, best-effort drop) | `NATSEventBus / RedisEventBus` (留 DL-3 阈值哨) |
-| `UserRepository` / `ChannelRepository` / `MessageRepository` | `GetByID / GetByEmail / GetByAPIKey / GetByDisplayName / Create` (各 typed) | `sqlite{User,Channel,Message}Repo` wrap `store.Store` gorm 直查 byte-identical | `PostgresRepository` 走标准 SQL (蓝图 §4 C #10 字面禁 ORM) |
+| `UserRepository` / `ChannelRepository` / `MessageRepository` | `GetByID / GetByEmail / GetByAPIKey / GetByDisplayName / Create` (各 typed) | `sqlite{User,Channel,Message}Repo` wrap `store.Store` gorm 直查保持一致 | `PostgresRepository` 走标准 SQL (蓝图 §4 C #10 literal ban on ORM) |
 
 **Note**: `ArtifactRepository` 留 v1.5 后续 — `store.Artifact` model 没抽出 (artifact body 现走 `internal/api/artifacts.go` 直 gorm). 蓝图 §4 B 列 4 typed Repo 字面, v1 现状只 3 typed 真有 store.Store CRUD.
 
 ## 2. factory + DI seam (`factory.go`)
 
 ```go
-// 单一来源 bundle — 6 字段, server.go boot 单一来源 wire
+// Canonical bundle — 6 字段, server.go boot single wire
 func NewDataLayer(s *store.Store, pt presence.PresenceTracker) *DataLayer {
     return &DataLayer{
         Storage: NewLocalDBStorage(s), Presence: NewInMemoryPresence(pt),
@@ -28,7 +28,7 @@ func NewDataLayer(s *store.Store, pt presence.PresenceTracker) *DataLayer {
 }
 ```
 
-server.go `New()` 单一来源调用 `datalayer.NewDataLayer(s, presenceTracker)`; handler 拿 `*DataLayer` 字段 (DI), 不直 import `internal/store`. v3+ 切实现仅改 factory, handler 0 改.
+server.go `New()` calls `datalayer.NewDataLayer(s, presenceTracker)` from the shared boot path; handler 拿 `*DataLayer` 字段 (DI), 不直 import `internal/store`. v3+ 切实现仅改 factory, handler 0 改.
 
 ## 3. 5 sample handler 迁移现状 (DL-1.2)
 
