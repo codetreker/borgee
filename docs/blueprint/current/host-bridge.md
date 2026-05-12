@@ -120,7 +120,7 @@
 
 > "**Borgee 平台不直接执行你机器上的命令；命令执行是 runtime（OpenClaw）的事，沙箱也由 runtime 负责。这是平台与执行层的责任划分。**"
 
-把这条**表述为产品立场，而不是功能缺口**——它是 [agent-lifecycle §1](agent-lifecycle.md) "Borgee 是协作平台不是 agent 平台"在 host 维度的延伸。
+把这条**表述为平台与执行层的责任划分，而不是功能缺口**——它是 [agent-lifecycle §1](agent-lifecycle.md) "Borgee 是协作平台不是 agent 平台"在 host 维度的延伸。
 
 #### v2 路径
 

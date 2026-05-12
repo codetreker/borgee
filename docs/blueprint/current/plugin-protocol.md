@@ -88,7 +88,7 @@ request_clarification    # 跟某个 user 索要更多信息
 - **memory 内容在 runtime**：实际向量库 / RAG 索引由 runtime 维护
 - v1 不让 Borgee 变向量库基础设施
 
-> 这条直接让 [agent-lifecycle.md §2.1](agent-lifecycle.md) 的"用户完全自定义 agent" **明确**为：用户在 **Borgee UI** 完成配置，不去 OpenClaw 配置。配置面与运行时分离，跟"Borgee 不带 runtime"不矛盾。
+> 这条直接让 [agent-lifecycle.md §2.1](agent-lifecycle.md) 的"用户完全自定义 agent" **明确**为：用户在 **Borgee UI** 完成配置，不去 OpenClaw 配置。配置面与运行时分离，跟"Borgee 不内置 runtime"不矛盾。
 
 ### 1.5 配置热更新：按字段分类生效
 
@@ -156,7 +156,7 @@ request_clarification    # 跟某个 user 索要更多信息
 
 | 目标态 | 现状 | 差距 |
 |--------|------|------|
-| 一 plugin 管多 agent | OpenClaw plugin 已支持 multi-account，但仍是一对一 connection | 协议层增加多 agent 注册接口 |
+| 单个 plugin 管理多个 agent | OpenClaw plugin 已支持 multi-account，但仍是一对一 connection | 协议层增加多 agent 注册接口 |
 | BPP 中立协议 | 私有 OpenClaw SDK 协议 | 抽规范文档 + 重构 plugin 端代码作 reference impl |
 | 语义动作层 | plugin 通过 WS `api_request` 直调 REST | 新增高级动作 API + dispatch 层 + 权限收敛 |
 | Borgee 配置单一来源 | `users` 表里 agent 行只有 name/role/owner_id | **大改**：加 `agent_config` 表（含 schema-driven blob）、配置 UI、`agent_config_update` BPP 接口 |
