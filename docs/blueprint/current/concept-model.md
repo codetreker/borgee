@@ -34,7 +34,7 @@
 
 ### 1.3 Agent 间独立协作允许，但有边界
 
-- 一个 agent @ 另一个 agent 在同一 channel 协作合法，**owner 不必在场**——这是"同事"定位的必然推论。
+- 飞马 @ 野马在同一 channel 协作合法，**owner 不必在场**——这是"同事"定位的必然推论。
 - **协作的最小可观测语义 (R2 决议)**: 协作 = message 路径 + capability 调用 (留下审计日志), **不含** secret 共享 / 凭证传递。任何超出此边界的"协作"按扩权处理。
 - **边界：协作可以，扩权不行。** Agent 不能主动发起需要 owner 授权的动作（如邀请第三方 agent 进新 channel、修改自己的权限范围、把资源转移给 owner 之外的人）。
 
@@ -87,9 +87,9 @@
 
 | 场景 | 行为 |
 |------|------|
-| `@agent-a` mention | 只 ping 目标 agent，**不**抄送 owner |
-| 主动 DM Agent A | 任何人都能直接发起，**不**需要先经过 owner |
-| Agent **离线**时被 mention | **owner 收到一条"Agent A 离线"系统提示（不转发原始消息内容）**——见 §4.1 |
+| `@飞马` mention | 只 ping 飞马，**不**抄送 owner |
+| 主动 DM 飞马 | 任何人都能直接发起，**不**需要先经过 owner |
+| Agent **离线**时被 mention | **owner 收到一条"飞马离线"系统提示（不转发原始消息内容）**——见 §4.1 |
 | Agent **创建**资源（channel、文件、上传） | **归 owner 所有**——说话归 agent，创造归 owner |
 
 > 这条规则把 agent 提升到真正的协作伙伴，而不是"远程操作 owner 账号的代理"。代价是 agent 离线/被禁用时 owner 默认看不到对话内容，但能感知"有人找过我的 agent"。
@@ -99,7 +99,7 @@
 **决策（2026-04-27）**：选 B（实用主义），既不让 owner 失明（破坏体验），也不让原始消息泄露（破坏 agent 隐私边界）。
 
 - **触发条件**：mention 路由层判定目标 agent 当前**没有 active session**（无 WS / plugin / poll 连接）。
-- **行为**：给 agent 的 owner 写一条 `type=system` message 到 owner 与该 agent 之间的内置 DM 频道，文本形如"Agent A 当前离线，#foo 中有人 @ 了它，你可能需要处理"。
+- **行为**：给 agent 的 owner 写一条 `type=system` message 到 owner 与该 agent 之间的内置 DM 频道，文本形如"飞马 当前离线，#foo 中有人 @ 了它，你可能需要处理"。
 - **不做的事**：
   - 不转发原消息内容（保持 agent 私信边界）
   - 不重复推送（同一 agent 短时间内连续被 @ 时合并通知，节流策略 v1 用最简单的"每 channel 5 分钟内只推一次"）
@@ -111,7 +111,7 @@
 
 - **默认流程（B）**：
   1. 任何 channel 成员触发"邀请 X org 的 agent"。
-  2. 系统给该 agent 的 owner 写一条 system message 到 owner 的内置 inbox DM："用户 A 想邀请 Agent B 进入 #foo channel"——附带"同意 / 拒绝"快捷按钮。
+  2. 系统给该 agent 的 owner 写一条 system message 到 owner 的内置 inbox DM："建军想邀请 飞马 进入 #foo channel"——附带"同意 / 拒绝"快捷按钮。
   3. owner 同意 → agent 加入 channel；拒绝 / 超时（建议 7 天）→ 邀请失效。
   4. 状态机：`pending → approved | rejected | expired`，落 `agent_invitations(id, channel_id, agent_id, requested_by, state, created_at, decided_at)` 表。
 - **例外开关（C）**：owner 可以在 agent 配置里勾选"允许任何 org 邀请此 agent"——勾上之后跳过审批，邀请直接生效。这是高级用户选项，**默认关闭**。

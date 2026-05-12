@@ -65,7 +65,7 @@ BPP `permission_denied` 上行（带原因 + 缺失的 capability）
     ↓
 server 给 owner 写一条 system message 到内置 DM
     ↓
-"Agent A 想 create_artifact 但缺权限 workspace.create
+"飞马 想 create_artifact 但缺权限 workspace.create
  [✓ 一键 grant 限于此 channel]   [✗ 拒绝]   [⚙ 高级设置]"
 ```
 
