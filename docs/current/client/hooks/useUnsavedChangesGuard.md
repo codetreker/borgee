@@ -74,7 +74,7 @@ useUnsavedChangesGuard(
 
 ## 6. beforeunload listener (PR #709)
 
-hook 内统一加 (5 form 自动获益, 反每 form 各自写导致行为漂移):
+hook 内统一加 (5 form 自动获益, 避免每个 form 各自实现导致行为漂移):
 
 ```ts
 useEffect(() => {
@@ -105,7 +105,7 @@ useEffect(() => {
   - `CreateNodeForm-dirty-guard.test.tsx` 4 case (mount 不算 / 输入 name 算 / 空格 only 不算 / unmount 反注册)
   - `AddBinding-dirty-guard.test.tsx` 4 case (showAddBinding=false 不算 / 全空不算 / bindPath 非空算 / bindLabel 非空算)
   - `useUnsavedChangesGuard-beforeunload.test.tsx` 3 case (干净不 preventDefault / dirty 调 preventDefault / unmount 反注册)
-- React 18 受控 input/textarea 测试用 React DOM value setter (反 ta.value=X 不通过 React 属性 setter 不触发 onChange)
+- React 18 受控 input/textarea 测试用 React DOM value setter (避免 ta.value=X 绕过 React 属性 setter 而不触发 onChange)
 
 ## 9. 出处
 

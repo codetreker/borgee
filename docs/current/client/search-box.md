@@ -44,11 +44,11 @@ minisearch / fuzzysort / flexsearch).
 
 字面锁定:
 
-- `type="search"` (browser search input, 反 type="text").
+- `type="search"` (browser search input, not `type="text"`).
 - `placeholder` byte-identical "搜索 artifact (按 / 聚焦)".
 - `maxlength="256"` 跟 server `SearchQueryMaxLen` byte-identical.
 - `data-testid="artifact-search-input"` (e2e 出处).
-- `aria-label="搜索 artifact"` (accessibility 反向断言).
+- `aria-label="搜索 artifact"` (accessibility assertion that keeps the label present).
 
 ### SearchResultList row
 

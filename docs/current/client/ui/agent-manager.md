@@ -1,6 +1,6 @@
 # Agent Manager — Detail page (gh#683 + gh#684) — implementation note
 
-> gh#683 (PR #694) — Agents 页面默认 width:100%, 反 flex cross-axis 缩 334px 闪跳 800px.
+> gh#683 (PR #694) — Agents 页面默认 width:100%, 防止 flex cross-axis 缩 334px 后闪跳 800px.
 > gh#684 (PR #710) — Agent 详情 6 卡 section 重组 + Credentials 卡 mask + 复制 + auto-clear 60s.
 > 蓝图: `client-shape.md` § agent-manage / agent-detail.
 
@@ -9,7 +9,7 @@
 agent 详情页 ("Manage" 展开区) 重组成 6 卡 section, 视觉分层"读"vs"写"清晰 + Credentials 卡 by-construction 反完整 plaintext API key 进 DOM.
 
 反向约束:
-- ① agents page 容器 width:100% (反 flex cross-axis 缩造成默认 334px / Manage 撑大闪跳 800px) — gh#683 PR #694
+- ① agents page 容器 width:100% (防止 flex cross-axis 缩造成默认 334px / Manage 撑大闪跳 800px) — gh#683 PR #694
 - ② Credentials 卡完整 plaintext key 永不进 React state / ref / DOM (走 closure GC, 仅末 4 位进 last4 state) — gh#684 by-construction
 - ③ 不引第三方 clipboard 库 (走 navigator.clipboard 原生 + execCommand fallback)
 - ④ auto-clear 60s 走 readText 比对 (反误清用户 60s 内主动改的剪贴板内容)
@@ -18,7 +18,7 @@ agent 详情页 ("Manage" 展开区) 重组成 6 卡 section, 视觉分层"读"v
 ## 2. agents page width (gh#683 / PR #694)
 
 `packages/client/src/components/AgentManager.tsx`:
-- 顶层容器 `width: 100%` — 反 flex cross-axis 默认 `width: auto` 缩到 334px (内容最小宽度), Manage 展开后撑大闪跳到 800px (visible layout jump)
+- 顶层容器 `width: 100%` — 防止 flex cross-axis 默认 `width: auto` 缩到 334px (内容最小宽度), Manage 展开后撑大闪跳到 800px (visible layout jump)
 
 跟 #694 PR body 一致, 1 行 CSS 改 (`.agent-page { width: 100%; }`) 防止 layout jump.
 
@@ -56,7 +56,7 @@ DOM 出处:
 - `<section className="agent-detail-card agent-detail-card-permissions">`
 - `<section className="agent-detail-card agent-detail-card-channels">`
 
-state 全在 `AgentCard` 顶层集中管理 (反 prop drilling): `last4` / `loadingKey` / `copying` / `autoClearTimerRef` / `permissions` / `runtime` / `joinChannelId`. 子卡片只 React `<section>` wrapper + class CSS, 0 跨段共享 state 脱节.
+state 全在 `AgentCard` 顶层集中管理 (避免 prop drilling): `last4` / `loadingKey` / `copying` / `autoClearTimerRef` / `permissions` / `runtime` / `joinChannelId`. 子卡片只 React `<section>` wrapper + class CSS, 0 跨段共享 state 脱节.
 
 ## 4. Credentials 卡 mask + 复制 + auto-clear (gh#684)
 
