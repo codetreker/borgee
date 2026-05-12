@@ -1,23 +1,23 @@
-// tests/message-permission-matrix.spec.ts — message PUT/DELETE/PATCH 跨 channel 权限矩阵 (ACL/IDOR 反向证).
+// tests/message-permission-matrix.spec.ts - message PUT/DELETE/PATCH cross-channel permission matrix (ACL/IDOR reverse checks).
 //
-// 测试范围 (3 关键 case, heima 拍 ap-5 矩阵简化但 cross-user IDOR 不允许砍):
-//   - case-1: user B 真 UI navigate user A private channel URL → fallback UI (ChannelView channel-empty / message list 0 / MessageInput 不渲染)
-//   - case-2: server ACL gate check (F2 例外, heima 约束 3) — user B 浏览器登态下 fetch PUT /messages/{userA-msg-id} 验 server 403/404, 反向证 server 拦截不依赖 client UI hide
-//   - case-3: server ACL gate check (F2 例外, heima 约束 3) — user B fetch DELETE /messages/{userA-msg-id} 验 server 403/404
+// Test scope (3 required cases: AP-5 matrix coverage is reduced, but cross-user IDOR coverage must stay):
+//   - case-1: user B navigates a real browser UI to user A private channel URL -> fallback UI (ChannelView channel-empty / message list 0 / MessageInput not rendered)
+//   - case-2: server ACL gate check (explicit F2 exception) - user B browser session fetches PUT /messages/{userA-msg-id} and verifies server 403/404, proving server enforcement does not rely on client UI hiding
+//   - case-3: server ACL gate check (explicit F2 exception) - user B fetches DELETE /messages/{userA-msg-id} and verifies server 403/404
 //
-// 矩阵简化原则 (heima 加分项 1): 3 case 覆盖 (read UI fallback + write PUT gate + write DELETE gate). 不允许砍 cross-user IDOR case 数 — 此版本 PUT + DELETE 都保, 反映原 spec 的 PUT/DELETE/PATCH 完整矩阵 (PATCH 复用 PUT 同路径 ACL gate, 已在 PUT case 覆盖).
+// Matrix reduction rule: 3 cases cover read UI fallback, write PUT gate, and write DELETE gate. Cross-user IDOR cases must not be dropped; this version keeps PUT + DELETE to represent the original PUT/DELETE/PATCH matrix (PATCH shares the PUT route ACL gate and is covered by the PUT case).
 //
-// 关联文档:
-//   - 蓝图: docs/blueprint/current/auth-permissions.md §X (channel ACL: 非 member 不可写他人 message)
-//   - 验收: docs/_archive/qa/acceptance-templates/ap-5.md §2 (REG-INV-* fail-closed)
-//   - 单测: server-side cross-channel message ACL 走 Go 单元测覆盖
-//   - 后续: client forbidden state UX 走 gh#724 §2
+// Related docs:
+//   - Blueprint: docs/blueprint/current/auth-permissions.md §X (channel ACL: non-members cannot write another user's message)
+//   - Acceptance: docs/_archive/qa/acceptance-templates/ap-5.md §2 (REG-INV-* fail-closed)
+//   - Unit tests: server-side cross-channel message ACL is covered by Go unit tests
+//   - Follow-up: client forbidden state UX is tracked in gh#724 §2
 //
-// 实施约束 (heima 拍 REWRITE-NAV 4 约束):
-//   1. URL 必须真无权 — REST seed user A private channel + post message
-//   2. 真断多角度 (case-1): sidebar 空 / channel-empty / message list 0 / input 不渲染
-//   3. case-2 + case-3 走 page.evaluate(fetch) 显式 F2 例外 — 反向证 server ACL gate
-//   4. 双 context 真独立 cookie
+// Implementation constraints (REWRITE-NAV 4 constraints):
+//   1. URL must be genuinely unauthorized - REST seeds user A private channel + posted message
+//   2. Multi-angle assertions (case-1): empty sidebar / channel-empty / message list 0 / input not rendered
+//   3. case-2 + case-3 use page.evaluate(fetch) as explicit F2 exceptions to verify the server ACL gate
+//   4. Two contexts must use independent cookies
 
 import {
   test,
@@ -122,7 +122,7 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
     await pageB.goto(`${clientURL()}/?channel=${channelId}`);
     await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // 真断多角度 (heima 约束 2):
+    // Multi-angle assertions (constraint 2):
     // (a) sidebar 不出现 userA 的 private channel item
     const sidebarChannelNames = await pageB.locator('.channel-list .channel-name').allTextContents();
     expect(
@@ -130,17 +130,17 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
       'user B sidebar 不应出现 user A private channel',
     ).toEqual([]);
 
-    // (b) ChannelView 不渲染 user A private channel 内容
-    // 真因: SPA 不读 ?channel= URL parameter, user B 落到自己 welcome (非 user A channel).
-    // 反向证: channel title 不含 user A 创建的 ap5-case1-* channel 名.
+    // (b) ChannelView does not render user A private channel content.
+    // Cause: SPA ignores the ?channel= URL parameter, so user B lands on their own welcome channel, not user A's channel.
+    // Reverse check: channel title does not contain the ap5-case1-* channel name created by user A.
     const channelTitleTexts = await pageB.locator('.channel-title').allTextContents();
     expect(
       channelTitleTexts.filter(t => t.includes('ap5-case1-')),
       `user B channel title 不应含 user A private channel 名 (反向证: user B 真 reach 不到 user A 资源)`,
     ).toEqual([]);
 
-    // (c) server gate check (REWRITE-NAV F2 显式允许例外, heima 约束 3):
-    // user B fetch GET userA channel messages → server 真挡 403/404 不依赖 client UI hide
+    // (c) server gate check (REWRITE-NAV explicit F2 exception):
+    // user B fetches GET userA channel messages -> server returns 403/404 without relying on client UI hiding.
     const fetchResult = await pageB.evaluate(async (cid: string) => {
       const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {
         method: 'GET',
@@ -174,7 +174,7 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
     await pageB.goto(`${clientURL()}/`);
     await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // REWRITE-NAV F2 显式允许例外 (heima 约束 3): 反向证 server ACL gate 真挡
+    // REWRITE-NAV explicit F2 exception: reverse-check that the server ACL gate blocks the request.
     const result = await pageB.evaluate(async (mid: string) => {
       const r = await fetch(`/api/v1/messages/${mid}`, {
         method: 'PUT',
@@ -211,7 +211,7 @@ test.describe('message permission matrix — 跨 channel ACL/IDOR 反向证 (REW
     await pageB.goto(`${clientURL()}/`);
     await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // REWRITE-NAV F2 显式允许例外 (heima 约束 3): 反向证 server ACL gate
+    // REWRITE-NAV explicit F2 exception: reverse-check the server ACL gate.
     const result = await pageB.evaluate(async (mid: string) => {
       const r = await fetch(`/api/v1/messages/${mid}`, {
         method: 'DELETE',
