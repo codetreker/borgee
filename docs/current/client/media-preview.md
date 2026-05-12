@@ -1,6 +1,6 @@
 # MediaPreview — three media preview states DOM contract
 
-> **Source of truth.** Component in
+> **Authoritative component.** Component in
 > `packages/client/src/components/MediaPreview.tsx`. Wired into
 > `ArtifactPanel.tsx::ArtifactBody` 5 enum switch (markdown / code /
 > image_link / video_link / pdf_link). Type in
@@ -22,13 +22,13 @@ use the browser's built-in `<embed>` support.
   `<embed type="application/pdf">`. No video.js / hls.js / dash.js /
   shaka-player / pdf.js / react-pdf — package.json reverse grep count==0.
 - **XSS constraint #1 (https only).** Reuses `ImageLinkRenderer.isHttpsURL`,
-  kept byte-identical with server `ValidateImageLinkURL`.
+  matching server `ValidateImageLinkURL`.
   Non-https URL (javascript:/data:/data:image/http:/file:/
   scheme-relative `//host` / 空) → 渲染 `.media-preview-invalid`
   fallback div, 不把 unsafe URL 推入 DOM.
 - **kind gate (3-tuple).**
   `PREVIEWABLE_KINDS = ['image_link', 'video_link', 'pdf_link']` stays
-  byte-identical with server `PreviewableKinds` (vitest 双向锁定). 其它 kind
+  aligned with server `PreviewableKinds` (vitest 双向锁定). 其它 kind
   (markdown / code / unknown) → null (走 CV-1 markdown / CV-3 code 既有 path).
 
 ## DOM contract (e2e + vitest 出处)
@@ -85,14 +85,14 @@ same URL vector.
 
 ## Cross-milestone consistency checks
 
-- 5 enum values stay byte-identical across server `cv_2_v2_media_preview`
+- 5 enum values must stay aligned across server `cv_2_v2_media_preview`
   migration v=28 schema CHECK, `ValidArtifactKinds` slice, and client
   `ArtifactKind` (change all three together).
 - `PREVIEWABLE_KINDS` 3-tuple 跟 server `PreviewableKinds` slice
-  byte-identical (server vs client 双向锁定, 改 = 改两处).
+  must match (server vs client 双向锁定, 改 = 改两处).
 - `isHttpsURL` 复用 `ImageLinkRenderer` (CV-3.3 既有), 跟 server
-  `ValidateImageLinkURL` byte-identical 同源 (first XSS constraint).
-- DOM `data-media-kind` 三 enum byte-identical 跟 spec §3 e2e grep 出处
+  `ValidateImageLinkURL` applies the same HTTPS-only rule (first XSS constraint).
+- DOM `data-media-kind` 三 enum must match spec §3 e2e grep 出处
   (e2e 反向断言 video_link `controls` count≥1, pdf_link `type=
 "application/pdf"` 字面 1).
 

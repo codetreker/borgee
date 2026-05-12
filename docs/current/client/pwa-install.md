@@ -32,12 +32,12 @@ export const PUSH_PERMISSION_LABELS: Record<PushPermissionState, string> = {
 export const INSTALL_BUTTON_LABEL = '安装 Borgee 桌面应用';
 ```
 
-Byte-identical with DL-4 #485 PushPermissionState 4-enum + blueprint §1.1+§1.4 literals.
+These labels match DL-4 #485 PushPermissionState 4-enum + blueprint §1.1+§1.4 literals.
 **Changing this requires updating two places + content-lock §1**.
 
 ## UI Components
 
-| Component | DOM source | Trigger | Reverse constraint |
+| Component | DOM source | Trigger | Prohibited behavior |
 |---|---|---|---|
 | `InstallPromptButton.tsx` | `<button data-cs3-install-button data-install-state>{INSTALL_BUTTON_LABEL}</button>` | click → useInstallPrompt.prompt() (user-gesture only) | return null when installed/unavailable; do not replace this with disabled styling |
 | `PushSubscribeToggle.tsx` | `<button data-cs3-push-toggle data-push-state aria-pressed>{label}</button>` | click → DL-4 `subscribeToPush()` (default) / `unsubscribeFromPush()` (granted) | return null when unsupported; disabled when denied because the browser permanently rejected it and click has no effect; do not auto-call requestPermission at mount time, use the DL-4 entry point |
@@ -63,10 +63,10 @@ git diff origin/main -- packages/client/src/lib/pushSubscribe.ts  # 0 行
 
 ## Cross-Milestone Byte-Identical Locks
 
-- DL-4 #485 pushSubscribe.ts stays byte-identical (CS-3 imports it only)
+- DL-4 #485 pushSubscribe.ts must remain unchanged (CS-3 imports it only)
 - Existing DL-4 manifest.json + sw.js stay unchanged
-- PushPermissionState 4-enum stays byte-identical with DL-4 (granted/denied/default/unsupported)
-- Copy stays byte-identical with blueprint client-shape.md §1.1+§1.4 literals
+- PushPermissionState 4-enum must match DL-4 (granted/denied/default/unsupported)
+- Copy must keep blueprint client-shape.md §1.1+§1.4 literals
 - ADM-0 §1.3 admin surface must not mount this entry point
 
 ## Out of Scope

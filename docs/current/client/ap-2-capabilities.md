@@ -12,7 +12,7 @@ export function capabilityLabel(token: string): string;        // 14 中文字�
 export function isKnownCapability(token: string): boolean;     // 反向断言 helper
 ```
 
-LABEL_MAP has 14 byte-identical literals (with content-lock §1; dot notation after CAPABILITY-DOT):
+LABEL_MAP has 14 literals that match content-lock §1 (dot notation after CAPABILITY-DOT):
 
 - channel.read → 查看频道 / channel.write → 在频道发消息 / channel.delete → 删除频道
 - artifact.read → 查看产物 / artifact.write → 编辑产物 / artifact.commit → 提交产物
@@ -22,7 +22,7 @@ LABEL_MAP has 14 byte-identical literals (with content-lock §1; dot notation af
 
 ## 2. component — `components/PermissionsView.tsx`
 
-DOM data attributes are defined in one place (byte-identical with content-lock §2):
+DOM data attributes are defined in the component and must match content-lock §2:
 
 - `data-ap2-permissions-view` (root list)
 - `data-ap2-capability-row` + `data-ap2-capability-token` + `data-ap2-scope` + `data-ap2-known`
@@ -38,7 +38,7 @@ DOM data attributes are defined in one place (byte-identical with content-lock �
 
 ## 4. bundle source of truth — `lib/capability-bundles.ts` + `components/BundleSelector.tsx`
 
-3 bundle (蓝图 §1.3 A' 快速 bundle 无角色名, byte-identical; CAPABILITY-DOT 后 dot-notation):
+3 bundle entries match 蓝图 §1.3 A' 快速 bundle 无角色名 (CAPABILITY-DOT 后 dot-notation):
 
 - `workspace` (工作能力) → channel.write + artifact.write + artifact.commit (3)
 - `reader` (阅读能力) → channel.read + artifact.read + dm.read (3)
@@ -54,5 +54,5 @@ DOM 出处: `data-ap2-bundle-selector` / `data-ap2-bundle-row` / `data-bundle-na
 - `__tests__/PermissionsView.test.tsx` 5 vitest
 - `__tests__/capability-bundles.test.ts` 5 vitest (跨层锁定 + assertBundlesValid + helpers)
 - `__tests__/BundleSelector.test.tsx` 4 vitest (expand + 主权 uncheck + 必显式 confirm + DOM 出处)
-- `__tests__/ap-2-reverse-grep.test.ts` 11 vitest (14 const + 反 RBAC 英 4 / 中 3 + admin 独立 + source-of-truth check + PascalCase bundle 名 + role in bundle const + POST /api/v1/bundles + BundleHasCapability/HasBundle 0 hit)
-- `packages/e2e/tests/agent-permission-bundle.spec.ts` Playwright 4 case (capability response shape + no bundle endpoint drift + actual UI render with 8 RBAC terms 0 hit in body + admin-only UI kept on a separate path) + screenshot `docs/qa/screenshots/ap-2-bundle-ui.png`
+- `__tests__/ap-2-reverse-grep.test.ts` 11 vitest (14 const + 反 RBAC 英 4 / 中 3 + admin 独立 + single-definition check + PascalCase bundle 名 + role in bundle const + POST /api/v1/bundles + BundleHasCapability/HasBundle 0 hit)
+- `packages/e2e/tests/agent-permission-bundle.spec.ts` Playwright 4 case (capability response shape + no unexpected bundle endpoint + actual UI render with 8 RBAC terms 0 hit in body + admin-only UI kept on a separate path) + screenshot `docs/qa/screenshots/ap-2-bundle-ui.png`

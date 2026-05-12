@@ -9,7 +9,7 @@
 | File | Role |
 |---|---|
 | `packages/client/src/components/AppShell.tsx` | Three-pane grid layout container; derives `grid-template-columns` from `artifactMode`; mobile fallback at ≤768px |
-| `packages/client/src/lib/use_artifact_panel.ts` | 4-state state-machine hook (`useArtifactPanel`); single source for transition predicates |
+| `packages/client/src/lib/use_artifact_panel.ts` | 4-state state-machine hook (`useArtifactPanel`); owns transition predicates |
 | `packages/client/src/components/ArtifactDrawer.tsx` | Right-pane render container (mounts DOM only when mode != 'closed'); see [`artifact-drawer.md`](artifact-drawer.md) |
 
 ## Three-Pane Layout (blueprint §1.2 byte-identical)
@@ -24,7 +24,7 @@
 └──────────┴──────────────────┴───────────────────┘
 ```
 
-The three-pane literal is the single source, avoiding inconsistent scattered literal copy.
+The three-pane literal is the canonical layout reference, avoiding inconsistent scattered literal copy.
 
 Desktop grid-template-columns (`computeGridColumns(mode, isMobile=false)`):
 
@@ -35,7 +35,7 @@ Desktop grid-template-columns (`computeGridColumns(mode, isMobile=false)`):
 | `split`      | `240px 1fr 1fr` |
 | `fullscreen` | `240px 1fr` (artifact overlay covers it) |
 
-Single source for literal constants (change one place, avoiding scattered literal values):
+Literal constants live in one table (change one place, avoiding scattered literal values):
 
 | const | Literal | Source |
 |---|---|---|
@@ -67,7 +67,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 | `drawer/split/fullscreen → fullscreen` | `setFullscreen(true)` | mobile fallback; closed state remains closed |
 | `fullscreen → drawer` | `setFullscreen(false)` | mobile exits fullscreen |
 
-**Reverse constraint** (spec §0 ②):
+**Invalid transition guard** (spec §0 ②):
 - Direct `closed → split` is rejected (`promoteToSplit()` is a no-op and returns `false` when `mode==='closed'`) — must pass through drawer first
 - Grep check: `SplitView.*directOpen|artifact.*autoSplit|setMode\(['"]split['"]\)` only matches the ArtifactDrawer drag handler
 
@@ -102,7 +102,7 @@ ArtifactPanelMode = 'closed' | 'drawer' | 'split' | 'fullscreen'
 
 | Source | Expected |
 |---|---|
-| `useArtifactPanel` call single source | only one top-level AppShell calling component (avoid scattered hook calls) |
+| `useArtifactPanel` call ownership | only one top-level AppShell calling component (avoid scattered hook calls) |
 | direct `setMode\(['"]split['"]\)` call | only one internal useArtifactPanel.ts call (caller uses `promoteToSplit()`) |
 | inline `'240px 1fr 380px'` literal | only one occurrence inside `computeGridColumns` (avoid inconsistent scattered literal values) |
-| direct `closed → split` transition | 0 hits (hard reverse constraint) |
+| direct `closed → split` transition | 0 hits (hard guard) |

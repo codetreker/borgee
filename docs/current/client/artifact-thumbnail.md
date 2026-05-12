@@ -1,6 +1,6 @@
 # ArtifactThumbnail — code/markdown thumbnail DOM contract
 
-> **单一来源.** 组件实现位于
+> **Authoritative implementation.** 组件实现位于
 > `packages/client/src/components/ArtifactThumbnail.tsx`；Vitest 锁定位于
 > `packages/client/src/__tests__/ArtifactThumbnail.test.tsx` (23 cases).
 > 配套组件 `MediaPreview.tsx` (CV-2 v2) 处理 image/video/pdf kinds；两条
@@ -20,10 +20,10 @@ elements and does not add client-side renderer libraries.
   html2canvas / dom-to-image / puppeteer-client / shiki client-side
   renderer (package.json reverse grep count==0).
 - **XSS 红线 #1 (https only).** 复用 `ImageLinkRenderer.isHttpsURL`
-  byte-identical 跟 server `ValidateImageLinkURL` 同源. Non-https URL
+  and uses the same HTTPS-only rule as server `ValidateImageLinkURL`. Non-https URL
   → fallback div, 不渲染 `<img>`.
 - **kind 限制 (2-tuple).** `THUMBNAILABLE_KINDS = ['markdown', 'code']`
-  byte-identical 跟 server `ThumbnailableKinds` 同源 (vitest 双向锁定).
+  must match server `ThumbnailableKinds` (vitest 双向锁定).
   其他 kind (image_link / video_link / pdf_link / unknown) → null
   (走 CV-2 v2 `MediaPreview` 既有 path, 二端互斥).
 
@@ -83,11 +83,11 @@ PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
 ## 跨 milestone byte-identical 锁定
 
 - 2-tuple `THUMBNAILABLE_KINDS` 跟 server `ThumbnailableKinds` slice
-  byte-identical (server vs client 双向锁定, 改 = 改两处).
-- 5 kind enum 跟 CV-2 v2 + CV-3 共 schema 单一来源 (不扩 kind).
+  must match (server vs client 双向锁定, 改 = 改两处).
+- 5 kind enum is shared by CV-2 v2 + CV-3 schema (不扩 kind).
 - `isHttpsURL` 复用 `ImageLinkRenderer` (CV-3.3 既有), 跟 server
-  `ValidateImageLinkURL` byte-identical 同源 (XSS 红线第一道).
-- DOM `data-thumbnail-kind` 二 enum byte-identical 跟 server endpoint
+  `ValidateImageLinkURL` applies the same HTTPS-only rule (XSS 红线第一道).
+- DOM `data-thumbnail-kind` 二 enum must match server endpoint
   spec 出处.
 - 不引入 client-side renderer 大型依赖 — 跟 CV-2 v2 `MediaPreview` 设计
   ② "不引入 video.js/hls.js/dash.js/shaka-player/pdf.js/react-pdf" 同
@@ -97,7 +97,7 @@ PREVIEWABLE_KINDS   = [image_link, video_link, pdf_link]
 ## 不在范围
 
 - Inline syntax-highlight thumbnail render (e.g. shiki client-side) —
-  设计 ① server-side 单一来源.
+  设计 ① keeps server-side generation as the authoritative path.
 - Multi-size thumbnail (mobile 128 / 侧栏 256 / preview 512) — v3+,
   v0 单 256x256.
 - WebSocket push frame for thumbnail update — 静态 CDN, client GET
