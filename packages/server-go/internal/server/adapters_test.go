@@ -1,14 +1,15 @@
 // Package server — adapter_cov_test.go (TEST-FIX-3-COV).
 //
-// 真补 deterministic cov for adapters that are "cold path" 0% covered:
+// Adds deterministic coverage for adapters that were "cold path" 0% covered:
 //
 //   - agentRuntimeAdapter.SetAgentError (server.go:767, was 0%)
 //   - hubLivenessAdapter.SnapshotLastSeen (server.go:791, was 0%)
 //   - hubAgentTaskPusherAdapter.PushAgentTaskStateChanged (server.go:815, was 0%)
-//   - channelScopeAdapter.ChannelIDsForOwner (跨 milestone 同模式)
+//   - channelScopeAdapter.ChannelIDsForOwner (same cross-milestone pattern)
 //
-// 立场: 跟 bpp_3_router_adapter_test.go / bpp_5_reconnect_adapter_test.go 同
-// idiom (跨包桥代码典型 cold path, unit 测真补 cov 不靠 race scheduler).
+// This follows bpp_3_router_adapter_test.go and bpp_5_reconnect_adapter_test.go:
+// cross-package bridge code is a typical cold path, so unit tests provide
+// deterministic coverage without relying on the race scheduler.
 package server
 
 import (
@@ -32,8 +33,9 @@ func newCovTestHub(t *testing.T) (*ws.Hub, *store.Store) {
 	return ws.NewHub(s, logger, cfg), s
 }
 
-// TestAgentRuntimeAdapter_SetAgentError 真测 SetAgentError adapter 路径
-// (代理 tracker.SetError 不另起逻辑). 空 reason 走 tracker 默认 unknown.
+// TestAgentRuntimeAdapter_SetAgentError covers the SetAgentError adapter path.
+// It delegates to tracker.SetError without adding logic; an empty reason uses
+// the tracker's default unknown reason.
 func TestAgentRuntimeAdapter_SetAgentError(t *testing.T) {
 	t.Parallel()
 	hub, _ := newCovTestHub(t)
@@ -43,7 +45,8 @@ func TestAgentRuntimeAdapter_SetAgentError(t *testing.T) {
 	adapter.SetAgentError("agent-1", "test-reason")
 	adapter.SetAgentError("agent-2", "") // empty → tracker default
 
-	// 验 ResolveAgentState 真承接 (走 hub.GetPlugin nil-safe + tracker)
+	// Verify ResolveAgentState is wired through hub.GetPlugin's nil-safe path
+	// and the tracker.
 	snap := adapter.ResolveAgentState("agent-1")
 	if snap.State != "error" {
 		t.Errorf("expected state=error after SetAgentError, got %q", snap.State)
@@ -53,9 +56,9 @@ func TestAgentRuntimeAdapter_SetAgentError(t *testing.T) {
 	}
 }
 
-// TestHubLivenessAdapter_SnapshotLastSeen 真测 hubLivenessAdapter 桥
+// TestHubLivenessAdapter_SnapshotLastSeen covers the hubLivenessAdapter bridge
 // (ws.Hub.SnapshotPluginLastSeen → bpp.PluginLivenessSource.SnapshotLastSeen).
-// 空 hub 应返空 map.
+// An empty hub should return an empty map.
 func TestHubLivenessAdapter_SnapshotLastSeen(t *testing.T) {
 	t.Parallel()
 	hub, _ := newCovTestHub(t)
@@ -70,10 +73,11 @@ func TestHubLivenessAdapter_SnapshotLastSeen(t *testing.T) {
 	}
 }
 
-// TestChannelScopeAdapter_ChannelIDsForOwner 真测 channelScopeAdapter 桥
+// TestChannelScopeAdapter_ChannelIDsForOwner covers the channelScopeAdapter bridge
 // (store.GetUserChannelIDs → bpp.ChannelScopeResolver.ChannelIDsForOwner).
-// signature 差异 ([]string vs ([]string, error)) 由 adapter 桥; 不存在 user
-// 应返空 slice + nil err (store 层 GetUserChannelIDs 容错).
+// The adapter handles the signature difference ([]string vs ([]string, error));
+// an unknown user should return an empty slice and nil error because
+// store.GetUserChannelIDs is tolerant.
 func TestChannelScopeAdapter_ChannelIDsForOwner(t *testing.T) {
 	t.Parallel()
 	_, s := newCovTestHub(t)
@@ -84,17 +88,17 @@ func TestChannelScopeAdapter_ChannelIDsForOwner(t *testing.T) {
 		t.Errorf("expected nil err, got %v", err)
 	}
 	if ids == nil {
-		// 反约束: nil slice ok, but len==0 expected
+		// A nil slice is acceptable; the invariant is len==0.
 	}
 	if len(ids) != 0 {
 		t.Errorf("expected empty slice for unknown user, got %d", len(ids))
 	}
 }
 
-// TestChannelMemberFetcherAdapter_ListUserIDs 真测 WIRE-1 wire-3
-// channelMemberFetcherAdapter 桥 (store.ListChannelMembers →
-// bpp.ChannelMemberFetcher.ListChannelMemberUserIDs). 不存在 channel
-// 返空 slice + nil err (store 层 容错).
+// TestChannelMemberFetcherAdapter_ListUserIDs covers the WIRE-1 wire-3
+// channelMemberFetcherAdapter bridge (store.ListChannelMembers →
+// bpp.ChannelMemberFetcher.ListChannelMemberUserIDs). An unknown channel should
+// return an empty slice and nil error because the store layer is tolerant.
 func TestChannelMemberFetcherAdapter_ListUserIDs(t *testing.T) {
 	t.Parallel()
 	_, s := newCovTestHub(t)
@@ -109,31 +113,33 @@ func TestChannelMemberFetcherAdapter_ListUserIDs(t *testing.T) {
 	}
 }
 
-// TestHubAgentTaskPusherAdapter_PushAgentTaskStateChanged 真测 hub
-// agentTaskPusher 桥. Hub 无 client subscriber 时, push 应 no-op (cursor==0
-// 或类似零值, ok==false).
+// TestHubAgentTaskPusherAdapter_PushAgentTaskStateChanged covers the hub
+// agentTaskPusher bridge. When the hub has no client subscriber, push should be
+// a no-op (cursor==0 or a similar zero value, ok==false).
 func TestHubAgentTaskPusherAdapter_PushAgentTaskStateChanged(t *testing.T) {
 	t.Parallel()
 	hub, _ := newCovTestHub(t)
 	adapter := &hubAgentTaskPusherAdapter{hub: hub}
 
-	// 无 subscriber → push no-op (具体语义 hub 自己定, adapter 仅透传).
+	// With no subscriber, push is a no-op. The hub owns the exact semantics; the
+	// adapter only forwards the call.
 	cursor, ok := adapter.PushAgentTaskStateChanged(
 		"agent-1", "channel-1", "running", "test-subject", "test-reason", 0,
 	)
 	_ = cursor
 	_ = ok
-	// 不断言具体值 — adapter 仅桥, 真行为见 hub 测; 本测目的是
-	// adapter 真调一次 (cov 真补).
+	// Do not assert the exact values here. The adapter is only a bridge, and hub
+	// tests own the behavior; this test ensures the adapter is invoked once.
 }
 
-// TestPluginFrameRouterAdapter_Route_NilPayload 反约束: empty payload
-// 走 adapter 透传到 dispatcher, dispatcher 软返 (false, nil) — adapter
-// 不改 contract. 跟 bpp_3_router_adapter_test.go::TestBPP3PluginFrameRouterAdapter_Route_Happy
-// 同 idiom; 此 test 多调 adapter 一次确保 race_heavy tag 路径下 cov 真兑现.
+// TestPluginFrameRouterAdapter_Route_NilPayload documents the constraint that
+// an empty payload is passed through the adapter to the dispatcher, which
+// returns (false, nil); the adapter does not change that contract. It follows
+// bpp_3_router_adapter_test.go::TestBPP3PluginFrameRouterAdapter_Route_Happy
+// and keeps this adapter covered under the race_heavy tag path.
 func TestPluginFrameRouterAdapter_Route_NilPayload(t *testing.T) {
 	t.Parallel()
-	_ = httptest.NewRecorder() // 引入 net/http/httptest 占位 (同模式)
-	// 此测 already covered by bpp_3_router_adapter_test.go; 留空 skeleton
-	// 给后续 reuse, 不重复跑.
+	_ = httptest.NewRecorder() // keep net/http/httptest referenced in this pattern
+	// This path is already covered by bpp_3_router_adapter_test.go; keep this
+	// skeleton available for reuse without duplicating the run.
 }

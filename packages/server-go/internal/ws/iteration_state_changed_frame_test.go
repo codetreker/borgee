@@ -1,9 +1,9 @@
 // Package ws_test — iteration_state_changed_frame_test.go: CV-4.2 envelope
-// byte-identity lock + push smoke for IterationStateChangedFrame.
+// byte-identity lock and push coverage for IterationStateChangedFrame.
 //
 // The 9-field order is the contract per cv-4-spec.md (#365) +
-// acceptance §2.4. Any reorder caught here pre-merge — paired with BPP-1
-// #304 envelope CI lint.
+// acceptance §2.4. Any reorder is caught here before merge, paired with
+// BPP-1 #304 envelope CI lint.
 package ws_test
 
 import (
@@ -79,7 +79,7 @@ func TestIterationStateChangedFrameFieldOrder(t *testing.T) {
 	}
 }
 
-// TestPushIterationStateChanged smoke: fresh emit returns sent=true with a
+// TestPushIterationStateChanged checks that a fresh emit returns sent=true with a
 // fresh cursor strictly above the prior artifact-updated head (same sequence,
 // no separate channel — same pattern as anchor_comment_frame_test).
 func TestPushIterationStateChanged(t *testing.T) {
