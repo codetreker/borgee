@@ -1,6 +1,6 @@
 # Phase 3 / Phase 4 方向草稿
 
-> **状态**: v0 草稿 (野马, 2026-04-28) — R4 评审时作参考, 不是详细计划; Phase 3 启动时再细化为 milestone 级 execution-plan
+> **状态**: v0 草稿 (产品评审负责人, 2026-04-28) — R4 评审时作参考, 不是详细计划; Phase 3 启动时再细化为 milestone 级 execution-plan
 > **配套**: `r3-decisions.md` (#216, R3-4 / R3-5 / R3-7 三条 Phase 4 同期) + `../../implementation/00-foundation/phase-2-exit-summary.md` (#225) §5 占位段落落实 + `g2.4-unblock-path.md` (#232) §2 里程碑表延伸
 > **目的**: Phase 2 退出关卡联签时给业主 / 利益相关方看 Phase 3+4 主线方向, 不承诺具体细节字面
 
@@ -8,12 +8,12 @@
 
 ## 1. Phase 3 主线 — "agent 真上线"
 
-**主旨**: BPP 协议骨架落地 + agent runtime 接管, 业主创建的 agent 不再是数据库行 + 假状态, 而是真进程跑插件协议。
+**主旨**: BPP 协议骨架落地 + agent runtime 接管, 业主创建的 agent 不再是数据库行 + 假状态, 而是真实进程运行插件协议。
 
 | 主题 | 蓝图出处 | 业主感知预期 |
 |------|-------|-------------|
 | BPP 协议骨架 | `plugin-protocol.md` + `host-bridge.md` §1.3 ("装时轻, 用时问") | agent 创建后真"上线" — 不是数据库标 online 假装 |
-| agent runtime 接管 | `agent-lifecycle.md` §2.1 ("默认路径一键 onboarding") | 业主不需要装 SDK, host-bridge 自动跑插件 |
+| agent runtime 接管 | `agent-lifecycle.md` §2.1 ("默认路径一键 onboarding") | 业主不需要装 SDK, host-bridge 自动运行插件 |
 | frame schema = `/ws` push (R3-4 要求逐字节一致) | `realtime.md` §2.3 + R3-4 决议 | 邀请通知 / 系统消息实时, ≤ 3s (Phase 2 ⑤ 业主感知达成) |
 | 离线检测 系统私信 | `concept-model.md` §4.1 | agent 进程死 → 业主收系统私信 "你的 agent {name} 离线了" |
 
@@ -71,4 +71,4 @@
 
 | 日期 | 作者 | 变化 |
 |------|------|------|
-| 2026-04-28 | 野马 | v0 草稿, Phase 3 BPP / Phase 4 AL-1b+ADM-1+AL-2+AL-3+AL-4 主线 + 业主感知 5 条延伸 + 遗留项映射 |
+| 2026-04-28 | 产品评审负责人 | v0 草稿, Phase 3 BPP / Phase 4 AL-1b+ADM-1+AL-2+AL-3+AL-4 主线 + 业主感知 5 条延伸 + 遗留项映射 |

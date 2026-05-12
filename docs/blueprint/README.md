@@ -1,16 +1,16 @@
 # Borgee Blueprint — 目标态(should-be)
 
 > 这一目录是 11 轮设计讨论的产物 —— Borgee **应该是什么样**的规范集合。
-> 状态: 建军 + 飞马 + 野马 三方已对齐, 2026-04-27 首次发布。
+> 状态: 3 个核心评审方已对齐, 2026-04-27 首次发布。
 > 归档标签: `archive/discussion-final`(commit 5a788e9) 保留首次产出的原始形态。
 
 ## 蓝图状态机 (按 blueprintflow blueprint-iteration skill)
 
-- `current/` — 当前蓝图 (frozen, 实施基于此). 11 个模型的 source of truth 位于这里, 实施 PR 引用这里为准.
+- `current/` — 当前蓝图 (frozen, 实施基于此). 11 个模型的权威来源位于这里, 实施 PR 引用这里为准.
 - `next/` — 下一版蓝图 (草拟期). 蓝图迭代时复制一份到 `next/`, 评审决定后提升为 `current/`.
-- `_meta/` — 蓝图过程记录 (decisions / phase / audit / review trigger). **不是模型 source of truth**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
+- `_meta/` — 蓝图过程记录 (decisions / phase / audit / review trigger). **不是模型权威来源**, 是过程治理记录 (R3/R4 决策 / phase trigger / audit 轮换 / review trigger).
 
-### `current/` — 11 模型 SOT (按概念依赖排序)
+### `current/` — 11 模型权威来源 (按概念依赖排序)
 
 | # | 文档 | 一句话 |
 |---|------|------|
@@ -45,7 +45,7 @@
 
 | 是 | 不是 |
 |----|------|
-| 产品形状的 source of truth | 当前代码的实现说明 |
+| 产品形状的权威来源 | 当前代码的实现说明 |
 | 长期稳定的产品立场 | 实施排期或 milestone |
 | 跨模块对齐的概念基础 | 详细规范或 API 文档 |
 
