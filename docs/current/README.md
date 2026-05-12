@@ -11,7 +11,6 @@ flowchart LR
   remote[remote-agent]
   helper[borgee-helper]
   installer[installer]
-  e2e[E2E harness]
 
   user -->|REST, /ws, SSE, backfill| server
   admin -->|admin API| server
@@ -22,8 +21,6 @@ flowchart LR
   installer -->|manifest| server
   installer --> helper
   helper -->|read-only grants DB| db
-  e2e --> user
-  e2e --> server
 ```
 
 | Module | Role | Boundary | Primary Interfaces |
@@ -35,9 +32,10 @@ flowchart LR
 | OpenClaw plugin | External chat runtime bridge | Does not register server handlers | SSE/poll, REST, plugin WS RPC |
 | remote-agent | User-machine file proxy endpoint | Does not own server authorization | remote WS request/response |
 | borgee-helper and installer | Host bridge installation and daemon IPC | Separate from chat realtime | manifest fetch, UDS IPC, grants DB |
-| E2E harness | Local test orchestration | Not production topology | Playwright web servers |
 
 Read `system-overview.md` first, then `runtime-topology.md`, `cross-process-flows.md`, and `known-gaps.md`. Server-specific realtime/BPP design lives in `server/`; OpenClaw plugin design lives in `plugin/`.
+
+Verification and supporting documentation, including E2E orchestration, lives outside the main runtime topology.
 
 ## Implementation Anchors
 
@@ -46,4 +44,4 @@ Read `system-overview.md` first, then `runtime-topology.md`, `cross-process-flow
 - Browser realtime consumer: `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`
 - OpenClaw plugin: `packages/plugins/openclaw/openclaw.plugin.json`, `packages/plugins/openclaw/src`
 - Remote and host bridge: `packages/remote-agent`, `packages/borgee-helper`, `packages/borgee-installer`
-- E2E orchestration: `packages/e2e/playwright.config.ts`
+- Verification support: `packages/e2e`

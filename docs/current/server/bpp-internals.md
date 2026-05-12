@@ -62,10 +62,10 @@ Heartbeat is modeled as a BPP frame, but current liveness is based on inbound pl
 
 ## Implementation Anchors
 
-- Envelopes: `packages/server-go/internal/bpp/envelope.go`, `BPPEnvelope`, `FrameTypeBPP*`
+- Envelopes: `packages/server-go/internal/bpp/envelope.go`, `BPPEnvelope`, `Direction`
 - Session resume model: `packages/server-go/internal/bpp/frame_schemas.go`, `SessionResumeRequest`, `SessionResumeAck`
 - Plugin dispatcher: `packages/server-go/internal/bpp/plugin_frame_dispatcher.go`, `PluginFrameDispatcher`
-- Handler wiring: `packages/server-go/internal/server/server.go`, `Server.New`
+- Handler wiring: `packages/server-go/internal/server/server.go`, `Server`
 - Server-to-plugin pushes: `packages/server-go/internal/ws/agent_config_push.go`, `packages/server-go/internal/ws/permission_denied_frame.go`
 - Task state push: `packages/server-go/internal/ws/agent_task_state_changed_frame.go`
 - SDK surface: `packages/server-go/sdk/bpp`

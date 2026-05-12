@@ -57,7 +57,7 @@ OpenClaw outbound text resolves a `channel:` or `dm:` target. DM targets are cre
 ## Implementation Anchors
 
 - Entry and runtime store: `packages/plugins/openclaw/src/index.ts`, `packages/plugins/openclaw/src/runtime.ts`, `packages/plugins/openclaw/src/runtime-api.ts`
-- Channel plugin: `packages/plugins/openclaw/src/channel.ts`, `borgeePlugin`
+- Channel plugin: `packages/plugins/openclaw/src/channel.ts`
 - Account config: `packages/plugins/openclaw/src/accounts.ts`, `packages/plugins/openclaw/src/config-schema.ts`, `packages/plugins/openclaw/src/types.ts`
 - Gateway and status: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/status.ts`
 - Inbound/outbound: `packages/plugins/openclaw/src/inbound.ts`, `packages/plugins/openclaw/src/outbound.ts`

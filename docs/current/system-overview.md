@@ -45,7 +45,7 @@ This page does not describe UI component state, admin screen layout, or individu
 
 ## Implementation Anchors
 
-- Server composition: `packages/server-go/internal/server/server.go`, `Server`, `SetupRoutes`
+- Server composition: `packages/server-go/internal/server/server.go`, `Server`
 - Hub and realtime model: `packages/server-go/internal/ws`, `Hub`, `Client`, `PluginConn`, `RemoteConn`
-- Plugin package: `packages/plugins/openclaw/src`, `borgeePlugin`, `startBorgeeGateway`
+- Plugin package: `packages/plugins/openclaw/src`, `BorgeeEvent`, `ResolvedBorgeeAccount`
 - Host bridge and installer: `packages/borgee-helper`, `packages/borgee-installer`
