@@ -1,52 +1,63 @@
 # Installer
 
-`borgee-installer` 是 helper 安装器，不是 helper daemon 本身。它负责拉取 manifest、验证 ed25519 signature、显示权限确认、执行平台部署命令；它不创建 server admin route，也不直接写 `host_grants`。
+The Host Bridge installer is the deployment path for the helper daemon. It is intentionally separate from the helper enforcement path: the installer verifies and installs artifacts, while the helper later enforces grants and IPC decisions.
+
+## Overview
+
+**Role**
+The installer turns a signed helper release into a platform service. It fetches release metadata, verifies the manifest signature, asks the local operator to confirm host capabilities, and invokes platform package/service commands.
+
+**Boundary**
+The installer boundary is release trust and local operator consent. It does not decide whether a future agent request is authorized; that remains a helper/grant decision after installation.
+
+**Collaborators**
+The installer collaborates with the manifest endpoint, an ed25519 public key, local package artifacts, the operator prompt, and platform service managers. It does not collaborate with Remote Agent and does not create admin routes.
+
+**Internal Architecture**
+
+- Platform command: Linux and macOS have separate entrypoints and artifact flags.
+- Manifest client: fetches a bounded JSON envelope and verifies a detached signature.
+- Consent prompt: presents the host capability class before installation proceeds.
+- Deployment plan: returns inspectable platform command steps and executes them outside dry-run mode.
+
+**Key Flows**
 
 ```text
-borgee-installer-linux / borgee-installer-darwin
-  -> require manifest URL + pubkey + local artifact
-  -> optional Bearer token
-  -> Fetch manifest
-  -> Verify ed25519 signature
-  -> Confirm permission prompt
-  -> deploy Linux .deb/systemd or macOS .pkg/launchd
+operator runs installer -> fetch manifest -> verify signature
+-> confirm host capability prompt -> build platform deploy plan
+-> dry-run prints steps OR sudo commands install and start helper service
 ```
 
-## 负责什么
+**Invariants**
 
-Linux installer 负责 `.deb` + systemd 部署。CLI 必填 `--manifest-url`、`--pubkey-base64`、`--deb`，可选 `--bearer-token`、`--dry-run`；部署步骤是 `sudo apt install`、`systemctl daemon-reload`、enable/start `borgee-helper.service`。证据：`packages/borgee-installer/cmd/borgee-installer-linux/main.go`、`packages/borgee-installer/internal/deploy/deploy.go`。
+- Manifest verification is mandatory before deployment proceeds.
+- The installer uses local platform package/service tools rather than a server-side admin deploy endpoint.
+- The installer installs the helper; it does not grant future host requests by itself.
+- Platform deployment is explicit and inspectable through dry-run.
 
-macOS installer 负责 `.pkg` + launchd 部署。CLI 必填 `--manifest-url`、`--pubkey-base64`、`--pkg`，可选 `--bearer-token`、`--dry-run`；部署步骤是 `sudo /usr/sbin/installer` 和 `launchctl load /Library/LaunchDaemons/cloud.borgee.host-bridge.plist`。证据：`packages/borgee-installer/cmd/borgee-installer-darwin/main.go`、`packages/borgee-installer/internal/deploy/deploy.go`。
+## Manifest Trust Model
 
-manifest client 负责 HTTP GET、8 MiB body limit、decode envelope、ed25519 detached signature verify。签名覆盖 canonical JSON `{entries, signed_at}`；失败原因字典包括 `manifest_signature_invalid`、`manifest_fetch_failed` 等 7 个值。证据：`packages/borgee-installer/internal/manifest/fetcher.go`。
+The installer expects a signed envelope and verifies the signature over a canonical payload. This makes the manifest a release integrity boundary: a network fetch alone is not enough to install. Bearer authentication may protect the fetch, but signature verification is the release trust check.
 
-dialog 负责权限确认文本并等待用户输入 `y/yes`。当前 grant type 列表是 `read/write/exec/network`，提示文本逐项解释读、写、执行、网络能力。证据：`packages/borgee-installer/internal/dialog/dialog.go`。
+## Deployment Model
 
-## 不负责什么
+Linux deployment is modeled as package installation plus systemd unit enable/start. macOS deployment is modeled as package installation plus launchd load. The installer surfaces these as ordered steps so tests and dry-run can inspect the plan without invoking privileged commands.
 
-installer 不负责运行时授权决策。安装完成后，实际请求仍由 helper 的 ACL、SQLite grant lookup 和 sandbox 决定。证据：`packages/borgee-helper/internal/acl/acl.go`、`packages/borgee-helper/internal/grants/sqlite_consumer.go`、`packages/borgee-helper/internal/sandbox/sandbox_linux.go`。
+## Out Of Scope
 
-installer 不负责 admin API。代码注释和命令入口都表明它使用用户 sudo 和本地 artifact，不添加 installer admin API path。证据：`packages/borgee-installer/cmd/borgee-installer-linux/main.go`、`packages/borgee-installer/cmd/borgee-installer-darwin/main.go`。
+The installer does not enforce runtime grants, mediate helper IPC, install Remote Agent, or expose admin management APIs.
 
-installer 不负责 remote-agent。它部署的是 `borgee-helper` host-bridge artifact；remote-agent 是 Node CLI，通过 `/ws/remote` 连接 server。证据：`packages/remote-agent/src/index.ts`、`packages/borgee-installer/internal/deploy/deploy.go`。
+## Known Gaps
 
-## 和其他模块的接口
+- The installer manifest envelope expected by the client and the current server manifest shape are not aligned.
+- The installer prompt's capability vocabulary and the server host-grant vocabulary are not aligned.
+- Production signing-key injection for the server manifest path is not clearly represented in the current wiring.
 
-| 模块 | 接口 | 说明 | 证据 |
-| --- | --- | --- | --- |
-| server manifest endpoint | HTTP GET with optional Bearer | installer fetches manifest envelope | `packages/borgee-installer/internal/manifest/fetcher.go` |
-| server auth | Bearer token optional | request sets `Authorization: Bearer <token>` if provided | `packages/borgee-installer/internal/manifest/fetcher.go` |
-| helper service | platform package manager | installer deploys service unit, then system service owns daemon lifecycle | `packages/borgee-installer/internal/deploy/deploy.go` |
-| user/operator | stdin/stdout confirmation | install continues only after `Confirm` returns true | `packages/borgee-installer/internal/dialog/dialog.go` |
+## Implementation Anchors
 
-## Current server manifest shape
-
-server 的 `/api/v1/plugin-manifest` 当前返回 `manifest_version`、`issued_at`、`expires_at`、`signature`、`plugins`，并通过 `authMw` 挂在 user rail；该 endpoint 没有 admin path。证据：`packages/server-go/internal/api/host_manifest.go`、`packages/server-go/internal/server/server.go`。
-
-installer manifest client 当前期望 envelope 字段是 `entries`、`signed_at`、`signature`，并对 `{entries, signed_at}` 做 canonical verification。证据：`packages/borgee-installer/internal/manifest/fetcher.go`。
-
-## Known risk / unknown
-
-- installer 期望的 manifest shape 与 server 当前 `/api/v1/plugin-manifest` shape 不一致：installer 要 `entries/signed_at`，server 返回 `plugins/issued_at/expires_at/manifest_version`。证据：`packages/borgee-installer/internal/manifest/fetcher.go`、`packages/server-go/internal/api/host_manifest.go`。
-- installer dialog 的 grant type 是 `read/write/exec/network`，server `host_grants` schema 和 REST whitelist 是 `install/exec/filesystem/network`。证据：`packages/borgee-installer/internal/dialog/dialog.go`、`packages/server-go/internal/migrations/host_grants.go`、`packages/server-go/internal/api/host_grants.go`。
-- server manifest handler `SigningKey` nil 时会生成测试占位 signature；生产私钥注入路径未在已核对 server wiring 中看到。证据：`packages/server-go/internal/api/host_manifest.go`、`packages/server-go/internal/server/server.go`。
+- `packages/borgee-installer/cmd/borgee-installer-linux/main.go`
+- `packages/borgee-installer/cmd/borgee-installer-darwin/main.go`
+- `packages/borgee-installer/internal/manifest` (`Envelope`, `Fetch`, `Verify`)
+- `packages/borgee-installer/internal/deploy` (`Plan`, `LinuxPlan`, `DarwinPlan`)
+- `packages/borgee-installer/internal/dialog` (`Confirm`, `GrantTypes`)
+- `packages/server-go/internal/api/host_manifest.go` (`PluginManifestHandler`)

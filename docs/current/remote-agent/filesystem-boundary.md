@@ -1,54 +1,73 @@
 # Remote Agent Filesystem Boundary
 
-remote-agent 的文件边界是进程内 allowlist，不是 OS sandbox。用户在启动 CLI 时通过 `--dirs` 明确暴露目录；之后所有 `ls/read/stat` 都在这些目录下做 `path.resolve` 前缀检查。
+Remote Agent's filesystem boundary is a process-level allowlist chosen by the user at startup. It is intentionally lighter than Host Bridge: there is no grant table, no helper daemon, no Unix socket, and no OS sandbox profile. The trust model is that the user starts a local process and explicitly names the directories that process may expose.
+
+## Overview
+
+**Role**
+The filesystem boundary limits what the remote protocol can read once a node is connected. It gives the remote tunnel a local guardrail: a request can only resolve inside a startup directory, and successful operations are read-only.
+
+**Boundary**
+The boundary is path containment after local path resolution. A request path must resolve to an allowed directory or one of its descendants. This boundary is enforced inside the Node.js process, not by the operating system.
+
+**Collaborators**
+The boundary collaborates with the remote protocol dispatcher and server error mapping. It does not collaborate with host grants, helper ACL, or platform sandboxing.
+
+**Internal Architecture**
+
+- Startup configuration: the user provides a comma-separated directory allowlist.
+- Path gate: each request path is resolved and compared with the allowlist.
+- Read executor: allowed paths are listed, read, or statted synchronously.
+- Result normalizer: filesystem details are returned as JSON-friendly metadata and content.
+
+**Key Flows**
 
 ```text
---dirs=/a,/b
-  -> allowedDirs ["/a", "/b"]
-  -> request path P
-  -> path.resolve(P)
-  -> resolved == allowed dir OR startsWith(allowed dir + path.sep)
-  -> fs.readdirSync / fs.statSync / fs.readFileSync
+agent start -> parse allowed directories
+remote request -> resolve target path -> containment check
+allowed -> read/list/stat -> structured result
+denied -> stable remote error -> server HTTP mapping
 ```
 
-## 负责什么
+**Invariants**
 
-CLI 负责收集本地目录边界。`borgee-remote-agent` 要求 `--dirs <dirs>`，按逗号拆分、trim、过滤空值；如果结果为空则退出。证据：`packages/remote-agent/src/index.ts`。
+- No filesystem operation is attempted before the allowlist check passes.
+- The exposed operation set is read-only: list, read, and stat.
+- File reads are bounded by a small maximum size.
+- The server does not enforce local path containment; the connected agent does.
+- Host Bridge grants do not expand or shrink this allowlist.
 
-文件边界负责路径 allowlist。`isPathAllowed` 对请求路径和每个 allowed dir 都执行 `path.resolve`，只接受等于 allowed dir 或位于 allowed dir 子路径下的请求。证据：`packages/remote-agent/src/fs-ops.ts`。
+## Read Semantics
 
-文件操作负责只读返回。`ls` 使用 `fs.readdirSync` 和 `fs.statSync` 返回 name、directory flag、size、mtime；`readFile` 拒绝目录、限制最大 2 MiB、按 UTF-8 读取并返回 MIME；`stat` 返回 size、mtime、isDirectory。证据：`packages/remote-agent/src/fs-ops.ts`。
+Directory listing returns entry names and lightweight metadata. File reads return text content, MIME classification, and size. Stat returns size, modification time, and directory status. The model is optimized for inspection and context gathering rather than bulk transfer.
 
-## 不负责什么
+The current read path is text-oriented. Files are read as UTF-8 content after size validation. Binary MIME labels may be produced, but the transport still returns the content through the same text-shaped response path.
 
-remote-agent 不负责绝对路径强制。代码对目标路径执行 `path.resolve`，相对路径会相对 agent 进程工作目录解析；是否落在 allowed dir 内由 resolved prefix 判断。证据：`packages/remote-agent/src/fs-ops.ts`。
+## Boundary Difference From Host Bridge
 
-remote-agent 不负责 symlink 展开后的真实路径边界。当前检查使用 `path.resolve`，没有 `fs.realpathSync`；如果 allowed dir 内存在 symlink，最终打开行为由 Node/OS 文件系统处理，不由 remote-agent 额外校验。证据：`packages/remote-agent/src/fs-ops.ts`。
+Remote Agent and Host Bridge both touch local files, but they solve different problems:
 
-remote-agent 不负责 host grant、ACL audit、Landlock 或 sandbox-exec。那些是 helper daemon 的 host-bridge 边界；remote-agent 的文件读取没有 host grant SQLite lookup，也没有 JSONL audit writer。证据：`packages/borgee-helper/internal/acl/acl.go`、`packages/borgee-helper/internal/audit/audit.go`、`packages/borgee-helper/internal/sandbox/sandbox_linux.go`、`packages/remote-agent/src/fs-ops.ts`。
-
-## 和其他模块的接口
-
-| 模块 | remote-agent filesystem 如何交互 | 证据 |
+| Aspect | Remote Agent | Host Bridge Helper |
 | --- | --- | --- |
-| server REST remote API | REST handler 只把 `path` query 转成 proxy params；不在 server 端做本地路径校验 | `packages/server-go/internal/api/remote.go` |
-| server WebSocket hub | hub 只转发 request/response；不解释文件系统结果 | `packages/server-go/internal/ws/remote.go` |
-| remote-agent protocol | `handleRequest` 根据 action 调用 `ls/readFile/stat` | `packages/remote-agent/src/agent.ts` |
-| host-bridge/helper | 无共享授权机制；helper 用 `host_grants` 和 UDS IPC，remote-agent 不使用 | `packages/borgee-helper/internal/ipc/ipc.go`, `packages/borgee-helper/internal/grants/sqlite_consumer.go` |
+| User intent | user starts agent with directories | user grants host capability stored server-side |
+| Transport | reverse WebSocket | local UDS IPC |
+| Authorization | remote node token + owner API check | agent id + host grant lookup |
+| Local boundary | process allowlist | ACL plus platform sandbox where available |
+| Audit | no helper JSONL audit | per-request local JSONL audit |
 
-## 错误和限制
+## Out Of Scope
 
-| 条件 | remote-agent error | server HTTP 映射 | 证据 |
-| --- | --- | --- | --- |
-| path outside `--dirs` | `path_not_allowed` | 403 | `packages/remote-agent/src/fs-ops.ts`, `packages/server-go/internal/api/remote.go` |
-| read missing file | `file_not_found` | 404 | same |
-| read over 2 MiB | `file_too_large` | 413 | same |
-| read directory | `is_directory` | 502 | same |
-| `ls/stat` missing path | `path_not_found` | 502 by current mapper | same |
-| proxy timeout | server `context.DeadlineExceeded` | 504 | `packages/server-go/internal/ws/remote.go`, `packages/server-go/internal/api/remote.go` |
+The filesystem boundary does not provide write operations, symlink-realpath policy, OS-level sandboxing, grant revocation, or persistent audit.
 
-## Known risk / unknown
+## Known Gaps
 
-- `MAX_FILE_SIZE` 是 2 MiB，remote-agent 使用 UTF-8 读取；二进制文件即使 MIME 命中 image 类型，也会按 UTF-8 content 返回。证据：`packages/remote-agent/src/fs-ops.ts`。
-- 目录 listing 没有数量上限；大目录会同步读取并 stat 每个 entry。证据：`packages/remote-agent/src/fs-ops.ts`。
-- server 目前把 action `read/ls` 发在 `data.params.path`，而文件边界函数期望 agent 收到直接 path；实际联通性取决于该 wire mismatch 是否被修正。证据：`packages/server-go/internal/server/server.go`、`packages/remote-agent/src/agent.ts`。
+- The boundary uses resolved path containment, not realpath-based symlink containment.
+- Large directory listing is not separately capped by the agent boundary.
+- Binary reads are not modeled as a separate binary transfer path.
+
+## Implementation Anchors
+
+- `packages/remote-agent/src/index.ts` (CLI startup and directory parsing)
+- `packages/remote-agent/src/agent.ts` (`RemoteAgent` request dispatcher)
+- `packages/remote-agent/src/fs-ops.ts` (`isPathAllowed`, `ls`, `readFile`, `stat`)
+- `packages/server-go/internal/api/remote.go` (remote error mapping)

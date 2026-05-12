@@ -1,63 +1,73 @@
 # Host Bridge
 
-host-bridge 是宿主机权限通道，由三部分组成：server 上的 `host_grants` 用户授权记录、宿主机上的 `borgee-helper` daemon、以及 `borgee-installer` 安装器。它与 remote-agent 是不同机制：host-bridge 使用本机 UDS IPC、SQLite grant lookup、ACL、audit 和平台 sandbox；remote-agent 使用 WebSocket 反连和 `--dirs` 进程内 allowlist。
+Host Bridge is the local host capability path. It is designed for actions that need stronger host mediation than Remote Agent provides: user-granted capabilities, helper-side ACL decisions, local IPC, local audit, and platform sandboxing where available. It is not the remote filesystem WebSocket path.
+
+## Overview
+
+**Role**
+Host Bridge lets Borgee-controlled agents request limited host capabilities through a local helper. The server owns user consent records, the helper owns local enforcement, and the installer owns deployment of the helper runtime.
+
+**Boundary**
+The boundary is a grant-backed helper request. A request must identify the agent, match the connection's agent identity, normalize to a grant scope, pass grant lookup, and then pass local OS/process constraints before host IO is attempted.
+
+**Collaborators**
+Host Bridge collaborates with the user API for grants, server storage for grant state, the helper daemon for enforcement, the installer for deployment, and admin audit views for limited visibility. It does not collaborate with the remote-agent WebSocket token path.
+
+**Internal Architecture**
+
+- Grant control plane: user-owned rows describing host capability consent.
+- Helper data plane: local UDS IPC carrying agent-scoped requests.
+- Enforcement stack: handshake identity, action allowlist, path/scope normalization, grant lookup, read-only IO, audit, sandbox.
+- Installer path: signed manifest verification and platform service deployment.
+
+**Key Flows**
 
 ```text
-user API /api/v1/host-grants
-  |
-  | writes host_grants in server DB
-  v
-SQLite server DB, read-only DSN for helper
-  |
-  | per IPC lookup, no grant cache
-  v
-borgee-helper daemon
-  |
-  | UDS JSON-line IPC + ACL + audit + sandbox
-  v
-read_file / list_files / network_egress decision path
+Grant flow:
+  user grants capability -> server stores host grant -> helper sees it on next lookup
 
-borgee-installer
-  |
-  | fetch + ed25519 verify manifest, prompt, sudo deploy
-  v
-systemd / launchd helper service
+Helper request flow:
+  local client connects -> handshake agent id -> request action/target
+  -> ACL decision -> SQLite grant lookup -> IO or rejection -> local audit
+
+Install flow:
+  installer fetches signed manifest -> verifies signature -> user confirms
+  -> package manager installs helper -> platform service starts daemon
 ```
 
-## 负责什么
+**Invariants**
 
-server host-grants 负责用户创建、列举、撤销宿主授权。它提供 `POST /api/v1/host-grants`、`GET /api/v1/host-grants`、`DELETE /api/v1/host-grants/{id}`，所有路由都在 user `authMw` 后面，写入 `host_grants` 表，且没有 admin-wide grant path。证据：`packages/server-go/internal/api/host_grants.go`、`packages/server-go/internal/migrations/host_grants.go`、`packages/server-go/internal/server/server.go`。
+- User consent is represented as host grants, not as generic user API capabilities.
+- Helper enforcement is per request; grant state is not cached in the helper decision path.
+- Helper filesystem IO is read-only in the current capability set.
+- Remote Agent and Host Bridge are separate capabilities with separate credentials, transports, and boundaries.
+- Server-side host grant ownership does not imply admin-wide override.
 
-`borgee-helper` 负责在宿主机上执行受限能力。daemon 读取 `--grants-db` SQLite DSN、监听 Unix Domain Socket、为每个 IPC 请求做 cross-agent ACL、scope lookup、JSONL audit，并在通过后执行只读 file IO 或 network egress allow decision。证据：`packages/borgee-helper/cmd/borgee-helper/main.go`、`packages/borgee-helper/internal/ipc/ipc.go`、`packages/borgee-helper/internal/acl/acl.go`、`packages/borgee-helper/internal/fileio/file_actions.go`。
+## Submodules
 
-installer 负责安装 helper artifact。Linux CLI 安装 `.deb` 并部署 systemd，macOS CLI 安装 `.pkg` 并部署 launchd；两者都要求 manifest URL、公钥、artifact 路径，可选 Bearer token 和 dry-run。证据：`packages/borgee-installer/cmd/borgee-installer-linux/main.go`、`packages/borgee-installer/cmd/borgee-installer-darwin/main.go`、`packages/borgee-installer/internal/deploy/deploy.go`。
+- `helper-daemon.md` defines local enforcement: UDS IPC, ACL, SQLite grant lookup, audit, sandbox, and read-only IO.
+- `host-grants.md` defines the server-side consent model and its invariants.
+- `installer.md` defines package installation, manifest verification, and deployment responsibilities.
 
-## 不负责什么
+## Out Of Scope
 
-host-bridge 不负责 remote-agent 的 `/ws/remote` 反连，也不读取 remote node `connection_token`。remote node 和 binding 存储在 `remote_nodes` / `remote_bindings`，host grant 存储在 `host_grants`，两套 rail 没有共享 token 或 scope 字典。证据：`packages/server-go/internal/store/models.go`、`packages/server-go/internal/api/remote.go`、`packages/server-go/internal/api/host_grants.go`。
+Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneling, unrestricted command execution, or admin-owned host consent.
 
-host-bridge 不负责 plugin WebSocket API bridge。plugin rail 使用 `/ws/plugin` 和 API key；helper IPC 使用 UDS JSON line 和 `{agent_id}` handshake。证据：`packages/server-go/internal/ws/plugin.go`、`packages/borgee-helper/internal/ipc/ipc.go`。
+## Known Gaps
 
-server host-grants 不直接执行宿主 IO。server 只写/列出/撤销 grants；helper 是 read-only SQLite consumer 和宿主 IO 执行者。证据：`packages/server-go/internal/api/host_grants.go`、`packages/borgee-helper/internal/grants/sqlite_consumer.go`。
+- Helper sandbox paths are static at daemon start, while grant lookup is dynamic per request.
+- Host Bridge audit is split between local helper JSONL and server-side logs; server admin multi-source audit does not yet ingest helper JSONL rows.
 
-## 和其他模块的接口
+## Implementation Anchors
 
-| 接口 | 方向 | 身份/权限 | 负责数据 | 证据 |
-| --- | --- | --- | --- | --- |
-| `/api/v1/host-grants` | user -> server | user cookie/Bearer/dev bypass | create/list/revoke grants | `packages/server-go/internal/api/host_grants.go` |
-| SQLite `host_grants` | helper -> server DB file | read-only DSN by convention | `agent_id`, `scope`, `expires_at`, `revoked_at` | `packages/borgee-helper/internal/grants/sqlite_consumer.go` |
-| UDS IPC | plugin/agent local client -> helper | handshake `agent_id` plus per-request `agent_id` | `read_file`, `list_files`, `network_egress` | `packages/borgee-helper/internal/ipc/ipc.go` |
-| ACL gate | helper internal | cross-agent and grant lookup | `fs:<path>` / `egress:<target>` scope | `packages/borgee-helper/internal/acl/acl.go` |
-| audit JSONL | helper -> file/stderr | best-effort writer | actor/action/target/when/scope | `packages/borgee-helper/internal/audit/audit.go` |
-| installer manifest | installer -> server/CDN endpoint | optional Bearer + ed25519 pubkey verify | manifest entries and signature | `packages/borgee-installer/internal/manifest/fetcher.go` |
-
-## 子模块
-
-- `helper-daemon.md` 展开 daemon startup、UDS IPC、ACL、SQLite grants、audit、sandbox、read-only IO。
-- `host-grants.md` 展开 server REST、schema、ttl/revoke、helper lookup scope 和当前 audit 风险。
-- `installer.md` 展开 Linux/macOS CLI、manifest verify、deploy plan、权限确认和当前 shape mismatch。
-
-## Known risk / unknown
-
-- helper 的 OS sandbox read paths 在 daemon 启动时由 `--read-paths` 静态传入；grant revoke 会影响 ACL lookup，但不会动态重写已应用的 Landlock/sandbox profile。证据：`packages/borgee-helper/cmd/borgee-helper/main.go`、`packages/borgee-helper/internal/sandbox/sandbox_linux.go`、`packages/borgee-helper/internal/sandbox/sandbox_darwin.go`。
-- server `host_grants` 的 grant/revoke audit 目前是 logger 输出，不是插入 `audit_events` 的持久 audit row；helper 有 JSONL audit，但 admin multi-source audit 的 host_bridge source 当前是 placeholder 0 行。证据：`packages/server-go/internal/api/host_grants.go`、`packages/borgee-helper/internal/audit/audit.go`、`packages/server-go/internal/api/admin_audit_query.go`。
+- `packages/server-go/internal/api/host_grants.go` (`HostGrantsHandler`)
+- `packages/server-go/internal/migrations/host_grants.go` (`host_grants` schema)
+- `packages/borgee-helper/cmd/borgee-helper/main.go`
+- `packages/borgee-helper/internal/ipc` (`Request`, `Response`, `Handler`)
+- `packages/borgee-helper/internal/acl` (`Gate`, `Decision`)
+- `packages/borgee-helper/internal/grants` (`SQLiteConsumer`)
+- `packages/borgee-helper/internal/fileio`
+- `packages/borgee-helper/internal/audit`
+- `packages/borgee-helper/internal/sandbox`
+- `packages/borgee-installer/cmd`
+- `packages/borgee-installer/internal`

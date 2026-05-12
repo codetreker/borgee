@@ -1,66 +1,70 @@
 # Admin Server Rail
 
-admin server rail 是独立于 user API 的 `/admin-api/*` 路径。它使用 `admins` 表、`admin_sessions` 表和 `borgee_admin_session` cookie；它不复用 `users.role == admin`，也不把 user cookie 当作 admin god-mode。
+The admin server rail is the separate control plane for operator-level actions. It uses its own identity table, session table, cookie, middleware, and route prefix. It is not a user API shortcut and not a capability wildcard layered on top of normal user auth.
+
+## Overview
+
+**Role**
+The admin rail gives operators a bounded management surface for users, permissions, channels, runtime metadata, and audit visibility. It centralizes admin authentication and keeps admin authority out of user sessions.
+
+**Boundary**
+The boundary is the admin session. A request must carry the admin session cookie, resolve to an unexpired server-side session, and pass through admin middleware before it reaches admin handlers.
+
+**Collaborators**
+The admin rail collaborates with bootstrap configuration, admin session storage, admin middleware, management handlers, runtime metadata views, and audit endpoints. It does not collaborate with user cookie auth, dev bypass, remote node tokens, or host grant ownership.
+
+**Internal Architecture**
+
+- Bootstrap: environment-configured admin identity is inserted or reused at startup.
+- Session lifecycle: login creates an opaque server-side session token; logout deletes it.
+- Middleware: admin session resolution creates the admin context for protected routes.
+- Management surface: handlers operate under the admin prefix and use explicit serializers and whitelists.
+- Audit integration: selected write paths emit durable audit rows and user-visible notifications.
+
+**Key Flows**
 
 ```text
-POST /admin-api/v1/auth/login
-  -> admins.login + bcrypt password check
-  -> admin_sessions opaque token row
-  -> Set-Cookie borgee_admin_session
-
-/admin-api/v1/*
-  -> admin.RequireAdmin
-  -> ResolveSession(token)
-  -> admin context
-  -> admin handlers
+bootstrap -> admin row exists
+login -> bcrypt verify -> opaque session row -> admin cookie
+admin request -> session lookup -> admin context -> handler
+logout -> session delete -> cookie cleared
 ```
 
-## 负责什么
+**Invariants**
 
-admin auth 负责 bootstrap、login、logout、me 和 session resolution。bootstrap 要求 `BORGEE_ADMIN_LOGIN`，并要求 `BORGEE_ADMIN_PASSWORD_HASH` 与 `BORGEE_ADMIN_PASSWORD` 二选一；hash 必须是 bcrypt 且 cost 至少 10，plain path 会在启动时用 bcrypt cost 10 生成 hash。证据：`packages/server-go/internal/admin/auth.go`。
+- Admin identity is stored outside the user table.
+- The admin cookie contains an opaque token, not an admin id or JWT claims.
+- User auth middleware does not grant admin rail access.
+- Admin runtime visibility is metadata-only and excludes selected raw owner-facing fields.
+- Legacy user-rail admin god-mode routes are not part of the current wiring.
 
-admin session 负责把 cookie value 变成不透明 token。`CreateSession` 生成 32 字节随机 token 的 hex 字符串，写入 `admin_sessions`，TTL 是 7 天；`ResolveSession` 只通过 DB lookup 解析，不从 token 中解析 admin id。证据：`packages/server-go/internal/admin/auth.go`、`packages/server-go/internal/migrations/admin_sessions.go`。
+## Management Surface Design
 
-admin middleware 负责保护 admin routes。`RequireAdmin` 只读取 `borgee_admin_session` cookie，查 `admin_sessions` 和 `admins`，成功后把 admin 放入 request context；没有 Bearer 或 dev bypass 分支。证据：`packages/server-go/internal/admin/middleware.go`。
+The admin rail is a collection of operator tools, not a blanket bypass. Some surfaces are read-only by design, such as runtime metadata. Some surfaces are mutating, such as user management and force channel deletion. Mutating surfaces must be evaluated for audit coverage and user-notification expectations rather than assumed safe because they are behind admin auth.
 
-server wiring 负责把 admin routes 和 user routes 分开。`SetupRoutes` 调用 `admin.Bootstrap`、注册 admin auth handler、创建 `admin.RequireAdmin`，再把 admin handlers 挂到 `/admin-api/v1/*`；注释明确 legacy `/api/v1/admin/*` user-rail god-mode mount 未接线。证据：`packages/server-go/internal/server/server.go`。
+Permission management on the admin rail uses the same capability vocabulary as the user authorization model. This keeps arbitrary capability strings from being introduced through the admin UI while still keeping admin rail authentication separate from ordinary capability checks.
 
-## 不负责什么
+## Metadata-Only Runtime View
 
-admin rail 不负责 user API authentication。user API 走 `borgee_token` cookie、Bearer API key 或 development bypass；admin middleware 不读取这些凭据。证据：`packages/server-go/internal/auth/middleware.go`、`packages/server-go/internal/admin/middleware.go`。
+The runtime admin view summarizes process descriptors and heartbeat metadata. It intentionally omits raw last-error details that remain part of the owner-facing runtime view. This is the main example of the admin rail being powerful but not unlimited: operational visibility is allowed, raw user-facing diagnostic text is narrowed.
 
-admin rail 不负责 host grant override。`/api/v1/host-grants` 挂在 user `authMw` 后，代码中未看到 `/admin-api` host grant route。证据：`packages/server-go/internal/api/host_grants.go`、`packages/server-go/internal/server/server.go`。
+## Out Of Scope
 
-admin rail 不负责 remote-agent token 或 WebSocket 连接。remote node REST 是 user rail，remote WebSocket 使用 remote node connection token。证据：`packages/server-go/internal/api/remote.go`、`packages/server-go/internal/ws/remote.go`。
+The admin rail does not authenticate with user cookies, create host grants for users, connect Remote Agent nodes, or act as helper daemon authority.
 
-## 和其他模块的接口
+## Known Gaps
 
-| Admin interface | Route | Behavior | Evidence |
-| --- | --- | --- | --- |
-| auth login/logout/me | `/admin-api/auth/*`, `/admin-api/v1/auth/*` | opaque session cookie lifecycle | `packages/server-go/internal/admin/auth.go` |
-| main admin API | `/admin-api/v1/stats`, users, permissions, invites, channels | user/admin management operations | `packages/server-go/internal/api/admin.go` |
-| runtime metadata | `GET /admin-api/v1/runtimes` | read-only whitelist, no raw error reason | `packages/server-go/internal/api/runtimes.go` |
-| audit log | `GET /admin-api/v1/audit-log` | admin-visible audit_events/admin_actions list with filters | `packages/server-go/internal/api/admin_endpoints.go` |
-| multi-source audit | `GET /admin-api/v1/audit/multi-source` | server/plugin/agent plus host_bridge placeholder | `packages/server-go/internal/api/admin_audit_query.go` |
+- Audit coverage is not uniform across all admin write surfaces.
+- The impersonation-grant validation helper exists but is not clearly wired into current production write handlers.
 
-## Admin Handler Surface
+## Implementation Anchors
 
-| Capability | Route group | Write/read | Audit behavior | Evidence |
-| --- | --- | --- | --- | --- |
-| stats | `GET /admin-api/v1/stats` | read | no audit row | `packages/server-go/internal/api/admin.go` |
-| users | `GET/POST/PATCH/DELETE /admin-api/v1/users` | read/write | `PATCH` audits suspend/change_role/reset_password when those fields change; delete user does not visibly call audit helper | `packages/server-go/internal/api/admin.go`, `packages/server-go/internal/store/admin_actions.go` |
-| user agents | `GET /admin-api/v1/users/{id}/agents` | read | no audit row | `packages/server-go/internal/api/admin.go` |
-| API key | `POST/DELETE /admin-api/v1/users/{id}/api-key` | write | no visible audit helper call | `packages/server-go/internal/api/admin.go` |
-| permissions | `GET/POST/DELETE /admin-api/v1/users/{id}/permissions` | read/write | grant validates capability with `auth.IsValidCapability`; no visible audit helper call | `packages/server-go/internal/api/admin.go`, `packages/server-go/internal/auth/capabilities.go` |
-| invites | `POST/GET/DELETE /admin-api/v1/invites` | read/write | no visible audit helper call | `packages/server-go/internal/api/admin.go` |
-| channels | `GET /admin-api/v1/channels`, `DELETE /admin-api/v1/channels/{id}/force` | read/write | force delete emits delete_channel audit after commit | `packages/server-go/internal/api/admin.go` |
-| runtimes | `GET /admin-api/v1/runtimes` | read-only | no raw `last_error_reason` in response | `packages/server-go/internal/api/runtimes.go` |
-
-## Metadata-only Admin Runtime
-
-Admin runtime rail reads `agent_runtimes` and returns only `id`、`agent_id`、`endpoint_url`、`process_kind`、`status`、`last_heartbeat_at`。It intentionally omits `last_error_reason`, while owner user runtime GET can include that reason. Evidence: `packages/server-go/internal/api/runtimes.go`。
-
-## Known risk / unknown
-
-- `RequireImpersonationGrant` helper exists and tests cover it, but current production callsites were not found; admin write handlers do not appear to enforce active user impersonation grants before writes. Evidence: `packages/server-go/internal/api/admin_grant_check.go`, `packages/server-go/internal/api/admin.go`。
-- Audit coverage is not uniform across admin writes: `PATCH users` selected fields and force channel delete call audit helpers; API key, permission, invite, create user, delete user paths do not visibly call the same audit helper in current code. Evidence: `packages/server-go/internal/api/admin.go`, `packages/server-go/internal/store/admin_actions.go`。
+- `packages/server-go/internal/admin/auth.go` (`Handler`, `Admin`, `AdminSession`, `Bootstrap`)
+- `packages/server-go/internal/admin/middleware.go` (`RequireAdmin`, `AdminFromContext`)
+- `packages/server-go/internal/migrations/admin_admins.go`
+- `packages/server-go/internal/migrations/admin_sessions.go`
+- `packages/server-go/internal/server/server.go` (admin route wiring)
+- `packages/server-go/internal/api/admin.go` (`AdminHandler`)
+- `packages/server-go/internal/api/runtimes.go` (`AdminRuntimeHandler`)
+- `packages/server-go/internal/api/admin_endpoints.go` (`AdminEndpointsHandler`)
+- `packages/server-go/internal/api/admin_grant_check.go` (`RequireImpersonationGrant`)
