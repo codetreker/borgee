@@ -1,151 +1,128 @@
-# Testing, Build, CI, Deploy Overview
+# E2E, Build, And Release Quality Gates
 
-This module documents how Borgee proves, builds, packages, and releases the codebase. It owns the testing/build/CI view across the repository; it does not define product behavior, server API contracts, client UI architecture, or plugin protocol semantics. Those modules consume this one when they need to know which command, workflow, or harness protects a change.
+This module describes the architecture that proves Borgee can be built, tested, packaged, and released. It is not a runbook. The important design question is which system boundary is protected by which quality gate, and what failures are expected to stop before merge or release.
 
-Evidence rule: every operational claim below points at the code or config file that makes it true.
-
-## Architecture Map
+## Validation Architecture
 
 ```mermaid
-flowchart LR
-  dev[Developer / PR] --> root[root package.json + Makefile]
-  root --> pnpm[pnpm workspace]
-  root --> gomod[Go modules]
-  pnpm --> client[@borgee/client Vite build + Vitest]
-  pnpm --> e2e[@borgee/e2e Playwright]
-  pnpm --> npm[NPM publish packages]
-  gomod --> server[server-go tests + Docker binary]
-  gomod --> helper[host-bridge helper / installer tests]
-  e2e --> harness[Playwright webServer harness]
-  harness --> srv[server-go :4901]
-  harness --> vite[Vite :5174 proxy]
-  client --> docker[server-go Dockerfile]
-  server --> docker
-  docker --> deploy[deploy-test / deploy staging / deploy prod]
-  npm --> publish[publish workflows]
+flowchart TB
+  change[Source change]
+
+  change --> js[JS workspace gates]
+  change --> go[Go module gates]
+  change --> docs[Docs sync gate]
+
+  js --> client[Client type/build/unit boundary]
+  go --> server[Server race/coverage/protocol boundary]
+  go --> host[Host bridge and installer boundary]
+  docs --> current[Current architecture docs boundary]
+
+  client --> e2e[E2E browser integration gate]
+  server --> e2e
+  e2e --> docker[Docker image release gate]
+  docker --> deploy[Environment promotion gates]
+
+  js --> npm[NPM package release gates]
 ```
 
-| Layer | What It Proves Or Builds | Primary Entrypoints | Evidence |
+| Protected Boundary | Gate Layer | What It Catches | What It Does Not Try To Catch |
 |---|---|---|---|
-| Root orchestration | Lightweight repository-level scripts and precheck shortcuts | `pnpm dev`, `pnpm build`, `pnpm typecheck`, `make precheck` | `package.json`, `Makefile` |
-| JS workspace | Vite client, Playwright package, publishable CLIs/plugins | `pnpm --filter ...` packages under workspace globs | `pnpm-workspace.yaml`, `packages/*/package.json`, `packages/plugins/openclaw/package.json` |
-| Go modules | Server, helper daemon, installer are separate modules, not pnpm packages | `go test`, `go build`, module-local Makefile | `packages/server-go/go.mod`, `packages/borgee-helper/go.mod`, `packages/borgee-installer/go.mod`, `packages/server-go/Makefile` |
-| CI | PR gates for client build/test, Go race/coverage, BPP lint, E2E, host-bridge IPC | GitHub Actions jobs | `.github/workflows/ci.yml`, `.github/workflows/lint.yml`, `.github/workflows/installer.yml` |
-| E2E harness | Browser-level tests against real server-go plus Vite proxy | `@borgee/e2e` Playwright config and tests | `packages/e2e/package.json`, `packages/e2e/playwright.config.ts`, `packages/e2e/tests/*` |
-| Release paths | Docker image deploys and npm package publication | deploy and publish workflows | `packages/server-go/Dockerfile`, `.github/workflows/deploy*.yml`, `.github/workflows/publish-*.yml` |
+| Client build boundary | JS workspace gate | TypeScript/build regressions and client-side unit behavior before browser integration | Server storage correctness or production host wiring |
+| Server runtime boundary | Go module gate | API/storage regressions, data races, coverage drops, and protocol-envelope drift | Browser layout or npm package release readiness |
+| Cross-process product boundary | E2E browser gate | Real browser plus real server behavior across HTTP, WebSocket, auth, admin, channel, DM, artifact, realtime, and host-bridge flows | Exhaustive server branch coverage or visual design review |
+| Release artifact boundary | Docker gate | Whether the deployable image contains a compatible client bundle and server binary | Host-side compose/env correctness beyond workflow health checks |
+| External integration boundary | NPM publish gate | Whether public integration packages build and can be published independently | Main web app deployability |
+| Documentation freshness boundary | Docs sync gate | Whether behavior-changing paths update the matching current architecture docs | Deep semantic correctness of every doc statement |
 
-## Responsibility Boundary
+The core design is layered rather than redundant: unit and module gates catch local failures cheaply, the E2E gate proves the browser/server contract, and release gates prove packaging and promotion artifacts. A failure at a lower layer should block before a higher layer spends time assembling or deploying artifacts.
 
-This document is responsible for:
+## Dual Track Repository Organization
 
-- Build and test topology: which package manager, module boundary, harness, or workflow runs each class of check. Evidence: `package.json`, `pnpm-workspace.yaml`, `packages/*/package.json`, `packages/*/go.mod`, `.github/workflows/ci.yml`.
-- E2E execution model: Playwright starts server-go and Vite as two `webServer` entries, then runs browser tests from `packages/e2e/tests`. Evidence: `packages/e2e/playwright.config.ts`, `packages/e2e/tests/*`.
-- Deploy and publish overview: Docker image build/deploy and npm package publish workflows. Evidence: `packages/server-go/Dockerfile`, `.github/workflows/deploy.yml`, `.github/workflows/deploy-test.yml`, `.github/workflows/publish-openclaw-plugin.yml`, `.github/workflows/publish-remote-agent.yml`.
+Borgee uses two build systems because it has two kinds of runtime units. The JavaScript workspace owns browser code, browser tests, and public TypeScript packages. The Go modules own server, helper daemon, and installer binaries. This separation keeps Node package resolution from becoming the source of truth for Go binaries, while still allowing CI and release gates to compose both tracks.
 
-This document is not responsible for:
+The JavaScript track is workspace-oriented: packages are selected by workspace membership and package name. That lets client build, E2E, remote-agent, and OpenClaw plugin checks run with targeted installs and targeted publishes.
 
-- Server domain/API details beyond the commands that build or test server-go. Interface only: `packages/server-go/Makefile`, `.github/workflows/ci.yml`.
-- Client UI/component architecture beyond Vite/Vitest/build behavior. Interface only: `packages/client/package.json`, `packages/client/vite.config.ts`, `packages/client/vitest.config.ts`.
-- Plugin or remote-agent runtime protocol behavior beyond package build/publish shape. Interface only: `packages/plugins/openclaw/package.json`, `packages/remote-agent/package.json`, `.github/workflows/publish-*.yml`.
-- Production host configuration, compose files, and secrets. Deploy workflows explicitly assume `docker-compose.yml` and `.env` are managed on the server. Evidence: `.github/workflows/deploy.yml`, `.github/workflows/deploy-test.yml`.
+The Go track is module-oriented: server, helper, and installer remain separately versioned dependency graphs. That matters architecturally because the server container, host-bridge daemon, and installer artifacts have different runtime constraints and should not share one binary dependency surface just for monorepo convenience.
 
-## Workspace And Modules
+## CI As Boundary Protection
 
-Borgee has a pnpm workspace for JavaScript/TypeScript packages and separate Go modules for Go binaries. The two systems meet in CI, Playwright, and Docker, but dependency resolution is separate. Evidence: `pnpm-workspace.yaml`, `packages/server-go/go.mod`, `packages/borgee-helper/go.mod`, `packages/borgee-installer/go.mod`.
+CI is organized around failure domains, not around one monolithic test command. Client build and unit tests protect the browser package boundary. Server race and coverage jobs protect concurrent server behavior and coverage budgets. Protocol linting protects realtime/BPP envelope compatibility. Host-bridge checks protect platform IPC assumptions. Installer jobs protect packaged helper installation flows.
 
-| Unit | Package Or Module Shape | Build/Test Interface | Evidence |
-|---|---|---|---|
-| Root | Private pnpm package with Node `>=22`, pnpm `>=10` | delegates to `@borgee/client`; `pnpm -r run typecheck` spans pnpm packages | `package.json` |
-| `packages/client` | Private ESM React/Vite package | `build = tsc -b && vite build`, `test = vitest run`, `typecheck = tsc --noEmit` | `packages/client/package.json` |
-| `packages/e2e` | Private ESM Playwright package | `test = playwright test`; browser install/report scripts live here | `packages/e2e/package.json` |
-| `packages/remote-agent` | Public npm CLI package | `build = tsc`, binary `borgee-remote-agent`, public npm publish | `packages/remote-agent/package.json`, `.github/workflows/publish-remote-agent.yml` |
-| `packages/plugins/openclaw` | Public npm OpenClaw plugin package | `build = tsc`, publishes `dist`, `openclaw.plugin.json`, and `skills` | `packages/plugins/openclaw/package.json`, `.github/workflows/publish-openclaw-plugin.yml` |
-| `packages/server-go` | Go module `borgee-server`, Go `1.25.0` | server tests/builds use `sqlite_fts5` in CI, Makefile, Docker, and Playwright | `packages/server-go/go.mod`, `packages/server-go/Makefile`, `packages/server-go/Dockerfile`, `packages/e2e/playwright.config.ts` |
-| `packages/borgee-helper` | Go module `borgee-helper`, Go `1.25.0` | host-bridge helper is tested by Go workflows, including IPC prerequisite coverage | `packages/borgee-helper/go.mod`, `.github/workflows/ci.yml` |
-| `packages/borgee-installer` | Go module `borgee-installer`, Go `1.25.0` | installer workflow cross-builds Linux and macOS artifacts and runs module tests | `packages/borgee-installer/go.mod`, `.github/workflows/installer.yml` |
+This split makes the signal actionable: a race failure points at server concurrency, a coverage failure points at Go test coverage policy, an E2E failure points at cross-process product behavior, and a publish workflow failure points at external package release readiness.
 
-The pnpm workspace includes `packages/*` and `packages/plugins/*`, so `packages/plugins/openclaw` is part of the JS workspace even though it sits one level deeper than the top-level packages. Evidence: `pnpm-workspace.yaml`, `packages/plugins/openclaw/package.json`.
+## E2E Harness Design
 
-`onlyBuiltDependencies: [esbuild]` is recorded in both root package metadata and workspace metadata to keep pnpm 10 installs compatible with Vite/esbuild native binary installation. Evidence: `package.json`, `pnpm-workspace.yaml`, `packages/server-go/Dockerfile`.
-
-## Local Entrypoints
-
-Root scripts are convenience wrappers, not a full monorepo task runner. `pnpm dev` and `pnpm build` target `@borgee/client`; `lint` scans TypeScript/TSX source under `packages/*/src`; `format` writes Prettier changes under the same glob; typecheck recursively runs package-local `typecheck` scripts where present. Evidence: `package.json`.
-
-The root `Makefile` is a reviewer precheck surface: `precheck` runs server-go coverage, client Vitest, and client typecheck; `precheck-fast` keeps only client typecheck plus a last-changed-package convention; `registry-totals` reports regression registry counts. Evidence: `Makefile`.
-
-`packages/server-go/Makefile` is the server developer entrypoint. It centralizes `GOTAGS := sqlite_fts5` for build, run, test, race, vet, coverage, and regression targets. Evidence: `packages/server-go/Makefile`.
-
-The client Vite config serves local dev on port `5173`, proxies `/api`, `/admin-api`, `/health`, `/ws`, and `/uploads` to server-go, and builds two HTML entries: `index.html` and `admin.html`. Evidence: `packages/client/vite.config.ts`.
-
-## CI Workflows
-
-| Workflow | Trigger | Main Coverage | Evidence |
-|---|---|---|---|
-| `ci.yml` | Pull requests to `main` | client build, client Vitest, server-go race, race-heavy test, coverage tool, BPP envelope lint, Playwright E2E, host-bridge IPC prerequisite matrix | `.github/workflows/ci.yml` |
-| `lint.yml` | Pull requests to `main` | docs/current sync guard based on changed code prefixes; maps server/client/admin/plugin/remote-agent/e2e paths to docs areas | `.github/workflows/lint.yml` |
-| `installer.yml` | PRs touching installer paths, plus manual dispatch | Linux/macOS installer cross-build, installer module tests, SHA256 artifacts | `.github/workflows/installer.yml` |
-| `deploy-test.yml` | Manual dispatch with branch input | build and push `test` Docker image, deploy to test host, verify image freshness and `/health` | `.github/workflows/deploy-test.yml` |
-| `deploy.yml` | Manual dispatch | run client build + server-go tests, build/push staging image, deploy staging, retag prod through Harbor API, deploy production, create release tag | `.github/workflows/deploy.yml` |
-| `publish-openclaw-plugin.yml` | Manual dispatch | build and publish public npm OpenClaw plugin with provenance unless version already exists | `.github/workflows/publish-openclaw-plugin.yml`, `packages/plugins/openclaw/package.json` |
-| `publish-remote-agent.yml` | Manual dispatch | build and publish public npm remote-agent CLI with provenance unless version already exists | `.github/workflows/publish-remote-agent.yml`, `packages/remote-agent/package.json` |
-
-CI uses Node 22 and pnpm 10 for PR client/E2E jobs, while npm publish workflows use Node 24 with npm registry provenance. Evidence: `.github/workflows/ci.yml`, `.github/workflows/publish-openclaw-plugin.yml`, `.github/workflows/publish-remote-agent.yml`.
-
-CI uses Go `1.25` for server, coverage, E2E server prefetch, host-bridge IPC checks, deploy testing, and installer builds. Evidence: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.github/workflows/installer.yml`.
-
-Server CI separates race detection and coverage: race jobs run `go test -tags sqlite_fts5 -timeout=180s -race`, race-heavy tests add `race_heavy`, and coverage runs `go run ./scripts/lib/coverage/` with threshold environment variables. Evidence: `.github/workflows/ci.yml`.
-
-## Playwright Harness
-
-`@borgee/e2e` is the browser E2E package. Its scripts are intentionally small: test, headed mode, UI mode, browser installation, and report viewing. Evidence: `packages/e2e/package.json`.
-
-The harness launches two services through Playwright `webServer`: server-go first, then Vite. Server-go runs from `packages/server-go` with `go run -tags sqlite_fts5 ./cmd/collab` on `127.0.0.1:4901`; Vite runs from the repo root on `127.0.0.1:5174` and receives `VITE_E2E_API_TARGET` pointing back to server-go. Evidence: `packages/e2e/playwright.config.ts`, `packages/client/vite.config.ts`.
+The E2E harness is intentionally a two-process local system. Playwright drives a real browser against a Vite-served client, while Vite proxies API and WebSocket traffic to a real server process. The server uses isolated temporary SQLite and file-storage directories for each harness run.
 
 ```mermaid
 sequenceDiagram
-  participant PW as Playwright tests
-  participant Vite as Vite client :5174
-  participant Go as server-go :4901
-  participant DB as temp sqlite/files
+  participant Browser as Playwright browser
+  participant Client as Vite client process
+  participant Server as server process
+  participant Data as temp sqlite/uploads/workspaces
 
-  PW->>Go: wait for /health
-  PW->>Vite: wait for client URL
-  PW->>Vite: browser actions
-  Vite->>Go: proxy /api /admin-api /ws /uploads
-  Go->>DB: .playwright-data db/uploads/workspaces
+  Browser->>Client: user-level browser actions
+  Client->>Server: proxied API and WebSocket traffic
+  Server->>Data: isolated state for the run
+  Server-->>Client: product responses and realtime events
+  Client-->>Browser: rendered user/admin experience
 ```
 
-Each Playwright run creates `packages/e2e/.playwright-data` with uploads and workspaces directories, then points server-go at that SQLite/file data. Evidence: `packages/e2e/playwright.config.ts`.
+This design protects the contract that matters to users: the built client code, browser runtime, server API, realtime transport, auth state, admin rail, and storage side effects must work together. It deliberately avoids binding tests to a shared local server or a production-like host; shared state would make the gate less deterministic and harder to run safely in CI.
 
-CI serializes Playwright workers, retries once, and keeps traces/reports for failure analysis; local runs are parallel by default and reuse existing servers when possible. Evidence: `packages/e2e/playwright.config.ts`, `.github/workflows/ci.yml`.
+## Build And Release Gates
 
-The E2E suite currently covers smoke, chat, channel, DM, artifact, comments, admin audit/privacy, agent configuration, reactions, realtime, PWA push, and host-bridge browser paths through files in `packages/e2e/tests/*`. Evidence: `packages/e2e/tests/*`.
+The Docker release path is the product release artifact. It binds the client bundle and the server binary into one container image, then promotion workflows move that image through testing, staging, and production checks. Architecturally, Docker is the compatibility boundary between browser assets and the server process: if either side cannot build or cannot fit into the image, release stops.
 
-## Docker And Deploy
+Deploy workflows are promotion gates, not configuration owners. They build, push, retag, recreate containers, and perform health checks; runtime secrets and compose topology live on the target hosts. This keeps environment ownership outside the repo while still making stale image and health failures visible during promotion.
 
-The server Dockerfile is the deploy artifact builder. It uses the monorepo root as context, builds the client in a `node:22-bookworm` stage with pnpm 10, builds `server-go` in a `golang:1.25-bookworm` stage with `-tags sqlite_fts5`, and assembles a Debian slim runtime containing `/app/collab` plus `packages/client/dist`. Evidence: `packages/server-go/Dockerfile`.
+NPM publish gates are separate from Docker because remote-agent and OpenClaw plugin are external integration artifacts. They are public TypeScript packages with their own build and provenance flow. Their release readiness is related to the monorepo but not coupled to web app deployment.
 
-The runtime container exposes port `4900`, runs as user `10001`, and sets production defaults for `HOST`, `PORT`, `DATABASE_PATH`, `UPLOAD_DIR`, `WORKSPACE_DIR`, `CLIENT_DIST`, and `NODE_ENV`. Evidence: `packages/server-go/Dockerfile`.
+## Module Interfaces
 
-`deploy-test.yml` builds the Dockerfile with a testing `VITE_AGENT_WS_SERVER`, pushes the `test` tag, deploys through SSH to `/opt/dockers/borgee-test`, removes stale containers, checks the running image SHA against the pulled image, and probes `/health` on port `4902`. Evidence: `.github/workflows/deploy-test.yml`, `packages/server-go/Dockerfile`.
+This module owns the quality-gate architecture for build, test, E2E, Docker deploy, and npm publish. It consumes server, client, plugin, remote-agent, helper, and installer modules only through their build/test/release surfaces.
 
-`deploy.yml` runs a pre-deploy test job, builds a timestamped image plus `staging`, deploys staging, retags the same build as `prod` through the Harbor API, deploys production, and creates a Git tag for the timestamped build. Evidence: `.github/workflows/deploy.yml`.
+It does not own server API semantics, client component design, plugin protocol behavior, host permissions, installer UX, or production host configuration. Those modules define behavior; this module defines where that behavior is verified or packaged.
 
-Deploy workflows do not manage host compose files or runtime secrets; they assume host-side `docker-compose.yml` and `.env` contain values such as `CORS_ORIGIN`, `BORGEE_ADMIN_*`, and `JWT_SECRET`. Evidence: `.github/workflows/deploy.yml`, `.github/workflows/deploy-test.yml`.
+## Implementation Anchors
 
-## NPM Publish Paths
+Root orchestration and workspace shape:
 
-Only two workspace packages are public npm release artifacts today: `@codetreker/borgee-remote-agent` and `@codetreker/borgee-openclaw-plugin`. Both have `private: false`, `publishConfig.access: public`, and dedicated manual publish workflows. Evidence: `packages/remote-agent/package.json`, `packages/plugins/openclaw/package.json`, `.github/workflows/publish-remote-agent.yml`, `.github/workflows/publish-openclaw-plugin.yml`.
+- `package.json`
+- `pnpm-workspace.yaml`
+- `Makefile`
 
-Both publish workflows install the targeted package with pnpm 10, build with the package-local `tsc` script, check whether the package version already exists on npm, and publish with provenance only when the version is absent. Evidence: `.github/workflows/publish-remote-agent.yml`, `.github/workflows/publish-openclaw-plugin.yml`.
+JavaScript package boundaries:
 
-The client and E2E packages are private and are not npm release artifacts. Evidence: `packages/client/package.json`, `packages/e2e/package.json`.
+- `packages/client/package.json`
+- `packages/client/vite.config.ts`
+- `packages/client/vitest.config.ts`
+- `packages/e2e/package.json`
+- `packages/remote-agent/package.json`
+- `packages/plugins/openclaw/package.json`
 
-## Interfaces To Other Modules
+Go module boundaries:
 
-- Server module interface: this overview invokes server-go through `go test`, `go run`, `go build`, `packages/server-go/Makefile`, and `packages/server-go/Dockerfile`; server API behavior belongs in server docs. Evidence: `packages/server-go/Makefile`, `packages/e2e/playwright.config.ts`, `packages/server-go/Dockerfile`.
-- Client module interface: this overview depends on Vite build/proxy/test scripts; component layout and UI state are outside scope. Evidence: `packages/client/package.json`, `packages/client/vite.config.ts`, `packages/client/vitest.config.ts`.
-- Admin module interface: admin is tested and built through the same client Vite build, whose Rollup input includes `admin.html`; admin rail behavior is outside scope. Evidence: `packages/client/vite.config.ts`.
-- Plugin/remote-agent interface: this overview records TypeScript build and npm publish mechanics; runtime connection semantics belong to plugin/remote-agent docs. Evidence: `packages/plugins/openclaw/package.json`, `packages/remote-agent/package.json`, `.github/workflows/publish-*.yml`.
-- Host-bridge interface: CI and installer workflows test/build helper and installer pieces, but host permission, sandbox, and IPC semantics belong to host-bridge docs. Evidence: `.github/workflows/ci.yml`, `.github/workflows/installer.yml`, `packages/borgee-helper/go.mod`, `packages/borgee-installer/go.mod`.
+- `packages/server-go/go.mod`
+- `packages/server-go/Makefile`
+- `packages/borgee-helper/go.mod`
+- `packages/borgee-installer/go.mod`
+
+E2E harness and test surface:
+
+- `packages/e2e/playwright.config.ts`
+- `packages/e2e/tests/`
+
+Container and deployment release surface:
+
+- `packages/server-go/Dockerfile`
+- `.github/workflows/deploy-test.yml`
+- `.github/workflows/deploy.yml`
+
+CI, docs sync, installer, and package publication gates:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/lint.yml`
+- `.github/workflows/installer.yml`
+- `.github/workflows/publish-openclaw-plugin.yml`
+- `.github/workflows/publish-remote-agent.yml`
