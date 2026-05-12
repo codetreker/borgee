@@ -191,7 +191,7 @@ export function connectSSE(params: {
               if (ch && typeof ch.id === "string") channelId = ch.id;
             }
           } catch {
-            /* non-JSON payload — leave channelId empty */
+            /* non-JSON payload; keep channelId empty */
           }
           const event: BorgeeEvent = {
             cursor,
@@ -397,7 +397,7 @@ export async function runSSEOnce(params: {
   });
 }
 
-// ─── HEAD probe ────────────────────────────────────────
+// ─── SSE availability probe ────────────────────────────
 
 export async function probeSSE(params: {
   baseUrl: string;
@@ -467,7 +467,7 @@ export async function probeSSE(params: {
   });
 }
 
-// ─── Reconnect state machine ──────────────────────────
+// ─── SSE reconnect loop state ─────────────────────────
 
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
@@ -512,7 +512,7 @@ export async function runSSELoop(params: {
   let attempt = 0;
 
   while (!signal.aborted) {
-    // HEAD probe before connecting (except on first attempt to avoid latency)
+    // Probe the stream endpoint before reconnect attempts after the first one.
     if (attempt > 0) {
       const probe = await probeSSE({
         baseUrl: params.account.baseUrl,

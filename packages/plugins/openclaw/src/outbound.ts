@@ -50,7 +50,7 @@ export async function sendBorgeeText(params: {
       }) as { status: number; body: { message: BorgeeMessage } };
       return { to: params.to, messageId: res.body.message.id };
     } catch {
-      // fall through to HTTP
+      // Use the HTTP path if the WebSocket API call fails.
     }
   }
 
@@ -84,7 +84,7 @@ export async function handleBorgeeReaction(params: {
       await wsClient.apiCall(method, `/api/v1/messages/${encodeURIComponent(params.messageId)}/reactions`, { emoji: params.emoji });
       return;
     } catch {
-      // fall through to HTTP
+      // Use the HTTP path if the WebSocket API call fails.
     }
   }
 
@@ -111,7 +111,7 @@ export async function handleBorgeeMessageEdit(params: {
       const res = await wsClient.apiCall('PUT', `/api/v1/messages/${encodeURIComponent(params.messageId)}`, { content: params.content }) as { status: number; body: { message: BorgeeMessage } };
       return { messageId: res.body.message.id };
     } catch {
-      // fall through to HTTP
+      // Use the HTTP path if the WebSocket API call fails.
     }
   }
 
@@ -137,7 +137,7 @@ export async function handleBorgeeMessageDelete(params: {
       await wsClient.apiCall('DELETE', `/api/v1/messages/${encodeURIComponent(params.messageId)}`);
       return;
     } catch {
-      // fall through to HTTP
+      // Use the HTTP path if the WebSocket API call fails.
     }
   }
 
