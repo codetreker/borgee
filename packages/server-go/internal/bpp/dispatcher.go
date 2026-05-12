@@ -3,7 +3,7 @@
 //
 // Blueprint: docs/blueprint/current/plugin-protocol.md §1.3. Plugins call
 // Borgee through the semantic-action layer, not direct REST. Spec brief:
-// docs/implementation/modules/bpp-2-spec.md §0 + §1 BPP-2.1. Stance and
+// docs/implementation/modules/bpp-2-spec.md §0 + §1 BPP-2.1. Design and
 // content locks: docs/qa/bpp-2-stance-checklist.md §1 and
 // docs/qa/bpp-2-content-lock.md §1 ①.
 //
@@ -12,8 +12,8 @@
 //  1. Plugin upstream emits a `SemanticActionFrame` (BPP-1 envelope §2.2,
 //     already in `bppEnvelopeWhitelist` since #304). BPP-2.1 ADDS the
 //     server-side `Dispatch(frame)` routing layer — no envelope wire
-//     change: BPP-1 envelope and the frame whitelist remain unchanged.
-//  2. Validate `Action` ∈ 7 v1 whitelist (blueprint §1.3); enum-out
+//     change: BPP-1 envelope and the frame allow-list remain unchanged.
+//  2. Validate `Action` ∈ 7 v1 allow-list (blueprint §1.3); enum-out
 //     values reject with `bpp.semantic_op_unknown` error code.
 //  3. Resolve `(action, agent_id, payload)` → an `ActionHandler`
 //     registered by the api package (interface seam, similar to
@@ -27,9 +27,9 @@
 // Negative constraints (bpp-2-spec.md §0 + acceptance §4.1 reverse grep):
 //   - Dispatcher has no raw HTTP / REST bypass; CI reverse grep must return 0
 //     hits across this package, excluding _test.go.
-//   - The 7-op whitelist is closed: enum-out values such as 'list_users' /
+//   - The 7-op allow-list is closed: enum-out values such as 'list_users' /
 //     'delete_org' reject with `bpp.semantic_op_unknown`.
-//   - v2+ collaborative intent actions are not in the v1 whitelist.
+//   - v2+ collaborative intent actions are not in the v1 allow-list.
 package bpp
 
 import (
@@ -37,7 +37,7 @@ import (
 	"fmt"
 )
 
-// SemanticOp values pin the v1 whitelist byte-identical with
+// SemanticOp values keep the v1 allow-list aligned with
 // plugin-protocol.md §1.3. Changes must be coordinated with the blueprint,
 // bpp-2-spec.md §0, and this implementation enum.
 const (
@@ -55,11 +55,11 @@ const (
 	SemanticOpRequestCapabilityGrant = "request_capability_grant"
 )
 
-// ValidSemanticOps is the v1 whitelist set. Membership is the only gate
+// ValidSemanticOps is the v1 allow-list set. Membership is the only gate
 // at the dispatcher boundary — the registered handler then enforces
 // permission via AP-0 RequirePermission and parses the payload.
 //
-// Order matches the blueprint table (§1.3) for byte-identical review.
+// Order matches the blueprint table (§1.3) for exact review.
 // Negative constraint: do NOT add v2+ ops here without first updating the
 // blueprint. CI grep must return count==0 for v2+ literals (acceptance §4).
 //
@@ -78,7 +78,7 @@ var ValidSemanticOps = map[string]bool{
 
 // DispatchErrCodeOpUnknown is the error code returned when a plugin
 // upstream SemanticActionFrame carries an Action outside the v1
-// whitelist. The literal is byte-identical with bpp-2-content-lock.md §1 ⑥.
+// allow-list. The literal matches bpp-2-content-lock.md §1 ⑥.
 // Naming follows anchor.create_owner_only #360, dm.workspace_not_supported #407,
 // and iteration.target_not_in_channel #409.
 const DispatchErrCodeOpUnknown = "bpp.semantic_op_unknown"
@@ -87,12 +87,12 @@ const DispatchErrCodeOpUnknown = "bpp.semantic_op_unknown"
 // attempts to bypass the dispatch layer (e.g. raw HTTP request through
 // the BPP socket). v0 implementation does not currently emit this code
 // — the protocol envelope itself enforces frame-only ingress (BPP-1
-// #304 envelope whitelist). The constant is reserved as a defense-in-
+// #304 envelope allow-list). The constant is reserved as a defense-in-
 // depth witness for acceptance §4.1 reverse grep and future runtime patches.
 const DispatchErrCodeNoRawREST = "bpp.plugin_no_raw_rest"
 
 // errSemanticOpUnknown is the sentinel returned by Dispatch when the
-// SemanticActionFrame.Action is not in the v1 whitelist. Callers should
+// SemanticActionFrame.Action is not in the v1 allow-list. Callers should
 // surface this to the plugin via an error frame carrying
 // DispatchErrCodeOpUnknown.
 var errSemanticOpUnknown = errors.New("bpp: semantic op unknown")
@@ -190,7 +190,7 @@ func (d *Dispatcher) HandlerFor(op string) ActionHandler {
 // it to the registered handler.
 //
 // Validation (in order):
-//  1. frame.Action ∈ ValidSemanticOps (blueprint §1.3 v1 whitelist) →
+//  1. frame.Action ∈ ValidSemanticOps (blueprint §1.3 v1 allow-list) →
 //     returns errSemanticOpUnknown if not.
 //  2. handler registered for op → returns ErrNoHandler if not.
 //  3. Delegate to handler.HandleAction(frame, sess) — handler enforces

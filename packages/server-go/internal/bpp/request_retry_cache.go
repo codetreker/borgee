@@ -15,8 +15,8 @@
 //      `expBackoff|exponential.*retry` must return 0). Blueprint §1.6 keeps
 //      server-side timing as the single source of truth; the plugin side does
 //      not add a new timing signal.
-//   4. When the limit is exceeded, emit `bpp.retry_exhausted`, byte-identical
-//      with content-lock §4. Any change must update both content-lock and this
+//   4. When the limit is exceeded, emit `bpp.retry_exhausted`, matching
+//      content-lock §4. Any change must update both content-lock and this
 //      const.
 //   5. Keep this cache separate from the server-side liveness queue; principle
 //      §3 and spec §3 #3 keep the three paths separate. CI lint has an
@@ -59,7 +59,7 @@ const RetryBackoff = 30 * time.Second
 const RequestRetryCacheTTL = 5 * time.Minute
 
 // RetryExhaustedErrCode is the error code emitted when MaxPermissionRetries
-// is exceeded. It must remain byte-identical with
+// is exceeded. It must stay aligned with
 // docs/qa/bpp-3.2-content-lock.md §4. Any change must update both content-lock
 // and this const.
 //
@@ -82,7 +82,7 @@ func IsRetryExhausted(err error) bool {
 
 // RetryEntry is a single in-flight permission_denied retry record.
 // Stored in RequestRetryCache keyed by request_id (BPP-3.1 frame
-// trace UUID must remain byte-identical with PermissionDeniedFrame.RequestID
+// trace UUID must stay aligned with PermissionDeniedFrame.RequestID
 // and CapabilityGrantPayload.RequestID across PRs).
 type RetryEntry struct {
 	RequestID    string    // BPP-3.1 frame trace UUID

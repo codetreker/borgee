@@ -8,7 +8,7 @@
 // Spec: docs/implementation/modules/bpp-5-spec.md §0+§1 BPP-5.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-5.md §2.
 //
-// Stance (byte-identical with stance §2+§3+§4):
+// Design contract (matching the design checklist §2+§3+§4):
 //   - **cursor resume reuses RT-1.3** by calling
 //     ResolveResume(SessionResumeRequest{Mode: ResumeModeIncremental,
 //     Since: LastKnownCursor}, …). Do not add another sequence or dictionary.
@@ -18,7 +18,7 @@
 //     hub.GetPlugin(agentID) != nil, ResolveAgentState moves error to online.
 //   - **Do not add a 7th reason**. The connecting intermediate state is
 //     reason-less; BPP-5 is the 10th test lock in the AL-1a 6-dict chain.
-//   - **best-effort and not resent** (inherits BPP-4 §0.3 stance). The server
+//   - **best-effort and not resent** (inherits BPP-4 §0.3 design). The server
 //     does not maintain a reconnect retry queue. The AST scan must find 0
 //     forbidden tokens.
 //
@@ -123,7 +123,7 @@ const ReconnectErrCodeCrossOwnerReject = "bpp.reconnect_cross_owner_reject"
 //     cursor and clears the agent error state.
 //  6. Clear agent error: clearer.Clear(frame.AgentID). agent.Tracker
 //     auto-flips error → online because hub.GetPlugin(frame.AgentID)
-//     != nil, byte-identical with the #492 five-state graph valid edge.
+//     != nil, matching the #492 five-state graph valid edge.
 //
 // Returns nil on success; wrapped sentinel errors on failure
 // (callers errors.Is to map to wire-level codes). Negative dispatch invariant:
@@ -173,8 +173,8 @@ func (h *ReconnectHandler) Dispatch(raw json.RawMessage, sess PluginSessionConte
 		return fmt.Errorf("bpp.reconnect_channel_scope_failed: %w", err)
 	}
 
-	// 5. Replay via RT-1.3 ResolveResume (incremental mode, byte-identical with
-	// spec §0.2 stance).
+	// 5. Replay via RT-1.3 ResolveResume (incremental mode, matching
+	// spec §0.2 design).
 	if _, _, err := ResolveResume(h.events, SessionResumeRequest{
 		Type:  FrameTypeSessionResume,
 		Mode:  ResumeModeIncremental,

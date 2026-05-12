@@ -26,7 +26,7 @@
 //     per-frame dispatcher (currently AL-2b ack only; future: BPP-2
 //     task lifecycle frames will register here).
 //
-// Boundary stance (BPP-1 envelope contract):
+// Boundary contract (BPP-1 envelope contract):
 //
 //   - This file does NOT touch `{type, id, data}` RPC frames — those
 //     stay in plugin.go (api_request / api_response / ping / pong /
@@ -82,10 +82,10 @@ type FrameDispatcher interface {
 // PluginSessionContext is the per-connection context passed to every
 // frame dispatcher. Carries the authenticated owner UUID (from BPP-1
 // connect handshake) so per-frame dispatchers can run cross-owner ACL.
-// This is byte-identical with AckSessionContext for the shared field, with a
+// This matches AckSessionContext for the shared field, with a
 // broader scope.
 //
-// Auth stance: OwnerUserID is set ONCE at connection accept (plugin.go
+// Auth contract: OwnerUserID is set ONCE at connection accept (plugin.go
 // hub.RegisterPlugin time, after API key auth) and never mutates. A
 // dispatcher receiving sess with empty OwnerUserID is a server boot
 // bug (panics defensively in Dispatch).
@@ -119,7 +119,7 @@ func NewPluginFrameDispatcher(logger *slog.Logger) *PluginFrameDispatcher {
 //   - empty frameType (boot bug)
 //   - duplicate registration of same type (boot bug — only one
 //     dispatcher per frame type)
-//   - frameType is not in the BPP envelope whitelist (forces caller to
+//   - frameType is not in the BPP envelope allow-list (forces caller to
 //     define the frame in envelope.go first, prevents typo'd routes)
 //
 // Direction lock: only DirectionPluginToServer frames may be
@@ -133,7 +133,7 @@ func (d *PluginFrameDispatcher) Register(frameType string, fd FrameDispatcher) {
 	if fd == nil {
 		panic("bpp: PluginFrameDispatcher.Register dispatcher must not be nil")
 	}
-	// Validate against envelope whitelist + direction lock.
+	// Validate against envelope allow-list + direction lock.
 	if !isPluginToServerFrame(frameType) {
 		panic(fmt.Sprintf("bpp: PluginFrameDispatcher.Register %q is not a Plugin→Server BPP frame (envelope.go whitelist + DirectionPluginToServer required)",
 			frameType))
@@ -218,7 +218,7 @@ func (d *PluginFrameDispatcher) logf(level, msg string, args ...any) {
 }
 
 // isPluginToServerFrame returns true iff frameType is in the BPP
-// envelope whitelist AND has FrameDirection == DirectionPluginToServer.
+// envelope allow-list AND has FrameDirection == DirectionPluginToServer.
 //
 // This walks the AllBPPEnvelopes() reflection list — small (10
 // frames), called only at server boot via Register, no perf concern.
@@ -235,7 +235,7 @@ func isPluginToServerFrame(frameType string) bool {
 // dispatcher, defined in agent_config_ack_dispatcher.go) into the
 // FrameDispatcher interface so it can register on PluginFrameDispatcher.
 //
-// Stance: keep the AckDispatcher API surface focused on the validated
+// Design contract: keep the AckDispatcher API surface focused on the validated
 // frame struct (typed AgentConfigAckFrame) and let this adapter handle
 // the raw → typed decoding boundary. Same pattern: BPP-2.1 ActionHandler
 // wraps server-go business logic, this wraps the typed dispatcher into

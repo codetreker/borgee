@@ -8,7 +8,7 @@
 // Spec: docs/implementation/modules/bpp-6-spec.md §0+§1 BPP-6.2.
 // Acceptance: docs/qa/acceptance-templates/bpp-6.md §2.
 //
-// Design (byte-identical with agreement §2+§3+§4):
+// Design (matching agreement §2+§3+§4):
 //   - **cold-start ≠ reconnect**. Its field set is disjoint from
 //     ReconnectHandshakeFrame: it carries no cursor and does not expect resume.
 //     See spec §0.1.
@@ -20,7 +20,7 @@
 //     BPP-5 performs incremental recovery, while BPP-6 is a fresh start. See
 //     spec §0.2.
 //   - **restart count is audit-only**. The reason reuses `runtime_crashed`
-//     byte-identically to represent previous error → current recovery.
+//     as the aligned value for previous error → current recovery.
 //     reasons single source #496 stays a 6-dict and does not add a 7th reason.
 //     BPP-6 is the 11th AL-1a reason alignment point. See spec §0.3.
 //   - **best-effort and not resent** (consistent with BPP-4 §0.3 and BPP-5
@@ -119,7 +119,7 @@ const ColdStartErrCodeCrossOwnerReject = "bpp.cold_start_cross_owner_reject"
 //     ValidateTransition rejects same-state). Tracker.Clear still
 //     called to ensure in-memory state is fresh.
 //  4. Append AL-1 #492 single-gate transition any→online with reason
-//     `runtime_crashed` byte-identical, reusing the 6-dict without expanding
+//     `runtime_crashed`, reusing the aligned 6-dict without expanding
 //     the single source of truth.
 //  5. Clear agent in-memory state: clearer.Clear(frame.AgentID).
 //
@@ -170,7 +170,7 @@ func (h *ColdStartHandler) Dispatch(raw json.RawMessage, sess PluginSessionConte
 			frame.AgentID,
 			from,
 			store.AgentStateOnline,
-			reasons.RuntimeCrashed, // AL-1a 6-dict; reasons single source #496, byte-identical alignment point 11
+			reasons.RuntimeCrashed, // AL-1a 6-dict; reasons single source #496, alignment point 11
 			"",
 		); err != nil {
 			return fmt.Errorf("bpp.cold_start_state_append_failed: %w", err)

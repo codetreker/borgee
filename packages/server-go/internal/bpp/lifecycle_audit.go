@@ -16,12 +16,12 @@
 //     metadata=JSON{plugin_id, reason, ...}. Audit remains forward-only.
 //   - **② reason reuses the AL-1a reason set** — heartbeat_timeout reason=
 //     reasons.NetworkUnreachable; cold_start reason=reasons.RuntimeCrashed
-//     byte-identical with BPP-6 #522 + BPP-7 SDK.
+//     aligned with BPP-6 #522 + BPP-7 SDK.
 //   - **④ single insert path** — all 5 methods go through this auditor; reverse grep
 //     `InsertAdminAction.*"plugin_` must return zero hits outside lifecycle_audit.go.
 //   - **⑥ best-effort** — log.Warn on InsertAdminAction errors and do not fail
 //     the handler; no retry queue and no persistent deferred audit table.
-//   - **⑦ actor='system' byte-identical** — matches BPP-4 watchdog + AP-2 sweeper.
+//   - **⑦ actor='system' alignment** — matches BPP-4 watchdog + AP-2 sweeper.
 //
 // Constraints (acceptance §3):
 //   - admin API must not mount plugin lifecycle endpoints (ADM-0 §1.3);
@@ -39,12 +39,12 @@ import (
 	"borgee-server/internal/agent/reasons"
 )
 
-// LifecycleSystemActor is byte-identical with BPP-4 watchdog and AP-2 sweeper
+// LifecycleSystemActor matches BPP-4 watchdog and AP-2 sweeper
 // actor='system'. Changes must be coordinated with BPP-4 and AP-2.
 const LifecycleSystemActor = "system"
 
 // Action constants — the 5 plugin_* literals in the admin_actions CHECK enum
-// are byte-identical with migration v=31 (bpp_8_1_admin_actions_plugin_actions.go)
+// match migration v=31 (bpp_8_1_admin_actions_plugin_actions.go)
 // CHECK literals. Any change must update the migration CHECK, these consts, and
 // acceptance §1 together.
 const (
@@ -137,7 +137,7 @@ func (a *AdminActionsLifecycleAuditor) RecordReconnect(pluginID, agentID string,
 // RecordColdStart — BPP-6 #522 cold_start_handler.go hook.
 //
 // Design ②: reason reuses the AL-1a 6-dict. Caller passes restartReason
-// (typically reasons.RuntimeCrashed, byte-identical with BPP-6 + BPP-7 SDK and
+// (typically reasons.RuntimeCrashed, aligned with BPP-6 + BPP-7 SDK and
 // the AL-1a reason alignment point). Negative assertion: caller must use the
 // reasons.* const instead of hardcoding the "runtime_crashed" string.
 func (a *AdminActionsLifecycleAuditor) RecordColdStart(pluginID, agentID, restartReason string) {
@@ -149,12 +149,12 @@ func (a *AdminActionsLifecycleAuditor) RecordColdStart(pluginID, agentID, restar
 
 // RecordHeartbeatTimeout — BPP-4 #499 watchdog hook.
 //
-// Design ②: reason literal is byte-identical with reasons.NetworkUnreachable,
+// Design ②: reason literal matches reasons.NetworkUnreachable,
 // matching the BPP-4 watchdog SetError reason and AL-1a alignment point.
 func (a *AdminActionsLifecycleAuditor) RecordHeartbeatTimeout(pluginID, agentID string) {
 	a.recordEvent(LifecycleActionHeartbeatTimeout, agentID, map[string]any{
 		"plugin_id": pluginID,
-		"reason":    reasons.NetworkUnreachable, // AL-1a alignment point, byte-identical
+		"reason":    reasons.NetworkUnreachable, // AL-1a alignment point, kept aligned
 	})
 }
 
@@ -163,7 +163,7 @@ func (a *AdminActionsLifecycleAuditor) RecordHeartbeatTimeout(pluginID, agentID 
 var _ LifecycleAuditor = (*AdminActionsLifecycleAuditor)(nil)
 
 // formatColdStartReason — convenience for callers: returns
-// reasons.RuntimeCrashed (the 6-dict byte-identical literal). Exposed
+// reasons.RuntimeCrashed (the matching 6-dict literal). Exposed
 // so test harnesses can assert the literal without importing reasons.*
 // twice. Returns string for direct use in RecordColdStart.
 func formatColdStartReason() string { return reasons.RuntimeCrashed }
