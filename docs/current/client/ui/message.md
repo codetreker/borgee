@@ -130,7 +130,7 @@ DOM 出处:
 `packages/client/src/context/AppContext.tsx` reducer 同时支持三态 action:
 - `ADD_REACTION_OPTIMISTIC` — 用户点选 emoji 立刻乐观渲染 (反 ws push 来之前 UI 空)
 - `REMOVE_REACTION_OPTIMISTIC` — 用户取消 reaction 立刻乐观移除 (反 ws push 来之前 chip 还在)
-- `UPDATE_REACTIONS` — ws push 真值整体替换 (server 端聚合后下发, 反多设备并发竞态)
+- `UPDATE_REACTIONS` — ws push 用服务端聚合结果整体替换 (server 端聚合后下发, 避免多设备并发竞态)
 
 REMOVE 走 user_id 移除 (不是 emoji-wide 删除) — 反 N 用户给同 emoji 时, 一个用户取消把别人 reaction 也清掉.
 
@@ -140,4 +140,3 @@ REMOVE 走 user_id 移除 (不是 emoji-wide 删除) — 反 N 用户给同 emoj
 - HTTP 失败 → reducer rollback (走 REMOVE_REACTION_OPTIMISTIC) 反留乐观状态
 
 详见 design `docs/implementation/design/686-message-spacing-reaction-position.md`.
-

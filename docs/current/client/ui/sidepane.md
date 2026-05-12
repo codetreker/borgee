@@ -74,7 +74,7 @@ function closeAllViews() {
 ## 6. 测试
 
 - `packages/client/src/__tests__/main-view.test.tsx` (≥6 case): mainView 默认 'channel' / requestMainView 切换 / runUnsavedGuards 拦截 / closeAllViews 回 'channel' / 反 5 boolean 同时 true / sidepane 切换 ESC 关
-- e2e: `gh-682-sidepane-mainview.spec.ts` — 真 UI 切 sidepane + dirty form 拦截 + Back 按钮回主视图
+- e2e: `gh-682-sidepane-mainview.spec.ts` — 在真实浏览器 UI 中切 sidepane + dirty form 拦截 + Back 按钮回主视图
 
 ## 7. 相关参考
 
