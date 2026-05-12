@@ -97,15 +97,15 @@ owner 一键授予权限，agent 自动重试动作。
 
 | 角色 | 能做 | 不能做 |
 |------|------|--------|
-| **agent owner** | 授予 / 撤销自己 agent 的所有 capability | — |
-| **channel owner**（外部 agent 不在其 org） | mute 别人的 agent / 移除别人的 agent | **不能**授予别人 agent 的 capability |
+| **agent owner**（建军） | 授予 / 撤销自己 agent 的所有 capability | — |
+| **channel owner**（野马，agent 不在他 org） | mute 别人的 agent / 移除别人的 agent | **不能**授予别人 agent 的 capability |
 | 任何 user | — | 修改其它 agent 的权限 |
 
 #### 设计直觉
 
-- channel owner 拉外部 agent 进自己 channel = "我请你的助手来帮忙"
-- channel owner **不能**给外部 agent 加 channel 权限——那等于"替 agent owner 决定他的助手能干什么"
-- channel owner **可以** mute / 移除 = "在自己 channel 管理范围内保留控制权"
+- 野马拉建军的 PMagent 进自己 channel = "我请你的助手来帮忙"
+- 野马**不能**给建军的 PMagent 加 channel 权限——那等于"替建军决定他的助手能干什么"
+- 野马**可以** mute / 移除 = "在自己 channel 管理范围内保留控制权"
 - **跨 org 只能减权，不能加权**
 
 ---
