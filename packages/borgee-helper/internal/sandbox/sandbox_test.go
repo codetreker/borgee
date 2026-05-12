@@ -23,16 +23,16 @@ func TestHB2D_PlatformLabelMatchesBuildTag(t *testing.T) {
 }
 
 // TestHB2D_ApplyEmptyProfile — Apply with no ReadPaths starts fail-closed
-// deny-by-default (Linux真 landlock; macOS/Windows wrapper-only no-op).
+// deny-by-default (Linux applies real Landlock; macOS/Windows use wrapper-only no-op).
 //
 // Linux: must call landlock_create_ruleset successfully (kernel ≥5.13)
 // or fall back to nil (ENOSYS on older kernels). Either way no error.
 //
-// NOTE: 真 landlock_restrict_self 调 in-process 后, 后续 file open 全
-// reject — t.TempDir cleanup 会 fail. 故此测在 Linux 用 subprocess 隔离;
-// 这里只跑 Apply 不真 restrict (空 ReadPaths 路径在 v0(D) 跑 restrictEmptyRuleset
-// 真锁定本进程, 不能继续运行其他 test). 跳过 Linux empty-ruleset 真测,
-// 留给 integration test 子进程跑.
+// NOTE: calling landlock_restrict_self in-process makes later file opens reject,
+// so t.TempDir cleanup would fail. Linux coverage belongs in a subprocess;
+// this test only exercises Apply without restricting this process. An empty
+// ReadPaths profile in v0(D) runs restrictEmptyRuleset and locks down the test
+// process, so the empty-ruleset check is left to an integration subprocess.
 func TestHB2D_ApplyEmptyProfile_NoError_NonLinux(t *testing.T) {
 	if runtime.GOOS == "linux" {
 		t.Skip("Linux empty profile真 restrict_self 自锁定本测进程; 留 integration test 子进程跑")
@@ -43,7 +43,7 @@ func TestHB2D_ApplyEmptyProfile_NoError_NonLinux(t *testing.T) {
 	}
 }
 
-// TestHB2D_ApplyWithExistingPath — Apply 走 landlock 真路径 (Linux);
+// TestHB2D_ApplyWithExistingPath — Apply uses the Landlock path on Linux;
 // 其他平台 wrapper-only no-op.
 func TestHB2D_ApplyWithExistingPath_NonLinux(t *testing.T) {
 	if runtime.GOOS == "linux" {
@@ -60,8 +60,8 @@ func TestHB2D_ApplyWithExistingPath_NonLinux(t *testing.T) {
 	}
 }
 
-// TestHB2D_ApplyMissingPath_LinuxRejects — Linux 真 landlock open(O_PATH)
-// 不存在路径 → 真 fail. 反向断 v0(C) noop 残留.
+// TestHB2D_ApplyMissingPath_LinuxRejects — Linux Landlock open(O_PATH)
+// fails for missing paths. This catches leftover v0(C) no-op behavior.
 func TestHB2D_ApplyMissingPath_LinuxRejects(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux-only 真 landlock 错误路径反向断")
@@ -72,7 +72,7 @@ func TestHB2D_ApplyMissingPath_LinuxRejects(t *testing.T) {
 		t.Skip("test fixture exists unexpectedly")
 	}
 	err := Apply(Profile{ReadPaths: []string{missingPath}})
-	// v0(D) 真 landlock 会 fail (open ENOENT); 但旧 kernel ENOSYS → nil.
+	// v0(D) Landlock fails with open ENOENT; older kernels can return ENOSYS → nil.
 	// 接受任一 — 关键是 NO panic.
 	_ = err
 }

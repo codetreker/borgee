@@ -17,7 +17,7 @@ const (
 	IOFailed                    Reason = "io_failed"
 )
 
-// All 反向枚举出处 — 单测断言字典不脱节.
+// All is the reverse-enumeration source; tests assert the dictionary stays aligned.
 func All() []Reason {
 	return []Reason{
 		OK, PathOutsideGrants, GrantExpired, GrantNotFound,

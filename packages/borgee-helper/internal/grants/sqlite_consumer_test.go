@@ -85,10 +85,10 @@ func TestHB2D_SQLiteConsumer_NotFound(t *testing.T) {
 	}
 }
 
-// TestHB2D_SQLiteConsumer_RevocationImmediate — 撤销 <100ms 真守 (HB-3 §1.5
+// TestHB2D_SQLiteConsumer_RevocationImmediate — verifies revoke visibility under 100ms (HB-3 §1.5
 // 行为 invariant). UPDATE revoked_at = now → 下次 Lookup 立即 0 行. server-go
 // 路径 internal/api/host_grants_test.go::TestHB_DELETE_RevokeStampsRevokedAt
-// 同一 invariant 守门, 端到端走 SQL 一致.
+// checks the same invariant, keeping the SQL behavior consistent end to end.
 func TestHB2D_SQLiteConsumer_RevocationImmediate(t *testing.T) {
 	t.Parallel()
 	dsn, rw := setupHostGrantsDB(t)

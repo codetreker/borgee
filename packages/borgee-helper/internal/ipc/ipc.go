@@ -2,7 +2,7 @@
 // 多路复用单连接). 平台 transport (UDS / Named Pipe) 由 cmd 层选择;
 // 本包提供 protocol 解析 + 处理器编织, 跨平台 byte-identical.
 //
-// hb-2-spec.md §3.1 IPC contract + §5.5 sandbox build tag 真分清.
+// hb-2-spec.md §3.1 IPC contract + §5.5 sandbox build tags keep platforms distinct.
 package ipc
 
 import (
@@ -118,14 +118,14 @@ func (h *Handler) writeResp(w *bufio.Writer, resp Response) error {
 
 // handle 走 ACL gate + audit (含 reject); 返回 Response.
 //
-// v0(D) 真 IO: ACL pass 后, read_file / list_files action 真走 fileio
-// 包 (os.ReadFile / os.ReadDir, landlock 守门已限路径白名单).
+// v0(D) real IO: after ACL passes, read_file / list_files actions use the
+// fileio package (os.ReadFile / os.ReadDir); Landlock already limits paths.
 func (h *Handler) handle(ctx context.Context, handshakeAgentID string, req Request) Response {
 	target := extractTarget(req)
 	d := h.Gate.Decide(ctx, handshakeAgentID, req.AgentID, acl.Action(req.Action), target)
 	resp := Response{RequestID: req.RequestID, Reason: string(d.Reason)}
 	if d.Allow {
-		// v0(D) 真 IO 启用 (替 v0(C) 仅 ACL 决策).
+		// v0(D) real IO is enabled, replacing the v0(C) ACL-only decision path.
 		switch acl.Action(req.Action) {
 		case acl.ActionReadFile:
 			maxBytes, _ := req.Params["max_bytes"].(float64)
@@ -147,7 +147,7 @@ func (h *Handler) handle(ctx context.Context, handshakeAgentID string, req Reque
 				resp.Data = data
 			}
 		case acl.ActionNetworkEgress:
-			// v0(D) 仅 ACL gate, 真出站 proxy 留 v1.5+ (spec §3 不在范围).
+			// v0(D) only applies the ACL gate; real outbound proxy remains v1.5+ (spec §3 out of scope).
 			resp.Status = "ok"
 		default:
 			resp.Status = "ok"

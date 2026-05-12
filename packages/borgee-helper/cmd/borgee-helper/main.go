@@ -3,7 +3,7 @@
 // Package main — borgee-helper daemon entry (HB-2 v0(D) host-bridge).
 // 平台 transport: POSIX UDS via net.Listen("unix", path).
 //
-// hb-2-v0d-spec.md §0.2: 真 sandbox + 真 IO + 真 SQLite consumer.
+// hb-2-v0d-spec.md §0.2: real sandbox, real IO, and real SQLite consumer.
 // install-butler 拉起 daemon 时:
 //   - Linux: systemd unit + landlock LSM
 //   - macOS: launchd + sandbox-exec wrapper
@@ -47,9 +47,9 @@ func run(socket, auditLogPath, grantsDSN, readPaths string) error {
 	}
 	auditLogger := audit.New(logFile)
 
-	// v0(D) Grants consumer: SQLite real-接, production 路径强制 (反向约束 §1.5
-	// "grep 检查 MemoryConsumer 在 production 路径 0 hit"). dev 测试走
-	// MemoryConsumer 在 _test.go 内部, 不在 main 路径.
+	// v0(D) grants consumer: the production path must use SQLite (negative
+	// constraint §1.5: grep check MemoryConsumer has 0 hits in production path).
+	// Dev tests use MemoryConsumer inside _test.go files, not in main.
 	if grantsDSN == "" {
 		return errAbort("--grants-db is required (HB-3 host_grants SQLite DSN, e.g. file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000)")
 	}
@@ -85,7 +85,7 @@ func run(socket, auditLogPath, grantsDSN, readPaths string) error {
 	defer ln.Close()
 	log.Printf("borgee-helper: listening on %s", socket)
 
-	// Signal handler for clean shutdown (ctx-aware, 反 goroutine leak per #608).
+	// Signal handler for clean shutdown (ctx-aware, prevents goroutine leaks per #608).
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
