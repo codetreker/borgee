@@ -11,7 +11,7 @@
 //   - ① **frame schemas are byte-identical with the server** — the SDK does
 //     not redefine envelope structs and imports "borgee-server/internal/bpp".
 //     Reflect tests and an AST scan for `type.*Frame.*struct` verify this.
-//   - ② **SDK Go module + WebSocket library match the server** — sdk/bpp/
+//   - ② **SDK package location + WebSocket library match the server** — sdk/bpp/
 //     lives inside the borgee-server module and uses `github.com/coder/websocket`.
 //     AST scan
 //     forbidden tokens (pendingSDKReconnect / sdkRetryQueue /
@@ -22,7 +22,7 @@
 //     reasons.RuntimeCrashed, matching the server BPP-6 handler.
 //
 // Negative constraints:
-//   - admin god-mode must not mount SDK paths (ADM-0 §1.3).
+//   - admin-only SDK paths must not be mounted (ADM-0 §1.3).
 //   - SDK must not add a client-side dispatcher; dispatch remains server-only (BPP-3 #489).
 
 package bpp

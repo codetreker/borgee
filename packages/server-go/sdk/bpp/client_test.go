@@ -5,7 +5,7 @@
 //       stay byte-identical through JSON round-trip and reflection checks.
 //   1.2 frame schema byte-identical reflection check — SDK does not redefine frames.
 //   1.3 WebSocket library and client dispatcher grep checks.
-//   1.4 admin god-mode grep check.
+//   1.4 admin-only SDK path grep check.
 
 package bpp_test
 
@@ -242,7 +242,7 @@ func TestBPP_AdminGodModeNotMounted(t *testing.T) {
 		}
 	}
 	if len(hits) > 0 {
-		t.Errorf("BPP-7 立场 ⑦ broken: admin god-mode references SDK (ADM-0 §1.3 红线): %v", hits)
+		t.Errorf("BPP-7 admin-only SDK path constraint broken (ADM-0 §1.3): %v", hits)
 	}
 }
 
