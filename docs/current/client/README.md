@@ -68,7 +68,7 @@ It does not own backend authorization, persistence, admin server enforcement, re
 | `realtime-sync.md` | REST authority, WebSocket direct updates, signal-then-pull, and reconnect reconciliation. |
 | `feature-surfaces.md` | Surface layering for chat, channels, DMs, artifacts, workspace, remote, settings, agents, and invitations. |
 | `ui-map.md` | Architecture-level surface map for maintainers, without component-directory enumeration. |
-| `wireframes.md` | Architecture-level UI layout sketches for the shell, channel host, sidepanes, workspace, and remote surfaces. |
+| `ui/` | Restored ASCII interaction sketches for the user UI, retained as reference/layout sketches. |
 | `build-pwa-cache.md` | Build, PWA, service-worker, and cache constraints that affect architecture. |
 
 ## Implementation Anchors

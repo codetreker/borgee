@@ -31,9 +31,7 @@ User SPA
 
 The UI map explains where a maintainer should place or reason about a user-facing capability in the architecture: rail, channel host, channel tab, global sidepane, or global shell concern.
 
-It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns.
-
-For a terminal-style layout companion to this hierarchy, see `wireframes.md`. Those sketches show the same surfaces as maps, not as exact UI specifications.
+It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns. The restored `ui/` directory keeps older ASCII interaction sketches as reference/layout sketches.
 
 ## Surface Placement Rules
 

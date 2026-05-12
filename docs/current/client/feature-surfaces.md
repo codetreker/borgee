@@ -51,7 +51,7 @@ Feature surfaces own user workflows and local UI state. They coordinate with sha
 
 They do not own backend ACLs, persistence, admin visibility policy, or realtime frame schemas. They consume shared rails and server-enforced contracts.
 
-`wireframes.md` provides terminal-style sketches for the major surface relationships described here. Treat those sketches as layout maps, not product requirements.
+The restored `ui/` directory provides older ASCII interaction sketches for these surfaces. Treat those sketches as reference/layout maps, not product requirements.
 
 ## Channel, Chat, And DM
 
