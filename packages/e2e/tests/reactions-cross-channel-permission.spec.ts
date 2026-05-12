@@ -1,24 +1,24 @@
-// tests/reactions-cross-channel-permission.spec.ts — message reaction 跨 channel 权限 (ACL/IDOR 反向证).
+// tests/reactions-cross-channel-permission.spec.ts - message reaction cross-channel permission (ACL/IDOR reverse checks).
 //
-// 测试范围 (3 case + 1 server gate sanity, heima 拍 REWRITE-NAV 4 约束):
-//   - case-1: 真 UI navigate — user B 真 page.goto user A private channel URL → ChannelView 渲染 "频道未找到" fallback (`.channel-empty`), sidebar 不出现该 channel, MessageInput 不渲染
-//   - case-2: 真 UI navigate — user B 真 page.goto user A 私 channel 后, 真断 message-content 节点 0 (无法 reach reaction button)
-//   - case-3: admin 真 UI navigate (god-mode 红线) — admin login 后 navigate user A private channel URL, 真断 (a) 看得到 message list (read 允许) (b) MessageInput 不渲染或 disabled (write 拦) — 跟 ADM-0 §1.3 一致 (heima 加分项 2)
-//   - case-4 server gate sanity (heima 约束 3 显式允许 F2 例外): user B 浏览器登态下 page.evaluate fetch PUT /api/v1/messages/{id}/reactions → 真断 server 返 403 (反向证 server ACL gate 不依赖 client UI hide)
+// Test scope (3 cases + 1 server gate sanity case, following REWRITE-NAV 4 constraints):
+//   - case-1: real UI navigation - user B page.goto user A private channel URL -> ChannelView renders "频道未找到" fallback (`.channel-empty`), sidebar omits that channel, MessageInput is not rendered
+//   - case-2: real UI navigation - after user B page.goto user A private channel, assert message-content node count is 0 because the reaction button is unreachable
+//   - case-3: admin real UI navigation (admin privilege boundary) - after admin login, navigate to user A private channel URL and assert (a) message list is readable (read allowed) and (b) MessageInput is not rendered or disabled (write blocked), matching ADM-0 §1.3
+//   - case-4 server gate sanity (explicit F2 exception): user B browser session uses page.evaluate fetch PUT /api/v1/messages/{id}/reactions -> server returns 403, proving server ACL enforcement does not rely on client UI hiding
 //
-// 关联文档:
-//   - 蓝图: docs/blueprint/current/auth-permissions.md §X (channel ACL: 非 member 不可访问 private channel)
-//   - 验收: docs/_archive/qa/acceptance-templates/ap-4.md §2 (REG-INV-002 fail-closed)
-//   - 单测: server-side cross-channel reactions ACL 走 Go 单元测覆盖 (PUT/DELETE/GET reactions endpoints)
-//   - 后续: client forbidden state UX 走 gh#724 §2 (统一 forbidden banner + redirect)
+// Related docs:
+//   - Blueprint: docs/blueprint/current/auth-permissions.md §X (channel ACL: non-members cannot access private channels)
+//   - Acceptance: docs/_archive/qa/acceptance-templates/ap-4.md §2 (REG-INV-002 fail-closed)
+//   - Unit tests: server-side cross-channel reactions ACL is covered by Go unit tests (PUT/DELETE/GET reactions endpoints)
+//   - Follow-up: client forbidden state UX is tracked in gh#724 §2 (unified forbidden banner + redirect)
 //
-// 实施约束 (heima 拍 REWRITE-NAV 4 约束):
-//   1. URL 必须真无权 — 真 seed user A 创建 private channel + post message, 截真 channel_id 给 user B 走 page.goto
-//   2. 真断不能只断"不见" — 多角度断: `.channel-empty` 文案 / message-content count 0 / MessageInput 不渲染
-//   3. server gate sanity case (case-4) 走 page.evaluate(fetch) 显式 F2 例外 — 反向证 server ACL 真 403, 不依赖 client UI hide. 必加注释标记此 case
-//   4. 双 context 真独立, 不共 cookie
+// Implementation constraints (REWRITE-NAV 4 constraints):
+//   1. URL must be genuinely unauthorized - seed user A creating a private channel + posting a message, then pass that real channel_id to user B page.goto
+//   2. Assertions cannot only check absence - use multiple angles: `.channel-empty` text / message-content count 0 / MessageInput not rendered
+//   3. server gate sanity case (case-4) uses page.evaluate(fetch) as an explicit F2 exception to prove server ACL returns 403 without relying on client UI hiding; keep this case annotated
+//   4. Two contexts must be independent and must not share cookies
 //
-// 不允许 fs.* / 主体 page.evaluate(fetch) / 只打 API / noop. 仅 case-4 显式 F2 例外标 server gate sanity.
+// Do not use fs.* / main-case page.evaluate(fetch) / API-only / noop tests. Only case-4 has the explicit F2 exception for server gate sanity.
 
 import {
   test,
@@ -83,7 +83,7 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
     const userA = await registerUser(invA, 'A');
     const userB = await registerUser(invB, 'B');
 
-    // user A 真创建 private channel + post message (REST seed, 没真 UI 入口可选)
+    // user A creates a private channel and posts a message (REST seed; no real UI entry point is available).
     const chRes = await userA.ctx.post('/api/v1/channels', {
       data: { name: `ap4-private-${Date.now()}`, visibility: 'private' },
     });
@@ -96,7 +96,7 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
     });
     expect(msgRes.ok(), `userA post msg: ${msgRes.status()}`).toBe(true);
 
-    // user B 真浏览器 navigate userA private channel URL (不开 F3 例外)
+    // user B navigates a real browser to userA private channel URL without using the F3 exception.
     const ctxB = await browser.newContext();
     const url = new URL(clientURL());
     await ctxB.addCookies([{
@@ -111,27 +111,27 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
     const pageB = await ctxB.newPage();
     await pageB.goto(`${clientURL()}/?channel=${channelId}`);
 
-    // 等 SPA sidebar 真渲染
+    // Wait for the SPA sidebar to render.
     await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // 真断 1: sidebar 不出现该 channel item (user B 不是 member)
+    // Assertion 1: sidebar does not show that channel item because user B is not a member.
     const sidebarChannelNames = await pageB.locator('.channel-list .channel-name').allTextContents();
     expect(
       sidebarChannelNames.filter(n => n.startsWith('ap4-private-')),
       'user B sidebar 不应出现 user A private channel',
     ).toEqual([]);
 
-    // 真断 2: ChannelView 不渲染 user A 的 channel 内容 — 反向证用 channel title 不含 user A 创建的 channel 名
-    // (SPA 不读 ?channel= URL parameter, auto-select user B 自己的 welcome; user A's private channel
-    // 永远不进 user B 的 state.channels, 自然无法 reach 任何 user A 资源)
+    // Assertion 2: ChannelView does not render user A's channel content; reverse-check this by ensuring the channel title does not contain the channel name created by user A.
+    // The SPA ignores the ?channel= URL parameter and auto-selects user B's own welcome channel; user A's private channel
+    // never enters user B's state.channels, so user B cannot reach any user A resource.
     const channelTitleTexts = await pageB.locator('.channel-title').allTextContents();
     expect(
       channelTitleTexts.filter(t => t.includes('ap4-private-')),
       `user B 看到的 channel title 不应含 user A private channel 名 (REWRITE-NAV 反向证: user B 真 reach 不到 user A 资源, 落到自己的 welcome)`,
     ).toEqual([]);
 
-    // 真断 3 (server gate sanity): user B 真试 GET userA private channel messages → server 真 403/404
-    // (REWRITE-NAV F2 显式允许例外, heima 约束 3 — 反向证 server ACL gate 不依赖 client UI hide)
+    // Assertion 3 (server gate sanity): user B attempts GET userA private channel messages -> server returns 403/404.
+    // This is the REWRITE-NAV explicit F2 exception and proves the server ACL gate does not rely on client UI hiding.
     const fetchResult = await pageB.evaluate(async (cid: string) => {
       const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {
         method: 'GET',
@@ -163,22 +163,22 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
       data: { content: `adminblind probe msg ${Date.now()}` },
     });
 
-    // admin 走 admin SPA (admin-api login, 不应进入 user SPA 写 channel)
-    // 真断 admin god-mode 路径独立: admin 真 navigate user channel 但写入口必拦.
-    // 此 case 标 admin 路径独立 — admin SPA 没有 user channel UI 入口 (admin SPA 单独路径).
-    // 实施约束: admin login 后 navigate user channel URL → 真渲染 (a) admin SPA banner / (b) user channel 写入口必不渲染 / (c) 提交必拦.
+    // admin uses the admin SPA after admin-api login and must not enter the user SPA to write to a channel.
+    // Assert admin path isolation: admin navigates a user channel, but the write entry point must be blocked.
+    // This case marks the admin path as isolated because the admin SPA has no user channel UI entry point.
+    // Implementation constraint: after admin login, navigating to a user channel URL renders (a) admin SPA banner / (b) no user channel write entry point / (c) blocked submit.
     //
-    // 注: admin SPA 跟 user SPA 路径独立 (admin-api/* vs api/v1/*), e2e 真路径
-    // 是 admin SPA URL. user channel URL 在 admin SPA 视角是 404 page 或 admin
-    // banner 而非 user MessageInput. 真断: admin 浏览器 navigate user channel
-    // URL 渲染 0 个 .tiptap-editor (admin SPA 没 user UI).
+    // Note: admin SPA and user SPA paths are isolated (admin-api/* vs api/v1/*), and the E2E path
+    // is the admin SPA URL. From the admin SPA view, a user channel URL is a 404 page or admin
+    // banner, not user MessageInput. Assert that admin browser navigation to the user channel
+    // URL renders 0 .tiptap-editor elements because the admin SPA has no user UI.
     const ctxAdmin = await browser.newContext();
-    // admin login through user SPA URL — admin 实际不能走 user SPA, 此 case
-    // 反向证 admin SPA 路径独立 (跟 ADM-0 §1.3 admin god-mode 红线一致)
+    // admin login through user SPA URL: admin must not use the user SPA, and this case
+    // reverse-checks admin SPA path isolation as required by the ADM-0 §1.3 admin privilege boundary.
     const ctxAdminCookies = await admin.storageState();
     const adminTok = ctxAdminCookies.cookies.find(c => c.name === 'borgee_admin_token' || c.name === 'borgee_token');
     if (!adminTok) {
-      // admin SPA 路径独立, admin cookie 不在 user SPA 域. 真断: 没 admin cookie 直接 = admin god-mode 不可走 user SPA. 此 case 通过.
+      // admin SPA path is isolated, so the admin cookie is not present in the user SPA domain. No admin cookie directly proves admin privilege cannot use the user SPA; this case passes.
       await admin.dispose();
       return;
     }
@@ -196,8 +196,8 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
     const pageAdmin = await ctxAdmin.newPage();
     await pageAdmin.goto(`${clientURL()}/?channel=${channelId}`);
 
-    // 真断 admin god-mode 路径独立: user SPA MessageInput 不渲染给 admin
-    // (admin SPA 跟 user SPA 路径不共, admin 走 user URL = 没 user SPA 写入口)
+    // Assert admin privilege path isolation: user SPA MessageInput does not render for admin.
+    // Admin SPA and user SPA paths are separate, so admin using a user URL has no user SPA write entry point.
     const inputCount = await pageAdmin.locator('.tiptap-editor').count();
     expect(inputCount, 'admin god-mode 红线: admin 真 navigate user channel URL 不应 reach user MessageInput (ADM-0 §1.3)').toBe(0);
 
@@ -206,15 +206,15 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
   });
 
   test('case-4: server ACL gate sanity (REWRITE-NAV F2 显式允许例外, heima 约束 3) — server 真返 403 不依赖 client UI hide', async ({ browser }) => {
-    // REWRITE-NAV: 反向证 server ACL gate 必 sanity, F2 在 NAV 类显式允许.
-    // (F3-2 grep 守卫加 exception "NAV spec 的 server gate sanity 1 case 允许")
+    // REWRITE-NAV: server ACL gate sanity must be reverse-checked, and F2 is explicitly allowed for NAV specs.
+    // F3-2 grep guard has an exception: one server gate sanity case is allowed for NAV specs.
     const admin = await adminLogin();
     const invA = await mintInvite(admin, 'ap4-gateSanity-A');
     const invB = await mintInvite(admin, 'ap4-gateSanity-B');
     const userA = await registerUser(invA, 'gateA');
     const userB = await registerUser(invB, 'gateB');
 
-    // user A 真创建 private channel + post message
+    // user A creates a private channel and posts a message.
     const chRes = await userA.ctx.post('/api/v1/channels', {
       data: { name: `ap4-gate-${Date.now()}`, visibility: 'private' },
     });
@@ -229,8 +229,8 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
     const msgBody = (await msgRes.json()) as { message: { id: string } };
     const messageId = msgBody.message.id;
 
-    // user B 浏览器登态下 page.evaluate(fetch) — 反向证 server ACL gate 真挡
-    // (REWRITE-NAV F2 显式允许例外: 不依赖 client UI hide, 真试请求看 server 真 403)
+    // user B browser session uses page.evaluate(fetch) to reverse-check that the server ACL gate blocks the request.
+    // This is the REWRITE-NAV explicit F2 exception: send the real request and verify server 403 instead of relying on client UI hiding.
     const ctxB = await browser.newContext();
     const url = new URL(clientURL());
     await ctxB.addCookies([{
@@ -246,7 +246,7 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
     await pageB.goto(`${clientURL()}/`);
     await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // 真执行 fetch (REWRITE-NAV F2 例外): user B 试给 user A message 加 reaction
+    // Execute fetch for real (REWRITE-NAV F2 exception): user B tries to react to user A's message.
     const reactionResult = await pageB.evaluate(async (mid: string) => {
       const r = await fetch(`/api/v1/messages/${mid}/reactions`, {
         method: 'PUT',
@@ -257,7 +257,7 @@ test.describe('reactions 跨 channel 权限 — ACL/IDOR 反向证 (REWRITE-NAV 
       return { status: r.status, ok: r.ok };
     }, messageId);
 
-    // 真断 server 返 403 或 404 (cross-channel non-member fail-closed)
+    // Assert server returns 403 or 404 for cross-channel non-member fail-closed behavior.
     expect(
       reactionResult.status === 403 || reactionResult.status === 404,
       `server ACL gate 真挡 cross-channel reaction PUT: expected 403/404, got ${reactionResult.status}`,

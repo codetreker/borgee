@@ -1,21 +1,21 @@
-// tests/direct-message-multi-device-sync.spec.ts — 单 user 多 tab 同 DM 频道实时同步 + 跨 user DM 越权反向证.
+// tests/direct-message-multi-device-sync.spec.ts - one user, multiple tabs, same DM channel realtime sync + cross-user DM authorization reverse check.
 //
-// 测试范围 (3 case = 2 REWRITE-UI happy + 1 REWRITE-NAV cross-leak):
-//   - case-1 (REWRITE-UI happy): 同 owner 开两个 tab 进同一 agent-DM, tab A 真 UI 发消息 → tab B sidebar 接收到 → tab B 真渲染该消息 (≤3s, 跟 RT-1.2 同硬条件)
-//   - case-2 (REWRITE-UI happy): thinking 5-pattern (processing/responding/thinking/analyzing/planning) 在 tab B DOM message 内容里禁出现 (反"假 loading" 漂)
-//   - case-3 (REWRITE-NAV cross-leak): user B 真 navigate user A 的 DM channel URL → fallback UI (sidebar 不出现该 DM + ChannelView channel-empty + MessageInput 不渲染) + server gate sanity 验 fetch GET /messages 真 403/404
+// Test scope (3 cases = 2 REWRITE-UI happy paths + 1 REWRITE-NAV cross-leak check):
+//   - case-1 (REWRITE-UI happy): same owner opens two tabs in the same agent-DM, tab A sends a message through the real UI -> tab B sidebar receives it -> tab B renders the message (<=3s, same hard condition as RT-1.2)
+//   - case-2 (REWRITE-UI happy): thinking 5-pattern (processing/responding/thinking/analyzing/planning) must not appear in tab B DOM message content, guarding against fake loading drift
+//   - case-3 (REWRITE-NAV cross-leak): user B navigates a real browser to user A's DM channel URL -> fallback UI (sidebar omits the DM + ChannelView channel-empty + MessageInput not rendered) + server gate sanity verifies fetch GET /messages returns 403/404
 //
-// 关联文档:
-//   - 蓝图: docs/blueprint/current/channel-model.md §DM (DM 通道 message endpoint 同 channel 通道)
-//   - 验收: docs/_archive/qa/acceptance-templates/dm-3.md §DM-3.3
-//   - 单测: server-side DM cursor reuse RT-1.3 + DM ACL gate (Go 单元测覆盖)
-//   - 后续: client forbidden state UX 走 gh#724 §2 (跟 ap-4/ap-5 同根)
+// Related docs:
+//   - Blueprint: docs/blueprint/current/channel-model.md §DM (DM channel message endpoint matches the channel endpoint)
+//   - Acceptance: docs/_archive/qa/acceptance-templates/dm-3.md §DM-3.3
+//   - Unit tests: server-side DM cursor reuse RT-1.3 + DM ACL gate are covered by Go unit tests
+//   - Follow-up: client forbidden state UX is tracked in gh#724 §2, same root as ap-4/ap-5
 //
-// 实施约束:
-//   - 真 UI: 双 browser.newContext() 起 2 独立浏览器 (反共 cookie/cache), 各自 page.goto SPA, 真 page.click sidebar DM row, 真 page.fill MessageInput tiptap editor, 真 page.keyboard.press Enter 提交
-//   - 真断: tab B 真 locator(`.message-content`) 渲染, 真断 thinking 5-pattern 不出现 DOM
-//   - REST seed: admin login + invite + register + agent create (没 production UI)
-//   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
+// Implementation constraints:
+//   - Real UI: two browser.newContext() calls create two independent browsers (no shared cookie/cache), each visits the SPA, clicks the sidebar DM row, fills the MessageInput tiptap editor, and presses Enter to submit
+//   - Real assertions: tab B renders locator(`.message-content`), and the thinking 5-pattern must not appear in the DOM
+//   - REST seed: admin login + invite + register + agent create because there is no production UI
+//   - Do not use fs.* / page.evaluate(fetch) / API-only / noop tests
 
 import {
   test,
@@ -95,7 +95,7 @@ test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 
     const owner = await mintInviteAndRegister('case1-owner');
     const dmChannelId = await createAgentAndOpenDM(owner, `dm-sync-agent-${Date.now()}`);
 
-    // 双 tab 真独立 context, 不共 cookie
+    // Two tabs use independent contexts and do not share cookies.
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const url = new URL(clientURL());
@@ -113,43 +113,43 @@ test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 
 
     const pageA = await ctxA.newPage();
     const pageB = await ctxB.newPage();
-    // 双 tab 走真 URL 直接到 DM 频道
+    // Both tabs use real URLs to open the DM channel.
     await Promise.all([
       pageA.goto(`${clientURL()}/`),
       pageB.goto(`${clientURL()}/`),
     ]);
-    // 两 tab 都等到 sidebar 真渲染
+    // Both tabs wait for the sidebar to render.
     await Promise.all([
       expect(pageA.locator('.sidebar-title')).toBeVisible({ timeout: 10000 }),
       expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 }),
     ]);
 
-    // tab A 真点击 DM channel item 进入
-    // DM 在 sidebar 走 MergedDmList 渲染 .channel-name, 取第一条 DM 进入
+    // tab A clicks the DM channel item to enter it.
+    // DM rows render through MergedDmList as .channel-name; use the first DM.
     const dmRowA = pageA.locator(`.channel-name`).first();
     await dmRowA.click();
-    // tab A 真等到 message input 渲染 (channel view loaded)
+    // tab A waits for the message input to render after the channel view loads.
     const inputA = pageA.locator('.tiptap-editor').first();
     await expect(inputA).toBeVisible({ timeout: 10000 });
 
-    // tab B 真点击进入同一 DM
+    // tab B clicks into the same DM.
     const dmRowB = pageB.locator(`.channel-name`).first();
     await dmRowB.click();
     await expect(pageB.locator('.tiptap-editor').first()).toBeVisible({ timeout: 10000 });
 
-    // tab A 真 UI 输入消息内容
+    // tab A enters message content through the real UI.
     const uniqueMsg = `hello from tab A ${Date.now()}`;
     await inputA.click();
     await inputA.fill(uniqueMsg);
     await pageA.keyboard.press('Enter');
 
-    // tab B 真等候该消息出现在 DOM (≤3s 硬指标)
+    // tab B waits for the message to appear in the DOM (<=3s hard requirement).
     const messageInB = pageB.locator('.message-content', { hasText: uniqueMsg });
     await expect(messageInB).toBeVisible({ timeout: 3000 });
 
     await ctxA.close();
     await ctxB.close();
-    // dmChannelId 留用作为参考 (route 验证可选)
+    // Keep dmChannelId as a route reference for optional verification.
     void dmChannelId;
   });
 
@@ -174,12 +174,12 @@ test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 
     await page.goto(`${clientURL()}/`);
     await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // 真点击进入 DM
+    // Click into the DM.
     await page.locator('.channel-name').first().click();
     await expect(page.locator('.tiptap-editor').first()).toBeVisible({ timeout: 10000 });
 
-    // 真 DOM 检查: 任何 .message-content 节点内容都不应含 thinking 5-pattern
-    // (空 DM 或新 DM 都该满足 — 反"假 loading" 漂)
+    // Real DOM check: no .message-content node should contain the thinking 5-pattern.
+    // Empty or new DMs should also satisfy this, guarding against fake loading drift.
     const allMessages = await page.locator('.message-content').allTextContents();
     for (const body of allMessages) {
       const lower = body.toLowerCase();
@@ -195,26 +195,26 @@ test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 
   });
 
   test('case-3 (REWRITE-NAV cross-leak): user B 真 navigate user A DM channel URL → fallback UI + server gate sanity 验 403/404', async ({ browser }) => {
-    // heima 拍 REWRITE-NAV 4 约束依:
-    // 1. URL 真无权 — user A 真创建 DM channel, 截真 channelId 给 user B 浏览器
-    // 2. 真断多角度 — sidebar 空 / channel-empty / MessageInput 不渲染
-    // 3. server gate sanity (F2 显式允许例外) — fetch GET messages 验 server 真 403/404
-    // 4. 双 context 真独立
+    // REWRITE-NAV 4 constraints:
+    // 1. URL is genuinely unauthorized - user A creates a real DM channel, then user B browser receives that channelId.
+    // 2. Multi-angle assertions - empty sidebar / channel-empty / MessageInput not rendered.
+    // 3. server gate sanity (explicit F2 exception) - fetch GET messages verifies server 403/404.
+    // 4. Two contexts are independent.
 
-    // user A 真注册 + 创 agent + 开 DM (REST seed — DM 创建端点没 production UI)
+    // user A registers, creates an agent, and opens a DM (REST seed because the DM creation endpoint has no production UI).
     const userA = await mintInviteAndRegister('case3-userA');
     const dmChannelId = await createAgentAndOpenDM(userA, `dm-leak-userA-${Date.now()}`);
 
-    // user A 在自己 DM 发条 message (作为受害资源)
+    // user A sends a message in their own DM as the protected resource.
     const msgRes = await userA.ctx.post(`/api/v1/channels/${dmChannelId}/messages`, {
       data: { content: `userA private DM msg ${Date.now()}` },
     });
     expect(msgRes.ok(), `userA post DM msg: ${msgRes.status()}`).toBe(true);
 
-    // user B 真注册 (跟 user A 完全独立)
+    // user B registers independently from user A.
     const userB = await mintInviteAndRegister('case3-userB');
 
-    // user B 真浏览器 navigate user A 的 DM channel URL (不开 F3 例外)
+    // user B navigates a real browser to user A's DM channel URL without using the F3 exception.
     const ctxB = await browser.newContext();
     const url = new URL(clientURL());
     await ctxB.addCookies([{
@@ -230,25 +230,25 @@ test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 
     await pageB.goto(`${clientURL()}/?channel=${dmChannelId}`);
     await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10000 });
 
-    // 真断多角度 (heima 约束 2):
-    // (a) sidebar 不出现 user A 的 DM (user B 不是 member)
+    // Multi-angle assertions (constraint 2):
+    // (a) sidebar does not show user A's DM because user B is not a member.
     const sidebarChannelNames = await pageB.locator('.channel-list .channel-name').allTextContents();
     expect(
       sidebarChannelNames.filter(n => n.includes(userA.displayName)),
       `user B sidebar 不应出现 user A (${userA.displayName}) 的 DM`,
     ).toEqual([]);
 
-    // (b) ChannelView 不渲染 user A 的 DM 内容
-    // 真因: SPA 不读 ?channel= URL parameter, user B 落到自己 welcome (非 user A DM).
-    // 反向证: channel title 不含 user A 的 displayName (DM peer 名字).
+    // (b) ChannelView does not render user A's DM content.
+    // Cause: SPA ignores the ?channel= URL parameter, so user B lands on their own welcome channel, not user A's DM.
+    // Reverse check: channel title does not contain user A's displayName (the DM peer name).
     const channelTitleTexts = await pageB.locator('.channel-title').allTextContents();
     expect(
       channelTitleTexts.filter(t => t.includes(userA.displayName)),
       `user B channel title 不应含 user A (${userA.displayName}) 的 DM peer 名 (反向证: user B 真 reach 不到)`,
     ).toEqual([]);
 
-    // (c) server gate sanity (REWRITE-NAV F2 显式允许例外, heima 约束 3):
-    // user B 浏览器登态下 fetch GET /messages 验 server ACL gate 真挡, 不依赖 client UI hide
+    // (c) server gate sanity (REWRITE-NAV explicit F2 exception):
+    // user B browser session fetches GET /messages and verifies the server ACL gate blocks it without relying on client UI hiding.
     const fetchResult = await pageB.evaluate(async (cid: string) => {
       const r = await fetch(`/api/v1/channels/${cid}/messages?since=0`, {
         method: 'GET',
