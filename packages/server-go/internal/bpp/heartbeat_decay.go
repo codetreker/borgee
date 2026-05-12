@@ -1,29 +1,33 @@
-// Package bpp — heartbeat_decay.go: HB-3 v2.1 decay 三档 derive helper.
+// Package bpp — heartbeat_decay.go: HB-3 v2.1 helper for deriving the three
+// heartbeat decay buckets.
 //
-// Blueprint锚: docs/blueprint/current/plugin-protocol.md §1.6 (失联非 binary).
+// Blueprint reference: docs/blueprint/current/plugin-protocol.md §1.6
+// (disconnected is not a binary state).
 // Spec brief: docs/implementation/modules/hb-3-v2-spec.md §0.1 + §1
 // HB-3 v2.1.
 //
-// 立场 (跟 stance §1+§4 byte-identical):
+// Stance (byte-identical with stance §1+§4):
 //
-//   - **0 schema 改** — DecayState 从 last_heartbeat_at 反向 derive,
-//     不裂表 / 不另起 sequence (反向 grep 守 production 不引入新表).
-//   - **threshold byte-identical 跟 BPP-4** — StaleThreshold = 30 *
-//     time.Second (跟 srvbpp/BPP-7 SDK HeartbeatInterval 同源).
-//   - **enum 字面单源** — DecayState const 字面锁 (`fresh / stale /
-//     dead`); 反向 grep hardcode 在 hb_3_v2*.go 外 0 hit.
+//   - **0 schema changes** — DecayState is derived from last_heartbeat_at;
+//     do not split a table or add another sequence. Reverse grep ensures
+//     production code does not introduce a new table.
+//   - **threshold is byte-identical with BPP-4** — StaleThreshold = 30 *
+//     time.Second, matching srvbpp/BPP-7 SDK HeartbeatInterval.
+//   - **enum literals have one source of truth** — DecayState const literals
+//     (`fresh / stale / dead`) are locked; reverse grep hardcode outside
+//     hb_3_v2*.go must return 0 hits.
 //
-// 反约束:
-//   - nil-safe — DeriveDecayState(now, 0) 返 dead (永久不活); 负
-//     lastHeartbeatAt 当 0 处理.
-//   - 不挂 IO / 不挂 store dep — 纯 fn.
+// Negative constraints:
+//   - nil-safe: DeriveDecayState(now, 0) returns dead (never live); negative
+//     lastHeartbeatAt is treated as 0.
+//   - No IO and no store dependency; this is a pure function.
 
 package bpp
 
 import "time"
 
-// DecayState — 3 字面单源 byte-identical 跟 spec §1 字面 + acceptance
-// §1 enum 字面.
+// DecayState is the single source of truth for the three literals; values must
+// remain byte-identical with spec §1 and acceptance §1 enum literals.
 type DecayState string
 
 const (
@@ -36,8 +40,9 @@ const (
 )
 
 // StaleThreshold — same wall-clock value as BPP-4 #499 watchdog stale
-// threshold (30s) and BPP-7 SDK HeartbeatInterval (30s). 改 = 改三处
-// 同步 (BPP-4 watchdog const + BPP-7 SDK const + 此 const).
+// threshold (30s) and BPP-7 SDK HeartbeatInterval (30s). Any change must update
+// three constants together: BPP-4 watchdog const, BPP-7 SDK const, and this
+// const.
 const StaleThreshold = 30 * time.Second
 
 // DeadThreshold — fully-failed plugin. > DeadThreshold means the
@@ -48,9 +53,10 @@ const DeadThreshold = 60 * time.Second
 // milliseconds. Negative or zero lastHeartbeatAt counts as "no heartbeat
 // ever" → dead.
 //
-// 立场 ① — 反向 derive 不查表 / 不挂 store / 不挂 IO. Reverse-monotonic
-// safe (now < lastHeartbeatAt → fresh, since the future-dated heartbeat
-// is treated as healthy by virtue of < StaleThreshold).
+// Stance ①: derive in reverse from timestamps without table reads, store
+// dependencies, or IO. Reverse-monotonic safe: now < lastHeartbeatAt returns
+// fresh because the future-dated heartbeat is treated as healthy by being less
+// than StaleThreshold old.
 func DeriveDecayState(now, lastHeartbeatAt int64) DecayState {
 	if lastHeartbeatAt <= 0 {
 		return DecayStateDead
@@ -74,8 +80,8 @@ func DeriveDecayState(now, lastHeartbeatAt int64) DecayState {
 // IsCrossBucketTransition returns true iff the two states are in
 // different decay buckets — used by the watchdog wire (HB-3 v2.2) to
 // decide whether to fire BPP-8 RecordHeartbeatTimeout audit. Same-bucket
-// transitions are silently no-op (立场 ⑦ — 同档不重复触, 防止 audit
-// log 被 high-frequency noise 淹没).
+// transitions are silently no-op (stance ⑦: do not repeatedly fire within the
+// same bucket, which keeps high-frequency noise out of the audit log).
 func IsCrossBucketTransition(from, to DecayState) bool {
 	return from != to
 }
