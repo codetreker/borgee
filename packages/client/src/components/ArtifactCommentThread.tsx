@@ -2,7 +2,7 @@
 // collapse/expand toggle + reply input.
 //
 // Spec: docs/implementation/modules/cv-8-spec.md §1 CV-8.2.
-// Stance: docs/qa/cv-8-stance-checklist.md §4 (DOM 锁 + 文案 byte-identical).
+// Checklist: docs/qa/cv-8-stance-checklist.md §4 (DOM expectations + required text).
 // Content-lock: docs/qa/cv-8-content-lock.md §1 + §2.
 //
 // 设计反查:
@@ -11,7 +11,7 @@
 //   - ④ thread depth 1 层 — replies 内不渲染 reply button (反向断 nested
 //     reply 内 data-cv8-reply-target count==0).
 //
-// 反约束:
+// Rules:
 //   - 不开 N-deep recursion (props 不传 children, 仅 1-level)
 //   - 不另起 emoji picker / mention parser (reply input 是 plain textarea)
 //   - 不挂 admin-only path (此组件不在 admin console)
@@ -62,7 +62,7 @@ export default function ArtifactCommentThread({
     } catch (err) {
       if (err instanceof ApiError) {
         const m = err.message || '';
-        // CV-8 设计 ③ + ④ — server byte-identical errcodes.
+        // CV-8 设计 ③ + ④ — server errcodes kept exact.
         const known = [
           'comment.thinking_subject_required',
           'comment.thread_depth_exceeded',

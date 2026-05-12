@@ -1,14 +1,14 @@
 // RuntimeCard.tsx — AL-4.3 (#379 v2 §1 拆段) agent runtime 启停 UI
-// owner-only DOM gate + 4 态 badge byte-identical 跟 AL-1a #249 +
+// owner-only DOM gate + 4 态 badge labels matching AL-1a #249 +
 // AL-3 #305 + DM-2 #314 同源.
 //
-// Blueprint锚: docs/blueprint/current/agent-lifecycle.md §2.2 (默认 remote-agent
+// Blueprint refs: docs/blueprint/current/agent-lifecycle.md §2.2 (默认 remote-agent
 // + power user 直配 plugin 双路径) + §2.3 (故障可解释) + §11 (沉默胜
-// 于假 loading); README.md §1 设计 #7 (Borgee 不带 runtime, plugin
+// 于 synthetic progress); README.md §1 设计 #7 (Borgee 不带 runtime, plugin
 // process descriptor only).
 //
 // Spec: docs/implementation/modules/al-4-spec.md (#313 v0 → #379
-// v2, merged 962fec7) §0 design ①②③ + §1 AL-4.3 split. Stance: PR #387
+// v2, merged 962fec7) §0 design ①②③ + §1 AL-4.3 split. Checklist: PR #387
 // v0.1. Acceptance: PR #318 §3 — agent settings card with owner-only
 // start/stop buttons, four-state badge, and reason_label.
 //
@@ -25,15 +25,15 @@
 //     同源 (改 = 改三处 — server agent/state.go + 此 const + AL-3 PresenceDot;
 //     design ④ requires these labels to stay unified).
 //
-// 反约束 (#321 §2 grep 检查 + #379 §3):
+// Rules (#321 §2 grep 检查 + #379 §3):
 //   - ❌ 不显示 endpoint_url / last_heartbeat_at 原始时间戳 (#321 §2
 //     constraint: avoid false precision and do not expose runtime process internals).
-//   - ❌ 不发 toast / 浏览器通知 (#321 §1 通用反约束 — 走 system DM
-//     do not add a parallel UI notification path; §11 prefers silence over fake loading).
+//   - ❌ 不发 toast / 浏览器通知 (#321 §1 general constraint — 走 system DM
+//     do not add a parallel UI notification path; §11 prefers silence over synthetic progress).
 //   - ❌ data-runtime-status 不准出现 'starting' / 'stopping' /
-//     'restarting' (#321 §2 反约束).
+//     'restarting' (#321 §2 constraint).
 //   - ❌ start/stop button 非 owner DOM 直接 omit, 不是 disabled
-//     (#321 §2 反约束 — disabled.*owner 0 hit).
+//     (#321 §2 constraint — disabled.*owner 0 hit).
 
 import React, { useState, useCallback } from 'react';
 import {
@@ -46,7 +46,7 @@ import {
 } from '../lib/api';
 import { REASON_LABELS } from '../lib/agent-state';
 
-// STATUS_LABELS — four-state labels kept byte-identical with #321 + spec §0
+// STATUS_LABELS — four-state labels kept exact with #321 + spec §0
 // design ③. 'registered' means the server has registered the runtime but it has
 // not started; do not show owners "已启动" because registered !== running.
 const STATUS_LABELS: Record<AgentRuntimeStatus, string> = {
@@ -70,7 +70,7 @@ interface Props {
   runtime: AgentRuntime | null;
   // viewerUserID — null = unauthenticated / loading; non-null = the
   // logged-in user. 设计 ② owner-only DOM gate 走严格相等
-  // viewerUserID === agent.owner_id (反约束: undefined / null 都不渲染
+  // viewerUserID === agent.owner_id (constraint: undefined / null 都不渲染
   // start/stop 按钮, 防 leak).
   viewerUserID: string | null;
   onRefresh: () => void;
@@ -90,7 +90,7 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
       await startAgentRuntime(agent.id);
       onRefresh();
     } catch (err) {
-      // Design ⑤: prefer silence over fake loading. Show errors inline only,
+      // Design ⑤: prefer silence over synthetic progress. Show errors inline only,
       // with no toast (#321 §1); runtime status changes use system DMs, while
       // this owner-initiated action gets local inline feedback.
       setError(err instanceof ApiError ? err.message : '启动失败');
@@ -134,7 +134,7 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
           {STATUS_LABELS[status]}
         </span>
         {/* error 态 reason badge — 跟 AL-3 PresenceDot 故障文案
-            byte-identical 同源 (改 = 改三处 — server state.go + 此 +
+            exact text matches the server labels (改 = 改三处 — server state.go + 此 +
             PresenceDot). */}
         {status === 'error' && reason && (
           <span className="runtime-error-reason" data-error-reason={reason}>
@@ -147,13 +147,13 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
         <div className="runtime-card-meta">
           {/* Show process_kind; v1 exposes only 'openclaw' (blueprint §2.2). Constraint:
               endpoint_url / last_heartbeat_at 原始时间戳 NOT shown
-              (#321 §2 反约束). */}
+              (#321 §2 constraint). */}
           <span className="runtime-meta-process" data-process-kind={runtime.process_kind}>
             {runtime.process_kind}
           </span>
         </div>
 
-        {/* 设计 ② owner-only DOM gate — 非 owner 直接 omit (反约束: 不
+        {/* 设计 ② owner-only DOM gate — 非 owner 直接 omit (constraint: 不
             disabled, 不 leak owner 信息). isOwner 严格 viewerUserID ===
             agent.owner_id, undefined / null viewerUserID 都不渲染. */}
         {isOwner && (
@@ -191,7 +191,7 @@ export default function RuntimeCard({ agent, runtime, viewerUserID, onRefresh }:
   );
 }
 
-// Exported for test access: file-local consts that keep labels byte-identical
+// Exported for test access: file-local consts that keep labels exact
 // with #321 §2 + AL-1a #249.
 export const RUNTIME_STATUS_LABELS = STATUS_LABELS;
 export const RUNTIME_STATUS_TONES = STATUS_TONES;

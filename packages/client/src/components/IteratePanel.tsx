@@ -4,31 +4,31 @@
 //   (owner triggers iterate / agent commit goes through CV-1 single source)
 //   + §1 CV-4.3.
 // 文案锁: docs/qa/cv-4-content-lock.md §1 ①②③⑥⑦.
-// Stance: docs/qa/cv-4-stance-checklist.md §1 ②④⑤⑥.
+// Checklist: docs/qa/cv-4-stance-checklist.md §1 ②④⑤⑥.
 // Acceptance: docs/qa/acceptance-templates/cv-4.md §3 (client) + §4 (e2e).
 //
 // 设计反查:
 //   - ② intent textarea 协作语境 placeholder 锁 (蓝图 §1.5 "agent 是
-//     同事"); agent picker 候选仅 channel member.kind='agent' 行 (反 admin /
+//     同事"); agent picker 候选仅 channel member.kind='agent' 行 (exclude admin /
 //     人 行).
-//   - ③ state 4 态 inline DOM `data-iteration-state` byte-identical
-//     ('pending'/'running'/'completed'/'failed') + 文案锁 byte-identical:
+//   - ③ state 4 态 inline DOM `data-iteration-state` exact literals
+//     ('pending'/'running'/'completed'/'failed') + required labels:
 //     pending → "等待 agent 开始…" + spinner
 //     running → "agent 正在迭代…" + 进度条
 //     completed → "已生成 v{N}" + 自动跳新版本
 //     failed → "失败: {REASON_LABELS[reason]}"
 //   - ⑤ iterate 进度仅 inline 此面板, 不进 messages 流 (域隔离永久锁,
-//     #374/#378/#380 反约束承袭).
+//     #374/#378/#380 constraints carried forward).
 //   - ⑥ iterate 触发按钮 owner-only DOM omit (防御深度跟 #347 line 254
 //     showRollbackBtn 同模式 — 由父组件 ArtifactPanel 负责 omit).
 //   - ⑦ failed UI 仅显示 "失败: {reason_label}" + 不显示重试按钮
 //     (blueprint negative constraint + spec #365 §4 — 失败重试 = owner 重新触发新 iteration,
 //     retry-button synonyms must not appear in this UI).
 //
-// 反约束 (本组件强制 grep 锚, content-lock §2 一致):
-//   - Prevent synonym drift (按钮锁定为 🔄, 文案锁中文 byte-identical;
+// Rules (component grep target, content-lock §2 一致):
+//   - Prevent synonym drift (button stays 🔄, required Chinese labels;
 //     英文/全名/同义词全部grep 检查 0 hit)
-//   - state 4 态文案锁中文 byte-identical (反英文 4 态 + 模糊同义词)
+//   - state 4 态 required Chinese labels (no English state labels or fuzzy synonyms)
 //   - failed UI 不渲染重试按钮 (失败状态机锁死, 设计 ⑦)
 //   - 不接 autoRetry / setTimeout POST iterate failed 隐式重试
 //   - failed reason MUST 走 REASON_LABELS 三处单测锁 (#249 + AL-3 #305 + 此组件)
@@ -56,7 +56,7 @@ interface Props {
 }
 
 /**
- * stateLabel — 4 态文案 byte-identical (content-lock §1 ③, 改 = 改三处).
+ * stateLabel — four required state labels (content-lock §1 ③, 改 = 改三处).
  *
  * pending → "等待 agent 开始…"  (中文 + ellipsis)
  * running → "agent 正在迭代…"  (中文 + ellipsis)
@@ -106,7 +106,7 @@ export default function IteratePanel({
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [activeIteration, setActiveIteration] = useState<ArtifactIteration | null>(null);
 
-  // agent picker 候选仅 channel member.kind='agent' 行 (反 admin / 人).
+  // agent picker 候选仅 channel member.kind='agent' 行 (exclude admin / 人).
   const agentCandidates = useMemo(
     () => members.filter((m) => m.role === 'agent'),
     [members],
@@ -145,7 +145,7 @@ export default function IteratePanel({
     };
   }, [channelId, reload]);
 
-  // WS push hook — IterationStateChangedFrame 9 字段 byte-identical
+  // WS push hook — IterationStateChangedFrame 9 fields kept in sync
   // 跟 server #409 envelope. envelope 仅信号, 不带 intent_text (设计 ⑦
   // 字段白名单反断), client 收到后必须 GET /iterations/:id 拉.
   const onFrame = useCallback(

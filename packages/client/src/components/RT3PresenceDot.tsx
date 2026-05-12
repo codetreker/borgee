@@ -1,10 +1,10 @@
 // RT-3 ⭐ presence dot — 4 态 UI 组件 (蓝图 §1.4 活物感).
 //
 // 设计沿用 (rt-3-spec.md §0 + content-lock §1+§2):
-//   - 4 态字面 byte-identical: `在线` / `离线` / `刚刚活跃` / `最近活跃 ${N} 分钟前`
+//   - Four required labels: `在线` / `离线` / `刚刚活跃` / `最近活跃 ${N} 分钟前`
 //   - DOM data-attr SSOT: data-rt3-presence-dot ∈ {online, offline, recently-active}
 //     + data-rt3-last-seen=unix-ms + data-rt3-cursor-user=user-id
-//   - False-loading indicators must not drift in (content-lock §3) — 仅活物感 + 时间戳,
+//   - Synthetic progress indicators must not drift in (content-lock §3) — 仅活物感 + 时间戳,
 //     不显语义中间态
 //   - thought-process 5-pattern wording must not drift in (content-lock §4) — 5 字面 0 hit
 //     (跟 BPP-3 + CV-* + DM-* 既有锁链承袭, RT-3 = 锁链第 N+1 处延伸)
@@ -14,7 +14,7 @@ import { useRT3Presence, type RT3PresenceState } from '../hooks/useRT3Presence';
 
 interface RT3PresenceDotProps {
   userID: string;
-  /** 注入式 now() — 测试用 fake clock; 生产默认 Date.now. */
+  /** 注入式 now() — 测试用 controllable clock; 生产默认 Date.now. */
   now?: () => number;
 }
 

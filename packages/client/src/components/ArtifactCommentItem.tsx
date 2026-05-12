@@ -1,9 +1,9 @@
 // ArtifactCommentItem — CV-7.2 client: per-comment edit/delete/reaction surface.
 //
 // Spec: docs/implementation/modules/cv-7-spec.md §1 CV-7.2.
-// Stance: docs/qa/cv-7-stance-checklist.md §4 (DOM 锁).
+// Checklist: docs/qa/cv-7-stance-checklist.md §4 (DOM expectations).
 // Content-lock: docs/qa/cv-7-content-lock.md §1 + §2 (DOM data-attr +
-// 文案 byte-identical).
+// required UI text).
 //
 // 设计反查 (cv-7-spec.md §0):
 //   - ① 走 messages 表既有 endpoint — editMessage/deleteMessage/addReaction
@@ -11,10 +11,10 @@
 //   - ② owner-only — edit/delete 按钮仅 sender==current user 渲染
 //     (grep 检查 `data-cv7-edit-btn` count≥1, 仅在 own comment 行渲染).
 //   - ③ thinking 5-pattern 错误 server reject → client 显错码
-//     `comment.thinking_subject_required` byte-identical (跟 CV-5 同字符).
-//   - ④ delete confirm 文案 byte-identical "确认删除这条评论?".
+//     `comment.thinking_subject_required` must match the CV-5 error code.
+//   - ④ delete confirm required text: "确认删除这条评论?".
 //
-// 反约束:
+// Rules:
 //   - 不另起 emoji picker (复用现有 message reaction unicode 集 — 默认 👍)
 //   - 不渲染 edit history (forward-only — 即覆写, 无历史版本)
 //   - 不挂 admin-only path (此组件不在 admin console 路径渲染)
@@ -74,10 +74,10 @@ export default function ArtifactCommentItem({
       setEditing(false);
       onChanged?.();
     } catch (err) {
-      // CV-7 设计 ③: server 5-pattern reject 返回 errcode byte-identical CV-5.
+      // CV-7 设计 ③: server 5-pattern reject 返回 errcode matching CV-5.
       if (err instanceof ApiError) {
         // ApiError carries message; we surface a known code on the rejection
-        // text so the e2e + vitest can byte-identical lock the literal.
+        // text so the e2e + vitest can lock the exact literal.
         const literal = (err.message || '').includes('comment.thinking_subject_required')
           || (err.message || '').includes('thinking-only body rejected')
           ? 'comment.thinking_subject_required'

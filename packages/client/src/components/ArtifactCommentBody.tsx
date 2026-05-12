@@ -1,10 +1,11 @@
 // ArtifactCommentBody — CV-11.2 client: render artifact comment body as
 // sanitized markdown. Reuses lib/markdown::renderMarkdown (marked + DOMPurify
 // single source — same path used by DM-2.3 mention rendering and ArtifactPanel
-// markdown surface). 0 new lib (反约束 spec §3 grep 锁).
+// markdown surface). This keeps the spec §3 requirement that comment
+// rendering reuse the existing markdown helper instead of adding another library.
 //
 // Spec: docs/implementation/modules/cv-11-spec.md §1 CV-11.2.
-// Stance: docs/qa/cv-11-stance-checklist.md §1+§4.
+// Checklist: docs/qa/cv-11-stance-checklist.md §1+§4.
 // Content-lock: docs/qa/cv-11-content-lock.md §1+§2.
 //
 // 设计反查:

@@ -2,7 +2,7 @@
 //
 // Blueprint: docs/blueprint/current/canvas-vision.md §0 L24 wording:
 // "Linear issue + comment, not a Miro whiteboard". Spec: docs/implementation/modules/cv-5-spec.md
-// §1 CV-5.2 (client). Stance: docs/qa/cv-5-stance-checklist.md.
+// §1 CV-5.2 (client). Checklist: docs/qa/cv-5-stance-checklist.md.
 //
 // Design checks:
 //   - ① comments use messages table as the single source. Do not introduce an

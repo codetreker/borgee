@@ -4,15 +4,15 @@
 //   §1 CV-3.2; 文案锁: docs/qa/cv-3-content-lock.md §1 ⑥;
 //   acceptance: docs/qa/acceptance-templates/cv-3.md §2.6.
 //
-// 三模式 byte-identical (跟 #370 ⑥ 同源):
+// Preview modes match #370 ⑥:
 //   - markdown: 头 80 字符 + ellipsis '…'  (隐私 + 流内噪声防御)
-//   - code:     头 5 行 + 语言徽标 (跟 §1 ② byte-identical)
+//   - code:     头 5 行 + language badge matching §1 ②
 //   - image:    缩略图 <img loading="lazy" style="max-width: 192px">
-//   - link:     回 markdown preview (二元拆死: link 不渲染 image)
+//   - link:     回 markdown preview (strict split: link 不渲染 image)
 //
 // 容器 DOM `<span class="artifact-preview" data-artifact-kind={kind}>` 包裹.
 //
-// 反约束:
+// Rules:
 //   - markdown preview 不 > 80 字; code preview 不 > 5 行;
 //     image preview 不 > 192px; link preview 不渲染 <img>.
 //   - 不渲染 raw HTML / dangerouslySetInnerHTML body (XSS constraint).

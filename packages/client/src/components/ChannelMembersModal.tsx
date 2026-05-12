@@ -9,7 +9,7 @@ import PresenceDot from './PresenceDot';
 import { usePresence } from '../hooks/usePresence';
 
 // AL-3.3 (#R3 Phase 2) — agent member presence row.
-// 反约束 §3.2: 仅 role==='agent' 行带 dot, 人 (member/admin) 行无 [data-presence].
+// Constraint §3.2: 仅 role==='agent' 行带 dot, 人 (member/admin) 行无 [data-presence].
 function MemberPresence({ agentID }: { agentID: string }) {
   const live = usePresence(agentID);
   return <PresenceDot state={live?.state} reason={live?.reason} />;
@@ -205,7 +205,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
                           // CM-5.3 client SPA: agent collab hover link.
                           // 设计 ⑤ owner-first 透明协作 — agent 跟人 path
                           // 同源, hover 显示 "正在协作" 提示给 owner 视角
-                          // 看见 agent 工作链路. 反约束: 不订阅 push frame
+                          // 看见 agent 工作链路. Constraint: 不订阅 push frame
                           // (走 channel members 既有 lookup), 不引 ai_only
                           // visibility scope (蓝图 §185 透明协作字面承袭).
                           'data-cm5-collab-link': '',

@@ -3,22 +3,22 @@
 // Spec: docs/implementation/modules/cv-4-spec.md §0 设计 ③
 //   (client jsdiff 不裂 server diff). 文案锁:
 //   docs/qa/cv-4-content-lock.md §1 ⑤. Acceptance: cv-4.md §3.5.
-// Stance: docs/qa/cv-4-stance-checklist.md §1 ③.
+// Checklist: docs/qa/cv-4-stance-checklist.md §1 ③.
 //
 // 设计反查:
 //   - ③ 走 client jsdiff 行级 (jsdiff diffLines), 不裂 schema 不裂 endpoint.
-//     反约束: server 不算 diff (CRDT 巨坑同源, 蓝图 §2 字面禁); 不存
+//     Constraint: server 不算 diff (CRDT risk, blueprint §2 forbids it); 不存
 //     diff 缓存 (查时即算 ≤500ms 实测够 markdown 数 KB).
 //
 // DOM 字面锁 (content-lock §1 ⑤):
-//   - tab 文案 byte-identical (单字; synonyms must not appear).
+//   - tab required text is a single character; synonyms must not appear.
 //   - 标题 "v{N} ↔ v{M}" (双向箭头 ↔ 锁).
 //   - 行级 DOM data-diff-line="add" / data-diff-line="del" /
 //     data-diff-line="context" 三 enum 字面 (a11y ARIA 替代仅颜色辨识 —
 //     视觉障碍漏防御).
-//   - deep-link `?diff=vN..vM` byte-identical.
+//   - deep-link `?diff=vN..vM` exact format.
 //
-// 反约束 (本组件强制 grep 锚):
+// Rules (component grep targets):
 //   - 不接 tab 文案的全名词扩展形式 (单字锁)
 //   - 不接 server diff endpoint 调用 (跟 spec §0 设计 ③ 同源)
 //   - image_link kind 走 fallback 前后缩略图并排 (jsdiff 不适用)
@@ -120,7 +120,7 @@ export default function DiffView({ newBody, newVersion, oldBody, oldVersion, kin
       <h4 className="diff-title">{`v${newVersion} ↔ v${oldVersion}`}</h4>
       <pre className="diff-pre">
         {rows.map((row, i) => {
-          // 设计 ③ a11y — 三 enum 字面 byte-identical (content-lock §1 ⑤).
+          // 设计 ③ a11y — three enum literals required by content-lock §1 ⑤.
           // grep 检查项: data-diff-line="add" / data-diff-line="del" /
           // data-diff-line="context" 三 enum 各 ≥1.
           if (row.kind === 'add') {
