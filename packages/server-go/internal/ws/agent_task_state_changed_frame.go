@@ -1,44 +1,43 @@
-// Package ws — agent_task_state_changed_frame.go: RT-3 ⭐ source-of-truth
+// Package ws — agent_task_state_changed_frame.go: RT-3 source of truth
 // for the `agent_task_state_changed` push frame. Server fans this out to
 // channel members when an agent transitions busy↔idle, derived from
 // BPP-2.2 task_started / task_finished plugin upstream frames.
 //
-// Blueprint锚: docs/blueprint/current/realtime.md §1.1 (活物感 / thinking 强制带
-// subject) + §0 字面 "v1 realtime 只做'足够让用户感到 AI 在工作'的最小集"
+// Blueprint reference: docs/blueprint/current/realtime.md §1.1 (thinking requires
+// subject) + §0 text "v1 realtime 只做'足够让用户感到 AI 在工作'的最小集"
 // + agent-lifecycle.md §2.3 (busy/idle source 必须 plugin 上行 frame) +
 // plugin-protocol.md §1.6.
 //
 // Spec brief: docs/implementation/modules/rt-3-spec.md (本 PR 同 commit
-// 落) §0 立场 ① + §1 拆段 RT-3.1.
-// Stance: docs/qa/rt-3-stance-checklist.md §1 立场 ① 反约束.
+// landed with this PR) §0 point 1 + §1 RT-3.1 breakdown.
+// Checklist: docs/qa/rt-3-stance-checklist.md §1 point 1 negative constraints.
 //
-// Behaviour contract — byte-identical 跟 RT-1.1 ArtifactUpdated /
+// Behaviour contract — follows the same wire pattern as RT-1.1 ArtifactUpdated /
 // CV-2.2 AnchorCommentAdded / DM-2.2 MentionPushed / CV-4.2
-// IterationStateChanged / AL-2b AgentConfigUpdate 同模式 (RT-3 是第 6 个
-// 共序 frame):
+// IterationStateChanged / AL-2b AgentConfigUpdate (RT-3 is the 6th shared-sequence frame):
 //
-//   1. Cursor 走 hub.cursors.NextCursor() 单调发号, 跟 5 上游 frame 共
-//      一根 sequence (反约束: 不另起 agent-only 推送通道).
-//   2. 字段顺序锁: type / cursor / agent_id / state / subject / reason /
+//   1. Cursor uses hub.cursors.NextCursor() and shares the same monotonic
+//      sequence as the five upstream frames (no separate agent-only push channel).
+//   2. Field order contract: type / cursor / agent_id / state / subject / reason /
 //      changed_at — 7 字段, 跟 BPP-2.2 task_started/finished frame field
 //      顺序一致 (subject byte-identical 跟 plugin 上行 source frame).
-//   3. JSON tag 跟客户端 ws-frames.ts 字段名严格一致 (BPP-1 #304 envelope
-//      CI lint 自动闸位 + RT-3.2 client 接).
-//   4. 多端 fanout — BroadcastToChannel 走每个 client subscription, 一
-//      user 多 ws session 全收 (跟 P1MultiDeviceWebSocket #197 同源 +
+//   3. JSON tags must match client ws-frames.ts field names (BPP-1 #304 envelope
+//      CI lint + RT-3.2 client wiring).
+//   4. Multi-device fanout — BroadcastToChannel walks every client subscription, so one
+//      user with multiple ws sessions receives all frames (same rule as P1MultiDeviceWebSocket #197 +
 //      Hub.onlineUsers map[userID]map[*Client]bool 数据结构).
 //
-// 反约束 (rt-3-spec §0 立场 ① + 蓝图 §1.1 ⭐ 关键纪律):
+// Negative constraints (rt-3-spec §0 point 1 + blueprint §1.1):
 //   - state ∈ 2-enum {'busy', 'idle'}; 中间态 reject (跟 BPP-2.2 outcome
 //     enum 同模式 fail-closed).
 //   - busy 态 subject 必带非空 (蓝图 §1.1 字面 "BPP progress frame 强制带
 //     subject 字段, plugin 必须告诉 Borgee 'agent 在做什么', 否则不展示").
 //     反向 grep CI lint guards: empty subject default symbol /
 //     fallback-named symbol / hard-coded vague strings — count==0 across
-//     this file (excluding _test.go); 字面禁默认值 fallback (跟 BPP-2.2
-//     task_lifecycle.go ValidateTaskStarted subject 必带非空 同源).
-//   - idle 态 subject 必为空 (反字典污染, 跟 BPP-2.2 cancelled/completed
-//     reason 必空 同模式).
+//     this file (excluding _test.go); default subject fallbacks are forbidden,
+//     matching BPP-2.2 task_lifecycle.go ValidateTaskStarted.
+//   - idle 态 subject 必为空 (prevents stale subject text, matching BPP-2.2
+//     cancelled/completed reason-empty behavior).
 //   - reason 仅 idle+failed-derived 时填, ∈ AL-1a 6 字典 byte-identical
 //     (复用 internal/agent/state.go::Reason* SSOT).
 package ws
@@ -48,17 +47,17 @@ package ws
 // packages/client/src/realtime/wsClient.ts (RT-3.2 接).
 const FrameTypeAgentTaskStateChanged = "agent_task_state_changed"
 
-// AgentTaskState enum byte-identical 跟蓝图 realtime.md §1.1 + 蓝图
-// agent-lifecycle.md §2.3 字面 (busy / idle 二分态).
+// AgentTaskState enum matches blueprint realtime.md §1.1 and
+// agent-lifecycle.md §2.3 (busy / idle).
 const (
 	AgentTaskStateBusy = "busy"
 	AgentTaskStateIdle = "idle"
 )
 
 // AgentTaskStateChangedFrame — server → client push fired when an agent
-// transitions busy↔idle. Server 派生于 BPP-2.2 task_started/finished 上行
-// frame, 不是独立 plugin 上行 source — busy/idle 是 task lifecycle 的算法
-//结果不是独立信号 (BPP-2 #485 (a) 派生 设计选择承袭).
+// transitions busy↔idle. Server derives this from BPP-2.2 task_started/finished
+// upstream frames; busy/idle is computed from task lifecycle rather than sent
+// as an independent plugin signal (BPP-2 #485 (a) design choice).
 //
 // Field order is the contract. Do NOT reorder without updating
 // packages/client/src/types/ws-frames.ts in the same PR.
@@ -76,13 +75,13 @@ type AgentTaskStateChangedFrame struct {
 // channel member of channelID and signals long-poll waiters. Cursor is
 // allocated fresh from hub.cursors so the frame slots into the same
 // monotonic sequence as ArtifactUpdated / AnchorCommentAdded /
-// MentionPushed / IterationStateChanged / AgentConfigUpdate (反约束:
-// 不另起 agent-only push channel).
+// MentionPushed / IterationStateChanged / AgentConfigUpdate (no separate
+// agent-only push channel).
 //
 // Multi-device fanout: BroadcastToChannel walks every subscribed *Client
 // (one user can have N concurrent /ws sessions, all subscribe → all
-// receive — Hub.onlineUsers map[userID]map[*Client]bool 数据结构 + P1
-// multi-device test #197 已验证).
+// receive — backed by Hub.onlineUsers map[userID]map[*Client]bool and verified
+// by P1 multi-device test #197).
 //
 // Returns (cursor, sent). sent=false only when the hub has no cursor
 // allocator (test seam).

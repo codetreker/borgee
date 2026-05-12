@@ -1,17 +1,17 @@
 // Package presence — writer.go: AL-3.2 write-side contract for the
 // PresenceTracker. The read-side interface (`PresenceTracker` in
-// contract.go) was 字面 byte-locked at G2.5 (#277) so Phase 3 callers
+// contract.go) was locked at G2.5 (#277) so Phase 3 callers
 // could wire against a stable shape; this file adds the write-side
 // without touching that locked file.
 //
 // Why a separate interface (`PresenceWriter`):
-//   - Read callers (RT-0 / DM-2 fallback / sidebar 渲染) only ever
+//   - Read callers (RT-0 / DM-2 fallback / sidebar rendering) only ever
 //     consume `IsOnline / Sessions` — passing them a writer would let
 //     hot-path code mistakenly mutate state. The split keeps the read
 //     contract a strict subset.
 //   - The /ws hub is the only legal writer. Anywhere else calling
 //     `TrackOnline / TrackOffline` is an architectural drift; the
-//     reverse-grep in al-3.md acceptance §2 pins this.
+//     acceptance check in al-3.md §2 verifies this.
 //
 // Implementation: SessionsTracker (in tracker.go) satisfies BOTH
 // interfaces via the same *gorm.DB handle, so wiring is a single
@@ -39,7 +39,7 @@ type PresenceWriter interface {
 	// The (userID, agentID) pair lets a single session represent both
 	// "this human is online" and, if the connection is for an agent
 	// runtime, "this agent's runtime is reachable" — DM-2.2 mention
-	// fallback, RT-0 routing, and sidebar 渲染 all read off the same
+	// fallback, RT-0 routing, and sidebar rendering all read off the same
 	// row via the OR-shaped IsOnline query.
 	TrackOnline(userID, sessionID string, agentID *string) error
 

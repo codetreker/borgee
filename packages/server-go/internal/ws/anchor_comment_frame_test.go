@@ -1,7 +1,7 @@
 // Package ws_test — anchor_comment_frame_test.go: CV-2.2 envelope
 // byte-identity lock + push smoke for AnchorCommentAddedFrame.
 //
-// The 10-field order is the contract per cv-2-spec.md §0 立场 ③ + 飞马
+// The 10-field order is the contract per cv-2-spec.md §0 point 3 +
 // v2 changelog (字段名 `author_kind` 不复用 CV-1 `committer_kind`). Any
 // reorder caught here pre-merge — paired with BPP-1 #304 envelope CI lint.
 package ws_test
@@ -46,7 +46,7 @@ func TestPushAnchorCommentAdded(t *testing.T) {
 	hub, _ := setupTestHub(t)
 
 	// Seed an artifact_updated push first so the cursor moves and we can
-	// confirm anchor_comment_added picks up the next slot (反约束: 同 sequence).
+	// confirm anchor_comment_added picks up the next slot (same sequence).
 	c1, sent1 := hub.PushArtifactUpdated("art-1", 1, "ch-1", 1700000000000, "commit")
 	if !sent1 {
 		t.Fatal("seed artifact push failed")

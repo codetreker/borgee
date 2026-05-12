@@ -2,8 +2,8 @@
 // PushAgentConfigUpdate emit + cursor sequence + plugin offline + frame
 // byte-identity round-trip.
 //
-// 锚: docs/qa/acceptance-templates/al-2b.md §2.1 (delivery latency
-// hard-line ≤1s + cursor 共序) + §2.2 (幂等 reload — 同 idempotency_key
+// Reference: docs/qa/acceptance-templates/al-2b.md §2.1 (delivery latency
+// ≤1s + shared cursor sequence) + §2.2 (idempotent reload — same idempotency_key
 // 重发 plugin 端 dedup, server stateless 约束).
 package ws_test
 
@@ -18,7 +18,7 @@ import (
 
 // TestAL_PushAgentConfigUpdateBasic pins acceptance §2.1 — 基本路径:
 // hub.PushAgentConfigUpdate emits AgentConfigUpdateFrame to plugin's send
-// channel with byte-identical wire JSON; cursor 单调发号; sent=true.
+// channel with byte-identical wire JSON; cursor increases monotonically; sent=true.
 func TestAL_PushAgentConfigUpdateBasic(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -40,7 +40,7 @@ func TestAL_PushAgentConfigUpdateBasic(t *testing.T) {
 		t.Fatal("cursor must be > 0 (hub.cursors allocator running)")
 	}
 
-	// Drain the send channel — assert wire JSON byte-identical 跟 #472
+	// Drain the send channel — assert wire JSON matches #472
 	// AgentConfigUpdateFrame field order.
 	wire, ok := pc.DrainSend()
 	if !ok {
@@ -68,8 +68,8 @@ func TestAL_PushAgentConfigUpdateBasic(t *testing.T) {
 
 // TestAL_PushAgentConfigUpdate_PluginOffline pins acceptance §2.1
 // fail-graceful path — plugin not registered → sent=false, cursor still
-// allocated (蓝图 §1.5 约束 "runtime 不缓存": frame dropped, plugin
-// 重连后 GET /agents/:id/config 主动拉; server 不入队列).
+// allocated (blueprint §1.5 "runtime 不缓存": frame dropped, plugin
+// reconnects and GET /agents/:id/config pulls; server does not queue).
 func TestAL_PushAgentConfigUpdate_PluginOffline(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -90,8 +90,8 @@ func TestAL_PushAgentConfigUpdate_PluginOffline(t *testing.T) {
 }
 
 // TestAL_PushAgentConfigUpdate_CursorMonotonic pins acceptance §2.1
-// cursor 共序 — N 次 push cursor 严格递增, 跟 RT-1 PushArtifactUpdated
-// 共一根 sequence (约束: 不另起 plugin-only 通道).
+// shared cursor sequence — N pushes strictly increase cursor, sharing one
+// sequence with RT-1 PushArtifactUpdated (no plugin-only channel).
 func TestAL_PushAgentConfigUpdate_CursorMonotonic(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -111,9 +111,9 @@ func TestAL_PushAgentConfigUpdate_CursorMonotonic(t *testing.T) {
 }
 
 // TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1 pins acceptance
-// §2.1 设计 ① cursor 共序 — AL-2b push 跟 RT-1.1 PushArtifactUpdated
-// 共一根 sequence (跟 anchor_comment_frame_test / iteration_state_changed_
-// frame_test 同模式 — 约束: 不另起 channel).
+// §2.1 design 1 shared cursor sequence — AL-2b push and RT-1.1
+// PushArtifactUpdated share one sequence (same pattern as anchor_comment_frame_test /
+// iteration_state_changed_frame_test — no separate channel).
 func TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -144,8 +144,8 @@ func TestAL_PushAgentConfigUpdate_SharedSequenceWithRT1(t *testing.T) {
 }
 
 // TestAL_PushAgentConfigUpdate_FieldByteIdentity pins acceptance §2.1
-// + #472 §1.1 — wire JSON 跟 BPP envelope reflect lint byte-identical
-// (filled + zero-tail 双 snapshot — 约束 不挂 omitempty).
+// + #472 §1.1 — wire JSON matches BPP envelope reflect lint
+// (filled + zero-tail snapshots — do not add omitempty).
 func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)
@@ -153,7 +153,7 @@ func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 	pc := ws.NewTestPluginConn("agent-Z")
 	hub.RegisterPlugin("agent-Z", pc)
 
-	// Empty blob + zero schema_version — 约束: 7 字段全序列化.
+	// Empty blob + zero schema_version — all 7 fields are serialized.
 	cur, sent := hub.PushAgentConfigUpdate("agent-Z", 0, "", "idem-empty", 0)
 	if !sent {
 		t.Fatal("zero-tail push must succeed")
@@ -167,7 +167,7 @@ func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 	if wire != want {
 		t.Fatalf("zero-tail wire byte-identity broken:\n got: %s\nwant: %s", wire, want)
 	}
-	// 约束: 7 keys (始终序列化, 不挂 omitempty).
+	// Constraint: 7 keys (always serialized, no omitempty).
 	count := strings.Count(wire, ":")
 	if count < 7 {
 		t.Errorf("wire must serialize all 7 fields; saw %d ':' (omitempty mismatch)", count)
@@ -175,19 +175,19 @@ func TestAL_PushAgentConfigUpdate_FieldByteIdentity(t *testing.T) {
 }
 
 // TestAL_PushAgentConfigUpdate_NoCursorAllocator pins fail-graceful
-// — hub without cursor allocator returns (0, false). 跟 PushArtifactUpdated
-// h.cursors==nil 同模式; 测试种子.
+// — hub without cursor allocator returns (0, false). Same pattern as
+// PushArtifactUpdated h.cursors==nil; test seed.
 func TestAL_PushAgentConfigUpdate_NoCursorAllocator(t *testing.T) {
 	t.Parallel()
 	// Bare Hub via NewHub — but with cursors set up automatically. Skip
-	// this case: 真实路径不暴露 cursors=nil 的 Hub. setupTestHub 已带
-	// allocator; 跟 hub_test setupTestHub 一致. 此 test 仅锚字面注释 +
+	// this case: production paths do not expose a Hub with cursors=nil. setupTestHub provides
+	// an allocator, matching hub_test setupTestHub. This test only anchors the comment +
 	// PushArtifactUpdated 同 fail-mode 实现 (h.cursors==nil → 0/false).
 	t.Skip("setupTestHub always provides cursor allocator; covered by code review of guard line.")
 }
 
 // TestAL_PluginConnDrainSendEmpty pins NewTestPluginConn helper —
-// 空 send channel return ("", false). 防 false-positive on later cases.
+// Empty send channel returns ("", false), preventing false positives in later cases.
 func TestAL_PluginConnDrainSendEmpty(t *testing.T) {
 	t.Parallel()
 	pc := ws.NewTestPluginConn("agent-empty")

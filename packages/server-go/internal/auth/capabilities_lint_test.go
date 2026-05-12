@@ -1,13 +1,13 @@
 // AP-4-enum.1 reflect-lint tests — capability ALL slice + init() rebuild
-// Capabilities map + IsValidCapability helper 单一来源 (spec §0 设计 ① + ③).
+// Capabilities map + IsValidCapability helper single source (spec §0 design 1 + 3).
 //
-// 6 unit (跟 acceptance template 设计 ① 1.1-1.5 + 设计 ③ 3.1 同源):
-//   - TestAP_ALL_OrderedByteIdentical (1.1) — ALL 顺序跟 const 声明顺序对齐
+// 6 unit checks (matching acceptance template design 1.1-1.5 + design 3.1):
+//   - TestAP_ALL_OrderedByteIdentical (1.1) — ALL order matches const declaration order
 //   - TestAP_Capabilities_AutoBuildFromAll (1.2) — init() 派生 map ↔ ALL 双向
-//   - TestAP_ALL_Length14 (1.3) — len(ALL) == 14 锁
-//   - TestAP_reflect_lint_NoOrphanConst (1.4a) — 14 const 字面 ⊂ ALL
+//   - TestAP_ALL_Length14 (1.3) — len(ALL) == 14
+//   - TestAP_reflect_lint_NoOrphanConst (1.4a) — 14 const literals ⊂ ALL
 //   - TestAP_reflect_lint_NoExtraInMap (1.4b) — Capabilities map ⊂ ALL
-//   - TestAP_NoAdminGodModeInALL (1.5) — admin god-mode 红线 (ADM-0 §1.3)
+//   - TestAP_NoAdminGodModeInALL (1.5) — admin god-mode exclusion (ADM-0 §1.3)
 //   - TestAP_IsValidCapability_TruthTable (3.1) — 14 true + 1 false
 package auth
 
@@ -19,8 +19,8 @@ import (
 	"testing"
 )
 
-// TestAP_ALL_OrderedByteIdentical — ALL slice 顺序 byte-identical 跟
-// const 声明顺序 (channel scope → artifact scope → messaging → channel admin).
+// TestAP_ALL_OrderedByteIdentical — ALL slice order matches the const
+// declaration order (channel scope → artifact scope → messaging → channel admin).
 func TestAP_ALL_OrderedByteIdentical(t *testing.T) {
 	t.Parallel()
 	want := []string{
@@ -67,7 +67,7 @@ func TestAP_Capabilities_AutoBuildFromAll(t *testing.T) {
 	}
 }
 
-// TestAP_ALL_Length14 — 14 锁 (跟 AP-1 #493 同源).
+// TestAP_ALL_Length14 — AP-1 #493 expects exactly 14 capabilities.
 func TestAP_ALL_Length14(t *testing.T) {
 	t.Parallel()
 	if len(ALL) != 14 {
@@ -75,8 +75,8 @@ func TestAP_ALL_Length14(t *testing.T) {
 	}
 }
 
-// TestAP_reflect_lint_NoOrphanConst — capabilities.go const 字面 ⊂ ALL.
-// 走 go/ast 解析 capabilities.go const block, 验每个 string literal ∈ ALL.
+// TestAP_reflect_lint_NoOrphanConst — capabilities.go const literals ⊂ ALL.
+// Parse the capabilities.go const block with go/ast and verify every string literal ∈ ALL.
 func TestAP_reflect_lint_NoOrphanConst(t *testing.T) {
 	t.Parallel()
 	fset := token.NewFileSet()
@@ -126,7 +126,7 @@ func TestAP_reflect_lint_NoExtraInMap(t *testing.T) {
 	}
 }
 
-// TestAP_NoAdminGodModeInALL — ADM-0 §1.3 红线 (admin 永久不挂).
+// TestAP_NoAdminGodModeInALL — ADM-0 §1.3 excludes admin god-mode patterns.
 func TestAP_NoAdminGodModeInALL(t *testing.T) {
 	t.Parallel()
 	banned := []string{"admin_", "godmode_", "impersonat"}

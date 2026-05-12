@@ -1,7 +1,7 @@
 // Package ws_test — mention_pushed_frame_test.go: DM-2.2 envelope
 // byte-identity lock + push smoke + body_preview rune-safe truncation.
 //
-// The 8-field order is the contract per dm-2-spec.md §0 立场 ② + #362
+// The 8-field order is the contract per dm-2-spec.md §0 point 2 + #362
 // spec brief envelope. Any reorder caught here pre-merge — paired with
 // BPP-1 #304 envelope CI lint.
 package ws_test
@@ -39,9 +39,9 @@ func TestMentionPushedFrameFieldOrder(t *testing.T) {
 	}
 }
 
-// TestMentionPushedFrame_NoOwnerField — 反约束 acceptance §1.0.e + spec
-// §0 立场 ③: marshalled frame MUST NOT contain owner_id / target_owner /
-// fanout_to_owner — mention 永不抄送 owner via this frame (offline owner
+// TestMentionPushedFrame_NoOwnerField — negative acceptance §1.0.e + spec
+// §0 point 3: marshalled frame MUST NOT contain owner_id / target_owner /
+// fanout_to_owner — mention never copies owner via this frame (offline owner
 // fallback uses system DM, not this envelope).
 func TestMentionPushedFrame_NoOwnerField(t *testing.T) {
 	t.Parallel()
@@ -69,8 +69,8 @@ func TestMentionPushedFrame_NoOwnerField(t *testing.T) {
 }
 
 // TestTruncateBodyPreview pins the 80-rune cap (UTF-8 rune-safe). Privacy
-// stance §13: 完整 body 不进 mention frame, 只 80 字符 preview; 防 raw
-// body 借 frame 全量泄露.
+// stance §13: full body does not enter mention frame, only an 80-character
+// preview; prevents full raw body leakage through this frame.
 func TestTruncateBodyPreview(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -103,8 +103,7 @@ func TestTruncateBodyPreview(t *testing.T) {
 }
 
 // TestPushMentionPushed smoke: fresh emit returns sent=true with cursor
-// > prior pushes (反约束: 跟 ArtifactUpdated / AnchorCommentAdded 共
-// sequence — RT-1 §1.1).
+// > prior pushes (shares sequence with ArtifactUpdated / AnchorCommentAdded — RT-1 §1.1).
 func TestPushMentionPushed(t *testing.T) {
 	t.Parallel()
 	hub, _ := setupTestHub(t)

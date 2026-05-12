@@ -74,7 +74,7 @@ func TestTrackOnline_WritesRow(t *testing.T) {
 // TrackOnline(agentID=x) writes a row keyed by user_id=human-owner +
 // agent_id=x; subsequent IsOnline(x) hits the OR-shaped query via the
 // agent_id branch (the partial index covers it) and returns true.
-// This is the byte-level lock between AL-3.2 writes and DM-2.2 fallback.
+// This keeps AL-3.2 writes aligned with DM-2.2 fallback reads.
 func TestTrackOnline_AgentIDPartialIndex(t *testing.T) {
 	t.Parallel()
 	db := newTestDB(t)
@@ -95,7 +95,7 @@ func TestTrackOnline_AgentIDPartialIndex(t *testing.T) {
 // TestTrackOffline_MultiSessionLastWins pins #302 §2.2: closing one of
 // N concurrent sessions for the same user keeps IsOnline true; only the
 // close of the last session flips offline. Deviation here would let
-// multi-end users (web tab + mobile + plugin) appear offline whenever
+// multi-device users (web tab + mobile + plugin) appear offline whenever
 // any tab closed.
 func TestTrackOffline_MultiSessionLastWins(t *testing.T) {
 	t.Parallel()
@@ -160,7 +160,7 @@ func TestTrackOnline_DuplicateSessionIDIsUnique(t *testing.T) {
 	}
 }
 
-// TestTrackOnline_RejectsEmptyArgs pins the boot-loud guard: empty
+// TestTrackOnline_RejectsEmptyArgs pins the fail-fast guard: empty
 // userID or sessionID is a programmer error (forgot to wire something),
 // not a runtime condition — error rather than silent ignore so tests
 // trip immediately.

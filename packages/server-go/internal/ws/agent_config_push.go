@@ -2,39 +2,39 @@
 // emitting AgentConfigUpdateFrame to the target agent's plugin
 // connection (server→plugin direction lock).
 //
-// Blueprint出处: docs/blueprint/current/plugin-protocol.md §1.5 (热更新分级 + 幂等
+// Blueprint reference: docs/blueprint/current/plugin-protocol.md §1.5 (热更新分级 + 幂等
 // reload + runtime 不缓存) + §2.1 (control-plane row `agent_config_update`).
 // Spec: AL-2b acceptance #452 §2.1 + AL-2b.1 frames PR #472 (BPP envelope
 // 7+7 字段 byte-identical).
 //
-// Behaviour contract — byte-identical 跟 RT-1.1 PushArtifactUpdated /
+// Behaviour contract — follows the same wire pattern as RT-1.1 PushArtifactUpdated /
 // CV-2.2 PushAnchorCommentAdded / DM-2.2 PushMentionPushed / CV-4.2
-// PushIterationStateChanged 同模式:
+// PushIterationStateChanged:
 //
-//   1. Cursor 走 hub.cursors.NextCursor() 单调发号, 跟 RT-1/CV-2/DM-2/CV-4
-//      4-frame 共一根 sequence (acceptance §2.1 反向约束: 不另起 plugin-only
-//      推送通道); AL-2b 是第 5 个共序 frame.
-//   2. Direction lock = server→plugin; 只发给目标 agent 的 PluginConn
-//      (h.plugins[agentID]), 不 broadcast (跟 channel-scoped frames 真分清;
-//      acceptance §2.1 字面 plugin 收到 ≤1s).
-//   3. 字段顺序锁定: type/cursor/agent_id/schema_version/blob/idempotency_key/
-//      created_at — 跟 BPP-1 #304 envelope CI lint reflect 自动覆盖
-//      (al_2b_frames_test.go::TestAL2B1_AgentConfigUpdate7Fields 守).
+//   1. Cursor uses hub.cursors.NextCursor() and shares one sequence with the
+//      RT-1/CV-2/DM-2/CV-4 frames (acceptance §2.1: no plugin-only push channel);
+//      AL-2b is the 5th shared-sequence frame.
+//   2. Direction lock = server→plugin; only send to the target agent's PluginConn
+//      (h.plugins[agentID]), not broadcast (separate from channel-scoped frames;
+//      acceptance §2.1 says plugin receives within ≤1s).
+//   3. Field order contract: type/cursor/agent_id/schema_version/blob/idempotency_key/
+//      created_at — covered by BPP-1 #304 envelope CI lint reflect checks
+//      (al_2b_frames_test.go::TestAL2B1_AgentConfigUpdate7Fields).
 //   4. 幂等 reload (acceptance §2.2): caller 决定 idempotencyKey, server
 //      端只是 wire transport — plugin 端按 idempotencyKey 去重 reload.
-//      此 hub 方法不做 server-side dedup (反向约束: 跟 BPP-1 frame layer
-//      stateless 同模式 — state 在 store/agent_configs.schema_version,
+//      This hub method does not do server-side dedup (same stateless pattern as
+//      the BPP-1 frame layer — state lives in store/agent_configs.schema_version,
 //      不在 hub).
 //
-// 反向约束:
-//   - admin god-mode 不调此方法 (ADM-0 §1.3 红线 — admin 不入业务路径).
+// Negative constraints:
+//   - Admin god-mode does not call this method (ADM-0 §1.3 — admin is outside business paths).
 //     调用方 (AL-2a PATCH /config handler 或 follow-up) 必须先做 owner-only
 //     ACL gate. 此方法不做 ACL — 跟 PushArtifactUpdated 同模式 (broadcast
 //     由调用方决定权限).
 //   - 不返 sent=true 当 plugin 离线 — 这是 AL-2b 跟 RT-1 不同的语义:
 //     RT-1 frame 进 channel broadcast 任何 channel member 都收, AL-2b
-//     frame 是点对点 server→plugin, plugin 离线时 frame 丢弃 (反向约束:
-//     不入队列 — plugin 重连后 GET /agents/:id/config 主动拉最新, 跟
+//     frame 是点对点 server→plugin, plugin 离线时 frame 丢弃 (constraint:
+//     do not queue — plugin reconnects and GET /agents/:id/config pulls latest, matching
 //     蓝图 §1.5 字面 "runtime 不缓存" 同源).
 
 package ws
@@ -56,7 +56,7 @@ import (
 //     no allocator / channel buffer full).
 //
 // Frame field assignment is byte-identical with bpp.AgentConfigUpdateFrame
-// (AL-2b.1 PR #472 + acceptance §1.1 7 字段); reordering arguments here
+// (AL-2b.1 PR #472 + acceptance §1.1 7 fields); reordering arguments here
 // without updating the frame struct is a CI red caught by
 // al_2b_frames_test.go reflect lint.
 //
@@ -70,7 +70,7 @@ import (
 //   - schemaVersion: monotonic from agent_configs.schema_version (AL-2a
 //     #447 v=20 server-stamp).
 //   - createdAt: Unix ms semantic timestamp (反向约束: cursor 才是排序源,
-//     此字段是 audit hint; 跟 IterationStateChangedFrame.CompletedAt 同
+//     this field is an audit hint; it follows IterationStateChangedFrame.CompletedAt
 //     语义模式).
 func (h *Hub) PushAgentConfigUpdate(
 	agentID string,
@@ -97,15 +97,15 @@ func (h *Hub) PushAgentConfigUpdate(
 	// Look up the plugin connection. h.GetPlugin RLock-guards the map.
 	pc := h.GetPlugin(agentID)
 	if pc == nil {
-		// Plugin offline — frame dropped. Per 蓝图 §1.5 字面 "runtime 不
+		// Plugin offline — frame dropped. Per blueprint §1.5 "runtime 不
 		// 缓存", reconnect time triggers GET /agents/:id/config pull.
 		//
 		// BPP-4.2 dead-letter audit log: log warn `bpp.frame_dropped_plugin_offline`
 		// with 5-field schema byte-identical 跟 HB-1/HB-2 audit (acceptance
-		// §2.2 + content-lock §1.③). 反向约束: **不**入持久队列, 不挂 timer
-		// 重发 — RT-1.3 #296 cursor replay 保底 (plugin 重连后主动拉缺失
-		// frame). Acceptance §4.3 反向 grep `pendingAcks|retryQueue|
-		// deadLetterQueue` 0 hit 守门.
+		// §2.2 + content-lock §1.③). Constraint: do not use a persistent queue or
+		// timer retry — RT-1.3 #296 cursor replay is the fallback (plugin pulls missing
+		// frame after reconnect). Acceptance §4.3 reverse grep expects 0 hits for
+		// `pendingAcks|retryQueue|deadLetterQueue`.
 		bpp.LogFrameDroppedPluginOffline(h.logger, bpp.DeadLetterAuditEntry{
 			Actor:  "server",
 			Action: "frame_drop",
