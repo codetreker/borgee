@@ -2,26 +2,26 @@
 // for the `anchor_comment_added` push frame. Anchors review-comments
 // posted on artifact_versions to the artifact's channel members.
 //
-// Blueprint锚: docs/blueprint/current/canvas-vision.md §1.6 (锚点对话 = owner
+// Blueprint reference: docs/blueprint/current/canvas-vision.md §1.6 (锚点对话 = owner
 // review agent 产物的工具). Spec brief: docs/implementation/modules/cv-2-spec.md
-// §0 立场 ① + ③ + §1 拆段 CV-2.2 + spec v2 字面 envelope (10 字段, 字段名
+// §0 points 1 + 3 + §1 CV-2.2 breakdown + spec v2 envelope (10 fields, field name
 // `author_kind` 不复用 CV-1 `committer_kind`).
 //
-// Behaviour contract — byte-identical 跟 RT-1.1 ArtifactUpdatedFrame
-// 同模式 (cursor 第二字段, 走同 CursorAllocator 单调发号):
+// Behaviour contract — follows the same wire pattern as RT-1.1 ArtifactUpdatedFrame
+// (cursor is the second field and uses the same CursorAllocator monotonic sequence):
 //
-//   1. Cursor 走 hub.cursors.NextCursor() 单调发号, 跟 ArtifactUpdated
-//      共一根 sequence (RT-1 spec §1.1, 反约束: 不另起 channel).
-//   2. 字段顺序锁: type/cursor/anchor_id/comment_id/artifact_id/
+//   1. Cursor uses hub.cursors.NextCursor() and shares one sequence with ArtifactUpdated
+//      (RT-1 spec §1.1: no separate channel).
+//   2. Field order contract: type/cursor/anchor_id/comment_id/artifact_id/
 //      artifact_version_id/channel_id/author_id/author_kind/created_at
 //      (cv-2-spec.md §0 立场 ③ + 飞马 v2 changelog 字面 — 第 9 字段
 //      `author_kind` 不是 `kind`, 跟 anchor_comments.author_kind 列名
 //      一致, anchor 是评论作者非 commit 提交者).
-//   3. JSON tag 跟客户端 ws-frames.ts 字段名严格一致 (BPP-1 #304 envelope
-//      CI lint 自动闸位).
+//   3. JSON tags must match client ws-frames.ts field names (BPP-1 #304 envelope
+//      CI lint).
 //
-// Phase 4 BPP cutover: bpp/frame_schemas.go 会 type-alias
-// AnchorCommentAddedFrame, schema 锁在此一个地方.
+// Phase 4 BPP cutover: bpp/frame_schemas.go will type-alias
+// AnchorCommentAddedFrame, keeping the schema centralized here.
 package ws
 
 // FrameTypeAnchorCommentAdded is the `type` discriminator emitted on
@@ -30,8 +30,8 @@ package ws
 const FrameTypeAnchorCommentAdded = "anchor_comment_added"
 
 // AnchorCommentAddedFrame — server → client push fired after a comment
-// lands on an active anchor thread. 10 字段, 严守 cv-2-spec.md §0 立场 ③
-// + 飞马 v2 changelog 字面.
+// lands on an active anchor thread. 10 fields, following cv-2-spec.md §0 point 3
+// + v2 changelog text.
 //
 // Field order is the contract. Do NOT reorder without updating
 // packages/client/src/types/ws-frames.ts in the same PR.
@@ -51,7 +51,7 @@ type AnchorCommentAddedFrame struct {
 // PushAnchorCommentAdded broadcasts AnchorCommentAddedFrame to every
 // member of channelID and signals long-poll waiters. Cursor is allocated
 // fresh from hub.cursors so the frame slots into the same monotonic
-// sequence as ArtifactUpdated (反约束: 不另起 channel).
+// sequence as ArtifactUpdated (no separate channel).
 //
 // Returns (cursor, sent). sent=false only when the hub has no cursor
 // allocator (test seam), which mirrors PushArtifactUpdated semantics.

@@ -11,7 +11,7 @@
 //     (defer-based teardown, ctx-cancel, panic). Adding the writes here
 //     without the hook ties them to nothing.
 //
-// 接口签名锁不破 (#277 contract):
+// Interface signature contract (#277):
 //   - `IsOnline(userID string) bool` — same byte-level signature as the
 //     stub. The DB-backed impl below satisfies the same interface; no
 //     existing caller (RT-0 / CM-4.3b / DM-2 fallback) recompiles.
@@ -19,10 +19,10 @@
 //     list; empty slice (not nil-only) when user is offline so callers
 //     can `len(...) == 0` without nil-guard noise.
 //
-// 反约束 (#301 spec §0):
+// Negative constraints (#301 spec §0):
 //   - presence reads MUST NOT scan `events` / `messages` / any
 //     cursor-bearing table. They live in `presence_sessions` only —
-//     瞬时态 vs 不可回退序列, RT-1 拆死.
+//     presence is transient state, unlike RT-1's replayable sequence.
 //   - The agent_id-keyed lookup uses `idx_presence_sessions_agent_id`
 //     (created in v=12 partial index); if the agent has no row at all
 //     the query returns false (cross-org default-private, #301 §4).
@@ -65,7 +65,7 @@ func NewSessionsTracker(db *gorm.DB) (*SessionsTracker, error) {
 // matches the given user_id OR agent_id. The OR shape lets callers pass
 // either a `users.id` (human owner / agent owner) or an `agents.id`
 // (when checking an agent specifically) — DM-2 mention fallback uses
-// the agent_id path; RT-0 / sidebar 渲染 uses user_id.
+// the agent_id path; RT-0 / sidebar rendering uses user_id.
 //
 // Index path: `idx_presence_sessions_user_id` (full) +
 // `idx_presence_sessions_agent_id` (partial WHERE agent_id IS NOT NULL).

@@ -1,8 +1,8 @@
-// Package auth — capabilities.go: AP-1 设计 ③ capability const 白名单
-// (≤30, byte-identical 跟 spec §1 ③ + 蓝图 auth-permissions.md §1).
+// Package auth — capabilities.go: AP-1 design 3 capability const allowlist
+// (≤30, kept in sync with spec §1 ③ + blueprint auth-permissions.md §1).
 //
-// 单一来源协议: 所有 endpoint authz 必须用本文件 const, 严禁 hardcode 字面
-// permission name. 约束 grep 检查:
+// Single-source rule: all endpoint authz must use these consts instead of
+// hardcoded permission names. Grep check:
 //
 //   git grep -nE 'HasCapability\("[a-z_]+"' packages/server-go/internal/api/
 //   # 期望 0 hit (应改为 HasCapability(ctx, auth.CommitArtifact, scope))
@@ -10,14 +10,15 @@
 // Spec 依据: docs/implementation/modules/ap-1-spec.md §1 设计 ③ + §2 约束 #1.
 // 蓝图依据: docs/blueprint/current/auth-permissions.md §1 (ABAC + UI bundle 混合).
 //
-// admin god-mode capability 不在此白名单 — admin 走 /admin-api/* 单独
-// middleware (admin.RequireAdmin), ADM-0 §1.3 红线 + spec §1 设计 ③ 字面.
+// Admin god-mode capability is not in this allowlist. Admin requests use
+// separate /admin-api/* middleware (admin.RequireAdmin), per ADM-0 §1.3
+// and spec §1 design 3.
 package auth
 
-// v1 capability 字面白名单 (spec §1 设计 ③ byte-identical).
+// v1 capability literal allowlist (spec §1 design 3).
 //
-// 改 = 改三处+: spec §1 ③ + 蓝图 auth-permissions.md §1 + acceptance
-// `docs/qa/acceptance-templates/ap-1.md` §字面锁 + 此 const.
+// Changes must stay aligned with spec §1 ③, blueprint auth-permissions.md §1,
+// `docs/qa/acceptance-templates/ap-1.md`, and this const block.
 const (
 	// channel scope (`*` / `channel:<id>`)
 	ReadChannel   = "channel.read"
@@ -43,12 +44,12 @@ const (
 )
 
 // ALL is the canonical ordered slice of capability literals — single
-// source of truth for AP-4-enum (spec §0 设计 ①). Order is byte-identical
-// to const block above (channel scope → artifact scope → messaging →
+// source of truth for AP-4-enum (spec §0 design 1). Order matches the
+// const block above (channel scope → artifact scope → messaging →
 // channel admin); change one place to add a capability — init() rebuilds
-// Capabilities map automatically; reflect-lint test守 ALL ↔ const 不一致.
+// Capabilities map automatically; the reflect-lint test catches ALL ↔ const drift.
 //
-// 约束: 不准直接 mutate `Capabilities` map (反向 grep
+// Constraint: do not mutate `Capabilities` map directly (reverse grep
 // `Capabilities\[".*"\]\s*=` packages/server-go/internal/auth/ 仅 init() 1 hit).
 var ALL = []string{
 	ReadChannel,

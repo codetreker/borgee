@@ -2,14 +2,14 @@
 // will be implemented in full at Phase 4 / AL-3 (agent-lifecycle.md §3 +
 // §2.3 four-state model).
 //
-// This file is the **占号 stub** for the Phase 2 exit announcement (#268)
-// G2.5 留账行 — the interface signature is锁死 here so RT-* and BPP-*
+// This file is the Phase 2 exit placeholder for announcement #268's
+// G2.5 tracking row. The interface signature is fixed here so RT-* and BPP-*
 // can wire against a stable shape during Phase 3, while the real impl
 // (presence map, session expiry, BPP `session.connected` frame trigger)
 // lands at AL-3.
 //
-// Path锁: internal/presence/contract.go (G2.5 grep anchor).
-// Symbol锁: PresenceTracker.IsOnline + PresenceTracker.Sessions.
+// Path contract: internal/presence/contract.go (G2.5 grep anchor).
+// Symbol contract: PresenceTracker.IsOnline + PresenceTracker.Sessions.
 package presence
 
 // PresenceTracker is the authoritative read API for "is agent X reachable

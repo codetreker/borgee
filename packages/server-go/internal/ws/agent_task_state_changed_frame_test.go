@@ -1,17 +1,16 @@
-// Package ws_test — agent_task_state_changed_frame_test.go: RT-3 ⭐
+// Package ws_test — agent_task_state_changed_frame_test.go: RT-3
 // validation + multi-device fanout + SharedSequence locks.
 //
 // Pins:
 //   - 蓝图 realtime.md §1.1 ⭐ "thinking 必须带 subject" — busy 态 subject
 //     必带非空 + 反向 grep `subject\s*=\s*""|defaultSubject|fallbackSubject`
 //     count==0 (excluding _test.go).
-//   - state 2-enum {busy, idle} fail-closed (跟 BPP-2.2 outcome enum 同模式).
-//   - SharedSequence — 跟 ArtifactUpdated / AnchorCommentAdded /
-//     MentionPushed / IterationStateChanged / AgentConfigUpdate 共一根
-//     hub.cursors sequence (RT-3 是第 6 个共序 frame, 反约束: 不另起
-//     agent-only 通道).
-//   - 多端 fanout — 一 user 多 ws session 全收 (跟 P1MultiDeviceWebSocket
-//     #197 同源).
+//   - state 2-enum {busy, idle} fails closed (same pattern as BPP-2.2 outcome enum).
+//   - SharedSequence — ArtifactUpdated / AnchorCommentAdded / MentionPushed /
+//     IterationStateChanged / AgentConfigUpdate share one hub.cursors sequence
+//     (RT-3 is the 6th shared-sequence frame; no separate agent-only channel).
+//   - Multi-device fanout — one user with multiple ws sessions receives every frame
+//     (same rule as P1MultiDeviceWebSocket #197).
 package ws_test
 
 import (
@@ -27,12 +26,12 @@ import (
 )
 
 // TestRT_AgentTaskStateChangedFrame_FieldOrder pins acceptance §1 — 7
-// 字段 byte-identical envelope:
+// field-order envelope:
 //
 //   {type, cursor, agent_id, state, subject, reason, changed_at}
 //
 // JSON key order follows struct declaration order. Drift here breaks
-// the wire contract + RT-3.2 client接 simultaneously.
+// the wire contract + RT-3.2 client wiring simultaneously.
 func TestRT_AgentTaskStateChangedFrame_FieldOrder(t *testing.T) {
 	t.Parallel()
 
@@ -75,7 +74,7 @@ func TestRT_AgentTaskStateChangedFrame_FieldOrder(t *testing.T) {
 }
 
 // TestRT_AgentTaskStateChangedFrame_7Fields pins reflection lock —
-// adding/removing/renaming fields is a CI red.
+// adding/removing/renaming fields must fail CI.
 func TestRT_AgentTaskStateChangedFrame_7Fields(t *testing.T) {
 	t.Parallel()
 
@@ -107,8 +106,8 @@ func TestRT_AgentTaskStateChangedFrame_7Fields(t *testing.T) {
 	}
 }
 
-// TestRT_AgentTaskStateEnum pins 2-enum {busy, idle} byte-identical 跟
-// 蓝图 realtime.md §1.1 + agent-lifecycle.md §2.3.
+// TestRT_AgentTaskStateEnum pins 2-enum {busy, idle} against
+// blueprint realtime.md §1.1 + agent-lifecycle.md §2.3.
 func TestRT_AgentTaskStateEnum(t *testing.T) {
 	t.Parallel()
 	if ws.AgentTaskStateBusy != "busy" {
@@ -143,7 +142,7 @@ func TestRT_PushAgentTaskStateChanged_BroadcastBranches(t *testing.T) {
 
 // TestRT_PushAgentTaskStateChanged_NoCursorAllocator pins the test seam —
 // hub without cursor allocator returns (0, false) without panicking
-// (跟 PushIterationStateChanged / PushArtifactUpdated 同模式).
+// (same pattern as PushIterationStateChanged / PushArtifactUpdated).
 func TestRT_PushAgentTaskStateChanged_NoCursorAllocator(t *testing.T) {
 	t.Parallel()
 	h := &ws.Hub{}
@@ -160,10 +159,10 @@ func TestRT_PushAgentTaskStateChanged_NoCursorAllocator(t *testing.T) {
 // TestRT_ReverseGrep_NoSubjectFallback pins blueprint §1.1 ⭐ — server
 // MUST NOT emit AgentTaskStateChangedFrame with a fallback / default /
 // empty subject in busy state. Reverse grep guard mirrors BPP-2.2
-// task_lifecycle.go ValidateTaskStarted subject 必带非空 + dispatcher.go
-// 反向 grep 同模式.
+// task_lifecycle.go ValidateTaskStarted requiring a non-empty subject and
+// the dispatcher.go reverse-grep pattern.
 //
-// 蓝图字面: "BPP `progress` frame **强制带 `subject` 字段**——plugin 必须
+// Blueprint text: "BPP `progress` frame **强制带 `subject` 字段**——plugin 必须
 // 告诉 Borgee 'agent 在做什么', 否则不展示" + "沉默胜于假 loading".
 func TestRT_ReverseGrep_NoSubjectFallback(t *testing.T) {
 	t.Parallel()
@@ -216,8 +215,8 @@ func TestRT_ReverseGrep_NoSubjectFallback(t *testing.T) {
 }
 
 // TestRT_SharedSequence_WithRT1_CV2_DM2_CV4_AL2b pins SharedSequence
-// invariant — RT-3 frame cursor 跟 5 上游 frame 共一根 hub.cursors
-// sequence (RT-1 spec §1.1 反约束: 不另起 channel). Allocates cursors
+// invariant — RT-3 frame cursor shares one hub.cursors sequence with five
+// upstream frames (RT-1 spec §1.1: no separate channel). Allocates cursors
 // alternately across frame types and asserts strict monotonic.
 func TestRT_SharedSequence_WithRT1_CV2_DM2_CV4_AL2b(t *testing.T) {
 	t.Parallel()
