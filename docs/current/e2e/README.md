@@ -31,7 +31,7 @@ packages/e2e/
     └── canvas-modal-open-close.spec.ts             # CV-1.3 Canvas tab markdown+WS push (§3.1-§3.3)
 ```
 
-`canvas-modal-open-close.spec.ts` 覆盖 cv-1.md §3 acceptance: markdown-ONLY 渲染 (设计 ④), rollback owner-only DOM gate + label byte-identical `"v{N+1} (rollback from v{M})"` (设计 ③⑦), WS push refresh ≤3s + 409 toast 文案锁 `内容已更新, 请刷新查看` (设计 ②⑤)。两条 test 共 ~3.7s, 使用真实 server-go + vite，REST 驱动 other-user commit 触发 push。
+`canvas-modal-open-close.spec.ts` 覆盖 cv-1.md §3 的验收项：第 ④ 项要求只渲染 Markdown 内容；第 ③/⑦ 项要求 rollback 控件只对 owner 出现在 DOM 中，并且版本 label 必须与 `"v{N+1} (rollback from v{M})"` 字节级一致；第 ②/⑤ 项要求页面通过 WS push 在 3 秒内刷新，并在 409 场景显示 toast `内容已更新, 请刷新查看`。这两个测试用例使用真实 server-go + vite，耗时约 3.7s；其中一次提交通过 REST 以 other-user 身份创建 commit，用来触发 push。
 
 ## 3. 双 server 编排
 
@@ -55,7 +55,7 @@ client 通过 **`VITE_E2E_API_TARGET`** 把 vite proxy 从写死的 `localhost:4
 
 ### `fixtures/stopwatch.ts`
 
-用于验证 G2.4 ≤ 3s 条件。RT-0 (#40) 是第一个真实消费者。
+用于验证 G2.4 ≤ 3s 条件。RT-0 (#40) 是第一个接入方。
 
 ```ts
 const sw = stopwatch();

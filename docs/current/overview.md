@@ -27,7 +27,7 @@
 - **Welcome channel**：`type="system"` 的 per-user 私属频道，注册时自动建（CM-onboarding，v=7），含一条 `sender_id='system'` 的欢迎消息 + `quick_action` JSON 按钮。
 - **Channel Group**：`channel_groups`，用于侧边栏分组，与 channel 一样用 LexoRank 排序。
 - **Agent invitation**：`agent_invitations` 表（CM-4.0，v=3） + HTTP API（CM-4.1） + ws push（RT-0 server，#237）。跨 org 拉 agent 进 channel 的状态机（`pending → approved/rejected/expired`，blueprint §4.2 流程 B）。
-- **Event**：`events` 表（自增 cursor），是所有 push 通道（WS / SSE / 长轮询）的 single source of truth。
+- **Event**：`events` 表（自增 cursor），是所有 push 通道（WS / SSE / 长轮询）的统一事实来源。
 - **Workspace**：每个 channel 一棵虚拟文件树（`workspace_files`），既能上传，也会自动收录从消息中产生的文件。
 - **Remote Node / Binding**：用户在自己机器上跑 `remote-agent`，注册成 node；node 可以与 channel 上的某个 path 绑定，channel 内的 agent 通过 server 代理读取该路径。
 - **Schema migrations**：`schema_migrations` 表（INFRA-1a，v=1） + `internal/migrations/registry.go` 版本化迁移引擎。Phase 1+ 所有新 schema 改动走此引擎；旧 `Store.Migrate()` 大杂烩仅保 v0 表骨架。当前注册 v=1..10（v=6 跳号）。详见 [`server/migrations.md`](server/migrations.md)。
