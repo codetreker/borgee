@@ -123,7 +123,7 @@ export default function ChannelList({ channels, currentChannelId, onSelectChanne
     // 服务器代码 (channels.go::handleCreateGroup + models.go ChannelGroup
     // schema not null) 不会发 undefined, 但旧版本 localStorage / IndexedDB
     // 缓存 / 测试数据 / 手工加的行可能漏 position — 客户端兜底防止
-    // single bad row 拖死全部. 跟同文件 sortChannels (L104-116) +
+    // single bad row break the whole list. 跟同文件 sortChannels (L104-116) +
     // ChannelGroupComponent.tsx L44-46 同模式: 两边都有 position 才用
     // localeCompare, 单边或两边都缺时用稳定退路 (有 position 的排前面 /
     // 都没就保持原顺序).
@@ -316,8 +316,8 @@ export default function ChannelList({ channels, currentChannelId, onSelectChanne
         <div className="sidebar-empty">暂无频道</div>
       )}
       {/* CHN-3.3 right-click pin/unpin menu (DM rows are mounted via
-          MergedDmList in Sidebar.tsx, not this list, so DM 反约束 自然
-          满足 — 5 源 byte-identical: chn-3-content-lock §1 ⑤ + #366 ④ +
+          MergedDmList in Sidebar.tsx, not this list, so the DM constraint is
+          satisfied — 5 sources aligned: chn-3-content-lock §1 ⑤ + #366 ④ +
           #364 + #371 ② + #376 §3.4 + #382 ⑤). */}
       {pinMenu && (
         <ChannelContextMenu

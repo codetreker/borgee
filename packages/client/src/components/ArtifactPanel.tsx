@@ -4,7 +4,7 @@
 // + §1.1-§1.6 (D-lite + workspace per channel + Markdown ONLY v1).
 // Spec: docs/implementation/modules/cv-1-spec.md §3 (CV-1.3 段).
 // Acceptance: docs/qa/acceptance-templates/cv-1.md §3.1-§3.3.
-// Stance: docs/qa/cv-1-stance-checklist.md (v0, 7 条原则) +
+// Checklist: docs/qa/cv-1-stance-checklist.md (v0, 7 条原则) +
 // docs/qa/cv-1-stance-v1-supplement.md (②③⑤⑦ v1 字段).
 //
 // 设计反查:
@@ -18,10 +18,10 @@
 //   - ⑦ rollback owner-only — 仅 channel.created_by 看到 "回滚" 按钮; 非 owner DOM
 //     不渲染该按钮.
 //
-// 反约束 (本组件强制 grep 锚):
+// Rules (component grep targets):
 //   - 不上 CRDT (no yjs / no automerge — pure REST + WS signal)
 //   - 不自造 envelope (使用 useArtifactUpdated hook, 走 #342 frame)
-//   - 不用 client timestamp 排序 (列表按 version asc, RT-1 ① 反约束)
+//   - 不用 client timestamp 排序 (列表按 version asc, RT-1 ① constraint)
 //   - rollback 不是 PATCH body 字段 (调 rollbackArtifact action endpoint)
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -55,20 +55,20 @@ interface Props {
   channelId: string;
 }
 
-// Conflict toast 文案锁 (acceptance §3.3 byte-identical) — 任何 commit
+// Conflict toast required text (acceptance §3.3) — 任何 commit
 // 路径 409 都走这条; 其它 409 (e.g. 锁持有=别人) 也复用同文案保持一致.
 const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 
-// CV-2.3 anchor entry tooltip — byte-identical 跟 docs/qa/cv-2-content-lock.md
+// CV-2.3 anchor entry tooltip — exact text matches docs/qa/cv-2-content-lock.md
 // 字面表 ① ("评论此段"). 不准 "Comment" / "添加评论" / "回复" / "讨论".
 const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 
 // gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
-// byte-identical; changes must update the design doc and e2e grep evidence together).
+// exact text; changes must update the design doc and e2e grep evidence together).
 //   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
 //   ARTIFACT_CREATE_FAIL_PREFIX — prefix for create failure text inside the modal
 //   ARTIFACT_CREATE_NETWORK_ERR — generic fallback for network failures
-//   ARTIFACT_ROLLBACK_CONFIRM_TEMPLATE — 回滚 modal 文案模板 (跟原 confirm 字面 byte-identical)
+//   ARTIFACT_ROLLBACK_CONFIRM_TEMPLATE — rollback modal text template, same as the original confirm text
 //   ARTIFACT_ROLLBACK_FAIL_TOAST — rollback failure toast, aligned with CONFLICT_TOAST style
 //   ARTIFACT_CREATE_MODAL_TITLE_ID / ARTIFACT_ROLLBACK_MODAL_TITLE_ID — aria-labelledby ids
 const ARTIFACT_CREATE_MODAL_TITLE = '新建 Markdown artifact';
@@ -90,7 +90,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   const channel = state.channels.find((c) => c.id === channelId);
   // 设计 ⑦ rollback owner = channel.created_by (channel-model §1.4).
   // 设计 ① CV-2 anchor entry: 仅 human (role !== 'agent') 看到 💬 入口.
-  // (反约束: agent 视角 DOM 不渲染 ① hover 入口, byte-identical 跟
+  // (constraint: agent 视角 DOM 不渲染 ① hover 入口, same behavior as
   // CV-1 设计 ⑦ rollback owner-only DOM omit 同模式 — 服务端 403
   // anchor.create_owner_only 兜底.)
   const isOwner = !!currentUser && channel?.created_by === currentUser.id;
@@ -118,7 +118,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   const createTriggerRef = useRef<HTMLElement | null>(null);
   const rollbackTriggerRef = useRef<HTMLElement | null>(null);
 
-  // CV-2.3 anchor state — 选区 → 锚点 entry + side thread panel.
+  // CV-2.3 anchor state — selection → anchor entry + side thread panel.
   const [anchors, setAnchors] = useState<AnchorThread[]>([]);
   const [activeAnchorId, setActiveAnchorId] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
@@ -196,7 +196,7 @@ export default function ArtifactPanel({ channelId }: Props) {
 
   // CV-2.3 reload anchors after WS push or local create. List endpoint
   // is channel-member ACL'd (设计 ⑦); on 403 we silently empty (agent
-  // view 反约束 DOM 不渲染入口, list 路径仍可读 thread).
+  // view constraint DOM 不渲染入口, list 路径仍可读 thread).
   const reloadAnchors = useCallback(
     async (artifactId: string) => {
       try {
@@ -263,7 +263,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   );
   useAnchorCommentAdded(onAnchorCommentAdded);
 
-  // 选区 → 锚点 entry: capture text selection inside the rendered
+  // selection → anchor entry: capture text selection inside the rendered
   // markdown surface. We map DOM selection back to body offsets via
   // textContent of `.artifact-rendered` (the rendered DOM has identical
   // visible text to artifact.body absent inline images, which CV-1
@@ -413,7 +413,7 @@ export default function ArtifactPanel({ channelId }: Props) {
       await reload(artifact.id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        // 设计 ② 锁冲突 — toast 文案锁 byte-identical (跟 commit 路径同源).
+        // Design ② lock conflict: use the same toast text as the commit path.
         showToast(CONFLICT_TOAST);
         await reload(artifact.id);
       } else {
@@ -465,7 +465,7 @@ export default function ArtifactPanel({ channelId }: Props) {
             <button className="btn btn-sm" disabled={busy} onClick={handleStartEdit}>
               编辑
             </button>
-            {/* CV-4.3 — "对比" tab byte-identical (content-lock §1 ⑤ 单字).
+            {/* CV-4.3 — "对比" tab exact text (content-lock §1 ⑤ 单字).
                 versions ≥ 2 才显示 (无前一版本无可对比).
                 文案锁: "对比" 单字, prevent synonym drift
                 (acceptance §3.5 + #380 ⑤). */}
@@ -542,9 +542,9 @@ export default function ArtifactPanel({ channelId }: Props) {
             <ArtifactBody artifact={artifact} />
           </div>
         )}
-        {/* CV-2.3 设计 ① 选区 → 锚点 entry: 仅 human 看到 💬 入口
-            (DOM 反约束 — agent 视角 isHuman=false count==0). 文案锁
-            byte-identical 跟 cv-2-content-lock.md ① 字面表 (icon 💬 +
+        {/* CV-2.3 设计 ① selection → anchor entry: 仅 human 看到 💬 入口
+            (DOM constraint — agent 视角 isHuman=false count==0). Required text
+            matches cv-2-content-lock.md ① literal list (icon 💬 +
             tooltip "评论此段"). */}
         {!editing && isHuman && selection && (
           <button
@@ -662,7 +662,7 @@ export default function ArtifactPanel({ channelId }: Props) {
       {/* CV-4.3 — iterate UI (#409 server / #405 schema).
           设计 ⑥ owner-only DOM omit (defense-in-depth, 跟 line ~441
           showRollbackBtn 同模式). non-markdown artifact 不渲染 — iterate
-          UI 仅在 markdown kind 上 (CV-2 §4 反约束承袭, code/image_link
+          UI 仅在 markdown kind 上 (CV-2 §4 constraints carried forward, code/image_link
           iterate v0 走 spec brief #365 §2 协调待 CV-3 协同). */}
       {isOwner && artifact.type === 'markdown' && (
         <IteratePanel
@@ -681,7 +681,7 @@ export default function ArtifactPanel({ channelId }: Props) {
           v1 一 channel 一 artifact, 当前路径 artifact 已存在则不再渲染 button,
           所以这里 modal 仅 !artifact 分支挂. 此处主 return 仅挂 rollback. */}
 
-      {/* gh#691 — 回滚确认 modal — 替代 window.confirm. byte-identical 复用
+      {/* gh#691 — 回滚确认 modal — 替代 window.confirm. exact text 复用
           原 confirm 文案 "确认回滚到 v${N}? 旧版本不会删除, 会新建一条
           rollback 记录." */}
       {pendingRollbackVersion !== null && (
@@ -728,7 +728,7 @@ function restoreFocus(ref: RefObject<HTMLElement | null>): void {
  *  - <form onSubmit> 自带 IME composition 守卫 (浏览器在 IME 选词阶段
  *    阻止 form submit). input onKeyDown 显式 isComposing 检查双层防护.
  *  - busy 时禁用关闭路径, 防关 modal 后异步请求继续跑造成的状态错乱.
- *  - 文案保留原 prompt / confirm 字面 byte-identical (反 acceptance 文案锁误判).
+ *  - Keep original prompt / confirm text so acceptance checks still match.
  *  - a11y (#3): role="dialog" + aria-modal + aria-labelledby + autoFocus
  *    到 input.
  *  - 失败行为: 创建失败 errMsg prop 在 modal 内显, 输入保留,
@@ -845,7 +845,7 @@ function CreateArtifactModal({
  *
  * a11y (#3 + implementation reminder #2):
  *   - DOM 顺序: 取消左 / 确认回滚右 (危险操作, 跟 macOS / Material 一致)
- *   - autoFocus 走 cancelBtnRef + useEffect, 不靠 DOM 顺序 (反误锚 confirm)
+ *   - autoFocus 走 cancelBtnRef + useEffect, 不靠 DOM 顺序 (avoid mistaken confirm focus)
  *   - role="dialog" + aria-modal + aria-labelledby
  */
 function RollbackConfirmModal({
@@ -922,7 +922,7 @@ function RollbackConfirmModal({
  * kind (v2+ 蓝图 §2 不做清单留账) 走 fallback path 在 ArtifactBody 里
  * 渲染 `<div class="artifact-kind-unsupported">` 兜底文案.
  *
- * 三 enum byte-identical 跟 cv-3-content-lock.md §1 ① +
+ * Three enum literals match cv-3-content-lock.md §1 ① +
  * cv_3_2_artifact_validation.go ArtifactKind* 同源.
  */
 export function normalizeKind(raw: string | undefined): ArtifactKind | string {
@@ -940,7 +940,7 @@ export function normalizeKind(raw: string | undefined): ArtifactKind | string {
 
 /**
  * ArtifactBody — kind switch 三分支 (CV-3.3 §2.1 acceptance).
- * Switch 顺序 markdown → code → image_link byte-identical 跟
+ * Switch 顺序 markdown → code → image_link kept aligned with
  * content-lock §1 ① 同源.
  *
  * Negative constraint: 不渲染 raw HTML (XSS constraint §2.8) — markdown 路径走
@@ -996,7 +996,7 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
         </div>
       );
     default:
-      // 设计 ⑦ — 兜底文案 (content-lock §1 ⑦ byte-identical).
+      // 设计 ⑦ — fallback text required by content-lock §1 ⑦.
       // 不 throw, 不 fallback markdown — 优雅降级展示原 kind 字串.
       return (
         <div className="artifact-kind-unsupported">

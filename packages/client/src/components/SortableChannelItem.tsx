@@ -55,13 +55,13 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
       {isOver && !isDragging && (
         <span className="drop-indicator" />
       )}
-      {/* CHN-3.3 personal sortable handle (byte-identical 跟 chn-3-content-lock.md
+      {/* CHN-3.3 personal sortable handle (markup matches chn-3-content-lock.md
           §1 ① 字面锁 + #371 spec §1 CHN-3.3 同源).
           DOM 锁: <button class="sortable-handle" data-sortable-handle=""
                     aria-label="拖拽调整顺序">⋮⋮</button>.
-          反约束: DM 行不渲染 (Sidebar.tsx DMItem 绕过此组件; 此 component
+          Constraint: DM 行不渲染 (Sidebar.tsx DMItem 绕过此组件; 此 component
           只服务 channel rows). isOwner 走作者侧 ≡ handle (CHN-1 #288); 非
-          owner 也可 reorder 自己侧栏 (CHN-3 设计 ① 物理拆死作者侧 vs 个人) —
+          owner 也可 reorder 自己侧栏 (CHN-3 设计 ① author-side vs personal split) —
           但 dnd-kit useSortable 的 ordering 影响只在本人 SPA 内, 写 PUT
           /me/layout (CHN-3.2). */}
       {!isArchived && (

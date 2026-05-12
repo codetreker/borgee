@@ -23,7 +23,7 @@ interface MePermissionsResponse {
   role?: string;
   permissions: string[];
   details: PermissionEntry[];
-  // AP-2 设计 ② capability 数组 (server 新加, 跟 14 const SSOT byte-identical).
+  // AP-2 设计 ② capability 数组 (server 新加, shared with the capability constants).
   capabilities?: string[];
 }
 

@@ -164,7 +164,7 @@ function AgentCard({
       const rt = await fetchAgentRuntime(agent.id);
       setRuntime(rt);
     } catch {
-      // Silent failure: #190 §11 prefers silence over fake loading; a transient error
+      // Silent failure: #190 §11 prefers silence over synthetic progress; a transient error
       // should not block the expanded panel.
       setRuntime(null);
     } finally {
@@ -196,7 +196,7 @@ function AgentCard({
         setLast4(null);
       }
     } catch {
-      // Failure is shown inline only, matching RuntimeCard's no-fake-loading pattern.
+      // Failure is shown inline only, matching RuntimeCard's no synthetic progress pattern.
       setLast4(null);
     } finally {
       setLoadingKey(false);

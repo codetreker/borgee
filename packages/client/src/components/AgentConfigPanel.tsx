@@ -9,16 +9,16 @@
 // What this renders:
 //   - Form 编辑 blob 白名单字段 (name / avatar / prompt / model /
 //     capabilities / enabled / memory_ref) — 跟 server allowedConfigKeys
-//     同源 byte-identical (蓝图 §1.4 SSOT 字段划界).
+//     same field list as the server allowlist (蓝图 §1.4 SSOT 字段划界).
 //   - schema_version 显示 (server-stamp monotonic, agent 端轮询 reload
 //     drift evidence — acceptance §4.1.d).
-//   - 失败 toast 文案锁 byte-identical: "agent 配置保存失败, 请重试"
+//   - Failure toast required text: "agent 配置保存失败, 请重试"
 //     (跟 server-go agent_config.go agentConfigSaveErrorMsg + AL-2a
 //     content-lock al-2a-content-lock.md ① 同源).
 //   - SSOT blob 整体替换语义 — Save 按钮提交全 form 为 PATCH (model 字段
 //     不写入则消失, 跟 server TestAL2A2_PatchAndGet 显式断言对齐).
 //
-// 反约束:
+// Rules:
 //   - 设计 ⑤ (蓝图 §1.4): runtime-only 字段 (api_key / temperature /
 //     token_limit / retry_policy) 不入此 form (server fail-closed reject,
 //     此 UI 也不渲染对应输入框 — UI 层 + server 层双层 fail-closed).
@@ -36,12 +36,12 @@ import {
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 
 // 失败 toast 文案锁 — 跟 server-go agent_config.go const
-// agentConfigSaveErrorMsg byte-identical 同源 (al-2a-content-lock.md ①).
+// agentConfigSaveErrorMsg required text matches server-go agent_config.go.
 // 改此字面 = 改 server const + acceptance §4.1.d 后续.
 export const AGENT_CONFIG_SAVE_TOAST = 'agent 配置保存失败, 请重试';
 
 // allowedConfigKeys whitelist — 跟 server-go internal/api/agent_config.go
-// allowedConfigKeys map 同源 byte-identical (蓝图 §1.4 字段划界).
+// allowedConfigKeys map matches server-go internal/api/agent_config.go.
 // 改此 list = 改 server map + acceptance §4.1.c reflect scan.
 export const ALLOWED_CONFIG_KEYS: ReadonlyArray<keyof AgentConfigBlob> = [
   'name',
@@ -87,8 +87,8 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
   }, [agentId, onError]);
 
   // gh#703 — sidepane 切换守卫. agent 配置 form 是 SSOT blob 整体编辑,
-  // isDirty 按 JSON.stringify draft vs config.blob 推算 (反 deep equal 引
-  // 第三方 + 反字段逐个比). 加载中或没 config 时不算 dirty (避免初始 render
+  // isDirty 按 JSON.stringify draft vs config.blob 推算 (avoid deep equal 引
+  // 第三方 + per-field comparison). 加载中或没 config 时不算 dirty (避免初始 render
   // 误触发). saving 中也不算 dirty (用户已经点了保存等服务器, 不要再弹一次).
   useUnsavedChangesGuard(
     () =>
@@ -108,8 +108,8 @@ export function AgentConfigPanel({ agentId, onError }: AgentConfigPanelProps) {
       setConfig(updated);
       setDraft(updated.blob);
     } catch {
-      // 失败 toast byte-identical "agent 配置保存失败, 请重试" — 跟
-      // server const agentConfigSaveErrorMsg + content-lock ① 同源.
+      // Failure toast required text "agent 配置保存失败, 请重试" matches
+      // server const agentConfigSaveErrorMsg + content-lock ①.
       if (onError) onError(AGENT_CONFIG_SAVE_TOAST);
     } finally {
       setSaving(false);

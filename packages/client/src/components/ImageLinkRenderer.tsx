@@ -7,17 +7,17 @@
 //   ValidateImageLinkURL (#400, first https-only XSS constraint).
 //
 // 设计反查:
-//   - ④ image 分支 — `<img loading="lazy">` byte-identical (移动端
+//   - ④ image 分支 — `<img loading="lazy">` exact markup (移动端
 //     流量保护, 防止 eager loading); src 必 https (XSS constraint #1).
-//   - ⑤ link 分支 — rel 三联锁 byte-identical
-//     (XSS constraint #2 reverse-tab defense); target 二元锁 byte-identical
+//   - ⑤ link 分支 — rel value is fixed
+//     (XSS constraint #2 reverse-tab defense); target value is fixed
 //     (vitest strictly assert rel 字串原样, 漏 = leak).
 //
-// 反约束 (本文件路径grep 检查 干净):
+// Rules (本文件路径grep 检查 干净):
 //   - 不接 javascript:|data:image|http: src URL (XSS + 混合内容)
 //   - lazy 锁 (流量防御grep 检查 0 hit)
 //   - blank 锁 (SPA 上下文跳走grep 检查 0 hit)
-//   - 不在 link 分支渲染 <img> / image 分支渲染 <a> (kind 二元拆死)
+//   - 不在 link 分支渲染 <img> / image 分支渲染 <a> (strict kind split)
 //
 // body 协议 (跟 server validation §0 ①): body 字段直接是 https URL.
 // metadata.kind ∈ ('image','link') 由 server 验完丢弃 (CV-3.2 留账
@@ -30,7 +30,7 @@ import { useMemo } from 'react';
 export type ImageLinkSubKind = 'image' | 'link';
 
 interface Props {
-  /** body 字段 (server 协议) — 必 https URL. 反约束: javascript:/data:/http: reject. */
+  /** body 字段 (server 协议) — 必 https URL. Reject javascript:/data:/http:. */
   body: string;
   title: string;
   /** sub-kind 二元 — 控制 <img> vs <a> 二元分支. 缺省 image. */
@@ -56,7 +56,7 @@ export default function ImageLinkRenderer({ body, title, subKind = 'image' }: Pr
   const safe = useMemo(() => isHttpsURL(url), [url]);
 
   if (!safe) {
-    // 反约束 — 非 https / javascript:/data:/http: → 优雅降级文案
+    // Reject 非 https / javascript:/data:/http: and fall back without rendering a URL.
     // (不渲染 <img>/<a>, 永远不把 unsafe URL 推入 DOM).
     return (
       <div className="artifact-image-link-invalid">
