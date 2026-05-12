@@ -1,7 +1,7 @@
 // DL-1 — concrete v1 implementations wrapping existing store.Store.
 //
-// Principle ② (DL-1 spec §0): factory pattern + DI seam as the central wiring
-// source, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid canonical
+// Principle ② (DL-1 spec §0): factory pattern + dependency-injection wiring as
+// the central source, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid canonical
 // pattern.
 //
 // v1 wrapper preserves behavior: handlers use the Repository interface, and

@@ -45,7 +45,7 @@ const (
 
 // PresenceStore is the canonical interface for "is user X reachable?" queries.
 // v1 routes through AL-3 PresenceTracker; v3+ can swap the underlying
-// implementation without touching consumers because handlers use this seam.
+// implementation without touching consumers because handlers use this interface.
 type PresenceStore interface {
 	// IsOnline reports whether the user/agent has at least one live session.
 	// Same source as the G2.5 contract (presence.PresenceTracker.IsOnline).

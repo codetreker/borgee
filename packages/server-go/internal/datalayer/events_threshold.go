@@ -80,8 +80,8 @@ func (t DBThreshold) Classify(value int64) ThresholdLevel {
 	return ThresholdLevelOK
 }
 
-// MetricCollector reads one metric value via SQLite. Test seam — production
-// path uses sqliteMetricCollector below.
+// MetricCollector reads one metric value via SQLite. Tests can replace it;
+// production uses sqliteMetricCollector below.
 type MetricCollector interface {
 	Collect(ctx context.Context) (int64, error)
 }
@@ -118,7 +118,7 @@ func NewThresholdMonitor(db *gorm.DB, logger *slog.Logger, interval time.Duratio
 	}
 }
 
-// SetCollector overrides a metric collector (test seam).
+// SetCollector overrides a metric collector for tests.
 func (m *ThresholdMonitor) SetCollector(name string, c MetricCollector) {
 	m.collectors[name] = c
 }
