@@ -84,6 +84,6 @@
 - Cross-source traceability (agent action → host_bridge syscall trace) is left for v3+
 - audit FTS search is left for v3+; v1 uses simple LIKE filtering
 - unified audit retention across sources is deferred; each source keeps its existing threshold policy (DL-2 retention sweeper / ADM-3 audit_events forward-only)
-- user-rail audit feed (per-user privacy view) remains intentionally out of scope under ADM-0 §1.3 and blueprint §3.4
+- user-rail audit feed (per-user privacy view) must never be mounted or exposed on the user API/user-rail under ADM-0 §1.3 and blueprint §3.4
 - audit_events external export (Splunk/Datadog) is left for v2+
 - audit FTS / pagination cursor / relevance sorting are left for v3+

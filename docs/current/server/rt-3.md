@@ -54,7 +54,7 @@ This follows the chn-3 content-lock pattern for five byte-identical sources: cha
 ## 6. Constraints / Out Of Scope
 
 - ❌ events to RT-3 fanout upstream hook (left for DL-2 cold-stream wire-up; accepted architecture boundary)
-- ❌ typing-indicator enablement (intentionally excluded, matching the thought-process 5-pattern guard)
+- ❌ typing-indicator enablement must never be mounted or exposed; this permanent ban matches the thought-process 5-pattern guard
 - ❌ last-seen UI cross-device sync (left for an RT-3.2 follow-up)
 - ❌ agent presence (蓝图 §1.4 仅人类 4 态; agent 走 BPP heartbeat HB-1..6)
 - ❌ session_resume_hint (蓝图 §1.3 留 DL-5+)
