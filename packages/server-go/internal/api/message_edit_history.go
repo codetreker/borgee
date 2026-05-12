@@ -1,18 +1,19 @@
 // Package api — message_edit_history.go: REFACTOR-1 helper-2 SSOT
 // edit-history JSON parser shared between DM-7 / CV-15.
 //
-// 设计 ① + ② (refactor-1-spec.md §0):
-//   - byte-identical 行为不变量: NULL/empty → []map[string]any{} (反 nil) +
-//     Unmarshal 失败 → []map[string]any{} (跟 dm_7 / cv_15 既有 11 行 byte-
-//     identical, REG-DM7 / REG-CV15 不破).
+// Designs ① + ② (refactor-1-spec.md §0):
+//   - Byte-identical behavior invariant: NULL/empty returns []map[string]any{},
+//     not nil; Unmarshal failure also returns []map[string]any{}. This preserves
+//     the prior 11-line behavior shared by dm_7 and cv_15 and keeps REG-DM7 /
+//     REG-CV15 intact.
 //
-// Caller list 锁:
-//   - dm_7_edit_history.go (handleUserGet + handleAdminGet 用 history)
+// Tracked callers:
+//   - dm_7_edit_history.go (handleUserGet + handleAdminGet use history)
 //   - cv_15_comment_edit_history.go (handleUserGet + handleAdminGet)
 //
-// Reverse-grep 锚 (refactor-1-spec.md §2 反约束 #5):
-//   - func parseEditHistoryEntries / parseCommentEditHistory 0 hit (合一)
-//   - func parseMessageEditHistory ==1 hit (此文件)
+// Reverse-grep references (refactor-1-spec.md §2 constraint #5):
+//   - func parseEditHistoryEntries / parseCommentEditHistory 0 hit (merged)
+//   - func parseMessageEditHistory ==1 hit (this file)
 
 package api
 

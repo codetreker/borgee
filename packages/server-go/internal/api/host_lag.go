@@ -1,22 +1,24 @@
 // Package api — hb_6_lag.go: HB-6 heartbeat lag percentile monitor.
 //
-// Blueprint: admin-model.md ADM-0 §1.3 红线 (admin readonly only).
-// Spec: docs/implementation/modules/hb-6-spec.md §1 拆段 HB-6.1 + HB-6.2.
+// Blueprint: admin-model.md ADM-0 §1.3 constraint: admin readonly only.
+// Spec: docs/implementation/modules/hb-6-spec.md §1 split HB-6.1 + HB-6.2.
 //
 // Public surface:
 //   - HostLagHandler{Store, Logger}
 //   - (h *HostLagHandler) RegisterAdminRoutes(mux, adminMw)
 //   - WindowSeconds (= BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS byte-identical)
-//   - LagThresholdMs (= 15000, watchdog 周期一半)
+//   - LagThresholdMs (= 15000, half the watchdog period)
 //
-// 反约束 (hb-6-spec.md §0 + 设计 ②③):
-//   - admin-rail only — RegisterAdminRoutes 走 adminMw; grep 检查
-//     `/api/v1/heartbeat-lag` user-rail 0 hit + POST/PATCH/PUT/DELETE
-//     在 admin-api/v1/heartbeat-lag 0 hit (ADM-0 §1.3 红线 admin readonly).
-//   - 不写表 / 不另起 admin_actions enum — lag derived metric, write 无意义.
-//   - 0 sweeper goroutine — synchronous GET handler 即时聚合, 不 schedule.
-//   - AL-1a reason 锁链第 19 处 — at_risk reason 字面 = reasons.NetworkUnreachable
-//     (跟 BPP-4 watchdog timeout 同源).
+// Constraints (hb-6-spec.md §0 + designs ②③):
+//   - Admin rail only: RegisterAdminRoutes uses adminMw; grep checks require
+//     zero `/api/v1/heartbeat-lag` user-rail matches and zero
+//     POST/PATCH/PUT/DELETE matches for admin-api/v1/heartbeat-lag
+//     (ADM-0 §1.3 admin readonly).
+//   - Do not write tables or add an admin_actions enum; lag is a derived metric.
+//   - Do not start a sweeper goroutine; the synchronous GET handler aggregates
+//     on demand.
+//   - AL-1a reference site 19: at_risk reason literal =
+//     reasons.NetworkUnreachable, shared with the BPP-4 watchdog timeout.
 package api
 
 import (
@@ -31,12 +33,13 @@ import (
 	"borgee-server/internal/store"
 )
 
-// WindowSeconds — 30s 滚窗 byte-identical 跟 BPP-4 BPP_HEARTBEAT_TIMEOUT_
-// SECONDS 同源. 改一处 = 改两处反向锁守门 (TestHB61_WindowSecondsByteIdentical).
+// WindowSeconds is the 30s rolling window. It must stay byte-identical with
+// BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS; TestHB61_WindowSecondsByteIdentical
+// covers this cross-reference.
 const WindowSeconds = 30
 
-// LagThresholdMs — P95 lag 超此值 → at_risk=true (watchdog 周期一半,
-// 体现接近超时风险). reason 复用 reasons.NetworkUnreachable byte-identical.
+// LagThresholdMs marks at_risk=true when P95 lag exceeds half the watchdog
+// period. The reason literal reuses reasons.NetworkUnreachable byte-for-byte.
 const LagThresholdMs = 15000
 
 // HostLagHandler hosts the admin-rail GET endpoint that aggregates 30s
@@ -47,7 +50,7 @@ type HostLagHandler struct {
 }
 
 // RegisterAdminRoutes wires the admin-rail GET endpoint behind adminMw.
-// 设计 ③: admin-rail only. user-rail (`/api/v1/...`) 不挂.
+// Design ③: admin rail only; no user-rail (`/api/v1/...`) route is mounted.
 func (h *HostLagHandler) RegisterAdminRoutes(mux *http.ServeMux, adminMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /admin-api/v1/heartbeat-lag",
 		adminMw(http.HandlerFunc(h.handleGet)))
@@ -87,7 +90,7 @@ func AggregateLag(lagMs []int64, nowMs int64) LagSnapshot {
 	snap.P99Ms = percentile(sorted, 99)
 	if snap.P95Ms > LagThresholdMs {
 		snap.AtRisk = true
-		// AL-1a reason 锁链第 19 处 — byte-identical 跟 reasons.NetworkUnreachable.
+		// AL-1a reference site 19: byte-identical with reasons.NetworkUnreachable.
 		snap.ReasonIfAtRisk = reasons.NetworkUnreachable
 	}
 	return snap
