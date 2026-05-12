@@ -1,8 +1,8 @@
-// DL-1 — DataLayer factory (blueprint §4 B SSOT seam).
+// DL-1 — DataLayer factory (blueprint §4 B canonical seam).
 //
-// Principle ② (DL-1 spec §0): factory pattern + DI seam as the single wiring
+// Principle ② (DL-1 spec §0): factory pattern + DI seam as the central wiring
 // source. Handlers / server.go receive *DataLayer instead of importing store
-// directly, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid SSOT
+// directly, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid canonical
 // pattern.
 //
 // v1: NewDataLayer wires SQLite store + in-memory presence + in-process bus
@@ -18,7 +18,7 @@ import (
 	"borgee-server/internal/store"
 )
 
-// DataLayer is the SSOT bundle of the 4 blueprint §4 B interfaces. It is wired
+// DataLayer is the canonical bundle of the 4 blueprint §4 B interfaces. It is wired
 // once at server boot and passed to handlers via DI instead of direct store fields.
 type DataLayer struct {
 	Storage     Storage

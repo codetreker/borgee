@@ -26,7 +26,7 @@ import (
 // has no matching row.
 var ErrRepositoryNotFound = errors.New("datalayer: repository entity not found")
 
-// UserRepository is the SSOT interface for user CRUD ops.
+// UserRepository is the canonical interface for user CRUD ops.
 // v1 wraps store.Store user methods without changing behavior.
 type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*store.User, error)
@@ -36,7 +36,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *store.User) error
 }
 
-// ChannelRepository is the SSOT interface for channel CRUD ops.
+// ChannelRepository is the canonical interface for channel CRUD ops.
 type ChannelRepository interface {
 	GetByID(ctx context.Context, id string) (*store.Channel, error)
 	GetByName(ctx context.Context, name string) (*store.Channel, error)
@@ -44,7 +44,7 @@ type ChannelRepository interface {
 	Create(ctx context.Context, ch *store.Channel) error
 }
 
-// MessageRepository is the SSOT interface for message CRUD ops.
+// MessageRepository is the canonical interface for message CRUD ops.
 type MessageRepository interface {
 	GetByID(ctx context.Context, id string) (*store.Message, error)
 	Create(ctx context.Context, msg *store.Message) error

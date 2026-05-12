@@ -1,7 +1,7 @@
 // DL-1 — concrete v1 implementations wrapping existing store.Store.
 //
-// Principle ② (DL-1 spec §0): factory pattern + DI seam as the single wiring
-// source, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid SSOT
+// Principle ② (DL-1 spec §0): factory pattern + DI seam as the central wiring
+// source, matching the BPP-3 PluginFrameDispatcher / reasons.IsValid canonical
 // pattern.
 //
 // v1 wrapper preserves behavior: handlers use the Repository interface, and
@@ -158,7 +158,7 @@ type inProcessEventBus struct {
 // Publish forks an async INSERT to channel_events / global_events; failures
 // are logging-only and do NOT block the hot stream (blueprint §4 policy).
 //
-// DL-2 spec §0 principle ② — hot stream byte-identical, cold stream is additive.
+// DL-2 spec §0 principle ② — hot stream behavior is unchanged, cold stream is additive.
 func NewInProcessEventBusWithStore(store EventStore) EventBus {
 	return &inProcessEventBus{
 		subs:  make(map[string][]chan Event),
@@ -167,7 +167,7 @@ func NewInProcessEventBusWithStore(store EventStore) EventBus {
 }
 
 func (b *inProcessEventBus) Publish(_ context.Context, topic string, payload []byte) error {
-	// hot stream: live fanout to subscribers (byte-identical pre-DL-2).
+	// hot stream: live fanout to subscribers (unchanged from pre-DL-2 behavior).
 	for _, ch := range b.subs[topic] {
 		select {
 		case ch <- Event{Topic: topic, Payload: payload}:

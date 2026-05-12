@@ -4,7 +4,7 @@
 // Blueprint: data-layer.md §5 threshold monitor (db_size / wal_pending / write_lock / row_count).
 //
 // Policy (matching the DL-2 #615 retention sweeper pattern):
-//   - 4 threshold constants are byte-identical with blueprint §5.
+//   - 4 threshold constants match blueprint §5 exactly.
 //   - level has two alert tiers (WARN / CRITICAL), avoiding scattered inline literals.
 //   - Start(ctx) is ctx-aware to avoid goroutine leaks (#608 / #614 / #615).
 //   - Alerts go through slog Logger.Warn/Error; there is no admin endpoint for
@@ -45,9 +45,9 @@ func (l ThresholdLevel) String() string {
 	}
 }
 
-// DBThreshold is the canonical 4-metric SSOT for the v1 single-machine threshold monitor.
+// DBThreshold is the canonical 4-metric contract for the v1 single-machine threshold monitor.
 //
-// v1 estimates (byte-identical with blueprint §5), tunable in a follow-up after rollout:
+// v1 estimates (matching blueprint §5 exactly), tunable in a follow-up after rollout:
 //   - db_size_mb         WARN=5000  CRITICAL=10000
 //   - wal_pending_pages  WARN=1000  CRITICAL=5000
 //   - write_lock_wait_ms WARN=100   CRITICAL=1000

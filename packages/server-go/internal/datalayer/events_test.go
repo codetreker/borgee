@@ -3,9 +3,9 @@
 // Spec: docs/implementation/modules/dl-2-spec.md §0 policy + §1 DL2.2.
 //
 // Pins:
-//   - hot stream byte-identical (DL-1 #609 Subscribe/Publish behavior unchanged)
+//   - hot stream behavior unchanged (DL-1 #609 Subscribe/Publish behavior unchanged)
 //   - cold stream async INSERT (channel_events / global_events routing)
-//   - mustPersistKinds 4 categories byte-identical (perm.* / impersonate.* / agent.state / admin.force_*)
+//   - mustPersistKinds 4 categories pinned exactly (perm.* / impersonate.* / agent.state / admin.force_*)
 //   - retention sweeper per-kind reaping (must-persist never deleted / channel.* 30d / agent_task.* 60d / default 90d)
 
 package datalayer
@@ -36,7 +36,7 @@ func openTestDB(t *testing.T) *gorm.DB {
 	return s.DB()
 }
 
-// TestIsMustPersistKind pins 4 must-persist prefixes byte-identical
+// TestIsMustPersistKind pins the exact 4 must-persist prefixes
 // (blueprint §3.4 privacy contract categories).
 func TestIsMustPersistKind(t *testing.T) {
 	t.Parallel()

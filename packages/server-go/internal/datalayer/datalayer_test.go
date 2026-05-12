@@ -1,8 +1,8 @@
 // DL-1 — datalayer unit tests (12 cases, 4 interface × 3 happy/empty/err).
 //
-// 立场承袭: spec §0 ① interface byte-identical + ② factory + DI seam.
-// Tests走真 SQLite (in-memory) + 真 PresenceTracker (空 db) — interface
-// 锁不破 byte-identical 验证.
+// Inherited position: spec §0 ① interface behavior unchanged + ② factory + DI seam.
+// Tests use real SQLite (in-memory) + real PresenceTracker (empty db) to verify
+// the interface contract stays locked.
 
 package datalayer
 
