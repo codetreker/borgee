@@ -12,7 +12,7 @@
 //     stale}; enum-out values reject with AckErrCodeStatusUnknown.
 //  2. When Status ∈ {rejected, stale} and Reason is non-empty: validate Reason
 //     against the byte-identical AL-1a reason set.
-//  3. cross-owner reject — sess.AgentUserID from the authenticated BPP-1
+//  3. cross-owner reject — sess.OwnerUserID from the authenticated BPP-1
 //     connection must match frame.AgentID's owner, otherwise reject + log warn
 //     `bpp.ack_cross_owner_reject`.
 //  4. ActionHandler-style interface seam — bpp does not import internal/api;

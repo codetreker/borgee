@@ -18,14 +18,14 @@
 //     reasons.NetworkUnreachable; cold_start reason=reasons.RuntimeCrashed
 //     byte-identical with BPP-6 #522 + BPP-7 SDK.
 //   - **④ single insert path** — all 5 methods go through this auditor; reverse grep
-//     `InsertAdminAction.*"plugin_` 在 lifecycle_audit.go 外 0 hit.
+//     `InsertAdminAction.*"plugin_` must return zero hits outside lifecycle_audit.go.
 //   - **⑥ best-effort** — log.Warn on InsertAdminAction errors and do not fail
 //     the handler; no retry queue and no persistent deferred audit table.
 //   - **⑦ actor='system' byte-identical** — matches BPP-4 watchdog + AP-2 sweeper.
 //
 // Constraints (acceptance §3):
-//   - admin API does not mount SDK lifecycle paths (ADM-0 §1.3); lifecycle GET
-//     endpoint in internal/api/bpp_8_lifecycle_list.go is owner-only.
+//   - admin API must not mount plugin lifecycle endpoints (ADM-0 §1.3);
+//     lifecycle GET in internal/api/bpp_8_lifecycle_list.go remains owner-only.
 //   - AST scan forbidden: `pendingLifecycleAudit\|lifecycleQueue\|
 //     deadLetterLifecycle` 0 hit (TestBPP83_NoLifecycleQueueOrAuditTable).
 
