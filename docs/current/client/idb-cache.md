@@ -1,7 +1,7 @@
 # CS-4 IndexedDB 乐观缓存 (client)
 
 > 出处: `docs/blueprint/current/client-shape.md` §1.4 (本地持久化乐观缓存 B 路径) + `data-layer.md` §4.A.2 (cursor opaque) + `docs/implementation/modules/cs-4-spec.md` v0
-> 落点: 战马D + 飞马 + 烈马 + 野马 (一个 milestone 一个 PR, 0 server prod + 0 schema)
+> 范围: 仅覆盖 CS-4 客户端 IndexedDB 乐观缓存；不修改 server production code 或 schema。
 
 ## IDB wrapper 定义 (lib/cs4-idb.ts)
 
@@ -52,11 +52,11 @@ export function useFirstPaintCache(
 
 | 场景 | 行为 |
 |---|---|
-| mount | `IDB.get` 返回 cached，同时触发 caller-supplied `cursorBackfillFn(sinceCursor)` server fetch |
+| mount | `IDB.get` 返回 cached，同时触发调用方提供的 `cursorBackfillFn(sinceCursor)` server fetch |
 | server confirm | `IDB.put` 覆盖缓存 |
 | cache miss | 不阻塞 UI；`cached=null` 后直接走 server fetch，并与 sync 串行 |
 | offline (`navigator.onLine=false`) | skip server fetch，走 cache hit |
-| cursor backfill | caller 注入 `cursorBackfillFn`，走 RT-1 既有 lib；CS-4 不绑定具体 import path |
+| cursor 补齐 | 调用方传入 `cursorBackfillFn`，复用 RT-1 既有 lib；CS-4 不指定具体 import path |
 
 ## SyncStatusIndicator UI (components/SyncStatusIndicator.tsx)
 
@@ -65,7 +65,7 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 | syncState | UI 行为 |
 |---|---|
 | `cache_miss` | `return null` |
-| `syncing` ≤3s | `return null`；沉默胜于假 loading，与 RT-1 §1.1 一致 |
+| `syncing` ≤3s | `return null`；3 秒内不显示 loading，避免展示未确认进度，与 RT-1 §1.1 一致 |
 | `syncing` ≥3s | 显示 `同步中…` |
 
 ## 禁止行为 / QA 检查
@@ -77,10 +77,10 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 | 不复用 RT-1 之外 cursor helper | `cs4.*newCursor|CS4CursorHelper` 无匹配 |
 | 禁止引入未锁定的缓存状态文案 | `本地缓存|离线缓存|已加载|加载完成|准备中` 无匹配 |
 | 不提供管理端 IDB 查看入口 (ADM-0 §1.3) | `admin.*idb|admin.*indexedDB` 无匹配 |
-| 0 server prod | `git diff origin/main -- packages/server-go/` 0 行 |
-| 0 schema 改 | `migrations/cs_4|cs4.*api|cs4.*server` 无匹配 |
+| 不修改 server production code | `git diff origin/main -- packages/server-go/` 0 行 |
+| 不修改 schema | `migrations/cs_4|cs4.*api|cs4.*server` 无匹配 |
 
-## 跨 milestone 一致性要求
+## 跨模块一致性要求
 
 | 来源 | 锁定点 |
 |---|---|
@@ -95,7 +95,7 @@ DOM: `<span data-cs4-sync-state="{4-enum}">{label}</span>`
 - background sync (蓝图 §1.1)
 - artifact 内容 / DM body / 草稿入 IDB (草稿走 CV-10)
 - typing / presence-realtime 入 IDB (蓝图 §1.4)
-- Service Worker offline page (留 CS-3 PWA + sw.js DL-4)
-- 跨设备同步 (server cursor 是真相)
-- 管理端 IDB inspect 入口 (永久不挂)
-- IDB cleanup goroutine / scheduled job (留 v1 用户 logout 时清)
+- Service Worker offline page (由 CS-3 PWA + sw.js DL-4 覆盖)
+- 跨设备同步 (server cursor 为权威来源)
+- 管理端 IDB inspect 入口 (管理端 / god-mode 路由不得暴露或挂载该入口)
+- IDB cleanup goroutine / scheduled job (由 v1 用户 logout 流程清理)
