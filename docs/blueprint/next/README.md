@@ -8,7 +8,7 @@
 
 下一版蓝图讨论的中心不是重写 Borgee 定位, 而是补齐 v1 使用中暴露出的六类空白: Helper onboarding、mention 粒度、channel authority、client truthfulness、privacy scope guard、sidebar/account IA。
 
-默认版本判断: **minor bump**。只有当讨论把 Borgee 改成 runtime owner, 或删除既有隐私 / 安全边界时, 才进入 major bump。
+默认版本判断: **非反转集群按 minor bump 讨论**。但 gh#681 no-sandbox 与 current host-bridge 的 v1 process sandbox / sandbox trust pillar 冲突, 是 **major-trigger / open major decision**; freeze 前必须决定是保留 sandbox、重写当前信任支柱, 还是按 major 处理。
 
 ---
 
@@ -64,7 +64,7 @@
 
 - 网页配 OpenClaw 的 v1 最小闭环是什么: install plugin / create agent / configure channel 是否必须同批交付?
 - 已决: 开机自启 + crash restart 都需要, 但只属于长生命周期、非 sudo 的 helper / agent service; `install-butler` 不自启、不常驻、不监督重启。
-- 已决: gh#681 host bridge v1 不提供 / 不承诺 sandbox; trust boundary 来自 Borgee 不是 runtime owner、没有 Borgee command channel、显式用户授权、file / network allowlists、非 sudo 常驻服务。sandbox 若重开, 属 backlog / security hardening, 不是 v1 acceptance。
+- 已决: gh#681 host bridge v1 不提供 / 不承诺 sandbox; trust boundary 来自 Borgee 不是 runtime owner、没有 Borgee command channel、显式用户授权、file / network allowlists、非 sudo 常驻服务。Open major: 这反转 current host-bridge 的 sandbox trust pillar, 除非 freeze 时同步重写 / 移除该支柱; sandbox 若重开, 属 backlog / security hardening, 不是 v1 acceptance。
 - 已决: Autostart 红线是 bounded restart / backoff、用户可见 status / logs、卸载必须 disable service、不缓存 sudo、不保留持久 privileged installer。
 - Helper UI 是否需要把 autostart、卸载、版本提示放进同一个信任说明面板?
 
@@ -107,7 +107,7 @@
 ## 5. 下一步 review flow
 
 1. PM 先确认 source issue cluster 与非目标, 防止 backlog 误带入。
-2. Architect 对照 `migration-analysis.md`, 判断 minor / major 触发条件是否成立。
+2. Architect 对照 `migration-analysis.md`, 先解决 gh#681 no-sandbox major-trigger / open major decision, 再判断其余集群是否仍按 minor 处理。
 3. Security 独立检查 gh#681 / gh#654 / gh#693 / gh#724 的边界, 尤其是 runtime owner、host command、broadcast abuse、隐私 / 安全边界删除。
 4. QA 把 open decisions 转成可验收的反向检查, 尤其是 client truthfulness 和 forbidden state。
 5. 用户拍板后, Teamlead 决定是否把 `next/` 冻结并切到下一版 `current/`。

@@ -4,13 +4,14 @@
 
 ## 0. 版本判断
 
-默认判断: **minor bump**。
+默认判断: **非反转集群为 minor bump; gh#681 no-sandbox 是 major-trigger / open major decision**。
 
-理由: 这批 issue 主要是给已冻结的产品立场补粒度、补页面、补真实 UI surface, 没有默认推翻“Borgee 是 agent 协作平台, 不是 agent 平台”。
+理由: 多数 issue 只是给已冻结的产品立场补粒度、补页面、补真实 UI surface, 没有默认推翻“Borgee 是 agent 协作平台, 不是 agent 平台”。但 current `host-bridge.md` 把 process sandboxing / sandbox 写入 v1 trust model; gh#681 的“不提供 / 不承诺 sandbox”是该支柱的 stance reversal, 不能无条件归为 minor。
 
-进入 **major bump** 的触发条件只有两类:
+进入 **major bump** 的触发条件有三类:
 
 - Borgee 从接入 / 配置 / Helper 变成 runtime owner, 直接承担 LLM/runtime/shell 执行责任。
+- gh#681 no-sandbox 保持为 v1 stance, 且 freeze 时没有同步重写 / 移除 current host-bridge 的 process sandboxing trust pillar。
 - 既有 privacy / security 边界被删除, 例如 admin 默认可读内容、跨 org 可替别人 agent 扩权、backend/server-side controls 被移除。
 
 ---
@@ -19,7 +20,7 @@
 
 | 集群 | 触达 current blueprint | 影响判断 | bump |
 |---|---|---|---|
-| Host bridge | `host-bridge.md`, `plugin-protocol.md`, `agent-lifecycle.md`, `client-shape.md` | 强化 Helper onboarding、autostart、allowlists 与 no command channel; 不新增 host 执行环境承诺 | minor |
+| Host bridge | `host-bridge.md`, `plugin-protocol.md`, `agent-lifecycle.md`, `client-shape.md` | 强化 Helper onboarding / autostart; gh#681 no-sandbox 反转 current sandbox trust pillar, freeze 前必须解决 | major-trigger / open |
 | Mention routing | `concept-model.md`, `channel-model.md`, `auth-permissions.md`, `realtime.md` | 增加 per-channel 接收策略与 broadcast mention; 需补 abuse / rate-limit / ACL 红线 | minor |
 | Channel authority | `channel-model.md`, `concept-model.md`, `client-shape.md`, `data-layer.md` | 补 owner leave / delete / 管理页 / 私有标识规则 | minor |
 | Client truthfulness | `client-shape.md`, `canvas-vision.md`, `auth-permissions.md`, `realtime.md` | 要求已实现能力在 production UI 真实可达, 无权访问有明确状态 | minor |
@@ -32,7 +33,7 @@
 
 - Borgee 不带 runtime, 通过 plugin 接 OpenClaw / Hermes / 自建。
 - Borgee Helper 在用户机器上管理 runtime 安装 / 配置, 但不直接替 runtime 执行命令; 长生命周期服务不持有 sudo。
-- v1 的信任模型来自拆 daemon、签名 / 用户授权、allowlists、一键卸载、不自动更新、情境化授权。
+- v1 的信任模型来自拆 daemon、签名 / 沙箱 / 用户授权、allowlists、一键卸载、不自动更新、情境化授权; current 明确要求 process sandboxing。
 
 ### 下一版增量
 
@@ -45,7 +46,7 @@
 
 ### Host trust boundary decision
 
-下一版不把 host 执行环境写成产品承诺或信任支柱。host-bridge bump 仍按 minor 处理, 因为它不让 Borgee 接管 runtime, 也不删除既有 security boundary。
+gh#681 的用户决策可以被下一版记录, 但它反转 current host-bridge 的 v1 process sandbox / sandbox trust pillar。除非 freeze 时同步重写 / 移除 current sandbox 信任支柱, 该变化必须按 major-trigger / open major decision 处理, 不能默认 minor。
 
 已决边界:
 
@@ -57,6 +58,7 @@
 
 ### Major 风险
 
+- 如果 no-sandbox 作为 v1 acceptance 保留, 但 freeze 不重写 current 的 process sandboxing / sandbox trust pillar, 就是 stance reversal。
 - 如果网页配置演变成 Borgee 自己托管 / 调度 runtime, 就越过 current 的平台边界。
 - 如果 Borgee 直接暴露 host command 通道, 就越过 `host-bridge.md` v1 “不直接跑命令”的红线。
 - 如果 Helper / Host Bridge 与 Remote Agent 在 IA 移动时合并 credentials / grants / enforcement rails, 也是安全边界删除 / 绕开。
