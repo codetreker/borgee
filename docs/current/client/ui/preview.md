@@ -1,39 +1,50 @@
-# 8. 公开频道预览
+# Public Channel Preview Sketch
+
+## Purpose
+
+This sketch is an Interaction And Layout Reference for a public channel preview. It does not define product behavior, implementation contracts, join policy, or verification state.
+
+## Surface
+
+Public preview belongs to the channel host. It presents a read-only channel-oriented state before the user has joined or gained full channel interaction rights.
+
+## Layout Sketch
 
 ```
 +──────────────────────────────────────────────────────────────────────────────+
-│  # announcements                                      🔓 Public Channel      │
+│  # announcements                                      Public Channel         │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌──┐  Alice                       9:00 AM                                  │
-│  │AV│  Welcome to Collab v2.0! Here's what's new:                           │
-│  └──┘  • Real-time collaboration                                            │
-│        • Agent integration                                                   │
-│        • Workspace file sharing                                              │
+│  ┌──┐  Alice                       09:00                                  │
+│  │AV│  Welcome to the shared channel.                                       │
+│  └──┘  - Recent updates                                                     │
+│        - Agent collaboration                                                 │
+│        - Workspace sharing                                                   │
 │                                                                              │
-│  ┌──┐  🤖 ReleaseBot              9:01 AM                                   │
-│  │AV│  Release v2.0.0 deployed successfully.                                │
-│  └──┘                                                                        │
-│                                                                              │
-│  ┌──┐  Bob                        9:15 AM                                   │
-│  │AV│  Looks great! Excited to try the new features.                        │
+│  ┌──┐  ReleaseBot                  09:01                                  │
+│  │AV│  Release notes are available.                                         │
 │  └──┘                                                                        │
 │                                                                              │
 │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
-│  ░                                                                        ░  │
-│  ░   You're previewing #announcements                                     ░  │
+│  ░   You are previewing #announcements                                    ░  │
 │  ░   12 members · 156 messages                                            ░  │
 │  ░                                                                        ░  │
 │  ░                    ┌──────────────────┐                                 ░  │
 │  ░                    │    Join Channel   │                                 ░  │
 │  ░                    └──────────────────┘                                 ░  │
-│  ░                                                                        ░  │
 │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
 │                                                                              │
 +──────────────────────────────────────────────────────────────────────────────+
 ```
 
-- **频道 Header**：频道名 + 🔓 Public 标记
-- **消息预览**：只读，展示最近几条消息，无法回复或 react
-- **底部浮层**：半透明遮罩，显示频道统计（成员数 + 消息数）+ "Join Channel" 按钮
-- **加入后**：浮层消失，切换为完整聊天视图，输入框可用
+## Architecture Notes
+
+- Preview content is illustrative; server authorization and join behavior remain outside this sketch.
+- The preview state is a channel-host presentation mode, not a separate application.
+- Full chat interaction remains gated by the user/channel data authority described in feature surfaces.
+
+## Related Docs
+
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../ui-map.md](../ui-map.md)
+- [message.md](message.md)

@@ -1,22 +1,31 @@
-# 6. Workspace 页面
+# Workspace Sketch
+
+## Purpose
+
+This sketch is an Interaction And Layout Reference for the channel workspace surface. It does not define product behavior, implementation contracts, file-format support, or verification state.
+
+## Surface
+
+Workspace belongs to the user SPA file-work surfaces. Channel workspace focuses on the active channel; all-workspaces sidepane provides a cross-channel projection. Server workspace APIs own durable file trees and file bodies.
+
+## Layout Sketch
 
 ```
 +────────────────────+─────────────────────────────────────────────────────────+
-│  📁 Workspace      │  docs/architecture.md                          [Raw]    │
+│  Workspace         │  notes/architecture.md                         [Raw]    │
 │                    ├─────────────────────────────────────────────────────────┤
-│  ▾ 📁 docs/        │                                                         │
-│    📄 README.md    │  # Architecture                                         │
-│    📄 architecture │                                                         │
-│    📁 api/         │  ## Overview                                            │
-│      📄 spec.yaml  │                                                         │
-│  ▾ 📁 src/         │  The system uses a client-server architecture           │
-│    📄 index.ts     │  with WebSocket for real-time messaging.                │
-│    📄 auth.ts      │                                                         │
-│  ▾ 📁 assets/      │  ## Components                                          │
-│    🖼 logo.png     │                                                         │
-│                    │  - **API Server**: Express + Socket.IO                  │
-│                    │  - **Client**: React SPA                                │
-│                    │  - **Database**: SQLite                                 │
+│  ▾ notes/          │                                                         │
+│    README.md       │  # Architecture                                         │
+│    architecture.md │                                                         │
+│    schema.yaml     │  ## Overview                                            │
+│  ▾ src/            │                                                         │
+│    index.ts        │  The system uses REST-backed data and realtime signals. │
+│    auth.ts         │                                                         │
+│  ▾ assets/         │  ## Components                                          │
+│    logo.png        │                                                         │
+│                    │  - Server rail: API and realtime hub                    │
+│                    │  - Client: React SPA                                    │
+│                    │  - Database: SQLite                                     │
 │                    │                                                         │
 │                    │  ```typescript                                           │
 │                    │  interface Message {                                     │
@@ -25,27 +34,29 @@
 │                    │    author: User;                                         │
 │                    │  }                                                       │
 │                    │  ```                                                     │
-│                    │                                                         │
 +────────────────────+─────────────────────────────────────────────────────────+
 ```
 
-## 6a. 右键菜单
+### Context Menu Shape
 
 ```
-│    📄 README.md    │
-│    📄 architecture │       ┌──────────────────┐
-│    📁 api/         │       │  📝 Rename        │
-│      📄 spec.yaml ←[右键]  │  📋 Copy path     │
-│  ▾ 📁 src/         │       │  📁 Move to...    │
-│    📄 index.ts     │       │  ──────────────── │
-│                    │       │  🗑  Delete        │
+│    README.md       │
+│    architecture.md │       ┌──────────────────┐
+│    schema.yaml  <- │       │  Rename          │
+│  ▾ src/            │       │  Copy path       │
+│    index.ts        │       │  Move to...      │
+│                    │       │  Delete          │
 │                    │       └──────────────────┘
 ```
 
-- **左侧文件树**：可折叠目录，图标区分文件夹 📁 / 文件 📄 / 图片 🖼
-- **右键菜单**：Rename / Copy path / Move to / Delete
-- **右侧 FileViewer**：
-  - Markdown → 渲染预览（默认）+ Raw 切换
-  - 代码 → 语法高亮
-  - 图片 → 内联预览
-  - 其他文本 → 等宽纯文本
+## Architecture Notes
+
+- The file tree and file body are REST-owned data; viewer selection and edit drafts are local presentation state.
+- Context menu entries are illustrative surface affordances, not a complete command contract.
+- Workspace content does not become realtime-authoritative because a WebSocket signal arrives.
+
+## Related Docs
+
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
+- [../ui-map.md](../ui-map.md)

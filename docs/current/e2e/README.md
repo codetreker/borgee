@@ -1,107 +1,131 @@
-# e2e — Playwright E2E test suite
+# E2E, Build, And Release Quality Gates
 
-代码位置: `/workspace/borgee/packages/e2e/`
+This module describes the architecture that proves Borgee can be built, tested, packaged, and released. It is not a runbook. The important design question is which system boundary is protected by which quality gate, and what failures are expected to stop before merge or release.
 
-> INFRA-2 (Phase 2 R3 解封前置) — Playwright scaffold. RT-0 (#40 latency stopwatch), CM-onboarding (#42 注册→Welcome 流), CM-4 第 4 个 demo (G2.1/G2.2/G2.4 邀请审批 / 离线 fallback / 用户感知签字) 都由这个 package 覆盖。
+## Validation Architecture
 
-## 1. 设计
+```mermaid
+flowchart TB
+  change[Source change]
 
-- **独立 pnpm workspace 包** `@borgee/e2e` (不挂在 `@borgee/client` 下), 避免把 `@playwright/test` ~150MB 拖进 client build。
-- **真实进程启动**, 不使用 mock: server-go 跑 `go run ./cmd/collab`, client 跑真实 vite dev, 行为跟开发环境一致 (CM-4.2 60s polling 那种集成 bug 单测抓不出, 只能 E2E)。
-- **端口隔离**: E2E 跑 server-go 在 `4901`, vite 在 `5174` (开发默认 4900/5173 留给开发者, `pnpm test` 不占用这些端口)。
-- **数据隔离**: sqlite db 写入 `packages/e2e/.playwright-data/collab-e2e.db`, 每次 run 复用 (CI runner workspace 自动清空)。
+  change --> js[JS workspace gates]
+  change --> go[Go module gates]
+  change --> docs[Docs sync gate]
 
-## 2. 目录
+  js --> client[Client type/build/unit boundary]
+  go --> server[Server race/coverage/protocol boundary]
+  go --> host[Server-side helper anchors]
+  docs --> current[Mapped docs freshness boundary]
 
-```
-packages/e2e/
-├── package.json              # @borgee/e2e
-├── playwright.config.ts      # 双 webServer 编排 + projects
-├── tsconfig.json
-├── fixtures/
-│   ├── auth.ts               # 占位, CM-onboarding/RT-0 真接
-│   └── stopwatch.ts          # G2.4 ≤ 3s latency 测量 + HTML 报告附件
-└── tests/
-    ├── smoke.spec.ts                     # 3 条: server health / client title / vite proxy
-    ├── chat-first-time-onboarding.spec.ts             # CM-onboarding 注册→Welcome 流
-    ├── chat-realtime-message-fanout.spec.ts             # CM-4 邀请审批 / 离线 fallback
-    ├── realtime-backfill-on-reconnect.spec.ts  # RT-1.2 断线后 backfill
-    ├── channel-list-sidebar.spec.ts      # CHN-1.3 频道列表 DnD
-    ├── agent-list-presence-indicator.spec.ts       # AL-3.3 agent 在线点
-    └── canvas-modal-open-close.spec.ts             # CV-1.3 Canvas tab markdown+WS push (§3.1-§3.3)
+  client --> e2e[E2E browser integration gate]
+  server --> e2e
+  e2e --> docker[Docker image release gate]
+  docker --> deploy[Environment promotion gates]
+
+  js --> npm[NPM package release gates]
 ```
 
-`canvas-modal-open-close.spec.ts` 覆盖 cv-1.md §3 的验收项：第 ④ 项要求只渲染 Markdown 内容；第 ③/⑦ 项要求 rollback 控件只对 owner 出现在 DOM 中，并且版本 label 必须与 `"v{N+1} (rollback from v{M})"` 字节级一致；第 ②/⑤ 项要求页面通过 WS push 在 3 秒内刷新，并在 409 场景显示 toast `内容已更新, 请刷新查看`。这两个测试用例使用真实 server-go + vite，耗时约 3.7s；其中一次提交通过 REST 以 other-user 身份创建 commit，用来触发 push。
-
-## 3. 双 server 编排
-
-`playwright.config.ts` 的 `webServer: [...]` 起两个进程:
-
-| Server | 命令 | URL | 健康检查 |
+| Protected Boundary | Gate Layer | What It Catches | What It Does Not Try To Catch |
 |---|---|---|---|
-| server-go | `go run ./cmd/collab` (cwd=server-go) | `http://127.0.0.1:4901` | `GET /health` |
-| client | `pnpm --filter @borgee/client dev --port 5174 --strictPort` | `http://127.0.0.1:5174` | `GET /` |
+| Client build boundary | JS workspace gate | TypeScript/build regressions and client-side unit behavior before browser integration | Server storage correctness or production host wiring |
+| Server runtime boundary | Go module gate | API/storage regressions, data races, coverage drops, and protocol-envelope drift | Browser layout or npm package release readiness |
+| Cross-process product boundary | E2E browser gate | Real browser plus real server behavior across HTTP, WebSocket, auth, admin, channel, DM, artifact, realtime, and host-bridge-related API surfaces | Exhaustive server branch coverage, visual design review, or real helper daemon/sandbox execution |
+| Release artifact boundary | Docker gate | Whether the deployable image contains a compatible client bundle and server binary | Host-side compose/env correctness beyond workflow health checks |
+| External integration boundary | NPM publish gate | Whether public integration packages build and can be published independently | Main web app deployability |
+| Documentation freshness boundary | Docs sync gate | Whether changes under currently mapped modules update the matching current architecture docs | Unmapped modules, stale mappings, or deep semantic correctness of every doc statement |
 
-server-go 通过环境变量切换:
-- `PORT=4901 HOST=127.0.0.1` 隔离开发端口
-- `DATABASE_PATH` 落 e2e tmp 目录
-- `JWT_SECRET=e2e-test-secret-not-for-prod` 固定 (跨 run 复用 token 没意义)
-- `ADMIN_USER` / `ADMIN_PASSWORD` env bootstrap (ADM-0 之后改吃 `admins` 表)
-- `BORGEE_ADMIN_LOGIN=e2e-admin` + `BORGEE_ADMIN_PASSWORD_HASH=$2a$10$...` — ADM-0.1 startup must fail visibly when required env vars are missing: env 任一缺 → server panic, 所以 e2e webServer 必须显式提供。bcrypt cost=10, 明文 `e2e-admin-pass-12345` (e2e 专用, 永不进 prod)。改 hash = 同步改 `playwright.config.ts` 的 `BORGEE_ADMIN_PASSWORD_HASH` 字面。
+The core design is layered rather than redundant: unit and module gates catch local failures cheaply, the E2E gate proves the browser/server contract, and release gates prove packaging and promotion artifacts. A failure at a lower layer should block before a higher layer spends time assembling or deploying artifacts.
 
-client 通过 **`VITE_E2E_API_TARGET`** 把 vite proxy 从写死的 `localhost:4900` 切到 e2e server 端口。`packages/client/vite.config.ts` 读这个 env, 默认仍是 `4900` (开发流不变)。
+## Dual Track Repository Organization
 
-## 4. 关键 fixture
+Borgee uses two build systems because it has two kinds of runtime units. The JavaScript workspace owns browser code, browser tests, and public TypeScript packages. The Go modules own server, helper daemon, and installer binaries. This separation keeps Node package resolution from becoming the source of truth for Go binaries, while still allowing CI and release gates to compose both tracks.
 
-### `fixtures/stopwatch.ts`
+The JavaScript track is workspace-oriented: packages are selected by workspace membership and package name. That lets client build, E2E, remote-agent, and OpenClaw plugin checks run with targeted installs and targeted publishes.
 
-用于验证 G2.4 ≤ 3s 条件。RT-0 (#40) 是第一个接入方。
+The Go track is module-oriented: server, helper, and installer remain separately versioned dependency graphs. That matters architecturally because the server container, host-bridge daemon, and installer artifacts have different runtime constraints and should not share one binary dependency surface just for monorepo convenience.
 
-```ts
-const sw = stopwatch();
-await senderPage.click('[data-testid=invite-send]');
-await receiverPage.waitForSelector('[data-testid=invitation-toast]');
-sw.stop();
-await sw.attach(testInfo, '邀请→通知 latency');  // 进 HTML 报告 (野马读)
-expect(sw.ms).toBeLessThanOrEqual(3000);
+## CI As Boundary Protection
+
+CI is organized around failure domains, not around one monolithic test command. Client build and unit tests protect the browser package boundary. Server race and coverage jobs protect concurrent server behavior and coverage budgets. Protocol linting protects realtime/BPP envelope compatibility. The current host-bridge-adjacent default CI coverage is narrower: it protects server-side helper IPC primitive selectors plus host-grants and manifest endpoint anchors reached through server/E2E surfaces. It does not run the helper daemon runtime or sandbox integration as part of the default PR CI path.
+
+Installer validation is a separate gate scoped to installer changes and manual dispatch, not proof that the helper daemon is running inside default CI. This split makes the signal actionable: a race failure points at server concurrency, a coverage failure points at Go test coverage policy, an E2E failure points at cross-process product behavior or endpoint wiring, and a publish workflow failure points at external package release readiness.
+
+The docs sync gate is also scoped, not universal. It currently protects only modules present in the current-sync mapping. That mapping covers server, server command, admin, client, plugin, remote-agent, and E2E paths. It currently does not cover the helper module, the installer module, or a host-bridge docs subtree, and it still contains an old helper path mapping that does not match the current helper package path. Treat it as a mapped-module freshness guard, not as a full architecture-documentation completeness proof.
+
+## E2E Harness Design
+
+The E2E harness is intentionally a two-process local system. Playwright drives a real browser against a Vite-served client, while Vite proxies API and WebSocket traffic to a real server process. The server uses isolated temporary SQLite and file-storage directories for each harness run.
+
+```mermaid
+sequenceDiagram
+  participant Browser as Playwright browser
+  participant Client as Vite client process
+  participant Server as server process
+  participant Data as temp sqlite/uploads/workspaces
+
+  Browser->>Client: user-level browser actions
+  Client->>Server: proxied API and WebSocket traffic
+  Server->>Data: isolated state for the run
+  Server-->>Client: product responses and realtime events
+  Client-->>Browser: rendered user/admin experience
 ```
 
-`attach()` 把毫秒数写进 Playwright HTML 报告附件, reviewer 跑 demo 时不用打开 trace viewer 就能读延迟。
+This design protects the contract that matters to users: the built client code, browser runtime, server API, realtime transport, auth state, admin rail, and storage side effects must work together. Its host-bridge-related coverage should be read as endpoint and source-anchor coverage, not as proof that the real helper daemon IPC loop or OS sandbox has run. The harness deliberately avoids binding tests to a shared local server, production-like host, or privileged daemon runtime; shared state and privileged host dependencies would make the gate less deterministic and harder to run safely in CI.
 
-### `fixtures/auth.ts`
+## Build And Release Gates
 
-**故意是占位**。`seedUser` / `login` 都直接 throw, 防止其他测试在 invite-code seed env 落地之前 (CM-onboarding #42) 提前接入 auth；失败必须显式暴露。pattern 内联在文件注释里。
+The Docker release path is the product release artifact. It binds the client bundle and the server binary into one container image, then environment gates validate specific image paths. The test deploy path is an independent manual environment build with stale-image and health checks. Staging and production share one built artifact: staging builds and pushes the timestamped image, and production retags that staging artifact before deploying it. Architecturally, Docker is the compatibility boundary between browser assets and the server process: if either side cannot build or cannot fit into the image, release stops.
 
-## 5. CI 集成
+Deploy workflows are promotion gates, not configuration owners. They build, push, retag, recreate containers, and perform health checks; runtime secrets and compose topology live on the target hosts. This keeps environment ownership outside the repo while still making stale image and health failures visible during promotion.
 
-`.github/workflows/ci.yml` 加 `e2e` job:
+NPM publish gates are separate from Docker because remote-agent and OpenClaw plugin are external integration artifacts. They are public TypeScript packages with their own build and provenance flow. Their release readiness is related to the monorepo but not coupled to web app deployment.
 
-- runs-on `ubuntu-latest`
-- 装 pnpm + node22 + go1.25
-- `pnpm install --filter @borgee/e2e --filter @borgee/client` (2 个 workspace, lockfile frozen)
-- `pnpm --filter @borgee/e2e exec playwright install --with-deps chromium` (仅 chromium ≈ 200MB, 其它 browser 留到 RT-0 需要时再装)
-- `pnpm --filter @borgee/client build` 一次 (vite dev 不需要, 但保险 + 跑 tsc 严格模式)
-- `pnpm --filter @borgee/e2e test`
-- 失败时上传 `packages/e2e/playwright-report/` 作为 artifact (reviewer 直接看)
+## Module Interfaces
 
-CI 总耗时预估: 装 chromium ~1min + go build ~10s + smoke 3 条 ~5s + teardown = **~2min**。后续 RT-0 + CM-onboarding 加 5-10 条会涨到 4-5min, 仍在可接受范围。
+This module owns the quality-gate architecture for build, test, E2E, Docker deploy, and npm publish. It consumes server, client, plugin, remote-agent, helper-adjacent, and installer-adjacent surfaces only through the gates that actually run today.
 
-## 6. 不在范围 (留给后续 milestone)
+It does not own server API semantics, client component design, plugin protocol behavior, helper daemon runtime/sandbox behavior, installer UX, or production host configuration. Those modules define behavior; this module defines where that behavior is verified or packaged.
 
-- 真实 auth fixture (CM-onboarding #42 invite-code seed 接入后再接 RT-0)
-- WebSocket 测试工具 (RT-0 加 `ws.frame()` helper, 验 `agent_invitation_pending` schema)
-- 移动布局快照 (CV-* 阶段)
-- 第二浏览器 (firefox / webkit) — 现在只 chromium, 见 G2.4 截屏只需 1 个 browser
-- 跨 PR retry orchestration / shard — 测试条数 < 50 之前不需要
+## Implementation Anchors
 
-## 7. 本地跑
+Root orchestration and workspace shape:
 
-```sh
-pnpm --filter @borgee/e2e install-browsers  # 一次性, 安装 chromium
-pnpm --filter @borgee/e2e test              # 跑全套
-pnpm --filter @borgee/e2e test:headed       # 看浏览器跑 (debug)
-pnpm --filter @borgee/e2e test:ui           # Playwright UI mode
-pnpm --filter @borgee/e2e report            # 看上次 HTML 报告
-```
+- `package.json`
+- `pnpm-workspace.yaml`
+- `Makefile`
 
-如果端口被占: `E2E_SERVER_PORT=4902 E2E_CLIENT_PORT=5175 pnpm --filter @borgee/e2e test`.
+JavaScript package boundaries:
+
+- `packages/client/package.json`
+- `packages/client/vite.config.ts`
+- `packages/client/vitest.config.ts`
+- `packages/e2e/package.json`
+- `packages/remote-agent/package.json`
+- `packages/plugins/openclaw/package.json`
+
+Go module boundaries:
+
+- `packages/server-go/go.mod`
+- `packages/server-go/Makefile`
+- `packages/borgee-helper/`
+- `packages/borgee-installer/`
+
+E2E harness and test surface:
+
+- `packages/e2e/playwright.config.ts`
+- `packages/e2e/tests/`
+
+Container and deployment release surface:
+
+- `packages/server-go/Dockerfile`
+- `.github/workflows/deploy-test.yml`
+- `.github/workflows/deploy.yml`
+
+CI, docs sync, installer, and package publication gates:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/lint.yml`
+- `.github/lint-current-sync.yml`
+- `.github/workflows/installer.yml`
+- `.github/workflows/publish-openclaw-plugin.yml`
+- `.github/workflows/publish-remote-agent.yml`

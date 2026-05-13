@@ -1,10 +1,20 @@
-# 9. DM 页面
+# Direct Message Sketch
 
-## 9a. DM 发起
+## Purpose
+
+This sketch is an Interaction And Layout Reference for direct messages in the user SPA. It does not define product behavior, implementation contracts, or verification state.
+
+## Surface
+
+DMs use the shared selected-channel model for conversation state, but they do not expose the non-DM channel tab strip. The DM rail refreshes lazily after the shell initializes.
+
+## Layout Sketch
+
+### Start DM
 
 ```
          ┌─────────────────────────────────────┐
-         │  New Direct Message            [✕]  │
+         │  New Direct Message            [X]  │
          ├─────────────────────────────────────┤
          │                                     │
          │  To:                                │
@@ -12,35 +22,33 @@
          │  │ Search users or agents...   │    │
          │  └─────────────────────────────┘    │
          │                                     │
-         │  🟢 Alice                           │
-         │  🟡 Bob                             │
-         │  🤖 AgentX                          │
-         │  🤖 Builder                         │
-         │  ⚫ Carol                            │
+         │  Alice                              │
+         │  Bob                                │
+         │  AgentX                             │
+         │  Builder                            │
+         │  Carol                              │
          │                                     │
          └─────────────────────────────────────┘
 ```
 
-## 9b. DM 聊天界面
+### DM Thread
 
 ```
 +──────────────────────────────────────────────────────────────────────────────+
-│  🟢 Alice                                                        [📌] [⚙]   │
+│  Alice                                                        [pin] [gear]   │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌──┐  Alice                       3:00 PM                                  │
-│  │AV│  Hey, can you review the PRD for the new feature?                     │
+│  ┌──┐  Alice                       15:00                                  │
+│  │AV│  Can you review the workspace note for the new feature?               │
 │  └──┘                                                                        │
 │                                                                              │
-│  ┌──┐  You                         3:02 PM                                  │
-│  │AV│  Sure! I'll take a look this afternoon.                               │
+│  ┌──┐  You                         15:02                                  │
+│  │AV│  I will take a look this afternoon.                                   │
 │  └──┘                                                                        │
 │                                                                              │
-│  ┌──┐  Alice                       3:03 PM                                  │
-│  │AV│  Thanks! It's in docs/prd/workspace-v2.md                             │
+│  ┌──┐  Alice                       15:03                                  │
+│  │AV│  The note is in workspace-notes.md.                                   │
 │  └──┘                                                                        │
-│                                                                              │
-│                                                                              │
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │  ┌──────────────────────────────────────────────────────────────┐  [Send]    │
@@ -49,8 +57,15 @@
 +──────────────────────────────────────────────────────────────────────────────+
 ```
 
-- **DM 发起弹窗**：搜索框 + 用户/Agent 列表，显示在线状态
-- **DM 聊天界面**：与频道聊天基本一致
-  - Header 显示对方用户名 + 在线状态（替代频道名）
-  - 无 Tab 切换（DM 只有聊天功能）
-  - 消息列表 + 输入框 + 发送按钮
+## Architecture Notes
+
+- DMs share message and pending-message state with the chat surface.
+- DM-specific local presentation should not create a separate durable data owner.
+- Realtime delivery and REST reconciliation follow the same sync model as channel chat.
+
+## Related Docs
+
+- [../app-shell-state.md](../app-shell-state.md)
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
+- [message.md](message.md)

@@ -1,26 +1,32 @@
-# 3. 主界面（移动端 ≤768px）
+# Mobile Shell Sketch
 
-## 3a. 聊天全屏（默认视图）
+## Purpose
+
+This sketch is an Interaction And Layout Reference for the mobile user SPA shell. It does not define product behavior, implementation contracts, breakpoint policy, or verification state.
+
+## Surface
+
+The mobile shell keeps the selected channel as the main workspace and exposes the navigation rail as an overlay-style surface. The same app shell and feature-surface boundaries apply as on desktop.
+
+## Layout Sketch
+
+### Channel View
 
 ```
 +──────────────────────────────────+
-│ [☰]  # general          [⚙]     │
+│ [menu]  # general        [gear]  │
 ├──────────────────────────────────┤
 │  [Chat]  [Workspace]  [Remote]   │
 ├──────────────────────────────────┤
 │                                  │
-│ Alice            10:30 AM        │
-│ Hey team, the new build          │
-│ is ready!                        │
+│ Alice            10:30        │
+│ The new build is ready.          │
 │                                  │
-│ 🤖 AgentX        10:31 AM        │
-│ Build #142 passed.               │
-│ Coverage: 94.2%.                 │
+│ AgentX           10:31        │
+│ Build summary is available.      │
 │                                  │
-│ Bob              10:33 AM        │
-│ @Alice nice! merging 🚀          │
-│                                  │
-│                                  │
+│ Bob              10:33        │
+│ I will review it now.            │
 │                                  │
 ├──────────────────────────────────┤
 │ ┌──────────────────────┐ [Send]  │
@@ -29,26 +35,33 @@
 +──────────────────────────────────+
 ```
 
-## 3b. 侧边栏浮层（汉堡菜单展开）
+### Navigation Overlay
 
 ```
 +─────────────────────+────────────+
 │ COLLAB              │░░░░░░░░░░░░│
-│                     │░ (dimmed)░░│
+│                     │░ dimmed  ░░│
 │ ▾ CHANNELS          │░░░░░░░░░░░░│
 │   # general         │░░░░░░░░░░░░│
 │   # dev             │░░░░░░░░░░░░│
 │   # design          │░░░░░░░░░░░░│
 │                     │░░░░░░░░░░░░│
 │ ▾ DIRECT MESSAGES   │░░░░░░░░░░░░│
-│   🟢 Bob            │░░░░░░░░░░░░│
-│   🟡 Carol          │░░░░░░░░░░░░│
+│   Bob               │░░░░░░░░░░░░│
+│   Carol             │░░░░░░░░░░░░│
 │                     │░░░░░░░░░░░░│
-│                     │░░░░░░░░░░░░│
-│ [⚙] [🤖] [📁] [🌐] │░░░░░░░░░░░░│
+│ [Settings][Agents]  │░░░░░░░░░░░░│
 +─────────────────────+────────────+
 ```
 
-- **☰ 汉堡菜单**：左上角，点击弹出侧边栏浮层
-- **侧边栏浮层**：覆盖在聊天页上方，右侧 dimmed 遮罩，点击遮罩关闭
-- **顶部 Tab**：Chat / Workspace / Remote 位于 channel header 下方，不占底部空间
+## Architecture Notes
+
+- Mobile layout changes presentation, not the ownership of shell state or feature data.
+- Channel tabs remain selected-channel surfaces.
+- Global sidepanes remain shell-selected views and should not become nested routes in this sketch.
+
+## Related Docs
+
+- [../app-shell-state.md](../app-shell-state.md)
+- [../ui-map.md](../ui-map.md)
+- [main-desktop.md](main-desktop.md)
