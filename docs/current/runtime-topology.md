@@ -51,7 +51,8 @@ flowchart LR
 | remote-agent | Performs user-machine file operations on request | server-go remote socket | Does not decide server ACL |
 | borgee-helper | Host bridge IPC daemon | installer, grants DB | Does not handle chat realtime |
 | installer | Fetches manifest and deploys helper/plugin artifacts | server-go manifest, platform service manager | Does not stay in the hot path |
-| E2E harness | Starts local server and browser app for tests | server-go, Vite, Playwright | Does not model production deployment |
+
+E2E and release validation start local processes for verification, but they are supporting architecture rather than product runtime roles.
 
 ## Startup And Ownership
 
@@ -67,7 +68,7 @@ Browser apps are static assets in production and Vite entries in development. Op
 | How data moves between runtimes | [Cross-process flows](cross-process-flows.md) |
 | Browser process details | [Client](client/) and [admin SPA](admin/spa.md) |
 | External runtime details | [Plugin](plugin/), [remote-agent](remote-agent/), and [host-bridge](host-bridge/) |
-| Verification path | [E2E / verification](e2e/) |
+| Validation and release support, outside product runtime topology | [E2E / verification](e2e/) |
 
 ## Implementation Anchors
 

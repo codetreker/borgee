@@ -45,7 +45,7 @@ current caveat:
 
 - `protocol.md` describes the control plane/data plane split, message contract, timeout behavior, and protocol-level invariants.
 - `filesystem-boundary.md` describes the local directory allowlist, read limits, read-only behavior, and how this differs from helper sandboxing.
-- `ui/` keeps the older Remote Explorer ASCII interaction sketches as reference/layout sketches.
+- `ui/` keeps an older combined Remote Explorer ASCII sketch as Interaction And Layout Reference. It maps to the user SPA's remote nodes sidepane and channel remote tab; protocol caveats and filesystem boundary rules remain defined in `protocol.md` and `filesystem-boundary.md`.
 
 ## Out Of Scope
 

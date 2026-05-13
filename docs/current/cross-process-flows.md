@@ -2,6 +2,20 @@
 
 This page shows the main traffic paths that cross process boundaries. It focuses on architecture flows, not handler-by-handler code behavior.
 
+## Flow Index
+
+This index points each cross-process flow to its owner documents. The sections below only summarize the highest-impact paths.
+
+| Flow | Boundary | Owner docs |
+| --- | --- | --- |
+| Browser realtime | Browser, server Hub, event cursor recovery | [server realtime/events](server/realtime-and-events.md), [client realtime sync](client/realtime-sync.md) |
+| Plugin event bridge | OpenClaw plugin, server event paths, outbound actions | [plugin runtime](plugin/openclaw-runtime.md), [plugin transports](plugin/transports.md), [server realtime/events](server/realtime-and-events.md) |
+| BPP control | server-go BPP handlers and live plugin connection | [BPP internals](server/bpp-internals.md), [plugin server contracts](plugin/server-contracts.md) |
+| Remote file read | server remote socket and user-machine remote-agent | [remote-agent protocol](remote-agent/protocol.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md) |
+| Host grant/helper request | installer/helper process and grants-backed local IPC | [helper daemon](host-bridge/helper-daemon.md), [host grants](host-bridge/host-grants.md), [installer](host-bridge/installer.md) |
+| Admin privacy audit | admin browser, admin rail, audit/privacy state | [admin privacy/audit](admin/privacy-audit.md), [admin server rail](admin/server-rail.md) |
+| Validation harness | local verification orchestration outside product runtime | [E2E / verification](e2e/) |
+
 ## Browser Realtime And Recovery
 
 ```mermaid

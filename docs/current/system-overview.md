@@ -49,6 +49,7 @@ This page does not describe UI component state, admin screen layout, or individu
 | --- | --- |
 | Process/runtime view | [Runtime topology](runtime-topology.md) |
 | Request and event paths across processes | [Cross-process flows](cross-process-flows.md) |
+| Data and state model | [server durable model](server/data-model-and-migrations.md), [client app state](client/app-shell-state.md), [realtime reconciliation](client/realtime-sync.md), [admin privacy/audit state](admin/privacy-audit.md) |
 | Known limitations and review targets | [Known gaps](known-gaps.md) |
 | Module entry points | [Server](server/), [client](client/), [admin](admin/), [plugin](plugin/), [remote-agent](remote-agent/), [host-bridge](host-bridge/), [security](security/), [E2E](e2e/) |
 

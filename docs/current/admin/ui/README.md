@@ -1,6 +1,6 @@
 # Admin UI Architecture Sketches
 
-These ASCII sketches are Interaction And Layout Reference for core Admin SPA pages. They help maintainers recognize the older login, dashboard, user, invite, and channel-management shapes after reading `../README.md` and `../spa.md`.
+These ASCII sketches are Interaction And Layout Reference for core Admin SPA pages. They help maintainers recognize representative login, dashboard, user, invite, and channel-management shapes after reading `../README.md` and `../spa.md`.
 
 They do not define product behavior, implementation contracts, verification status, or a complete inventory of the current admin route tree. The current Admin SPA also includes route groups such as audit views, runtime metadata, heartbeat lag, archived channels, description history, and settings; those boundaries are described in `../spa.md` and `../server-rail.md`.
 
@@ -59,7 +59,7 @@ They do not define product behavior, implementation contracts, verification stat
 +────────────────+─────────────────────────────────────────────────────────────+
 ```
 
-- **左侧导航**：shows the core admin page grouping in this older sketch.
+- **左侧导航**：shows the core admin page grouping in this sketch.
 - **概览卡片**：metadata summary placement.
 - **最近注册用户**：metadata table placement.
 

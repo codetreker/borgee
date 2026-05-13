@@ -33,6 +33,8 @@ The UI map explains where a maintainer should place or reason about a user-facin
 
 It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns. The restored `ui/` directory keeps older ASCII interaction sketches as reference/layout sketches.
 
+The sketches are an Interaction And Layout Reference. They help maintainers recognize surface shape and navigation flow, but they do not define product behavior, verification status, or design-system rules.
+
 ## Surface Placement Rules
 
 | Question | Architectural answer |
@@ -58,6 +60,21 @@ It does not specify visual design, CSS layout, copy, keyboard behavior, or exact
 | All workspaces | Global sidepane | Local grouping/filter/preview state | Workspace REST rail |
 | Remote nodes | Global sidepane | Local node/detail/binding state | Remote user REST rail |
 | Settings | Global sidepane | Local settings tab state | User admin-awareness REST endpoints |
+
+## Sketch Coverage
+
+| Surface | Sketch reference | Notes |
+| --- | --- | --- |
+| Auth gate | `ui/login.md` | Login/register placement reference only. |
+| Shell and channel host | `ui/main-desktop.md`, `ui/main-mobile.md` | Desktop and mobile workspace layout references. |
+| Channel rail | `ui/channel-sort-groups.md` | Channel grouping/sorting interaction reference. |
+| Chat and DM | `ui/message.md`, `ui/dm.md`, `ui/slash-commands.md` | Message shape, DM shape, and command-panel references. |
+| Public preview | `ui/preview.md` | Read-only preview and join prompt reference. |
+| Canvas/artifact | `ui/canvas-modal.md` | In-app decision flow reference for canvas actions. |
+| Workspace | `ui/workspace.md` | File tree and viewer reference. |
+| Agents | `ui/agent-manager.md`, `ui/agent-config.md`, `ui/agent-collab.md` | Owner-side agent management and collaboration references. |
+| Sidepanes and settings | `ui/sidepane.md`, `ui/settings.md` | Sidepane switching and admin-awareness references. |
+| Remote surfaces | `../remote-agent/ui/README.md` | Older combined Remote Explorer sketch; current client architecture splits remote nodes from channel remote browsing. |
 
 ## Cross-Surface Signals
 

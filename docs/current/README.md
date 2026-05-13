@@ -23,31 +23,7 @@ flowchart LR
   helper -->|read-only grants DB| db
 ```
 
-## Drill-Down Navigation
-
-Use these stable links after the diagram; they do not rely on Mermaid node clicks.
-
-| Reader path | Start here | Then drill into |
-| --- | --- | --- |
-| New contributor | [System overview](system-overview.md) | [Runtime topology](runtime-topology.md), [cross-process flows](cross-process-flows.md), [known gaps](known-gaps.md) |
-| Backend maintainer | [Server](server/) | [startup/routing](server/startup-routing.md), [API/auth/admin rails](server/api-auth-admin-rails.md), [data model](server/data-model-and-migrations.md), [realtime/events](server/realtime-and-events.md) |
-| Frontend maintainer | [Client](client/) | [app shell/state](client/app-shell-state.md), [feature surfaces](client/feature-surfaces.md), [UI map](client/ui-map.md), [client UI sketches](client/ui/) |
-| Plugin or host maintainer | [Plugin](plugin/) | [OpenClaw runtime](plugin/openclaw-runtime.md), [plugin transports](plugin/transports.md), [remote-agent](remote-agent/), [host-bridge](host-bridge/) |
-| Security reviewer | [Security](security/) | [admin privacy/audit](admin/privacy-audit.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md), [host grants](host-bridge/host-grants.md) |
-| Test or release reviewer | [E2E / verification](e2e/) | [cross-process flows](cross-process-flows.md), [runtime topology](runtime-topology.md), [known gaps](known-gaps.md) |
-
-| Area | Entry point |
-| --- | --- |
-| Core maps | [System overview](system-overview.md), [runtime topology](runtime-topology.md), [cross-process flows](cross-process-flows.md), [known gaps](known-gaps.md) |
-| Server | [server/](server/) |
-| Client | [client/](client/) |
-| Admin | [admin/](admin/) |
-| Plugin | [plugin/](plugin/) |
-| Remote Agent | [remote-agent/](remote-agent/) |
-| Host Bridge | [host-bridge/](host-bridge/) |
-| Security | [security/](security/) |
-| E2E / verification | [e2e/](e2e/) |
-| UI sketches | [client UI](client/ui/), [admin UI](admin/ui/), [remote-agent UI](remote-agent/ui/) |
+## Module Architecture Summary
 
 | Module | Role | Boundary | Primary Interfaces |
 | --- | --- | --- | --- |
@@ -59,9 +35,24 @@ Use these stable links after the diagram; they do not rely on Mermaid node click
 | remote-agent | User-machine file proxy endpoint | Does not own server authorization | remote WS request/response |
 | borgee-helper and installer | Host bridge installation and daemon IPC | Separate from chat realtime | manifest fetch, UDS IPC, grants DB |
 
-Read `system-overview.md` first, then `runtime-topology.md`, `cross-process-flows.md`, and `known-gaps.md`. Server-specific realtime/BPP design lives in `server/`; OpenClaw plugin design lives in `plugin/`.
+## Architecture Reading Map
 
-Verification and supporting documentation, including E2E orchestration, lives outside the main runtime topology.
+Use these stable links after the diagram; they do not rely on Mermaid node clicks.
+
+| Architecture part | Purpose | Start here | Then drill into |
+| --- | --- | --- | --- |
+| 1. Entry overview | See the system shape and module boundaries quickly | This page | [System overview](system-overview.md), [known gaps](known-gaps.md) |
+| 2. System context | Understand roles, boundaries, and source-of-truth decisions | [System overview](system-overview.md) | [Runtime topology](runtime-topology.md), [security](security/) |
+| 3. Module architecture | Read the owner view for each major subsystem | [Server](server/), [client](client/), [admin](admin/), [plugin](plugin/) | [remote-agent](remote-agent/), [host-bridge](host-bridge/) |
+| 4. Cross-module flows | Follow traffic that crosses process or module boundaries | [Cross-process flows](cross-process-flows.md) | [server realtime/events](server/realtime-and-events.md), [BPP internals](server/bpp-internals.md), [plugin contracts](plugin/server-contracts.md) |
+| 5. Data and state model | Separate durable state, app state, realtime recovery, and audit state | [server durable model](server/data-model-and-migrations.md) | [client app state](client/app-shell-state.md), [realtime reconciliation](client/realtime-sync.md), [admin privacy/audit state](admin/privacy-audit.md) |
+| 6. Security and permission boundaries | Review auth, admin rails, remote filesystem, and host grants | [Security](security/) | [API/auth/admin rails](server/api-auth-admin-rails.md), [admin server rail](admin/server-rail.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md), [host grants](host-bridge/host-grants.md) |
+| 7. User interface structure reference | Locate UI surfaces without making UI sketches a separate architecture area | [client UI map](client/ui-map.md) | [client UI sketches](client/ui/), [admin SPA](admin/spa.md), [admin UI sketches](admin/ui/), [remote-agent UI sketches](remote-agent/ui/) |
+| 8. Verification and release architecture | Understand validation support outside the product runtime topology | [E2E / verification](e2e/) | [runtime topology](runtime-topology.md), [cross-process flows](cross-process-flows.md), [known gaps](known-gaps.md) |
+| 9. Implementation Anchors | Jump from architecture areas to stable code ownership anchors | Implementation Anchors sections in each document | [server](server/), [plugin](plugin/), [remote-agent](remote-agent/), [host-bridge](host-bridge/) |
+| 10. Known Gaps / Architecture Debt | Track current mismatches and where detailed debt is recorded | [Known gaps](known-gaps.md) | Module-local gap notes in [admin](admin/), [remote-agent](remote-agent/), [host-bridge](host-bridge/), and [E2E](e2e/) |
+
+Server-specific realtime/BPP design lives in `server/`; OpenClaw plugin design lives in `plugin/`. Verification and supporting documentation, including E2E orchestration, lives outside the main runtime topology.
 
 ## Implementation Anchors
 

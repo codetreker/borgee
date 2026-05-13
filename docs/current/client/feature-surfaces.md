@@ -51,7 +51,7 @@ Feature surfaces own user workflows and local UI state. They coordinate with sha
 
 They do not own backend ACLs, persistence, admin visibility policy, or realtime frame schemas. They consume shared rails and server-enforced contracts.
 
-The restored `ui/` directory provides older ASCII interaction sketches for these surfaces. Treat those sketches as reference/layout maps, not product requirements.
+The restored `ui/` directory provides Interaction And Layout Reference sketches for these surfaces. Treat those sketches as surface-orientation aids; they do not define product behavior, verification status, or design-system rules.
 
 ## Channel, Chat, And DM
 
@@ -61,11 +61,15 @@ Chat is the only surface that writes messages through the realtime send path. It
 
 Mentions, slash commands, emoji, typing, reactions, edit/delete, and upload are chat capabilities layered around the same message stream. Public channel preview is read-only until join succeeds.
 
+Sketch references: `ui/message.md`, `ui/dm.md`, `ui/slash-commands.md`, and `ui/preview.md` show interaction shapes after this architecture boundary is understood.
+
 ## Artifact Canvas
 
 The artifact surface treats the channel canvas as a durable collaborative document area. It works with a current artifact head, version history, rollback, diff, anchors, comments, and iteration state.
 
 Artifact and comment bodies are not accepted from realtime as authority. Realtime signals only wake the panel or comment surface; content is pulled through REST so version, ACL, and privacy rules stay centralized.
+
+Sketch reference: `ui/canvas-modal.md` shows the in-app decision flow around canvas actions; REST authority remains defined here.
 
 ## Workspace Surfaces
 
@@ -78,6 +82,8 @@ Workspace has two projections over the same file domain, but they have different
 
 File upload, rename, move, delete, directory creation, Markdown edit, and preview are REST-backed. File viewer selection is local presentation logic; persisted file content remains server-owned.
 
+Sketch reference: `ui/workspace.md` shows the file tree and viewer layout for the workspace surface.
+
 ## Remote Surfaces
 
 Remote has two separate user surfaces: browsing a channel binding and managing nodes/bindings.
@@ -89,17 +95,23 @@ Remote has two separate user surfaces: browsing a channel binding and managing n
 
 The remote browsing surface reads directory listings and file content through user APIs. It does not provide an admin bypass and does not write remote files in the current UI architecture.
 
+Sketch reference: `../remote-agent/ui/README.md` preserves an older combined Remote Explorer sketch. Current user SPA architecture splits that concept into the channel remote tab and the remote nodes sidepane.
+
 ## Agent And Invitation Surfaces
 
 Agent management is an owner workflow: create/delete agents, control permissions, reveal or rotate API keys, add agents to channels, observe runtime state, and edit agent config. Sensitive key material is handled locally and not stored in shared app state.
 
 Invitation handling is a separate owner inbox. Realtime invitation frames do not replace REST state; they wake the inbox and badge to refresh authoritative invitation status.
 
+Sketch references: `ui/agent-manager.md`, `ui/agent-config.md`, and `ui/agent-collab.md` show owner-side agent management and collaboration surfaces.
+
 ## Settings And Admin-Awareness
 
 The settings surface is the user-visible privacy boundary. It shows what admin impact the user is allowed to inspect and lets the user create or revoke a temporary impersonation grant.
 
 This is not the admin SPA. It is a user rail surface backed by user endpoints, so it can be visible in the normal shell without granting admin session capabilities.
+
+Sketch reference: `ui/settings.md` shows the user-facing admin-awareness layout. Admin architecture remains owned by `../admin/`.
 
 ## Interfaces To Other Modules
 

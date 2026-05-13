@@ -2,6 +2,18 @@
 
 These are current architecture-relevant mismatches. Keep the format fixed so readers can distinguish behavior from assumptions.
 
+## Architecture Debt Index
+
+This top-level page is the global debt map, not the only detail list. Module-local docs own narrower gaps and constraints.
+
+| Area | Where to continue | Scope |
+| --- | --- | --- |
+| Global realtime, BPP, plugin, and remote mismatches | This page | Cross-module assumptions that can affect more than one owner |
+| Admin privacy and server rail | [admin privacy/audit](admin/privacy-audit.md), [admin server rail](admin/server-rail.md) | Admin-only privacy, audit, and authorization constraints |
+| Remote-agent protocol and filesystem boundary | [remote-agent protocol](remote-agent/protocol.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md) | Remote request shape, filesystem scope, and user-machine IO assumptions |
+| Host bridge helper, installer, and grants | [helper daemon](host-bridge/helper-daemon.md), [installer](host-bridge/installer.md), [host grants](host-bridge/host-grants.md) | Local daemon deployment, IPC, and grants-backed access |
+| Validation coverage | [E2E / verification](e2e/) | Harness coverage and release validation limits |
+
 ## Plugin WS Event Delivery
 
 Current behavior: OpenClaw has a WS event handler, but server plugin WS currently centers on RPC frames and BPP ingress.
