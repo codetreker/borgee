@@ -1,7 +1,14 @@
-# Admin 管理后台（独立界面）
+# Admin UI Architecture Sketches
 
-> 注意：Admin 管理后台是完全独立的界面，有独立的登录入口（/admin），和用户聊天界面零交叉。
-> Admin 的用户名和密码都通过部署时环境变量配置（如 `ADMIN_USERNAME`、`ADMIN_PASSWORD`）。Admin 不是用户，不能聊天。
+These ASCII sketches are Interaction And Layout Reference for core Admin SPA pages. They help maintainers recognize the older login, dashboard, user, invite, and channel-management shapes after reading `../README.md` and `../spa.md`.
+
+They do not define product behavior, implementation contracts, verification status, or a complete inventory of the current admin route tree. The current Admin SPA also includes route groups such as audit views, runtime metadata, heartbeat lag, archived channels, description history, and settings; those boundaries are described in `../spa.md` and `../server-rail.md`.
+
+## Context
+
+- Admin is a separate browser application with its own `/admin` entry, session, API client, and route tree.
+- Admin authority comes from the admin rail, not from the user SPA or user cookies.
+- These sketches show page layout intent only; server enforcement and privacy filtering remain backend responsibilities.
 
 ## 1. Admin 登录页
 
@@ -24,10 +31,9 @@
 +──────────────────────────────────────────────────────────────────────────────+
 ```
 
-- **入口 URL**：`/admin`，独立于用户登录页 `/login`
-- **账号**：用户名通过环境变量配置（如 `ADMIN_USERNAME`），输入框可编辑
-- **密码**：通过环境变量配置（如 `ADMIN_PASSWORD`）
-- **登录后**：进入 Admin 后台主页，不能跳转到聊天界面
+- **入口**：独立于用户登录页的 admin browser rail。
+- **凭据区域**：展示 admin username/password form placement only.
+- **登录结果**：session handling and route protection are owned by `../spa.md` and the admin server rail.
 
 ## 2. Admin 后台主页
 
@@ -53,9 +59,9 @@
 +────────────────+─────────────────────────────────────────────────────────────+
 ```
 
-- **左侧导航**：概览 / 用户管理 / 频道管理 / 邀请码管理 / 系统设置
-- **概览卡片**：用户总数、频道总数、当前在线数
-- **最近注册用户**：快速查看最新注册的用户列表
+- **左侧导航**：shows the core admin page grouping in this older sketch.
+- **概览卡片**：metadata summary placement.
+- **最近注册用户**：metadata table placement.
 
 ## 3. 用户管理
 
@@ -107,10 +113,10 @@
          └─────────────────────────────────────┘
 ```
 
-- **用户列表**：只显示 user（role=user），不显示 agent
-- **创建用户**：只能创建 user 类型，不能创建 admin 或 agent
-- **点击用户行**：进入 User Detail 页面
-- **分页**：底部翻页器
+- **用户列表**：metadata table placement for account rows.
+- **创建用户区域**：action placement only; server rail owns authorization and accepted fields.
+- **用户详情入口**：row-to-detail navigation shape.
+- **分页**：table navigation placement.
 
 ## 4. User Detail
 
@@ -130,25 +136,25 @@
 │                │   │  操作: [禁用用户] [删除用户]                          │   │
 │                │   └─────────────────────────────────────────────────────┘   │
 │                │                                                             │
-│                │   ┌─ 该用户的 Agent（2）────────────────────── 只读 ────┐   │
+│                │   ┌─ 该用户的 Agent（2）────────────────── metadata ───┐   │
 │                │   │                                                     │   │
 │                │   │  Agent 名称     Agent ID        状态     创建日期   │   │
 │                │   │  ─────────────────────────────────────────────────  │   │
 │                │   │  🤖 bot-1       agent-bot1-001   🟢 在线  04-21    │   │
 │                │   │  🤖 bot-2       agent-bot2-002   ⚫ 离线  04-22    │   │
 │                │   │                                                     │   │
-│                │   │  ⚠️ API key 不显示（接口也不返回）                    │   │
-│                │   │  ℹ️ Agent 的创建和管理由用户自己操作                  │   │
+│                │   │  Sensitive fields are not page content here.         │   │
+│                │   │  Owner workflow remains outside admin UI.            │   │
 │                │   └─────────────────────────────────────────────────────┘   │
 │                │                                                             │
 +────────────────+─────────────────────────────────────────────────────────────+
 ```
 
-- **用户信息**：显示用户名、邮箱、状态、注册日期、注册方式
-- **Agent 列表**：只读展示该用户创建的所有 agent
-- **不显示 API key**：后端接口也不返回此字段
-- **操作按钮**：禁用用户（软禁用，级联禁用其 agent）、删除用户（软删除）
-- **不能操作 Agent**：Agent 的创建、编辑、删除由用户自己在聊天界面管理
+- **用户信息**：account metadata placement.
+- **Agent 列表**：owned-agent metadata placement.
+- **敏感字段**：server rail owns returned fields and sanitization; this sketch only shows that secrets are not page content here.
+- **操作按钮**：action placement only; server rail owns authorization, side effects, and audit behavior.
+- **Agent ownership**：user-owned agent management remains part of the user SPA architecture.
 
 ## 5. 邀请码管理
 
@@ -171,10 +177,10 @@
 +────────────────+─────────────────────────────────────────────────────────────+
 ```
 
-- **邀请码列表**：展示所有邀请码及状态（可用 / 已使用 / 已作废）
-- **生成邀请码**：点击按钮生成新的 16 字符随机邀请码
-- **状态**：可用 → 已使用（被注册使用后自动变更）；可手动作废
-- **使用者**：显示使用该邀请码注册的用户名，未使用则为空
+- **邀请码列表**：metadata table placement.
+- **生成入口**：action placement only.
+- **状态列**：status metadata placement.
+- **使用者列**：relationship metadata placement.
 
 ## 6. 频道管理
 
@@ -192,22 +198,22 @@
 │  │   设置    │ │   │ #old-project  公开       3       已归档   04-10    │ │
 │  └───────────┘ │   └───────────────────────────────────────────────────────┘ │
 │                │                                                             │
-│                │   操作：                                                     │
-│                │   - 点击频道行查看详情                                        │
-│                │   - 可强制删除频道（#general 除外）                            │
-│                │   - 可恢复已归档频道                                          │
+│                │   操作区：                                                   │
+│                │   - 查看频道元数据                                            │
+│                │   - 管理操作入口                                              │
+│                │   - 历史/归档入口                                             │
 │                │                                                             │
 +────────────────+─────────────────────────────────────────────────────────────+
 ```
 
-- **频道列表**：展示所有频道（包括已归档/已删除的），管理员视角
-- **频道操作**：查看详情、强制删除（#general 受保护不可删）、恢复已归档
-- **与聊天界面的区别**：管理员看到所有频道（含 deleted_at 不为空的），普通用户只看到自己有权限的
+- **频道列表**：channel metadata table placement.
+- **频道操作**：action placement only; server rail owns authorization, returned fields, and side effects.
+- **与用户 rail 的区别**：admin pages consume admin rail metadata; user channel visibility remains a user rail concern.
 
-## 变更说明
+## Architecture Notes
 
-- Admin 从聊天界面的 Tab 拆分为完全独立的管理界面，有独立登录入口 `/admin`
-- Agent 管理移到用户自己的界面（不在 Admin 后台），Admin 只能只读查看
-- API key 完全不返回给 Admin（后端接口层面过滤）
-- Admin 身份独立于用户体系，不是 user 的一种 role
-- 旧的嵌入式 Tab 设计（Users / Agents / Invites Tab 切换）已废弃
+- Admin is a separate browser rail with an independent `/admin` entry.
+- User-owned agent management belongs to the user SPA; admin user detail can show owner-agent metadata without becoming the owner workflow.
+- Sensitive user or agent secrets should not become admin page content unless the server rail intentionally exposes a safe metadata contract.
+- Admin identity is separate from the user table and user roles.
+- These sketches cover core pages only. Use `../spa.md` for the current route groups and `../server-rail.md` for admin API/server-only surfaces.

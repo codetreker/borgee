@@ -1,42 +1,52 @@
-# 2. 主界面（桌面端）
+# Desktop Shell Sketch
+
+## Purpose
+
+This sketch is an Interaction And Layout Reference for the desktop user SPA shell. It does not define product behavior, implementation contracts, or verification state.
+
+## Surface
+
+The desktop shell hosts the navigation rail, selected channel host, channel tabs, message stream, and composer. App shell state owns view selection; feature surfaces own local workflow state.
+
+## Layout Sketch
 
 ```
 +────────────────────+─────────────────────────────────────────────────────────+
-│ COLLAB             │  [Chat]  [Workspace]  [Remote]            ← Tab 切换    │
+│ COLLAB             │  [Chat]  [Workspace]  [Remote]                         │
 │                    ├─────────────────────────────────────────────────────────┤
 │ ▾ CHANNELS         │  # general                                    [⚙]  [📌] │
 │   # general        ├─────────────────────────────────────────────────────────┤
 │   # dev            │                                                         │
-│   # design         │  ┌──┐  Alice           10:30 AM                        │
-│                    │  │AV│  Hey team, the new build is ready!                │
+│   # design         │  ┌──┐  Alice           10:30                        │
+│                    │  │AV│  The new build is ready for review.              │
 │ ▾ DIRECT MESSAGES  │  └──┘                                                   │
-│   🟢 Bob           │                                                         │
-│   🟡 Carol         │  ┌──┐  🤖 AgentX       10:31 AM                        │
-│   ⚫ Dave           │  │AV│  Build #142 passed. Coverage: 94.2%.             │
+│   Bob              │                                                         │
+│   Carol            │  ┌──┐  AgentX         10:31                         │
+│   Dave             │  │AV│  Build summary is available.                     │
 │                    │  └──┘  ```                                              │
-│                    │        test/auth.spec.ts  ✓ 24 passed                   │
-│                    │        test/chat.spec.ts  ✓ 18 passed                   │
+│                    │        lint passed                                      │
+│                    │        unit checks passed                               │
 │                    │        ```                                              │
 │                    │                                                         │
-│                    │  ┌──┐  Bob              10:33 AM                        │
-│                    │  │AV│  @Alice nice! merging now 🚀                      │
+│                    │  ┌──┐  Bob              10:33                        │
+│                    │  │AV│  I will review it now.                            │
 │                    │  └──┘                                                   │
 │                    │                                                         │
-│                    │                                                         │
-│                    │                                                         │
 │                    ├─────────────────────────────────────────────────────────┤
-│ [⚙][🤖][📁][🌐]   │  ┌─────────────────────────────────────────┐  [Send]    │
-│ Settings Agents    │  │  Type a message...                       │            │
-│ Workspace Remote   │  └─────────────────────────────────────────┘            │
+│ [Settings][Agents] │  ┌─────────────────────────────────────────┐  [Send]    │
+│ [Workspace][Remote]│  │  Type a message...                     │            │
+│                    │  └─────────────────────────────────────────┘            │
 +────────────────────+─────────────────────────────────────────────────────────+
 ```
 
-- **左侧 Sidebar**（固定宽度 ~220px）
-  - 频道列表：分组折叠，`#` 前缀
-  - Direct Messages：显示在线状态（🟢 在线 / 🟡 离开 / ⚫ 离线）
-  - 底部按钮行：Settings / Agents / Workspace / Remote
-- **右侧主区域**
-  - Tab 栏：Chat / Workspace / Remote 三个 Tab
-  - 频道 Header：频道名 + 设置齿轮 + 置顶
-  - 消息列表：头像 + 用户名 + 时间 + 内容
-  - 输入框 + Send 按钮
+## Architecture Notes
+
+- The rail and channel host are one browser shell, not independent applications.
+- Chat, workspace, and remote are selected-channel surfaces; sidepane buttons open global sidepanes.
+- Durable message and workspace data remain REST-authoritative, with realtime used for direct updates and signals.
+
+## Related Docs
+
+- `../app-shell-state.md`
+- `../ui-map.md`
+- `../feature-surfaces.md`
