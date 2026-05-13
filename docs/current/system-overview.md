@@ -43,6 +43,15 @@ The important design choice is centralization: server-go is the only component t
 
 This page does not describe UI component state, admin screen layout, or individual database migrations.
 
+## Next Drill-Downs
+
+| Need | Link |
+| --- | --- |
+| Process/runtime view | [Runtime topology](runtime-topology.md) |
+| Request and event paths across processes | [Cross-process flows](cross-process-flows.md) |
+| Known limitations and review targets | [Known gaps](known-gaps.md) |
+| Module entry points | [Server](server/), [client](client/), [admin](admin/), [plugin](plugin/), [remote-agent](remote-agent/), [host-bridge](host-bridge/), [security](security/), [E2E](e2e/) |
+
 ## Implementation Anchors
 
 - Server composition: `packages/server-go/internal/server/server.go`, `Server`

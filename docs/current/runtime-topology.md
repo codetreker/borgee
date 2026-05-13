@@ -59,6 +59,16 @@ server-go loads environment configuration, opens SQLite, runs migrations, bootst
 
 Browser apps are static assets in production and Vite entries in development. OpenClaw, remote-agent, and borgee-helper are separate processes; they connect through public server contracts rather than sharing memory with server-go.
 
+## Next Drill-Downs
+
+| Need | Link |
+| --- | --- |
+| How startup wires routes, Hub, and rails | [Server startup and routing](server/startup-routing.md) |
+| How data moves between runtimes | [Cross-process flows](cross-process-flows.md) |
+| Browser process details | [Client](client/) and [admin SPA](admin/spa.md) |
+| External runtime details | [Plugin](plugin/), [remote-agent](remote-agent/), and [host-bridge](host-bridge/) |
+| Verification path | [E2E / verification](e2e/) |
+
 ## Implementation Anchors
 
 - Server startup and route composition: `packages/server-go/cmd/collab/main.go`, `packages/server-go/internal/server/server.go`

@@ -23,6 +23,32 @@ flowchart LR
   helper -->|read-only grants DB| db
 ```
 
+## Drill-Down Navigation
+
+Use these stable links after the diagram; they do not rely on Mermaid node clicks.
+
+| Reader path | Start here | Then drill into |
+| --- | --- | --- |
+| New contributor | [System overview](system-overview.md) | [Runtime topology](runtime-topology.md), [cross-process flows](cross-process-flows.md), [known gaps](known-gaps.md) |
+| Backend maintainer | [Server](server/) | [startup/routing](server/startup-routing.md), [API/auth/admin rails](server/api-auth-admin-rails.md), [data model](server/data-model-and-migrations.md), [realtime/events](server/realtime-and-events.md) |
+| Frontend maintainer | [Client](client/) | [app shell/state](client/app-shell-state.md), [feature surfaces](client/feature-surfaces.md), [UI map](client/ui-map.md), [client UI sketches](client/ui/) |
+| Plugin or host maintainer | [Plugin](plugin/) | [OpenClaw runtime](plugin/openclaw-runtime.md), [plugin transports](plugin/transports.md), [remote-agent](remote-agent/), [host-bridge](host-bridge/) |
+| Security reviewer | [Security](security/) | [admin privacy/audit](admin/privacy-audit.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md), [host grants](host-bridge/host-grants.md) |
+| Test or release reviewer | [E2E / verification](e2e/) | [cross-process flows](cross-process-flows.md), [runtime topology](runtime-topology.md), [known gaps](known-gaps.md) |
+
+| Area | Entry point |
+| --- | --- |
+| Core maps | [System overview](system-overview.md), [runtime topology](runtime-topology.md), [cross-process flows](cross-process-flows.md), [known gaps](known-gaps.md) |
+| Server | [server/](server/) |
+| Client | [client/](client/) |
+| Admin | [admin/](admin/) |
+| Plugin | [plugin/](plugin/) |
+| Remote Agent | [remote-agent/](remote-agent/) |
+| Host Bridge | [host-bridge/](host-bridge/) |
+| Security | [security/](security/) |
+| E2E / verification | [e2e/](e2e/) |
+| UI sketches | [client UI](client/ui/), [admin UI](admin/ui/), [remote-agent UI](remote-agent/ui/) |
+
 | Module | Role | Boundary | Primary Interfaces |
 | --- | --- | --- | --- |
 | User SPA | Chat and collaboration UI | Does not own durable state | REST, `/ws`, SSE/backfill |
