@@ -39,7 +39,7 @@
 
 ### `next/` — 下一版蓝图 (草拟期)
 
-> 待评审蓝图提案. 当前空 — 蓝图迭代时复制 `current/X.md` 到 `next/X.md`, 评审决定后提升为 `current/`.
+> 下一版蓝图讨论入口: [`next/README.md`](next/README.md) 与影响分析 [`next/migration-analysis.md`](next/migration-analysis.md)。`next/` 仍是草拟期; `current/` 是 frozen implementation authority。`_meta` 的 source-issue traceability 等过程记录到 freeze / cutover 时再补。
 
 ## 这是什么 / 不是什么
 
