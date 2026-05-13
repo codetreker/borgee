@@ -31,7 +31,7 @@ User SPA
 
 The UI map explains where a maintainer should place or reason about a user-facing capability in the architecture: rail, channel host, channel tab, global sidepane, or global shell concern.
 
-It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns. The restored `ui/` directory keeps older ASCII interaction sketches as reference/layout sketches.
+It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns. The `ui/` directory keeps representative ASCII interaction sketches as reference/layout sketches.
 
 The sketches are an Interaction And Layout Reference. They help maintainers recognize surface shape and navigation flow, but they do not define product behavior, verification status, or design-system rules.
 
@@ -74,7 +74,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Workspace | `ui/workspace.md` | File tree and viewer reference. |
 | Agents | `ui/agent-manager.md`, `ui/agent-config.md`, `ui/agent-collab.md` | Owner-side agent management and collaboration references. |
 | Sidepanes and settings | `ui/sidepane.md`, `ui/settings.md` | Sidepane switching and admin-awareness references. |
-| Remote surfaces | `../remote-agent/ui/README.md` | Older combined Remote Explorer sketch; current client architecture splits remote nodes from channel remote browsing. |
+| Remote surfaces | `../remote-agent/ui/README.md` | Combined Remote Explorer reference sketch; current client architecture splits remote nodes from channel remote browsing. |
 
 ## Cross-Surface Signals
 

@@ -51,7 +51,7 @@ Feature surfaces own user workflows and local UI state. They coordinate with sha
 
 They do not own backend ACLs, persistence, admin visibility policy, or realtime frame schemas. They consume shared rails and server-enforced contracts.
 
-The restored `ui/` directory provides Interaction And Layout Reference sketches for these surfaces. Treat those sketches as surface-orientation aids; they do not define product behavior, verification status, or design-system rules.
+The `ui/` directory provides Interaction And Layout Reference sketches for these surfaces. Treat those sketches as surface-orientation aids; they do not define product behavior, verification status, or design-system rules.
 
 ## Channel, Chat, And DM
 
@@ -95,7 +95,7 @@ Remote has two separate user surfaces: browsing a channel binding and managing n
 
 The remote browsing surface reads directory listings and file content through user APIs. It does not provide an admin bypass and does not write remote files in the current UI architecture.
 
-Sketch reference: `../remote-agent/ui/README.md` preserves an older combined Remote Explorer sketch. Current user SPA architecture splits that concept into the channel remote tab and the remote nodes sidepane.
+Sketch reference: `../remote-agent/ui/README.md` preserves a combined Remote Explorer reference sketch. Current user SPA architecture splits that concept into the channel remote tab and the remote nodes sidepane.
 
 ## Agent And Invitation Surfaces
 

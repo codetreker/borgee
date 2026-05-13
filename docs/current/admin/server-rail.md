@@ -44,6 +44,8 @@ The admin rail is a collection of operator tools, not a blanket bypass. Some sur
 
 Permission management on the admin rail uses the same capability vocabulary as the user authorization model. This keeps arbitrary capability strings from being introduced through the admin UI while still keeping admin rail authentication separate from ordinary capability checks.
 
+Canonical server audit storage is `audit_events`. The `admin_actions` name remains as a compatibility view and store facade for existing admin audit helpers and projections.
+
 ## Server Rail Surfaces
 
 | Surface | Admin SPA page | Rail exposure | Current posture |
@@ -64,7 +66,7 @@ Permission management on the admin rail uses the same capability vocabulary as t
 | Message edit history | No | Admin API only | Read-only admin endpoint for message edit history; no admin SPA page/client wrapper currently exposes it. |
 | Artifact comment edit history | No | Admin API only | Read-only admin endpoint for artifact-comment edit history; no admin SPA page/client wrapper currently exposes it. |
 | User impersonation grant lifecycle | User SPA, not Admin SPA | User API plus audit projection | User-owned grant create/read/revoke; admin rail consumes audit visibility but has no SPA impersonation page. |
-| Retention sweepers | No | Server-only background jobs | Audit, heartbeat, and event retention run as server background processes. |
+| Retention sweepers | No | Server-only background jobs | Audit, heartbeat, and cold event retention jobs run as server background processes; current cold event retention only reaps rows with explicit eligible `retention_days`. |
 
 ## Metadata-Only Runtime View
 

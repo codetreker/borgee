@@ -18,7 +18,7 @@ Host Bridge collaborates with the user API for grants, server storage for grant 
 - Grant control plane: user-owned rows describing host capability consent.
 - Helper data plane: local UDS IPC carrying agent-scoped requests.
 - Enforcement stack: handshake identity, action allowlist, path/scope normalization, grant lookup, read-only IO, audit, sandbox.
-- Installer path: manifest-signature gate, local operator confirmation, and platform service deployment.
+- Installer path: current manifest verifier path, local operator confirmation, and platform service deployment.
 
 **Key Flows**
 
@@ -31,7 +31,7 @@ Helper request flow:
   -> ACL decision -> SQLite grant lookup -> IO or rejection -> local audit
 
 Install flow:
-  installer fetches manifest -> verifies manifest signature -> user confirms
+  installer fetches manifest -> runs current verifier path -> user confirms
   -> package manager installs the local artifact path -> platform service starts daemon
 ```
 
@@ -47,7 +47,7 @@ Install flow:
 
 - `helper-daemon.md` defines local enforcement: UDS IPC, ACL, SQLite grant lookup, audit, sandbox, and read-only IO.
 - `host-grants.md` defines the server-side consent model and its invariants.
-- `installer.md` defines package installation, manifest verification, and deployment responsibilities.
+- `installer.md` defines package installation, the manifest verifier path, and deployment responsibilities.
 
 ## Out Of Scope
 

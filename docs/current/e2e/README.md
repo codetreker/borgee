@@ -74,7 +74,7 @@ This design protects the contract that matters to users: the built client code, 
 
 ## Build And Release Gates
 
-The Docker release path is the product release artifact. It binds the client bundle and the server binary into one container image, then promotion workflows move that image through testing, staging, and production checks. Architecturally, Docker is the compatibility boundary between browser assets and the server process: if either side cannot build or cannot fit into the image, release stops.
+The Docker release path is the product release artifact. It binds the client bundle and the server binary into one container image, then environment gates validate specific image paths. The test deploy path is an independent manual environment build with stale-image and health checks. Staging and production share one built artifact: staging builds and pushes the timestamped image, and production retags that staging artifact before deploying it. Architecturally, Docker is the compatibility boundary between browser assets and the server process: if either side cannot build or cannot fit into the image, release stops.
 
 Deploy workflows are promotion gates, not configuration owners. They build, push, retag, recreate containers, and perform health checks; runtime secrets and compose topology live on the target hosts. This keeps environment ownership outside the repo while still making stale image and health failures visible during promotion.
 

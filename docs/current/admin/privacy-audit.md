@@ -1,6 +1,6 @@
 # Admin Privacy Audit
 
-Admin privacy audit is the design that makes admin impact visible without making the full audit stream public to every user. It combines a durable server-side audit record, a user-scoped privacy view, an admin-scoped audit view, best-effort user notification, and a user-controlled impersonation grant surface.
+Admin privacy audit is the design that makes admin impact visible without making the full audit stream public to every user. It combines a durable server-side audit record, a user-scoped privacy view, an admin-scoped audit view, best-effort user notification, and a user-controlled impersonation grant surface. Canonical server audit storage is `audit_events`; `admin_actions` remains the compatibility view and store facade used by existing helpers.
 
 ## Overview
 
@@ -54,6 +54,8 @@ The admin audit view is broader but still structured. It supports filtering and 
 ## Notification Model
 
 System DM notification is paired with durable audit but does not replace it. The architecture favors preserving the audit row even if a user-visible message cannot be delivered. This prevents notification fragility from weakening audit durability.
+
+Audit rows are authoritative after they are recorded, but write-path failure semantics are not uniform across all admin operations today. Some paths commit the primary change and treat follow-up notification as best-effort, while retention override paths fail closed if their audit row cannot be written.
 
 ## Impersonation Grant Model
 

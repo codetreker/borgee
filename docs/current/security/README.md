@@ -11,13 +11,13 @@ This document defines the cross-module security boundaries that keep user API, a
 The boundary is the rail. Requests are first classified by rail, then authenticated and authorized by that rail's own mechanism. Shared storage does not imply shared authority.
 
 **Collaborators**
-The security model spans user auth, admin sessions, capability checks, plugin WebSocket auth, remote node tokens, host grants, helper ACL, the installer manifest gate, and audit surfaces.
+The security model spans user auth, admin sessions, capability checks, plugin WebSocket auth, remote node tokens, host grants, helper ACL, the installer verifier path, and audit surfaces.
 
 **Internal Architecture**
 
 - Identity rails: user, admin, plugin agent, remote node, helper agent, installer operator.
 - Authorization sources: user permissions, admin sessions, API keys, remote node tokens, host grants, and local operator confirmation.
-- Enforcement points: HTTP middleware, WebSocket handshake, helper IPC handshake, helper ACL, and installer manifest-gate verification.
+- Enforcement points: HTTP middleware, WebSocket handshake, helper IPC handshake, helper ACL, and the installer verifier path.
 - Privacy surfaces: serializers, metadata-only admin views, user-scoped audit, local helper audit.
 
 **Key Flows**
@@ -28,7 +28,7 @@ admin API:     admin session cookie -> admin context -> admin rail only
 plugin WS:     API key -> agent/plugin connection -> scoped API bridge
 remote WS:     remote node token -> remote connection -> intended list/read tunnel
 helper IPC:    local agent id -> ACL -> host grant lookup -> local action
-installer:     manifest fetch -> signature gate -> local artifact deploy
+installer:     manifest fetch -> partial verifier path -> local artifact deploy
 ```
 
 **Invariants**
@@ -50,7 +50,7 @@ installer:     manifest fetch -> signature gate -> local artifact deploy
 | Plugin WebSocket | API key | user/agent row behind the key | plugin connection in hub | plugin lifecycle audit uses server audit source where wired | plugin API bridge is not Remote Agent |
 | Remote Agent | remote node token | remote node ownership plus online connection | reverse WebSocket and intended local allowlist; current envelope caveat applies | remote token hidden from node JSON | remote token is not a host grant |
 | Host Bridge helper | local handshake agent id | host grant row by agent and scope | UDS IPC, ACL, sandbox, read-only IO | local JSONL audit | helper cannot create grants |
-| Installer | optional fetch Bearer plus ed25519 public key | manifest authenticity gate and operator confirmation | local package/service manager for caller-supplied artifact path | no app data surface | installation does not authorize later helper requests and does not yet bind local artifact integrity to manifest entry |
+| Installer | optional fetch Bearer plus configured verification key where wired | partial verifier path and operator confirmation | local package/service manager for caller-supplied artifact path | no app data surface | installation does not authorize later helper requests; deployment trust is partial wiring until envelope shape, signing-key injection, and local artifact binding align |
 
 ## Key Security Invariants
 
@@ -74,20 +74,20 @@ This page does not define new privileges or future unification. It records the c
 
 - Some rails have intentionally separate but not yet unified audit sinks, so cross-source audit completeness varies by module.
 - Remote Agent's rail separation is clearer than its current end-to-end filesystem proxy contract.
-- Installer verification is a manifest gate; artifact integrity remains a separate limitation.
+- Installer deployment trust is partial wiring; `installer.md` owns the envelope, signing-key, and artifact-binding details.
 - Capability and legacy permission checks are close but not identical, which matters for agent wildcard reasoning.
 
 ## Implementation Anchors
 
-- `packages/server-go/internal/auth` (`AuthMiddleware`, `HasCapability`, `RequirePermission`, capability constants)
-- `packages/server-go/internal/admin` (`Handler`, `RequireAdmin`, `AdminSession`)
-- `packages/server-go/internal/ws/plugin.go` (`PluginConn`, `HandlePlugin`)
-- `packages/server-go/internal/ws/remote.go` (`RemoteConn`, `HandleRemote`)
+- `packages/server-go/internal/auth`
+- `packages/server-go/internal/admin`
+- `packages/server-go/internal/ws/plugin.go` (`PluginConn`)
+- `packages/server-go/internal/ws/remote.go` (`RemoteConn`)
 - `packages/server-go/internal/api/remote.go` (`RemoteHandler`)
 - `packages/server-go/internal/api/host_grants.go` (`HostGrantsHandler`)
 - `packages/borgee-helper/internal/acl` (`Gate`)
-- `packages/borgee-helper/internal/ipc` (`Handler`)
-- `packages/borgee-installer/internal/manifest` (`Verify`)
+- `packages/borgee-helper/internal/ipc`
+- `packages/borgee-installer/internal/manifest`
 - `packages/server-go/internal/api/admin.go` (`AdminHandler`)
 - `packages/server-go/internal/api/admin_endpoints.go` (`AdminEndpointsHandler`)
 - `packages/server-go/internal/api/runtimes.go` (`AdminRuntimeHandler`)

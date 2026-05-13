@@ -73,7 +73,7 @@ It does not own backend authorization, persistence, admin server enforcement, re
 
 ## Browser Surface Drill-Down
 
-The user SPA architecture starts with shell/state boundaries, then drills into surface placement and older ASCII interaction sketches. Use the sketches to understand layout intent and interaction shape after reading the owning architecture section.
+The user SPA architecture starts with shell/state boundaries, then drills into surface placement and ASCII interaction/layout references. Use the sketches to understand layout intent and interaction shape after reading the owning architecture section.
 
 | Browser surface | Architecture owner | Interaction and layout reference |
 | --- | --- | --- |

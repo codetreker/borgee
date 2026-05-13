@@ -24,6 +24,16 @@ Do not assume: `/ws/plugin` is a general event broadcast stream for OpenClaw.
 
 Relevant area: plugin transports, server realtime.
 
+## Validation Coverage Boundaries
+
+Current behavior: default PR CI covers server-side helper IPC primitive and host-grants/manifest anchors, but not the real helper daemon runtime or sandbox integration. The docs sync guard is mapped-module only and currently misses the current helper, installer, and host-bridge docs paths. The installer gate is path-scoped or manual.
+
+Architecture impact: validation signals are reliable inside their stated boundaries, but they are not proof of full host-bridge runtime coverage.
+
+Do not assume: E2E or default CI has run the privileged helper daemon/sandbox path.
+
+Relevant area: [E2E / verification](e2e/), host bridge.
+
 ## Plugin WS Transport Selection
 
 Current behavior: OpenClaw TypeScript transport types include `ws`, while validated config exposes `auto`, `sse`, and `poll`.
@@ -73,6 +83,16 @@ Architecture impact: There are two event concepts with different consumers.
 Do not assume: data-layer events are the same cursor stream used for realtime recovery.
 
 Relevant area: server realtime and data layer.
+
+## Cold Event Retention Defaults Not Applied
+
+Current behavior: The server starts the cold event retention job, but the sweeper only deletes `channel_events` and `global_events` rows that have an explicit non-negative `retention_days`. The ordinary cold event writer does not set `retention_days` on insert.
+
+Architecture impact: Per-kind default retention policy exists as policy code, but it is not currently applied to regular cold event rows written without row-level retention metadata.
+
+Do not assume: channel or global cold events age out by default just because their kind has a configured default retention window.
+
+Relevant area: server data layer and data lifecycle.
 
 ## Offline Plugin Frames
 

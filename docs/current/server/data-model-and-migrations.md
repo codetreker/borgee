@@ -30,7 +30,7 @@ The store owns durable state. The realtime hub owns live socket presence, in-mem
 
 Core user collaboration state is persisted in relational aggregates: users/agents, channels/memberships, messages/mentions/reactions, permissions, files, remote nodes, artifacts/versions/comments/iterations, admin records, and agent state tables.
 
-Event state is split. Hot events use a numeric cursor stream for user-facing realtime replay. Cold data-layer events use lexicographic ids and retention metadata for longer-lived event records. A feature must choose the correct stream explicitly.
+Event state is split. Hot events use a numeric cursor stream for user-facing realtime replay. Cold data-layer events use lexicographic ids and can carry row-level retention metadata for longer-lived event records. A feature must choose the correct stream explicitly.
 
 ## Collaborators
 
@@ -40,7 +40,7 @@ The realtime hub depends on store state for authentication, channel access check
 
 The auth layer depends on user and permission rows. Capability checks interpret permission rows and resource scope, including organization boundaries.
 
-The admin layer depends on its own admin tables and audit tables. Admin sessions and user sessions are intentionally different aggregates.
+The admin layer depends on its own admin tables and audit tables. Admin sessions and user sessions are intentionally different aggregates. Canonical server audit storage is `audit_events`; `admin_actions` remains the compatibility view and store facade used by existing helpers.
 
 The data layer wraps selected store behavior behind interfaces and provides the cold event writer. It gives newer code a stable seam without requiring every legacy handler to migrate at once.
 
@@ -64,7 +64,7 @@ Write flow: a handler validates the operation, writes one or more aggregate rows
 
 Hot event flow: user-facing realtime replay is based on an autoincrement cursor. Polling, streaming, and backfill clients consume cursor-ordered state, while WebSocket frame producers may allocate cursors for live delivery.
 
-Cold event flow: data-layer publishers write to an in-process bus first and asynchronously persist to channel-scoped or global cold event tables. Retention and archive jobs operate on those cold event tables as data lifecycle work.
+Cold event flow: data-layer publishers write to an in-process bus first and asynchronously persist to channel-scoped or global cold event tables. The cold event retention job is started by the server runtime, but its current sweeper only reaps rows with an explicit non-negative `retention_days`. The ordinary cold event writers currently insert without `retention_days`, so the per-kind default policy is not effective for those rows. Archive offload remains a separate cold table lifecycle path.
 
 Admin audit flow: admin actions and impersonation grants are durable audit-oriented records. User-facing audit views and admin-facing audit views are different projections over related audit data.
 
@@ -75,7 +75,7 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 - Forward migrations are immutable once applied; changes are made by appending a later migration.
 - Admin identity is stored outside the user aggregate.
 - Agents are users for ownership and API-key purposes, but agent runtime state is stored in separate runtime/state aggregates.
-- Hot cursor events and cold data-layer events are separate streams with different identifiers and retention behavior.
+- Hot cursor events and cold data-layer events are separate streams with different identifiers and retention behavior; default per-kind cold retention is policy intent, not current behavior for rows written without `retention_days`.
 - Append-only audit/state-log tables should not be rewritten to hide history.
 - Organization and ownership fields are part of authorization, not merely display metadata.
 

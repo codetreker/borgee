@@ -1,6 +1,6 @@
 # Remote Agent UI Sketch
 
-This is an older combined Remote Explorer sketch retained as Interaction And Layout Reference. It maps to two user SPA surfaces: the Remote nodes sidepane for node/binding management and the Channel remote tab for browsing a channel's bound remote tree.
+This is a combined Remote Explorer reference sketch retained as Interaction And Layout Reference. It maps to two user SPA surfaces: the Remote nodes sidepane for node/binding management and the Channel remote tab for browsing a channel's bound remote tree.
 
 It does not define product behavior, setup flow, protocol authority, or proof that Remote Agent has a complete standalone UI page. Current protocol caveats remain defined by `../protocol.md`, and filesystem boundary behavior remains defined by `../filesystem-boundary.md`.
 
@@ -54,7 +54,7 @@ It does not define product behavior, setup flow, protocol authority, or proof th
 - **目录绑定**：本地别名 ↔ 远程路径映射，可编辑/删除/新增
 - **远程文件树**：选中 Node 后浏览远程目录结构
 - **Token 区域**：默认遮挡，👁 切换显示，📋 一键复制
-- **启动命令**：旧图保留的 setup affordance；实际连接和请求协议以 `../protocol.md` 为准。
+- **启动命令**：this sketch retains a setup affordance; actual connection and request protocol authority stays in `../protocol.md`.
 
 ## Architecture Notes
 
