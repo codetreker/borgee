@@ -47,6 +47,6 @@ The desktop shell hosts the navigation rail, selected channel host, channel tabs
 
 ## Related Docs
 
-- `../app-shell-state.md`
-- `../ui-map.md`
-- `../feature-surfaces.md`
+- [../app-shell-state.md](../app-shell-state.md)
+- [../ui-map.md](../ui-map.md)
+- [../feature-surfaces.md](../feature-surfaces.md)

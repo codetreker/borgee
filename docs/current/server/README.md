@@ -111,11 +111,11 @@ The server does not run LLMs, own plugin-local secrets, or collapse admin author
 
 ## Subdocuments
 
-- `startup-routing.md`: composition root, HTTP surface, middleware, static hosting, and background runtime.
-- `data-model-and-migrations.md`: data ownership, core aggregates, migration strategy, and event/cursor layering.
-- `api-auth-admin-rails.md`: user, admin, plugin, and remote rails with permission isolation.
-- `realtime-and-events.md`: detailed realtime frame and event behavior.
-- `bpp-internals.md`: detailed plugin protocol behavior.
+- [startup-routing.md](startup-routing.md): composition root, HTTP surface, middleware, static hosting, and background runtime.
+- [data-model-and-migrations.md](data-model-and-migrations.md): data ownership, core aggregates, migration strategy, and event/cursor layering.
+- [api-auth-admin-rails.md](api-auth-admin-rails.md): user, admin, plugin, and remote rails with permission isolation.
+- [realtime-and-events.md](realtime-and-events.md): detailed realtime frame and event behavior.
+- [bpp-internals.md](bpp-internals.md): detailed plugin protocol behavior.
 
 ## Implementation Anchors
 

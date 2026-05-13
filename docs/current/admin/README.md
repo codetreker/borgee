@@ -46,10 +46,10 @@ It does not own user SPA feature behavior, remote node execution, host helper au
 
 | Document | Scope |
 | --- | --- |
-| `spa.md` | Admin SPA entry, session, API client, route/page layering, and user rail isolation. |
-| `server-rail.md` | Admin server rail surfaces, auth boundary, route classes, and server-only/admin API-only endpoints. |
-| `privacy-audit.md` | Audit projection, user privacy view, admin audit view, impersonation grant, and current gaps. |
-| `ui/` | Interaction and layout reference sketches for core admin pages; they do not define the complete route inventory or server contract. |
+| [spa.md](spa.md) | Admin SPA entry, session, API client, route/page layering, and user rail isolation. |
+| [server-rail.md](server-rail.md) | Admin server rail surfaces, auth boundary, route classes, and server-only/admin API-only endpoints. |
+| [privacy-audit.md](privacy-audit.md) | Audit projection, user privacy view, admin audit view, impersonation grant, and current gaps. |
+| [ui/](ui/) | Interaction and layout reference sketches for core admin pages; they do not define the complete route inventory or server contract. |
 
 ## Implementation Anchors
 

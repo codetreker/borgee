@@ -48,6 +48,6 @@ Agent Manager is a global sidepane in the user SPA. It lets a signed-in user ins
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../ui-map.md`
-- `agent-config.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../ui-map.md](../ui-map.md)
+- [agent-config.md](agent-config.md)

@@ -89,7 +89,7 @@ Messages belong to the channel or DM host. The app context coordinates shared me
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../realtime-sync.md`
-- `dm.md`
-- `slash-commands.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
+- [dm.md](dm.md)
+- [slash-commands.md](slash-commands.md)

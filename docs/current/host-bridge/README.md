@@ -45,9 +45,9 @@ Install flow:
 
 ## Submodules
 
-- `helper-daemon.md` defines local enforcement: UDS IPC, ACL, SQLite grant lookup, audit, sandbox, and read-only IO.
-- `host-grants.md` defines the server-side consent model and its invariants.
-- `installer.md` defines package installation, the manifest verifier path, and deployment responsibilities.
+- [helper-daemon.md](helper-daemon.md) defines local enforcement: UDS IPC, ACL, SQLite grant lookup, audit, sandbox, and read-only IO.
+- [host-grants.md](host-grants.md) defines the server-side consent model and its invariants.
+- [installer.md](installer.md) defines package installation, the manifest verifier path, and deployment responsibilities.
 
 ## Out Of Scope
 
@@ -55,8 +55,8 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 
 ## Known Gaps
 
-- Runtime authorization and platform sandboxing do not have identical update lifecycles; `helper-daemon.md` owns the daemon-level details.
-- Deployment trust and runtime authorization are separate boundaries; `installer.md` owns installer trust details.
+- Runtime authorization and platform sandboxing do not have identical update lifecycles; [helper-daemon.md](helper-daemon.md) owns the daemon-level details.
+- Deployment trust and runtime authorization are separate boundaries; [installer.md](installer.md) owns installer trust details.
 
 ## Implementation Anchors
 

@@ -45,6 +45,6 @@ Public preview belongs to the channel host. It presents a read-only channel-orie
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../ui-map.md`
-- `message.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../ui-map.md](../ui-map.md)
+- [message.md](message.md)

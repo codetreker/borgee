@@ -38,10 +38,10 @@ Sidepane navigation belongs to the app shell and UI map. It chooses which global
 
 - Sidepanes are not independent browser routes in the user SPA.
 - Sidepane selection is shell orchestration; durable feature data still belongs to each feature's REST rail.
-- This sketch maps to `../ui-map.md` and the app shell state boundary.
+- This sketch maps to [../ui-map.md](../ui-map.md) and the app shell state boundary.
 
 ## Related Docs
 
-- `../ui-map.md`
-- `../app-shell-state.md`
-- `../feature-surfaces.md`
+- [../ui-map.md](../ui-map.md)
+- [../app-shell-state.md](../app-shell-state.md)
+- [../feature-surfaces.md](../feature-surfaces.md)

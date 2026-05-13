@@ -31,7 +31,7 @@ User SPA
 
 The UI map explains where a maintainer should place or reason about a user-facing capability in the architecture: rail, channel host, channel tab, global sidepane, or global shell concern.
 
-It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns. The `ui/` directory keeps representative ASCII interaction sketches as reference/layout sketches.
+It does not specify visual design, CSS layout, copy, keyboard behavior, or exact component ownership. Those are implementation details and test concerns. The [ui/](ui/) directory keeps representative ASCII interaction sketches as reference/layout sketches.
 
 The sketches are an Interaction And Layout Reference. They help maintainers recognize surface shape and navigation flow, but they do not define product behavior, verification status, or design-system rules.
 
@@ -65,16 +65,16 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 
 | Surface | Sketch reference | Notes |
 | --- | --- | --- |
-| Auth gate | `ui/login.md` | Login/register placement reference only. |
-| Shell and channel host | `ui/main-desktop.md`, `ui/main-mobile.md` | Desktop and mobile workspace layout references. |
-| Channel rail | `ui/channel-sort-groups.md` | Channel grouping/sorting interaction reference. |
-| Chat and DM | `ui/message.md`, `ui/dm.md`, `ui/slash-commands.md` | Message shape, DM shape, and command-panel references. |
-| Public preview | `ui/preview.md` | Read-only preview and join prompt reference. |
-| Canvas/artifact | `ui/canvas-modal.md` | In-app decision flow reference for canvas actions. |
-| Workspace | `ui/workspace.md` | File tree and viewer reference. |
-| Agents | `ui/agent-manager.md`, `ui/agent-config.md`, `ui/agent-collab.md` | Owner-side agent management and collaboration references. |
-| Sidepanes and settings | `ui/sidepane.md`, `ui/settings.md` | Sidepane switching and admin-awareness references. |
-| Remote surfaces | `../remote-agent/ui/README.md` | Combined Remote Explorer reference sketch; current client architecture splits remote nodes from channel remote browsing. |
+| Auth gate | [ui/login.md](ui/login.md) | Login/register placement reference only. |
+| Shell and channel host | [ui/main-desktop.md](ui/main-desktop.md), [ui/main-mobile.md](ui/main-mobile.md) | Desktop and mobile workspace layout references. |
+| Channel rail | [ui/channel-sort-groups.md](ui/channel-sort-groups.md) | Channel grouping/sorting interaction reference. |
+| Chat and DM | [ui/message.md](ui/message.md), [ui/dm.md](ui/dm.md), [ui/slash-commands.md](ui/slash-commands.md) | Message shape, DM shape, and command-panel references. |
+| Public preview | [ui/preview.md](ui/preview.md) | Read-only preview and join prompt reference. |
+| Canvas/artifact | [ui/canvas-modal.md](ui/canvas-modal.md) | In-app decision flow reference for canvas actions. |
+| Workspace | [ui/workspace.md](ui/workspace.md) | File tree and viewer reference. |
+| Agents | [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), [ui/agent-collab.md](ui/agent-collab.md) | Owner-side agent management and collaboration references. |
+| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching and admin-awareness references. |
+| Remote surfaces | [../remote-agent/ui/README.md](../remote-agent/ui/README.md) | Combined Remote Explorer reference sketch; current client architecture splits remote nodes from channel remote browsing. |
 
 ## Cross-Surface Signals
 

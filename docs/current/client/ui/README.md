@@ -1,6 +1,6 @@
 # Client UI Architecture Sketches
 
-These files are Interaction And Layout Reference sketches for the user SPA. They help maintainers understand surface placement, navigation shape, and interaction flow after reading `../ui-map.md` and `../feature-surfaces.md`.
+These files are Interaction And Layout Reference sketches for the user SPA. They help maintainers understand surface placement, navigation shape, and interaction flow after reading [../ui-map.md](../ui-map.md) and [../feature-surfaces.md](../feature-surfaces.md).
 
 They do not define product behavior, implementation contracts, verification status, or design-system rules. Current architecture, state ownership, and data authority remain in the parent client documents.
 
@@ -16,7 +16,7 @@ They do not define product behavior, implementation contracts, verification stat
 | Agents | [agent-manager.md](agent-manager.md), [agent-config.md](agent-config.md), [agent-collab.md](agent-collab.md) | Owner-side agent management, config editing, and collaboration visibility. |
 | Sidepanes and settings | [sidepane.md](sidepane.md), [settings.md](settings.md) | Global sidepane navigation and user admin-awareness layout. |
 
-When following admin or remote-agent reader paths, use their module entries first: `../../admin/README.md` for admin SPA context and `../../remote-agent/README.md` for Remote Agent protocol and boundary context. Their UI sketches sit under those modules as supporting interaction references.
+When following admin or remote-agent reader paths, use their module entries first: [../../admin/README.md](../../admin/README.md) for admin SPA context and [../../remote-agent/README.md](../../remote-agent/README.md) for Remote Agent protocol and boundary context. Their UI sketches sit under those modules as supporting interaction references.
 
 ## Notation
 
@@ -32,7 +32,7 @@ When following admin or remote-agent reader paths, use their module entries firs
 
 ## Reading Order
 
-1. Start with `../README.md` for the user SPA boundary.
-2. Use `../ui-map.md` to place the surface in the shell hierarchy.
-3. Use `../feature-surfaces.md` to identify state ownership and data authority.
+1. Start with [../README.md](../README.md) for the user SPA boundary.
+2. Use [../ui-map.md](../ui-map.md) to place the surface in the shell hierarchy.
+3. Use [../feature-surfaces.md](../feature-surfaces.md) to identify state ownership and data authority.
 4. Open the sketch only after those boundaries are clear.

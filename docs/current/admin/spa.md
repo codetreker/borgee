@@ -67,7 +67,7 @@ Admin pages are grouped by operational domain:
 
 The admin layout owns admin navigation and nested page selection. Individual pages own their local filters, loading states, and forms; durable results come from the admin API client.
 
-The `ui/` directory keeps representative ASCII interaction sketches for core admin pages. Use them as Interaction And Layout Reference after this route tree; they do not cover every current admin page group and are not requirements, tests, or server contract authority.
+The [ui/](ui/) directory keeps representative ASCII interaction sketches for core admin pages. Use them as Interaction And Layout Reference after this route tree; they do not cover every current admin page group and are not requirements, tests, or server contract authority.
 
 ## Admin API Client Boundary
 

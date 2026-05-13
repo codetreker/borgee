@@ -6,7 +6,7 @@ This sketch is an Interaction And Layout Reference for the user SPA auth gate. I
 
 ## Surface
 
-Login belongs to the unauthenticated user SPA boundary. The authenticated shell does not render until the session and bootstrap flow described in `../app-shell-state.md` completes.
+Login belongs to the unauthenticated user SPA boundary. The authenticated shell does not render until the session and bootstrap flow described in [../app-shell-state.md](../app-shell-state.md) completes.
 
 ## Layout Sketch
 
@@ -39,5 +39,5 @@ Login belongs to the unauthenticated user SPA boundary. The authenticated shell 
 
 ## Related Docs
 
-- `../app-shell-state.md`
-- `../ui-map.md`
+- [../app-shell-state.md](../app-shell-state.md)
+- [../ui-map.md](../ui-map.md)

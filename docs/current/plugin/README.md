@@ -49,9 +49,9 @@ flowchart LR
 
 ## Documents
 
-- `openclaw-runtime.md` covers package shape, runtime modules, account config, inbound/outbound behavior.
-- `transports.md` covers SSE, poll, and code-present WS transport behavior.
-- `server-contracts.md` covers the server endpoints and frame shapes the plugin consumes.
+- [openclaw-runtime.md](openclaw-runtime.md) covers package shape, runtime modules, account config, inbound/outbound behavior.
+- [transports.md](transports.md) covers SSE, poll, and code-present WS transport behavior.
+- [server-contracts.md](server-contracts.md) covers the server endpoints and frame shapes the plugin consumes.
 
 ## Implementation Anchors
 

@@ -92,9 +92,9 @@ Channel grouping belongs to the channel rail. The rail reads shared channel meta
 - The sketches show possible rail affordances, not exact timing, styling, storage, or broadcast behavior.
 - Server-owned channel metadata is the authority for ordering and group membership.
 - Local expand/collapse presentation can differ by user without changing channel metadata.
-- The rail should be read together with `../ui-map.md` and `../feature-surfaces.md`.
+- The rail should be read together with [../ui-map.md](../ui-map.md) and [../feature-surfaces.md](../feature-surfaces.md).
 
 ## Related Docs
 
-- `../ui-map.md`
-- `../feature-surfaces.md`
+- [../ui-map.md](../ui-map.md)
+- [../feature-surfaces.md](../feature-surfaces.md)

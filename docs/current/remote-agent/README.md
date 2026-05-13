@@ -43,9 +43,9 @@ current caveat:
 
 ## Module Map
 
-- `protocol.md` describes the control plane/data plane split, message contract, timeout behavior, and protocol-level invariants.
-- `filesystem-boundary.md` describes the local directory allowlist, read limits, read-only behavior, and how this differs from helper sandboxing.
-- `ui/` keeps a combined Remote Explorer ASCII reference sketch as Interaction And Layout Reference. It maps to the user SPA's remote nodes sidepane and channel remote tab; protocol caveats and filesystem boundary rules remain defined in `protocol.md` and `filesystem-boundary.md`.
+- [protocol.md](protocol.md) describes the control plane/data plane split, message contract, timeout behavior, and protocol-level invariants.
+- [filesystem-boundary.md](filesystem-boundary.md) describes the local directory allowlist, read limits, read-only behavior, and how this differs from helper sandboxing.
+- [ui/](ui/) keeps a combined Remote Explorer ASCII reference sketch as Interaction And Layout Reference. It maps to the user SPA's remote nodes sidepane and channel remote tab; protocol caveats and filesystem boundary rules remain defined in [protocol.md](protocol.md) and [filesystem-boundary.md](filesystem-boundary.md).
 
 ## Out Of Scope
 
@@ -53,7 +53,7 @@ Remote Agent does not provide host-wide privileges, OS sandboxing, package insta
 
 ## Current Status And Boundary Caveats
 
-- The current filesystem proxy is an intended capability with protocol caveats; `protocol.md` owns the connection setup and request-contract details.
+- The current filesystem proxy is an intended capability with protocol caveats; [protocol.md](protocol.md) owns the connection setup and request-contract details.
 - Treat Remote Agent's boundary as node ownership plus local allowlist intent until those protocol caveats are resolved.
 
 ## Implementation Anchors

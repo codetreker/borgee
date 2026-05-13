@@ -65,7 +65,7 @@ DMs use the shared selected-channel model for conversation state, but they do no
 
 ## Related Docs
 
-- `../app-shell-state.md`
-- `../feature-surfaces.md`
-- `../realtime-sync.md`
-- `message.md`
+- [../app-shell-state.md](../app-shell-state.md)
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
+- [message.md](message.md)

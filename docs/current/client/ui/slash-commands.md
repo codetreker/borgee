@@ -68,6 +68,6 @@ Slash commands belong to the chat composer and message stream. The composer may 
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../realtime-sync.md`
-- `message.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
+- [message.md](message.md)

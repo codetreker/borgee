@@ -46,7 +46,7 @@ Settings is a global sidepane in the user SPA. It can show user-owned privacy/ad
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../ui-map.md`
-- `../../admin/privacy-audit.md`
-- `../../admin/spa.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../ui-map.md](../ui-map.md)
+- [../../admin/privacy-audit.md](../../admin/privacy-audit.md)
+- [../../admin/spa.md](../../admin/spa.md)

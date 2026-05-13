@@ -32,9 +32,9 @@ Agent collaboration belongs to the channel host and agent surfaces. It shares th
 
 - This is a user SPA surface, not an admin surface.
 - The sketch assumes existing channel and artifact rails; it does not introduce a separate collaboration API.
-- Agent collaboration visibility belongs with `../feature-surfaces.md` under Agent And Invitation Surfaces and Channel, Chat, And DM.
+- Agent collaboration visibility belongs with [../feature-surfaces.md](../feature-surfaces.md) under Agent And Invitation Surfaces and Channel, Chat, And DM.
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../ui-map.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../ui-map.md](../ui-map.md)

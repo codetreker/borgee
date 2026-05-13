@@ -62,6 +62,6 @@ The mobile shell keeps the selected channel as the main workspace and exposes th
 
 ## Related Docs
 
-- `../app-shell-state.md`
-- `../ui-map.md`
-- `main-desktop.md`
+- [../app-shell-state.md](../app-shell-state.md)
+- [../ui-map.md](../ui-map.md)
+- [main-desktop.md](main-desktop.md)

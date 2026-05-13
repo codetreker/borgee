@@ -1,8 +1,8 @@
 # Admin UI Architecture Sketches
 
-These ASCII sketches are Interaction And Layout Reference for core Admin SPA pages. They help maintainers recognize representative login, dashboard, user, invite, and channel-management shapes after reading `../README.md` and `../spa.md`.
+These ASCII sketches are Interaction And Layout Reference for core Admin SPA pages. They help maintainers recognize representative login, dashboard, user, invite, and channel-management shapes after reading [../README.md](../README.md) and [../spa.md](../spa.md).
 
-They do not define product behavior, implementation contracts, verification status, or a complete inventory of the current admin route tree. The current Admin SPA also includes route groups such as audit views, runtime metadata, heartbeat lag, archived channels, description history, and settings; those boundaries are described in `../spa.md` and `../server-rail.md`.
+They do not define product behavior, implementation contracts, verification status, or a complete inventory of the current admin route tree. The current Admin SPA also includes route groups such as audit views, runtime metadata, heartbeat lag, archived channels, description history, and settings; those boundaries are described in [../spa.md](../spa.md) and [../server-rail.md](../server-rail.md).
 
 ## Context
 
@@ -33,7 +33,7 @@ They do not define product behavior, implementation contracts, verification stat
 
 - **入口**：独立于用户登录页的 admin browser rail。
 - **凭据区域**：展示 admin username/password form placement only.
-- **登录结果**：session handling and route protection are owned by `../spa.md` and the admin server rail.
+- **登录结果**：session handling and route protection are owned by [../spa.md](../spa.md) and the admin server rail.
 
 ## 2. Admin 后台主页
 
@@ -216,4 +216,4 @@ They do not define product behavior, implementation contracts, verification stat
 - User-owned agent management belongs to the user SPA; admin user detail can show owner-agent metadata without becoming the owner workflow.
 - Sensitive user or agent secrets should not become admin page content unless the server rail intentionally exposes a safe metadata contract.
 - Admin identity is separate from the user table and user roles.
-- These sketches cover core pages only. Use `../spa.md` for the current route groups and `../server-rail.md` for admin API/server-only surfaces.
+- These sketches cover core pages only. Use [../spa.md](../spa.md) for the current route groups and [../server-rail.md](../server-rail.md) for admin API/server-only surfaces.

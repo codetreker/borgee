@@ -64,12 +64,12 @@ It does not own backend authorization, persistence, admin server enforcement, re
 
 | Document | Scope |
 | --- | --- |
-| `app-shell-state.md` | Shell lifecycle, auth gate, app state boundary, and view selection. |
-| `realtime-sync.md` | REST authority, WebSocket direct updates, signal-then-pull, and reconnect reconciliation. |
-| `feature-surfaces.md` | Surface layering for chat, channels, DMs, artifacts, workspace, remote, settings, agents, and invitations. |
-| `ui-map.md` | Architecture-level surface map for maintainers, without component-directory enumeration. |
-| `ui/` | Interaction and layout reference sketches for browser surfaces; they do not define product behavior, verification status, or design-system rules. |
-| `build-pwa-cache.md` | Build, PWA, service-worker, and cache constraints that affect architecture. |
+| [app-shell-state.md](app-shell-state.md) | Shell lifecycle, auth gate, app state boundary, and view selection. |
+| [realtime-sync.md](realtime-sync.md) | REST authority, WebSocket direct updates, signal-then-pull, and reconnect reconciliation. |
+| [feature-surfaces.md](feature-surfaces.md) | Surface layering for chat, channels, DMs, artifacts, workspace, remote, settings, agents, and invitations. |
+| [ui-map.md](ui-map.md) | Architecture-level surface map for maintainers, without component-directory enumeration. |
+| [ui/](ui/) | Interaction and layout reference sketches for browser surfaces; they do not define product behavior, verification status, or design-system rules. |
+| [build-pwa-cache.md](build-pwa-cache.md) | Build, PWA, service-worker, and cache constraints that affect architecture. |
 
 ## Browser Surface Drill-Down
 
@@ -77,13 +77,13 @@ The user SPA architecture starts with shell/state boundaries, then drills into s
 
 | Browser surface | Architecture owner | Interaction and layout reference |
 | --- | --- | --- |
-| Auth gate and workspace shell | `app-shell-state.md`, `ui-map.md` | `ui/login.md`, `ui/main-desktop.md`, `ui/main-mobile.md` |
-| Channel rail, DMs, and sidepanes | `ui-map.md`, `feature-surfaces.md` | `ui/channel-sort-groups.md`, `ui/dm.md`, `ui/sidepane.md` |
-| Chat, messages, commands, and previews | `feature-surfaces.md`, `realtime-sync.md` | `ui/message.md`, `ui/slash-commands.md`, `ui/preview.md` |
-| Canvas and workspace | `feature-surfaces.md` | `ui/canvas-modal.md`, `ui/workspace.md` |
-| Agents and invitations | `feature-surfaces.md` | `ui/agent-manager.md`, `ui/agent-config.md`, `ui/agent-collab.md` |
-| Settings and admin-awareness | `feature-surfaces.md`, `../admin/privacy-audit.md` | `ui/settings.md` |
-| Remote user surfaces | `feature-surfaces.md`, `../remote-agent/` | `../remote-agent/ui/` plus client remote surfaces in `ui-map.md` |
+| Auth gate and workspace shell | [app-shell-state.md](app-shell-state.md), [ui-map.md](ui-map.md) | [ui/login.md](ui/login.md), [ui/main-desktop.md](ui/main-desktop.md), [ui/main-mobile.md](ui/main-mobile.md) |
+| Channel rail, DMs, and sidepanes | [ui-map.md](ui-map.md), [feature-surfaces.md](feature-surfaces.md) | [ui/channel-sort-groups.md](ui/channel-sort-groups.md), [ui/dm.md](ui/dm.md), [ui/sidepane.md](ui/sidepane.md) |
+| Chat, messages, commands, and previews | [feature-surfaces.md](feature-surfaces.md), [realtime-sync.md](realtime-sync.md) | [ui/message.md](ui/message.md), [ui/slash-commands.md](ui/slash-commands.md), [ui/preview.md](ui/preview.md) |
+| Canvas and workspace | [feature-surfaces.md](feature-surfaces.md) | [ui/canvas-modal.md](ui/canvas-modal.md), [ui/workspace.md](ui/workspace.md) |
+| Agents and invitations | [feature-surfaces.md](feature-surfaces.md) | [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), [ui/agent-collab.md](ui/agent-collab.md) |
+| Settings and admin-awareness | [feature-surfaces.md](feature-surfaces.md), [../admin/privacy-audit.md](../admin/privacy-audit.md) | [ui/settings.md](ui/settings.md) |
+| Remote user surfaces | [feature-surfaces.md](feature-surfaces.md), [../remote-agent/](../remote-agent/) | [../remote-agent/ui/](../remote-agent/ui/) plus client remote surfaces in [ui-map.md](ui-map.md) |
 
 ## Implementation Anchors
 

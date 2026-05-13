@@ -57,6 +57,6 @@ Workspace belongs to the user SPA file-work surfaces. Channel workspace focuses 
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../realtime-sync.md`
-- `../ui-map.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
+- [../ui-map.md](../ui-map.md)

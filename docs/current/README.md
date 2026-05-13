@@ -52,7 +52,7 @@ Use these stable links after the diagram; they do not rely on Mermaid node click
 | 9. Implementation Anchors | Jump from architecture areas to stable code ownership anchors | Implementation Anchors sections in each document | [server](server/), [plugin](plugin/), [remote-agent](remote-agent/), [host-bridge](host-bridge/) |
 | 10. Known Gaps / Architecture Debt | Track current mismatches and where detailed debt is recorded | [Known gaps](known-gaps.md) | Module-local gap notes in [admin](admin/), [remote-agent](remote-agent/), [host-bridge](host-bridge/), and [E2E](e2e/) |
 
-Server-specific realtime/BPP design lives in `server/`; OpenClaw plugin design lives in `plugin/`. Verification and supporting documentation, including E2E orchestration, lives outside the main runtime topology.
+Server-specific realtime/BPP design lives in [server/](server/); OpenClaw plugin design lives in [plugin/](plugin/). Verification and supporting documentation, including E2E orchestration, lives outside the main runtime topology.
 
 ## Implementation Anchors
 

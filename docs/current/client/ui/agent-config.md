@@ -43,6 +43,6 @@ Agent config is part of the user SPA agent management sidepane. It is owner-scop
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../ui-map.md`
-- `agent-manager.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../ui-map.md](../ui-map.md)
+- [agent-manager.md](agent-manager.md)

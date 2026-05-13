@@ -74,7 +74,7 @@ This page does not define new privileges or future unification. It records the c
 
 - Some rails have intentionally separate but not yet unified audit sinks, so cross-source audit completeness varies by module.
 - Remote Agent's rail separation is clearer than its current end-to-end filesystem proxy contract.
-- Installer deployment trust is partial wiring; `installer.md` owns the envelope, signing-key, and artifact-binding details.
+- Installer deployment trust is partial wiring; [../host-bridge/installer.md](../host-bridge/installer.md) owns the envelope, signing-key, and artifact-binding details.
 - Capability and legacy permission checks are close but not identical, which matters for agent wildcard reasoning.
 
 ## Implementation Anchors

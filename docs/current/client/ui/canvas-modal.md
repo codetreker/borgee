@@ -44,5 +44,5 @@ Canvas decisions belong to the channel artifact surface. The surface can ask the
 
 ## Related Docs
 
-- `../feature-surfaces.md`
-- `../realtime-sync.md`
+- [../feature-surfaces.md](../feature-surfaces.md)
+- [../realtime-sync.md](../realtime-sync.md)
