@@ -4,14 +4,14 @@
 
 ## 0. 版本判断
 
-默认判断: **非反转集群为 minor bump; gh#681 no-sandbox 是 major-trigger / open major decision**。
+默认判断: **非反转集群为 minor bump; gh#681 sandbox / actuator stance 是 major-trigger / open major decision only if current trust pillars cannot support the corrected bounded-job model**。
 
-理由: 多数 issue 只是给已冻结的产品立场补粒度、补页面、补真实 UI surface, 没有默认推翻“Borgee 是 agent 协作平台, 不是 agent 平台”。但 current `host-bridge.md` 把 process sandboxing / sandbox 写入 v1 trust model; gh#681 的“不提供 / 不承诺 sandbox”是该支柱的 stance reversal, 不能无条件归为 minor。
+理由: 多数 issue 只是给已冻结的产品立场补粒度、补页面、补真实 UI surface, 没有默认推翻“Borgee 是 agent 协作平台, 不是 agent 平台”。gh#681 的正确产品 stance 不是把 web-triggered OpenClaw configuration 拦回 SSH, 也不是开放任意 host shell; 它要求初次 enrollment / install 后, Borgee Helper 作为 remote actuator, 执行 bounded, pre-authorized host-management jobs。current `host-bridge.md` 把 process sandboxing / sandbox 写入 v1 trust model; 如果该 trust pillar 不能允许声明过的 typed jobs, freeze 前必须重写该支柱。若选择完全移除 sandbox, 仍不能无条件归为 minor。
 
 进入 **major bump** 的触发条件有三类:
 
 - Borgee 从接入 / 配置 / Helper 变成 runtime owner, 直接承担 LLM/runtime/shell 执行责任。
-- gh#681 no-sandbox 保持为 v1 stance, 且 freeze 时没有同步重写 / 移除 current host-bridge 的 process sandboxing trust pillar。
+- gh#681 被解释成完全移除 sandbox / helper isolation, 或 current host-bridge 的 process sandboxing trust pillar 无法支持 typed, pre-authorized actuator jobs 且 freeze 时未同步重写。
 - 既有 privacy / security 边界被删除, 例如 admin 默认可读内容、跨 org 可替别人 agent 扩权、backend/server-side controls 被移除。
 
 ---
@@ -20,7 +20,7 @@
 
 | 集群 | 触达 current blueprint | 影响判断 | bump |
 |---|---|---|---|
-| Host bridge | `host-bridge.md`, `plugin-protocol.md`, `agent-lifecycle.md`, `client-shape.md` | 强化 Helper onboarding / autostart; gh#681 no-sandbox 反转 current sandbox trust pillar, freeze 前必须解决 | major-trigger / open |
+| Host bridge | `host-bridge.md`, `plugin-protocol.md`, `agent-lifecycle.md`, `client-shape.md` | 强化 Helper onboarding / autostart; gh#681 要求 Helper 成为 bounded remote actuator, current sandbox trust pillar 必须能允许 typed pre-authorized jobs | major-trigger / open until trust-pillar rewrite is settled |
 | Mention routing | `concept-model.md`, `channel-model.md`, `auth-permissions.md`, `realtime.md` | 增加 per-channel 接收策略与 broadcast mention; 需补 abuse / rate-limit / ACL 红线 | minor |
 | Channel authority | `channel-model.md`, `concept-model.md`, `client-shape.md`, `data-layer.md` | 补 owner leave / delete / 管理页 / 私有标识规则 | minor |
 | Client truthfulness | `client-shape.md`, `canvas-vision.md`, `auth-permissions.md`, `realtime.md` | 要求已实现能力在 production UI 真实可达, 无权访问有明确状态 | minor |
@@ -41,24 +41,47 @@
 - gh#681 v1 scope guard: OpenClaw only, Mac/Linux only, local-host setup only; 不做 remote-host setup; 直连 / power-user plugin 路径仍合法。
 - gh#659 把长生命周期、非 sudo helper / agent service 的常驻语义补成 OS 重启后自动恢复与 crash restart。
 - 这些都是 host-bridge 目标态的完成项, 不是让 Borgee 成为 runtime owner。
+- Borgee Helper is a remote actuator for bounded, pre-authorized host-management jobs after enrollment; 如果 web-triggered Configure OpenClaw 在 helper install 后仍要求 SSH, remote-agent / helper 对这个场景没有产品价值。
+- Enrollment-time delegation 不是 blanket preauthorization。它只覆盖 closed v1 job taxonomy 内的 OpenClaw / helper lifecycle 与 config; install / config paths 之外的 file / network / resource access 仍走 owner-controlled allowlists / revocation, 保留“装时轻、用时问、问时有理由”。
+- Web-side Configure OpenClaw is allowed after initial enrollment because the host has already delegated that class of action。Initial enrollment remains explicit local action; after that, user can operate from web。No post-install SSH approval requirement for normal Configure OpenClaw flow。
+- Configure OpenClaw closure 必须具体: install plugin, create / update OpenClaw agent config, configure Borgee plugin connection / channel binding。
+- v1 user-visible flow: 用户本地 enroll host 一次 -> web 显示 Helper connected + allowed job categories -> 用户点 Configure OpenClaw -> Borgee enqueue typed job -> helper outbound poll / long-poll 拉取 -> helper enforce local policy -> web 显示 progress / status / bounded logs -> 成功显示 OpenClaw connected; 失败显示 policy denial / retry / manual debug; 用户可 revoke / disable delegation。
+- Web sends schema-bound typed jobs, not arbitrary shell commands。每个 job type 有固定 schema; unknown job types、extra fields、arbitrary argv、arbitrary executable path、client-supplied script 一律 rejected; helper 在任何 local action 前 validate schema。
+- closed v1 allowed job set: install / configure OpenClaw from signed manifest; create / update OpenClaw agent config; create / update Borgee plugin config / channel binding; start / stop / restart Helper-managed enrolled OpenClaw / helper services only; write approved config / state paths; report status / bounded logs; revoke / disable delegation; uninstall in helper scope。
 - Autostart 边界: 只给长生命周期 helper / agent service; 不做 boot-time installer, 不缓存 sudo, 不给短命 `install-butler` 做 supervised restart loop。
-- Guardrails: bounded restart / backoff、用户可见 status / logs、卸载必须 disable service、无持久 privileged installer。
+- Guardrails remain: no Borgee command channel, no runtime ownership, no sudo cache, `install-butler` short-lived only if privileged setup needed, long-lived service non-sudo, uninstall / revoke disables delegation, bounded restart / backoff。
+
+### Dev sequencing / transport
+
+- Dev sequencing: enrollment -> typed job queue / pull -> local policy enforcement -> service lifecycle。
+- Job transport pull-first / outbound-only: enrolled helper 用 helper credential poll / long-poll job queue; server never dials host。
+- Server-side enqueue gate 先按 owner / org / enrollment / delegation 授权 job creation; helper 再独立 revalidate job type、manifest / artifact、paths / domains、service identifiers、revocation。
+- Freeze 前需定: helper identity, job lease / ack / result, idempotency, retry / backoff, TTL, cancellation / revocation, status / log reporting。
+- Initial enrollment 可包含 privileged setup; post-enrollment normal Configure OpenClaw 是 non-sudo typed jobs。后续 job 若调用 `install-butler`, 必须是 bounded signed install task, 不缓存 sudo、不 silent escalation。
+- Service lifecycle jobs 只允许 signed manifest / enrollment state 声明过的 Borgee / OpenClaw service identifiers, 不是 client-supplied unit names, 也不是任意 local services。
+
+### QA acceptance / negative checks
+
+- Helper policy rejects unenrolled、revoked、wrong-owner、wrong-org、stale-credential helper / device, unknown job type, schema extra fields, client-supplied argv / executable path / script, allowlists 外 paths / domains。
+- Revoke / uninstall 可观察: revoke prevents future jobs and invalidates helper auth; uninstall disables autostart / service and removes or disables in-scope helper / plugin artifacts; queued jobs after revoke / uninstall must not execute; UI shows revoked / uninstalled state。
+- Status / logs acceptance: UI / API exposes helper online / offline, last seen, job queued / running / succeeded / failed, failure reason, bounded logs; logs must not expose tokens / secrets / private content; failed jobs must not look successful or spin indefinitely。
 
 ### Host trust boundary decision
 
-gh#681 的用户决策可以被下一版记录, 但它反转 current host-bridge 的 v1 process sandbox / sandbox trust pillar。除非 freeze 时同步重写 / 移除 current sandbox 信任支柱, 该变化必须按 major-trigger / open major decision 处理, 不能默认 minor。
+gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actuator jobs, 不是 no-sandbox host shell。Sandbox conflict 的关键决策不是“web cannot configure under sandbox”; sandbox / limits must permit declared jobs。下一版的窄 resolution path 是 keep helper isolation while allowing typed pre-authorized jobs。若 current sandbox trust pillar 无法支持这些 bounded actuator jobs, freeze 前必须重写该信任支柱; 若选择完全移除 sandbox, 该变化仍按 major-trigger / open major decision 处理。
 
 已决边界:
 
-- gh#681 host bridge v1 不提供 / 不承诺 sandbox; trust boundary 来自没有 Borgee command channel、显式用户授权、file / network allowlists、非 sudo 长生命周期服务。sandbox 若重开, 属 backlog / security hardening, 不是 v1 acceptance。
+- gh#681 host bridge v1 不提供任意 command channel; trust boundary 来自 limited enrollment-time delegation、closed v1 typed jobs、fixed schema、signed manifest / artifact、file / network allowlists、approved paths / domains、本地 helper policy enforcement、非 sudo 长生命周期服务。
 - 长生命周期 helper / agent service 不持有 sudo。
 - file / network 只走 allowlist, 授权状态由 owner 控制。
-- v1 没有 Borgee command channel; shell / 命令执行继续属于 runtime。
-- `install-butler` 只做装卸, 不常驻, 不开机自启, 不监督重启。
+- v1 没有 Borgee command channel; shell / 命令执行继续属于 runtime, client 不能提供 arbitrary command。
+- `install-butler` 只做需要 privileged setup 的短命装卸, 不常驻, 不开机自启, 不监督重启。
 
 ### Major 风险
 
-- 如果 no-sandbox 作为 v1 acceptance 保留, 但 freeze 不重写 current 的 process sandboxing / sandbox trust pillar, 就是 stance reversal。
+- 如果 current 的 process sandboxing / sandbox trust pillar 不允许 declared typed jobs, 但 freeze 不重写该 trust pillar, 就是无法落地的 stance conflict。
+- 如果 no-sandbox / remove-sandbox 作为 v1 acceptance 保留, 且不再保留 helper isolation, 就是 major-trigger / open major decision。
 - 如果网页配置演变成 Borgee 自己托管 / 调度 runtime, 就越过 current 的平台边界。
 - 如果 Borgee 直接暴露 host command 通道, 就越过 `host-bridge.md` v1 “不直接跑命令”的红线。
 - 如果 Helper / Host Bridge 与 Remote Agent 在 IA 移动时合并 credentials / grants / enforcement rails, 也是安全边界删除 / 绕开。
