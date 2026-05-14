@@ -560,6 +560,7 @@ export function useWebSocket() {
   handleMessageRef.current = handleMessage;
 
   const subscribe = useCallback((channelId: string) => {
+    if (subscribedChannels.current.has(channelId)) return;
     subscribedChannels.current.add(channelId);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'subscribe', channel_id: channelId }));
