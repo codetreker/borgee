@@ -60,10 +60,14 @@ type DmChannelInfo struct {
 }
 
 type DmPeer struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url"`
-	Role        string `json:"role"`
+	ID             string `json:"id"`
+	DisplayName    string `json:"display_name"`
+	AvatarURL      string `json:"avatar_url"`
+	Role           string `json:"role"`
+	State          string `json:"state,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	StateUpdatedAt int64  `json:"state_updated_at,omitempty"`
+	Disabled       bool   `json:"-"`
 }
 
 type DmLastMessage struct {
@@ -1570,6 +1574,7 @@ func (s *Store) ListDmChannelsForUser(userID string) ([]DmChannelInfo, error) {
 		PeerName       string  `gorm:"column:peer_name"`
 		PeerAvatar     string  `gorm:"column:peer_avatar"`
 		PeerRole       string  `gorm:"column:peer_role"`
+		PeerDisabled   bool    `gorm:"column:peer_disabled"`
 		UnreadCount    int     `gorm:"column:unread_count"`
 		LastMsgContent *string `gorm:"column:last_msg_content"`
 		LastMsgAt      *int64  `gorm:"column:last_msg_at"`
@@ -1579,7 +1584,7 @@ func (s *Store) ListDmChannelsForUser(userID string) ([]DmChannelInfo, error) {
 	var rows []rawRow
 	err := s.db.Raw(`
 		SELECT c.id, c.name, c.created_at,
-			peer.id AS peer_id, peer.display_name AS peer_name, peer.avatar_url AS peer_avatar, peer.role AS peer_role,
+			peer.id AS peer_id, peer.display_name AS peer_name, peer.avatar_url AS peer_avatar, peer.role AS peer_role, peer.disabled AS peer_disabled,
 			(SELECT COUNT(*) FROM messages m
 				WHERE m.channel_id = c.id AND m.deleted_at IS NULL
 				AND m.sender_id != ?
@@ -1606,7 +1611,7 @@ func (s *Store) ListDmChannelsForUser(userID string) ([]DmChannelInfo, error) {
 			ID:          r.ID,
 			Name:        r.Name,
 			CreatedAt:   r.CreatedAt,
-			Peer:        DmPeer{ID: r.PeerID, DisplayName: r.PeerName, AvatarURL: r.PeerAvatar, Role: r.PeerRole},
+			Peer:        DmPeer{ID: r.PeerID, DisplayName: r.PeerName, AvatarURL: r.PeerAvatar, Role: r.PeerRole, Disabled: r.PeerDisabled},
 			UnreadCount: r.UnreadCount,
 		}
 		if r.LastMsgContent != nil && r.LastMsgAt != nil && r.LastMsgSender != nil {

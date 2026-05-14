@@ -36,6 +36,8 @@ flowchart LR
 
 The Hub is the in-memory coordination point. It tracks browser clients, online users, plugin connections, remote connections, event waiters, and a cursor allocator for typed push frames. Durable event history stays in the store; the Hub only wakes waiters and fans out live frames.
 
+Agent runtime status is derived from plugin liveness plus the runtime error tracker. The server exposes that derived snapshot through agent status reads and through agent direct-message peer payloads, so REST list responses can provide the same initial online/offline/error state that live websocket presence frames later refine in the browser.
+
 ## Key Flows
 
 ### Browser Push Plus Backfill
@@ -51,6 +53,8 @@ Message events carry the persisted message payload plus channel display metadata
 ### Plugin Socket
 
 The plugin socket has two shapes. RPC frames let a plugin call server HTTP handlers over the socket. Non-RPC frames are treated as plugin-to-server BPP frames and passed to the BPP dispatcher.
+
+An active plugin socket is the liveness input for agent runtime status. Runtime errors recorded by the tracker take precedence over socket liveness; otherwise a connected plugin resolves as online and a missing plugin resolves as offline. This read path is shared by agent status endpoints and DM peer serialization.
 
 ### Remote Socket
 

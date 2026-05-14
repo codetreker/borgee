@@ -6,7 +6,7 @@ import { fetchChannelMembers, listAgentInvitations, logout } from '../lib/api';
 import ChannelList from './ChannelList';
 import CreateGroupModal from './CreateGroupModal';
 import type { DmChannel } from '../types';
-import type { ChannelMember } from '../lib/api';
+import type { AgentRuntimeReason, AgentRuntimeState, ChannelMember } from '../lib/api';
 import PresenceDot from './PresenceDot';
 import { usePresence } from '../hooks/usePresence';
 
@@ -392,7 +392,14 @@ function DmItem({ dm, active, online, onClick }: { dm: DmChannel; active: boolea
       {/* AL-3.3 (#R3 Phase 2): 仅 agent peer 渲染 PresenceDot (反约束 §3.2:
           人 role 行无 [data-presence] 槽位). 文案锁: "在线" / "已离线" /
           "故障 (REASON)". DOM 字面锁 data-presence 让 e2e 字面 selector. */}
-      {isAgent && dm.peer?.id && <DmPresence agentID={dm.peer.id} />}
+      {isAgent && dm.peer?.id && (
+        <DmPresence
+          agentID={dm.peer.id}
+          online={online}
+          fallbackState={dm.peer.state}
+          fallbackReason={dm.peer.reason}
+        />
+      )}
       {dm.unread_count > 0 && (
         <span className="unread-badge">{dm.unread_count > 99 ? '99+' : dm.unread_count}</span>
       )}
@@ -401,9 +408,21 @@ function DmItem({ dm, active, online, onClick }: { dm: DmChannel; active: boolea
 }
 
 // AL-3.3 — 拆出独立组件让 hooks 在循环列表里安全调用 (Rules of Hooks).
-function DmPresence({ agentID }: { agentID: string }) {
+function DmPresence({
+  agentID,
+  online,
+  fallbackState,
+  fallbackReason,
+}: {
+  agentID: string;
+  online: boolean;
+  fallbackState?: AgentRuntimeState;
+  fallbackReason?: AgentRuntimeReason;
+}) {
   const live = usePresence(agentID);
-  return <PresenceDot state={live?.state} reason={live?.reason} compact />;
+  const state = live?.state ?? fallbackState ?? (online ? 'online' : undefined);
+  const reason = live?.reason ?? (state === 'error' ? fallbackReason : undefined);
+  return <PresenceDot state={state} reason={reason} compact />;
 }
 
 function MergedDmList({ dms, currentChannelId, onlineUserIds, users, currentUserId, onSelectDm, onOpenDm }: {

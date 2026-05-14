@@ -1,10 +1,14 @@
 package api_test
 
 import (
+	"context"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"borgee-server/internal/testutil"
+	"github.com/coder/websocket"
 )
 
 func TestDMCreate(t *testing.T) {
@@ -75,4 +79,65 @@ func TestDMCreate(t *testing.T) {
 			t.Fatal("expected at least 1 DM channel")
 		}
 	})
+}
+
+func TestDMListAgentPeerIncludesOnlineState(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/agents", ownerToken, map[string]any{
+		"display_name": "Sidebar Bot",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create agent: %d (%v)", resp.StatusCode, data)
+	}
+	agent := data["agent"].(map[string]any)
+	agentID := agent["id"].(string)
+	agentKey := agent["api_key"].(string)
+
+	resp, data = testutil.JSON(t, "POST", ts.URL+"/api/v1/dm/"+agentID, ownerToken, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("create agent dm: %d (%v)", resp.StatusCode, data)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin?apiKey=" + agentKey
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial plugin ws: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		resp, data = testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID+"/status", ownerToken, nil)
+		if resp.StatusCode == http.StatusOK && data["state"] == "online" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("agent status did not become online: %d (%v)", resp.StatusCode, data)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	resp, data = testutil.JSON(t, "GET", ts.URL+"/api/v1/dm", ownerToken, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list dms: %d (%v)", resp.StatusCode, data)
+	}
+	channels := data["channels"].([]any)
+	if len(channels) == 0 {
+		t.Fatal("expected one agent DM channel")
+	}
+	peer := channels[0].(map[string]any)["peer"].(map[string]any)
+	if peer["id"] != agentID {
+		t.Fatalf("expected agent peer %s, got %v", agentID, peer)
+	}
+	if peer["state"] != "online" {
+		t.Fatalf("agent DM peer state = %v, want online", peer["state"])
+	}
+	if _, has := peer["reason"]; has {
+		t.Fatalf("online agent DM peer must not include reason: %v", peer)
+	}
 }
