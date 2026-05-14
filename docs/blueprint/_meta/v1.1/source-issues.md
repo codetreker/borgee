@@ -2,10 +2,15 @@
 
 Picked backlog inputs grouped by next-blueprint anchor. This file is traceability only; selected issues are not current behavior and do not replace the status ledger in `docs/blueprint/next/README.md`.
 
-## `HB-RA-1` Helper Bounded Remote Actuator
+## `HB-RA-1A` Helper Bounded Actuator Product Guardrails
 
 - gh#681 — Expand Helper host-management onboarding so Web-side Configure OpenClaw can install the plugin, create or update agent config, and bind channels through a bounded Helper remote-actuator path, without reusing Remote Agent file-proxy credentials or authority.
 - gh#659 — Ensure the long-lived helper / agent service path needed for Configure OpenClaw survives OS reboot and crash restart without turning the installer into a persistent privileged daemon.
+
+## `HB-RA-1B` Helper Actuator Execution Contract Blockers
+
+- gh#681 — Resolve the manifest/artifact signing, helper credential model, sandbox/Linux outbound poll, revoke race, and exact queue/lease/result contract before execution lock.
+- gh#659 — Resolve service permission and long-lived service restart boundaries before execution lock.
 
 ## `MR-1` Mention Routing
 
@@ -24,7 +29,7 @@ Picked backlog inputs grouped by next-blueprint anchor. This file is traceabilit
 
 ## `PS-1` Privacy Scope Guard
 
-- gh#654 — Avoid expanding user-facing privacy/compliance product scope while preserving backend security, admin, capability, and privacy boundaries.
+- gh#654 — Avoid expanding user-facing privacy/compliance product scope while preserving existing admin, privacy, security, impersonation, audit/enforcement, data minimization, capability, and rail-separation controls.
 
 ## `IA-1` Sidebar And Account IA
 
