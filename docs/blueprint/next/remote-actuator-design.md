@@ -3,13 +3,46 @@
 > 状态: 草拟 / 讨论稿, 不是 frozen blueprint。
 > 目的: 把 PR #916 stance 与 PM / Architect / QA / Dev findings 收敛成下一版 host bridge / Helper remote actuator 设计。
 
-## 0. Product stance
+## §1 Locked HB-RA-1A product guardrails
+
+### §1.1 HB-RA-1A reference boundary
+
+`HB-RA-1A` locks only the product guardrails in §1.2 for Phase planning. It does not lock the execution contract, queue protocol, credential shape, sandbox profile, revoke race mechanics, service permission matrix, or implementation slices below. Those unresolved execution details stay in `HB-RA-1B` and are tracked in §2.1.
+
+Task PRs that cite `HB-RA-1A` must cite §1.1-§1.2 or the matching README ledger row. They must not cite this whole document as if all draft execution design were locked.
+
+### §1.2 Locked guardrails
+
+- After explicit local enrollment, Web-side Configure OpenClaw may enqueue bounded, pre-authorized typed jobs without asking the user to SSH again.
+- Enrollment-time delegation is not blanket preauthorization; it covers only a closed v1 taxonomy for OpenClaw / Helper lifecycle and config.
+- The helper uses outbound poll / long-poll. The server never dials the host.
+- Server enqueue authorization and helper local policy both validate owner, org, enrollment, delegation, job type, manifest/artifact, paths/domains, service IDs, and revocation state.
+- Web sends schema-bound typed jobs, not arbitrary shell commands, argv, executable paths, scripts, or service unit names.
+- Long-lived Helper / OpenClaw services stay non-sudo. `install-butler` remains short-lived, visible, and never caches sudo.
+- Revoke / uninstall prevents future jobs, deterministically settles queued or leased jobs, invalidates helper auth, disables in-scope services, and is visible in UI.
+- Status and logs are bounded and redacted; failed jobs cannot look successful or spin indefinitely.
+- Helper UI placement may move, but Remote Agent credentials, grants, and enforcement rails remain separate from Helper actuator credentials, grants, and enforcement rails.
+
+## §2 Open HB-RA-1B execution-contract blockers
+
+### §2.1 Blocker inventory before execution lock
+
+- Manifest signing and artifact binding: signing authority, digest scope, cache invalidation, replay handling, and artifact-to-job binding.
+- Helper credential model: token shape, rotation cadence, stale-device semantics, local storage rules, and invalidation behavior.
+- Sandbox and Linux outbound poll: exact macOS/Linux write paths, allowed network domains, outbound polling permission, and resolution of the current Linux AF_UNIX-only long-lived service restriction.
+- Revoke race mechanics: safe action boundaries, lease cancellation behavior, terminal status precedence, and running-helper behavior when revocation wins.
+- Service permissions: allowed service manager operations, long-lived service privilege level, restart/crash-recovery boundaries, and install-time privilege handoff.
+- Exact queue/lease/result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server/helper clock authority.
+
+`HB-RA-1B` remains `OPEN / PENDING` until these blockers have a reviewed execution contract. References to this section must not be treated as part of the locked `HB-RA-1A` guardrail scope.
+
+## §3 Product stance
 
 Borgee Helper is a remote actuator for bounded, pre-authorized host-management jobs after enrollment。它不是 Borgee command channel, 也不是 runtime owner。Remote Agent / Helper 如果在安装后仍要求用户再 SSH 才能由 web 触发 Configure OpenClaw, 该能力对 onboarding 没有产品价值。
 
 Enrollment-time delegation 不是 blanket preauthorization。它只允许 closed v1 typed jobs 覆盖 OpenClaw / helper lifecycle 与 config; install / config paths 之外的 file / network / resource access 仍走 owner-controlled allowlists / revocation, 保留“装时轻、用时问、问时有理由”。
 
-## 1. Lifecycle sequence
+## §4 Lifecycle sequence
 
 1. 用户在 host 上执行一次 explicit local enrollment / install。该步骤可包含必要 privileged setup, 但必须可见。
 2. Web 显示 Helper connected、last seen、owner / org、allowed job categories 与 revoke / uninstall controls。
@@ -25,7 +58,7 @@ Enrollment-time delegation 不是 blanket preauthorization。它只允许 closed
 
 Configure OpenClaw v1 closure 必须具体到: install plugin, create / update OpenClaw agent config, configure Borgee plugin connection / channel binding。
 
-## 2. Identity / enrollment
+## §5 Identity / enrollment
 
 Enrollment 产生独立于 Remote Agent file-proxy token 的 helper / device identity。Remote Agent file-proxy tokens 只服务文件代理 / agent runtime rail, 不能复用为 host-management delegation, 也不能扩展成 helper command credential。
 
@@ -41,7 +74,7 @@ v1 identity model:
 
 Credential rotation 必须让旧 credential 进入 stale-credential / stale-device state。Server enqueue gate 拒绝 revoked / stale enrollment; helper poll 也必须能看到 revoked / stale 状态并停止执行 queued 或 leased jobs。
 
-## 3. Job queue contract
+## §6 Job queue contract
 
 Job 是 server-authorized、helper-revalidated 的 typed record, 不是 shell command。
 
@@ -66,7 +99,7 @@ Required envelope:
 
 Terminal failure reasons 至少包括: `policy_denied`, `schema_invalid`, `unknown_job_type`, `manifest_invalid`, `artifact_invalid`, `path_denied`, `domain_denied`, `service_denied`, `revoked`, `stale_credential`, `wrong_owner`, `wrong_org`, `ttl_expired`, `lease_lost`, `cancelled`, `execution_failed`。
 
-## 4. Closed v1 typed jobs
+## §7 Closed v1 typed jobs
 
 Freeze 前必须把 v1 job set 作为 closed taxonomy 写入 current blueprint。Draft 设计先限定为:
 
@@ -83,7 +116,7 @@ Freeze 前必须把 v1 job set 作为 closed taxonomy 写入 current blueprint�
 
 Rejected by design: unknown job types, extra fields, arbitrary argv, arbitrary executable path, client-supplied script, client-supplied unit names, arbitrary local service restart, arbitrary shell, and paths / domains outside allowlists。
 
-## 5. Helper policy / sandbox mechanics
+## §8 Helper policy / sandbox mechanics
 
 Helper isolation remains defense in depth。Sandbox / limits must permit declared jobs, not arbitrary host control。
 
@@ -100,13 +133,13 @@ Denied by default: inbound server dial to host, arbitrary network domains, arbit
 
 Open implementation blocker: Linux service currently has AF_UNIX-only issue to resolve before outbound poll / long-poll can work from the long-lived helper service. Freeze must decide the exact sandbox profile write / network / service permissions before moving this design to current。
 
-## 6. Privilege boundary
+## §9 Privilege boundary
 
 Normal Configure OpenClaw after enrollment is non-sudo typed jobs。Initial enrollment may do privileged setup when visible and locally approved。
 
 `install-butler` remains short-lived: no autostart, no persistent daemon role, no supervised restart loop, no sudo cache, no silent escalation。Any later privileged setup must be a signed bounded install task with visible consent and a terminal audit / status result。Long-lived helper / agent services stay non-sudo。
 
-## 7. Revoke / uninstall races
+## §10 Revoke / uninstall races
 
 Revoke / uninstall are policy state changes, not best-effort UI hints。
 
@@ -118,13 +151,13 @@ Revoke / uninstall are policy state changes, not best-effort UI hints。
 - Uninstall: disables autostart / service and removes or disables in-scope helper / plugin artifacts。
 - UI: shows revoked / uninstalled, not offline-only ambiguity。
 
-## 8. Status / logs / audit
+## §11 Status / logs / audit
 
 UI / API must expose helper online / offline, last seen, allowed job categories, job queued / running / succeeded / failed, failure reason, bounded redacted logs, and revoke / uninstall state。
 
 Logs must not expose tokens, secrets, private message content, private file content, or full environment dumps。Failed jobs must not look successful or spin indefinitely。Local audit records enforcement decisions: schema rejection, policy denial, manifest / artifact verification, path / domain denial, service denial, revoke / stale credential, lease / cancellation outcome。
 
-## 9. Boot / crash / cron stance
+## §12 Boot / crash / cron stance
 
 Boot + crash restart are must-have for every long-lived process in the Configure OpenClaw value path。For remote-actuator v1, that path is owned by Host Bridge / Helper, not the existing `packages/remote-agent` file-proxy CLI。The current Remote Agent rail remains separate file browsing / reverse-WS infrastructure; it must not inherit helper enrollment credentials or host-management authority。
 
@@ -134,7 +167,7 @@ Boot + crash requirements do not apply to `install-butler`, which is short-lived
 
 Fast / slow cron are Teamlead coordination / runtime timer / lease / heartbeat concepts, not product promise。Blueprint should model externally visible behavior as status, last seen, lease expiry, retry / backoff, and heartbeat freshness, not as user-facing cron guarantees。
 
-## 10. Implementation slices
+## §13 Implementation slices
 
 1. Enrollment / status foundation: enrollment record, helper_device_id, owner / org binding, one-time secret exchange, persistent helper credential, last seen, revoke / uninstall state。
 2. Outbound pull skeleton: server queue, enqueue gate, long-poll endpoint, lease / ack / result, TTL, retry / backoff, idempotency key, cancellation。
@@ -143,10 +176,12 @@ Fast / slow cron are Teamlead coordination / runtime timer / lease / heartbeat c
 5. Scoped service lifecycle: only enrolled Borgee / OpenClaw service identifiers, boot + crash restart, bounded restart / backoff。
 6. Configure OpenClaw closure: install plugin, create / update OpenClaw agent config, configure Borgee plugin connection / channel binding, connected / failed UI states。
 
-## 11. Open decisions / blockers before freeze
+## §14 Open decisions / blockers before freeze
 
 - Manifest signing / artifact binding: signing authority, digest scope, cache invalidation, replay handling。
 - Helper credential model: token shape, rotation cadence, stale-device semantics, local storage rules。
 - Sandbox profile: exact write paths, network domains, service permissions, and Linux AF_UNIX-only outbound poll fix。
-- Revoke race rules: exact safe action boundaries and terminal status precedence for running jobs。
+- Revoke race rules: exact safe action boundaries, lease cancellation behavior, and terminal status precedence for running jobs。
+- Service permissions: allowed service manager operations, long-lived service privilege level, restart / crash-recovery boundary, and install-time privilege handoff。
+- Exact queue / lease / result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server / helper clock authority。
 - Remote-agent vs helper naming / boundary: user-facing IA may move, but credentials / grants / enforcement rails stay separate。
