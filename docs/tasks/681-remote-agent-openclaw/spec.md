@@ -2,6 +2,13 @@
 
 > Issue: https://github.com/codetreker/borgee/issues/681
 > 优先级: P1 / backlog (跟 host-bridge 大重写一起做)
+> 状态: legacy intake note only. 不作为当前执行 task / Phase / Milestone 路径。
+
+## 2026-05-14 状态修正
+
+`docs/blueprint/next/` 已把 gh#681 重新归入 `HB-RA-1` Helper bounded remote actuator anchor。执行路径尚未锁定, 因为 sandbox profile、helper credential model、manifest / artifact binding、revoke race rules、Helper vs Remote Agent 边界仍是 lock blockers。
+
+本文保留为历史 intake 摘要。后续开工必须先在 `docs/blueprint/next/README.md` 把相关 anchor 标为 `LOCKED`, 再通过 `docs/tasks/phase-N-.../phase-plan.md` 和 milestone `task-seed` 建立新的执行路径。不要直接从本文件创建实现 PR。
 
 ## 要做什么
 
