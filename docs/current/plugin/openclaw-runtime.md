@@ -41,7 +41,7 @@ The channel plugin resolves an account, checks that base URL and API key are pre
 
 ### Inbound Message Handling
 
-Borgee events are filtered to supported kinds. Self messages are skipped. Non-DM messages can require a mention depending on server-provided bot identity. Accepted events become OpenClaw inbound contexts, and generated text is sent back to the originating Borgee channel.
+Borgee events are filtered to supported kinds. Self messages are skipped. Non-DM messages can require a mention depending on server-provided bot identity. Accepted events become OpenClaw inbound contexts, and generated text is sent back to the originating Borgee channel. Inbound session metadata uses human-readable labels (`Borgee/#channel` for group channels, `Borgee DM: <sender>` for direct chats) while keeping the raw Borgee channel id in `NativeChannelId` for routing and diagnostics.
 
 ### Outbound Actions
 
