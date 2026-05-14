@@ -191,4 +191,57 @@ describe('#687 Layer 3 — ADD_MESSAGE reducer 反 own-message 误算 unread', (
 
     expect(next.channels.find(c => c.id === 'chan-B')!.unread_count).toBe(1);
   });
+
+  it('SET_MESSAGES stale REST load must not drop newer live WS messages', () => {
+    const chA = makeChannel('chan-A', { unread_count: 0 });
+    const olderRestMessage = makeMessage('chan-A', owner.id, 'msg-rest-old');
+    olderRestMessage.created_at = 1_000;
+    const liveAgentReply = makeMessage('chan-A', peer.id, 'msg-live-agent');
+    liveAgentReply.created_at = 2_000;
+    liveAgentReply.sender_name = 'Agent Peer';
+
+    const withLiveReply = __test_reducer(baseState('chan-A', [chA]), {
+      type: 'ADD_MESSAGE',
+      channelId: 'chan-A',
+      message: liveAgentReply,
+    });
+
+    const afterStaleLoad = __test_reducer(withLiveReply, {
+      type: 'SET_MESSAGES',
+      channelId: 'chan-A',
+      messages: [olderRestMessage],
+      hasMore: false,
+      loadedBefore: 1_500,
+    });
+
+    expect(afterStaleLoad.messages.get('chan-A')?.map(m => m.id)).toEqual([
+      'msg-rest-old',
+      'msg-live-agent',
+    ]);
+  });
+
+  it('SET_MESSAGES empty stale REST load keeps only live messages newer than request start', () => {
+    const chA = makeChannel('chan-A', { unread_count: 0 });
+    const oldLocalMessage = makeMessage('chan-A', owner.id, 'msg-old-local');
+    oldLocalMessage.created_at = 1_000;
+    const liveAgentReply = makeMessage('chan-A', peer.id, 'msg-live-agent');
+    liveAgentReply.created_at = 2_000;
+
+    const withLocalMessages = {
+      ...baseState('chan-A', [chA]),
+      messages: new Map([['chan-A', [oldLocalMessage, liveAgentReply]]]),
+    };
+
+    const afterStaleEmptyLoad = __test_reducer(withLocalMessages, {
+      type: 'SET_MESSAGES',
+      channelId: 'chan-A',
+      messages: [],
+      hasMore: false,
+      loadedBefore: 1_500,
+    });
+
+    expect(afterStaleEmptyLoad.messages.get('chan-A')?.map(m => m.id)).toEqual([
+      'msg-live-agent',
+    ]);
+  });
 });
