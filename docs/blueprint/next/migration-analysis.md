@@ -41,6 +41,7 @@
 - gh#681 v1 scope guard: OpenClaw only, Mac/Linux only, local-host setup only; 不做 remote-host setup; 直连 / power-user plugin 路径仍合法。
 - gh#659 把长生命周期、非 sudo helper / agent service 的常驻语义补成 OS 重启后自动恢复与 crash restart。
 - 这些都是 host-bridge 目标态的完成项, 不是让 Borgee 成为 runtime owner。
+- 具体 bounded remote actuator 设计草案见 `remote-actuator-design.md`; freeze 时需要把其中的 enrollment identity、job queue contract、closed v1 typed job taxonomy、sandbox / privilege / revocation rules 合并进 current host-bridge 相关章节。
 - Borgee Helper is a remote actuator for bounded, pre-authorized host-management jobs after enrollment; 如果 web-triggered Configure OpenClaw 在 helper install 后仍要求 SSH, remote-agent / helper 对这个场景没有产品价值。
 - Enrollment-time delegation 不是 blanket preauthorization。它只覆盖 closed v1 job taxonomy 内的 OpenClaw / helper lifecycle 与 config; install / config paths 之外的 file / network / resource access 仍走 owner-controlled allowlists / revocation, 保留“装时轻、用时问、问时有理由”。
 - Web-side Configure OpenClaw is allowed after initial enrollment because the host has already delegated that class of action。Initial enrollment remains explicit local action; after that, user can operate from web。No post-install SSH approval requirement for normal Configure OpenClaw flow。
