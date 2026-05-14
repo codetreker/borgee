@@ -36,6 +36,8 @@ It does not own server event storage, frame schema evolution, backend authorizat
 
 The REST rail is the single source of truth for any data that must survive reloads or be privacy/ACL correct: channel membership, messages, files, artifact content, comments, agent configuration, remote file reads, permissions, audit visibility, and impersonation grants.
 
+Direct-message lists also use REST as the cold-start authority for agent peer runtime state. When a DM peer is an agent, the DM payload can include the current runtime `state`, optional error `reason`, and `state_updated_at`; sidebar presence uses this value before any websocket presence frame has arrived. WebSocket presence remains the live override once its cache has an entry, so reloads do not temporarily render an online agent as offline just because the transient presence cache is empty.
+
 Surfaces should prefer a pull after any signal that does not contain a complete safe payload. This is especially important for body-bearing resources such as messages, comments, artifact content, workspace files, and iteration details.
 
 ## WebSocket Direct Updates
@@ -46,7 +48,7 @@ Some frames are small enough and safe enough to apply directly to shared state. 
 | --- | --- |
 | Message delivery and ack/nack | Adds server messages and resolves optimistic pending messages. |
 | Message edit/delete and reactions | Updates existing message rows or reaction aggregates. |
-| Presence and typing | Updates transient user/agent availability and typing indicators. |
+| Presence and typing | Updates transient user/agent availability and typing indicators; agent DM rows use these updates over the REST bootstrap state after a frame is observed. |
 | Channel and group lifecycle | Adds, removes, reorders, or updates rail metadata. |
 | Membership changes | Updates member count and invalidates member-dependent UI. |
 | Command refresh | Wakes command-loading logic without storing command state globally. |
