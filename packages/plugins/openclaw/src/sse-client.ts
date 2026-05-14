@@ -281,6 +281,7 @@ export async function dispatchSSEEvent(params: {
     id?: string;
     message_id?: string;
     channel_id: string;
+    channel_name?: string;
     sender_id?: string;
     sender_name?: string;
     content?: string;

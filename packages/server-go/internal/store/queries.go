@@ -9,7 +9,6 @@ import (
 	"time"
 	"unicode"
 
-
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 )
@@ -522,8 +521,12 @@ func (s *Store) CreateMessageFull(channelID, senderID, content, contentType stri
 	// Get channel type for event payload
 	var ch Channel
 	chType := "channel"
-	if err := s.db.Select("type").Where("id = ?", channelID).First(&ch).Error; err == nil && ch.Type != "" {
-		chType = ch.Type
+	chName := ""
+	if err := s.db.Select("type, name").Where("id = ?", channelID).First(&ch).Error; err == nil {
+		if ch.Type != "" {
+			chType = ch.Type
+		}
+		chName = ch.Name
 	}
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -557,6 +560,7 @@ func (s *Store) CreateMessageFull(channelID, senderID, content, contentType stri
 		eventPayload, _ := json.Marshal(map[string]any{
 			"id":           msgID,
 			"channel_id":   channelID,
+			"channel_name": chName,
 			"sender_id":    senderID,
 			"sender_name":  senderName,
 			"content":      content,

@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { dispatchInboundReplyWithBase } from "openclaw/plugin-sdk/inbound-reply-dispatch";
 import { sendBorgeeMessage } from "./api-client.js";
+import { buildBorgeeConversationMeta } from "./conversation-meta.js";
 import { getBorgeeRuntime } from "./runtime.js";
 import type { BorgeeEvent, CoreConfig, ResolvedBorgeeAccount } from "./types.js";
 
@@ -21,6 +22,14 @@ export async function handleBorgeeReactionInbound(params: {
   const p = params.payload;
   const rawChannelId = stripChannelPrefix(params.event.channel_id);
   const target = buildBorgeeTarget(rawChannelId);
+  const conversationMeta = buildBorgeeConversationMeta({
+    channelLabel: params.channelLabel,
+    channelType: "channel",
+    message: {
+      channel_id: params.event.channel_id,
+      sender_id: p.user_id,
+    },
+  });
 
   const actionLabel = p.action === "added" ? "added" : "removed";
   const body = `[reaction_update] ${p.user_id} ${actionLabel} ${p.emoji} on message ${p.message_id}`;
@@ -48,11 +57,11 @@ export async function handleBorgeeReactionInbound(params: {
     To: target,
     SessionKey: route.sessionKey,
     AccountId: route.accountId ?? params.account.accountId,
-    ChatType: "group",
-    ConversationLabel: params.event.channel_id,
-    GroupSubject: params.event.channel_id,
-    GroupChannel: params.event.channel_id,
-    NativeChannelId: params.event.channel_id,
+    ChatType: conversationMeta.chatType,
+    ConversationLabel: conversationMeta.conversationLabel,
+    GroupSubject: conversationMeta.groupSubject,
+    GroupChannel: conversationMeta.groupChannel,
+    NativeChannelId: conversationMeta.nativeChannelId,
     SenderId: p.user_id,
     Provider: params.channelId,
     Surface: params.channelId,
@@ -148,6 +157,7 @@ export async function handleBorgeeInbound(params: {
     channel_id: string;
     sender_id: string;
     sender_name?: string;
+    channel_name?: string;
     content: string;
     content_type: string;
     created_at: number;
@@ -160,6 +170,11 @@ export async function handleBorgeeInbound(params: {
   const rawChannelId = stripChannelPrefix(msg.channel_id);
   const isDm = params.channelType === 'dm';
   const target = isDm ? `dm:${rawChannelId}` : buildBorgeeTarget(rawChannelId);
+  const conversationMeta = buildBorgeeConversationMeta({
+    channelLabel: params.channelLabel,
+    channelType: isDm ? "dm" : "channel",
+    message: msg,
+  });
 
   const route = runtime.channel.routing.resolveAgentRoute({
     cfg: params.config as OpenClawConfig,
@@ -199,11 +214,12 @@ export async function handleBorgeeInbound(params: {
     To: target,
     SessionKey: route.sessionKey,
     AccountId: route.accountId ?? params.account.accountId,
-    ChatType: isDm ? "direct" : "group",
-    ConversationLabel: msg.channel_id,
-    GroupSubject: msg.channel_id,
-    GroupChannel: msg.channel_id,
-    NativeChannelId: msg.channel_id,
+    ChatType: conversationMeta.chatType,
+    ConversationLabel: conversationMeta.conversationLabel,
+    GroupSubject: conversationMeta.groupSubject,
+    GroupChannel: conversationMeta.groupChannel,
+    NativeChannelId: conversationMeta.nativeChannelId,
+    NativeDirectUserId: conversationMeta.nativeDirectUserId,
     SenderName: msg.sender_name,
     SenderId: msg.sender_id,
     Provider: params.channelId,

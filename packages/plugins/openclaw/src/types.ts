@@ -66,6 +66,7 @@ export type BorgeeUser = {
 export type BorgeeMessage = {
   id: string;
   channel_id: string;
+  channel_name?: string;
   sender_id: string;
   sender_name?: string;
   content: string;

@@ -41,7 +41,7 @@ flowchart LR
 
 ### Identity And Event Consumption
 
-The plugin fetches the authenticated Borgee user as bot identity, then consumes cursor-ordered events over SSE or poll. Event payloads are server-authored JSON and are filtered before OpenClaw dispatch.
+The plugin fetches the authenticated Borgee user as bot identity, then consumes cursor-ordered events over SSE or poll. Event payloads are server-authored JSON and are filtered before OpenClaw dispatch. Message events include `channel_type` and `channel_name` display metadata so OpenClaw can distinguish group sessions from direct sessions without exposing raw channel ids as labels.
 
 ### Plugin-To-Server API RPC
 

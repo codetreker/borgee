@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -606,6 +607,46 @@ func TestEventOps(t *testing.T) {
 	ids := s.GetUserChannelIDs(u.ID)
 	if len(ids) == 0 {
 		t.Fatal("expected channel IDs")
+	}
+}
+
+func TestCreateMessageFullEventPayloadIncludesChannelDisplayMetadata(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	u := createUser(t, s, "evtmeta", "member")
+	ch := &Channel{Name: "product-room", Visibility: "public", CreatedBy: u.ID, Type: "channel", Position: GenerateInitialRank()}
+	if err := s.CreateChannel(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.CreateMessageFull(ch.ID, u.ID, "hello", "text", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := s.GetEventsSince(0, 10, []string{ch.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var messageEvent *Event
+	for i := range events {
+		if events[i].Kind == "message" {
+			messageEvent = &events[i]
+			break
+		}
+	}
+	if messageEvent == nil {
+		t.Fatalf("expected message event, got %#v", events)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(messageEvent.Payload), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if got := payload["channel_type"]; got != "channel" {
+		t.Fatalf("channel_type = %v, want channel", got)
+	}
+	if got := payload["channel_name"]; got != "product-room" {
+		t.Fatalf("channel_name = %v, want product-room", got)
 	}
 }
 

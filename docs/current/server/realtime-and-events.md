@@ -46,6 +46,8 @@ A browser websocket can subscribe to channels and send messages. The server vali
 
 SSE is a streaming view over the same cursor model, with heartbeat events and `Last-Event-ID` backfill. Poll is the long-poll fallback: it returns available events immediately or waits on a Hub signal until timeout. Both filter events through channel membership.
 
+Message events carry the persisted message payload plus channel display metadata. `channel_type` distinguishes channel and DM conversations, and `channel_name` gives consumers a display-safe channel name while the raw channel id remains the routing key.
+
 ### Plugin Socket
 
 The plugin socket has two shapes. RPC frames let a plugin call server HTTP handlers over the socket. Non-RPC frames are treated as plugin-to-server BPP frames and passed to the BPP dispatcher.
