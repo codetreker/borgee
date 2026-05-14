@@ -95,3 +95,10 @@ jobs:
             echo "current 同步 lint failed. Update docs/current/ or declare 'N/A — <reason>' under '## Current 同步'."
             exit 1
           fi
+      - name: OpenClaw plugin version bump
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/check-openclaw-plugin-version-bump.sh
+      - name: OpenClaw plugin version bump self-test
+        run: bash scripts/check-openclaw-plugin-version-bump.test.sh
