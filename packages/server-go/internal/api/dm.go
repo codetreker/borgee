@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	agentpkg "borgee-server/internal/agent"
 	"borgee-server/internal/config"
 	"borgee-server/internal/store"
 )
@@ -12,6 +13,7 @@ type DmHandler struct {
 	Store  *store.Store
 	Config *config.Config
 	Logger *slog.Logger
+	State  AgentRuntimeProvider
 }
 
 func (h *DmHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -45,14 +47,35 @@ func (h *DmHandler) handleCreateDm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peer := map[string]any{
-		"id":           target.ID,
-		"display_name": target.DisplayName,
-		"avatar_url":   target.AvatarURL,
-		"role":         target.Role,
-	}
+	peer := h.withPeerState(store.DmPeer{
+		ID:          target.ID,
+		DisplayName: target.DisplayName,
+		AvatarURL:   target.AvatarURL,
+		Role:        target.Role,
+		Disabled:    target.Disabled,
+	})
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"channel": ch, "peer": peer})
+}
+
+func (h *DmHandler) withPeerState(peer store.DmPeer) store.DmPeer {
+	if peer.Role != "agent" {
+		return peer
+	}
+	if peer.Disabled || h.State == nil {
+		peer.State = string(agentpkg.StateOffline)
+		peer.Reason = ""
+		peer.StateUpdatedAt = 0
+		return peer
+	}
+	snap := h.State.ResolveAgentState(peer.ID)
+	peer.State = string(snap.State)
+	peer.Reason = snap.Reason
+	peer.StateUpdatedAt = snap.UpdatedAt
+	if peer.State != string(agentpkg.StateError) {
+		peer.Reason = ""
+	}
+	return peer
 }
 
 func (h *DmHandler) handleListDms(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +91,9 @@ func (h *DmHandler) handleListDms(w http.ResponseWriter, r *http.Request) {
 	}
 	if channels == nil {
 		channels = []store.DmChannelInfo{}
+	}
+	for i := range channels {
+		channels[i].Peer = h.withPeerState(channels[i].Peer)
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"channels": channels})

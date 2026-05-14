@@ -29,12 +29,28 @@ export interface User {
   created_at: number;
 }
 
+export interface DmPeer {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  role: string;
+  state?: 'online' | 'offline' | 'error' | 'busy' | 'idle';
+  reason?:
+    | 'api_key_invalid'
+    | 'quota_exceeded'
+    | 'network_unreachable'
+    | 'runtime_crashed'
+    | 'runtime_timeout'
+    | 'unknown';
+  state_updated_at?: number;
+}
+
 export interface DmChannel {
   id: string;
   name: string;
   type: 'dm';
   created_at: number;
-  peer: { id: string; display_name: string; avatar_url: string | null; role: string };
+  peer: DmPeer;
   unread_count: number;
   last_message: { content: string; created_at: number } | null;
 }

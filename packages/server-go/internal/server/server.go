@@ -386,8 +386,10 @@ func (s *Server) SetupRoutes() {
 	}
 	rt4PresenceHandler.RegisterUserRoutes(s.mux, authMw)
 
+	agentStateAdapter := &agentRuntimeAdapter{hub: s.hub, tracker: s.agentTracker}
+
 	// DMs
-	dmHandler := &api.DmHandler{Store: s.store, Config: s.cfg, Logger: s.logger}
+	dmHandler := &api.DmHandler{Store: s.store, Config: s.cfg, Logger: s.logger, State: agentStateAdapter}
 	dmHandler.RegisterRoutes(s.mux, authMw)
 
 	// Admin (ADM-0.2: cookie拆 + RequirePermission去admin短路 + god-mode 元数据-only)
@@ -478,7 +480,6 @@ func (s *Server) SetupRoutes() {
 	// 反向断言 2.B (user cookie 调 admin endpoints 必须 401).
 
 	// Agents
-	agentStateAdapter := &agentRuntimeAdapter{hub: s.hub, tracker: s.agentTracker}
 	agentHandler := &api.AgentHandler{Store: s.store, DataLayer: s.dl, Logger: s.logger, Hub: &hubPluginAdapter{s.hub}, State: agentStateAdapter}
 	agentHandler.RegisterRoutes(s.mux, authMw)
 
