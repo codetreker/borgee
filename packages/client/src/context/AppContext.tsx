@@ -53,7 +53,7 @@ type Action =
   | { type: 'REMOVE_GROUP'; groupId: string; ungroupedChannelIds: string[] }
   | { type: 'ADD_CHANNEL'; channel: Channel }
   | { type: 'SET_CURRENT_CHANNEL'; channelId: string | null }
-  | { type: 'SET_MESSAGES'; channelId: string; messages: Message[]; hasMore: boolean }
+  | { type: 'SET_MESSAGES'; channelId: string; messages: Message[]; hasMore: boolean; loadedBefore?: number }
   | { type: 'PREPEND_MESSAGES'; channelId: string; messages: Message[]; hasMore: boolean }
   | { type: 'ADD_MESSAGE'; channelId: string; message: Message }
   | { type: 'SET_LOADING_MESSAGES'; channelId: string; loading: boolean }
@@ -132,7 +132,21 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'SET_MESSAGES': {
       const msgs = new Map(state.messages);
       const hm = new Map(state.hasMore);
-      msgs.set(action.channelId, action.messages);
+      const incomingIds = new Set(action.messages.map(m => m.id));
+      const newestIncomingAt = action.messages.reduce(
+        (max, m) => Math.max(max, m.created_at),
+        Number.NEGATIVE_INFINITY,
+      );
+      const liveCutoff = action.loadedBefore ?? (
+        action.messages.length > 0 ? newestIncomingAt : Number.POSITIVE_INFINITY
+      );
+      const newerLiveMessages = (state.messages.get(action.channelId) ?? []).filter(m =>
+        !incomingIds.has(m.id) &&
+        !m.deleted_at &&
+        m.created_at > liveCutoff,
+      );
+      const merged = [...action.messages, ...newerLiveMessages].sort((a, b) => a.created_at - b.created_at);
+      msgs.set(action.channelId, merged);
       hm.set(action.channelId, action.hasMore);
       return { ...state, messages: msgs, hasMore: hm };
     }
@@ -576,8 +590,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (stateRef.current.loadingMessages.has(channelId)) return;
     dispatch({ type: 'SET_LOADING_MESSAGES', channelId, loading: true });
     try {
+      const loadedBefore = Date.now();
       const { messages, has_more } = await api.fetchMessages(channelId, { limit: 100 });
-      dispatch({ type: 'SET_MESSAGES', channelId, messages, hasMore: has_more });
+      dispatch({ type: 'SET_MESSAGES', channelId, messages, hasMore: has_more, loadedBefore });
     } finally {
       dispatch({ type: 'SET_LOADING_MESSAGES', channelId, loading: false });
     }
