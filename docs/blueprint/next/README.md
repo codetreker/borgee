@@ -10,6 +10,8 @@
 
 默认版本判断: **非反转集群按 minor bump 讨论**。gh#681 的关键不是“网页不能在 sandbox 下配置 OpenClaw”, 而是: 初次 enrollment / install 后, Borgee Helper 已经获得该类动作的 delegation, Web-side Configure OpenClaw 必须能通过 bounded, pre-authorized host-management jobs 完成, 不要求用户再次 SSH。若 current host-bridge 的 sandbox trust pillar 不能支持这些声明过的 typed jobs, 下一版必须重写该信任支柱; 若 freeze 选择完全移除 sandbox, 仍是 **major-trigger / open major decision**。
 
+Host bridge / Configure OpenClaw 的 bounded remote actuator 设计草案见 `remote-actuator-design.md`。
+
 ---
 
 ## 1. 选入集群
