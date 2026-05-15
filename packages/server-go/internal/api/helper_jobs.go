@@ -322,10 +322,30 @@ func serializeHelperJob(job *datalayer.HelperJob) map[string]any {
 	if job.FailureCode != nil {
 		out["failure_code"] = *job.FailureCode
 	}
+	if job.FailureMessage != nil {
+		out["failure_message"] = *job.FailureMessage
+	}
+	if summary := decodeHelperJobResultSummary(job.ResultSummary); summary != nil {
+		out["result_summary"] = summary
+	}
 	if job.CompletedAt != nil {
 		out["completed_at"] = *job.CompletedAt
 	}
 	return out
+}
+
+func decodeHelperJobResultSummary(raw *string) map[string]any {
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return nil
+	}
+	var summary struct {
+		AuditRefs []string `json:"audit_refs"`
+		LogRefs   []string `json:"log_refs"`
+	}
+	if err := json.Unmarshal([]byte(*raw), &summary); err != nil {
+		return nil
+	}
+	return map[string]any{"audit_refs": summary.AuditRefs, "log_refs": summary.LogRefs}
 }
 
 func serializeHelperJobLease(lease *datalayer.HelperJobLease) map[string]any {

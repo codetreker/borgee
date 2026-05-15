@@ -340,6 +340,61 @@ func TestHelperJobPollAckResultLeaseIdempotencyAndBoundaries(t *testing.T) {
 	}
 }
 
+func TestHelperJobTerminalInputRequiresReasonAndRedactsSensitiveFailureMessage(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-terminal-redaction")
+	now := time.UnixMilli(1778840000000)
+	enrollment, credential := claimedFreshHelperEnrollmentWithCredential(t, s, owner, []string{"openclaw_config"}, now)
+	agent := helperJobAgent(t, s, owner, "terminal-redaction-agent")
+	seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Terminal Redaction"}, now)
+
+	job, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{OwnerUserID: owner.ID, OrgID: owner.OrgID, EnrollmentID: enrollment.ID, JobType: "openclaw.configure_agent", SchemaVersion: 1, PayloadJSON: `{"agent_id":"` + agent.ID + `"}`}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("enqueue fixture: %v", err)
+	}
+	lease, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{EnrollmentID: enrollment.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseDuration: time.Minute}, now.Add(3*time.Minute))
+	if err != nil || lease == nil {
+		t.Fatalf("lease fixture=%+v err=%v", lease, err)
+	}
+	if _, err := s.AckHelperJobForHelper(AckHelperJobInput{EnrollmentID: enrollment.ID, JobID: job.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: lease.LeaseToken, AckStatus: "received"}, now.Add(3*time.Minute+time.Second)); err != nil {
+		t.Fatalf("ack fixture: %v", err)
+	}
+
+	if _, err := s.CompleteHelperJobForHelper(CompleteHelperJobInput{EnrollmentID: enrollment.ID, JobID: job.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: lease.LeaseToken, Status: HelperJobStatusCancelled}, now.Add(3*time.Minute+2*time.Second)); !errors.Is(err, ErrHelperJobSchemaInvalid) {
+		t.Fatalf("cancelled without reason error=%v, want ErrHelperJobSchemaInvalid", err)
+	}
+
+	completed, err := s.CompleteHelperJobForHelper(CompleteHelperJobInput{
+		EnrollmentID:       enrollment.ID,
+		JobID:              job.ID,
+		HelperCredential:   credential,
+		HelperDeviceID:     *enrollment.HelperDeviceID,
+		LeaseToken:         lease.LeaseToken,
+		Status:             HelperJobStatusFailed,
+		FailureCode:        "execution_failed",
+		FailureMessage:     "Authorization: Bearer secret-token credential=my-secret env=OPENAI_API_KEY=sk-test private message content /Users/alice/private.txt",
+		ResultSummaryJSON:  `{"audit_refs":["audit-1"],"log_refs":["log-1"]}`,
+		MaxFailureMessage:  512,
+		MaxResultSummaries: 4,
+	}, now.Add(3*time.Minute+3*time.Second))
+	if err != nil {
+		t.Fatalf("CompleteHelperJobForHelper redacted terminal: %v", err)
+	}
+	if completed.FailureMessage == nil {
+		t.Fatalf("expected redacted failure message, got nil")
+	}
+	msg := *completed.FailureMessage
+	for _, forbidden := range []string{"secret-token", "my-secret", "sk-test", "private message content", "/Users/alice/private.txt"} {
+		if strings.Contains(msg, forbidden) {
+			t.Fatalf("failure message leaked %q: %q", forbidden, msg)
+		}
+	}
+	if !strings.Contains(msg, "[redacted]") {
+		t.Fatalf("failure message should contain redaction marker, got %q", msg)
+	}
+}
+
 func TestHelperJobHelperAuthorityAndExpiryFailures(t *testing.T) {
 	t.Parallel()
 	s := migratedStore(t)

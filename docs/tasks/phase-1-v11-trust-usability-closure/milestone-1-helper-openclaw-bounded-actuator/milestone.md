@@ -14,8 +14,8 @@ Historical PR evidence is summarized in `accepted-history.md`. Future task execu
 
 Accepted by this milestone:
 
-- Helper enrollment/status, credential lifecycle, status UI, enqueue authority, and outbound service prerequisites accepted through PR #934, #936, #937, #938, and #939.
-- Remaining Helper pull/lease/result, local policy/manifest/sandbox, terminal logs/revoke settlement, OpenClaw install/config jobs, plugin channel binding, service lifecycle reliability, and Configure OpenClaw terminal UI.
+- Helper enrollment/status, credential lifecycle, status UI, enqueue authority, outbound service prerequisites, Helper pull/lease/result, and local policy/manifest/sandbox accepted through PR #934, #936, #937, #938, #939, #943, and #942.
+- Remaining terminal logs/revoke settlement, OpenClaw install/config jobs, plugin channel binding, service lifecycle reliability, and Configure OpenClaw terminal UI.
 - Strict Helper/Remote Agent rail separation across credentials, grants, enforcement, and UI placement.
 
 Rejected by this milestone:
@@ -32,15 +32,15 @@ Rejected by this milestone:
 | Helper status UI and current sync | ACCEPTED | `task-3-helper-status-ui-and-current-sync` | PR #937 (`2872905`) | complete |
 | Job envelope and enqueue authority | ACCEPTED | `task-4-job-envelope-and-enqueue-authority` | PR #938 (`64d56f1`) | complete |
 | Helper outbound service prerequisites | ACCEPTED | `task-5-helper-outbound-service-prereq` | PR #939 (`96dc0dc`) | complete |
-| Helper pull / lease / result | PR_VERIFYING | `task-6-helper-pull-lease-result` | PR #943 from `feat/task-6-helper-pull-lease-result`; coverage repair in progress | no, final PR gate |
+| Helper pull / lease / result | ACCEPTED | `task-6-helper-pull-lease-result` | PR #943 (`c2c61e`) | complete |
 | Local policy / manifest / sandbox profile | ACCEPTED | `task-7-local-policy-manifest-and-sandbox-profile` | PR #942 (`642fb57`) | complete |
-| Bounded status logs and revoke settlement | BLOCKED | `task-8-bounded-status-logs-and-revoke-settlement` | After pull/lease/result and local policy | no |
+| Bounded status logs and revoke settlement | ACCEPTING | `task-8-bounded-status-logs-and-revoke-settlement` | PR #954 from `feat/task-8-bounded-status-logs-and-revoke-settlement`; after PR #943 (`c2c61e`) and PR #942 (`642fb57`) | no |
 | OpenClaw install and agent config jobs | BLOCKED | `task-9-openclaw-install-and-agent-config-jobs` | After typed job/policy substrate | no |
 | Borgee plugin channel binding job | BLOCKED | `task-10-borgee-plugin-channel-binding-job` | After install/config jobs; coordinate with channel authority if needed | yes, after dependency clears |
 | Service lifecycle reliability | BLOCKED | `task-11-service-lifecycle-boot-crash` | After typed job/policy substrate | yes, after dependency clears |
 | Configure OpenClaw terminal UI | BLOCKED | `task-12-configure-openclaw-terminal-ui` | After install/config, binding, and lifecycle work | no |
 
-Current execution is PR verification for `task-6-helper-pull-lease-result`. `task-7-local-policy-manifest-and-sandbox-profile` is accepted through PR #942 (`642fb57`). Terminal settlement remains blocked until task 6 pull/lease/result is accepted.
+Current execution is PR acceptance for `task-8-bounded-status-logs-and-revoke-settlement` in PR #954. `task-6-helper-pull-lease-result` is accepted through PR #943 (`c2c61e`), and `task-7-local-policy-manifest-and-sandbox-profile` is accepted through PR #942 (`642fb57`).
 
 ## Exit Gates
 

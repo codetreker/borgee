@@ -20,7 +20,7 @@ The user SPA includes a read-only Helper status sidepane backed by the user Help
 - Grant control plane: user-owned rows describing host capability consent.
 - Helper enrollment control plane: owner/org-scoped rows describing enrolled Helper identity, allowed category visibility, device id, current credential lifecycle metadata, last seen, revoke, and helper-originated uninstall status.
 - Helper job enqueue control plane: human/member owner/org/enrollment-scoped typed `helper_jobs` rows with server TTL, category gate, internal normalized payload digest, and active-window idempotency. Public job responses expose queued metadata only, not payload or manifest digests. Task-1 enables only `openclaw.configure_agent` enqueue and rejects later job types until their local-policy or service authority exists.
-- Helper job transport rail: Helper-credential `poll`, `ack`, and `result` routes atomically lease one queued job, move receipt to running, and settle terminal statuses with bounded metadata. The rail checks current Helper credential, helper device id, enrollment status, lease token, TTL, lease expiry, and terminal idempotency.
+- Helper job transport rail: Helper-credential `poll`, `ack`, and `result` routes atomically lease one queued job, move receipt to running, and settle terminal statuses with bounded redacted metadata. The rail checks current Helper credential, helper device id, enrollment status, lease token, TTL, lease expiry, non-success reason codes, redacted failure messages, bounded audit/log references, and terminal idempotency.
 - Helper data plane: local UDS IPC carrying agent-scoped requests, plus outbound-only Helper job HTTP client construction from validated prerequisite config.
 - Helper local job-policy gate: pure pre-action evaluator for delivered server-owned job views. It returns allow/deny reasons and does not perform IO, OpenClaw actions, service-manager calls, bounded log upload, or terminal settlement on its own.
 - Enforcement stack: handshake identity, action allowlist, path/scope normalization, grant lookup, read-only IO, audit, sandbox.
@@ -52,7 +52,8 @@ Helper pull/lease/result flow:
   helper polls outbound with current Helper credential + helper_device_id
   -> server atomically leases one queued job and returns a safe effective payload + opaque lease token
   -> helper acks receipt only -> later local policy/action handoff remains outside this task
-  -> helper uploads terminal transport metadata; repeated matching ack/result is idempotent and conflicting terminal replay is rejected
+  -> helper uploads terminal transport metadata with closed reason codes, redacted bounded failure message, and opaque audit/log refs only
+  -> repeated matching ack/result is idempotent and conflicting terminal replay is rejected
 
 Helper outbound prerequisite flow:
   installed service starts helper with exact Borgee server origin, allowed origin list, and Helper-owned state dirs
@@ -82,7 +83,7 @@ Install flow:
 - Helper enrollment is represented as `helper_enrollments`, not as Remote Agent nodes, host grants, or user permissions.
 - Helper enforcement is per request; grant state is not cached in the helper decision path.
 - Helper enrollment status and credential rotation are identity/status only; they do not execute jobs or prove Configure OpenClaw success.
-- Helper job enqueue stores typed queued metadata only. Helper job transport can lease, ack, and settle terminal metadata; it does not execute jobs, evaluate local policy, collect bounded logs, restart services, or prove Configure OpenClaw success.
+- Helper job enqueue stores typed queued metadata only. Helper job transport can lease, ack, and settle terminal metadata with redacted failure text and opaque audit/log references; it does not execute jobs, evaluate local policy, collect raw logs, restart services, or prove Configure OpenClaw success.
 - Helper local job policy is a second authority check after enqueue and before any future action. It rejects unknown job types, schema drift, extra or forbidden payload fields, invalid signed manifests, artifact digest mismatches, undeclared paths/domains/services, revoked/stale state, wrong owner/org, and sandbox/profile mismatches.
 - Helper outbound service prerequisites are Helper-rail only: they use Helper startup config and Helper-owned state paths, not Remote Agent credentials, reverse WebSocket transport, host grants, file-proxy status, or permission fallbacks.
 - Helper status UI is read-only enrollment visibility; it is not job progress, bounded logs, OpenClaw connectivity, or service lifecycle status.
@@ -105,7 +106,7 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 - Runtime authorization and platform sandboxing do not have identical update lifecycles; [helper-daemon.md](helper-daemon.md) owns the daemon-level details.
 - Deployment trust and runtime authorization are separate boundaries; [installer.md](installer.md) owns installer trust details.
 - Helper outbound validation does not resolve allowed hostnames or inspect DNS answers/CNAMEs. The installed production allowlist is exactly `https://app.borgee.io`, but DNS rebinding or private/link-local/metadata resolution remains future hardening or runtime network-policy scope.
-- Helper enrollment has identity/status and current-credential rotation handling. Helper job enqueue, outbound poll-and-lease, ack, bounded terminal result settlement, and pure local job-policy evaluation are current behavior. Service lifecycle, local uninstall action execution, bounded log upload, policy-to-action wiring, and OpenClaw execution are not current behavior.
+- Helper enrollment has identity/status and current-credential rotation handling. Helper job enqueue, outbound poll-and-lease, ack, bounded redacted terminal result settlement, and pure local job-policy evaluation are current behavior. Service lifecycle, local uninstall action execution, raw/bulk log upload, policy-to-action wiring, and OpenClaw execution are not current behavior.
 
 ## Implementation Anchors
 

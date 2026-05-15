@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -849,10 +850,13 @@ func validateHelperJobTerminalInput(input CompleteHelperJobInput) (string, strin
 	if !validHelperJobTerminalStatus(input.Status) {
 		return "", "", ErrHelperJobSchemaInvalid
 	}
-	if input.Status == HelperJobStatusFailed && !validHelperJobFailureCode(input.FailureCode) {
+	if input.Status != HelperJobStatusSucceeded && !validHelperJobFailureCode(input.FailureCode) {
 		return "", "", ErrHelperJobSchemaInvalid
 	}
-	if input.Status != HelperJobStatusFailed && input.FailureCode != "" && !validHelperJobFailureCode(input.FailureCode) {
+	if input.Status == HelperJobStatusSucceeded && input.FailureCode != "" {
+		return "", "", ErrHelperJobSchemaInvalid
+	}
+	if input.Status == HelperJobStatusSucceeded && strings.TrimSpace(input.FailureMessage) != "" {
 		return "", "", ErrHelperJobSchemaInvalid
 	}
 	maxMessage := input.MaxFailureMessage
@@ -868,6 +872,7 @@ func validateHelperJobTerminalInput(input CompleteHelperJobInput) (string, strin
 	if len(failureMessage) > maxMessage {
 		return "", "", ErrHelperJobSchemaInvalid
 	}
+	failureMessage = redactHelperJobFailureMessage(failureMessage)
 	resultSummary, err := normalizeHelperJobResultSummary(input.ResultSummaryJSON, input.MaxResultSummaries)
 	if err != nil {
 		return "", "", err
@@ -886,11 +891,31 @@ func validHelperJobTerminalStatus(status string) bool {
 
 func validHelperJobFailureCode(code string) bool {
 	switch code {
-	case "schema_invalid", "unknown_job_type", "policy_denied", "manifest_invalid", "artifact_invalid", "path_denied", "domain_denied", "service_denied", "revoked", "stale_credential", "wrong_owner", "wrong_org", "ttl_expired", "lease_lost", "cancelled", "execution_failed":
+	case "schema_invalid", "unknown_job_type", "policy_denied", "manifest_invalid", "artifact_invalid", "path_denied", "domain_denied", "service_denied", "revoked", "uninstalled", "stale_credential", "wrong_owner", "wrong_org", "ttl_expired", "lease_lost", "cancelled", "execution_failed":
 		return true
 	default:
 		return false
 	}
+}
+
+var helperJobFailureRedactors = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)authorization\s*:\s*bearer\s+[^\s]+`),
+	regexp.MustCompile(`(?i)\b(token|credential|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^\s]+`),
+	regexp.MustCompile(`(?i)\benv\s*[:=]\s*[^\s]+`),
+	regexp.MustCompile(`sk-[A-Za-z0-9_-]+`),
+	regexp.MustCompile(`(?i)private\s+(file|message)\s+content`),
+	regexp.MustCompile(`(/Users|/home)/[^\s]+`),
+}
+
+func redactHelperJobFailureMessage(message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return ""
+	}
+	for _, re := range helperJobFailureRedactors {
+		message = re.ReplaceAllString(message, "[redacted]")
+	}
+	return message
 }
 
 type helperJobResultSummary struct {
