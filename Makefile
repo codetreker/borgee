@@ -18,7 +18,7 @@ precheck:
 		THRESHOLD_FUNC=50 \
 		THRESHOLD_PACKAGE=70 \
 		THRESHOLD_PRINT=85 \
-		BUILD_TAGS="sqlite_fts5" \
+		BUILD_TAGS="sqlite_fts5 race_heavy" \
 		COVERPROFILE="$(COV_PROFILE)" \
 		FAIL_ON_CRITICAL_BLOCKS=false \
 		GENERATE_HTML=false \
