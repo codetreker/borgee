@@ -1,13 +1,13 @@
 # Bounded Remote Actuator Design
 
-> 状态: 草拟 / 讨论稿, 不是 frozen blueprint。
+> 状态: v1.1 planning contract for Helper / OpenClaw onboarding Phase. `HB-RA-1A` locks product guardrails; `HB-RA-1B` locks the execution-contract shape at Phase/Milestone planning granularity. Task-level Dev design still owns exact implementation choices.
 > 目的: 把 PR #916 stance 与 PM / Architect / QA / Dev findings 收敛成下一版 host bridge / Helper remote actuator 设计。
 
 ## §1 Locked HB-RA-1A product guardrails
 
 ### §1.1 HB-RA-1A reference boundary
 
-`HB-RA-1A` locks only the product guardrails in §1.2 for Phase planning. It does not lock the execution contract, queue protocol, credential shape, sandbox profile, revoke race mechanics, service permission matrix, or implementation slices below. Those unresolved execution details stay in `HB-RA-1B` and are tracked in §2.1.
+`HB-RA-1A` locks only the product guardrails in §1.2 for Phase planning. It does not lock the execution contract, queue protocol, credential shape, sandbox profile, revoke race mechanics, service permission matrix, or implementation slices below. Those execution-contract areas stay in `HB-RA-1B` and are tracked in §2.1 for milestone breakdown and task-level Dev design.
 
 Task PRs that cite `HB-RA-1A` must cite §1.1-§1.2 or the matching README ledger row. They must not cite this whole document as if all draft execution design were locked.
 
@@ -23,9 +23,9 @@ Task PRs that cite `HB-RA-1A` must cite §1.1-§1.2 or the matching README ledge
 - Status and logs are bounded and redacted; failed jobs cannot look successful or spin indefinitely.
 - Helper UI placement may move, but Remote Agent credentials, grants, and enforcement rails remain separate from Helper actuator credentials, grants, and enforcement rails.
 
-## §2 Open HB-RA-1B execution-contract blockers
+## §2 HB-RA-1B execution-contract planning scope
 
-### §2.1 Blocker inventory before execution lock
+### §2.1 Contract areas carried into Phase 1
 
 - Manifest signing and artifact binding: signing authority, digest scope, cache invalidation, replay handling, and artifact-to-job binding.
 - Helper credential model: token shape, rotation cadence, stale-device semantics, local storage rules, and invalidation behavior.
@@ -34,7 +34,7 @@ Task PRs that cite `HB-RA-1A` must cite §1.1-§1.2 or the matching README ledge
 - Service permissions: allowed service manager operations, long-lived service privilege level, restart/crash-recovery boundaries, and install-time privilege handoff.
 - Exact queue/lease/result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server/helper clock authority.
 
-`HB-RA-1B` remains `OPEN / PENDING` until these blockers have a reviewed execution contract. References to this section must not be treated as part of the locked `HB-RA-1A` guardrail scope.
+`HB-RA-1B` is locked for Phase/Milestone planning as the execution-contract shape for these areas. Task-level Dev design must still choose exact schemas, migrations, endpoints, permission profiles, and test contracts before code. References to this section must not be treated as part of the locked `HB-RA-1A` product guardrail scope.
 
 ## §3 Product stance
 
@@ -101,7 +101,7 @@ Terminal failure reasons 至少包括: `policy_denied`, `schema_invalid`, `unkno
 
 ## §7 Closed v1 typed jobs
 
-Freeze 前必须把 v1 job set 作为 closed taxonomy 写入 current blueprint。Draft 设计先限定为:
+Before accepted work promotes this scope into current, the v1 job set must be recorded as a closed taxonomy. Draft 设计先限定为:
 
 | job_type | 允许动作 | 关键约束 |
 |---|---|---|
@@ -131,7 +131,7 @@ Allowed inside helper sandbox / policy:
 
 Denied by default: inbound server dial to host, arbitrary network domains, arbitrary file writes, arbitrary executable paths, client-supplied scripts, client-supplied service unit names, and sudo cache。
 
-Open implementation blocker: Linux service currently has AF_UNIX-only issue to resolve before outbound poll / long-poll can work from the long-lived helper service. Freeze must decide the exact sandbox profile write / network / service permissions before moving this design to current。
+Task-level implementation decision: Linux service currently has an AF_UNIX-only issue to resolve before outbound poll / long-poll can work from the long-lived helper service. Milestone breakdown and Dev design must resolve the exact sandbox profile write / network / service permissions before accepted work can move this design to current。
 
 ## §9 Privilege boundary
 
@@ -176,7 +176,9 @@ Fast / slow cron are Teamlead coordination / runtime timer / lease / heartbeat c
 5. Scoped service lifecycle: only enrolled Borgee / OpenClaw service identifiers, boot + crash restart, bounded restart / backoff。
 6. Configure OpenClaw closure: install plugin, create / update OpenClaw agent config, configure Borgee plugin connection / channel binding, connected / failed UI states。
 
-## §14 Open decisions / blockers before freeze
+## §14 Task-Level Decisions Before Current Promotion
+
+The Phase/Milestone plan is locked at execution-contract granularity. These choices remain for milestone breakdown and task-level Dev design, not as blockers to the corrected Phase plan:
 
 - Manifest signing / artifact binding: signing authority, digest scope, cache invalidation, replay handling。
 - Helper credential model: token shape, rotation cadence, stale-device semantics, local storage rules。

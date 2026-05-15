@@ -7,10 +7,10 @@ Picked backlog inputs grouped by next-blueprint anchor. This file is traceabilit
 - gh#681 — Expand Helper host-management onboarding so Web-side Configure OpenClaw can install the plugin, create or update agent config, and bind channels through a bounded Helper remote-actuator path, without reusing Remote Agent file-proxy credentials or authority.
 - gh#659 — Ensure the long-lived helper / agent service path needed for Configure OpenClaw survives OS reboot and crash restart without turning the installer into a persistent privileged daemon.
 
-## `HB-RA-1B` Helper Actuator Execution Contract Blockers
+## `HB-RA-1B` Helper Actuator Execution Contract Planning Scope
 
-- gh#681 — Resolve the manifest/artifact signing, helper credential model, sandbox/Linux outbound poll, revoke race, and exact queue/lease/result contract before execution lock.
-- gh#659 — Resolve service permission and long-lived service restart boundaries before execution lock.
+- gh#681 — Carry manifest/artifact signing, helper credential model, sandbox/Linux outbound poll, revoke race, and exact queue/lease/result contract into Phase 1 milestone breakdown and task-level Dev design.
+- gh#659 — Carry service permission and long-lived service restart boundaries into Phase 1 milestone breakdown and task-level Dev design.
 
 ## `MR-1` Mention Routing
 
