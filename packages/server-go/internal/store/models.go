@@ -225,3 +225,33 @@ type HelperEnrollment struct {
 }
 
 func (HelperEnrollment) TableName() string { return "helper_enrollments" }
+
+type HelperJob struct {
+	ID                     string  `gorm:"primaryKey;size:36;column:id" json:"id"`
+	OwnerUserID            string  `gorm:"not null;size:36;column:owner_user_id" json:"-"`
+	OrgID                  string  `gorm:"not null;size:36;column:org_id" json:"-"`
+	EnrollmentID           string  `gorm:"not null;size:36;column:enrollment_id" json:"enrollment_id"`
+	HelperDeviceID         *string `gorm:"size:255;column:helper_device_id" json:"-"`
+	JobType                string  `gorm:"not null;column:job_type" json:"job_type"`
+	Category               string  `gorm:"not null;column:category" json:"category"`
+	SchemaVersion          int     `gorm:"not null;column:schema_version" json:"schema_version"`
+	PayloadJSON            string  `gorm:"not null;column:payload_json" json:"-"`
+	PayloadHash            string  `gorm:"not null;column:payload_hash" json:"payload_hash"`
+	ManifestDigest         string  `gorm:"column:manifest_digest" json:"manifest_digest,omitempty"`
+	ManifestBindingJSON    *string `gorm:"column:manifest_binding_json" json:"-"`
+	IdempotencyKey         *string `gorm:"column:idempotency_key" json:"idempotency_key,omitempty"`
+	IdempotencyScope       string  `gorm:"not null;column:idempotency_scope" json:"-"`
+	ActiveIdempotencyScope *string `gorm:"column:active_idempotency_scope" json:"-"`
+	Status                 string  `gorm:"not null;column:status" json:"status"`
+	FailureCode            *string `gorm:"column:failure_code" json:"failure_code,omitempty"`
+	FailureMessage         *string `gorm:"column:failure_message" json:"-"`
+	CreatedAt              int64   `gorm:"not null;column:created_at" json:"created_at"`
+	UpdatedAt              int64   `gorm:"not null;column:updated_at" json:"-"`
+	ExpiresAt              int64   `gorm:"not null;column:expires_at" json:"expires_at"`
+	LeasedAt               *int64  `gorm:"column:leased_at" json:"-"`
+	LeaseExpiresAt         *int64  `gorm:"column:lease_expires_at" json:"-"`
+	CompletedAt            *int64  `gorm:"column:completed_at" json:"completed_at,omitempty"`
+	ResultSummaryJSON      *string `gorm:"column:result_summary_json" json:"-"`
+}
+
+func (HelperJob) TableName() string { return "helper_jobs" }

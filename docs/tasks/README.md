@@ -4,7 +4,7 @@
 
 | Phase | Status | Exit condition | Current milestone |
 |---|---|---|---|
-| Phase 1: Helper / OpenClaw Onboarding | IMPLEMENTING | A user can enroll Helper once, configure OpenClaw from Web, see truthful status/logs, and revoke the delegation without merging Helper and Remote Agent rails | `milestone-1-helper-enrollment-status` |
+| Phase 1: Helper / OpenClaw Onboarding | IMPLEMENTING | A user can enroll Helper once, configure OpenClaw from Web, see truthful status/logs, and revoke the delegation without merging Helper and Remote Agent rails | `milestone-2-typed-job-policy-loop` |
 | Phase 2: Collaboration Channel Control | TASK_SET_READY | A user can control agent attention and channel membership/authority without hidden fanout, confusing leave actions, or overloaded private-channel indicators | `milestone-1-mention-delivery-controls` |
 | Phase 3: Client Truth And Navigation | TASK_SET_READY | Production-visible surfaces are reachable and forbidden states are truthful, while account/sidebar IA exposes the right primary entries without expanding privacy/compliance product scope | `milestone-1-production-surface-truthfulness` |
 
@@ -13,15 +13,15 @@ This Phase Index records the v1.1 execution path opened from the selected next-b
 Current execution resume state:
 
 - Milestone breakdown is accepted across all 8 v1.1 milestones.
-- Accepted task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status` via PR #934, merged at `547f869`.
-- Active task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-2-helper-credential-rotation-and-revoke`.
-- Current gate: tasking/four-piece and Dev design review before implementation; PR #935 was closed, so this task PR carries the task-1 acceptance-state remediation.
+- Phase 1 milestone 1 is accepted through PR #934 (`547f869`), PR #936 (`1ca5f95`), and PR #937 (`2872905`).
+- Active task: `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-1-job-envelope-and-enqueue-authority`.
+- Current gate: task-start/four-piece review for the server-authorized typed job envelope and enqueue authority. Product implementation has not started.
 
 ## Active Task Resume
 
 | Scope | Execution | Active task | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
-| `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status` | TASKING | `task-2-helper-credential-rotation-and-revoke` | Dev/Writer helper under Teamlead | `.worktrees/task-2-helper-credential-rotation-and-revoke` / `feat/task-2-helper-credential-rotation-and-revoke` | pending | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-2-helper-credential-rotation-and-revoke/progress.md` |
+| `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop` | TASKING | `task-1-job-envelope-and-enqueue-authority` | Blueprintflow tasking worker under Teamlead | `.worktrees/task-1-job-envelope-and-enqueue-authority` / `feat/task-1-job-envelope-and-enqueue-authority` | not opened | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-1-job-envelope-and-enqueue-authority/progress.md` |
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 

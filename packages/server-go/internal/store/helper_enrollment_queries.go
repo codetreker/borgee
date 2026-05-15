@@ -43,7 +43,7 @@ func (s *Store) CreateHelperEnrollment(ownerUserID, hostLabel string, allowedCat
 	if err != nil {
 		return nil, "", err
 	}
-	if owner.OrgID == "" {
+	if owner.OrgID == "" || owner.Role != "member" {
 		return nil, "", ErrHelperEnrollmentInvalidOwner
 	}
 	hostLabel = strings.TrimSpace(hostLabel)

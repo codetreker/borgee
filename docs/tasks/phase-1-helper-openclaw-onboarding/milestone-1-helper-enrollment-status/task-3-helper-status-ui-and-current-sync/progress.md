@@ -8,8 +8,8 @@
 | Branch | `feat/task-3-helper-status-ui-and-current-sync` |
 | PR | #937 |
 | Owner | Dev/Writer helper under Teamlead |
-| State | RECONCILED_AFTER_TASK_2 |
-| Blocker | none after Task 2 PR #936 merge and Host Bridge current-doc reconciliation |
+| State | ACCEPTED |
+| Blocker | none; PR #937 merged at `2872905`. |
 
 ## Checkpoints
 
@@ -61,9 +61,13 @@
 
 ## Blockers And Coordination Notes
 
-- Task 2 PR #936 merged at `1ca5f950223dfce2ea8f075ef46aadd00779ba1a`; Task 3 has been rebased and the known Host Bridge current-doc conflict has been reconciled.
+- Task 2 PR #936 merged at `1ca5f950223dfce2ea8f075ef46aadd00779ba1a`; Task 3 merged via PR #937 at `2872905` after the known Host Bridge current-doc conflict was reconciled.
 - Design gate passed and implementation was dispatched by Teamlead. Production code began only after focused RED tests failed.
 - `content-lock.md` now locks the exact UI copy and DOM selectors introduced by task 3 tests.
+
+## Acceptance State
+
+Task 3 is accepted through PR #937, merged at `2872905`. Phase 1 milestone 1 is complete when combined with PR #934 and PR #936.
 
 ## Acceptance Evidence
 

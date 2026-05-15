@@ -41,12 +41,12 @@ The task should establish Helper enrollment identity and visible status only; it
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
 | `task-1-helper-enrollment-model-and-status` | ACCEPTED | Create distinct Helper enrollment identity and visible host status foundation | none | no | yes |
-| `task-2-helper-credential-rotation-and-revoke` | TASKING | Add helper credential lifecycle, stale-device handling, and revoke/uninstall authority | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
-| `task-3-helper-status-ui-and-current-sync` | READY | Surface Helper status and sync accepted enrollment/status contracts to current docs | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
+| `task-2-helper-credential-rotation-and-revoke` | ACCEPTED | Add helper credential lifecycle, stale-device handling, and revoke/uninstall authority | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
+| `task-3-helper-status-ui-and-current-sync` | ACCEPTED | Surface Helper status and sync accepted enrollment/status contracts to current docs | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
 
 Dependency order: task 1 must land first because later credential and UI work need the enrollment identity and owner/org binding. Tasks 2 and 3 can run in parallel after task 1 if their touched files do not conflict.
 
-Task 1 acceptance state: PR #934 merged at `547f869`. PR #935 was closed before landing the shared acceptance-state cleanup, so task 2 carries that remediation while remaining unaccepted until its own acceptance evidence is complete.
+Acceptance state: Milestone 1 is accepted. Task 1 merged via PR #934 at `547f869`; task 2 merged via PR #936 at `1ca5f95`; task 3 merged via PR #937 at `2872905`. Milestone 2 may start from `task-1-job-envelope-and-enqueue-authority`.
 
 ## Breakdown Review
 

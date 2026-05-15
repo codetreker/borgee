@@ -51,7 +51,7 @@ Startup has three phases:
 2. Runtime composition: create hub, presence writer, data layer, server struct, routes, BPP dispatchers, push notifiers, and adapters.
 3. Service lifetime: wrap the mux in middleware, start HTTP serving, run background loops, and stop on process cancellation.
 
-The HTTP surface is a single mux with rail-specific protection. Public health/auth/manifest/static paths are intentionally limited. User REST paths are wrapped with user authentication and optional capability checks. Admin paths are wrapped with admin session authentication. WebSocket paths are mounted directly because their authentication must handle protocol-specific credential locations.
+The HTTP surface is a single mux with rail-specific protection. Public health/auth/manifest/static paths are intentionally limited. User REST paths are wrapped with user authentication and optional capability checks. Admin paths are wrapped with admin session authentication. WebSocket paths are mounted directly because their authentication must handle protocol-specific credential locations. Helper job enqueue is mounted only as a user-authenticated route at `POST /api/v1/helper/enrollments/{enrollmentId}/jobs`; Helper credential endpoints remain limited to claim/status/rotation/uninstall lifecycle calls.
 
 Middleware is a shell around the whole mux. Recovery sits outermost, request ID and logging wrap the request, CORS and security headers apply before route logic, and the rate limiter guards the final route execution. This keeps cross-cutting behavior uniform without embedding it into individual handlers.
 
@@ -74,6 +74,7 @@ Shutdown flow: the process listens for termination signals, shuts down HTTP serv
 - The production process has one server composition root.
 - Schema and admin bootstrap complete before serving requests.
 - User and admin routes are mounted on separate rails with separate middleware.
+- Helper job enqueue is mounted on the user rail only. Helper poll, lease, result, ack, logs, service lifecycle, local policy, install, uninstall action execution, and Configure OpenClaw closure routes are not mounted by this enqueue step.
 - WebSocket endpoints authenticate inside the endpoint handler because their credentials may live in headers, subprotocols, query params, or cookies.
 - Plugin API proxying reuses the server handler; it does not create a second application stack.
 - Background jobs are tied to the server lifetime context.
@@ -89,6 +90,7 @@ Startup/routing does not define business authorization rules, migration contents
 - `packages/server-go/internal/server/server.go`
 - `packages/server-go/internal/server/middleware.go`
 - `packages/server-go/internal/api/auth.go`
+- `packages/server-go/internal/api/helper_jobs.go`
 - `packages/server-go/internal/admin/auth.go`
 - `packages/server-go/internal/admin/middleware.go`
 - `packages/server-go/internal/auth/middleware.go`
