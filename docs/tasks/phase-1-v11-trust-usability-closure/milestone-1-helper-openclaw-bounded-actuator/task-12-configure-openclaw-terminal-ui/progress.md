@@ -8,7 +8,7 @@
 | Branch | `task/m1-task12-configure-openclaw-terminal-ui` |
 | PR | #964 |
 | Owner | M1 Task12 rescue owner |
-| State | PR_VERIFYING |
+| State | CI_GREEN |
 | Blocker | none |
 
 ## Dependency Decision
@@ -25,7 +25,7 @@ Task12 is unblocked. The required M1 typed job chain is merged into `origin/main
 - [x] Server projection, client sanitizer, and Helper Status UI implementation present.
 - [x] Focused and broader local verification complete.
 - [x] PR opened: #964.
-- [ ] CI monitored.
+- [x] CI monitored: all PR #964 checks passed on commit `5ca6029`.
 
 ## Evidence
 
@@ -46,6 +46,7 @@ Task12 is unblocked. The required M1 typed job chain is merged into `origin/main
 | CI: go-test-cov | PR #964 initially failed because new datalayer projection helpers were covered through API tests but not datalayer package-local coverage. Added direct datalayer tests for projection derivation, bounded refs, repo scoping, and label/state branches. | FIXED LOCALLY |
 | GREEN: focused datalayer | `GOTMPDIR=/workspace/borgee/.worktrees/m1-task12-configure-openclaw-terminal-ui/.gotmp/server-go go test -tags sqlite_fts5 -count=1 ./internal/datalayer -run 'TestHelperJobConfigureOpenClaw'` passed. | PASS |
 | GREEN: CI coverage parity | `GOTMPDIR=/workspace/borgee/.worktrees/m1-task12-configure-openclaw-terminal-ui/.gotmp/coverage CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false go run ./scripts/lib/coverage/` passed with total coverage 85.3%. | PASS |
+| PR CI | PR #964 checks passed on commit `5ca6029`: PR lint, bpp-envelope-lint, check, client-vitest, e2e, go-test-cov, go-test-race, go-test-race-heavy, and hb20-ipc-prereq on macOS/Ubuntu/Windows. | PASS |
 
 ## Implementation Summary
 
