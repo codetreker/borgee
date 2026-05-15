@@ -6,7 +6,7 @@
 |---|---|
 | Worktree | `.worktrees/task-8-private-indicator-visual-treatment` |
 | Branch | `feat/task-8-private-indicator-visual-treatment` |
-| PR | not opened yet |
+| PR | #952 |
 | Owner | Blueprintflow owner worker under Teamlead |
 | State | ACCEPTING |
 | Blocker | none |
@@ -21,6 +21,7 @@
 - [x] Wrote failing regression test before production edits.
 - [x] Implemented quiet private marker in `SortableChannelItem` and CSS.
 - [x] Updated current docs and task evidence.
+- [x] Opened PR #952.
 
 ## Scope Locks
 
@@ -40,4 +41,4 @@
 
 ## Acceptance State
 
-Task 8 implementation and docs are ready for commit and PR open.
+Task 8 implementation and docs are in PR #952 for CI and acceptance review.
