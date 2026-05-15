@@ -24,7 +24,7 @@
 - [x] Current-doc sync completed
 - [x] Acceptance evidence recorded
 - [x] PR opened
-- [ ] CI reviewed
+- [x] CI failure triaged and fix pushed
 
 ## Evidence Log
 
@@ -44,6 +44,13 @@
 | Scope overlap check | Changed production files are limited to `packages/client/src/components/Sidebar.tsx` and `packages/client/src/index.css`; no ArtifactComments, Settings PermissionsView, NodeManager, or HelperStatusPanel production files edited | PASS |
 | Current-doc sync | Updated `docs/current/client/ui-map.md`, `docs/current/client/app-shell-state.md`, `docs/current/client/ui/main-desktop.md`, and `docs/current/client/ui/sidepane.md` for primary footer and secondary overflow behavior | PASS |
 | PR opened | PR #947: `feat(client): simplify sidebar footer entries` | PASS |
+| CI e2e triage | PR #947 e2e failed because old invitation tests expected a primary `button.invitations-btn`; task intentionally moved Invitations behind More | FIXED |
+| Focused e2e after CI fix | From `packages/e2e`: `CI=1 GOTMPDIR="$PWD/.playwright-data/gotmp" ./node_modules/.bin/playwright test tests/chat-name-display-regression.spec.ts tests/chat-realtime-message-fanout.spec.ts --workers=1` -> 2 passed | PASS |
+| CI-fix focused app-shell tests | From `packages/client`: `../../node_modules/.bin/vitest run src/__tests__/Sidebar-footer-primary.test.tsx src/__tests__/Sidebar-dm-agent-presence.test.tsx src/__tests__/main-view.test.ts --config vitest.config.ts` -> 3 files passed, 22 tests passed | PASS |
+| CI-fix client typecheck | From `packages/client`: `../../node_modules/.bin/tsc --noEmit` -> exit 0 | PASS |
+| CI-fix client build | From `packages/client`: `./node_modules/.bin/vite build` -> build completed; existing chunk-size warning only | PASS |
+| CI-fix full client test suite | From `packages/client`: `./node_modules/.bin/vitest run --config vitest.config.ts` -> 130 files passed, 829 tests passed, 1 skipped | PASS |
+| CI-fix diff hygiene | `git diff --check` -> exit 0 with no output | PASS |
 
 ## Current-Doc Sync Targets
 
@@ -59,7 +66,7 @@
 
 | Segment | Evidence | Result |
 |---|---|---|
-| Segment A - Primary footer set | `Sidebar-footer-primary.test.tsx` verifies avatar, Agents, Workspaces, Settings, and More are the only primary footer actions for member sessions | PASS |
+| Segment A - Primary footer set | `Sidebar-footer-primary.test.tsx` verifies avatar, Agents, Workspaces, Settings, and More are the only primary footer actions for member sessions; pending invitation count decorates More without restoring a primary Invitations action | PASS |
 | Segment B - Secondary reachability | `Sidebar-footer-primary.test.tsx` verifies Invitations, Remote Nodes, Helper Status, and Logout remain reachable through More; logout still calls `logout()` and `onLogout` | PASS |
 | Segment C - Agent-session boundary | `Sidebar-footer-primary.test.tsx` verifies agent sessions keep Workspaces and Logout but do not gain owner-only Agents, Invitations, Remote Nodes, Helper Status, or Settings | PASS |
 | Segment D - Tests and verification | TDD RED and GREEN runs plus adjacent Sidebar/app-shell tests and typecheck recorded above | PASS |

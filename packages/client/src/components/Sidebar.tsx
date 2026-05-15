@@ -40,7 +40,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
   const [channelMembers, setChannelMembers] = useState<ChannelMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<number>(0);
 
-  // Poll pending agent-invitation count for the bell badge. Only owners
+  // Poll pending agent-invitation count for the footer badge. Only owners
   // (non-agent accounts) ever receive owner-side invitations, so we skip
   // polling for agent sessions. RT-0 (#40) keeps the 60s poll as a
   // belt-and-suspenders fallback (offline reconnect, missed frames),
@@ -164,6 +164,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
 
   // Filter out DMs — sorting is handled by ChannelList component
   const nonDmChannels = state.channels.filter(c => c.type !== 'dm');
+  const pendingInvitationBadgeText = pendingInvitations > 99 ? '99+' : pendingInvitations;
 
   // Sort DMs by last message time
   const sortedDms = [...state.dmChannels].sort((a, b) => {
@@ -350,13 +351,22 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
             ) || onLogout ? (
               <div className="sidebar-footer-secondary" ref={footerMenuRef}>
                 <button
-                  className="icon-btn"
+                  className="icon-btn sidebar-footer-more-btn"
                   title="更多"
                   aria-label="更多"
                   data-testid="sidebar-footer-secondary-toggle"
                   onClick={() => setShowFooterMenu(open => !open)}
                 >
-                  ⋯
+                  <span aria-hidden="true">⋯</span>
+                  {state.currentUser.role !== 'agent' && pendingInvitations > 0 && (
+                    <span
+                      className="unread-badge sidebar-footer-more-badge"
+                      data-testid="sidebar-footer-more-badge"
+                      aria-label={`${pendingInvitations} 待处理邀请`}
+                    >
+                      {pendingInvitationBadgeText}
+                    </span>
+                  )}
                 </button>
                 {showFooterMenu && (
                   <div className="sidebar-footer-secondary-menu" data-testid="sidebar-footer-secondary-menu">
@@ -379,7 +389,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                             data-testid="invitation-bell-badge"
                             aria-label={`${pendingInvitations} 待处理邀请`}
                           >
-                            {pendingInvitations > 99 ? '99+' : pendingInvitations}
+                            {pendingInvitationBadgeText}
                           </span>
                         )}
                       </button>

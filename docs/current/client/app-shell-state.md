@@ -56,7 +56,7 @@ Feature-local state stays outside the shared context when it is not required acr
 
 The user shell has one primary view mode: channel, agents, invitations, workspaces, remote nodes, Helper status, or settings. Channel mode then delegates to the selected channel and its tab state. This keeps app-level navigation shallow and avoids using browser routes for normal user workflow.
 
-The sidebar footer separates repeated primary entries from secondary actions. The primary row exposes avatar/account identity plus Agents, Workspaces, and Settings when the current role and callbacks allow them. Invitations, Remote Nodes, Helper Status, and Logout remain reachable through the footer overflow menu until the account-panel and runtime-entry placement tasks replace those secondary locations. This is shell navigation only; the footer does not merge Remote Agent and Helper rails or change feature authorization.
+The sidebar footer separates repeated primary entries from secondary actions. The primary row exposes avatar/account identity plus Agents, Workspaces, Settings, and a More toggle when the current role and callbacks allow them. Pending invitation count appears on More for discoverability, while Invitations, Remote Nodes, Helper Status, and Logout remain reachable through the footer overflow menu until the account-panel and runtime-entry placement tasks replace those secondary locations. This is shell navigation only; the footer does not merge Remote Agent and Helper rails or change feature authorization.
 
 Before switching view mode, the shell runs registered unsaved-change guards. Feature forms that can lose user input register with the guard system; the shell treats cancellation as a navigation veto.
 

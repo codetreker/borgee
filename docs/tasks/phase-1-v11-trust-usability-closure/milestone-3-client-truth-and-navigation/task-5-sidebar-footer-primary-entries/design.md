@@ -51,7 +51,7 @@ Sidebar footer click
   -> existing mainView sidepane selection
 ```
 
-The existing pending invitation refresh stays in `Sidebar.tsx`. The only behavioral change is presentation: the badge moves from a primary bell button to the secondary Invitations menu item.
+The existing pending invitation refresh stays in `Sidebar.tsx`. The only behavioral change is presentation: pending count appears on the primary More toggle for discoverability and on the secondary Invitations menu item for action context.
 
 The secondary menu uses local component state and closes on action selection or outside click. It should reuse the existing document `mousedown` style already used for the add-channel dropdown.
 
@@ -83,7 +83,7 @@ Use TDD before production changes:
 
 1. Add a focused Sidebar footer test that renders a member with all callbacks and asserts the primary action group contains avatar, Agents, Workspaces, Settings, and More only; Invitations, Remote Nodes, Helper Status, and Logout are absent from the primary group.
 2. Add a secondary menu test that opens More and asserts Invitations, Remote Nodes, Helper Status, and Logout are reachable; clicking each action calls its existing callback/API path.
-3. Add a pending invitation badge test for the secondary Invitations action.
+3. Add a pending invitation badge test for the primary More toggle and secondary Invitations action.
 4. Add an agent role-gating test asserting owner-only controls do not appear in primary or secondary footer controls.
 
 After implementation, run focused Sidebar tests, client typecheck, `git diff --check`, and PR-lint-relevant checks.

@@ -24,7 +24,7 @@ Negative checks:
 Acceptance checks:
 
 - Invitations, Remote Nodes, Helper Status, and Logout remain reachable through a secondary footer menu when their callbacks are supplied and role gates permit them.
-- Pending invitation count remains visible on the secondary Invitations action when pending invitations exist.
+- Pending invitation count remains visible on the primary More toggle and secondary Invitations action when pending invitations exist.
 - Logout still calls the existing logout API and `onLogout` callback path.
 
 Negative checks:
@@ -47,7 +47,7 @@ Negative checks:
 
 Acceptance checks:
 
-- TDD RED tests fail before production changes and cover primary footer count/content, secondary reachability, pending invitation badge, logout path, and agent role gating.
+- TDD RED tests fail before production changes and cover primary footer count/content, secondary reachability, primary/secondary pending invitation badge, logout path, and agent role gating.
 - Focused Sidebar tests pass after implementation.
 - Client typecheck and diff hygiene pass before PR open.
 

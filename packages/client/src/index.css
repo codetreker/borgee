@@ -640,6 +640,21 @@ body {
   margin-left: auto;
 }
 
+.sidebar-footer-more-btn {
+  position: relative;
+}
+
+.sidebar-footer-more-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
 .sidebar-footer-secondary-menu {
   position: absolute;
   right: 0;

@@ -87,7 +87,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Channel selection | Rail, channel host, read markers | Selection is global because multiple surfaces must agree on the active channel. |
 | WebSocket connection | Chat, rail, presence indicators | Connection state is global; feature-specific refresh remains local. |
 | Unsaved-change guards | Sidepanes and shell navigation | Feature forms register guards; shell navigation respects them. |
-| Invitation signal | Rail badge and invitation sidepane | Signal wakes both surfaces; REST remains authoritative. |
+| Invitation signal | Footer More badge and invitation sidepane | Signal wakes both surfaces; REST remains authoritative. |
 | Artifact/comment signal | Canvas and comment surfaces | Signal wakes scoped artifact surfaces; bodies are pulled. |
 | Admin-awareness grant | Global banner and settings | User-owned grant state can affect the whole authenticated shell. |
 

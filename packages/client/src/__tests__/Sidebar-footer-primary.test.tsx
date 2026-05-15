@@ -157,12 +157,14 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
-  it('shows pending invitation count on the secondary invitations action', async () => {
+  it('shows pending invitation count on the primary More toggle and secondary invitations action', async () => {
     vi.mocked(listAgentInvitations).mockResolvedValue([
       { id: 'inv-1', state: 'pending' },
       { id: 'inv-2', state: 'pending' },
     ] as Awaited<ReturnType<typeof listAgentInvitations>>);
     await renderSidebar();
+
+    expect(container!.querySelector('[data-testid="sidebar-footer-more-badge"]')?.textContent).toBe('2');
 
     click(container!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
 

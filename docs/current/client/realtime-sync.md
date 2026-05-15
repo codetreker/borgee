@@ -59,7 +59,7 @@ Signal frames intentionally carry minimal data. They answer “something changed
 
 | Signal | Pull target | Reason |
 | --- | --- | --- |
-| Agent invitation pending/decided | Invitation list | Inbox and bell count should reflect server-side state and expiration/decision logic. |
+| Agent invitation pending/decided | Invitation list | Inbox and footer badge count should reflect server-side state and expiration/decision logic. |
 | Artifact updated | Artifact head and version list | Artifact body, committer, and versions are authoritative through REST. |
 | Mention pushed | Channel messages | The push preview is not the rendered message body. |
 | Anchor comment added | Anchor threads and comments | Comment bodies and thread state are pulled through ACL-aware REST. |
