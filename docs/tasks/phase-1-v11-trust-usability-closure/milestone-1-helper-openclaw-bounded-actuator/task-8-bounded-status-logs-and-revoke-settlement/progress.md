@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/task-8-bounded-status-logs-and-revoke-settlement` |
 | Branch | `feat/task-8-bounded-status-logs-and-revoke-settlement` |
-| PR | pending |
+| PR | #954 |
 | Owner | M1 Task8 owner worker |
-| State | READY_FOR_PR |
+| State | ACCEPTING |
 | Blocker | none; Task6 PR #943 and Task7 PR #942 are merged on `origin/main` |
 
 ## Checkpoints
@@ -25,7 +25,8 @@
 - [x] Implementation complete.
 - [x] Docs/current synced.
 - [x] Acceptance evidence recorded.
-- [ ] PR opened and CI monitored.
+- [x] PR opened: #954.
+- [ ] CI monitored.
 
 ## Evidence
 
