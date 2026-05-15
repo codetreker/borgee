@@ -1,17 +1,17 @@
 # Next Blueprint Migration Analysis
 
-> 状态: 下一版蓝图讨论用影响分析。不是冻结结论。
+> 状态: 下一版蓝图影响分析。v1.1 Phase/Milestone plan locks the selected anchors at planning granularity; task-level Dev design still owns exact implementation details.
 
 ## §0 版本判断
 
 默认判断: **非反转集群为 minor bump; gh#681 sandbox / actuator stance 是 major-trigger / open major decision only if current trust pillars cannot support the corrected bounded-job model**。
 
-理由: 多数 issue 只是给已冻结的产品立场补粒度、补页面、补真实 UI surface, 没有默认推翻“Borgee 是 agent 协作平台, 不是 agent 平台”。gh#681 的正确产品 stance 不是把 web-triggered OpenClaw configuration 拦回 SSH, 也不是开放任意 host shell; 它要求初次 enrollment / install 后, Borgee Helper 作为 remote actuator, 执行 bounded, pre-authorized host-management jobs。current `host-bridge.md` 把 process sandboxing / sandbox 写入 v1 trust model; 如果该 trust pillar 不能允许声明过的 typed jobs, freeze 前必须重写该支柱。若选择完全移除 sandbox, 仍不能无条件归为 minor。
+理由: 多数 issue 只是给已冻结的产品立场补粒度、补页面、补真实 UI surface, 没有默认推翻“Borgee 是 agent 协作平台, 不是 agent 平台”。gh#681 的正确产品 stance 不是把 web-triggered OpenClaw configuration 拦回 SSH, 也不是开放任意 host shell; 它要求初次 enrollment / install 后, Borgee Helper 作为 remote actuator, 执行 bounded, pre-authorized host-management jobs。current `host-bridge.md` 把 process sandboxing / sandbox 写入 v1 trust model; 如果该 trust pillar 不能允许声明过的 typed jobs, accepted work promotion 前必须重写该支柱。若选择完全移除 sandbox, 仍不能无条件归为 minor。
 
 进入 **major bump** 的触发条件有三类:
 
 - Borgee 从接入 / 配置 / Helper 变成 runtime owner, 直接承担 LLM/runtime/shell 执行责任。
-- gh#681 被解释成完全移除 sandbox / helper isolation, 或 current host-bridge 的 process sandboxing trust pillar 无法支持 typed, pre-authorized actuator jobs 且 freeze 时未同步重写。
+- gh#681 被解释成完全移除 sandbox / helper isolation, 或 current host-bridge 的 process sandboxing trust pillar 无法支持 typed, pre-authorized actuator jobs 且 accepted work promotion 时未同步重写。
 - 既有 privacy / security 边界被删除, 例如 admin 默认可读内容、跨 org 可替别人 agent 扩权、backend/server-side controls 被移除。
 
 ---
@@ -35,9 +35,9 @@
 
 This section is the migration-analysis reference for locked `HB-RA-1A`. It does not lock the execution contract details in §2.2 or in `remote-actuator-design.md` §2.1.
 
-### §2.2 HB-RA-1B open execution-contract blockers
+### §2.2 HB-RA-1B execution-contract planning scope
 
-`HB-RA-1B` remains open until the next blueprint resolves all of these execution-contract blockers:
+`HB-RA-1B` is locked for Phase/Milestone planning around these execution-contract areas:
 
 - Manifest signing and artifact binding: signing authority, digest scope, cache invalidation, replay handling, and artifact-to-job binding.
 - Helper credential model: token shape, rotation cadence, stale-device semantics, local storage rules, and invalidation behavior.
@@ -46,7 +46,7 @@ This section is the migration-analysis reference for locked `HB-RA-1A`. It does 
 - Service permissions: allowed service manager operations, long-lived service privilege level, restart/crash-recovery boundaries, and install-time privilege handoff.
 - Exact queue/lease/result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server/helper clock authority.
 
-References to §2.2 are blocker references only and must not be read into the locked `HB-RA-1A` product guardrail scope.
+References to §2.2 are execution-contract references for Phase 1 task planning and must not be read into the locked `HB-RA-1A` product guardrail scope. Exact schemas, permission profiles, migrations, endpoints, and tests remain task-level Dev design work.
 
 ### §2.3 当前立场
 
@@ -60,7 +60,7 @@ References to §2.2 are blocker references only and must not be read into the lo
 - gh#681 v1 scope guard: OpenClaw only, Mac/Linux only, local-host setup only; 不做 remote-host setup; 直连 / power-user plugin 路径仍合法。
 - gh#659 把长生命周期、非 sudo helper / agent service 的常驻语义补成 OS 重启后自动恢复与 crash restart。
 - 这些都是 host-bridge 目标态的完成项, 不是让 Borgee 成为 runtime owner。
-- 具体 bounded remote actuator 设计草案见 `remote-actuator-design.md` §1.1-§1.2 for locked guardrails and §2.1 for open blockers; freeze 时需要把已解决的 enrollment identity、job queue contract、closed v1 typed job taxonomy、sandbox / privilege / revocation rules 合并进 current host-bridge 相关章节。
+- 具体 bounded remote actuator 设计草案见 `remote-actuator-design.md` §1.1-§1.2 for locked guardrails and §2.1 for execution-contract planning scope; task-level Dev design owns exact enrollment identity、job queue contract、closed v1 typed job taxonomy、sandbox / privilege / revocation choices before accepted work can promote into current host-bridge 相关章节。
 - Borgee Helper is a remote actuator for bounded, pre-authorized host-management jobs after enrollment; 如果 web-triggered Configure OpenClaw 在 helper install 后仍要求 SSH, remote-agent / helper 对这个场景没有产品价值。
 - Enrollment-time delegation 不是 blanket preauthorization。它只覆盖 closed v1 job taxonomy 内的 OpenClaw / helper lifecycle 与 config; install / config paths 之外的 file / network / resource access 仍走 owner-controlled allowlists / revocation, 保留“装时轻、用时问、问时有理由”。
 - Web-side Configure OpenClaw is allowed after initial enrollment because the host has already delegated that class of action。Initial enrollment remains explicit local action; after that, user can operate from web。No post-install SSH approval requirement for normal Configure OpenClaw flow。
@@ -76,7 +76,7 @@ References to §2.2 are blocker references only and must not be read into the lo
 - Dev sequencing: enrollment -> typed job queue / pull -> local policy enforcement -> service lifecycle。
 - Job transport pull-first / outbound-only: enrolled helper 用 helper credential poll / long-poll job queue; server never dials host。
 - Server-side enqueue gate 先按 owner / org / enrollment / delegation 授权 job creation; helper 再独立 revalidate job type、manifest / artifact、paths / domains、service identifiers、revocation。
-- Freeze 前需定: helper identity, job lease / ack / result, idempotency, retry / backoff, TTL, cancellation / revocation, status / log reporting。
+- Task-level Dev design must decide helper identity, job lease / ack / result, idempotency, retry / backoff, TTL, cancellation / revocation, and status / log reporting before code acceptance。
 - Initial enrollment 可包含 privileged setup; post-enrollment normal Configure OpenClaw 是 non-sudo typed jobs。后续 job 若调用 `install-butler`, 必须是 bounded signed install task, 不缓存 sudo、不 silent escalation。
 - Service lifecycle jobs 只允许 signed manifest / enrollment state 声明过的 Borgee / OpenClaw service identifiers, 不是 client-supplied unit names, 也不是任意 local services。
 
@@ -88,7 +88,7 @@ References to §2.2 are blocker references only and must not be read into the lo
 
 ### §2.7 Host trust boundary decision
 
-gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actuator jobs, 不是 no-sandbox host shell。Sandbox conflict 的关键决策不是“web cannot configure under sandbox”; sandbox / limits must permit declared jobs。下一版的窄 resolution path 是 keep helper isolation while allowing typed pre-authorized jobs。若 current sandbox trust pillar 无法支持这些 bounded actuator jobs, freeze 前必须重写该信任支柱; 若选择完全移除 sandbox, 该变化仍按 major-trigger / open major decision 处理。
+gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actuator jobs, 不是 no-sandbox host shell。Sandbox conflict 的关键决策不是“web cannot configure under sandbox”; sandbox / limits must permit declared jobs。下一版的窄 resolution path 是 keep helper isolation while allowing typed pre-authorized jobs。若 current sandbox trust pillar 无法支持这些 bounded actuator jobs, accepted work promotion 前必须重写该信任支柱; 若选择完全移除 sandbox, 该变化仍按 major-trigger / open major decision 处理。
 
 已决边界:
 
@@ -100,7 +100,7 @@ gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actua
 
 ### §2.8 Major 风险
 
-- 如果 current 的 process sandboxing / sandbox trust pillar 不允许 declared typed jobs, 但 freeze 不重写该 trust pillar, 就是无法落地的 stance conflict。
+- 如果 current 的 process sandboxing / sandbox trust pillar 不允许 declared typed jobs, 但 accepted work promotion 不重写该 trust pillar, 就是无法落地的 stance conflict。
 - 如果 no-sandbox / remove-sandbox 作为 v1 acceptance 保留, 且不再保留 helper isolation, 就是 major-trigger / open major decision。
 - 如果网页配置演变成 Borgee 自己托管 / 调度 runtime, 就越过 current 的平台边界。
 - 如果 Borgee 直接暴露 host command 通道, 就越过 `host-bridge.md` v1 “不直接跑命令”的红线。
@@ -120,12 +120,13 @@ gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actua
 - gh#693 增加 `@Everyone` broadcast mention; 所有 channel member 都可使用。
 - 需要补清楚 rate limit、agent 递归触发禁止、ACL fanout 过滤。
 
-### §3.3 Safe rule
+### §3.3 Locked planning rule
 
-- per-channel `requireMention` 不能让 channel owner 扩大外部 agent 的 attention / capability。
+- per-channel `requireMention` uses inherit / on / off semantics and cannot let channel owner expand external agent attention / capability。
 - agent owner 可以 opt into broader delivery; channel owner 只能 reduce / mute / remove。
 - `@Everyone` fanout server-authoritative: client 只发 token, server 按 membership / ACL 计算 recipients。
 - server 不接受 client-supplied recipient IDs; 任何 fanout 都必须重新检查 channel membership / access。
+- Setting changes do not backfill historical messages by default。
 - `@Everyone` 需要 rate limits 与 loop prevention; agent 不能递归触发 broadcast。
 
 ### §3.4 Major 风险
@@ -148,9 +149,9 @@ gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actua
 - gh#690 补私有 channel 的视觉标识, 避免锁图标占据过大信息权重。
 - delete 可采用 soft delete; hard delete / archive 不作为本轮默认产品承诺。
 
-### §4.3 需要决策
+### §4.3 Locked planning rule
 
-- Channel 管理页是否管理通知 / 折叠 / 排序, 还是只做 membership 清单?
+- Channel management v1 focuses on membership / ownership / allowed actions. Notification / collapse / sort rewrites stay out unless a task explicitly reopens them.
 
 ## §5 Client truthfulness impact
 
@@ -167,10 +168,11 @@ gh#681 的用户决策可以被下一版记录, 但需要修正为 bounded actua
 - Forbidden UI 不是 authorization; server ACL 仍是唯一授权判断。ACL 成功前, forbidden / empty / redirect state 不能泄漏 private channel / artifact / message 的 name 或 body。
 - e2e 需要能证明自己在测产品, 但本轮不自动吸收 gh#707 / gh#697 的全部 quality gate 范围。
 
-### §5.3 需要决策
+### §5.3 Locked planning rule
 
-- “真实可达 UI surface”是否写成 client blueprint invariant。
-- forbidden state 是 local state、redirect state, 还是全局 banner。
+- Selected already-built surfaces must be production-reachable when claimed.
+- Forbidden states are local/in-surface states by default unless a task proves redirect or global banner is better.
+- Selected-surface e2e reverse proof is in scope; broad quality-platform expansion remains backlog.
 
 ## §6 Privacy scope guard impact
 
@@ -218,8 +220,8 @@ gh#654 不应解释为“撤销隐私 / 安全边界”。它只应解释为: **
 - 默认讨论起点: 头像 / Agents / Workspace / Settings 留外; Invitations / Remote Nodes / logout 收进二级入口。
 - Remote Nodes / Helper / Host Bridge 入口可以重新摆放, 但 IA 移动不合并职责: credentials / grants / enforcement rails 仍分别建模。
 
-### §7.3 需要决策
+### §7.3 Locked planning rule
 
-- account panel v1 是否只读 + logout, 还是包含账号设置动作。
-- Remote Nodes 是 Helper / runtime 管理入口, 还是 Settings 子页。
-- sidebar footer 调整是否与 gh#690 私有锁角标共用一套 sidebar IA 规范。
+- Account panel v1 is account summary plus logout unless a task explicitly adds account settings.
+- Remote Nodes / Helper placement may move into Settings or a runtime-management surface, but credentials / grants / enforcement rails remain separate.
+- Sidebar footer cleanup and private-channel visual truth are separate milestones unless shared shell components make a combined implementation task cheaper.
