@@ -11,13 +11,14 @@ The helper is a host-resident mediator. It prevents server or plugin code from d
 The boundary is the IPC request. A request is not trusted because it arrived over the local socket; it must match the handshake agent identity, use an allowed action, normalize to a supported scope, and match an active grant.
 
 **Collaborators**
-The helper collaborates with server-created host grants through read-only SQLite access, with local clients through UDS JSON lines, with local audit through JSONL append, and with the operating system through sandbox primitives. It now has validated outbound service prerequisites for later Helper job polling, but this release does not start a poll loop or make job HTTP requests. It does not talk to Remote Agent or the remote WebSocket hub.
+The helper collaborates with server-created host grants through read-only SQLite access, with local clients through UDS JSON lines, with local audit through JSONL append, and with the operating system through sandbox primitives. It now has validated outbound service prerequisites for later Helper job polling and a pure local job-policy evaluator for delivered server-owned job views, but this release does not start a poll loop or make job HTTP requests. It does not talk to Remote Agent or the remote WebSocket hub.
 
 **Internal Architecture**
 
 - Startup layer: opens audit output, requires grant DB configuration, validates any configured outbound origin/state prerequisites, applies platform sandbox, then listens on UDS.
 - IPC layer: validates the handshake and frames request/response JSON lines.
 - ACL layer: enforces action allowlist, cross-agent identity, path normalization, and grant lookup.
+- Job policy layer: validates a delivered Helper job candidate before any future host-management action can start. It returns deterministic allow/deny decisions with reasons such as `schema_invalid`, `unknown_job_type`, `manifest_invalid`, `artifact_invalid`, `path_denied`, `domain_denied`, `service_denied`, `revoked`, `stale_credential`, `wrong_owner`, `wrong_org`, and `policy_denied`.
 - Execution layer: performs read-only file actions or accepts a network-egress decision.
 - Audit layer: appends one record per request, including rejected requests.
 
@@ -28,6 +29,11 @@ daemon boot -> audit sink -> read-only grant DB -> outbound prerequisite validat
 connection -> handshake agent id -> request -> ACL decision
 allowed -> read/list/egress decision -> response -> audit
 rejected -> rejection response -> audit
+
+future Helper job gate:
+delivered server-owned job view -> strict schema validation -> local enrollment/state recheck
+-> signed manifest and artifact digest binding where required
+-> path/domain/service binding against sandbox profile -> allow/deny reason only
 ```
 
 **Invariants**
@@ -37,6 +43,10 @@ rejected -> rejection response -> audit
 - The request agent id must match the connection handshake agent id.
 - File actions require absolute normalized paths and are represented as filesystem scopes.
 - The helper's file IO surface is read-only.
+- Helper job policy is a pre-action gate only. It does not execute OpenClaw actions, write config, call a service manager, poll, lease, ack, or upload results.
+- Job payload fields cannot add shell, argv, executable path, script, arbitrary service unit, local path, network domain, credential, environment dump, or raw file authority.
+- Manifest-required jobs must bind to a verified Ed25519-signed runtime manifest digest, server-owned binding JSON, artifact cache bytes matching signed SHA-256 digests, and declared path/domain/service IDs before policy can allow.
+- Local policy rechecks owner, org, enrollment id, Helper device id, credential generation, active enrollment status, category delegation, revocation, stale credential state, and job expiry.
 - Configured outbound prerequisites fail closed for literal origins: the server origin must be an allowed exact public HTTPS origin, literal host/IP input is classified with `netip`, localhost/private/link-local/metadata literal origins are rejected even over HTTPS, and state roots must normalize under Helper-owned state directories.
 - The local UDS remains the only inbound listener.
 
@@ -54,13 +64,21 @@ This prerequisite validation does not resolve allowed hostnames and does not ins
 
 The installed Linux and macOS service assets set the production origin to `https://app.borgee.io`, allow only that exact origin, and name platform-specific Helper-owned state roots. The daemon creates configured state directories with owner-only permissions. These paths are service state only; clients, job payloads, Remote Agent state, and host grants do not choose them.
 
+## Local Job Policy Model
+
+`internal/jobpolicy` is a pure evaluator for the Helper job boundary that later transport/action tasks can call. It validates only inputs it is given: the server-owned job view, current Helper enrollment state, explicit Ed25519 trust roots, artifact cache bytes, and sandbox/profile affordances for paths, origins, and logical service IDs. It returns a decision and reason; it does not perform IO, HTTP, service-manager calls, OpenClaw execution, result upload, or settlement.
+
+The policy manifest is a runtime Helper contract, separate from the existing installer manifest path. The evaluator verifies canonical manifest bytes with Ed25519, compares the canonical SHA-256 digest to the job `manifest_digest`, verifies the server-owned binding references only declared artifact/path/domain/service IDs, and hashes local artifact bytes before allowing manifest-required work. Paths must be absolute, traversal-free, non-root, and supported by the supplied sandbox write/read roots. Domains must normalize to exact public HTTPS origins and also appear in the supplied allowed-origin profile. Service lifecycle policy accepts only fixed operations and logical manifest service IDs that are also present in the supplied service capability list.
+
+The evaluator preserves the documented DNS limitation from the outbound prerequisite model: it rejects unsafe literal origins but does not resolve allowed hostnames or inspect DNS answers/CNAME chains.
+
 ## Audit Model
 
-Helper audit is local JSONL. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log.
+Helper audit is local JSONL for the current IPC path. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log. Helper job policy decisions are shaped for later task 6/task 8 transport and settlement, but this release does not upload or settle those decisions.
 
 ## Out Of Scope
 
-The helper does not create grants, write files, expose Remote Agent directories, install itself, provide an admin API, poll for jobs, lease jobs, upload results, upload acks, run local policy, execute OpenClaw actions, or restart services.
+The helper does not create grants, write files, expose Remote Agent directories, install itself, provide an admin API, poll for jobs, lease jobs, upload results, upload acks, execute OpenClaw actions, or restart services. The local job-policy evaluator is present as a pure pre-action decision package, but it is not wired to a poll/action loop in this release.
 
 ## Known Gaps
 
@@ -68,7 +86,7 @@ The helper does not create grants, write files, expose Remote Agent directories,
 - The macOS sandbox depends on correct wrapper deployment.
 - Local JSONL audit is not currently a first-class server audit source.
 - Outbound origin validation rejects unsafe literal origins but does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses.
-- Helper outbound prerequisites are configured and validated, but Helper pull, lease, result, ack, bounded log upload, and local policy execution remain future work.
+- Helper outbound prerequisites are configured and validated, and the local job-policy evaluator exists as a pure package. Helper pull, lease, result, ack, bounded log upload, local policy transport wiring, and action execution remain future work.
 
 ## Implementation Anchors
 
@@ -80,4 +98,5 @@ The helper does not create grants, write files, expose Remote Agent directories,
 - `packages/borgee-helper/internal/audit` (`Logger`, `Event`)
 - `packages/borgee-helper/internal/sandbox` (`Profile`, platform `Apply`)
 - `packages/borgee-helper/internal/outbound` (`PrereqConfig`, `ValidateAndPrepare`)
+- `packages/borgee-helper/internal/jobpolicy` (`Evaluate`, `Decision`, runtime policy manifest and binding types)
 - `packages/borgee-helper/install` (systemd, launchd, and macOS sandbox assets)

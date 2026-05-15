@@ -36,11 +36,13 @@ Relevant area: [E2E / verification](e2e/), host bridge.
 
 ## Helper Pull Loop Not Implemented
 
-Current behavior: Helper job enqueue exists server-side, and the installed Helper service now has outbound HTTPS address-family/sandbox prerequisites, exact public-origin startup validation that classifies literal host/IP input with `netip` and rejects localhost/private/link-local/metadata literal origins by default, and explicit Helper-owned queue/status/audit-handoff state roots. Production assets use the exact `https://app.borgee.io` allowlist. The validator does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses. The Helper daemon still does not poll, long-poll, lease jobs, upload results or acks, upload bounded logs, execute local policy, run OpenClaw actions, restart services, or use sudo cache.
+Current behavior: Helper job enqueue exists server-side, and the installed Helper service now has outbound HTTPS address-family/sandbox prerequisites, exact public-origin startup validation that classifies literal host/IP input with `netip` and rejects localhost/private/link-local/metadata literal origins by default, and explicit Helper-owned queue/status/audit-handoff state roots. A pure Helper local job-policy evaluator exists for delivered server-owned job views: it validates strict typed payload schemas, local owner/org/enrollment/device/category/revocation/stale/expiry state, signed runtime manifest digests, artifact cache digests, declared path/domain/service bindings, and supplied sandbox/profile affordances. Production assets use the exact `https://app.borgee.io` allowlist. The validator does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses. The Helper daemon still does not poll, long-poll, lease jobs, upload results or acks, upload bounded logs, wire local policy to transport/action execution, run OpenClaw actions, restart services, or use sudo cache.
 
-Architecture impact: the service/sandbox/config boundary is ready for later Helper-originated pull work, but job progress and Configure OpenClaw success must not be inferred from these prerequisites.
+Architecture impact: the service/sandbox/config boundary and pure local policy boundary are ready for later Helper-originated pull/action work, but job progress and Configure OpenClaw success must not be inferred from these prerequisites.
 
 Do not assume: a queued Helper job will be pulled or executed by a local Helper.
+
+Do not assume: local policy decisions are uploaded, settled, or visible in job progress yet.
 
 Do not assume: Helper startup validation prevents DNS rebinding or private/link-local/metadata DNS resolution for an otherwise allowed hostname; that remains future hardening or runtime network-policy scope.
 
