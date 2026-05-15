@@ -7,7 +7,7 @@
 //   - 反 RBAC role 字面 (admin/editor/viewer/owner) 0 hit
 //   - 加载/失败/空 三态 UI byte-identical
 import React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { PermissionsView } from '../components/PermissionsView';
@@ -25,6 +25,7 @@ afterEach(() => {
   act(() => {
     root?.unmount();
   });
+  vi.unstubAllGlobals();
   if (container) {
     document.body.removeChild(container);
     container = null;
@@ -39,6 +40,28 @@ async function render(node: React.ReactElement) {
 }
 
 describe('AP-2 ⭐ PermissionsView — capability 透明 UI 无 role 名', () => {
+  it('renders a non-leaky forbidden state for denied permission visibility', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: () => Promise.resolve({ error: 'private permission grant secret' }),
+      }),
+    );
+
+    await render(<PermissionsView />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const forbidden = container!.querySelector('[data-ap2-forbidden]');
+    expect(forbidden?.textContent).toBe('无权查看授权');
+    expect(container!.textContent).not.toContain('private permission grant secret');
+    expect(container!.querySelector('[data-ap2-error]')).toBeNull();
+  });
+
   it('§1.1 entries=[] renders `暂无授权` empty state + data-ap2-empty', async () => {
     await render(<PermissionsView entries={[]} />);
     const el = container!.querySelector('[data-ap2-empty]');

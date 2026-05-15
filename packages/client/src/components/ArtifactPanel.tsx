@@ -64,6 +64,10 @@ const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 // 字面表 ① ("评论此段"). 不准 "Comment" / "添加评论" / "回复" / "讨论".
 const ANCHOR_ENTRY_TOOLTIP = '评论此段';
 
+function isForbiddenApiError(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403);
+}
+
 // gh#691 文案锁常量 (跟 design 691-canvas-modal-replace-system-dialog.md §6
 // exact text; changes must update the design doc and e2e grep evidence together).
 //   ARTIFACT_CREATE_MODAL_TITLE / ARTIFACT_CREATE_INPUT_LABEL — 创建 modal
@@ -103,6 +107,7 @@ export default function ArtifactPanel({ channelId }: Props) {
   const [editBody, setEditBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [artifactAccessDenied, setArtifactAccessDenied] = useState(false);
 
   // gh#691: 应用内 modal 状态 + 错误 + 触发按钮 ref. 修前用 window.prompt /
   // window.confirm 弹浏览器原生对话框 (issue #691 用户实测). 改成应用内
@@ -183,9 +188,20 @@ export default function ArtifactPanel({ channelId }: Props) {
           getArtifact(artifactId),
           listArtifactVersions(artifactId),
         ]);
+        setArtifactAccessDenied(false);
         setArtifact(head);
         setVersions(list.versions);
       } catch (err) {
+        if (isForbiddenApiError(err)) {
+          setArtifact(null);
+          setVersions([]);
+          setAnchors([]);
+          setActiveAnchorId(null);
+          setSelection(null);
+          setEditing(false);
+          setArtifactAccessDenied(true);
+          return;
+        }
         if (err instanceof ApiError && err.status === 404) {
           setArtifact(null);
           setVersions([]);
@@ -224,6 +240,7 @@ export default function ArtifactPanel({ channelId }: Props) {
     setEditing(false);
     setEditBody('');
     setErrMsg(null);
+    setArtifactAccessDenied(false);
     setAnchors([]);
     setActiveAnchorId(null);
     setSelection(null);
@@ -314,6 +331,7 @@ export default function ArtifactPanel({ channelId }: Props) {
     setCreateErrMsg(null);
     try {
       const created = await createArtifact(channelId, { title: trimmed, body: '' });
+      setArtifactAccessDenied(false);
       setArtifact(created);
       const list = await listArtifactVersions(created.id);
       setVersions(list.versions);
@@ -321,6 +339,14 @@ export default function ArtifactPanel({ channelId }: Props) {
       setCreateDraftTitle(null);
       restoreFocus(createTriggerRef);
     } catch (err) {
+      if (isForbiddenApiError(err)) {
+        setArtifact(null);
+        setVersions([]);
+        setCreateDraftTitle(null);
+        setCreateErrMsg(null);
+        setArtifactAccessDenied(true);
+        return;
+      }
       // On failure, keep the modal open, show the error inside it, and preserve input.
       const msg = err instanceof Error
         ? `${ARTIFACT_CREATE_FAIL_PREFIX}${err.message}`
@@ -380,6 +406,14 @@ export default function ArtifactPanel({ channelId }: Props) {
         showToast(CONFLICT_TOAST);
         // Re-fetch so the editor's expected_version moves forward.
         await reload(artifact.id);
+      } else if (isForbiddenApiError(err)) {
+        setArtifact(null);
+        setVersions([]);
+        setAnchors([]);
+        setActiveAnchorId(null);
+        setSelection(null);
+        setEditing(false);
+        setArtifactAccessDenied(true);
       } else {
         setErrMsg(err instanceof Error ? err.message : '提交失败');
       }
@@ -417,6 +451,14 @@ export default function ArtifactPanel({ channelId }: Props) {
         // Design ② lock conflict: use the same toast text as the commit path.
         showToast(CONFLICT_TOAST);
         await reload(artifact.id);
+      } else if (isForbiddenApiError(err)) {
+        setArtifact(null);
+        setVersions([]);
+        setAnchors([]);
+        setActiveAnchorId(null);
+        setSelection(null);
+        setEditing(false);
+        setArtifactAccessDenied(true);
       } else {
         // Non-409 failures also use a toast after the modal closes, aligned with CONFLICT_TOAST.
         showToast(ARTIFACT_ROLLBACK_FAIL_TOAST);
@@ -426,6 +468,16 @@ export default function ArtifactPanel({ channelId }: Props) {
       restoreFocus(rollbackTriggerRef);
     }
   };
+
+  if (artifactAccessDenied) {
+    return (
+      <div className="artifact-panel">
+        <div className="artifact-forbidden" data-artifact-forbidden="true" role="alert">
+          You do not have access to this artifact.
+        </div>
+      </div>
+    );
+  }
 
   if (!artifact) {
     return (

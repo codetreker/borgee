@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
-import type { Artifact, ArtifactVersion } from '../lib/api';
+import { ApiError, type Artifact, type ArtifactVersion } from '../lib/api';
 
 const createdArtifact: Artifact = {
   id: 'art-1',
@@ -36,6 +36,10 @@ const apiMocks = vi.hoisted(() => ({
   rollbackArtifact: vi.fn(),
 }));
 
+const wsHookState = vi.hoisted(() => ({
+  artifactUpdatedHandler: null as null | ((frame: { artifact_id: string; channel_id: string }) => void),
+}));
+
 vi.mock('../context/AppContext', () => ({
   useAppContext: () => ({
     state: {
@@ -66,7 +70,9 @@ vi.mock('../components/Toast', () => ({
 vi.mock('../hooks/useWsHubFrames', () => ({
   useAnchorCommentAdded: vi.fn(),
   useArtifactCommentAdded: vi.fn(),
-  useArtifactUpdated: vi.fn(),
+  useArtifactUpdated: vi.fn((handler: (frame: { artifact_id: string; channel_id: string }) => void) => {
+    wsHookState.artifactUpdatedHandler = handler;
+  }),
 }));
 
 vi.mock('../lib/api', () => ({
@@ -100,6 +106,7 @@ beforeEach(() => {
   apiMocks.listArtifactVersions.mockResolvedValue({ versions: [createdVersion] });
   apiMocks.listAnchors.mockResolvedValue({ anchors: [] });
   apiMocks.listArtifactComments.mockResolvedValue({ comments: [] });
+  wsHookState.artifactUpdatedHandler = null;
 });
 
 afterEach(() => {
@@ -139,5 +146,38 @@ describe('ArtifactPanel ArtifactComments production mount', () => {
 
     expect(container!.querySelector('[data-testid="cv5-artifact-comments"]')).toBeTruthy();
     expect(apiMocks.listArtifactComments).toHaveBeenCalledWith('art-1');
+  });
+
+  it('clears artifact content and shows a non-leaky forbidden state after artifact reload is denied', async () => {
+    await render(<ArtifactPanel channelId="ch-1" />);
+
+    const openCreate = container!.querySelector('.artifact-empty .btn-primary') as HTMLButtonElement;
+    await act(async () => {
+      openCreate.click();
+    });
+
+    const submit = container!.querySelector('[data-testid="artifact-create-modal"] button[type="submit"]') as HTMLButtonElement;
+    await act(async () => {
+      submit.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container!.textContent).toContain('Launch notes');
+    expect(wsHookState.artifactUpdatedHandler).toBeTruthy();
+
+    apiMocks.getArtifact.mockRejectedValue(
+      new ApiError(403, 'private artifact Launch notes body secret'),
+    );
+
+    await act(async () => {
+      wsHookState.artifactUpdatedHandler?.({ artifact_id: 'art-1', channel_id: 'ch-1' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const forbidden = container!.querySelector('[data-artifact-forbidden]');
+    expect(forbidden?.textContent).toBe('You do not have access to this artifact.');
+    expect(container!.textContent).not.toContain('Launch notes');
+    expect(container!.textContent).not.toContain('private artifact Launch notes body secret');
   });
 });

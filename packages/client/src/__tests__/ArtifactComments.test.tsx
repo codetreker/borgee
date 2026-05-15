@@ -60,6 +60,32 @@ const sampleAgent: ArtifactComment = {
 };
 
 describe('ArtifactComments — CV-5.2 client', () => {
+  it('shows loading before the authorized comment list resolves', async () => {
+    vi.spyOn(api, 'listArtifactComments').mockImplementation(
+      () => new Promise(() => {}),
+    );
+    await render(<ArtifactComments artifactId="art-X" />);
+
+    expect(container!.querySelector('[data-cv5-loading]')?.textContent).toBe('Loading comments...');
+    expect(container!.querySelector('[data-testid="cv5-empty"]')).toBeNull();
+  });
+
+  it('renders a non-leaky forbidden state when comment listing is denied', async () => {
+    vi.spyOn(api, 'listArtifactComments').mockRejectedValue(
+      new api.ApiError(403, 'private channel launch body secret'),
+    );
+    await render(<ArtifactComments artifactId="art-X" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const forbidden = container!.querySelector('[data-cv5-forbidden]');
+    expect(forbidden?.textContent).toBe('You do not have access to these comments.');
+    expect(container!.textContent).not.toContain('private channel launch body secret');
+    expect(container!.querySelector('[data-testid="cv5-empty"]')).toBeNull();
+    expect(container!.querySelector('[data-testid="cv5-composer-input"]')).toBeNull();
+  });
+
   it('renders empty state when no comments', async () => {
     vi.spyOn(api, 'listArtifactComments').mockResolvedValue({ comments: [] });
     await render(<ArtifactComments artifactId="art-X" />);

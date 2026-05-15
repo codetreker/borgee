@@ -16,7 +16,7 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 - Channel management reads the authorized channel list already held in app state. It groups non-DM channels by explicit `created_by` and `is_member` fields.
 - Mention delivery controls load channel members on demand, show `@Everyone` as server-computed, and update agent `requireMention` policy through the user rail when the signed-in user has `channel.manage_members`.
 - Admin-awareness content is scoped to the signed-in user.
-- Capability visibility is scoped to the signed-in user and is rendered by the same `PermissionsView` surface that reads `/api/v1/me/permissions`.
+- Capability visibility is scoped to the signed-in user and is rendered by the same `PermissionsView` surface that reads `/api/v1/me/permissions`. If that endpoint denies access, Settings shows a local forbidden state without rendering response-body details or turning the client view into an authorization decision.
 - Grant state can affect a shell-level banner, but the settings form state remains local to the surface.
 
 ## Layout Sketch

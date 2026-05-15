@@ -4076,6 +4076,14 @@ body {
   color: var(--text-secondary);
   padding: 40px 20px;
 }
+.artifact-forbidden {
+  margin: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
 .artifact-header {
   display: flex;
   align-items: center;
@@ -4170,6 +4178,15 @@ body {
 }
 .artifact-rollback-btn {
   margin-left: auto;
+}
+
+.cv5-artifact-comments-state,
+[data-ap2-forbidden] {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
 }
 
 /* CV-2.3 anchor entry + thread side panel */
