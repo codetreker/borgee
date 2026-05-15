@@ -13,6 +13,8 @@ User SPA
       Channel groups and channels
       Direct messages
       Global sidepane actions
+        Primary footer: avatar/account identity, Agents, Workspaces, Settings
+        Secondary footer overflow: Invitations, Remote nodes, Helper status, Logout
     Main workspace
       Channel host
         Chat
