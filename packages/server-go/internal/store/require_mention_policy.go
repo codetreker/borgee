@@ -124,6 +124,27 @@ func (s *Store) ListChannelAgentsAllowedWithoutMention(channelID, senderID strin
 	return out, nil
 }
 
+func (s *Store) ListEveryoneMentionTargets(channelID, senderID string) ([]string, error) {
+	var rows []struct {
+		UserID string `gorm:"column:user_id"`
+	}
+	if err := s.db.Table("channel_members cm").
+		Select("cm.user_id").
+		Joins("JOIN users u ON u.id = cm.user_id AND u.deleted_at IS NULL").
+		Where("cm.channel_id = ? AND cm.user_id <> ?", channelID, senderID).
+		Order("cm.joined_at ASC, cm.user_id ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.UserID != "" {
+			out = append(out, row.UserID)
+		}
+	}
+	return out, nil
+}
+
 type requireMentionPolicyRow struct {
 	ChannelID            string `gorm:"column:channel_id"`
 	UserID               string `gorm:"column:user_id"`

@@ -78,6 +78,13 @@ const OfflineOwnerDMTemplate = "%s 当前离线，#%s 中有人 @ 了它，你�
 // (agent, channel) per window — acceptance §2.3 + spec §1 DM-2.2 5min.
 const OfflineOwnerDMThrottleWindow = 5 * time.Minute
 
+// EveryoneMentionThrottleWindow caps `@Everyone` fanout to one broadcast per
+// (channel, sender) window. It is process-local like the existing offline
+// owner fallback throttle.
+const EveryoneMentionThrottleWindow = 5 * time.Minute
+
+var EveryoneMentionRegex = regexp.MustCompile(`(^|[^A-Za-z0-9_])@Everyone([^A-Za-z0-9_]|$)`)
+
 // MentionFrameBroadcaster is the WS push surface DM-2.2 needs from the
 // hub. It is a subset of ws.Hub, declared as an interface so api tests can
 // inject a test implementation without starting a real cursor allocator and
@@ -122,18 +129,20 @@ type MentionDispatcher struct {
 	// patterns同模式). Production callers leave nil → time.Now is used.
 	Now func() time.Time
 
-	mu       sync.Mutex
-	throttle map[string]int64 // key: agent_id|channel_id → lastSentMs
+	mu               sync.Mutex
+	throttle         map[string]int64 // key: agent_id|channel_id → lastSentMs
+	everyoneThrottle map[string]int64 // key: channel_id|sender_id → lastSentMs
 }
 
 // NewMentionDispatcher constructs a dispatcher. Production wiring: store +
 // presence.SessionsTracker + ws.Hub. Tests substitute fakes.
 func NewMentionDispatcher(s *store.Store, p presence.PresenceTracker, h MentionFrameBroadcaster) *MentionDispatcher {
 	return &MentionDispatcher{
-		Store:    s,
-		Presence: p,
-		Hub:      h,
-		throttle: make(map[string]int64),
+		Store:            s,
+		Presence:         p,
+		Hub:              h,
+		throttle:         make(map[string]int64),
+		everyoneThrottle: make(map[string]int64),
 	}
 }
 
@@ -167,6 +176,10 @@ func ParseMentionTargets(body string) []string {
 		out = append(out, id)
 	}
 	return out
+}
+
+func ContainsEveryoneMention(body string) bool {
+	return EveryoneMentionRegex.MatchString(body)
 }
 
 // ErrMentionTargetNotInChannel signals a cross-channel mention attempt.
@@ -287,6 +300,22 @@ func (d *MentionDispatcher) acquireThrottle(agentID, channelID string) bool {
 		return false
 	}
 	d.throttle[key] = now
+	return true
+}
+
+func (d *MentionDispatcher) AcquireEveryoneFanout(channelID, senderID string) bool {
+	key := channelID + "|" + senderID
+	now := d.now().UnixMilli()
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.everyoneThrottle == nil {
+		d.everyoneThrottle = make(map[string]int64)
+	}
+	last, ok := d.everyoneThrottle[key]
+	if ok && now-last < EveryoneMentionThrottleWindow.Milliseconds() {
+		return false
+	}
+	d.everyoneThrottle[key] = now
 	return true
 }
 

@@ -201,6 +201,10 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 	if !decodeJSON(w, r, &body) {
 		return
 	}
+	if len(body.Mentions) > 0 {
+		writeJSONError(w, http.StatusBadRequest, "mention.client_recipients_rejected")
+		return
+	}
 
 	content := strings.TrimSpace(body.Content)
 	if content == "" {
@@ -255,6 +259,7 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 	// 落库后执行 — 失败仅 log 不阻断 message 创建 (best-effort fanout,
 	// 反约束 (§2.4): fallback 走 owner 后台不污染发送方).
 	var parsedMentionTargets []string
+	var everyoneTargets []string
 	if h.Mentions != nil {
 		targets, offender, mErr := h.Mentions.MentionTargetsFromBody(channelID, content)
 		if mErr != nil {
@@ -263,6 +268,23 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 			return
 		}
 		parsedMentionTargets = targets
+		if ContainsEveryoneMention(content) {
+			if user.Role == "agent" {
+				writeJSONError(w, http.StatusBadRequest, "mention.everyone_agent_sender_rejected")
+				return
+			}
+			if !h.Mentions.AcquireEveryoneFanout(channelID, user.ID) {
+				writeJSONError(w, http.StatusTooManyRequests, "mention.everyone_rate_limited")
+				return
+			}
+			targets, eErr := h.Store.ListEveryoneMentionTargets(channelID, user.ID)
+			if eErr != nil {
+				h.Logger.Error("failed to resolve @Everyone recipients", "error", eErr, "channel_id", channelID)
+				writeJSONError(w, http.StatusInternalServerError, "Internal server error")
+				return
+			}
+			everyoneTargets = targets
+		}
 	}
 
 	// CV-8: artifact comment thread reply validators (1-level depth + agent
@@ -292,7 +314,7 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	msg, err := h.Store.CreateMessageFull(channelID, user.ID, content, ct, body.ReplyToID, body.Mentions)
+	msg, err := h.Store.CreateMessageFull(channelID, user.ID, content, ct, body.ReplyToID, nil)
 	if err != nil {
 		h.Logger.Error("failed to create message", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "Internal server error")
@@ -312,17 +334,19 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 
 	// DM-2.2 persist + dispatch — non-blocking on errors (log + continue).
 	// PersistMentions writes #361 message_mentions rows for explicit `@agent`
-	// targets only. Per-channel requireMention=off adds non-mention agent
-	// delivery targets for dispatch without mutating message_mentions history.
+	// targets and server-computed `@Everyone` targets. Per-channel
+	// requireMention=off adds non-mention agent delivery targets for dispatch
+	// without mutating message_mentions history.
 	if h.Mentions != nil {
-		dispatchTargets := append([]string{}, parsedMentionTargets...)
-		if nonMentionTargets, nErr := h.Store.ListChannelAgentsAllowedWithoutMention(channelID, user.ID, parsedMentionTargets); nErr != nil {
+		mentionHistoryTargets := appendUniqueStrings(append([]string{}, parsedMentionTargets...), everyoneTargets...)
+		dispatchTargets := append([]string{}, mentionHistoryTargets...)
+		if nonMentionTargets, nErr := h.Store.ListChannelAgentsAllowedWithoutMention(channelID, user.ID, mentionHistoryTargets); nErr != nil {
 			h.Logger.Error("failed to resolve non-mention agent recipients", "error", nErr, "message_id", msg.ID)
 		} else if len(nonMentionTargets) > 0 {
 			dispatchTargets = appendUniqueStrings(dispatchTargets, nonMentionTargets...)
 		}
-		if len(parsedMentionTargets) > 0 {
-			if pErr := h.Mentions.PersistMentions(msg.ID, parsedMentionTargets); pErr != nil {
+		if len(mentionHistoryTargets) > 0 {
+			if pErr := h.Mentions.PersistMentions(msg.ID, mentionHistoryTargets); pErr != nil {
 				h.Logger.Error("failed to persist mentions", "error", pErr, "message_id", msg.ID)
 			}
 		}

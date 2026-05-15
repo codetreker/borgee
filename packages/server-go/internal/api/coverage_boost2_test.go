@@ -389,8 +389,7 @@ func TestMessageWithExplicitMentionIDs(t *testing.T) {
 	}
 
 	resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]any{
-		"content":  fmt.Sprintf("hello <@%s>", memberID),
-		"mentions": []string{memberID},
+		"content": fmt.Sprintf("hello <@%s>", memberID),
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %v", resp.StatusCode, data)
