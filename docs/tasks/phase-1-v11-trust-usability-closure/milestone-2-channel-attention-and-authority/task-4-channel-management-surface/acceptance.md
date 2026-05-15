@@ -63,3 +63,13 @@ Record fresh command evidence in `progress.md` before PR open:
 - Client typecheck.
 - Client test suite or focused suite plus documented reason for any narrower run.
 - Current-doc sync review for changed Settings/channel-management behavior.
+
+## Recorded Evidence
+
+| Check | Evidence | Result |
+|---|---|---|
+| RED tests | Missing `channelManagement` helper and `ChannelManagementSurface` component caused the new tests to fail before production implementation | PASS |
+| Client behavior | Full Vitest suite reported `131` files and `829` tests passed with `1` skipped after implementation | PASS |
+| Typecheck | `timeout 600s pnpm --filter @borgee/client typecheck` exited 0 after implementation | PASS |
+| Build | `timeout 600s pnpm --filter @borgee/client build` exited 0 after implementation | PASS |
+| Docs/current | Current docs updated for Settings channel-management tab and display-only action gap | PASS |

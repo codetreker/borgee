@@ -28,6 +28,8 @@ User SPA
         Remote nodes
         Helper status
         Settings
+          Privacy/admin-awareness tab
+          Channel management tab
 ```
 
 ## Responsibilities
@@ -63,7 +65,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | All workspaces | Global sidepane | Local grouping/filter/preview state | Workspace REST rail |
 | Remote nodes | Global sidepane | Local node/detail/binding state | Remote user REST rail |
 | Helper status | Global sidepane | Local enrollment list/detail/refresh state | User Helper enrollment REST rail |
-| Settings | Global sidepane | Local settings tab state | User admin-awareness REST endpoints |
+| Settings | Global sidepane | Local settings tab state | User admin-awareness endpoints plus the existing authorized channel list from app state |
 
 ## Sketch Coverage
 
@@ -77,7 +79,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Canvas/artifact | [ui/canvas-modal.md](ui/canvas-modal.md) | In-app decision flow reference for canvas actions. |
 | Workspace | [ui/workspace.md](ui/workspace.md) | File tree and viewer reference. |
 | Agents | [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), [ui/agent-collab.md](ui/agent-collab.md) | Owner-side agent management and collaboration references. |
-| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching, Helper status placement, and admin-awareness references. |
+| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching, Helper status placement, channel-management overview, and admin-awareness references. |
 | Remote surfaces | [../remote-agent/ui/README.md](../remote-agent/ui/README.md) | Combined Remote Explorer reference sketch; current client architecture splits remote nodes from channel remote browsing. |
 
 ## Cross-Surface Signals
@@ -90,6 +92,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Invitation signal | Footer More badge and invitation sidepane | Signal wakes both surfaces; REST remains authoritative. |
 | Artifact/comment signal | Canvas and comment surfaces | Signal wakes scoped artifact surfaces; bodies are pulled. |
 | Admin-awareness grant | Global banner and settings | User-owned grant state can affect the whole authenticated shell. |
+| Channel list state | Rail and settings channel tab | The authorized channel list feeds both navigation and display-only channel management grouping. |
 
 ## Interfaces To Other Modules
 
@@ -109,4 +112,5 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | App state | `packages/client/src/context/AppContext.tsx`, `AppState` |
 | Surface hosts | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx` |
 | Feature surfaces | `packages/client/src/components/`, `packages/client/src/components/Settings/` |
+| Channel management grouping | `packages/client/src/lib/channelManagement.ts`, `packages/client/src/components/Settings/ChannelManagementSurface.tsx` |
 | Global hooks | `packages/client/src/hooks/` |
