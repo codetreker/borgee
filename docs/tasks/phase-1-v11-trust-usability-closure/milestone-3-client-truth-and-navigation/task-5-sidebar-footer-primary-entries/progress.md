@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/task-5-sidebar-footer-primary-entries` |
 | Branch | `feat/task-5-sidebar-footer-primary-entries` |
-| PR | pending |
+| PR | #947 |
 | Owner | Dev worker |
-| State | IMPLEMENTING |
+| State | ACCEPTING |
 | Blocker | none |
 
 ## Checkpoints
@@ -23,7 +23,7 @@
 - [x] Production implementation complete
 - [x] Current-doc sync completed
 - [x] Acceptance evidence recorded
-- [ ] PR opened
+- [x] PR opened
 - [ ] CI reviewed
 
 ## Evidence Log
@@ -43,6 +43,7 @@
 | Diff hygiene | `git diff --check` -> exit 0 with no output | PASS |
 | Scope overlap check | Changed production files are limited to `packages/client/src/components/Sidebar.tsx` and `packages/client/src/index.css`; no ArtifactComments, Settings PermissionsView, NodeManager, or HelperStatusPanel production files edited | PASS |
 | Current-doc sync | Updated `docs/current/client/ui-map.md`, `docs/current/client/app-shell-state.md`, `docs/current/client/ui/main-desktop.md`, and `docs/current/client/ui/sidepane.md` for primary footer and secondary overflow behavior | PASS |
+| PR opened | PR #947: `feat(client): simplify sidebar footer entries` | PASS |
 
 ## Current-Doc Sync Targets
 
