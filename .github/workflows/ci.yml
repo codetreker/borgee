@@ -184,6 +184,8 @@ jobs:
       - name: Pre-fetch server-go modules
         run: cd packages/server-go && go mod download
       - name: Run E2E
+        env:
+          E2E_CI_WORKERS: "2"
         run: pnpm --filter @borgee/e2e test
       - name: Upload Playwright report (on failure)
         if: failure()

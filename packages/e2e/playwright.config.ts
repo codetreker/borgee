@@ -30,6 +30,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 
 const SERVER_PORT = Number(process.env.E2E_SERVER_PORT ?? 4901);
 const CLIENT_PORT = Number(process.env.E2E_CLIENT_PORT ?? 5174);
+const CI_WORKERS = Number(process.env.E2E_CI_WORKERS ?? 2);
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`;
 const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
 
@@ -43,12 +44,13 @@ fs.mkdirSync(path.join(dataDir, 'workspaces'), { recursive: true });
 
 export default defineConfig({
   testDir: './tests',
-  // CI path needs determinism: serialize, retry once on flake, full traces.
-  // Local path: parallel workers, no retry, trace only on failure.
+  // CI keeps per-file ordering deterministic but runs two files at a time.
+  // E2E_CI_WORKERS lets CI dial this back without changing committed config.
+  // Local path: Playwright default workers, no retry, trace only on failure.
   fullyParallel: !process.env.CI,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? CI_WORKERS : undefined,
   reporter: process.env.CI
     ? [['github'], ['html', { open: 'never' }]]
     : [['list'], ['html', { open: 'never' }]],
