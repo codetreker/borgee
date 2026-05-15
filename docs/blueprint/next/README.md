@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-14
-Resume from: run `bf-milestone-breakdown` for the existing `HB-RA-1A` boundary-guardrail milestone, carry locked `PS-1` as a privacy-scope reverse check, and continue `HB-RA-1B` execution-contract discussion.
+Resume from: route `task-0-hb-ra-1a-planning-preflight` to `bf-task-execute`, carry locked `PS-1` as a privacy-scope reverse check, and continue `HB-RA-1B` execution-contract discussion separately.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -10,7 +10,7 @@ This directory tracks planned or in-discussion blueprint work that is not yet ac
 
 | Anchor | Topic | Decision | Work | Source issues | Reference | Milestone path | Next action |
 |---|---|---|---|---|---|---|---|
-| `HB-RA-1A` | Helper bounded actuator product guardrails | LOCKED | PENDING | gh#681, gh#659 | `remote-actuator-design.md` §1.1-§1.2; `migration-analysis.md` §2.1 | `docs/tasks/phase-1-helper-actuator-trust-preflight/milestone-1-boundary-guardrail-lock` | Run `bf-milestone-breakdown` for planning-preflight task skeletons only. Do not inherit `HB-RA-1B` execution-contract blockers by whole-doc reference. |
+| `HB-RA-1A` | Helper bounded actuator product guardrails | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §1.1-§1.2; `migration-analysis.md` §2.1 | `docs/tasks/phase-1-helper-actuator-trust-preflight/milestone-1-boundary-guardrail-lock` | Route first ready task `task-0-hb-ra-1a-planning-preflight` to `bf-task-execute`. Do not inherit `HB-RA-1B` execution-contract blockers by whole-doc reference. |
 | `HB-RA-1B` | Helper actuator execution contract blockers | OPEN | PENDING | gh#681, gh#659 | `remote-actuator-design.md` §2.1; `migration-analysis.md` §2.2 | - | Resolve manifest/artifact signing, helper credentials, sandbox/Linux outbound poll, revoke races, service permissions, and exact queue/lease/result contract. |
 | `MR-1` | Mention routing granularity and `@Everyone` broadcast | OPEN | PENDING | gh#674, gh#693 | `migration-analysis.md` §3 | - | Decide per-channel `requireMention` model and history behavior. |
 | `CH-1` | Channel authority and user-side channel management | OPEN | PENDING | gh#685, gh#688, gh#690 | `migration-analysis.md` §4 | - | Decide management page placement and private badge interaction rules. |
@@ -133,4 +133,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Run `bf-milestone-breakdown` for `HB-RA-1A` at `docs/tasks/phase-1-helper-actuator-trust-preflight/milestone-1-boundary-guardrail-lock`. The breakdown may create planning-preflight task skeletons only; it must not create implementation tasks while `HB-RA-1B` remains open. Keep `PS-1` as a locked reverse-check guardrail for affected work. Keep `HB-RA-1B` and the other `OPEN / PENDING` rows in lock review until their blockers are resolved or split.
+Route `task-0-hb-ra-1a-planning-preflight` to `bf-task-execute` under `docs/tasks/phase-1-helper-actuator-trust-preflight/milestone-1-boundary-guardrail-lock`. The reviewed breakdown created a planning-preflight task skeleton only; it must not create implementation tasks while `HB-RA-1B` remains open. Keep `PS-1` as a locked reverse-check guardrail for affected work. Keep `HB-RA-1B` and the other `OPEN / PENDING` rows in lock review until their blockers are resolved or split.

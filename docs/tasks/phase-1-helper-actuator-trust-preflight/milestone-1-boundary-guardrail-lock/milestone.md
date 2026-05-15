@@ -38,7 +38,7 @@ Rejected by this milestone:
 | `PS-1` privacy scope guard | READY | Required reverse-check for privacy/security/admin/rail boundaries |
 | `HB-RA-1B` blockers | BLOCKED OUT OF SCOPE | Kept in next-blueprint discussion until lock |
 | Legacy `docs/tasks/681-remote-agent-openclaw/` intake | HISTORICAL | Not an execution path |
-| `bf-milestone-breakdown` | NOT STARTED | Runs only after this planning milestone is accepted |
+| `bf-milestone-breakdown` | TASK_SET_READY | Task skeleton review is recorded; first ready task can enter `bf-task-execute` |
 
 ## Exit Gates
 
@@ -76,3 +76,37 @@ Run `bf-milestone-breakdown` when this milestone plan has been reviewed and the 
 ## First Task Seed
 
 See `task-seed.md` for `task-0-hb-ra-1a-planning-preflight`.
+
+## Breakdown State
+
+State: `TASK_SET_READY`
+
+Publication status:
+- Published as `TASK_SET_READY`; Architect, PM, QA, Dev, and Security review decisions are recorded below.
+
+## Task Index
+
+| Task | Status | Purpose | Depends on | Parallel? | First ready? |
+|---|---|---|---|---|---|
+| `task-0-hb-ra-1a-planning-preflight` | READY | Add docs-only guardrail preflight evidence before Helper actuator implementation starts | none | no | yes |
+
+Dependency order:
+- Route `task-0-hb-ra-1a-planning-preflight` to `bf-task-execute` next.
+- Do not create implementation tasks while `HB-RA-1B` remains open.
+
+Parallelism:
+- No parallel product tasks in this milestone; the single product task is the planning preflight.
+
+First ready task:
+- `task-0-hb-ra-1a-planning-preflight`.
+- Current state: ready for `bf-task-execute`; not started here.
+
+## Breakdown Review
+
+| Role | Decision | Notes |
+|---|---|---|
+| Architect | LGTM | Boundaries, anchors, dependency order, and `HB-RA-1B` exclusion align at task-skeleton granularity. |
+| PM | LGTM | User-value slice, trust promise, `PS-1` discipline, and docs-only scope remain aligned. |
+| QA | LGTM | Acceptance slice is checkable, fake-green rejection is preserved, and the first ready task has no hidden prerequisite. |
+| Dev | LGTM | One-PR feasibility is clear and no hidden code/API/queue/credential/sandbox/service work is introduced. |
+| Security | LGTM | Required security review passed for auth, credentials, privacy, admin/security controls, command exclusion, service privilege, revoke/uninstall, and Helper/Remote Agent rail separation. |

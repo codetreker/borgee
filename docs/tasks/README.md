@@ -4,9 +4,14 @@
 
 | Phase | Status | Exit condition | Current milestone |
 |---|---|---|---|
-| Phase 1: Helper Actuator Trust Preflight | PLANNED | `HB-RA-1A` boundary guardrail lock has strict, user-perceivable, carry-over, and fake-green checks before helper actuator implementation begins | `milestone-1-boundary-guardrail-lock` |
+| Phase 1: Helper Actuator Trust Preflight | TASK_SET_READY | `HB-RA-1A` boundary guardrail lock has strict, user-perceivable, carry-over, and fake-green checks before helper actuator implementation begins | `milestone-1-boundary-guardrail-lock` |
 
 This Phase Index records the new execution path opened by the locked `HB-RA-1A` next-blueprint anchor. The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work.
+
+Current breakdown resume state:
+
+- Product task skeleton: `docs/tasks/phase-1-helper-actuator-trust-preflight/milestone-1-boundary-guardrail-lock/task-0-hb-ra-1a-planning-preflight/`.
+- Review state: task contract has Architect, PM, QA, Dev, and Security LGTM. First ready task is `task-0-hb-ra-1a-planning-preflight`.
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 
