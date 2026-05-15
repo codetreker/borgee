@@ -15,5 +15,6 @@ This file preserves the accepted Helper/OpenClaw task history after the coarse v
 | #956 | `5575b53` | OpenClaw install and agent config jobs | `task-9-openclaw-install-and-agent-config-jobs` |
 | #958 | `ad50575` | Borgee plugin channel binding job | `task-10-borgee-plugin-channel-binding-job` |
 | #963 | `d8d179e` | Service lifecycle boot/crash reliability | `task-11-service-lifecycle-boot-crash` |
+| #964 | `3450d8c` | Configure OpenClaw terminal UI | `task-12-configure-openclaw-terminal-ui` |
 
-`task-12-configure-openclaw-terminal-ui` is the remaining closure task for this milestone and carries its own worktree, branch, PR, four-piece, implementation, verification, progress, and acceptance state.
+`task-12-configure-openclaw-terminal-ui` closed this milestone through PR #964 (`3450d8c`).
