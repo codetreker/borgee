@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/m2-task4-channel-management-surface` |
 | Branch | `feat/m2-task4-channel-management-surface` |
-| PR | not opened |
+| PR | #948 |
 | Owner | M2 Task4 owner worker |
-| State | READY_FOR_PR |
+| State | ACCEPTING |
 | Blocker | none |
 
 ## Checkpoints
@@ -23,7 +23,7 @@
 - [x] Implementation complete
 - [x] Docs/current synced
 - [x] Acceptance evidence recorded
-- [ ] PR opened
+- [x] PR opened: #948
 
 ## Baseline Evidence
 

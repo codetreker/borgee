@@ -33,7 +33,7 @@ Rejected by this milestone:
 | requireMention policy model | ACCEPTING | `task-1-requiremention-policy-model` | Milestone start | no |
 | `@Everyone` fanout ACL/rate loop | PLANNED | `task-2-everyone-fanout-acl-rate-loop` | requireMention policy | yes, after policy |
 | Client mention controls | PLANNED | `task-3-client-mention-controls` | policy and fanout behavior | no |
-| Channel management surface | TASKING | `task-4-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |
+| Channel management surface | ACCEPTING | `task-4-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |
 | Channel allowed-action rules | PLANNED | `task-5-channel-allowed-action-rules` | management surface | yes, after management surface |
 | Channel authority checks | PLANNED | `task-6-channel-authority-checks` | management surface and allowed-action rules | no |
 | Private indicator state inventory | ACCEPTING | `task-7-private-indicator-state-inventory` | Explicit parallel UI slot | yes, docs-only inventory; blocks visual treatment |
