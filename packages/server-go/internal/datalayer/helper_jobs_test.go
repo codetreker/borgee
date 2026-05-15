@@ -67,6 +67,51 @@ func TestHelperJobRepositoryEnqueueProjectionAndErrorMapping(t *testing.T) {
 	}
 }
 
+func TestHelperJobErrorMapping(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		in   error
+		want error
+	}{
+		{"invalid input", store.ErrHelperJobInvalidInput, ErrHelperJobInvalidInput},
+		{"unknown type", store.ErrHelperJobUnknownType, ErrHelperJobUnknownType},
+		{"type not enabled", store.ErrHelperJobTypeNotEnabled, ErrHelperJobTypeNotEnabled},
+		{"schema invalid", store.ErrHelperJobSchemaInvalid, ErrHelperJobSchemaInvalid},
+		{"forbidden field", store.ErrHelperJobForbiddenField, ErrHelperJobForbiddenField},
+		{"enrollment not found", store.ErrHelperJobEnrollmentNotFound, ErrHelperJobEnrollmentNotFound},
+		{"wrong owner", store.ErrHelperJobWrongOwner, ErrHelperJobWrongOwner},
+		{"wrong org", store.ErrHelperJobWrongOrg, ErrHelperJobWrongOrg},
+		{"forbidden", store.ErrHelperJobForbidden, ErrHelperJobForbidden},
+		{"enrollment unclaimed", store.ErrHelperJobEnrollmentUnclaimed, ErrHelperJobEnrollmentUnclaimed},
+		{"enrollment revoked", store.ErrHelperJobEnrollmentRevoked, ErrHelperJobEnrollmentRevoked},
+		{"enrollment uninstalled", store.ErrHelperJobEnrollmentUninstalled, ErrHelperJobEnrollmentUninstalled},
+		{"stale enrollment", store.ErrHelperJobStaleEnrollment, ErrHelperJobStaleEnrollment},
+		{"enrollment inactive", store.ErrHelperJobEnrollmentInactive, ErrHelperJobEnrollmentInactive},
+		{"delegation denied", store.ErrHelperJobDelegationDenied, ErrHelperJobDelegationDenied},
+		{"manifest required", store.ErrHelperJobManifestRequired, ErrHelperJobManifestRequired},
+		{"idempotency conflict", store.ErrHelperJobIdempotencyConflict, ErrHelperJobIdempotencyConflict},
+		{"expired", store.ErrHelperJobExpired, ErrHelperJobExpired},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := mapHelperJobErr(tc.in); !errors.Is(err, tc.want) {
+				t.Fatalf("mapHelperJobErr(%v)=%v, want %v", tc.in, err, tc.want)
+			}
+		})
+	}
+	if err := mapHelperJobErr(nil); err != nil {
+		t.Fatalf("mapHelperJobErr(nil)=%v", err)
+	}
+	unknown := errors.New("other")
+	if err := mapHelperJobErr(unknown); !errors.Is(err, unknown) {
+		t.Fatalf("mapHelperJobErr(other)=%v, want original", err)
+	}
+	if helperJobFromStore(nil) != nil {
+		t.Fatal("helperJobFromStore(nil) should return nil")
+	}
+}
+
 func newHelperJobRepoFixture(t *testing.T, name string) (*DataLayer, *store.Store, *store.User) {
 	t.Helper()
 	s := store.MigratedStoreFromTemplate(t)

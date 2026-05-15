@@ -6,10 +6,10 @@
 |---|---|
 | Worktree | `.worktrees/task-1-job-envelope-and-enqueue-authority` |
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
-| PR | not opened |
+| PR | #938 |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | QA_GAP_REPAIR_VERIFIED |
-| Blocker | None for local repair. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. Implementation review blockers and the later QA acceptance evidence gap are repaired locally; PR not opened per assignment. |
+| State | CI_COVERAGE_REPAIR_VERIFIED |
+| Blocker | PR #938 `go-test-cov` per-function blocker repaired locally. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. Implementation review blockers, QA acceptance evidence gap, and the later `mapHelperJobErr` coverage blocker are repaired. |
 
 ## Checkpoints
 
@@ -106,6 +106,17 @@
 | API uninstalled enrollment | `TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUnmounted` now claims and uninstalls an enrollment via the helper rail, then asserts user-rail enqueue returns `403` with `code=uninstalled`. | PASS |
 | Focused GREEN | `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/store -run 'TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy' -count=1`; `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/api -run 'TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUnmounted' -count=1`. | PASS |
 | Broader focused GREEN | `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/api ./internal/store -run 'TestHelperJobs\|TestHelperJob' -count=1`; `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api ./internal/server -run 'TestHelperJobs\|TestHelperJob\|TestHelperEnrollment\|TestMigrationRegistryIncludesHelperJobs' -count=1`. | PASS |
+
+## CI Coverage Repair Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Blocker reproduced | `GOTMPDIR=$PWD/.gotmp go test -tags=sqlite_fts5 -run 'TestHelperJobRepositoryEnqueueProjectionAndErrorMapping' -coverprofile=/tmp/helperjob-before.out ./internal/datalayer && go tool cover -func=/tmp/helperjob-before.out \| rg 'mapHelperJobErr\|total:'` reported `mapHelperJobErr` at 22.7%, matching PR #938 `go-test-cov` failure. | RED PASS |
+| Mapper coverage repair | Added `TestHelperJobErrorMapping` table coverage for all store Helper job sentinel errors, nil passthrough, unknown error preservation, and nil projection. No production behavior change was needed. | PASS |
+| Focused coverage GREEN | `GOTMPDIR=/var/tmp/borgee-task1-coverage-gotmp go test -tags=sqlite_fts5 -run 'TestHelperJob(ErrorMapping\|RepositoryEnqueueProjectionAndErrorMapping)$' -count=1 -coverprofile=/var/tmp/helperjob-after.out ./internal/datalayer && go tool cover -func=/var/tmp/helperjob-after.out \| rg 'mapHelperJobErr\|total:'` reported `mapHelperJobErr` at 100.0%. | PASS |
+| Datalayer package GREEN | `GOTMPDIR=/var/tmp/borgee-task1-coverage-gotmp go test -tags sqlite_fts5 ./internal/datalayer -count=1` passed. | PASS |
+| CI coverage gate GREEN | `CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false GOTMPDIR=/var/tmp/borgee-task1-ci-cov-gotmp go run ./scripts/lib/coverage/` passed: total 85.6%, `internal/datalayer` 93.7%, 2277 tests. | PASS |
+| Diff hygiene | `git diff --check` passed. | PASS |
 
 ## Scope Locks
 
