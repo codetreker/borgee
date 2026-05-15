@@ -38,7 +38,7 @@ The plugin rail authenticates an agent plugin by API key and then treats the con
 
 The remote rail authenticates remote nodes by connection token. It represents a user-owned machine connection, not a user browser session and not an admin session.
 
-The Helper enrollment rail has two server-side entry modes. User-management requests use the user rail to create, list, read, and revoke enrollments scoped by owner and org. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat or helper-originated uninstall status with a persistent Helper credential plus matching helper device id.
+The Helper enrollment rail has two server-side entry modes. User-management requests use the user rail to create, list, read, and revoke enrollments scoped by owner and org. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat, rotate the persistent credential, or record helper-originated uninstall status with the current Helper credential plus matching helper device id.
 
 ## Collaborators
 
@@ -66,7 +66,7 @@ Plugin authentication is socket-specific. The plugin uses an agent API key to es
 
 Remote authentication is token-specific to a remote node. A live remote connection is associated with a registered node and its owning user, and later REST calls can use that live connection to proxy node operations.
 
-Helper enrollment authentication is token-specific to the enrollment lifecycle. The one-time enrollment secret is accepted only for claim and is stored only as a digest. Claim returns a persistent Helper credential once; the server stores only its digest and accepts it only on Helper heartbeat and helper-originated uninstall endpoints when the helper device id matches and the enrollment is non-terminal.
+Helper enrollment authentication is token-specific to the enrollment lifecycle. The one-time enrollment secret is accepted only for claim and is stored only as a digest. Claim returns a persistent Helper credential once; the server stores only its digest and accepts the current credential only on Helper heartbeat, credential rotation, and helper-originated uninstall endpoints when the helper device id matches and the enrollment is non-terminal. Rotation returns the new raw credential once, replaces the active digest, and immediately makes the previous credential stale.
 
 ## Key Flows
 
@@ -78,7 +78,7 @@ Plugin connection flow: an agent plugin presents an API key, the hub registers t
 
 Remote connection flow: a remote node presents a connection token, the hub registers it under the remote-node identity, and user-owned remote routes can proxy requests to that connection when it is online.
 
-Helper enrollment flow: a signed-in owner creates an enrollment row, receives a one-time local enrollment secret, and a local Helper claims the row with a helper device id. Later heartbeat and helper-originated uninstall requests present the persistent Helper credential and matching helper device id. Revoked or uninstalled rows block future heartbeat writes.
+Helper enrollment flow: a signed-in owner creates an enrollment row, receives a one-time local enrollment secret, and a local Helper claims the row with a helper device id. Later heartbeat, rotation, and helper-originated uninstall requests present the current persistent Helper credential and matching helper device id. Revoked or uninstalled rows block future heartbeat and rotation writes.
 
 Impersonation/audit flow: user-facing grant state lives on the user rail, while admin-facing audit views live on the admin rail. This split prevents a user credential from reading global audit state and prevents admin context from masquerading as the user rail without an explicit grant model.
 
@@ -90,7 +90,7 @@ Impersonation/audit flow: user-facing grant state lives on the user rail, while 
 - Agent wildcard capability is narrower than human wildcard behavior.
 - Plugin frames are not trusted merely because the socket is connected; protocol validation and owner checks still apply.
 - Remote-node tokens authenticate machines, not browser users or admins.
-- Helper enrollment credentials authenticate only claim/status/uninstall for a Helper enrollment. They are not user sessions, Remote Agent tokens, host grants, or user permissions.
+- Helper enrollment credentials authenticate only claim/status/rotation/uninstall for a Helper enrollment, and rotation replaces the active credential so later Helper lifecycle writes require the current credential plus matching device id. They are not user sessions, Remote Agent tokens, host grants, or user permissions.
 - Helper enrollment status is host/device enrollment visibility only. It is not a job queue, command channel, service lifecycle result, or Configure OpenClaw success state.
 - Admin metadata views must avoid content-bearing fields unless a route explicitly owns that disclosure.
 

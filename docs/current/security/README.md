@@ -27,7 +27,7 @@ user API:      user credential -> user context -> owner/capability/resource chec
 admin API:     admin session cookie -> admin context -> admin rail only
 plugin WS:     API key -> agent/plugin connection -> scoped API bridge
 remote WS:     remote node token -> remote connection -> intended list/read tunnel
-helper enroll: one-time enrollment secret -> persistent Helper credential -> status/uninstall only
+helper enroll: one-time enrollment secret -> persistent Helper credential -> status/rotation/uninstall only
 helper IPC:    local agent id -> ACL -> host grant lookup -> local action
 installer:     manifest fetch -> partial verifier path -> local artifact deploy
 ```
@@ -51,14 +51,14 @@ installer:     manifest fetch -> partial verifier path -> local artifact deploy
 | Capability checks | authenticated user context | user permission rows and scoped resources | authorization helper or legacy permission middleware | no direct serializer surface | app capabilities do not authorize host helper grants |
 | Plugin WebSocket | API key | user/agent row behind the key | plugin connection in hub | plugin lifecycle audit uses server audit source where wired | plugin API bridge is not Remote Agent |
 | Remote Agent | remote node token | remote node ownership plus online connection | reverse WebSocket and intended local allowlist; current envelope caveat applies | remote token hidden from node JSON | remote token is not a host grant |
-| Helper enrollment | one-time enrollment secret, then persistent Helper credential digest | helper enrollment row scoped by owner, org, enrollment id, helper device id, status, and allowed categories | HTTP claim/status/uninstall handlers; no job execution in this foundation | enrollment serializers omit org id, raw secrets, digests, and token equivalents | Helper credential is not a user credential, Remote Agent token, host grant, or user permission |
+| Helper enrollment | one-time enrollment secret, then current persistent Helper credential digest | helper enrollment row scoped by owner, org, enrollment id, helper device id, status, allowed categories, and credential generation | HTTP claim/status/rotate/uninstall handlers; no job execution in this foundation | enrollment serializers omit org id, raw secrets, digests, and token equivalents; claim/rotation return raw credentials once | Helper credential is not a user credential, Remote Agent token, host grant, or user permission |
 | Host Bridge helper | local handshake agent id | host grant row by agent and scope | UDS IPC, ACL, sandbox, read-only IO | local JSONL audit | helper cannot create grants |
 | Installer | optional fetch Bearer plus configured verification key where wired | partial verifier path and operator confirmation | local package/service manager for caller-supplied artifact path | no app data surface | installation does not authorize later helper requests; deployment trust is partial wiring until envelope shape, signing-key injection, and local artifact binding align |
 
 ## Key Security Invariants
 
 **Rail separation**
-Each rail has a distinct credential and entry point. Cross-rail reuse is intentionally limited: API keys can authenticate user API and plugin handshake paths, but not admin sessions; remote node tokens can authenticate remote WebSocket connections, but not user API or Helper status; Helper credentials can claim and update Helper enrollment status, but not Remote Agent or host grants; host grants can be consumed by helper ACL, but not by Remote Agent or Helper enrollment. Current Remote Agent filesystem proxying still carries an implementation caveat, so the rail boundary should be described as ownership and connection separation rather than as a settled filesystem-security guarantee.
+Each rail has a distinct credential and entry point. Cross-rail reuse is intentionally limited: API keys can authenticate user API and plugin handshake paths, but not admin sessions; remote node tokens can authenticate remote WebSocket connections, but not user API or Helper status; Helper credentials can claim, rotate, and update Helper enrollment lifecycle state, but not Remote Agent or host grants; host grants can be consumed by helper ACL, but not by Remote Agent or Helper enrollment. Current Remote Agent filesystem proxying still carries an implementation caveat, so the rail boundary should be described as ownership and connection separation rather than as a settled filesystem-security guarantee.
 
 **Owner before capability**
 Resource ownership gates appear alongside capability checks. Remote nodes, Helper enrollments, host grants, runtime owner actions, and user privacy audit views all use owner scoping to keep cross-user access from being implied by broad credentials. Helper enrollment status also binds org id and helper device id; host label alone is display metadata, not authority.
@@ -77,7 +77,7 @@ This page does not define new privileges or future unification. It records the c
 
 - Some rails have intentionally separate but not yet unified audit sinks, so cross-source audit completeness varies by module.
 - Remote Agent's rail separation is clearer than its current end-to-end filesystem proxy contract.
-- Helper enrollment currently provides identity/status authority only: claim, heartbeat, revoke, and helper-originated uninstall state. It does not provide a job queue, command channel, service lifecycle execution, or Configure OpenClaw success state.
+- Helper enrollment currently provides identity/status authority only: claim, heartbeat, credential rotation, revoke, and helper-originated uninstall state. It does not provide a job queue, command channel, service lifecycle execution, or Configure OpenClaw success state.
 - Installer deployment trust is partial wiring; [../host-bridge/installer.md](../host-bridge/installer.md) owns the envelope, signing-key, and artifact-binding details.
 - Capability and legacy permission checks are close but not identical, which matters for agent wildcard reasoning.
 

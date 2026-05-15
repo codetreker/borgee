@@ -35,6 +35,9 @@ var helperAllowedCategories = map[string]bool{
 
 const HelperEnrollmentSecretTTL = 15 * time.Minute
 
+var helperEnrollmentCredentialRaceHook func(*Store, *HelperEnrollment) error
+var helperEnrollmentRevokeRaceHook func(*Store, *HelperEnrollment) error
+
 func (s *Store) CreateHelperEnrollment(ownerUserID, hostLabel string, allowedCategories []string, now time.Time) (*HelperEnrollment, string, error) {
 	owner, err := s.GetUserByID(ownerUserID)
 	if err != nil {
@@ -73,6 +76,7 @@ func (s *Store) CreateHelperEnrollment(ownerUserID, hostLabel string, allowedCat
 		UpdatedAt:                 ts,
 		EnrollmentSecretDigest:    &digest,
 		EnrollmentSecretExpiresAt: &expires,
+		CredentialGeneration:      1,
 	}
 	if err := s.db.Create(row).Error; err != nil {
 		return nil, "", err
@@ -180,11 +184,20 @@ func (s *Store) UpdateHelperEnrollmentLastSeen(id, credential, helperDeviceID st
 	if err != nil {
 		return nil, err
 	}
+	if helperEnrollmentCredentialRaceHook != nil {
+		if err := helperEnrollmentCredentialRaceHook(s, row); err != nil {
+			return nil, err
+		}
+	}
 	ts := now.UnixMilli()
-	if err := s.db.Model(&HelperEnrollment{}).
-		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL AND status IN ?", id, []string{"connected", "offline"}).
-		Updates(map[string]any{"last_seen_at": ts, "updated_at": ts, "status": "connected"}).Error; err != nil {
-		return nil, err
+	res := s.db.Model(&HelperEnrollment{}).
+		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL AND status IN ? AND persistent_credential_digest = ? AND helper_device_id = ?", id, []string{"connected", "offline"}, *row.PersistentCredentialDigest, helperDeviceID).
+		Updates(map[string]any{"last_seen_at": ts, "updated_at": ts, "status": "connected"})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected != 1 {
+		return nil, s.helperEnrollmentConditionalWriteError(id, *row.PersistentCredentialDigest, helperDeviceID)
 	}
 	row, err = s.GetHelperEnrollment(id)
 	if err != nil {
@@ -201,13 +214,100 @@ func (s *Store) MarkHelperEnrollmentUninstalled(id, credential, helperDeviceID s
 	if row.Status == "uninstalled" || row.UninstalledAt != nil {
 		return row, nil
 	}
+	if helperEnrollmentCredentialRaceHook != nil {
+		if err := helperEnrollmentCredentialRaceHook(s, row); err != nil {
+			return nil, err
+		}
+	}
 	ts := now.UnixMilli()
-	if err := s.db.Model(&HelperEnrollment{}).
-		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL", id).
-		Updates(map[string]any{"status": "uninstalled", "uninstalled_at": ts, "updated_at": ts}).Error; err != nil {
-		return nil, err
+	res := s.db.Model(&HelperEnrollment{}).
+		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL AND persistent_credential_digest = ? AND helper_device_id = ?", id, *row.PersistentCredentialDigest, helperDeviceID).
+		Updates(map[string]any{"status": "uninstalled", "uninstalled_at": ts, "updated_at": ts})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected != 1 {
+		return nil, s.helperEnrollmentConditionalWriteError(id, *row.PersistentCredentialDigest, helperDeviceID)
 	}
 	return s.GetHelperEnrollment(id)
+}
+
+func (s *Store) helperEnrollmentConditionalWriteError(id, credentialDigest, helperDeviceID string) error {
+	row, err := s.GetHelperEnrollment(id)
+	if err != nil {
+		return err
+	}
+	if row.OwnerUserID == "" || row.OrgID == "" || row.RevokedAt != nil || row.UninstalledAt != nil || row.Status == "revoked" || row.Status == "uninstalled" {
+		return ErrHelperEnrollmentInactive
+	}
+	if row.PersistentCredentialDigest == nil || *row.PersistentCredentialDigest != credentialDigest {
+		return ErrHelperEnrollmentUnauthorized
+	}
+	if row.HelperDeviceID == nil || *row.HelperDeviceID != helperDeviceID {
+		return ErrHelperEnrollmentDeviceMismatch
+	}
+	return ErrHelperEnrollmentUnauthorized
+}
+
+func (s *Store) RotateHelperEnrollmentCredential(id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, string, error) {
+	helperDeviceID = strings.TrimSpace(helperDeviceID)
+	if credential == "" || helperDeviceID == "" || len(helperDeviceID) > 255 {
+		return nil, "", ErrHelperEnrollmentInvalidInput
+	}
+	var out HelperEnrollment
+	var newCredential string
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var row HelperEnrollment
+		if err := tx.Where("id = ?", id).First(&row).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrHelperEnrollmentNotFound
+			}
+			return err
+		}
+		if row.OwnerUserID == "" || row.OrgID == "" || row.ClaimedAt == nil || row.PersistentCredentialDigest == nil || row.RevokedAt != nil || row.UninstalledAt != nil || row.Status == "revoked" || row.Status == "uninstalled" || row.Status == "pending" {
+			return ErrHelperEnrollmentInactive
+		}
+		if !constantTimeDigestMatch(*row.PersistentCredentialDigest, credential) {
+			return ErrHelperEnrollmentUnauthorized
+		}
+		if row.HelperDeviceID == nil || *row.HelperDeviceID != helperDeviceID {
+			return ErrHelperEnrollmentDeviceMismatch
+		}
+
+		var err error
+		newCredential, err = newHelperSecret()
+		if err != nil {
+			return err
+		}
+		newDigest := helperSecretDigest(newCredential)
+		ts := now.UnixMilli()
+		generation := row.CredentialGeneration
+		if generation < 1 {
+			generation = 1
+		}
+		res := tx.Model(&HelperEnrollment{}).
+			Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL AND persistent_credential_digest = ?", id, *row.PersistentCredentialDigest).
+			Updates(map[string]any{
+				"persistent_credential_digest": newDigest,
+				"credential_rotated_at":        ts,
+				"credential_generation":        generation + 1,
+				"updated_at":                   ts,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return ErrHelperEnrollmentUnauthorized
+		}
+		if err := tx.Where("id = ?", id).First(&out).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return &out, newCredential, nil
 }
 
 func (s *Store) RevokeHelperEnrollmentForUser(id, ownerUserID, orgID string, now time.Time) (*HelperEnrollment, error) {
@@ -221,11 +321,20 @@ func (s *Store) RevokeHelperEnrollmentForUser(id, ownerUserID, orgID string, now
 	if row.RevokedAt != nil || row.Status == "revoked" {
 		return row, nil
 	}
+	if helperEnrollmentRevokeRaceHook != nil {
+		if err := helperEnrollmentRevokeRaceHook(s, row); err != nil {
+			return nil, err
+		}
+	}
 	ts := now.UnixMilli()
-	if err := s.db.Model(&HelperEnrollment{}).
-		Where("id = ?", id).
-		Updates(map[string]any{"status": "revoked", "revoked_at": ts, "updated_at": ts}).Error; err != nil {
-		return nil, err
+	res := s.db.Model(&HelperEnrollment{}).
+		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL", id).
+		Updates(map[string]any{"status": "revoked", "revoked_at": ts, "updated_at": ts})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected != 1 {
+		return s.GetHelperEnrollment(id)
 	}
 	return s.GetHelperEnrollment(id)
 }

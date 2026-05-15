@@ -33,6 +33,9 @@ type HelperEnrollment struct {
 	RevokedAt                 *int64
 	UninstalledAt             *int64
 	EnrollmentSecretExpiresAt *int64
+	CredentialCreatedAt       *int64
+	CredentialRotatedAt       *int64
+	CredentialGeneration      int
 }
 
 type HelperEnrollmentRepository interface {
@@ -41,6 +44,7 @@ type HelperEnrollmentRepository interface {
 	GetForUser(ctx context.Context, id, ownerUserID, orgID string) (*HelperEnrollment, error)
 	RevokeForUser(ctx context.Context, id, ownerUserID, orgID string, now time.Time) (*HelperEnrollment, error)
 	Claim(ctx context.Context, id, enrollmentSecret, helperDeviceID string, now time.Time) (*HelperEnrollment, string, error)
+	RotateCredential(ctx context.Context, id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, string, error)
 	UpdateLastSeen(ctx context.Context, id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, error)
 	MarkUninstalled(ctx context.Context, id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, error)
 }

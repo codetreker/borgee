@@ -16,7 +16,7 @@ Host Bridge collaborates with the user API for grants and Helper enrollment mana
 **Internal Architecture**
 
 - Grant control plane: user-owned rows describing host capability consent.
-- Helper enrollment control plane: owner/org-scoped rows describing enrolled Helper identity, allowed category visibility, device id, last seen, revoke, and helper-originated uninstall status.
+- Helper enrollment control plane: owner/org-scoped rows describing enrolled Helper identity, allowed category visibility, device id, current credential lifecycle metadata, last seen, revoke, and helper-originated uninstall status.
 - Helper data plane: local UDS IPC carrying agent-scoped requests.
 - Enforcement stack: handshake identity, action allowlist, path/scope normalization, grant lookup, read-only IO, audit, sandbox.
 - Installer path: current manifest verifier path, local operator confirmation, and platform service deployment.
@@ -29,7 +29,8 @@ Grant flow:
 
 Helper enrollment flow:
   user creates enrollment -> local helper claims with one-time secret/device id
-  -> server returns persistent Helper credential once -> helper heartbeat updates last seen
+  -> server returns persistent Helper credential once -> helper can rotate the credential
+  -> helper heartbeat updates last seen with the current credential
   -> user revoke or helper-originated uninstall makes the enrollment terminal
 
 Helper request flow:
@@ -46,7 +47,7 @@ Install flow:
 - User consent is represented as host grants, not as generic user API capabilities.
 - Helper enrollment is represented as `helper_enrollments`, not as Remote Agent nodes, host grants, or user permissions.
 - Helper enforcement is per request; grant state is not cached in the helper decision path.
-- Helper enrollment status is identity/status only; it does not execute jobs or prove Configure OpenClaw success.
+- Helper enrollment status and credential rotation are identity/status only; they do not execute jobs or prove Configure OpenClaw success.
 - Helper filesystem IO is read-only in the current capability set.
 - Remote Agent and Host Bridge are separate capabilities with separate credentials, transports, and boundaries.
 - Server-side host grant ownership does not imply admin-wide override.
@@ -65,7 +66,7 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 
 - Runtime authorization and platform sandboxing do not have identical update lifecycles; [helper-daemon.md](helper-daemon.md) owns the daemon-level details.
 - Deployment trust and runtime authorization are separate boundaries; [installer.md](installer.md) owns installer trust details.
-- Helper enrollment has identity/status and minimal credential handling only. Rotation, pull queues, service lifecycle, local uninstall action execution, and local policy execution are not current behavior.
+- Helper enrollment has identity/status and current-credential rotation handling only. Pull queues, service lifecycle, local uninstall action execution, and local policy execution are not current behavior.
 
 ## Implementation Anchors
 

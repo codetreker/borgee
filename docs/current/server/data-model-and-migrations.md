@@ -54,7 +54,7 @@ The forward-only migration engine is the additive schema mechanism. Each migrati
 
 Core aggregates are intentionally not normalized into one generic resource table. Users, channels, messages, remote nodes, Helper enrollments, artifacts, admin rows, and agent state each retain domain-specific tables because they carry different ownership, privacy, and retention rules.
 
-Helper enrollment state is stored in `helper_enrollments`. The row is the server-side Helper identity/status authority and binds `owner_user_id`, `org_id`, host label, optional `helper_device_id`, closed allowed-category JSON, status, last-seen timestamps, and terminal revoke/uninstall timestamps. One-time enrollment secrets and persistent Helper credentials are stored only as digests; raw values are returned only once by the API path that creates or claims them. The table is separate from `remote_nodes`, `host_grants`, and `user_permissions`.
+Helper enrollment state is stored in `helper_enrollments`. The row is the server-side Helper identity/status authority and binds `owner_user_id`, `org_id`, host label, optional `helper_device_id`, closed allowed-category JSON, status, last-seen timestamps, active credential lifecycle metadata, and terminal revoke/uninstall timestamps. One-time enrollment secrets and persistent Helper credentials are stored only as digests; raw values are returned only once by the API path that creates, claims, or rotates them. The active credential digest is replaced on rotation, while `credential_created_at`, `credential_rotated_at`, and `credential_generation` record lifecycle metadata. The table is separate from `remote_nodes`, `host_grants`, and `user_permissions`.
 
 Agent state is deliberately multi-part: runtime process metadata, plugin socket liveness, presence sessions, busy/idle task state, and append-only state transitions are separate concepts. Collapsing them would lose information about whether an agent process is registered, connected, reachable, executing work, or historically failed.
 
@@ -64,7 +64,7 @@ Boot migration flow: opening the store prepares SQLite runtime settings, baselin
 
 Write flow: a handler validates the operation, writes one or more aggregate rows, and then chooses side effects such as hot event rows, WebSocket fanout, cold event publication, audit rows, or push notification. Persistence and fanout are related but not automatically coupled.
 
-Helper enrollment write flow: the owner user creates or revokes enrollment rows through user-authenticated routes scoped by owner and org. The local Helper claims with a one-time enrollment secret, then updates heartbeat or helper-originated uninstall status with the persistent Helper credential and matching helper device id. Revoked or uninstalled rows are terminal for future heartbeat writes. Offline freshness is derived from `last_seen_at`; it is recoverable by the same valid Helper credential and device id.
+Helper enrollment write flow: the owner user creates or revokes enrollment rows through user-authenticated routes scoped by owner and org. The local Helper claims with a one-time enrollment secret, then updates heartbeat, rotates its credential, or records helper-originated uninstall status with the current persistent Helper credential and matching helper device id. Rotation replaces the active credential digest; the previous credential becomes stale immediately and cannot heartbeat, rotate, or uninstall. Revoked or uninstalled rows are terminal for future heartbeat and rotation writes. Offline freshness is derived from `last_seen_at`; it is recoverable by the same valid Helper credential and device id, including the new credential after rotation.
 
 Hot event flow: user-facing realtime replay is based on an autoincrement cursor. Polling, streaming, and backfill clients consume cursor-ordered state, while WebSocket frame producers may allocate cursors for live delivery.
 
@@ -86,7 +86,7 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 
 ## Non-Goals
 
-The data model does not model plugin-local runtime secrets, LLM provider configuration, or a universal event table for all delivery paths. Helper enrollment currently does not model a job queue, lease/result state, service lifecycle execution, local policy engine, credential rotation history, or Configure OpenClaw success state.
+The data model does not model plugin-local runtime secrets, LLM provider configuration, or a universal event table for all delivery paths. Helper enrollment currently does not model a job queue, lease/result state, service lifecycle execution, local policy engine, credential history beyond current active-digest metadata, or Configure OpenClaw success state.
 
 ## Implementation Anchors
 

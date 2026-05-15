@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-15
-Resume from: execute `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/`.
+Resume from: execute `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-2-helper-credential-rotation-and-revoke/`.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -135,4 +135,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Review and accept the milestone breakdown under `docs/tasks/`. The first executable work starts only after that breakdown PR is accepted, under `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/`.
+Continue Phase 1 Milestone 1 from `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-2-helper-credential-rotation-and-revoke/`. Task 1 was accepted via PR #934 and merge commit `547f869`; task 2 is in TASKING for four-piece and Dev design review before implementation.

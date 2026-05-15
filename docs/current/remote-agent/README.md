@@ -55,7 +55,7 @@ Remote Agent does not provide host-wide privileges, OS sandboxing, package insta
 
 - The current filesystem proxy is an intended capability with protocol caveats; [protocol.md](protocol.md) owns the connection setup and request-contract details.
 - Treat Remote Agent's boundary as node ownership plus local allowlist intent until those protocol caveats are resolved.
-- Remote Agent tokens do not authenticate Helper enrollment claim, heartbeat, or helper-originated uninstall. Helper enrollment rows and credentials live in the server Helper enrollment rail.
+- Remote Agent tokens do not authenticate Helper enrollment claim, heartbeat, credential rotation, or helper-originated uninstall. Helper enrollment rows and credentials live in the server Helper enrollment rail.
 
 ## Implementation Anchors
 

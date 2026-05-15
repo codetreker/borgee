@@ -47,6 +47,28 @@ func claimHelperEnrollmentViaAPI(t *testing.T, baseURL, enrollmentID, secret, de
 	return enrollment, credential
 }
 
+func rotateHelperCredentialViaAPI(t *testing.T, baseURL, enrollmentID, credential, deviceID string) (map[string]any, string) {
+	t.Helper()
+	resp, body := testutil.JSON(t, http.MethodPost, baseURL+"/api/v1/helper/enrollments/"+enrollmentID+"/rotate-credential", credential, map[string]any{
+		"helper_device_id": deviceID,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("rotate helper credential: status %d body %v", resp.StatusCode, body)
+	}
+	enrollment, ok := body["enrollment"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing enrollment object: %v", body)
+	}
+	newCredential, ok := body["helper_credential"].(string)
+	if !ok || newCredential == "" {
+		t.Fatalf("missing rotated helper credential: %v", body)
+	}
+	if newCredential == credential {
+		t.Fatalf("rotated credential matched old credential")
+	}
+	return enrollment, newCredential
+}
+
 func assertNoSensitiveHelperFields(t *testing.T, m map[string]any) {
 	t.Helper()
 	for _, key := range []string{
@@ -170,6 +192,30 @@ func TestHelperEnrollmentHelperRailClaimStatusAndUninstall(t *testing.T) {
 	}
 	assertNoSensitiveHelperFields(t, statusEnrollment)
 
+	rotated, rotatedCredential := rotateHelperCredentialViaAPI(t, ts.URL, enrollmentID, credential, "device-1")
+	assertNoSensitiveHelperFields(t, rotated)
+
+	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/status", credential, map[string]any{
+		"helper_device_id": "device-1",
+		"state":            "connected",
+	})
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("old credential must be stale after rotation, got %d", resp.StatusCode)
+	}
+
+	resp, body = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/status", rotatedCredential, map[string]any{
+		"helper_device_id": "device-1",
+		"state":            "connected",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("rotated credential status should be 200, got %d body %v", resp.StatusCode, body)
+	}
+	rotatedStatus := body["enrollment"].(map[string]any)
+	if rotatedStatus["status"] != "connected" || rotatedStatus["last_seen_at"] == nil {
+		t.Fatalf("rotated credential status should return connected with last_seen_at: %v", rotatedStatus)
+	}
+	assertNoSensitiveHelperFields(t, rotatedStatus)
+
 	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/uninstall", ownerToken, map[string]any{
 		"helper_device_id": "device-1",
 	})
@@ -177,7 +223,7 @@ func TestHelperEnrollmentHelperRailClaimStatusAndUninstall(t *testing.T) {
 		t.Fatalf("user token must not authenticate helper uninstall, got %d", resp.StatusCode)
 	}
 
-	resp, body = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/uninstall", credential, map[string]any{
+	resp, body = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/uninstall", rotatedCredential, map[string]any{
 		"helper_device_id": "device-1",
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -188,7 +234,7 @@ func TestHelperEnrollmentHelperRailClaimStatusAndUninstall(t *testing.T) {
 		t.Fatalf("uninstall status=%v, want uninstalled", uninstalled["status"])
 	}
 
-	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/status", credential, map[string]any{
+	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/status", rotatedCredential, map[string]any{
 		"helper_device_id": "device-1",
 		"state":            "connected",
 	})
@@ -235,6 +281,20 @@ func TestHelperEnrollmentRejectsRemoteHostGrantAndUserPermissionAuthority(t *tes
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("%s must not authenticate helper status, got %d", name, resp.StatusCode)
 		}
+
+		resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/rotate-credential", token, map[string]any{
+			"helper_device_id": "device-1",
+		})
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("%s must not authenticate helper credential rotation, got %d", name, resp.StatusCode)
+		}
+	}
+
+	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/rotate-credential", credential, map[string]any{
+		"helper_device_id": "device-2",
+	})
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("wrong helper_device_id must not rotate helper credential, got %d", resp.StatusCode)
 	}
 
 	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/status", credential, map[string]any{
