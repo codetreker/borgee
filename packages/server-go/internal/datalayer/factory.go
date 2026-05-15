@@ -18,16 +18,17 @@ import (
 	"borgee-server/internal/store"
 )
 
-// DataLayer is the canonical bundle of the 4 blueprint §4 B interfaces. It is wired
-// once at server boot and passed to handlers through dependency injection instead
-// of direct store fields.
+// DataLayer is the canonical bundle of blueprint §4 B interfaces plus narrow
+// task-specific repositories. It is wired once at server boot and passed to
+// handlers through dependency injection instead of direct store fields.
 type DataLayer struct {
-	Storage     Storage
-	Presence    PresenceStore
-	EventBus    EventBus
-	UserRepo    UserRepository
-	ChannelRepo ChannelRepository
-	MessageRepo MessageRepository
+	Storage              Storage
+	Presence             PresenceStore
+	EventBus             EventBus
+	UserRepo             UserRepository
+	ChannelRepo          ChannelRepository
+	MessageRepo          MessageRepository
+	HelperEnrollmentRepo HelperEnrollmentRepository
 }
 
 // NewDataLayer assembles the v1 (SQLite + in-memory) bundle. Caller owns
@@ -40,11 +41,12 @@ type DataLayer struct {
 func NewDataLayer(s *store.Store, pt presence.PresenceTracker, logger *slog.Logger) *DataLayer {
 	eventStore := NewSQLiteEventStore(s.DB(), logger)
 	return &DataLayer{
-		Storage:     NewLocalDBStorage(s),
-		Presence:    NewInMemoryPresence(pt),
-		EventBus:    NewInProcessEventBusWithStore(eventStore),
-		UserRepo:    NewSQLiteUserRepository(s),
-		ChannelRepo: NewSQLiteChannelRepository(s),
-		MessageRepo: NewSQLiteMessageRepository(s),
+		Storage:              NewLocalDBStorage(s),
+		Presence:             NewInMemoryPresence(pt),
+		EventBus:             NewInProcessEventBusWithStore(eventStore),
+		UserRepo:             NewSQLiteUserRepository(s),
+		ChannelRepo:          NewSQLiteChannelRepository(s),
+		MessageRepo:          NewSQLiteMessageRepository(s),
+		HelperEnrollmentRepo: NewSQLiteHelperEnrollmentRepository(s),
 	}
 }

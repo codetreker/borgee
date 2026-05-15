@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"borgee-server/internal/store"
+	"borgee-server/internal/datalayer"
 )
 
 type HelperEnrollmentHandler struct {
-	Store *store.Store
-	Now   func() time.Time
+	Repo datalayer.HelperEnrollmentRepository
+	Now  func() time.Time
 }
 
 func (h *HelperEnrollmentHandler) now() time.Time {
@@ -45,9 +45,9 @@ func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Re
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	enrollment, secret, err := h.Store.CreateHelperEnrollment(user.ID, req.HostLabel, req.AllowedCategories, h.now())
+	enrollment, secret, err := h.Repo.Create(r.Context(), user.ID, req.HostLabel, req.AllowedCategories, h.now())
 	if err != nil {
-		if errors.Is(err, store.ErrHelperEnrollmentInvalidCategory) || errors.Is(err, store.ErrHelperEnrollmentInvalidInput) || errors.Is(err, store.ErrHelperEnrollmentInvalidOwner) {
+		if errors.Is(err, datalayer.ErrHelperEnrollmentInvalidCategory) || errors.Is(err, datalayer.ErrHelperEnrollmentInvalidInput) || errors.Is(err, datalayer.ErrHelperEnrollmentInvalidOwner) {
 			writeJSONError(w, http.StatusBadRequest, "Invalid helper enrollment")
 			return
 		}
@@ -66,7 +66,7 @@ func (h *HelperEnrollmentHandler) handleList(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
-	rows, err := h.Store.ListHelperEnrollmentsForUser(user.ID, user.OrgID)
+	rows, err := h.Repo.ListForUser(r.Context(), user.ID, user.OrgID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Failed to list helper enrollments")
 		return
@@ -83,7 +83,7 @@ func (h *HelperEnrollmentHandler) handleGet(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	row, err := h.Store.GetHelperEnrollmentForUser(r.PathValue("enrollmentId"), user.ID, user.OrgID)
+	row, err := h.Repo.GetForUser(r.Context(), r.PathValue("enrollmentId"), user.ID, user.OrgID)
 	if err != nil {
 		h.writeUserLookupError(w, err)
 		return
@@ -96,7 +96,7 @@ func (h *HelperEnrollmentHandler) handleRevoke(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-	row, err := h.Store.RevokeHelperEnrollmentForUser(r.PathValue("enrollmentId"), user.ID, user.OrgID, h.now())
+	row, err := h.Repo.RevokeForUser(r.Context(), r.PathValue("enrollmentId"), user.ID, user.OrgID, h.now())
 	if err != nil {
 		h.writeUserLookupError(w, err)
 		return
@@ -117,7 +117,7 @@ func (h *HelperEnrollmentHandler) handleClaim(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	row, credential, err := h.Store.ClaimHelperEnrollment(r.PathValue("enrollmentId"), req.EnrollmentSecret, req.HelperDeviceID, h.now())
+	row, credential, err := h.Repo.Claim(r.Context(), r.PathValue("enrollmentId"), req.EnrollmentSecret, req.HelperDeviceID, h.now())
 	if err != nil {
 		h.writeHelperError(w, err)
 		return
@@ -146,7 +146,7 @@ func (h *HelperEnrollmentHandler) handleStatus(w http.ResponseWriter, r *http.Re
 		writeJSONError(w, http.StatusBadRequest, "Invalid helper status")
 		return
 	}
-	row, err := h.Store.UpdateHelperEnrollmentLastSeen(r.PathValue("enrollmentId"), credential, req.HelperDeviceID, h.now())
+	row, err := h.Repo.UpdateLastSeen(r.Context(), r.PathValue("enrollmentId"), credential, req.HelperDeviceID, h.now())
 	if err != nil {
 		h.writeHelperError(w, err)
 		return
@@ -167,7 +167,7 @@ func (h *HelperEnrollmentHandler) handleUninstall(w http.ResponseWriter, r *http
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	row, err := h.Store.MarkHelperEnrollmentUninstalled(r.PathValue("enrollmentId"), credential, req.HelperDeviceID, h.now())
+	row, err := h.Repo.MarkUninstalled(r.Context(), r.PathValue("enrollmentId"), credential, req.HelperDeviceID, h.now())
 	if err != nil {
 		h.writeHelperError(w, err)
 		return
@@ -175,7 +175,7 @@ func (h *HelperEnrollmentHandler) handleUninstall(w http.ResponseWriter, r *http
 	writeJSONResponse(w, http.StatusOK, map[string]any{"enrollment": h.serialize(row)})
 }
 
-func (h *HelperEnrollmentHandler) serialize(row *store.HelperEnrollment) map[string]any {
+func (h *HelperEnrollmentHandler) serialize(row *datalayer.HelperEnrollment) map[string]any {
 	status := row.Status
 	fresh := false
 	if row.Status == "connected" || row.Status == "offline" {
@@ -189,7 +189,7 @@ func (h *HelperEnrollmentHandler) serialize(row *store.HelperEnrollment) map[str
 	out := map[string]any{
 		"enrollment_id":      row.ID,
 		"host_label":         row.HostLabel,
-		"allowed_categories": row.AllowedCategoryList(),
+		"allowed_categories": row.AllowedCategories,
 		"status":             status,
 		"fresh":              fresh,
 		"created_at":         row.CreatedAt,
@@ -214,9 +214,9 @@ func (h *HelperEnrollmentHandler) serialize(row *store.HelperEnrollment) map[str
 
 func (h *HelperEnrollmentHandler) writeUserLookupError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrHelperEnrollmentNotFound):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentNotFound):
 		writeJSONError(w, http.StatusNotFound, "Helper enrollment not found")
-	case errors.Is(err, store.ErrHelperEnrollmentForbidden):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentForbidden):
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
 	default:
 		writeJSONError(w, http.StatusInternalServerError, "Helper enrollment error")
@@ -225,15 +225,15 @@ func (h *HelperEnrollmentHandler) writeUserLookupError(w http.ResponseWriter, er
 
 func (h *HelperEnrollmentHandler) writeHelperError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrHelperEnrollmentInvalidInput):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentInvalidInput):
 		writeJSONError(w, http.StatusBadRequest, "Invalid helper enrollment")
-	case errors.Is(err, store.ErrHelperEnrollmentUnauthorized):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentUnauthorized):
 		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
-	case errors.Is(err, store.ErrHelperEnrollmentDeviceMismatch), errors.Is(err, store.ErrHelperEnrollmentInactive):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentDeviceMismatch), errors.Is(err, datalayer.ErrHelperEnrollmentInactive):
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
-	case errors.Is(err, store.ErrHelperEnrollmentNotFound):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentNotFound):
 		writeJSONError(w, http.StatusNotFound, "Helper enrollment not found")
-	case errors.Is(err, store.ErrHelperEnrollmentAlreadyClaimed):
+	case errors.Is(err, datalayer.ErrHelperEnrollmentAlreadyClaimed):
 		writeJSONError(w, http.StatusConflict, "Helper enrollment already claimed")
 	default:
 		writeJSONError(w, http.StatusInternalServerError, "Helper enrollment error")

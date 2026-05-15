@@ -9,7 +9,7 @@
 | PR | #934 |
 | Owner | Dev |
 | State | ACCEPTING |
-| Blocker | none |
+| Blocker | none; PR #934 CI DL-1.2 direct-store import blocker reproduced and fixed |
 
 ## Checkpoints
 
@@ -43,6 +43,12 @@
 | Sensitive-field review | `rg "enrollment_secret|helper_credential|persistent_credential_digest|credential_digest" packages/server-go/internal/api packages/server-go/internal/store` showed raw secrets only in create/claim request-response handlers and tests; digests use `json:"-"` model fields and are not serialized | PASS |
 | QA verification | QA re-ran diff checks, migration/store/API Helper tests, Remote/HostGrants/AgentStatus adjacency tests, route smoke command, and reverse-grep rail/scope checks | PASS |
 | Security review | Independent Security review verified user auth/owner-org scoping, Helper-only credential rail, digest storage/constant-time compare, terminal deny states, serializer redaction, and no scope creep | PASS |
+| CI blocker RED | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run TestDL12_DirectStoreImportBaseline` failed with `51 production .go files import borgee-server/internal/store directly under internal/api/ (baseline=50)` after `helper_enrollments.go` added a direct store import | PASS |
+| CI blocker fix | Moved Helper enrollment API dependency behind `internal/datalayer.HelperEnrollmentRepository`; `internal/api/helper_enrollments.go` now imports `internal/datalayer`, while the new SQLite adapter in `internal/datalayer` delegates to existing store helpers and maps datalayer-owned DTO/errors | PASS |
+| DL-1.2 GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 0.007s` | PASS |
+| DL-1.2 race GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 -race ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 1.028s` | PASS |
+| DL-1.2 cover GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 -cover ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 0.009s coverage: 0.0% of statements` | PASS |
+| Datalayer/server compile GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer ./internal/server` -> `ok borgee-server/internal/datalayer 3.233s`; `ok borgee-server/internal/server 0.502s` | PASS |
 | Diff hygiene | `git diff --check` completed with no output | PASS |
 | Broad package suite note | Earlier broad `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/api ./internal/server` passed migrations/store/server but `./internal/api` failed with existing concurrent suite `sql: database is closed`/missing-table errors unrelated to HelperEnrollment tests; no broad-suite pass is claimed here | INFO |
 
@@ -62,4 +68,4 @@ Date: 2026-05-15
 Scope: API/data/security/current-doc
 Fixtures: `testutil.NewTestServer` owner/member users, store migrated template, Remote Node/Host Grant separation fixtures; secrets redacted
 Out-of-scope findings: Broad `./internal/api` package run still needs separate stabilization; targeted task acceptance and rail-adjacency tests pass.
-Decision: LGTM for pre-PR acceptance evidence; broad `./internal/api` full-suite instability is unrelated and not used as acceptance evidence
+Decision: LGTM for PR #934 CI blocker fix; broad `./internal/api` full-suite instability is unrelated and not used as acceptance evidence
