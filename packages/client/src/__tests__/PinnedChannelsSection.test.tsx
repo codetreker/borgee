@@ -3,7 +3,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { PinnedChannelsSection } from '../components/PinnedChannelsSection';
 import { POSITION_PIN_THRESHOLD, isPinned } from '../lib/pin';
 import type { Channel } from '../types';

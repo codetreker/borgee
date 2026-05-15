@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { useInstallPrompt, type InstallState } from '../lib/cs3-install-prompt';
 
 let container: HTMLDivElement | null = null;

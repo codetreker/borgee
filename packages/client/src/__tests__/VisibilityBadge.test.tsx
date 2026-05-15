@@ -3,7 +3,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { VisibilityBadge } from '../components/VisibilityBadge';
 import {
   VISIBILITY_CREATOR_ONLY,

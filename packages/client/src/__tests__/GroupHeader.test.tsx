@@ -9,7 +9,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { DndContext } from '@dnd-kit/core';
 import GroupHeader from '../components/GroupHeader';
 import type { ChannelGroup } from '../types';

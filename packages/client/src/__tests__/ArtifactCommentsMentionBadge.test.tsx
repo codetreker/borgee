@@ -5,7 +5,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import ArtifactCommentsMentionBadge from '../components/ArtifactCommentsMentionBadge';
 import { dispatchMentionPushed } from '../hooks/useWsHubFrames';
 import type { MentionPushedFrame } from '../types/ws-frames';
