@@ -6,13 +6,14 @@ This sketch is an Interaction And Layout Reference for the user settings sidepan
 
 ## Surface
 
-Settings is a global sidepane in the user SPA. It has local tabs for privacy/admin-awareness and channel management. The privacy tab can show user-owned admin-impact metadata, impersonation grant state, and the user's current capability grants without creating an admin session or mounting the admin SPA. The channel tab shows channels the current user created and channels they joined, visible allowed-action rules, and expandable mention delivery controls for agent channel members.
+Settings is a global sidepane in the user SPA. It has local tabs for privacy/admin-awareness, channel management, and runtime launch points. The privacy tab can show user-owned admin-impact metadata, impersonation grant state, and the user's current capability grants without creating an admin session or mounting the admin SPA. The channel tab shows channels the current user created and channels they joined, visible allowed-action rules, and expandable mention delivery controls for agent channel members. The runtime tab launches Remote Nodes and Helper Status without merging their rails.
 
 ## Interaction Model
 
 - The user opens settings from the shell navigation rail.
-- Settings uses the same sidepane navigation model as agents, invitations, workspaces, and remote nodes.
-- The Settings tab state is local to the settings sidepane; switching between Privacy and Channel does not alter app-level sidepane routing.
+- Settings uses the same sidepane navigation model as agents, invitations, workspaces, remote nodes, and Helper status.
+- The Settings tab state is local to the settings sidepane; switching between Privacy, Channels, and Runtime does not alter app-level sidepane routing.
+- Runtime entries open the existing Remote Nodes and Helper Status sidepanes through the shell view selector. They are distinct launch points, not a shared credential or host-management surface.
 - Channel management reads the authorized channel list already held in app state. It groups non-DM channels by explicit `created_by` and `is_member` fields.
 - Mention delivery controls load channel members on demand, show `@Everyone` as server-computed, and update agent `requireMention` policy through the user rail when the signed-in user has `channel.manage_members`.
 - Channel management derives read-only leave/delete/archive/owner-transfer availability from the current user, channel ownership, membership, the default-channel rule, and the current permission state for delete/archive.
@@ -26,7 +27,7 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 +──────────────────────────────────────────────+
 │  Settings                              [Back] │
 ├──────────────────────────────────────────────┤
-│  [Privacy] [Channels]                         │
+│  [Privacy] [Channels] [Runtime]               │
 │                                              │
 │  Privacy                                      │
 │                                              │
@@ -59,6 +60,10 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 │  - #support     public       8 members       │
 │    Leave: available                          │
 │    Delete/archive/transfer: unavailable      │
+│                                              │
+│  Runtime                                      │
+│  [Remote Nodes]  Remote Agent file proxy     │
+│  [Helper Status] Helper actuator enrollment  │
 +──────────────────────────────────────────────+
 ```
 
@@ -73,6 +78,7 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 - Created channels appear in the created section only; joined channels created by someone else appear in the joined section. DM channels are outside this surface.
 - Self-created or owned channels do not expose leave as an available action. Joined-only non-general channels can show leave as available. Delete/archive can show available only for owned channels with matching permission state. Owner transfer is unavailable for v1.
 - Notification, collapse, sort, pin, group, and private-indicator controls are outside this Settings channel-management surface.
+- Runtime entries are navigation-only. Remote Agent node tokens, Helper enrollment credentials, host grants, and enforcement checks remain owned by their existing rails.
 - The admin privacy/audit module owns the durable audit projection and current limitations.
 - The shell may show a global banner when user-owned grant state is active.
 - Settings should not become a viewer for admin-wide audit data.
@@ -80,6 +86,7 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 ## Implementation Anchors
 
 - `packages/client/src/components/Settings/SettingsPage.tsx`: Settings sidepane composition.
+- `packages/client/src/App.tsx`: Shell view selector callbacks for Settings Runtime launch entries.
 - `packages/client/src/components/Settings/ChannelManagementSurface.tsx`: created/joined channel overview with row-local mention settings entry points.
 - `packages/client/src/components/Settings/ChannelMentionControls.tsx`: channel member policy controls and `@Everyone` authority copy.
 - `packages/client/src/components/PermissionsView.tsx`: signed-in user's capability visibility states and capability-row rendering.

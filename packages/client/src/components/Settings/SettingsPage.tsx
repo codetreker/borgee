@@ -31,11 +31,13 @@ import {
 
 interface Props {
   onBack: () => void;
+  onRemoteNodesOpen?: () => void;
+  onHelperStatusOpen?: () => void;
 }
 
-export type SettingsTab = 'privacy' | 'channels';
+export type SettingsTab = 'privacy' | 'runtime' | 'channels';
 
-export default function SettingsPage({ onBack }: Props) {
+export default function SettingsPage({ onBack, onRemoteNodesOpen, onHelperStatusOpen }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('privacy');
 
   return (
@@ -71,6 +73,15 @@ export default function SettingsPage({ onBack }: Props) {
         >
           频道
         </button>
+        <button
+          type="button"
+          className={`settings-tab${activeTab === 'runtime' ? ' active' : ''}`}
+          data-tab="runtime"
+          aria-current={activeTab === 'runtime' ? 'page' : undefined}
+          onClick={() => setActiveTab('runtime')}
+        >
+          运行时
+        </button>
       </nav>
 
       <main className="settings-page-content">
@@ -93,6 +104,41 @@ export default function SettingsPage({ onBack }: Props) {
               <PermissionsView />
             </section>
           </>
+        )}
+        {activeTab === 'runtime' && (
+          <section
+            className="settings-runtime-surface"
+            data-settings-runtime-surface="true"
+            aria-label="Runtime management"
+          >
+            <div className="settings-runtime-header">
+              <h2>Runtime</h2>
+            </div>
+            <div className="settings-runtime-actions">
+              <button
+                type="button"
+                className="settings-runtime-entry"
+                data-runtime-entry="remote-nodes"
+                data-authority-rail="remote-agent"
+                onClick={onRemoteNodesOpen}
+                disabled={!onRemoteNodesOpen}
+              >
+                <span className="settings-runtime-entry-title">Remote Nodes</span>
+                <span className="settings-runtime-entry-meta">Remote Agent file proxy</span>
+              </button>
+              <button
+                type="button"
+                className="settings-runtime-entry"
+                data-runtime-entry="helper-status"
+                data-authority-rail="helper-actuator"
+                onClick={onHelperStatusOpen}
+                disabled={!onHelperStatusOpen}
+              >
+                <span className="settings-runtime-entry-title">Helper Status</span>
+                <span className="settings-runtime-entry-meta">Helper actuator enrollment</span>
+              </button>
+            </div>
+          </section>
         )}
         {activeTab === 'channels' && <ChannelManagementSurface />}
       </main>

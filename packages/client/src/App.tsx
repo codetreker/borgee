@@ -218,7 +218,7 @@ function AppInner() {
         <div className="sidebar-overlay" onClick={closeSidebar} />
       )}
       <div className={`sidebar-wrapper ${isMobile ? (sidebarOpen ? 'sidebar-open' : 'sidebar-closed') : ''}`}>
-        <Sidebar onClose={isMobile ? closeSidebar : undefined} onChannelSelect={closeAllViews} onLogout={handleLogout} onAgentsOpen={() => requestMainView('agents')} onInvitationsOpen={() => requestMainView('invitations')} onWorkspacesOpen={() => requestMainView('workspaces')} onRemoteNodesOpen={() => requestMainView('remote-nodes')} onHelperStatusOpen={() => requestMainView('helper-status')} onSettingsOpen={() => requestMainView('settings')} />
+        <Sidebar onClose={isMobile ? closeSidebar : undefined} onChannelSelect={closeAllViews} onLogout={handleLogout} onAgentsOpen={() => requestMainView('agents')} onInvitationsOpen={() => requestMainView('invitations')} onWorkspacesOpen={() => requestMainView('workspaces')} onSettingsOpen={() => requestMainView('settings')} />
       </div>
 
       <div className="main-content">
@@ -239,7 +239,11 @@ function AppInner() {
         ) : mainView === 'helper-status' ? (
           <HelperStatusPanel onBack={() => setMainView('channel')} />
         ) : mainView === 'settings' ? (
-          <SettingsPage onBack={() => setMainView('channel')} />
+          <SettingsPage
+            onBack={() => setMainView('channel')}
+            onRemoteNodesOpen={() => requestMainView('remote-nodes')}
+            onHelperStatusOpen={() => requestMainView('helper-status')}
+          />
         ) : state.currentChannelId ? (
           <ChannelView channelId={state.currentChannelId} />
         ) : (

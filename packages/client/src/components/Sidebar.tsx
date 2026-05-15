@@ -17,12 +17,10 @@ interface Props {
   onAgentsOpen?: () => void;
   onInvitationsOpen?: () => void;
   onWorkspacesOpen?: () => void;
-  onRemoteNodesOpen?: () => void;
-  onHelperStatusOpen?: () => void;
   onSettingsOpen?: () => void;
 }
 
-export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOpen, onInvitationsOpen, onWorkspacesOpen, onRemoteNodesOpen, onHelperStatusOpen, onSettingsOpen }: Props) {
+export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOpen, onInvitationsOpen, onWorkspacesOpen, onSettingsOpen }: Props) {
   const { state, actions } = useAppContext();
   const { theme, toggleTheme } = useTheme();
   const canCreateChannel = useCan('channel.create');
@@ -400,7 +398,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 ⚙️
               </button>
             )}
-            {state.currentUser.role !== 'agent' && (onInvitationsOpen || onRemoteNodesOpen || onHelperStatusOpen) ? (
+            {state.currentUser.role !== 'agent' && onInvitationsOpen ? (
               <div className="sidebar-footer-secondary" ref={footerMenuRef}>
                 <button
                   className="icon-btn sidebar-footer-more-btn"
@@ -447,38 +445,6 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                             {pendingInvitationBadgeText}
                           </span>
                         )}
-                      </button>
-                    )}
-                    {onRemoteNodesOpen && (
-                      <button
-                        type="button"
-                        className="sidebar-footer-secondary-item"
-                        title="Remote Nodes"
-                        data-testid="sidebar-secondary-remote-nodes"
-                        onClick={() => {
-                          setShowFooterMenu(false);
-                          onRemoteNodesOpen();
-                        }}
-                      >
-                        <span>🖥️</span>
-                        <span>Remote Nodes</span>
-                      </button>
-                    )}
-                    {onHelperStatusOpen && (
-                      <button
-                        type="button"
-                        className="sidebar-footer-secondary-item"
-                        title="Helper Status"
-                        aria-label="Helper Status"
-                        data-testid="sidebar-secondary-helper-status"
-                        data-action="open-helper-status"
-                        onClick={() => {
-                          setShowFooterMenu(false);
-                          onHelperStatusOpen();
-                        }}
-                      >
-                        <span>🩺</span>
-                        <span>Helper Status</span>
                       </button>
                     )}
                   </div>
