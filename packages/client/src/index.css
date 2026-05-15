@@ -4712,6 +4712,31 @@ body {
   white-space: nowrap;
 }
 
+.helper-configure-list {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.helper-configure-list-queued,
+.helper-configure-list-running,
+.helper-configure-list-manual_debug {
+  color: #6f4e00;
+}
+
+.helper-configure-list-succeeded {
+  color: var(--success, #1a7f37);
+}
+
+.helper-configure-list-failed,
+.helper-configure-list-denied,
+.helper-configure-list-revoked {
+  color: var(--danger, #d1242f);
+}
+
 .helper-status-list-label {
   color: var(--text-secondary, #57606a);
   font-size: 12px;
@@ -4787,6 +4812,115 @@ body {
   color: var(--text, #24292f);
   font-size: 12px;
   padding: 4px 10px;
+}
+
+.helper-configure-openclaw {
+  margin-top: 22px;
+  border-top: 1px solid var(--border, #e5e5e5);
+  padding-top: 18px;
+}
+
+.helper-configure-openclaw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.helper-configure-openclaw-head h4 {
+  margin: 0;
+}
+
+.helper-configure-badge {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.helper-configure-badge-queued,
+.helper-configure-badge-running,
+.helper-configure-badge-manual_debug {
+  background: #fff8c5;
+  color: #6f4e00;
+}
+
+.helper-configure-badge-succeeded {
+  background: var(--success, #1a7f37);
+  color: #fff;
+}
+
+.helper-configure-badge-failed,
+.helper-configure-badge-denied,
+.helper-configure-badge-revoked {
+  background: var(--danger, #d1242f);
+  color: #fff;
+}
+
+.helper-configure-reason {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.helper-configure-reason div {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.helper-configure-reason dt {
+  color: var(--text-secondary, #57606a);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.helper-configure-reason dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.helper-configure-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.helper-configure-refs span {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 999px;
+  color: var(--text, #24292f);
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.helper-configure-steps {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.helper-configure-steps li {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--border, #e5e5e5);
+  padding: 8px 0;
+}
+
+.helper-configure-steps strong,
+.helper-configure-steps em {
+  font-size: 12px;
+}
+
+.helper-configure-steps em {
+  color: var(--text-secondary, #57606a);
+  font-style: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 768px) {

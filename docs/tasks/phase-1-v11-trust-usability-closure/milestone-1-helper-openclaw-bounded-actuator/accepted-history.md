@@ -11,5 +11,9 @@ This file preserves the accepted Helper/OpenClaw task history after the coarse v
 | #939 | `96dc0dc` | Helper outbound service prerequisites | `task-5-helper-outbound-service-prereq` |
 | #942 | `642fb57` | Local policy, manifest, and sandbox profile | `task-7-local-policy-manifest-and-sandbox-profile` |
 | #943 | `c2c61e6` | Helper pull, lease, ack, and result transport | `task-6-helper-pull-lease-result` |
+| #954 | `419c5bf` | Bounded status logs and revoke settlement | `task-8-bounded-status-logs-and-revoke-settlement` |
+| #956 | `5575b53` | OpenClaw install and agent config jobs | `task-9-openclaw-install-and-agent-config-jobs` |
+| #958 | `ad50575` | Borgee plugin channel binding job | `task-10-borgee-plugin-channel-binding-job` |
+| #963 | `d8d179e` | Service lifecycle boot/crash reliability | `task-11-service-lifecycle-boot-crash` |
 
-Unexecuted skeletons remain in the same canonical milestone as `task-8` through `task-12`. They are not accepted history and should receive their own worktree, branch, PR, four-piece, implementation, verification, progress, and acceptance state when executed.
+`task-12-configure-openclaw-terminal-ui` is the remaining closure task for this milestone and carries its own worktree, branch, PR, four-piece, implementation, verification, progress, and acceptance state.

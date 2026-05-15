@@ -2,8 +2,11 @@ package datalayer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
+	"sort"
+	"strings"
 	"time"
 
 	"borgee-server/internal/store"
@@ -67,6 +70,35 @@ func (r *sqliteHelperJobRepo) CompleteForHelper(_ context.Context, input HelperJ
 	return helperJobFromStore(row), mapHelperJobErr(err)
 }
 
+func (r *sqliteHelperJobRepo) ConfigureOpenClawForEnrollments(_ context.Context, ownerUserID, orgID string, enrollmentIDs []string) (map[string]HelperConfigureOpenClawStatus, error) {
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	orgID = strings.TrimSpace(orgID)
+	ids := compactStrings(enrollmentIDs)
+	if ownerUserID == "" || orgID == "" || len(ids) == 0 {
+		return map[string]HelperConfigureOpenClawStatus{}, nil
+	}
+	var rows []store.HelperJob
+	if err := r.s.DB().
+		Where("owner_user_id = ? AND org_id = ? AND enrollment_id IN ? AND job_type IN ?", ownerUserID, orgID, ids, configureOpenClawJobTypes()).
+		Order("created_at ASC, id ASC").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	byEnrollment := map[string][]*HelperJob{}
+	for i := range rows {
+		job := helperJobFromStore(&rows[i])
+		if job == nil {
+			continue
+		}
+		byEnrollment[job.EnrollmentID] = append(byEnrollment[job.EnrollmentID], job)
+	}
+	out := make(map[string]HelperConfigureOpenClawStatus, len(byEnrollment))
+	for enrollmentID, jobs := range byEnrollment {
+		out[enrollmentID] = buildConfigureOpenClawStatus(jobs)
+	}
+	return out, nil
+}
+
 func helperJobFromStore(row *store.HelperJob) *HelperJob {
 	if row == nil {
 		return nil
@@ -90,6 +122,202 @@ func helperJobFromStore(row *store.HelperJob) *HelperJob {
 		LeaseExpiresAt:      row.LeaseExpiresAt,
 		CompletedAt:         row.CompletedAt,
 		ResultSummary:       row.ResultSummaryJSON,
+	}
+}
+
+func compactStrings(values []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}
+
+func configureOpenClawJobTypes() []string {
+	return []string{"openclaw.install_from_manifest", "openclaw.configure_agent", "borgee_plugin.configure_connection", "service.lifecycle"}
+}
+
+func buildConfigureOpenClawStatus(jobs []*HelperJob) HelperConfigureOpenClawStatus {
+	latest := latestConfigureOpenClawJobs(jobs)
+	steps := make([]HelperConfigureOpenClawStep, 0, len(latest))
+	for _, jobType := range configureOpenClawJobTypes() {
+		if job := latest[jobType]; job != nil {
+			steps = append(steps, configureOpenClawStepFromJob(job))
+		}
+	}
+	sort.SliceStable(steps, func(i, j int) bool {
+		if steps[i].CreatedAt == steps[j].CreatedAt {
+			return steps[i].JobType < steps[j].JobType
+		}
+		return steps[i].CreatedAt < steps[j].CreatedAt
+	})
+
+	state := "manual_debug"
+	var reason *HelperConfigureOpenClawStep
+	if step := firstStepMatching(steps, func(step HelperConfigureOpenClawStep) bool {
+		return step.Status == "failed" && configureOpenClawFailureIsDenial(step.FailureCode)
+	}); step != nil {
+		state = "denied"
+		reason = step
+	} else if step := firstStepMatching(steps, func(step HelperConfigureOpenClawStep) bool { return step.Status == "failed" }); step != nil {
+		state = "failed"
+		reason = step
+	} else if step := firstStepMatching(steps, func(step HelperConfigureOpenClawStep) bool { return step.Status == "queued" }); step != nil {
+		state = "queued"
+		reason = step
+	} else if step := firstStepMatching(steps, func(step HelperConfigureOpenClawStep) bool {
+		return step.Status == "leased" || step.Status == "running"
+	}); step != nil {
+		state = "running"
+		reason = step
+	} else if allConfigureOpenClawRequiredSucceeded(latest) {
+		state = "succeeded"
+	} else if step := firstStepMatching(steps, func(step HelperConfigureOpenClawStep) bool {
+		return step.Status == "cancelled" || step.Status == "expired"
+	}); step != nil {
+		state = "manual_debug"
+		reason = step
+	} else if len(steps) > 0 {
+		reason = &steps[len(steps)-1]
+	}
+
+	out := HelperConfigureOpenClawStatus{State: state, Label: configureOpenClawLabel(state), Steps: steps}
+	if reason != nil {
+		out.FailureCode = reason.FailureCode
+		out.FailureMessage = reason.FailureMessage
+		out.AuditRefs = reason.AuditRefs
+		out.LogRefs = reason.LogRefs
+	}
+	return out
+}
+
+func latestConfigureOpenClawJobs(jobs []*HelperJob) map[string]*HelperJob {
+	latest := map[string]*HelperJob{}
+	for _, job := range jobs {
+		if job == nil || !configureOpenClawJobType(job.JobType) {
+			continue
+		}
+		prev := latest[job.JobType]
+		if prev == nil || job.CreatedAt > prev.CreatedAt || (job.CreatedAt == prev.CreatedAt && job.ID > prev.ID) {
+			latest[job.JobType] = job
+		}
+	}
+	return latest
+}
+
+func configureOpenClawJobType(jobType string) bool {
+	for _, known := range configureOpenClawJobTypes() {
+		if jobType == known {
+			return true
+		}
+	}
+	return false
+}
+
+func configureOpenClawStepFromJob(job *HelperJob) HelperConfigureOpenClawStep {
+	auditRefs, logRefs := configureOpenClawRefs(job.ResultSummary)
+	step := HelperConfigureOpenClawStep{
+		JobType:        job.JobType,
+		Status:         job.Status,
+		CreatedAt:      job.CreatedAt,
+		CompletedAt:    job.CompletedAt,
+		FailureCode:    stringFromPtr(job.FailureCode),
+		FailureMessage: stringFromPtr(job.FailureMessage),
+		AuditRefs:      auditRefs,
+		LogRefs:        logRefs,
+	}
+	if step.Status == "leased" {
+		step.Status = "running"
+	}
+	return step
+}
+
+func configureOpenClawRefs(raw *string) ([]string, []string) {
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return nil, nil
+	}
+	var summary struct {
+		AuditRefs []string `json:"audit_refs"`
+		LogRefs   []string `json:"log_refs"`
+	}
+	if err := json.Unmarshal([]byte(*raw), &summary); err != nil {
+		return nil, nil
+	}
+	return compactBoundedRefs(summary.AuditRefs), compactBoundedRefs(summary.LogRefs)
+}
+
+func compactBoundedRefs(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || len(value) > 128 || strings.ContainsAny(value, "/\\\x00\n\r") {
+			continue
+		}
+		out = append(out, value)
+		if len(out) == 16 {
+			break
+		}
+	}
+	return out
+}
+
+func stringFromPtr(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func firstStepMatching(steps []HelperConfigureOpenClawStep, match func(HelperConfigureOpenClawStep) bool) *HelperConfigureOpenClawStep {
+	for i := range steps {
+		if match(steps[i]) {
+			return &steps[i]
+		}
+	}
+	return nil
+}
+
+func configureOpenClawFailureIsDenial(code string) bool {
+	switch code {
+	case "policy_denied", "path_denied", "domain_denied", "service_denied", "wrong_owner", "wrong_org":
+		return true
+	default:
+		return false
+	}
+}
+
+func allConfigureOpenClawRequiredSucceeded(latest map[string]*HelperJob) bool {
+	for _, jobType := range configureOpenClawJobTypes() {
+		job := latest[jobType]
+		if job == nil || job.Status != "succeeded" {
+			return false
+		}
+	}
+	return true
+}
+
+func configureOpenClawLabel(state string) string {
+	switch state {
+	case "queued":
+		return "Configure OpenClaw queued"
+	case "running":
+		return "Configure OpenClaw running"
+	case "succeeded":
+		return "Configure OpenClaw complete"
+	case "failed":
+		return "Configure OpenClaw failed"
+	case "denied":
+		return "Configure OpenClaw denied"
+	case "revoked":
+		return "Configure OpenClaw revoked"
+	default:
+		return "Manual debug required"
 	}
 }
 

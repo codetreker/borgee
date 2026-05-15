@@ -30,13 +30,15 @@ Rejected by this milestone:
 
 | Task | Status | Canonical path | Depends on | Parallel? |
 |---|---|---|---|---|
-| ArtifactComments production mount | ACCEPTING | `task-1-artifactcomments-production-mount` | Milestone start | no |
-| ACL forbidden-state UX | PLANNED | `task-2-acl-forbidden-state-ux` | ArtifactComments mount | yes, after mount |
-| Settings PermissionsView reachability | ACCEPTING | `task-3-security-permission-surface-reachability` | Milestone start | yes, if shell/settings files are separable |
-| Production-surface e2e reverse proof | PLANNED | `task-4-production-surface-e2e-reverse-proof` | forbidden-state UX and PermissionsView reachability | no |
-| Sidebar footer primary entries | PLANNED | `task-5-sidebar-footer-primary-entries` | Milestone start | yes, if shell files do not conflict with truthfulness work |
-| Avatar account panel/logout | PLANNED | `task-6-avatar-account-panel-logout` | sidebar footer primary entries | yes, after footer entry budget |
-| Helper/Remote Nodes placement | PLANNED | `task-7-helper-remote-nodes-entry-placement` | sidebar footer primary entries | yes, after footer entry budget |
+| ArtifactComments production mount | ACCEPTED | `task-1-artifactcomments-production-mount` | PR #946 (`a6c6ce3`) | complete |
+| ACL forbidden-state UX | ACCEPTED | `task-2-acl-forbidden-state-ux` | PR #957 (`16e2db6`) | complete |
+| Settings PermissionsView reachability | ACCEPTED | `task-3-security-permission-surface-reachability` | PR #944 (`0877a9b`) | complete |
+| Production-surface e2e reverse proof | ACCEPTED | `task-4-production-surface-e2e-reverse-proof` | PR #960 (`84a0315`) | complete |
+| Sidebar footer primary entries | ACCEPTED | `task-5-sidebar-footer-primary-entries` | PR #947 (`47dc680`) | complete |
+| Avatar account panel/logout | ACCEPTED | `task-6-avatar-account-panel-logout` | PR #950 (`05fff88`) | complete |
+| Helper/Remote Nodes placement | ACCEPTED | `task-7-helper-remote-nodes-entry-placement` | PR #962 (`2e58127`) | complete |
+
+Milestone 3 is accepted. This Task12 closure PR only records the state sync; it does not reopen client truth or navigation scope.
 
 ## Exit Gates
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTING. This is the single active v1.1 Phase.
+CLOSING. This is the single active v1.1 Phase; M2 and M3 are accepted, and M1 is in its Task12 closure branch.
 
 ## Exit Condition
 
@@ -47,9 +47,9 @@ Out of scope:
 
 | Milestone | Goal | Status | Canonical doc |
 |---|---|---|---|
-| Milestone 1: Helper / OpenClaw Bounded Actuator | Complete one user-facing Helper/OpenClaw loop from accepted enrollment through bounded typed jobs, service reliability, and Configure OpenClaw terminal UI | IMPLEMENTING | `milestone-1-helper-openclaw-bounded-actuator/milestone.md` |
-| Milestone 2: Channel Attention And Authority | Let users understand and control channel attention, membership, allowed actions, authority, and private/sidebar state meaning | PLANNED | `milestone-2-channel-attention-and-authority/milestone.md` |
-| Milestone 3: Client Truth And Navigation | Make selected production surfaces truthful and reachable while simplifying account/sidebar navigation | IMPLEMENTING | `milestone-3-client-truth-and-navigation/milestone.md` |
+| Milestone 1: Helper / OpenClaw Bounded Actuator | Complete one user-facing Helper/OpenClaw loop from accepted enrollment through bounded typed jobs, service reliability, and Configure OpenClaw terminal UI | CLOSING | `milestone-1-helper-openclaw-bounded-actuator/milestone.md` |
+| Milestone 2: Channel Attention And Authority | Let users understand and control channel attention, membership, allowed actions, authority, and private/sidebar state meaning | ACCEPTED | `milestone-2-channel-attention-and-authority/milestone.md` |
+| Milestone 3: Client Truth And Navigation | Make selected production surfaces truthful and reachable while simplifying account/sidebar navigation | ACCEPTED | `milestone-3-client-truth-and-navigation/milestone.md` |
 
 This Phase has three user-facing milestones, within the project default. More milestones or a second Phase require an explicit boundary reason.
 
@@ -65,8 +65,13 @@ Accepted work remains accepted and is remapped into Milestone 1:
 | #938 | `64d56f1` | Helper job envelope and enqueue authority | Milestone 1 |
 | #939 | `96dc0dc` | Helper outbound service prerequisites | Milestone 1 |
 | #942 | `642fb57` | Helper local policy / manifest / sandbox profile | Milestone 1 |
+| #943 | `c2c61e6` | Helper pull / lease / result | Milestone 1 |
+| #954 | `419c5bf` | Bounded status logs and revoke settlement | Milestone 1 |
+| #956 | `5575b53` | OpenClaw install and agent config jobs | Milestone 1 |
+| #958 | `ad50575` | Borgee plugin channel binding job | Milestone 1 |
+| #963 | `d8d179e` | Service lifecycle boot/crash reliability | Milestone 1 |
 
-Accepted task docs and progress now live under `milestone-1-helper-openclaw-bounded-actuator/task-1-helper-enrollment-model-and-status` through `task-5-helper-outbound-service-prereq`, plus accepted task 7 local policy work, with the summary in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`. Task 6 pull/lease/result is in final PR verification; remaining Helper/OpenClaw skeletons live under `task-8` through `task-12` in the same canonical milestone. This canonical Phase doc owns grouping and resume direction.
+Accepted task docs and progress now live under the canonical milestone directories. Milestone 1 accepted history is summarized in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`, with `task-12-configure-openclaw-terminal-ui` carrying the final Helper/OpenClaw closure work. Milestone 2 and Milestone 3 task indexes are status-synced as accepted in their canonical milestone docs.
 
 ## Exit Gates
 

@@ -44,6 +44,10 @@ func (r *fakeHelperJobRepo) CompleteForHelper(_ context.Context, input datalayer
 	return r.resultJob, nil
 }
 
+func (r *fakeHelperJobRepo) ConfigureOpenClawForEnrollments(context.Context, string, string, []string) (map[string]datalayer.HelperConfigureOpenClawStatus, error) {
+	return map[string]datalayer.HelperConfigureOpenClawStatus{}, nil
+}
+
 func TestHelperJobsWriteHelperRailRepoErrorMapping(t *testing.T) {
 	t.Parallel()
 	h := &HelperJobsHandler{}
