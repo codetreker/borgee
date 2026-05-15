@@ -61,18 +61,24 @@ func TestHelperJobsMigrationCreatesQueueEnvelope(t *testing.T) {
 
 func TestMigrationRegistryIncludesHelperJobsAfterCredentialRotation(t *testing.T) {
 	t.Parallel()
-	last := All[len(All)-1]
-	if last.Version != 51 || last.Name != "helper_job_enqueue_authority" {
-		t.Fatalf("last migration = v%d %q, want v51 helper_job_enqueue_authority", last.Version, last.Name)
-	}
 	prev := -1
+	helperJobsAt := -1
 	for i, m := range All {
 		if m.Version == 50 {
 			prev = i
 		}
+		if m.Version == 51 {
+			helperJobsAt = i
+			if m.Name != "helper_job_enqueue_authority" {
+				t.Fatalf("v51 migration = %q, want helper_job_enqueue_authority", m.Name)
+			}
+		}
 		if m.Version == 51 && prev < 0 {
 			t.Fatalf("helper jobs v51 appears before helper credential rotation v50")
 		}
+	}
+	if helperJobsAt < 0 {
+		t.Fatalf("registry missing helper jobs v51")
 	}
 }
 

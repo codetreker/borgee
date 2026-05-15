@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS channel_members (
   user_id       TEXT NOT NULL REFERENCES users(id),
   joined_at     INTEGER NOT NULL,
   last_read_at  INTEGER,
+  require_mention_policy TEXT NOT NULL DEFAULT 'inherit' CHECK (require_mention_policy IN ('inherit','on','off')),
   PRIMARY KEY (channel_id, user_id)
 );
 
@@ -219,6 +220,7 @@ func (s *Store) applyColumnMigrations() error {
 		{"messages", "deleted_at", "ALTER TABLE messages ADD COLUMN deleted_at INTEGER", "add messages.deleted_at"},
 		{"channels", "position", "ALTER TABLE channels ADD COLUMN position TEXT DEFAULT '0|aaaaaa'", "add channels.position"},
 		{"channels", "group_id", "ALTER TABLE channels ADD COLUMN group_id TEXT REFERENCES channel_groups(id) ON DELETE SET NULL", "add channels.group_id"},
+		{"channel_members", "require_mention_policy", "ALTER TABLE channel_members ADD COLUMN require_mention_policy TEXT NOT NULL DEFAULT 'inherit' CHECK (require_mention_policy IN ('inherit','on','off'))", "add channel_members.require_mention_policy"},
 	}
 
 	for _, col := range columns {

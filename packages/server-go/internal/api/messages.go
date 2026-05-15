@@ -20,10 +20,10 @@ import (
 // message_mentions rows (#361), and fans out mention_pushed frames or
 // owner system DM fallback (acceptance §1.1-§2.5).
 type MessageHandler struct {
-	Store      *store.Store
-	Logger     *slog.Logger
-	Hub        EventBroadcaster
-	Mentions   *MentionDispatcher
+	Store    *store.Store
+	Logger   *slog.Logger
+	Hub      EventBroadcaster
+	Mentions *MentionDispatcher
 }
 
 type EventBroadcaster interface {
@@ -311,15 +311,25 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 	}
 
 	// DM-2.2 persist + dispatch — non-blocking on errors (log + continue).
-	// PersistMentions writes #361 message_mentions rows; Dispatch fans
-	// online targets via PushMentionPushed and offline agents via owner
-	// system DM (#314 §1 ③ byte-identical body).
-	if h.Mentions != nil && len(parsedMentionTargets) > 0 {
-		if pErr := h.Mentions.PersistMentions(msg.ID, parsedMentionTargets); pErr != nil {
-			h.Logger.Error("failed to persist mentions", "error", pErr, "message_id", msg.ID)
+	// PersistMentions writes #361 message_mentions rows for explicit `@agent`
+	// targets only. Per-channel requireMention=off adds non-mention agent
+	// delivery targets for dispatch without mutating message_mentions history.
+	if h.Mentions != nil {
+		dispatchTargets := append([]string{}, parsedMentionTargets...)
+		if nonMentionTargets, nErr := h.Store.ListChannelAgentsAllowedWithoutMention(channelID, user.ID, parsedMentionTargets); nErr != nil {
+			h.Logger.Error("failed to resolve non-mention agent recipients", "error", nErr, "message_id", msg.ID)
+		} else if len(nonMentionTargets) > 0 {
+			dispatchTargets = appendUniqueStrings(dispatchTargets, nonMentionTargets...)
 		}
-		if dErr := h.Mentions.Dispatch(msg.ID, channelID, ch.Name, user.ID, content, parsedMentionTargets, msg.CreatedAt); dErr != nil {
-			h.Logger.Error("mention dispatch partial failure", "error", dErr, "message_id", msg.ID)
+		if len(parsedMentionTargets) > 0 {
+			if pErr := h.Mentions.PersistMentions(msg.ID, parsedMentionTargets); pErr != nil {
+				h.Logger.Error("failed to persist mentions", "error", pErr, "message_id", msg.ID)
+			}
+		}
+		if len(dispatchTargets) > 0 {
+			if dErr := h.Mentions.Dispatch(msg.ID, channelID, ch.Name, user.ID, content, dispatchTargets, msg.CreatedAt); dErr != nil {
+				h.Logger.Error("mention dispatch partial failure", "error", dErr, "message_id", msg.ID)
+			}
 		}
 	}
 
@@ -494,6 +504,24 @@ func (h *MessageHandler) handleDeleteMessage(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func appendUniqueStrings(base []string, extra ...string) []string {
+	seen := make(map[string]struct{}, len(base)+len(extra))
+	for _, id := range base {
+		seen[id] = struct{}{}
+	}
+	for _, id := range extra {
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		base = append(base, id)
+	}
+	return base
 }
 
 // mustJSON marshals v to JSON string, returning "{}" on error.

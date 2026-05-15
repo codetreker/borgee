@@ -50,6 +50,8 @@ SSE is a streaming view over the same cursor model, with heartbeat events and `L
 
 Message events carry the persisted message payload plus channel display metadata. `channel_type` distinguishes channel and DM conversations, and `channel_name` gives consumers a display-safe channel name while the raw channel id remains the routing key.
 
+Mention dispatch has two target sources. Explicit `@agent` tokens are validated against channel membership, persisted to `message_mentions`, and dispatched through the mention fanout path. Agents whose effective per-channel require-mention policy resolves to off are also dispatched on ordinary channel messages, but those implicit delivery targets do not create `message_mentions` rows or alter the persisted message body. Offline agent fallback continues to use the existing owner system-DM path and does not forward the raw message body.
+
 ### Plugin Socket
 
 The plugin socket has two shapes. RPC frames let a plugin call server HTTP handlers over the socket. Non-RPC frames are treated as plugin-to-server BPP frames and passed to the BPP dispatcher.
@@ -66,6 +68,7 @@ The remote socket authenticates a remote node token and gives server REST handle
 - Live websocket fanout is best-effort; recovery uses poll/SSE/backfill or REST pull paths.
 - Browser, plugin, and remote sockets are distinct protocols even though they share the Hub process.
 - Plugin liveness is interpreted from plugin socket activity; browser heartbeat is separate.
+- Per-channel non-mention agent delivery is server-derived from channel membership and agent owner policy; clients do not supply implicit recipient ids.
 
 ## Implementation Anchors
 
@@ -74,4 +77,5 @@ The remote socket authenticates a remote node token and gives server REST handle
 - Plugin websocket: `packages/server-go/internal/ws/plugin.go`
 - Remote websocket: `packages/server-go/internal/ws/remote.go`
 - Poll, SSE, backfill: `packages/server-go/internal/api/poll.go`
+- Message and mention dispatch: `packages/server-go/internal/api/messages.go`, `packages/server-go/internal/api/mention_dispatch.go`
 - Browser consumer contract: `packages/client/src/hooks/useWebSocket.ts`, `packages/client/src/hooks/useWsHubFrames.ts`

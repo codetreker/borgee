@@ -30,6 +30,8 @@ The store owns durable state. The realtime hub owns live socket presence, in-mem
 
 Core user collaboration state is persisted in relational aggregates: users/agents, channels/memberships, messages/mentions/reactions, permissions, files, remote nodes, Helper enrollments, Helper jobs, artifacts/versions/comments/iterations, admin records, and agent state tables.
 
+Channel membership carries agent attention policy. `channel_members.require_mention_policy` is a tri-state durable field with `inherit`, `on`, and `off`. `inherit` resolves through the agent user's global `require_mention` flag, `on` forces explicit mention in that channel, and `off` allows non-mention delivery only when the agent's global owner-controlled setting already permits broader delivery. Existing and legacy memberships default to `inherit`; policy changes do not rewrite historical messages or mention rows.
+
 Event state is split. Hot events use a numeric cursor stream for user-facing realtime replay. Cold data-layer events use lexicographic ids and can carry row-level retention metadata for longer-lived event records. A feature must choose the correct stream explicitly.
 
 ## Collaborators
@@ -70,6 +72,8 @@ Helper enrollment write flow: the human/member owner creates or revokes enrollme
 
 Helper job enqueue flow: a human/member user-authenticated request to an enrolled Helper creates a queued job only after the server verifies owner, org, claimed Helper identity, non-terminal state, fresh `last_seen_at`, category delegation, closed job type, typed payload, target agent access for optional `channel_id`, and server-owned agent config binding. The client cannot supply owner, org, device, category, TTL, deadline, config version/hash, credentials, command text, service unit, path, URL, or domain authority. Accepted jobs begin as `queued` with server TTL metadata; rejected enqueue attempts do not create executable queue rows.
 
+Channel member attention-policy flow: a channel manager can update an agent member's per-channel policy through the user rail. The target must be an agent member of the same channel, DM channels are rejected, and cross-org callers fail before permission checks. Setting `off` is rejected when the agent's global `require_mention` remains true, so channel management can reduce or require attention but cannot broaden agent delivery beyond owner authorization.
+
 Hot event flow: user-facing realtime replay is based on an autoincrement cursor. Polling, streaming, and backfill clients consume cursor-ordered state, while WebSocket frame producers may allocate cursors for live delivery.
 
 Cold event flow: data-layer publishers write to an in-process bus first and asynchronously persist to channel-scoped or global cold event tables. The cold event retention job is started by the server runtime, but its current sweeper only reaps rows with an explicit non-negative `retention_days`. The ordinary cold event writers currently insert without `retention_days`, so the per-kind default policy is not effective for those rows. Archive offload remains a separate cold table lifecycle path.
@@ -87,6 +91,7 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 - Hot cursor events and cold data-layer events are separate streams with different identifiers and retention behavior; default per-kind cold retention is policy intent, not current behavior for rows written without `retention_days`.
 - Append-only audit/state-log tables should not be rewritten to hide history.
 - Organization and ownership fields are part of authorization, not merely display metadata.
+- Channel-level agent attention policy is membership-scoped. It can narrow attention locally, but it cannot override the agent owner's global require-mention ceiling.
 
 ## Non-Goals
 
@@ -100,6 +105,7 @@ The data model does not model plugin-local runtime secrets, LLM provider configu
 - `packages/server-go/internal/store/queries.go`
 - `packages/server-go/internal/store/helper_enrollment_queries.go`
 - `packages/server-go/internal/store/helper_job_queries.go`
+- `packages/server-go/internal/store/require_mention_policy.go`
 - `packages/server-go/internal/store/admin_actions.go`
 - `packages/server-go/internal/store/agent_state_log.go`
 - `packages/server-go/internal/migrations/migrations.go`
@@ -114,6 +120,7 @@ The data model does not model plugin-local runtime secrets, LLM provider configu
 - `packages/server-go/internal/migrations/global_events.go`
 - `packages/server-go/internal/migrations/helper_enrollments.go`
 - `packages/server-go/internal/migrations/helper_jobs.go`
+- `packages/server-go/internal/migrations/channel_member_require_mention_policy.go`
 - `packages/server-go/internal/datalayer/factory.go`
 - `packages/server-go/internal/datalayer/v1_sqlite.go`
 - `packages/server-go/internal/datalayer/events_store.go`

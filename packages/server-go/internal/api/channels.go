@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 
 	"borgee-server/internal/auth"
@@ -68,6 +67,7 @@ func (h *ChannelHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Han
 	mux.Handle("POST /api/v1/channels/{channelId}/leave", wrap(h.handleLeaveChannel))
 	mux.Handle("POST /api/v1/channels/{channelId}/members", permWrap("channel.manage_members", h.handleAddMember))
 	mux.Handle("DELETE /api/v1/channels/{channelId}/members/{userId}", wrap(h.handleRemoveMember))
+	mux.Handle("PUT /api/v1/channels/{channelId}/members/{userId}/require-mention", wrap(h.handleSetMemberRequireMentionPolicy))
 	mux.Handle("GET /api/v1/channels/{channelId}/members", wrap(h.handleListMembers))
 	mux.Handle("PUT /api/v1/channels/{channelId}/read", wrap(h.handleMarkRead))
 	mux.Handle("DELETE /api/v1/channels/{channelId}", permWrap("channel.delete", h.handleDeleteChannel))
@@ -664,6 +664,93 @@ func (h *ChannelHandler) handleListMembers(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"members": members})
+}
+
+func (h *ChannelHandler) handleSetMemberRequireMentionPolicy(w http.ResponseWriter, r *http.Request) {
+	user, ok := mustUser(w, r)
+	if !ok {
+		return
+	}
+
+	channelID := r.PathValue("channelId")
+	targetID := r.PathValue("userId")
+	if channelID == "" || targetID == "" {
+		writeJSONError(w, http.StatusBadRequest, "channel_id and user_id are required")
+		return
+	}
+
+	ch, err := h.Store.GetChannelByID(channelID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "Channel not found")
+		return
+	}
+	if ch.Type == "dm" {
+		writeJSONError(w, http.StatusBadRequest, "Cannot set requireMention policy on DM channels")
+		return
+	}
+	if store.CrossOrg(user.OrgID, ch.OrgID) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+	if !h.hasChannelPermission(user, "channel.manage_members", channelID) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
+	var body struct {
+		Policy string `json:"policy"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	rawPolicy := strings.TrimSpace(body.Policy)
+	if rawPolicy == "" {
+		writeJSONError(w, http.StatusBadRequest, "Invalid requireMention policy")
+		return
+	}
+	policy, err := store.NormalizeRequireMentionPolicy(rawPolicy)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Invalid requireMention policy")
+		return
+	}
+
+	state, err := h.Store.SetChannelMemberRequireMentionPolicy(channelID, targetID, policy)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrRequireMentionPolicyTargetNotMember):
+			writeJSONError(w, http.StatusNotFound, "Channel member not found")
+		case errors.Is(err, store.ErrRequireMentionPolicyTargetNotAgent):
+			writeJSONError(w, http.StatusBadRequest, "requireMention policy applies only to agent members")
+		case errors.Is(err, store.ErrInvalidRequireMentionPolicy):
+			writeJSONError(w, http.StatusBadRequest, "Invalid requireMention policy")
+		case errors.Is(err, store.ErrRequireMentionPolicyOwnerCeiling):
+			writeJSONError(w, http.StatusBadRequest, "requireMention policy cannot broaden agent attention beyond owner authorization")
+		default:
+			if h.Logger != nil {
+				h.Logger.Error("failed to set requireMention policy", "error", err, "channel_id", channelID, "user_id", targetID)
+			}
+			writeJSONError(w, http.StatusInternalServerError, "Failed to update requireMention policy")
+		}
+		return
+	}
+
+	resp := map[string]any{
+		"channel_id":                state.ChannelID,
+		"user_id":                   state.UserID,
+		"require_mention_policy":    state.RequireMentionPolicy,
+		"effective_require_mention": state.EffectiveRequireMention,
+	}
+	writeJSONResponse(w, http.StatusOK, resp)
+
+	h.Store.CreateEvent(&store.Event{
+		Kind:      "channel_member_updated",
+		ChannelID: channelID,
+		Payload:   mustJSON(resp),
+	})
+	if h.Hub != nil {
+		h.Hub.BroadcastEventToChannel(channelID, "channel_member_updated", resp)
+	}
 }
 
 func (h *ChannelHandler) handleMarkRead(w http.ResponseWriter, r *http.Request) {
