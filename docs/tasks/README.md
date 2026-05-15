@@ -15,6 +15,7 @@ Current execution resume state:
 - Phase/Milestone structure is replanned into one active Phase with three coarse milestones.
 - Accepted history is preserved and remapped: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), PR #939 (`96dc0dc`), PR #942 (`642fb57`), and PR #943 (`c2c61e`) remain accepted work.
 - Milestone 1 is active. Task 8 `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-8-bounded-status-logs-and-revoke-settlement` is implementing from a dedicated worktree after accepted Task6 and Task7 dependencies.
+- Milestone 3 has an explicit parallel start for `task-1-artifactcomments-production-mount`; it is file-isolated from Helper task 6, Settings Permissions, and sidebar/footer work.
 - Current gate: task 8 implementation, verification, PR, and merge.
 
 ## Active Task Resume
@@ -27,6 +28,7 @@ Current execution resume state:
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-4-channel-management-surface` | M2 Task4 owner worker | `.worktrees/m2-task4-channel-management-surface` / `feat/m2-task4-channel-management-surface` | #948 | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-4-channel-management-surface/progress.md` |
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-2-everyone-fanout-acl-rate-loop` | M2 Task2 owner worker | `.worktrees/m2-task2-everyone-fanout-acl-rate-loop` / `feat/m2-task2-everyone-fanout-acl-rate-loop` | #951 | CI re-run after current-main rebase | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-2-everyone-fanout-acl-rate-loop/progress.md` |
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-8-private-indicator-visual-treatment` | Blueprintflow owner worker under Teamlead | `.worktrees/task-8-private-indicator-visual-treatment` / `feat/task-8-private-indicator-visual-treatment` | #952 | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-8-private-indicator-visual-treatment/progress.md` |
+| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | ACCEPTING | `task-1-artifactcomments-production-mount` | Blueprintflow M3 task owner worker | `.worktrees/task-1-artifactcomments-production-mount` / `feat/task-1-artifactcomments-production-mount` | #946 | none | ArtifactComments production mount in PR; no Settings/sidebar overlap |
 
 ## Canonical v1.1 Milestone Mapping
 
@@ -34,7 +36,7 @@ Current execution resume state:
 |---|---|---|---|
 | `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | Canonical task homes `task-1-helper-enrollment-model-and-status` through `task-12-configure-openclaw-terminal-ui` | Accepted work through PR #934, #936, #937, #938, #939, #942, and #943 is preserved in `accepted-history.md` and the accepted task folders. Continue with task 8 terminal settlement before Configure OpenClaw closure tasks. |
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | PLANNED | Canonical task homes `task-1-requiremention-policy-model` through `task-9-sidebar-state-collision-regression` | The former channel-control execution slot is now one milestone covering requireMention policy, `@Everyone`, client mention controls, channel management, allowed-action rules, authority checks, private indicator treatment, and sidebar state collision regression. |
-| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | PLANNED | Canonical task homes `task-1-artifactcomments-production-mount` through `task-7-helper-remote-nodes-entry-placement` | The former client-truth/navigation execution slot is now one milestone covering production client truthfulness, forbidden-state UX, Settings PermissionsView reachability, reverse proof, sidebar/footer IA, avatar/logout, and Helper/Remote Nodes placement. |
+| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | IMPLEMENTING | Canonical task homes `task-1-artifactcomments-production-mount` through `task-7-helper-remote-nodes-entry-placement` | Parallel start is limited to `task-1-artifactcomments-production-mount`; later forbidden-state and reverse-proof tasks still depend on this task, while Settings Permissions and sidebar/footer remain separate task lanes. |
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 

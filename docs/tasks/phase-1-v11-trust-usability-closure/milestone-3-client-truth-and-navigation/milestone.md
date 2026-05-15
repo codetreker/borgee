@@ -30,7 +30,7 @@ Rejected by this milestone:
 
 | Task | Status | Canonical path | Depends on | Parallel? |
 |---|---|---|---|---|
-| ArtifactComments production mount | PLANNED | `task-1-artifactcomments-production-mount` | Milestone start | no |
+| ArtifactComments production mount | ACCEPTING | `task-1-artifactcomments-production-mount` | Milestone start | no |
 | ACL forbidden-state UX | PLANNED | `task-2-acl-forbidden-state-ux` | ArtifactComments mount | yes, after mount |
 | Settings PermissionsView reachability | ACCEPTING | `task-3-security-permission-surface-reachability` | Milestone start | yes, if shell/settings files are separable |
 | Production-surface e2e reverse proof | PLANNED | `task-4-production-surface-e2e-reverse-proof` | forbidden-state UX and PermissionsView reachability | no |
