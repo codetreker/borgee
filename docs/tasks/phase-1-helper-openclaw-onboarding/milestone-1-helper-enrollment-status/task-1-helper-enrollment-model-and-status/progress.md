@@ -8,8 +8,8 @@
 | Branch | `feat/task-1-helper-enrollment-model-and-status` |
 | PR | #934 |
 | Owner | Dev |
-| State | ACCEPTING |
-| Blocker | none; PR #934 DL-1.2 and coverage blockers reproduced and fixed |
+| State | ACCEPTED |
+| Blocker | none; PR #934 merged |
 
 ## Checkpoints
 
@@ -19,7 +19,7 @@
 - [x] Implementation complete
 - [x] docs/current sync checked or N/A recorded
 - [x] Acceptance evidence recorded through `bf-verification`
-- [ ] PR merged
+- [x] PR merged
 
 ## Implementation Evidence
 
@@ -53,6 +53,7 @@
 | Coverage fix | Added focused datalayer HelperEnrollmentRepository lifecycle/error-mapping tests and store list/category/missing-row tests; no API/security behavior changed | PASS |
 | Coverage targeted GREEN | `GOTMPDIR=/var/tmp/codex-go-tmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollment` -> `ok borgee-server/internal/datalayer 0.044s`; `GOTMPDIR=/var/tmp/codex-go-tmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollment` -> `ok borgee-server/internal/store 0.048s`; `GOTMPDIR=/var/tmp/codex-go-tmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` -> `ok borgee-server/internal/api 0.064s` | PASS |
 | Coverage tool GREEN | From module root, `CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false GOTMPDIR=/var/tmp/codex-go-tmp go run ./scripts/lib/coverage/` -> exit `0`, total `85.7%`, `internal/datalayer 93.1%`, `internal/store 89.6%`, no Helper/DL function-threshold blockers remained | PASS |
+| PR merge | PR #934 merged at 2026-05-15 02:26 UTC as `547f869`; all required checks green and A/QA/Security refresh LGTM recorded | PASS |
 | Diff hygiene | `git diff --check` completed with no output | PASS |
 | Broad package suite note | Earlier broad `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/api ./internal/server` passed migrations/store/server but `./internal/api` failed with existing concurrent suite `sql: database is closed`/missing-table errors unrelated to HelperEnrollment tests; no broad-suite pass is claimed here | INFO |
 
@@ -72,4 +73,4 @@ Date: 2026-05-15
 Scope: API/data/security/current-doc
 Fixtures: `testutil.NewTestServer` owner/member users, store migrated template, Remote Node/Host Grant separation fixtures; secrets redacted
 Out-of-scope findings: Broad `./internal/api` package run still needs separate stabilization; targeted task acceptance and rail-adjacency tests pass.
-Decision: LGTM for PR #934 DL-1.2 and coverage blocker fixes; broad `./internal/api` full-suite instability is unrelated and not used as acceptance evidence
+Decision: ACCEPTED via PR #934 / `547f869`; broad `./internal/api` full-suite instability is unrelated and not used as acceptance evidence

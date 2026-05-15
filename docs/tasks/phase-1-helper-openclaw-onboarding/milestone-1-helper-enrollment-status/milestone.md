@@ -40,11 +40,21 @@ The task should establish Helper enrollment identity and visible status only; it
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-helper-enrollment-model-and-status` | ACCEPTING | Create distinct Helper enrollment identity and visible host status foundation | none | no | yes |
-| `task-2-helper-credential-rotation-and-revoke` | PLANNED | Add helper credential lifecycle, stale-device handling, and revoke/uninstall authority | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
-| `task-3-helper-status-ui-and-current-sync` | PLANNED | Surface Helper status and sync accepted enrollment/status contracts to current docs | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
+| `task-1-helper-enrollment-model-and-status` | ACCEPTED (#934, `547f869`) | Create distinct Helper enrollment identity and visible host status foundation | none | no | yes |
+| `task-2-helper-credential-rotation-and-revoke` | READY | Add helper credential lifecycle, stale-device handling, and revoke/uninstall authority | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
+| `task-3-helper-status-ui-and-current-sync` | READY | Surface Helper status and sync accepted enrollment/status contracts to current docs | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
 
 Dependency order: task 1 must land first because later credential and UI work need the enrollment identity and owner/org binding. Tasks 2 and 3 can run in parallel after task 1 if their touched files do not conflict.
+
+## Accepted Task Evidence
+
+| Task | PR | Merge commit | Evidence |
+|---|---|---|---|
+| `task-1-helper-enrollment-model-and-status` | #934 | `547f869` | `task-1-helper-enrollment-model-and-status/progress.md` records QA verification, independent Security review, CI green, current-doc sync, and accepted API/data/security evidence. |
+
+## Next Task Selection
+
+Task 2 and task 3 are both READY after task 1 acceptance. They may start in parallel because task 2 owns credential lifecycle/revoke backend behavior, while task 3 owns status UI/current-sync surfacing. If implementation discovers a concrete file conflict, Teamlead should split file ownership explicitly rather than serialize by habit.
 
 ## Breakdown Review
 

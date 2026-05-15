@@ -13,14 +13,12 @@ This Phase Index records the v1.1 execution path opened from the selected next-b
 Current execution resume state:
 
 - Milestone breakdown is accepted across all 8 v1.1 milestones.
-- Active task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status`.
-- Current gate: acceptance evidence complete; PR open/review gate.
+- Accepted task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status` via PR #934 / `547f869`.
+- Next ready tasks: `task-2-helper-credential-rotation-and-revoke` and `task-3-helper-status-ui-and-current-sync` may start in parallel after task 1 acceptance.
 
 ## Active Task Resume
 
-| Scope | Execution | Active task | Owner | Worktree/branch | PR | Blocker | Progress |
-|---|---|---|---|---|---|---|---|
-| `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status` | ACCEPTING | `task-1-helper-enrollment-model-and-status` | Dev | `.worktrees/task-1-helper-enrollment-model-and-status` / `feat/task-1-helper-enrollment-model-and-status` | #934 | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/progress.md` |
+No active task worktree is open. Start the next ready task(s) with `bf-task-execute` and add resume rows here when each worktree exists.
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 
