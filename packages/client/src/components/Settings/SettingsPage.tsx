@@ -19,6 +19,7 @@
 import PrivacyPromise from './PrivacyPromise';
 import AdminActionsList from './AdminActionsList';
 import ImpersonateGrantSection from './ImpersonateGrantSection';
+import { PermissionsView } from '../PermissionsView';
 import {
   getMyAdminActions,
   getMyImpersonateGrant,
@@ -78,6 +79,9 @@ export default function SettingsPage({ onBack }: Props) {
             <AdminActionsList
               fetchActions={() => getMyAdminActions().then((r) => r.actions)}
             />
+            <section className="settings-permissions-section" data-settings-permissions-surface="true">
+              <PermissionsView />
+            </section>
           </>
         )}
       </main>

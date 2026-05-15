@@ -22,6 +22,7 @@ Current execution resume state:
 | Scope | Execution | Next task(s) | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
 | `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | TASK_READY | `task-6-helper-pull-lease-result`; `task-7-local-policy-manifest-and-sandbox-profile` | Blueprintflow tasking workers under Teamlead | create one worktree/branch per task | not opened | none | See canonical milestone task index and accepted history |
+| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | ACCEPTING | `task-3-security-permission-surface-reachability` | owner worker | `.worktrees/m3-task3-settings-permissionsview-reachability` / `feat/m3-task3-settings-permissionsview-reachability` | not opened | none | `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation/task-3-security-permission-surface-reachability/progress.md` |
 
 ## Canonical v1.1 Milestone Mapping
 

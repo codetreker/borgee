@@ -23,25 +23,39 @@ let container: HTMLDivElement | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          user_id: 'user-1',
+          permissions: [],
+          details: [],
+          capabilities: [],
+        }),
+    }),
+  );
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   if (container) {
     document.body.removeChild(container);
     container = null;
   }
 });
 
-function render(node: React.ReactElement) {
+async function render(node: React.ReactElement) {
   const root = createRoot(container!);
-  act(() => {
+  await act(async () => {
     root.render(node);
   });
 }
 
 describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.1)', () => {
-  it('renders settings page with privacy tab active by default', () => {
-    render(<SettingsPage onBack={() => {}} />);
+  it('renders settings page with privacy tab active by default', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
     expect(container!.querySelector('[data-page="settings"]')).toBeTruthy();
     const privacyTab = container!.querySelector('[data-tab="privacy"]');
     expect(privacyTab).toBeTruthy();
@@ -49,17 +63,17 @@ describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.
     expect(privacyTab!.getAttribute('aria-current')).toBe('page');
   });
 
-  it('PrivacyPromise section is always visible (反 <details> 包裹)', () => {
-    render(<SettingsPage onBack={() => {}} />);
+  it('PrivacyPromise section is always visible (反 <details> 包裹)', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
     const promise = container!.querySelector('.privacy-promise');
     expect(promise).toBeTruthy();
     // No <details> wrapper anywhere in settings page (野马 R3 反约束).
     expect(container!.querySelectorAll('details')).toHaveLength(0);
   });
 
-  it('back button calls onBack handler', () => {
+  it('back button calls onBack handler', async () => {
     const onBack = vi.fn();
-    render(<SettingsPage onBack={onBack} />);
+    await render(<SettingsPage onBack={onBack} />);
     const btn = container!.querySelector('.settings-back-btn') as HTMLButtonElement;
     expect(btn).toBeTruthy();
     act(() => {
@@ -68,9 +82,19 @@ describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('tab label "隐私" byte-identical (中文文案锁)', () => {
-    render(<SettingsPage onBack={() => {}} />);
+  it('tab label "隐私" byte-identical (中文文案锁)', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
     const tab = container!.querySelector('[data-tab="privacy"]');
     expect(tab!.textContent).toBe('隐私');
+  });
+
+  it('renders standalone PermissionsView empty state from user Settings', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/me/permissions', { credentials: 'include' });
+    expect(container!.querySelector('[data-ap2-empty]')?.textContent).toBe('暂无授权');
   });
 });
