@@ -35,10 +35,17 @@ func cv42Setup(t *testing.T) (url string, ownerTok string, s *store.Store, chID 
 	ts, st, _ := testutil.NewTestServer(t)
 	ownerTok = testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	chID = cv12General(t, ts.URL, ownerTok)
-	_, art := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+chID+"/artifacts", ownerTok, map[string]any{
+	resp, art := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+chID+"/artifacts", ownerTok, map[string]any{
 		"title": "Plan", "body": "para A.",
 	})
-	artID = art["id"].(string)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create artifact setup: got %d (%v)", resp.StatusCode, art)
+	}
+	var ok bool
+	artID, ok = art["id"].(string)
+	if !ok || artID == "" {
+		t.Fatalf("create artifact setup: missing id in response body %v", art)
+	}
 	_ = seedAgentInChannel(t, st, ts.URL, chID, "agent-cv42@test.com", "AgentZ")
 	// look up agent's user id
 	u, err := st.GetUserByEmail("agent-cv42@test.com")
@@ -177,11 +184,17 @@ func TestCV_CommitWithIterationIDAtomicUpdate(t *testing.T) {
 		"rt-cv42-c", agentID).Error; err != nil {
 		t.Fatalf("seed runtime: %v", err)
 	}
-	_, itData := testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/iterate", ownerTok, map[string]any{
+	respIter, itData := testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/iterate", ownerTok, map[string]any{
 		"intent_text":     "rewrite",
 		"target_agent_id": agentID,
 	})
-	iterationID := itData["id"].(string)
+	if respIter.StatusCode != http.StatusCreated {
+		t.Fatalf("iterate setup: got %d (%v)", respIter.StatusCode, itData)
+	}
+	iterationID, ok := itData["id"].(string)
+	if !ok || iterationID == "" {
+		t.Fatalf("iterate setup: missing id in response body %v", itData)
+	}
 	if itData["state"] != api.IterationStateRunning {
 		t.Fatalf("setup precondition: state=%v, want running", itData["state"])
 	}
@@ -232,11 +245,17 @@ func TestCV_StateMachine_RejectsCommitOnFailedIteration(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, _, _, artID, agentID := cv42Setup(t)
 	// No runtime seeded → iterate fails immediately (state='failed').
-	_, itData := testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/iterate", ownerTok, map[string]any{
+	respIter, itData := testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/iterate", ownerTok, map[string]any{
 		"intent_text":     "rewrite",
 		"target_agent_id": agentID,
 	})
-	iterationID := itData["id"].(string)
+	if respIter.StatusCode != http.StatusCreated {
+		t.Fatalf("iterate setup: got %d (%v)", respIter.StatusCode, itData)
+	}
+	iterationID, ok := itData["id"].(string)
+	if !ok || iterationID == "" {
+		t.Fatalf("iterate setup: missing id in response body %v", itData)
+	}
 	if itData["state"] != api.IterationStateFailed {
 		t.Fatalf("precondition: state=%v, want failed", itData["state"])
 	}
@@ -480,10 +499,16 @@ func TestCV_ListAnchorComments_Coverage(t *testing.T) {
 	}
 
 	// Happy path: create anchor + 1 comment + list.
-	_, anchor := testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/anchors", ownerTok, map[string]any{
+	respAnchor, anchor := testutil.JSON(t, "POST", url+"/api/v1/artifacts/"+artID+"/anchors", ownerTok, map[string]any{
 		"start_offset": 0, "end_offset": 3,
 	})
-	anchorID := anchor["id"].(string)
+	if respAnchor.StatusCode != http.StatusCreated {
+		t.Fatalf("create anchor setup: got %d (%v)", respAnchor.StatusCode, anchor)
+	}
+	anchorID, ok := anchor["id"].(string)
+	if !ok || anchorID == "" {
+		t.Fatalf("create anchor setup: missing id in response body %v", anchor)
+	}
 	_, _ = testutil.JSON(t, "POST", url+"/api/v1/anchors/"+anchorID+"/comments", ownerTok, map[string]any{
 		"body": "lgtm",
 	})

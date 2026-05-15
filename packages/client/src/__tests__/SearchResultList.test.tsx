@@ -4,7 +4,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import SearchResultList from '../components/SearchResultList';
 import type { SearchResult } from '../lib/api';
 

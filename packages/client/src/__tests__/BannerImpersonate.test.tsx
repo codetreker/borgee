@@ -8,7 +8,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import BannerImpersonate from '../components/Settings/BannerImpersonate';
 
 let container: HTMLDivElement | null = null;

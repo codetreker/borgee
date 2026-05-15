@@ -24,17 +24,18 @@ type Config struct {
 	ThresholdTotal   float64
 
 	// Behavior
-	CIMode          bool   // Enable CI mode (GitHub Actions error format; fail on CRITICAL results)
-	RaceDetection   bool   // Enable the -race flag
-	ExcludePackages string // Packages to exclude (comma-separated)
-	ExcludeFiles    string // File path substrings to exclude from function/block reports (comma-separated)
-	ExcludeFuncs    string // Function names to exclude from coverage threshold (comma-separated)
-	CoverProfile    string // Coverage profile path
-	UncoveredLimit  int    // Max uncovered blocks to show
-	ShowTestCounts  bool   // Show TESTS column in package summary
-	BuildTags       string // Build tags to pass to `go test` (e.g. "sqlite_fts5 race_heavy")
-	CoverPkg        string // -coverpkg argument (comma-separated import paths); empty = per-package mode
+	CIMode             bool   // Enable CI mode (GitHub Actions error format; fail on CRITICAL results)
+	RaceDetection      bool   // Enable the -race flag
+	ExcludePackages    string // Packages to exclude (comma-separated)
+	ExcludeFiles       string // File path substrings to exclude from function/block reports (comma-separated)
+	ExcludeFuncs       string // Function names to exclude from coverage threshold (comma-separated)
+	CoverProfile       string // Coverage profile path
+	UncoveredLimit     int    // Max uncovered blocks to show
+	ShowTestCounts     bool   // Show TESTS column in package summary
+	BuildTags          string // Build tags to pass to `go test` (e.g. "sqlite_fts5 race_heavy")
+	CoverPkg           string // -coverpkg argument (comma-separated import paths); empty = per-package mode
 	PackageGateInclude string // If non-empty, enforce the package threshold only for packages matching one of these prefixes (comma-separated). Other packages still display but never CRITICAL.
+	GenerateHTML       bool   // Generate local HTML coverage report when not in CI mode
 }
 
 const ModulePrefix = "borgee-server/"
@@ -116,7 +117,7 @@ func main() {
 	printStatistics(funcData, topLevelCounts, subTestCounts)
 
 	// Generate HTML report (only in local mode)
-	if !cfg.CIMode {
+	if !cfg.CIMode && cfg.GenerateHTML {
 		generateHTMLReport()
 	}
 
@@ -154,6 +155,7 @@ func parseConfig() Config {
 		CoverProfile:     "/tmp/coverage.out",
 		UncoveredLimit:   10,
 		ShowTestCounts:   true,
+		GenerateHTML:     true,
 	}
 
 	// CI mode has different defaults
@@ -225,6 +227,9 @@ func parseConfig() Config {
 	// Empty default = haystack legacy behavior (gate all packages).
 	if v := os.Getenv("PACKAGE_GATE_INCLUDE"); v != "" {
 		c.PackageGateInclude = v
+	}
+	if v := os.Getenv("GENERATE_HTML"); v != "" {
+		c.GenerateHTML = v == "true"
 	}
 
 	return c

@@ -11,7 +11,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { ArchivedChannelsPanel } from '../components/ArchivedChannelsPanel';
 import * as api from '../lib/api';
 import type { Channel } from '../types';

@@ -6,7 +6,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 // mock @emoji-mart/react 避免拉重依赖
 vi.mock('@emoji-mart/react', () => ({

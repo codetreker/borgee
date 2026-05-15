@@ -17,7 +17,7 @@ func TestParseConfig_DefaultsAndEnvOverrides(t *testing.T) {
 	for _, k := range []string{
 		"CI", "THRESHOLD_FUNC", "THRESHOLD_PACKAGE", "THRESHOLD_PRINT",
 		"THRESHOLD_TOTAL", "UNCOVERED_LIMIT", "EXCLUDE_FUNCS", "BUILD_TAGS",
-		"COVERPROFILE",
+		"COVERPROFILE", "GENERATE_HTML",
 	} {
 		saved[k] = os.Getenv(k)
 		os.Unsetenv(k)
@@ -72,6 +72,15 @@ func TestParseConfig_DefaultsAndEnvOverrides(t *testing.T) {
 	}
 	if c.CoverProfile != "coverage.out" {
 		t.Errorf("CoverProfile env override failed: got %q", c.CoverProfile)
+	}
+
+	// Local precheck can opt out of HTML generation while keeping CI-like
+	// thresholds and reports.
+	os.Unsetenv("CI")
+	os.Setenv("GENERATE_HTML", "false")
+	c = parseConfig()
+	if c.GenerateHTML {
+		t.Error("GenerateHTML should be false when GENERATE_HTML=false")
 	}
 }
 

@@ -14,7 +14,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import CommentUnreadBadge from '../components/CommentUnreadBadge';
 import { dispatchArtifactCommentAdded } from '../hooks/useWsHubFrames';
 import type { ArtifactCommentAddedFrame } from '../types/ws-frames';

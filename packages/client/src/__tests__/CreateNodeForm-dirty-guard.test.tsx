@@ -9,7 +9,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { CreateNodeForm } from '../components/NodeManager';
 import { runUnsavedGuards, _clearUnsavedGuardsForTest } from '../hooks/useUnsavedChangesGuard';

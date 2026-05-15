@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import SyncStatusIndicator from '../components/SyncStatusIndicator';
 import { SYNCING_LABEL_DELAY_MS } from '../lib/cs4-sync-state';
 

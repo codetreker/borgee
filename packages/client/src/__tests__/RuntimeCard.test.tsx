@@ -15,7 +15,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import RuntimeCard, { RUNTIME_STATUS_LABELS, RUNTIME_STATUS_TONES } from '../components/RuntimeCard';
 import { REASON_LABELS } from '../lib/agent-state';
 import type { Agent, AgentRuntime, AgentRuntimeStatus } from '../lib/api';

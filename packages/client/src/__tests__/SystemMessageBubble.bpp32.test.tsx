@@ -9,7 +9,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import SystemMessageBubble, {
   isBPP32GrantPayload,
   type BPP32GrantPayload,

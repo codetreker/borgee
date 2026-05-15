@@ -1,19 +1,51 @@
-// vitest.config.ts — P1 fix for vitest fake-green (REG-RT0-006).
-//
-// Problem: ws-invitation.test.ts dispatches window CustomEvents but the
-// client package had no test environment configured, so vitest defaulted
-// to node and `window is not defined` killed 4/6 cases. CI also had no
-// vitest job, so the breakage stayed invisible. This config + the new
-// ci.yml client-vitest job + the @borgee/client `test` script close the
-// loop.
+// vitest.config.ts — keep browser-dependent tests in jsdom while letting
+// pure TypeScript/source-scan tests run in node. This preserves the RT-0
+// CustomEvent coverage without paying jsdom startup cost for every file.
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+
+const browserTsTests = [
+  'src/__tests__/al-2a-content-lock.test.ts',
+  'src/__tests__/channel-groups-ui.test.ts',
+  'src/__tests__/cs4-idb.test.ts',
+  'src/__tests__/last-seen-cursor.test.ts',
+  'src/__tests__/markdown-mention.test.ts',
+  'src/__tests__/presence-reverse-grep.test.ts',
+  'src/__tests__/pushSubscribe.test.ts',
+  'src/__tests__/useDMSync.test.ts',
+  'src/__tests__/ws-anchor-comment-added.test.ts',
+  'src/__tests__/ws-artifact-comment-added.test.ts',
+  'src/__tests__/ws-artifact-updated.test.ts',
+  'src/__tests__/ws-envelope-flatten.test.ts',
+  'src/__tests__/ws-invitation.test.ts',
+  'src/__tests__/ws-mention-pushed.test.ts',
+];
 
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
     globals: false,
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    pool: 'threads',
+    silent: 'passed-only',
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+          exclude: browserTsTests,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          environment: 'jsdom',
+          setupFiles: ['./src/test/setup.ts'],
+          include: ['src/**/*.test.tsx', ...browserTsTests],
+        },
+      },
+    ],
   },
 });

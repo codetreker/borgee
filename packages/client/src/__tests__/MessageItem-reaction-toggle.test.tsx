@@ -7,7 +7,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 vi.mock('@emoji-mart/react', () => ({
   default: () => React.createElement('div', { 'data-test': 'emoji-mart' }),
