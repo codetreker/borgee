@@ -8,8 +8,8 @@
 | Branch | `feat/task-2-helper-outbound-service-prereq` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | SECURITY_DOCS_REPAIR_LOCAL_READY_FOR_COMMIT |
-| Blocker | security review blocker fixed in code; residual DNS/CNAME resolution risk needed accurate docs/progress treatment |
+| State | PR_READINESS_LOCAL_VERIFIED |
+| Blocker | none for PR open; residual DNS/CNAME resolution risk is documented as future hardening/runtime network-policy scope |
 
 ## Checkpoints
 
@@ -32,6 +32,7 @@
 - [x] Acceptance evidence recorded after implementation
 - [x] Security repair evidence recorded
 - [x] Security docs/progress repair recorded residual DNS/CNAME risk without overstating validator coverage
+- [x] Final PR readiness verification run by operator worker
 - [ ] PR opened
 - [ ] PR merged
 
@@ -90,6 +91,19 @@
 | Production allowlist boundary | Docs now state production assets use exact `https://app.borgee.io`, while DNS resolution/rebinding remains future hardening or runtime network-policy scope | PASS |
 | Diff check GREEN | `git diff --check` -> no whitespace errors | PASS |
 
+## Final PR Readiness Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Branch/worktree | `git status --short --branch` -> `## feat/task-2-helper-outbound-service-prereq...origin/main [ahead 5]` with no file changes | PASS |
+| Diff check | `git diff --check` -> no whitespace errors | PASS |
+| Focused helper tests | `GOTMPDIR=/tmp/borgee-gotmp-helper-prereq go test ./internal/outbound ./install` from `packages/borgee-helper` -> both packages passed | PASS |
+| Helper module tests | `GOTMPDIR=/tmp/borgee-gotmp-helper-all go test ./...` from `packages/borgee-helper` -> all helper packages passed | PASS |
+| Installer tests | `GOTMPDIR=/tmp/borgee-gotmp-installer-all go test ./...` from `packages/borgee-installer` -> all installer packages passed | PASS |
+| PR lint rehearsal | Local current-sync rehearsal against the PR diff exited cleanly; no mapped module trigger fired because the workflow maps `packages/helper/`, not `packages/borgee-helper/` | PASS WITH LIMITATION |
+| OpenClaw plugin PR lint | `BASE_SHA=$(git merge-base origin/main HEAD) HEAD_SHA=$(git rev-parse HEAD) bash scripts/check-openclaw-plugin-version-bump.sh` -> no OpenClaw plugin files changed | PASS |
+| OpenClaw plugin self-test | `bash scripts/check-openclaw-plugin-version-bump.test.sh` -> version-bump script self-test passed | PASS |
+
 ## Scope Locks
 
 - In scope: service/sandbox prerequisites for outbound Helper polling, Linux AF_UNIX-only restriction resolution boundary, allowed outbound domains, queue/status write paths, non-sudo service permission boundary, and Helper/Remote Agent rail separation.
@@ -97,4 +111,4 @@
 
 ## Acceptance State
 
-Implementation is locally verified and ready for commit. Acceptance evidence above covers Linux service, macOS plist/sandbox, Helper config validation, explicit state/write paths, docs/current sync, and out-of-scope locks. `content-lock.md` remains N/A for this scope, and no PR has been opened per worker assignment.
+Implementation and final PR-readiness checks are locally verified. Acceptance evidence above covers Linux service, macOS plist/sandbox, Helper config validation, explicit state/write paths, docs/current sync, and out-of-scope locks. `content-lock.md` remains N/A for this scope, and only PR-open/merge bookkeeping remains unchecked.
