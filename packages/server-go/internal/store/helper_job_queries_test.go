@@ -102,6 +102,17 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 	if err := s.DB().Exec(`UPDATE helper_enrollments SET last_seen_at = NULL WHERE id = ?`, missingLastSeen.ID).Error; err != nil {
 		t.Fatalf("seed missing last_seen_at enrollment: %v", err)
 	}
+	uninstalled, uninstallSecret, err := s.CreateHelperEnrollment(owner.ID, "Uninstalled Helper", []string{"openclaw_config"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment uninstalled fixture: %v", err)
+	}
+	_, uninstallCredential, err := s.ClaimHelperEnrollment(uninstalled.ID, uninstallSecret, "device-uninstalled", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment uninstalled fixture: %v", err)
+	}
+	if _, err := s.MarkHelperEnrollmentUninstalled(uninstalled.ID, uninstallCredential, "device-uninstalled", now.Add(2*time.Minute)); err != nil {
+		t.Fatalf("MarkHelperEnrollmentUninstalled fixture: %v", err)
+	}
 	agentOwner := helperJobAgent(t, s, owner, "reject-agent-owner")
 	legacyAgentEnrollment := legacyClaimedHelperEnrollmentForOwner(t, s, agentOwner, []string{"openclaw_config"}, now)
 	agent := helperJobAgent(t, s, owner, "reject-agent")
@@ -126,6 +137,11 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 	}{
 		{"wrong owner", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.OwnerUserID = other.ID; return in }, ErrHelperJobForbidden},
 		{"wrong org", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.OrgID = other.OrgID; return in }, ErrHelperJobForbidden},
+		{"nonexistent enrollment", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.EnrollmentID = "missing-helper-enrollment"
+			return in
+		}, ErrHelperJobEnrollmentNotFound},
+		{"uninstalled enrollment", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = uninstalled.ID; return in }, ErrHelperJobEnrollmentUninstalled},
 		{"stale enrollment", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = stale.ID; return in }, ErrHelperJobEnrollmentInactive},
 		{"missing last_seen_at", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = missingLastSeen.ID; return in }, ErrHelperJobEnrollmentInactive},
 		{"delegation denied", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = statusOnly.ID; return in }, ErrHelperJobDelegationDenied},

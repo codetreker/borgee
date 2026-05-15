@@ -8,8 +8,8 @@
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | REPAIR_VERIFIED |
-| Blocker | None for local repair. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. Implementation review blockers repaired locally; PR not opened per assignment. |
+| State | QA_GAP_REPAIR_VERIFIED |
+| Blocker | None for local repair. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. Implementation review blockers and the later QA acceptance evidence gap are repaired locally; PR not opened per assignment. |
 
 ## Checkpoints
 
@@ -95,6 +95,18 @@
 | Diff hygiene | `git diff --check` passed. | PASS |
 | Docs/current sync | Updated current server data model, API/auth rails, Host Bridge, and security docs for human/member Helper owner authority, target-agent channel access, role=`agent`/plugin API-key denial, and internal-only digests. Updated task design response schema to omit digests. | PASS |
 
+## QA Acceptance Gap Repair Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| RED / coverage classification | Added focused API and store tests for enqueue rejection of nonexistent/missing enrollment and uninstalled enrollment before any production change. Both focused tests passed on first behavioral run after the temp-dir setup issue was corrected, so this repair is coverage-only evidence closure, not a production behavior fix. | COVERAGE-ONLY PASS |
+| Store missing enrollment | `TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy` now asserts `EnqueueHelperJobForUser` returns `ErrHelperJobEnrollmentNotFound` for a nonexistent enrollment ID and inserts no job row. | PASS |
+| Store uninstalled enrollment | `TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy` now creates, claims, marks uninstalled, then asserts enqueue returns `ErrHelperJobEnrollmentUninstalled` and inserts no job row. | PASS |
+| API missing enrollment | `TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUnmounted` now asserts `POST /api/v1/helper/enrollments/missing-helper-enrollment/jobs` returns `404` with `code=not_found`. | PASS |
+| API uninstalled enrollment | `TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUnmounted` now claims and uninstalls an enrollment via the helper rail, then asserts user-rail enqueue returns `403` with `code=uninstalled`. | PASS |
+| Focused GREEN | `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/store -run 'TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy' -count=1`; `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/api -run 'TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUnmounted' -count=1`. | PASS |
+| Broader focused GREEN | `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/api ./internal/store -run 'TestHelperJobs\|TestHelperJob' -count=1`; `GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api ./internal/server -run 'TestHelperJobs\|TestHelperJob\|TestHelperEnrollment\|TestMigrationRegistryIncludesHelperJobs' -count=1`. | PASS |
+
 ## Scope Locks
 
 - In scope: typed job envelope boundary, server enqueue authority, closed job type handling at enqueue, idempotency/TTL seeds, and enqueue-time failure truthfulness.
@@ -102,4 +114,4 @@
 
 ## Acceptance State
 
-Local repair is complete with regression RED/GREEN evidence, docs/current sync, full `packages/server-go` verification, and diff hygiene recorded above. PR has not been opened or merged per worker assignment.
+Local repair is complete with regression RED/GREEN evidence, QA-gap coverage-only closure evidence for missing and uninstalled enrollment enqueue rejection, docs/current sync, full `packages/server-go` verification from the earlier repair, focused package verification for this QA gap, and diff hygiene recorded above. PR has not been opened or merged per worker assignment.

@@ -261,6 +261,10 @@ func TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUn
 	if resp.StatusCode != http.StatusForbidden || missingSeenBody["code"] != "stale_enrollment" {
 		t.Fatalf("missing last_seen_at enqueue: status %d body %v", resp.StatusCode, missingSeenBody)
 	}
+	resp, missingEnrollmentBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/missing-helper-enrollment/jobs", ownerToken, valid)
+	if resp.StatusCode != http.StatusNotFound || missingEnrollmentBody["code"] != "not_found" {
+		t.Fatalf("missing enrollment enqueue: status %d body %v", resp.StatusCode, missingEnrollmentBody)
+	}
 
 	fresh, freshSecret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
 	freshID := fresh["enrollment_id"].(string)
@@ -272,6 +276,20 @@ func TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUn
 	resp, revokedBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+freshID+"/jobs", ownerToken, valid)
 	if resp.StatusCode != http.StatusForbidden || revokedBody["code"] != "revoked" {
 		t.Fatalf("revoked enrollment enqueue: status %d body %v", resp.StatusCode, revokedBody)
+	}
+
+	uninstalled, uninstallSecret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	uninstalledID := uninstalled["enrollment_id"].(string)
+	_, uninstallCredential := claimHelperEnrollmentViaAPI(t, ts.URL, uninstalledID, uninstallSecret, "device-uninstalled")
+	resp, uninstallBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+uninstalledID+"/uninstall", uninstallCredential, map[string]any{
+		"helper_device_id": "device-uninstalled",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("uninstall fixture: status %d body %v", resp.StatusCode, uninstallBody)
+	}
+	resp, uninstalledBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+uninstalledID+"/jobs", ownerToken, valid)
+	if resp.StatusCode != http.StatusForbidden || uninstalledBody["code"] != "uninstalled" {
+		t.Fatalf("uninstalled enrollment enqueue: status %d body %v", resp.StatusCode, uninstalledBody)
 	}
 
 	for _, path := range []string{
