@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/task-7-local-policy-manifest-and-sandbox-profile` |
 | Branch | `feat/task-7-local-policy-manifest-and-sandbox-profile` |
-| PR | N/A; local task/design commits only |
+| PR | Ready for push/PR creation; not pushed/opened by local preflight |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | READY_FOR_LOCAL_COMMIT |
+| State | READY_FOR_PR |
 | Blocker | none; design gate green via `PM_QA_DESIGN_LGTM_BOTH` and `ARCH_SECURITY_TASK7_DESIGN_LGTM` |
 
 ## Checkpoints
@@ -32,6 +32,7 @@
 - [x] Helper-side local policy evaluator implemented without task 6 transport or action execution
 - [x] Focused and broader Helper verification passed locally
 - [x] Docs/current synced for landed local policy behavior and remaining no-poll/no-action limits
+- [x] PR readiness preflight completed locally without pushing or opening PR
 
 ## Task-Prep Evidence
 
@@ -97,6 +98,17 @@
 | Scope boundary | Added pure `internal/jobpolicy` package only; no Helper poll/lease/result routes, result upload, OpenClaw action execution, service-manager calls, sudo, Remote Agent credential reuse, or server transport implementation | PASS |
 | Docs/current sync | Updated Host Bridge helper, Host Bridge overview, Security boundaries, and Known Gaps to document the pure evaluator and remaining no-poll/no-action/no-settlement limits | PASS |
 
+## PR Readiness Preflight
+
+| Item | Evidence | Result |
+|---|---|---|
+| Branch state before notebook update | `git status --short --branch` showed `feat/task-7-local-policy-manifest-and-sandbox-profile...origin/main [ahead 4]`; `git rev-parse HEAD` was `1e95d055a9b7c59fe53390c139943e64cb435f7a`; porcelain output was empty | PASS |
+| Whitespace check | `git diff --check` returned no output, exit 0 | PASS |
+| Helper verification | From `packages/borgee-helper`, `GOTMPDIR=$PWD/.gotmp go test -count=1 ./...` passed for the default helper package set reported by `go list ./...` | PASS |
+| Helper integration verification | Default `./e2e` is excluded by build constraints; `TMPDIR=$PWD/.tmp GOTMPDIR=$PWD/.gotmp go test -tags=integration -count=1 ./e2e` passed after using a worktree temp dir instead of non-executable `/tmp` | PASS |
+| Docs/current check | Reviewed changed Host Bridge, security, and known-gaps docs for task 7 scope; docs keep no-poll/no-action/no-settlement and DNS-resolution limitations explicit | PASS |
+| Progress/acceptance check | Found stale local-commit state in this notebook and updated it to PR readiness; acceptance remains scoped to local policy/manifest/sandbox profile without claiming task 6 transport or action execution | PASS |
+
 ## Acceptance State
 
-Task 7 implementation repair is ready for local commit. The Helper-side pure local policy evaluator is implemented and verified for fixed schema validation, server-owned payload hash enforcement over the delivered payload JSON, signed manifest and artifact binding, path/domain/service allowlists, revoked/stale/wrong-owner/wrong-org denial, and sandbox/profile mismatch denial including `state.write` write-mode/write-sandbox alignment. Task 6 transport, result upload, OpenClaw action execution, and service lifecycle execution remain out of scope and unimplemented.
+Task 7 is ready for push and PR creation after local preflight. The Helper-side pure local policy evaluator is implemented and verified for fixed schema validation, server-owned payload hash enforcement over the delivered payload JSON, signed manifest and artifact binding, path/domain/service allowlists, revoked/stale/wrong-owner/wrong-org denial, and sandbox/profile mismatch denial including `state.write` write-mode/write-sandbox alignment. Task 6 transport, result upload, OpenClaw action execution, and service lifecycle execution remain out of scope and unimplemented.
