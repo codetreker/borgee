@@ -20,6 +20,8 @@ import PrivacyPromise from './PrivacyPromise';
 import AdminActionsList from './AdminActionsList';
 import ImpersonateGrantSection from './ImpersonateGrantSection';
 import { PermissionsView } from '../PermissionsView';
+import ChannelManagementSurface from './ChannelManagementSurface';
+import { useState } from 'react';
 import {
   getMyAdminActions,
   getMyImpersonateGrant,
@@ -31,11 +33,10 @@ interface Props {
   onBack: () => void;
 }
 
-export type SettingsTab = 'privacy';
+export type SettingsTab = 'privacy' | 'channels';
 
 export default function SettingsPage({ onBack }: Props) {
-  // v1 仅 'privacy' tab; 后续 tab 加入时改为 useState<SettingsTab>.
-  const activeTab: SettingsTab = 'privacy';
+  const [activeTab, setActiveTab] = useState<SettingsTab>('privacy');
 
   return (
     <div className="settings-page" data-page="settings">
@@ -57,10 +58,19 @@ export default function SettingsPage({ onBack }: Props) {
           className={`settings-tab${activeTab === 'privacy' ? ' active' : ''}`}
           data-tab="privacy"
           aria-current={activeTab === 'privacy' ? 'page' : undefined}
+          onClick={() => setActiveTab('privacy')}
         >
           隐私
         </button>
-        {/* v1 placeholder — 后续 tab (账号 / 通知) 加入时反开锁 disabled. */}
+        <button
+          type="button"
+          className={`settings-tab${activeTab === 'channels' ? ' active' : ''}`}
+          data-tab="channels"
+          aria-current={activeTab === 'channels' ? 'page' : undefined}
+          onClick={() => setActiveTab('channels')}
+        >
+          频道
+        </button>
       </nav>
 
       <main className="settings-page-content">
@@ -84,6 +94,7 @@ export default function SettingsPage({ onBack }: Props) {
             </section>
           </>
         )}
+        {activeTab === 'channels' && <ChannelManagementSurface />}
       </main>
     </div>
   );

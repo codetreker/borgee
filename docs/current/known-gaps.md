@@ -48,6 +48,16 @@ Do not assume: Helper startup validation prevents DNS rebinding or private/link-
 
 Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server Helper jobs.
 
+## Channel Management Actions Not Implemented
+
+Current behavior: the user Settings sidepane has a channel-management tab that groups non-DM channels into channels created by the current user and channels joined by the current user. The tab is display-only and uses the authorized channel list already present in client app state.
+
+Architecture impact: users can inspect ownership and membership grouping, but the surface does not yet define or enforce visible management actions.
+
+Do not assume: Settings channel management can leave, delete, archive, transfer ownership, change membership, change notification preferences, collapse/sort/pin/group channels, or prove server-side action authorization.
+
+Relevant area: [client feature surfaces](client/feature-surfaces.md), [settings UI sketch](client/ui/settings.md).
+
 ## Plugin WS Transport Selection
 
 Current behavior: OpenClaw TypeScript transport types include `ws`, while validated config exposes `auto`, `sse`, and `poll`.

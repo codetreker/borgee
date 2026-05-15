@@ -4221,6 +4221,80 @@ body {
   padding: 24px;
 }
 
+.channel-management-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 860px;
+}
+
+.channel-management-header h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.channel-management-header p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.channel-management-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.channel-management-section h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.channel-management-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.channel-management-row {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.channel-management-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.channel-management-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.channel-management-visibility {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.channel-management-topic,
+.channel-management-meta,
+.channel-management-empty {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .helper-status-panel {
   flex: 1;
   display: flex;

@@ -18,7 +18,7 @@ flowchart TB
   RemoteNodes[Remote nodes sidepane]
   HelperStatus[Helper status sidepane]
   Agents[Agent ownership]
-  Settings[Settings and admin-awareness]
+  Settings[Settings, channel management, and admin-awareness]
 
   Shell --> Rail
   Shell --> Channel
@@ -46,7 +46,7 @@ flowchart TB
 | Remote nodes sidepane | Manage user-owned remote nodes and channel bindings. | Pulls node, status, token, and binding data from the user remote API. |
 | Helper status sidepane | Inspect user-owned Helper enrollment status. | Pulls redacted Helper enrollment status from the user Helper enrollment API. |
 | Agent/invitation | Owner-side agent management and join approval. | Uses user agent APIs and signal-then-pull invitation updates. |
-| Settings | User privacy, admin-impact history, impersonation grant. | Uses user-owned admin-awareness endpoints only. |
+| Settings | User privacy, display-only channel management, admin-impact history, impersonation grant. | Uses user-owned admin-awareness endpoints and the existing authorized channel list from shared app state. |
 
 ## Responsibilities
 
@@ -120,11 +120,11 @@ Invitation handling is a separate owner inbox. Realtime invitation frames do not
 
 Sketch references: [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), and [ui/agent-collab.md](ui/agent-collab.md) show owner-side agent management and collaboration surfaces.
 
-## Settings And Admin-Awareness
+## Settings, Channel Management, And Admin-Awareness
 
-The settings surface is the user-visible privacy boundary. It shows what admin impact the user is allowed to inspect and lets the user create or revoke a temporary impersonation grant.
+The settings surface contains local tabs. The privacy tab is the user-visible privacy boundary: it shows what admin impact the user is allowed to inspect and lets the user create or revoke a temporary impersonation grant. The channel tab is a display-only management overview: it groups non-DM channels into channels created by the current user and channels joined by the current user but created by someone else.
 
-This is not the admin SPA. It is a user rail surface backed by user endpoints, so it can be visible in the normal shell without granting admin session capabilities.
+This is not the admin SPA. It is a user rail surface backed by user endpoints and shared app state, so it can be visible in the normal shell without granting admin session capabilities. The channel-management tab does not currently expose leave, delete, archive, owner-transfer, notification, collapse, sort, pin, group, or private-indicator controls.
 
 Sketch reference: [ui/settings.md](ui/settings.md) shows the user-facing admin-awareness layout. Admin architecture remains owned by [../admin/](../admin/).
 
@@ -146,3 +146,4 @@ Sketch reference: [ui/settings.md](ui/settings.md) shows the user-facing admin-a
 | Feature components | `packages/client/src/components/`, `packages/client/src/components/Settings/` |
 | Feature hooks and commands | `packages/client/src/hooks/`, `packages/client/src/commands/` |
 | User API surface | `packages/client/src/lib/api.ts` |
+| Channel management grouping | `packages/client/src/lib/channelManagement.ts`, `packages/client/src/components/Settings/ChannelManagementSurface.tsx` |

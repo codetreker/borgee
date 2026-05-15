@@ -14,7 +14,7 @@ They do not define product behavior, implementation contracts, verification stat
 | Chat and DM | [message.md](message.md), [dm.md](dm.md), [slash-commands.md](slash-commands.md), [preview.md](preview.md) | Message layout, direct messages, command panel shape, and public preview flow. |
 | Canvas and workspace | [canvas-modal.md](canvas-modal.md), [workspace.md](workspace.md) | Artifact decision flows, file tree layout, and file viewer shape. |
 | Agents | [agent-manager.md](agent-manager.md), [agent-config.md](agent-config.md), [agent-collab.md](agent-collab.md) | Owner-side agent management, config editing, and collaboration visibility. |
-| Sidepanes and settings | [sidepane.md](sidepane.md), [settings.md](settings.md) | Global sidepane navigation and user admin-awareness layout. |
+| Sidepanes and settings | [sidepane.md](sidepane.md), [settings.md](settings.md) | Global sidepane navigation, channel-management overview, and user admin-awareness layout. |
 
 When following admin or remote-agent reader paths, use their module entries first: [../../admin/README.md](../../admin/README.md) for admin SPA context and [../../remote-agent/README.md](../../remote-agent/README.md) for Remote Agent protocol and boundary context. Their UI sketches sit under those modules as supporting interaction references.
 
