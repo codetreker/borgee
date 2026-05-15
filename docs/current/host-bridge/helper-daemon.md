@@ -89,7 +89,7 @@ This is transport and settlement plumbing. It does not implement local policy, m
 
 ## Audit Model
 
-Helper audit is local JSONL for the current IPC path. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log. Helper job policy decisions are shaped for later task 6/task 8 transport and settlement, but this release does not upload or settle those decisions.
+Helper audit is local JSONL for the current IPC path. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log. Helper job policy decisions are shaped for future daemon-loop action wiring and bounded status handoff, but the current daemon does not upload or settle local policy decisions.
 
 ## Out Of Scope
 

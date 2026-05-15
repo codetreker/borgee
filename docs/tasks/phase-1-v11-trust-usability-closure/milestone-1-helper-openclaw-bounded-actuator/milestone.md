@@ -32,7 +32,7 @@ Rejected by this milestone:
 | Helper status UI and current sync | ACCEPTED | `task-3-helper-status-ui-and-current-sync` | PR #937 (`2872905`) | complete |
 | Job envelope and enqueue authority | ACCEPTED | `task-4-job-envelope-and-enqueue-authority` | PR #938 (`64d56f1`) | complete |
 | Helper outbound service prerequisites | ACCEPTED | `task-5-helper-outbound-service-prereq` | PR #939 (`96dc0dc`) | complete |
-| Helper pull / lease / result | READY_FOR_PR | `task-6-helper-pull-lease-result` | Implemented on `feat/task-6-helper-pull-lease-result`; PR not opened yet | no, final PR gate |
+| Helper pull / lease / result | PR_VERIFYING | `task-6-helper-pull-lease-result` | PR #943 from `feat/task-6-helper-pull-lease-result`; coverage repair in progress | no, final PR gate |
 | Local policy / manifest / sandbox profile | ACCEPTED | `task-7-local-policy-manifest-and-sandbox-profile` | PR #942 (`642fb57`) | complete |
 | Bounded status logs and revoke settlement | BLOCKED | `task-8-bounded-status-logs-and-revoke-settlement` | After pull/lease/result and local policy | no |
 | OpenClaw install and agent config jobs | BLOCKED | `task-9-openclaw-install-and-agent-config-jobs` | After typed job/policy substrate | no |

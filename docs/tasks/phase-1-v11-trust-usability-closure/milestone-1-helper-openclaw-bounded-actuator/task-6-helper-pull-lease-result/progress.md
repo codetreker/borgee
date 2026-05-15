@@ -6,10 +6,10 @@
 |---|---|
 | Worktree | `.worktrees/task-6-helper-pull-lease-result` |
 | Branch | `feat/task-6-helper-pull-lease-result` |
-| PR | not opened |
+| PR | #943 |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | IMPLEMENTED_READY_FOR_REVIEW |
-| Blocker | none |
+| State | PR_VERIFYING |
+| Blocker | CI coverage repair in progress |
 
 ## Checkpoints
 
@@ -17,7 +17,7 @@
 - [x] `AGENTS.md` reviewed.
 - [x] Task, milestone, accepted history, shared task index, and blueprint anchor docs reviewed.
 - [x] Executability verified: task 6 is READY/TASKING after accepted PR #934/#936/#937/#938/#939 and is not blocked by another unaccepted task.
-- [x] Shared Blueprintflow state refreshed for task 6 TASKING while task 7 remains READY; no task 7 files touched.
+- [x] Shared Blueprintflow state refreshed for task 6 TASKING while task 7 was still READY; task 7 is now accepted through PR #942.
 - [x] Four-piece task-start docs created: `spec.md`, `stance.md`, `acceptance.md`, `progress.md`.
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals.
 - [x] Product implementation deliberately not started in task-start commit scope.
@@ -30,7 +30,8 @@
 - [x] Implementation completed for Helper poll/lease/ack/result and outbound client.
 - [x] Focused and broader verification run.
 - [x] Acceptance state updated with RED/GREEN evidence.
-- [x] Local commit created; no push/PR opened.
+- [x] Local commit created; PR #943 opened after rebase onto Task7-accepted `origin/main`.
+- [x] PR coverage gate produced a branch-owned coverage gap; focused coverage tests added for Helper rail repo-error mapping, datalayer lease projection, and terminal settlement metadata.
 
 ## Implementation Evidence
 
@@ -45,7 +46,7 @@
 | GREEN: broader server | `GOTMPDIR=$PWD/.gotmp go test -tags fts5 ./internal/api ./internal/datalayer ./internal/store ./internal/migrations` | PASS |
 | GREEN: helper | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound ./install ./cmd/borgee-helper` | PASS |
 | Whitespace | `git diff --check` | PASS |
-| Local commit | Local commit created in this worktree; no push or PR opened by worker | PASS |
+| Local commit / PR | Local task commits created and PR #943 opened by worker after rebasing onto PR #942 (`642fb57`) | PASS |
 | Scope guard | Implementation stayed on Helper poll/lease/ack/result transport, Helper outbound client shape, and docs/current sync. It did not implement task 7 local policy/manifest/sandbox evaluation, OpenClaw action execution, bounded log upload, service lifecycle restart, sudo cache, or Remote Agent rail reuse. | PASS |
 
 ## Review Blocker Repair Evidence
@@ -74,7 +75,7 @@
 | Blueprint anchors | Read `remote-actuator-design.md` sections 1.2, 6, 8, and 10 | PASS |
 | Dependency state | Verified accepted history records PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`) | PASS |
 | Task 6 unlock | Verified task 6 depends on accepted task 5 only; milestone and shared task index list task 6 READY after PR #939 | PASS |
-| Shared state | Updated shared state so task 6 is TASKING from this worktree/branch and task 7 remains READY | PASS |
+| Shared state | Updated shared state so task 6 is TASKING from this worktree/branch; after rebase, task 7 is accepted through PR #942 and task 6 remains scoped to transport/lease/result | PASS |
 | Task 7 ownership | No files under `task-7-local-policy-manifest-and-sandbox-profile/` changed | PASS |
 | Four-piece | Created task-start `spec.md`, `stance.md`, and `acceptance.md`; this file records progress and content-lock N/A | PASS |
 | Product code | No product code changes made in task-start commit scope | PASS |
@@ -100,4 +101,4 @@
 
 ## Acceptance State
 
-Task 6 is IMPLEMENTED_READY_FOR_REVIEW after accepted design review. `content-lock.md` remains N/A for this scope. Helper outbound poll/lease/ack/result transport, atomic lease transitions, idempotent ack/result, bounded terminal metadata, stale/revoked/uninstalled/expired settlement, Helper outbound client shape, and docs/current sync are implemented. Task 7 local policy/manifest/sandbox work, OpenClaw execution, bounded log upload, service lifecycle, and Remote Agent rail reuse remain out of scope.
+Task 6 is PR_VERIFYING after accepted design and implementation review (`TASK6_IMPL_LGTM_FINAL`). `content-lock.md` remains N/A for this scope. Helper outbound poll/lease/ack/result transport, atomic lease transitions, idempotent ack/result, bounded terminal metadata, stale/revoked/uninstalled/expired settlement, Helper outbound client shape, and docs/current sync are implemented. Task 7 local policy/manifest/sandbox work is accepted separately through PR #942. OpenClaw execution, bounded log upload, service lifecycle, sudo cache, and Remote Agent rail reuse remain out of scope.

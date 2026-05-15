@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 func TestHelperJobEnqueueAuthorityAndActiveIdempotency(t *testing.T) {
@@ -517,6 +519,98 @@ func TestHelperJobUninstallSettlementCoversRunningJob(t *testing.T) {
 	}
 	if settled.Status != HelperJobStatusCancelled || settled.FailureCode == nil || *settled.FailureCode != "uninstalled" || settled.ActiveIdempotencyScope != nil {
 		t.Fatalf("uninstall should settle running job, got %+v", settled)
+	}
+}
+
+func TestHelperJobAckSettlesRevokedAndUninstalledJobs(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		settle   func(t *testing.T, s *Store, owner *User, enrollment *HelperEnrollment, credential string, now time.Time)
+		wantErr  error
+		wantCode string
+	}{
+		{
+			name: "revoked",
+			settle: func(t *testing.T, s *Store, owner *User, enrollment *HelperEnrollment, _ string, now time.Time) {
+				t.Helper()
+				if _, err := s.RevokeHelperEnrollmentForUser(enrollment.ID, owner.ID, owner.OrgID, now); err != nil {
+					t.Fatalf("revoke fixture: %v", err)
+				}
+			},
+			wantErr:  ErrHelperJobEnrollmentRevoked,
+			wantCode: "revoked",
+		},
+		{
+			name: "uninstalled",
+			settle: func(t *testing.T, s *Store, _ *User, enrollment *HelperEnrollment, credential string, now time.Time) {
+				t.Helper()
+				if _, err := s.MarkHelperEnrollmentUninstalled(enrollment.ID, credential, *enrollment.HelperDeviceID, now); err != nil {
+					t.Fatalf("uninstall fixture: %v", err)
+				}
+			},
+			wantErr:  ErrHelperJobEnrollmentUninstalled,
+			wantCode: "uninstalled",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := migratedStore(t)
+			owner := helperOwner(t, s, "helper-job-ack-"+tc.name)
+			now := time.UnixMilli(1778840000000)
+			enrollment, credential := claimedFreshHelperEnrollmentWithCredential(t, s, owner, []string{"openclaw_config"}, now)
+			agent := helperJobAgent(t, s, owner, "ack-settle-agent-"+tc.name)
+			seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Ack Settle"}, now)
+
+			job, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{OwnerUserID: owner.ID, OrgID: owner.OrgID, EnrollmentID: enrollment.ID, JobType: "openclaw.configure_agent", SchemaVersion: 1, PayloadJSON: `{"agent_id":"` + agent.ID + `"}`}, now.Add(2*time.Minute))
+			if err != nil {
+				t.Fatalf("enqueue fixture: %v", err)
+			}
+			lease, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{EnrollmentID: enrollment.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseDuration: time.Minute}, now.Add(3*time.Minute))
+			if err != nil || lease == nil {
+				t.Fatalf("lease fixture=%+v err=%v", lease, err)
+			}
+
+			tc.settle(t, s, owner, enrollment, credential, now.Add(3*time.Minute+time.Second))
+			if _, err := s.AckHelperJobForHelper(AckHelperJobInput{EnrollmentID: enrollment.ID, JobID: job.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: lease.LeaseToken, AckStatus: "received"}, now.Add(3*time.Minute+2*time.Second)); !errors.Is(err, tc.wantErr) {
+				t.Fatalf("ack after %s error=%v, want %v", tc.name, err, tc.wantErr)
+			}
+
+			var settled HelperJob
+			if err := s.DB().Where("id = ?", job.ID).First(&settled).Error; err != nil {
+				t.Fatalf("load settled job: %v", err)
+			}
+			if settled.Status != HelperJobStatusCancelled || settled.FailureCode == nil || *settled.FailureCode != tc.wantCode || settled.ActiveIdempotencyScope != nil {
+				t.Fatalf("ack after %s should settle job, got %+v", tc.name, settled)
+			}
+		})
+	}
+}
+
+func TestSettleHelperJobWritesFailureMessage(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-settle-direct")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_config"}, now)
+	agent := helperJobAgent(t, s, owner, "settle-direct-agent")
+	seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Settle Direct"}, now)
+	job, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{OwnerUserID: owner.ID, OrgID: owner.OrgID, EnrollmentID: enrollment.ID, JobType: "openclaw.configure_agent", SchemaVersion: 1, PayloadJSON: `{"agent_id":"` + agent.ID + `"}`}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("enqueue fixture: %v", err)
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		return settleHelperJob(tx, job.ID, now.Add(3*time.Minute), HelperJobStatusFailed, "execution_failed", "short failure")
+	}); err != nil {
+		t.Fatalf("settleHelperJob: %v", err)
+	}
+	var settled HelperJob
+	if err := s.DB().Where("id = ?", job.ID).First(&settled).Error; err != nil {
+		t.Fatalf("load settled job: %v", err)
+	}
+	if settled.Status != HelperJobStatusFailed || settled.FailureCode == nil || *settled.FailureCode != "execution_failed" || settled.FailureMessage == nil || *settled.FailureMessage != "short failure" || settled.ActiveIdempotencyScope != nil {
+		t.Fatalf("settleHelperJob did not persist terminal metadata: %+v", settled)
 	}
 }
 
