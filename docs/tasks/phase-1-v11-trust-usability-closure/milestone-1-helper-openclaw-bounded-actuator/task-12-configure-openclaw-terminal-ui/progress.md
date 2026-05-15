@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/m1-task12-configure-openclaw-terminal-ui` |
 | Branch | `task/m1-task12-configure-openclaw-terminal-ui` |
-| PR | pending |
+| PR | #964 |
 | Owner | M1 Task12 rescue owner |
-| State | LOCAL_VERIFIED |
+| State | PR_VERIFYING |
 | Blocker | none |
 
 ## Dependency Decision
@@ -24,7 +24,8 @@ Task12 is unblocked. The required M1 typed job chain is merged into `origin/main
 - [x] Previous worker observed RED tests for missing server projection and UI rendering.
 - [x] Server projection, client sanitizer, and Helper Status UI implementation present.
 - [x] Focused and broader local verification complete.
-- [ ] PR opened and CI monitored.
+- [x] PR opened: #964.
+- [ ] CI monitored.
 
 ## Evidence
 
