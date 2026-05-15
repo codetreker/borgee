@@ -50,11 +50,11 @@ Do not assume: Helper startup validation prevents DNS rebinding or private/link-
 
 Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server Helper jobs.
 
-## Channel Management Actions Not Implemented
+## Channel Management Mutations Not Implemented
 
-Current behavior: the user Settings sidepane has a channel-management tab that groups non-DM channels into channels created by the current user and channels joined by the current user. The tab is display-only and uses the authorized channel list already present in client app state.
+Current behavior: the user Settings sidepane has a channel-management tab that groups non-DM channels into channels created by the current user and channels joined by the current user. The tab renders read-only leave/delete/archive/owner-transfer availability from the authorized channel list already present in client app state. Self-created or owned channels do not show leave as available, joined-only non-general channels can show leave as available, and owner transfer is unavailable for v1.
 
-Architecture impact: users can inspect ownership and membership grouping, but the surface does not yet define or enforce visible management actions.
+Architecture impact: users can inspect ownership, membership grouping, and action availability, but the Settings surface does not execute channel-management mutations and does not prove server-side action authorization.
 
 Do not assume: Settings channel management can leave, delete, archive, transfer ownership, change membership, change notification preferences, collapse/sort/pin/group channels, or prove server-side action authorization.
 

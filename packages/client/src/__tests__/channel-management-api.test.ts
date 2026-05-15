@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Channel } from '../types';
 import { fetchChannels, sendMessage, setChannelMemberRequireMentionPolicy } from '../lib/api';
-import { buildChannelManagementSections } from '../lib/channelManagement';
+import { buildChannelAllowedActionRules, buildChannelManagementSections } from '../lib/channelManagement';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -117,5 +117,73 @@ describe('channel management API/client surface', () => {
     }));
 
     await sendMessage('ch-1', 'hello <@agent-1>', 'text', ['agent-1']);
+  });
+
+  it('does not allow self-created channels to expose leave as an available action', () => {
+    const rules = buildChannelAllowedActionRules(
+      channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true }),
+      'user-1',
+    );
+
+    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
+      allowed: false,
+      reason: '创建者不能退出自己创建的频道',
+    });
+    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({ allowed: true });
+    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({ allowed: true });
+    expect(rules.find(rule => rule.id === 'owner-transfer')).toMatchObject({
+      allowed: false,
+      reason: '本轮不支持所有权转让',
+    });
+  });
+
+  it('allows joined-only members to leave but not delete, archive, or transfer ownership', () => {
+    const rules = buildChannelAllowedActionRules(
+      channel({ id: 'joined-1', name: 'joined', created_by: 'user-2', is_member: true }),
+      'user-1',
+    );
+
+    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({ allowed: true });
+    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({
+      allowed: false,
+      reason: '仅创建者可删除频道',
+    });
+    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({
+      allowed: false,
+      reason: '仅创建者可归档频道',
+    });
+    expect(rules.find(rule => rule.id === 'owner-transfer')).toMatchObject({ allowed: false });
+  });
+
+  it('does not show leave as available before current user identity is known', () => {
+    const rules = buildChannelAllowedActionRules(
+      channel({ id: 'joined-unknown-user', name: 'joined', created_by: 'user-2', is_member: true }),
+      null,
+    );
+
+    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
+      allowed: false,
+      reason: '当前用户未知，不能退出频道',
+    });
+  });
+
+  it('keeps the default general channel out of leave and destructive actions', () => {
+    const rules = buildChannelAllowedActionRules(
+      channel({ id: 'general', name: 'general', created_by: 'user-1', is_member: true }),
+      'user-1',
+    );
+
+    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
+      allowed: false,
+      reason: '默认频道不能退出',
+    });
+    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({
+      allowed: false,
+      reason: '默认频道不能删除',
+    });
+    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({
+      allowed: false,
+      reason: '默认频道不能归档',
+    });
   });
 });

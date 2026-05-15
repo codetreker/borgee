@@ -12,6 +12,7 @@ import RemotePanel from './RemotePanel';
 import ArtifactPanel from './ArtifactPanel';
 import { useVisualViewport } from '../hooks/useVisualViewport';
 import type { Message } from '../types';
+import { canLeaveChannel } from '../lib/channelManagement';
 
 interface Props {
   channelId: string;
@@ -65,6 +66,7 @@ export default function ChannelView({ channelId }: Props) {
   const dmChannel = state.dmChannels.find(dm => dm.id === channelId);
   const isDm = !!dmChannel?.peer;
   const isMember = channel?.is_member !== false;
+  const canLeaveCurrentChannel = channel ? canLeaveChannel(channel, state.currentUser?.id) : false;
   const isPublicPreview = !isDm && channel && !isMember && channel.visibility !== 'private';
 
   useEffect(() => {
@@ -180,7 +182,7 @@ export default function ChannelView({ channelId }: Props) {
         </div>
         {!isDm && channel && (
           <>
-            {isMember && !isGeneral && (
+            {canLeaveCurrentChannel && (
               <button
                 className="btn btn-sm leave-btn"
                 title="离开频道"

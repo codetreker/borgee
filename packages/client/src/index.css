@@ -4425,6 +4425,15 @@ body {
   list-style: none;
 }
 
+.channel-management-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 .channel-mention-agent-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 230px);
@@ -4448,6 +4457,40 @@ body {
 }
 
 .channel-mention-effective {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.channel-management-action {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+
+.channel-management-action.allowed {
+  border-color: color-mix(in srgb, var(--success-color, #16a34a) 36%, var(--border-color));
+}
+
+.channel-management-action.unavailable {
+  opacity: 0.78;
+}
+
+.channel-management-action-label,
+.channel-management-action-reason {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.channel-management-action-label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.channel-management-action-reason {
+  margin-top: 2px;
   color: var(--text-secondary);
   font-size: 12px;
 }

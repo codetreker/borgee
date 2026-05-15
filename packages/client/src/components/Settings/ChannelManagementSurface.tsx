@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import type { Channel } from '../../types';
-import { buildChannelManagementSections } from '../../lib/channelManagement';
+import { buildChannelAllowedActionRules, buildChannelManagementSections } from '../../lib/channelManagement';
 import { useCan } from '../../hooks/usePermissions';
 import ChannelMentionControls from './ChannelMentionControls';
 
@@ -15,8 +15,9 @@ function formatMemberCount(channel: Channel): string {
   return `${channel.member_count} 位成员`;
 }
 
-function ChannelRow({ channel }: { channel: Channel }) {
+function ChannelRow({ channel, currentUserId }: { channel: Channel; currentUserId: string | null | undefined }) {
   const canManageMembers = useCan('channel.manage_members', channel.id);
+  const actionRules = buildChannelAllowedActionRules(channel, currentUserId);
 
   return (
     <li className="channel-management-row" data-channel-id={channel.id}>
@@ -29,6 +30,20 @@ function ChannelRow({ channel }: { channel: Channel }) {
         <span>{formatMemberCount(channel)}</span>
       </div>
       <ChannelMentionControls channelId={channel.id} canManage={canManageMembers} />
+      <ul className="channel-management-actions" aria-label={`#${channel.name} 可用操作`}>
+        {actionRules.map(rule => (
+          <li
+            key={rule.id}
+            className={`channel-management-action${rule.allowed ? ' allowed' : ' unavailable'}`}
+            data-action={rule.id}
+            data-allowed={String(rule.allowed)}
+            data-destructive={rule.destructive ? 'true' : undefined}
+          >
+            <span className="channel-management-action-label">{rule.label}</span>
+            <span className="channel-management-action-reason">{rule.reason}</span>
+          </li>
+        ))}
+      </ul>
     </li>
   );
 }
@@ -38,11 +53,13 @@ function ChannelSection({
   emptyText,
   channels,
   section,
+  currentUserId,
 }: {
   title: string;
   emptyText: string;
   channels: Channel[];
   section: 'created' | 'joined';
+  currentUserId: string | null | undefined;
 }) {
   return (
     <section className="channel-management-section" data-section={section}>
@@ -51,7 +68,9 @@ function ChannelSection({
         <p className="channel-management-empty">{emptyText}</p>
       ) : (
         <ul className="channel-management-list">
-          {channels.map(channel => <ChannelRow key={channel.id} channel={channel} />)}
+          {channels.map(channel => (
+            <ChannelRow key={channel.id} channel={channel} currentUserId={currentUserId} />
+          ))}
         </ul>
       )}
     </section>
@@ -60,10 +79,11 @@ function ChannelSection({
 
 export default function ChannelManagementSurface() {
   const { state } = useAppContext();
+  const currentUserId = state.currentUser?.id;
   const sections = useMemo(() => buildChannelManagementSections(
     state.channels,
-    state.currentUser?.id,
-  ), [state.channels, state.currentUser?.id]);
+    currentUserId,
+  ), [state.channels, currentUserId]);
 
   return (
     <div className="channel-management-surface" data-testid="channel-management-surface">
@@ -76,12 +96,14 @@ export default function ChannelManagementSurface() {
         emptyText="还没有你创建的频道。"
         channels={sections.created}
         section="created"
+        currentUserId={currentUserId}
       />
       <ChannelSection
         title="我加入的频道"
         emptyText="还没有其它已加入频道。"
         channels={sections.joined}
         section="joined"
+        currentUserId={currentUserId}
       />
     </div>
   );
