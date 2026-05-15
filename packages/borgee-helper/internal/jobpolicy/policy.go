@@ -663,12 +663,23 @@ func parseOriginHostAddr(host string) (netip.Addr, bool) {
 func validateServices(authority manifestAuthority, sandbox SandboxProfile, platform string) Reason {
 	byID := make(map[string]ServiceDeclaration, len(authority.manifest.Services))
 	for _, service := range authority.manifest.Services {
-		if service.ID == "" || service.Manager == "" || service.Unit == "" || strings.Contains(service.Unit, "/") {
+		if !validLogicalServiceID(service.ID) || !validServiceDeclaration(service, platform) {
+			return ReasonServiceDenied
+		}
+		if _, exists := byID[service.ID]; exists {
 			return ReasonServiceDenied
 		}
 		byID[service.ID] = service
 	}
+	seenBinding := map[string]struct{}{}
 	for _, id := range authority.binding.ServiceIDs {
+		if !validLogicalServiceID(id) {
+			return ReasonServiceDenied
+		}
+		if _, exists := seenBinding[id]; exists {
+			return ReasonServiceDenied
+		}
+		seenBinding[id] = struct{}{}
 		service, ok := byID[id]
 		if !ok {
 			return ReasonServiceDenied
@@ -681,6 +692,67 @@ func validateServices(authority manifestAuthority, sandbox SandboxProfile, platf
 		}
 	}
 	return ReasonOK
+}
+
+func validLogicalServiceID(id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" || len(id) > 96 || id == "." || id == ".." || strings.Contains(id, "..") {
+		return false
+	}
+	for _, r := range id {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validServiceDeclaration(service ServiceDeclaration, platform string) bool {
+	manager := strings.TrimSpace(service.Manager)
+	unit := strings.TrimSpace(service.Unit)
+	if service.Manager != manager || service.Unit != unit || unit == "" || strings.ContainsAny(unit, "/\\\x00\t\n\r ") {
+		return false
+	}
+	declaredPlatform := strings.TrimSpace(service.Platform)
+	effectivePlatform := platform
+	if effectivePlatform == "" {
+		effectivePlatform = declaredPlatform
+	}
+	switch {
+	case strings.HasPrefix(effectivePlatform, "linux"):
+		return manager == "systemd" && validSystemdServiceUnit(unit)
+	case strings.HasPrefix(effectivePlatform, "darwin"):
+		return manager == "launchd" && validLaunchdServiceLabel(unit)
+	default:
+		return (manager == "systemd" && validSystemdServiceUnit(unit)) || (manager == "launchd" && validLaunchdServiceLabel(unit))
+	}
+}
+
+func validSystemdServiceUnit(unit string) bool {
+	if !strings.HasSuffix(unit, ".service") || strings.HasPrefix(unit, ".") || strings.Contains(unit, "..") || strings.Contains(unit, "@") {
+		return false
+	}
+	for _, r := range unit {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validLaunchdServiceLabel(label string) bool {
+	if strings.HasSuffix(label, ".service") || strings.HasSuffix(label, ".plist") || strings.HasPrefix(label, ".") || strings.HasSuffix(label, ".") || !strings.Contains(label, ".") || strings.Contains(label, "..") {
+		return false
+	}
+	for _, r := range label {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func platformMatches(input, declared string) bool {

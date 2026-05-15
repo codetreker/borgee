@@ -48,6 +48,7 @@ const (
 	HelperJobTypeOpenClawConfigureAgent      = "openclaw.configure_agent"
 	HelperJobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
 	HelperJobTypePluginConfigureConnection   = "borgee_plugin.configure_connection"
+	HelperJobTypeServiceLifecycle            = "service.lifecycle"
 	HelperJobStatusQueued                    = "queued"
 	HelperJobStatusLeased                    = "leased"
 	HelperJobStatusRunning                   = "running"
@@ -69,6 +70,7 @@ const (
 	helperJobOpenClawInstallPathID     = "openclaw_install"
 	helperJobOpenClawAgentConfigPathID = "openclaw_agent_config"
 	helperJobBorgeePluginConfigPathID  = "borgee_plugin_config"
+	helperJobOpenClawServiceID         = "openclaw-user"
 	helperJobOpenClawPluginOrigin      = "https://cdn.borgee.io"
 	helperJobOpenClawPluginInstallPlan = "openclaw-plugin-v1"
 	helperJobOpenClawRuntimeIdentifier = "openclaw"
@@ -136,7 +138,7 @@ var helperJobTaxonomy = map[string]helperJobSpec{
 	"openclaw.configure_agent":           {Category: "openclaw_config", Enabled: true, Manifest: true},
 	"openclaw.install_from_manifest":     {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
 	"borgee_plugin.configure_connection": {Category: "openclaw_config", Enabled: true, Manifest: true},
-	"service.lifecycle":                  {Category: "openclaw_lifecycle"},
+	"service.lifecycle":                  {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
 	"state.write":                        {Category: "openclaw_config"},
 	"status.collect":                     {Category: "status_collect"},
 	"delegation.revoke":                  {Category: "helper_lifecycle"},
@@ -157,6 +159,11 @@ type borgeePluginConfigurePayload struct {
 	ChannelID string `json:"channel_id"`
 }
 
+type serviceLifecyclePayload struct {
+	Target    string `json:"target"`
+	Operation string `json:"operation"`
+}
+
 type openClawEffectivePayload struct {
 	AgentID             string `json:"agent_id"`
 	ChannelID           string `json:"channel_id,omitempty"`
@@ -172,6 +179,10 @@ type borgeePluginEffectivePayload struct {
 	ConnectionID string `json:"connection_id"`
 	AgentID      string `json:"agent_id"`
 	ChannelID    string `json:"channel_id"`
+}
+
+type serviceLifecycleEffectivePayload struct {
+	Operation string `json:"operation"`
 }
 
 type helperJobManifestBinding struct {
@@ -747,6 +758,21 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 			return nil, "", "", nil, err
 		}
 		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypeServiceLifecycle:
+		payload, err := decodeServiceLifecyclePayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		effective := serviceLifecycleEffectivePayload{Operation: payload.Operation}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
 	default:
 		return nil, "", "", nil, ErrHelperJobUnknownType
 	}
@@ -769,6 +795,8 @@ func openClawManifestBindingForJob(jobType string) (string, *string, error) {
 		binding.Domains = []string{helperJobOpenClawPluginOrigin}
 	case HelperJobTypePluginConfigureConnection:
 		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
+	case HelperJobTypeServiceLifecycle:
+		binding.ServiceIDs = []string{helperJobOpenClawServiceID}
 	default:
 		return "", nil, ErrHelperJobUnknownType
 	}
@@ -847,6 +875,30 @@ func decodeBorgeePluginConfigurePayload(raw string) (borgeePluginConfigurePayloa
 	payload.ChannelID = strings.TrimSpace(payload.ChannelID)
 	if payload.AgentID == "" || payload.ChannelID == "" || len(payload.AgentID) > 255 || len(payload.ChannelID) > 255 {
 		return borgeePluginConfigurePayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
+func decodeServiceLifecyclePayload(raw string) (serviceLifecyclePayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return serviceLifecyclePayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return serviceLifecyclePayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload serviceLifecyclePayload
+	if err := dec.Decode(&payload); err != nil {
+		return serviceLifecyclePayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.Target = strings.TrimSpace(payload.Target)
+	payload.Operation = strings.TrimSpace(payload.Operation)
+	if payload.Target != helperJobOpenClawRuntimeIdentifier || payload.Operation != "restart" {
+		return serviceLifecyclePayload{}, ErrHelperJobSchemaInvalid
 	}
 	return payload, nil
 }

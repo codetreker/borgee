@@ -138,6 +138,68 @@ func TestHelperJobOpenClawInstallFromManifestIsServerBound(t *testing.T) {
 	}
 }
 
+func TestHelperJobServiceLifecycleIsServerBoundToDeclaredServiceID(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-service-lifecycle")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_lifecycle"}, now)
+
+	job, created, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+		OwnerUserID:    owner.ID,
+		OrgID:          owner.OrgID,
+		EnrollmentID:   enrollment.ID,
+		JobType:        "service.lifecycle",
+		SchemaVersion:  1,
+		PayloadJSON:    `{"target":"openclaw","operation":"restart"}`,
+		IdempotencyKey: "restart-openclaw-1",
+	}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("EnqueueHelperJobForUser service lifecycle: %v", err)
+	}
+	if !created || job.Status != HelperJobStatusQueued || job.Category != "openclaw_lifecycle" || job.JobType != "service.lifecycle" {
+		t.Fatalf("bad service lifecycle job: created=%v job=%+v", created, job)
+	}
+	assertHelperJobServiceLifecyclePayload(t, job.PayloadJSON)
+	assertHelperJobServiceBinding(t, job, []string{"openclaw-user"})
+
+	for _, payload := range []string{
+		`{"target":"openclaw","operation":"restart","service_id":"evil"}`,
+		`{"target":"openclaw","operation":"restart","service_unit":"evil.service"}`,
+		`{"target":"openclaw","operation":"restart","command":"systemctl restart evil"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "service.lifecycle",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(3*time.Minute))
+		if !errors.Is(err, ErrHelperJobForbiddenField) {
+			t.Fatalf("payload %s error=%v, want ErrHelperJobForbiddenField", payload, err)
+		}
+	}
+
+	for _, payload := range []string{
+		`{"target":"helper","operation":"restart"}`,
+		`{"target":"openclaw","operation":"stop"}`,
+		`{"target":"openclaw","operation":"reload"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "service.lifecycle",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(3*time.Minute))
+		if !errors.Is(err, ErrHelperJobSchemaInvalid) {
+			t.Fatalf("payload %s error=%v, want ErrHelperJobSchemaInvalid", payload, err)
+		}
+	}
+}
+
 func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T) {
 	t.Parallel()
 	s := migratedStore(t)
@@ -208,7 +270,11 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 			in.JobType = "borgee_plugin.configure_connection"
 			return in
 		}, ErrHelperJobSchemaInvalid},
-		{"recognized service lifecycle type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "service.lifecycle"; return in }, ErrHelperJobTypeNotEnabled},
+		{"service lifecycle requires lifecycle delegation", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.JobType = "service.lifecycle"
+			in.PayloadJSON = `{"target":"openclaw"}`
+			return in
+		}, ErrHelperJobDelegationDenied},
 		{"recognized state write type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "state.write"; return in }, ErrHelperJobTypeNotEnabled},
 		{"recognized status collect type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "status.collect"; return in }, ErrHelperJobTypeNotEnabled},
 		{"recognized delegation revoke type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "delegation.revoke"; return in }, ErrHelperJobTypeNotEnabled},
@@ -960,6 +1026,46 @@ func assertHelperJobManifestBinding(t *testing.T, job *HelperJob, wantPaths, wan
 	assertStringSet(t, "domains", binding.Domains, wantDomains)
 	if len(binding.ServiceIDs) != 0 {
 		t.Fatalf("Task9 must not grant service IDs, got %v", binding.ServiceIDs)
+	}
+}
+
+func assertHelperJobServiceBinding(t *testing.T, job *HelperJob, wantServiceIDs []string) {
+	t.Helper()
+	if job.ManifestBindingJSON == nil || strings.TrimSpace(*job.ManifestBindingJSON) == "" {
+		t.Fatalf("job missing manifest binding: %+v", job)
+	}
+	var binding struct {
+		ManifestDigest string   `json:"manifest_digest"`
+		ArtifactIDs    []string `json:"artifact_ids"`
+		PathIDs        []string `json:"path_ids"`
+		Domains        []string `json:"domains"`
+		ServiceIDs     []string `json:"service_ids"`
+	}
+	if err := json.Unmarshal([]byte(*job.ManifestBindingJSON), &binding); err != nil {
+		t.Fatalf("manifest binding is not JSON: %v", err)
+	}
+	if binding.ManifestDigest == "" || binding.ManifestDigest != job.ManifestDigest {
+		t.Fatalf("binding digest %q did not match job digest %q", binding.ManifestDigest, job.ManifestDigest)
+	}
+	assertStringSet(t, "service_ids", binding.ServiceIDs, wantServiceIDs)
+	if len(binding.ArtifactIDs) != 0 || len(binding.PathIDs) != 0 || len(binding.Domains) != 0 {
+		t.Fatalf("service lifecycle binding should not grant artifacts/paths/domains: %+v", binding)
+	}
+}
+
+func assertHelperJobServiceLifecyclePayload(t *testing.T, payload string) {
+	t.Helper()
+	var got map[string]any
+	if err := json.Unmarshal([]byte(payload), &got); err != nil {
+		t.Fatalf("payload is not JSON: %v", err)
+	}
+	if got["operation"] != "restart" {
+		t.Fatalf("payload operation=%v, want restart in %v", got["operation"], got)
+	}
+	for _, key := range []string{"target", "service_id", "service_ids", "service_unit", "command", "shell", "argv", "path", "domain", "credential"} {
+		if _, ok := got[key]; ok {
+			t.Fatalf("service lifecycle payload leaked forbidden key %q: %v", key, got)
+		}
 	}
 }
 

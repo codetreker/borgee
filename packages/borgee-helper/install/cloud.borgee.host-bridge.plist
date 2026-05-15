@@ -31,6 +31,9 @@
       <false/>
     </dict>
 
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
     <key>UserName</key>
     <string>_borgee-helper</string>
 

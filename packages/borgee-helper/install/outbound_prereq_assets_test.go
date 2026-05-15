@@ -54,6 +54,29 @@ func TestLinuxServiceOutboundPrereqShape(t *testing.T) {
 	}
 }
 
+func TestLinuxServiceBootCrashRestartIsBounded(t *testing.T) {
+	service := readAsset(t, "borgee-helper.service")
+	for _, want := range []string{
+		"Restart=on-failure",
+		"RestartSec=10s",
+		"StartLimitIntervalSec=5min",
+		"StartLimitBurst=5",
+	} {
+		if !strings.Contains(service, want) {
+			t.Fatalf("linux service missing bounded lifecycle setting %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"Restart=always",
+		"StartLimitBurst=0",
+		"StartLimitIntervalSec=0",
+	} {
+		if strings.Contains(service, forbidden) {
+			t.Fatalf("linux service contains unbounded lifecycle setting %q", forbidden)
+		}
+	}
+}
+
 func TestMacOSPlistAndSandboxOutboundPrereqShape(t *testing.T) {
 	plist := readAsset(t, "cloud.borgee.host-bridge.plist")
 	sandbox := readAsset(t, "borgee-helper.sb")
@@ -98,6 +121,27 @@ func TestMacOSPlistAndSandboxOutboundPrereqShape(t *testing.T) {
 	} {
 		if strings.Contains(plist, forbidden) || strings.Contains(sandbox, forbidden) {
 			t.Fatalf("macOS assets contain forbidden %q", forbidden)
+		}
+	}
+}
+
+func TestMacOSServiceBootCrashRestartIsBounded(t *testing.T) {
+	plist := readAsset(t, "cloud.borgee.host-bridge.plist")
+	for _, want := range []string{
+		"<key>RunAtLoad</key>\n    <true/>",
+		"<key>SuccessfulExit</key>\n      <false/>",
+		"<key>ThrottleInterval</key>\n    <integer>10</integer>",
+	} {
+		if !strings.Contains(plist, want) {
+			t.Fatalf("macOS plist missing bounded lifecycle setting %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"<key>KeepAlive</key>\n    <true/>",
+		"<key>ThrottleInterval</key>\n    <integer>0</integer>",
+	} {
+		if strings.Contains(plist, forbidden) {
+			t.Fatalf("macOS plist contains unbounded lifecycle setting %q", forbidden)
 		}
 	}
 }
