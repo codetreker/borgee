@@ -25,6 +25,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 
+type TraceMode = 'off' | 'on' | 'retain-on-failure' | 'on-first-retry' | 'retain-on-first-failure';
+type VideoMode = 'off' | 'on' | 'retain-on-failure' | 'on-first-retry';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 
@@ -33,6 +36,8 @@ const CLIENT_PORT = Number(process.env.E2E_CLIENT_PORT ?? 5174);
 const CI_WORKERS = Number(process.env.E2E_CI_WORKERS ?? 2);
 const SERVER_COMMAND =
   process.env.E2E_SERVER_COMMAND ?? 'go run -tags sqlite_fts5 ./cmd/collab';
+const TRACE_MODE = (process.env.E2E_TRACE_MODE ?? (process.env.CI ? 'retain-on-failure' : 'on-first-retry')) as TraceMode;
+const VIDEO_MODE = (process.env.E2E_VIDEO_MODE ?? 'retain-on-failure') as VideoMode;
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`;
 const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
 
@@ -59,9 +64,9 @@ export default defineConfig({
 
   use: {
     baseURL: CLIENT_URL,
-    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+    trace: TRACE_MODE,
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: VIDEO_MODE,
     // Attach SERVER_URL into test context so fixtures can hit the
     // server directly (e.g. seed users via REST) instead of clicking
     // through the UI for every preconditon.

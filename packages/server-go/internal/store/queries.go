@@ -364,8 +364,17 @@ func (s *Store) CreateMention(mention *Mention) error {
 }
 
 func (s *Store) AddUserToPublicChannels(userID string) error {
+	var user User
+	if err := s.db.Select("org_id").Where("id = ?", userID).First(&user).Error; err != nil {
+		return err
+	}
+
 	var channels []Channel
-	if err := s.db.Where("visibility = ? AND deleted_at IS NULL", "public").Find(&channels).Error; err != nil {
+	if err := s.db.Where(
+		"visibility = ? AND org_id = ? AND deleted_at IS NULL",
+		"public",
+		user.OrgID,
+	).Find(&channels).Error; err != nil {
 		return err
 	}
 	// Route through AddChannelMember so the agent-default silent stamp

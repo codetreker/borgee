@@ -150,16 +150,10 @@ jobs:
         run: ./scripts/lint-bpp-envelope.sh
 
   e2e:
-    # INFRA-2: Playwright dual-server smoke. Each shard boots its own server-go
-    # (4901), vite (5174), and sqlite DB via playwright.config webServer. Keep
-    # workers=1 inside each shard so per-file ordering stays deterministic while
-    # separate GitHub runners provide process/server/database isolation.
-    name: e2e (shard ${{ matrix.shard }}/2)
+    # INFRA-2: Playwright dual-server smoke. Boots server-go (4901) + vite (5174)
+    # via playwright.config webServer. CI keeps per-file ordering deterministic
+    # while allowing multiple spec files to run at once.
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -192,14 +186,16 @@ jobs:
         run: cd packages/server-go && go build -tags sqlite_fts5 -o bin/collab-e2e ./cmd/collab
       - name: Run E2E
         env:
-          E2E_CI_WORKERS: "1"
+          E2E_CI_WORKERS: "4"
           E2E_SERVER_COMMAND: ./bin/collab-e2e
-        run: pnpm --filter @borgee/e2e exec playwright test --shard=${{ matrix.shard }}/2
+          E2E_TRACE_MODE: on-first-retry
+          E2E_VIDEO_MODE: on-first-retry
+        run: pnpm --filter @borgee/e2e test
       - name: Upload Playwright report (on failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-shard-${{ matrix.shard }}-of-2
+          name: playwright-report
           path: packages/e2e/playwright-report/
           retention-days: 14
 
