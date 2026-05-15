@@ -35,7 +35,10 @@ function statusLabel(status: string): string {
 }
 
 function statusDescription(status: string): string {
-  return statusDescriptions[status] ?? 'The server returned a Helper status this client does not recognize yet.';
+  return (
+    statusDescriptions[status] ??
+    'The server returned a Helper status this client does not recognize yet.'
+  );
 }
 
 function formatTimestamp(value?: number): string {
@@ -45,7 +48,29 @@ function formatTimestamp(value?: number): string {
   return new Date(value).toLocaleString();
 }
 
-export default function HelperStatusPanel({ onBack, fetchEnrollments = fetchHelperEnrollments }: Props): React.ReactElement {
+function configureStateClass(state: string): string {
+  return state.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+}
+
+function configureStepLabel(jobType: string): string {
+  switch (jobType) {
+    case 'openclaw.install_from_manifest':
+      return 'OpenClaw install';
+    case 'openclaw.configure_agent':
+      return 'Agent config';
+    case 'borgee_plugin.configure_connection':
+      return 'Borgee plugin channel';
+    case 'service.lifecycle':
+      return 'Service lifecycle';
+    default:
+      return jobType;
+  }
+}
+
+export default function HelperStatusPanel({
+  onBack,
+  fetchEnrollments = fetchHelperEnrollments,
+}: Props): React.ReactElement {
   const [rows, setRows] = useState<HelperEnrollmentStatusView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,9 +102,13 @@ export default function HelperStatusPanel({ onBack, fetchEnrollments = fetchHelp
   return (
     <div className="helper-status-panel" data-page="helper-status">
       <header className="helper-status-header">
-        <button className="helper-status-back-btn" onClick={onBack} aria-label="Back to workspace">←</button>
+        <button className="helper-status-back-btn" onClick={onBack} aria-label="Back to workspace">
+          ←
+        </button>
         <h2 className="helper-status-title">Helper Status</h2>
-        <button className="btn btn-sm" onClick={() => void load()} disabled={loading}>Refresh</button>
+        <button className="btn btn-sm" onClick={() => void load()} disabled={loading}>
+          Refresh
+        </button>
       </header>
 
       {loading && rows.length === 0 ? (
@@ -103,10 +132,22 @@ export default function HelperStatusPanel({ onBack, fetchEnrollments = fetchHelp
                   {row.host_label || row.enrollment_id}
                   <span className="helper-status-list-categories">
                     {row.allowed_categories.map((category) => (
-                      <span key={category} data-helper-category={category}>{categoryLabels[category] ?? category}</span>
+                      <span key={category} data-helper-category={category}>
+                        {categoryLabels[category] ?? category}
+                      </span>
                     ))}
                   </span>
-                  <span className="helper-status-list-seen">{formatTimestamp(row.last_seen_at)}</span>
+                  {row.configure_openclaw && (
+                    <span
+                      className={`helper-configure-list helper-configure-list-${configureStateClass(row.configure_openclaw.state)}`}
+                      data-configure-openclaw-state={row.configure_openclaw.state}
+                    >
+                      {row.configure_openclaw.label}
+                    </span>
+                  )}
+                  <span className="helper-status-list-seen">
+                    {formatTimestamp(row.last_seen_at)}
+                  </span>
                 </span>
                 <span className="helper-status-list-label">{statusLabel(row.status)}</span>
               </button>
@@ -117,7 +158,10 @@ export default function HelperStatusPanel({ onBack, fetchEnrollments = fetchHelp
             <section className="helper-status-detail" aria-label="Selected Helper enrollment">
               <div className="helper-status-detail-head">
                 <h3>{selected.host_label || selected.enrollment_id}</h3>
-                <span className={`helper-status-badge helper-status-badge-${selected.status}`} data-helper-status={selected.status}>
+                <span
+                  className={`helper-status-badge helper-status-badge-${selected.status}`}
+                  data-helper-status={selected.status}
+                >
                   {statusLabel(selected.status)}
                 </span>
               </div>
@@ -157,13 +201,84 @@ export default function HelperStatusPanel({ onBack, fetchEnrollments = fetchHelp
                 <div className="helper-status-category-list">
                   {selected.allowed_categories.length === 0 ? (
                     <span className="helper-status-category-empty">No categories</span>
-                  ) : selected.allowed_categories.map((category) => (
-                    <span key={category} className="helper-status-category" data-helper-category={category}>
-                      {categoryLabels[category] ?? category}
-                    </span>
-                  ))}
+                  ) : (
+                    selected.allowed_categories.map((category) => (
+                      <span
+                        key={category}
+                        className="helper-status-category"
+                        data-helper-category={category}
+                      >
+                        {categoryLabels[category] ?? category}
+                      </span>
+                    ))
+                  )}
                 </div>
               </div>
+
+              {selected.configure_openclaw && (
+                <section
+                  className="helper-configure-openclaw"
+                  aria-label="Configure OpenClaw status"
+                  data-configure-openclaw-state={selected.configure_openclaw.state}
+                >
+                  <div className="helper-configure-openclaw-head">
+                    <h4>Configure OpenClaw</h4>
+                    <span
+                      className={`helper-configure-badge helper-configure-badge-${configureStateClass(selected.configure_openclaw.state)}`}
+                    >
+                      {selected.configure_openclaw.label}
+                    </span>
+                  </div>
+
+                  {(selected.configure_openclaw.failure_code ||
+                    selected.configure_openclaw.failure_message) && (
+                    <dl className="helper-configure-reason">
+                      {selected.configure_openclaw.failure_code && (
+                        <div>
+                          <dt>Reason</dt>
+                          <dd>{selected.configure_openclaw.failure_code}</dd>
+                        </div>
+                      )}
+                      {selected.configure_openclaw.failure_message && (
+                        <div>
+                          <dt>Detail</dt>
+                          <dd>{selected.configure_openclaw.failure_message}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
+
+                  {(selected.configure_openclaw.audit_refs.length > 0 ||
+                    selected.configure_openclaw.log_refs.length > 0) && (
+                    <div
+                      className="helper-configure-refs"
+                      aria-label="Configure OpenClaw evidence refs"
+                    >
+                      {selected.configure_openclaw.audit_refs.map((ref) => (
+                        <span key={`audit-${ref}`}>Audit {ref}</span>
+                      ))}
+                      {selected.configure_openclaw.log_refs.map((ref) => (
+                        <span key={`log-${ref}`}>Log {ref}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {selected.configure_openclaw.steps.length > 0 && (
+                    <ol
+                      className="helper-configure-steps"
+                      aria-label="Configure OpenClaw closure steps"
+                    >
+                      {selected.configure_openclaw.steps.map((step) => (
+                        <li key={`${step.job_type}-${step.created_at ?? step.status}`}>
+                          <span>{configureStepLabel(step.job_type)}</span>
+                          <strong>{step.status}</strong>
+                          {step.failure_code && <em>{step.failure_code}</em>}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
+              )}
             </section>
           )}
         </div>

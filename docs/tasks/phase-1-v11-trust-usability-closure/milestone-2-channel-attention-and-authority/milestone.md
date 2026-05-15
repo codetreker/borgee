@@ -30,15 +30,17 @@ Rejected by this milestone:
 
 | Task | Status | Canonical path | Depends on | Parallel? |
 |---|---|---|---|---|
-| requireMention policy model | ACCEPTING | `task-1-requiremention-policy-model` | Milestone start | no |
-| `@Everyone` fanout ACL/rate loop | ACCEPTING | `task-2-everyone-fanout-acl-rate-loop` | requireMention policy | yes, after policy |
-| Client mention controls | ACCEPTING | `task-3-client-mention-controls` | policy and fanout behavior | no |
-| Channel management surface | ACCEPTING | `task-4-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |
-| Channel allowed-action rules | ACCEPTING | `task-5-channel-allowed-action-rules` | management surface | yes, after management surface |
-| Channel authority checks | PLANNED | `task-6-channel-authority-checks` | management surface and allowed-action rules | no |
+| requireMention policy model | ACCEPTED | `task-1-requiremention-policy-model` | PR #949 (`c25ef60`) | complete |
+| `@Everyone` fanout ACL/rate loop | ACCEPTED | `task-2-everyone-fanout-acl-rate-loop` | PR #951 (`3659ce1`) | complete |
+| Client mention controls | ACCEPTED | `task-3-client-mention-controls` | PR #955 (`0dd35a9`) | complete |
+| Channel management surface | ACCEPTED | `task-4-channel-management-surface` | PR #948 (`077cb8c`) | complete |
+| Channel allowed-action rules | ACCEPTED | `task-5-channel-allowed-action-rules` | PR #953 (`6ae4604`) | complete |
+| Channel authority checks | ACCEPTED | `task-6-channel-authority-checks` | PR #959 (`66c9a35`) | complete |
 | Private indicator state inventory | ACCEPTED | `task-7-private-indicator-state-inventory` | Explicit parallel UI slot; merged PR #945 | no |
-| Private indicator visual treatment | ACCEPTING | `task-8-private-indicator-visual-treatment` | state inventory accepted | no |
-| Sidebar state collision regression | ACCEPTING | `task-9-sidebar-state-collision-regression` | visual treatment | no |
+| Private indicator visual treatment | ACCEPTED | `task-8-private-indicator-visual-treatment` | PR #952 (`965fcd7`) | complete |
+| Sidebar state collision regression | ACCEPTED | `task-9-sidebar-state-collision-regression` | PR #961 (`1e6d54c`) | complete |
+
+Milestone 2 is accepted. This Task12 closure PR only records the state sync; it does not reopen channel attention or authority scope.
 
 ## Exit Gates
 

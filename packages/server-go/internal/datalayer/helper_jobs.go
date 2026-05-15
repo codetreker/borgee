@@ -68,6 +68,27 @@ type HelperJob struct {
 	ResultSummary       *string
 }
 
+type HelperConfigureOpenClawStatus struct {
+	State          string
+	Label          string
+	FailureCode    string
+	FailureMessage string
+	AuditRefs      []string
+	LogRefs        []string
+	Steps          []HelperConfigureOpenClawStep
+}
+
+type HelperConfigureOpenClawStep struct {
+	JobType        string
+	Status         string
+	CreatedAt      int64
+	CompletedAt    *int64
+	FailureCode    string
+	FailureMessage string
+	AuditRefs      []string
+	LogRefs        []string
+}
+
 type HelperJobPollInput struct {
 	EnrollmentID     string
 	HelperCredential string
@@ -110,4 +131,5 @@ type HelperJobRepository interface {
 	PollAndLeaseForHelper(ctx context.Context, input HelperJobPollInput, now time.Time) (*HelperJobLease, error)
 	AckForHelper(ctx context.Context, input HelperJobAckInput, now time.Time) (*HelperJob, error)
 	CompleteForHelper(ctx context.Context, input HelperJobResultInput, now time.Time) (*HelperJob, error)
+	ConfigureOpenClawForEnrollments(ctx context.Context, ownerUserID, orgID string, enrollmentIDs []string) (map[string]HelperConfigureOpenClawStatus, error)
 }

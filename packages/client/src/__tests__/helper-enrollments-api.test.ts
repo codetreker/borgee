@@ -28,6 +28,28 @@ describe('Helper enrollment user-rail API', () => {
             fresh: true,
             last_seen_at: 1778840000000,
             created_at: 1778839900000,
+            configure_openclaw: {
+              state: 'denied',
+              label: 'Configure OpenClaw denied',
+              failure_code: 'policy_denied',
+              failure_message: 'policy handoff denied',
+              audit_refs: ['audit-1', '../audit-secret', 'a'.repeat(129)],
+              log_refs: ['log-1', 'log/path', 'l'.repeat(129)],
+              steps: [
+                {
+                  job_type: 'openclaw.configure_agent',
+                  status: 'failed',
+                  failure_code: 'policy_denied',
+                  failure_message: 'policy handoff denied',
+                  audit_refs: ['step-audit-1', 'step/audit-secret'],
+                  log_refs: ['step-log-1', 'step-log\nsecret'],
+                  raw_logs: 'must-not-leak',
+                },
+              ],
+              payload_hash: 'must-not-leak',
+              manifest_digest: 'must-not-leak',
+              result_summary_json: 'must-not-leak',
+            },
             helper_credential: 'must-not-leak',
             enrollment_secret: 'must-not-leak',
             org_id: 'org-private',
@@ -53,24 +75,45 @@ describe('Helper enrollment user-rail API', () => {
       fresh: true,
       last_seen_at: 1778840000000,
       created_at: 1778839900000,
+      configure_openclaw: {
+        state: 'denied',
+        label: 'Configure OpenClaw denied',
+            failure_code: 'policy_denied',
+            failure_message: 'policy handoff denied',
+            audit_refs: ['audit-1'],
+            log_refs: ['log-1'],
+        steps: [
+          {
+            job_type: 'openclaw.configure_agent',
+            status: 'failed',
+              failure_code: 'policy_denied',
+              failure_message: 'policy handoff denied',
+              audit_refs: ['step-audit-1'],
+              log_refs: ['step-log-1'],
+            },
+          ],
+        },
     });
   });
 
   it('fetches one enrollment through the user detail route only', async () => {
     const urls: string[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (url: RequestInfo | URL) => {
-      urls.push(String(url));
-      return jsonResponse({
-        enrollment: {
-          enrollment_id: 'enr-2',
-          host_label: 'Linux Host',
-          allowed_categories: ['status_collect'],
-          status: 'offline',
-          fresh: false,
-          created_at: 1778839900000,
-        },
-      });
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL) => {
+        urls.push(String(url));
+        return jsonResponse({
+          enrollment: {
+            enrollment_id: 'enr-2',
+            host_label: 'Linux Host',
+            allowed_categories: ['status_collect'],
+            status: 'offline',
+            fresh: false,
+            created_at: 1778839900000,
+          },
+        });
+      }),
+    );
 
     const row = await fetchHelperEnrollment('enr-2');
 

@@ -86,19 +86,37 @@ const rows: HelperEnrollmentStatusView[] = [
 
 describe('HelperStatusPanel', () => {
   it('renders connected, offline, revoked, uninstalled, and pending as distinct Helper states', async () => {
-    await render(<HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />);
+    await render(
+      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />,
+    );
 
-    expect(container!.querySelector('[data-helper-status="connected"]')?.textContent).toContain('Helper connected');
-    expect(container!.querySelector('[data-helper-status="offline"]')?.textContent).toContain('Helper offline');
-    expect(container!.querySelector('[data-helper-status="revoked"]')?.textContent).toContain('Helper revoked');
-    expect(container!.querySelector('[data-helper-status="uninstalled"]')?.textContent).toContain('Helper uninstalled');
-    expect(container!.querySelector('[data-helper-status="pending"]')?.textContent).toContain('Waiting for local Helper');
-    expect(container!.querySelector('[data-helper-status="revoked"]')?.textContent).not.toContain('offline');
-    expect(container!.querySelector('[data-helper-status="uninstalled"]')?.textContent).not.toContain('offline');
+    expect(container!.querySelector('[data-helper-status="connected"]')?.textContent).toContain(
+      'Helper connected',
+    );
+    expect(container!.querySelector('[data-helper-status="offline"]')?.textContent).toContain(
+      'Helper offline',
+    );
+    expect(container!.querySelector('[data-helper-status="revoked"]')?.textContent).toContain(
+      'Helper revoked',
+    );
+    expect(container!.querySelector('[data-helper-status="uninstalled"]')?.textContent).toContain(
+      'Helper uninstalled',
+    );
+    expect(container!.querySelector('[data-helper-status="pending"]')?.textContent).toContain(
+      'Waiting for local Helper',
+    );
+    expect(container!.querySelector('[data-helper-status="revoked"]')?.textContent).not.toContain(
+      'offline',
+    );
+    expect(
+      container!.querySelector('[data-helper-status="uninstalled"]')?.textContent,
+    ).not.toContain('offline');
   });
 
   it('shows last seen safely and never claims Configure OpenClaw success', async () => {
-    await render(<HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />);
+    await render(
+      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />,
+    );
 
     const text = container!.textContent ?? '';
     expect(text).toContain('Last seen');
@@ -110,23 +128,154 @@ describe('HelperStatusPanel', () => {
   });
 
   it('renders allowed categories as non-actionable categories, including unknown values', async () => {
-    await render(<HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />);
+    await render(
+      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />,
+    );
 
-    expect(container!.querySelector('[data-helper-category="openclaw_config"]')?.textContent).toContain('OpenClaw config');
-    expect(container!.querySelector('[data-helper-category="unknown_future_category"]')?.textContent).toContain('unknown_future_category');
-    expect(container!.querySelector('[data-helper-category="openclaw_config"]')?.tagName).not.toBe('BUTTON');
+    expect(
+      container!.querySelector('[data-helper-category="openclaw_config"]')?.textContent,
+    ).toContain('OpenClaw config');
+    expect(
+      container!.querySelector('[data-helper-category="unknown_future_category"]')?.textContent,
+    ).toContain('unknown_future_category');
+    expect(container!.querySelector('[data-helper-category="openclaw_config"]')?.tagName).not.toBe(
+      'BUTTON',
+    );
     expect(container!.querySelectorAll('[data-helper-action]')).toHaveLength(0);
   });
 
   it('does not call helper credential endpoints or remote-node fallback while loading status', async () => {
     const fetchEnrollments = vi.fn(() => Promise.resolve(rows));
 
-    await render(<HelperStatusPanel onBack={() => undefined} fetchEnrollments={fetchEnrollments} />);
+    await render(
+      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={fetchEnrollments} />,
+    );
 
     expect(fetchEnrollments).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(fetchEnrollments.mock.calls)).not.toMatch(/\/claim|\/status|\/uninstall|remote\/nodes/);
+    expect(JSON.stringify(fetchEnrollments.mock.calls)).not.toMatch(
+      /\/claim|\/status|\/uninstall|remote\/nodes/,
+    );
     expect(container!.textContent ?? '').not.toContain('connection_token');
     expect(container!.textContent ?? '').not.toContain('helper_credential');
     expect(container!.textContent ?? '').not.toContain('enrollment_secret');
   });
+
+  it('renders Configure OpenClaw terminal states without claiming partial success', async () => {
+    const terminalRows = [
+      helperRow('queued-1', 'Queue Host', 'connected', 'queued', 'Configure OpenClaw queued'),
+      helperRow('running-1', 'Running Host', 'connected', 'running', 'Configure OpenClaw running'),
+      helperRow('success-1', 'Ready Host', 'connected', 'succeeded', 'Configure OpenClaw complete'),
+      helperRow(
+        'failed-1',
+        'Failed Host',
+        'connected',
+        'failed',
+        'Configure OpenClaw failed',
+        'execution_failed',
+        'OpenClaw restart failed',
+        ['log-failed'],
+      ),
+      helperRow(
+        'denied-1',
+        'Denied Host',
+        'connected',
+        'denied',
+        'Configure OpenClaw denied',
+        'policy_denied',
+        'policy handoff denied',
+        ['log-denied'],
+      ),
+      helperRow(
+        'revoked-ui-1',
+        'Revoked Host',
+        'revoked',
+        'revoked',
+        'Configure OpenClaw revoked',
+        'revoked',
+      ),
+      helperRow(
+        'manual-1',
+        'Manual Host',
+        'connected',
+        'manual_debug',
+        'Manual debug required',
+        'ttl_expired',
+        undefined,
+        ['log-manual'],
+      ),
+    ] as HelperEnrollmentStatusView[];
+
+    await render(
+      <HelperStatusPanel
+        onBack={() => undefined}
+        fetchEnrollments={() => Promise.resolve(terminalRows)}
+      />,
+    );
+
+    const text = container!.textContent ?? '';
+    expect(text).toContain('Configure OpenClaw queued');
+    expect(text).toContain('Configure OpenClaw running');
+    expect(text).toContain('Configure OpenClaw complete');
+    expect(text).toContain('Configure OpenClaw failed');
+    expect(text).toContain('Configure OpenClaw denied');
+    expect(text).toContain('Configure OpenClaw revoked');
+    expect(text).toContain('Manual debug required');
+    expect(text).not.toContain('OpenClaw connected');
+    expect(text).not.toContain('Configure OpenClaw succeeded');
+    expect(container!.querySelectorAll('[data-configure-openclaw-state="succeeded"]')).toHaveLength(
+      1,
+    );
+
+    const deniedButton = Array.from(container!.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Denied Host'),
+    ) as HTMLButtonElement;
+    await act(async () => {
+      deniedButton.click();
+    });
+
+    const deniedText = container!.textContent ?? '';
+    expect(deniedText).toContain('policy_denied');
+    expect(deniedText).toContain('policy handoff denied');
+    expect(deniedText).toContain('Log log-denied');
+  });
 });
+
+function helperRow(
+  enrollmentId: string,
+  hostLabel: string,
+  helperStatus: string,
+  state: string,
+  label: string,
+  failureCode?: string,
+  failureMessage?: string,
+  logRefs: string[] = [],
+) {
+  return {
+    enrollment_id: enrollmentId,
+    host_label: hostLabel,
+    allowed_categories: ['openclaw_config', 'openclaw_lifecycle'],
+    status: helperStatus,
+    fresh: helperStatus === 'connected',
+    last_seen_at: 1778840000000,
+    created_at: 1778839900000,
+    revoked_at: helperStatus === 'revoked' ? 1778850000000 : undefined,
+    configure_openclaw: {
+      state,
+      label,
+      failure_code: failureCode,
+      failure_message: failureMessage,
+      audit_refs: [],
+      log_refs: logRefs,
+      steps: [
+        {
+          job_type: state === 'running' ? 'service.lifecycle' : 'openclaw.configure_agent',
+          status: state === 'denied' ? 'failed' : state,
+          failure_code: failureCode,
+          failure_message: failureMessage,
+          audit_refs: [],
+          log_refs: logRefs,
+        },
+      ],
+    },
+  };
+}

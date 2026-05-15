@@ -138,6 +138,90 @@ func TestHelperJobRepositoryPollAckCompleteProjection(t *testing.T) {
 	}
 }
 
+func TestHelperJobConfigureOpenClawProjectionDerivation(t *testing.T) {
+	t.Parallel()
+	now := time.UnixMilli(1778840000000)
+	msg := "policy handoff denied"
+	denied := buildConfigureOpenClawStatus([]*HelperJob{
+		configureOpenClawTestJob("old-config", "openclaw.configure_agent", store.HelperJobStatusSucceeded, now, nil, nil, nil),
+		configureOpenClawTestJob("install", "openclaw.install_from_manifest", store.HelperJobStatusSucceeded, now.Add(time.Second), nil, nil, nil),
+		configureOpenClawTestJob("config", "openclaw.configure_agent", store.HelperJobStatusFailed, now.Add(2*time.Second), strPtr("policy_denied"), &msg, strPtr(`{"audit_refs":["audit-1","../audit-secret","`+strings.Repeat("a", 129)+`"],"log_refs":["log-1","log/path","`+strings.Repeat("l", 129)+`"]}`)),
+		configureOpenClawTestJob("ignored", "state.write", store.HelperJobStatusSucceeded, now.Add(3*time.Second), nil, nil, nil),
+	})
+	if denied.State != "denied" || denied.Label != "Configure OpenClaw denied" || denied.FailureCode != "policy_denied" || denied.FailureMessage != msg {
+		t.Fatalf("denied projection = %+v", denied)
+	}
+	if got, want := denied.AuditRefs, []string{"audit-1"}; !equalStrings(got, want) {
+		t.Fatalf("audit refs=%v, want %v", got, want)
+	}
+	if got, want := denied.LogRefs, []string{"log-1"}; !equalStrings(got, want) {
+		t.Fatalf("log refs=%v, want %v", got, want)
+	}
+	if len(denied.Steps) != 2 || denied.Steps[1].CompletedAt == nil {
+		t.Fatalf("steps should include safe latest known configure jobs: %+v", denied.Steps)
+	}
+
+	queued := buildConfigureOpenClawStatus([]*HelperJob{configureOpenClawTestJob("queued", "openclaw.install_from_manifest", store.HelperJobStatusQueued, now, nil, nil, nil)})
+	if queued.State != "queued" || queued.Label != "Configure OpenClaw queued" {
+		t.Fatalf("queued projection = %+v", queued)
+	}
+	running := buildConfigureOpenClawStatus([]*HelperJob{configureOpenClawTestJob("leased", "service.lifecycle", store.HelperJobStatusLeased, now, nil, nil, nil)})
+	if running.State != "running" || running.Steps[0].Status != "running" || running.Label != "Configure OpenClaw running" {
+		t.Fatalf("running projection = %+v", running)
+	}
+	failed := buildConfigureOpenClawStatus([]*HelperJob{configureOpenClawTestJob("failed", "openclaw.configure_agent", store.HelperJobStatusFailed, now, strPtr("execution_failed"), nil, nil)})
+	if failed.State != "failed" || failed.Label != "Configure OpenClaw failed" {
+		t.Fatalf("failed projection = %+v", failed)
+	}
+	manual := buildConfigureOpenClawStatus([]*HelperJob{configureOpenClawTestJob("expired", "service.lifecycle", store.HelperJobStatusExpired, now, strPtr("ttl_expired"), nil, nil)})
+	if manual.State != "manual_debug" || manual.Label != "Manual debug required" || manual.FailureCode != "ttl_expired" {
+		t.Fatalf("manual projection = %+v", manual)
+	}
+	succeeded := buildConfigureOpenClawStatus([]*HelperJob{
+		configureOpenClawTestJob("install-ok", "openclaw.install_from_manifest", store.HelperJobStatusSucceeded, now, nil, nil, nil),
+		configureOpenClawTestJob("config-ok", "openclaw.configure_agent", store.HelperJobStatusSucceeded, now.Add(time.Second), nil, nil, nil),
+		configureOpenClawTestJob("plugin-ok", "borgee_plugin.configure_connection", store.HelperJobStatusSucceeded, now.Add(2*time.Second), nil, nil, nil),
+		configureOpenClawTestJob("service-ok", "service.lifecycle", store.HelperJobStatusSucceeded, now.Add(3*time.Second), nil, nil, nil),
+	})
+	if succeeded.State != "succeeded" || succeeded.Label != "Configure OpenClaw complete" {
+		t.Fatalf("succeeded projection = %+v", succeeded)
+	}
+	if configureOpenClawLabel("revoked") != "Configure OpenClaw revoked" {
+		t.Fatal("revoked label mismatch")
+	}
+}
+
+func TestHelperJobConfigureOpenClawForEnrollmentsScopesRows(t *testing.T) {
+	t.Parallel()
+	dl, s, owner := newHelperJobRepoFixture(t, "helper-job-dl-configure")
+	now := time.UnixMilli(1778841000000)
+	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Linux Host", []string{"openclaw_config", "openclaw_lifecycle"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment: %v", err)
+	}
+	claimed, _, err := s.ClaimHelperEnrollment(enrollment.ID, secret, "device-configure", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment: %v", err)
+	}
+	seedDatalayerConfigureOpenClawJob(t, s, owner, claimed.ID, "repo-install", "openclaw.install_from_manifest", store.HelperJobStatusSucceeded, now)
+	seedDatalayerConfigureOpenClawJob(t, s, owner, claimed.ID, "repo-config", "openclaw.configure_agent", store.HelperJobStatusSucceeded, now.Add(time.Second))
+	seedDatalayerConfigureOpenClawJob(t, s, owner, claimed.ID, "repo-plugin", "borgee_plugin.configure_connection", store.HelperJobStatusSucceeded, now.Add(2*time.Second))
+	seedDatalayerConfigureOpenClawJob(t, s, owner, claimed.ID, "repo-service", "service.lifecycle", store.HelperJobStatusSucceeded, now.Add(3*time.Second))
+
+	byEnrollment, err := dl.HelperJobRepo.ConfigureOpenClawForEnrollments(context.Background(), " "+owner.ID+" ", " "+owner.OrgID+" ", []string{"", claimed.ID, claimed.ID})
+	if err != nil {
+		t.Fatalf("ConfigureOpenClawForEnrollments: %v", err)
+	}
+	projection := byEnrollment[claimed.ID]
+	if projection.State != "succeeded" || len(projection.Steps) != 4 {
+		t.Fatalf("projection = %+v", projection)
+	}
+	empty, err := dl.HelperJobRepo.ConfigureOpenClawForEnrollments(context.Background(), "", owner.OrgID, []string{claimed.ID})
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("empty owner projection=%v err=%v", empty, err)
+	}
+}
+
 func TestHelperJobLeaseProjectionRetryBounds(t *testing.T) {
 	t.Parallel()
 	if helperJobLeaseFromStore(nil) != nil {
@@ -237,6 +321,67 @@ func datalayerHelperJobAgent(t *testing.T, s *store.Store, owner *store.User, na
 		t.Fatalf("CreateUser agent: %v", err)
 	}
 	return agent
+}
+
+func configureOpenClawTestJob(id, jobType, status string, createdAt time.Time, failureCode, failureMessage, summary *string) *HelperJob {
+	completed := createdAt.Add(time.Second).UnixMilli()
+	job := &HelperJob{
+		ID:             id,
+		EnrollmentID:   "enr-1",
+		JobType:        jobType,
+		Status:         status,
+		CreatedAt:      createdAt.UnixMilli(),
+		CompletedAt:    &completed,
+		FailureCode:    failureCode,
+		FailureMessage: failureMessage,
+		ResultSummary:  summary,
+	}
+	if status == store.HelperJobStatusQueued || status == store.HelperJobStatusLeased || status == store.HelperJobStatusRunning {
+		job.CompletedAt = nil
+	}
+	return job
+}
+
+func seedDatalayerConfigureOpenClawJob(t *testing.T, s *store.Store, owner *store.User, enrollmentID, id, jobType, status string, createdAt time.Time) {
+	t.Helper()
+	createdMS := createdAt.UnixMilli()
+	completedMS := createdAt.Add(time.Second).UnixMilli()
+	job := &store.HelperJob{
+		ID:               id,
+		OwnerUserID:      owner.ID,
+		OrgID:            owner.OrgID,
+		EnrollmentID:     enrollmentID,
+		JobType:          jobType,
+		Category:         "openclaw_config",
+		SchemaVersion:    1,
+		PayloadJSON:      `{}`,
+		PayloadHash:      "sha256:" + id,
+		IdempotencyScope: id + "-scope",
+		Status:           status,
+		CreatedAt:        createdMS,
+		UpdatedAt:        createdMS,
+		CompletedAt:      &completedMS,
+		ExpiresAt:        createdAt.Add(5 * time.Minute).UnixMilli(),
+	}
+	if err := s.DB().Create(job).Error; err != nil {
+		t.Fatalf("seed helper job %s: %v", id, err)
+	}
+}
+
+func strPtr(value string) *string {
+	return &value
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func seedDatalayerAgentConfig(t *testing.T, s *store.Store, agentID string, version int64, blob map[string]any, now time.Time) {

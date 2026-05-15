@@ -15,7 +15,7 @@ Historical PR evidence is summarized in `accepted-history.md`. Future task execu
 Accepted by this milestone:
 
 - Helper enrollment/status, credential lifecycle, status UI, enqueue authority, outbound service prerequisites, Helper pull/lease/result, and local policy/manifest/sandbox accepted through PR #934, #936, #937, #938, #939, #943, and #942.
-- Remaining terminal logs/revoke settlement, OpenClaw install/config jobs, plugin channel binding, service lifecycle reliability, and Configure OpenClaw terminal UI.
+- Configure OpenClaw terminal UI closure on top of accepted terminal logs/revoke settlement, OpenClaw install/config jobs, plugin channel binding, and service lifecycle reliability.
 - Strict Helper/Remote Agent rail separation across credentials, grants, enforcement, and UI placement.
 
 Rejected by this milestone:
@@ -36,11 +36,11 @@ Rejected by this milestone:
 | Local policy / manifest / sandbox profile | ACCEPTED | `task-7-local-policy-manifest-and-sandbox-profile` | PR #942 (`642fb57`) | complete |
 | Bounded status logs and revoke settlement | ACCEPTED | `task-8-bounded-status-logs-and-revoke-settlement` | PR #954 (`419c5bf`) | complete |
 | OpenClaw install and agent config jobs | ACCEPTED | `task-9-openclaw-install-and-agent-config-jobs` | PR #956 (`5575b53`) | complete |
-| Borgee plugin channel binding job | IMPLEMENTING | `task-10-borgee-plugin-channel-binding-job` | After PR #956; existing channel access checks sufficient, no M2 Task6 blocker | yes |
-| Service lifecycle reliability | BLOCKED | `task-11-service-lifecycle-boot-crash` | After typed job/policy substrate | yes, after dependency clears |
-| Configure OpenClaw terminal UI | BLOCKED | `task-12-configure-openclaw-terminal-ui` | After install/config, binding, and lifecycle work | no |
+| Borgee plugin channel binding job | ACCEPTED | `task-10-borgee-plugin-channel-binding-job` | PR #958 (`ad50575`) | complete |
+| Service lifecycle reliability | ACCEPTED | `task-11-service-lifecycle-boot-crash` | PR #963 (`d8d179e`) | complete |
+| Configure OpenClaw terminal UI | IMPLEMENTING | `task-12-configure-openclaw-terminal-ui` | After PR #963; closure task in branch `task/m1-task12-configure-openclaw-terminal-ui` | no |
 
-Current execution is `task-10-borgee-plugin-channel-binding-job`. `task-8-bounded-status-logs-and-revoke-settlement` is accepted through PR #954 (`419c5bf`), `task-9-openclaw-install-and-agent-config-jobs` is accepted through PR #956 (`5575b53`), and Task10 proceeds without an M2 Task6 blocker because it reuses existing channel access checks rather than adding channel management actions.
+Current execution is `task-12-configure-openclaw-terminal-ui`. `task-8-bounded-status-logs-and-revoke-settlement` is accepted through PR #954 (`419c5bf`), `task-9-openclaw-install-and-agent-config-jobs` is accepted through PR #956 (`5575b53`), `task-10-borgee-plugin-channel-binding-job` is accepted through PR #958 (`ad50575`), and `task-11-service-lifecycle-boot-crash` is accepted through PR #963 (`d8d179e`). Task12 is the remaining M1 closure task.
 
 ## Exit Gates
 

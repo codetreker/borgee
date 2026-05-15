@@ -3,7 +3,7 @@
 import type { Channel, ChannelGroup, Message, User, DmChannel, WorkspaceFile } from '../types';
 import type { NotifPref } from './notif_pref';
 
-const BASE = '';  // Same origin via Vite proxy in dev, or same server in prod
+const BASE = ''; // Same origin via Vite proxy in dev, or same server in prod
 
 let currentUserId: string | null = null;
 
@@ -17,7 +17,7 @@ export function getDevUserId(): string | null {
 
 async function request<T>(url: string, opts: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
-    ...(opts.headers as Record<string, string> ?? {}),
+    ...((opts.headers as Record<string, string>) ?? {}),
   };
 
   if (import.meta.env.DEV && currentUserId) {
@@ -45,7 +45,10 @@ async function request<T>(url: string, opts: RequestInit = {}): Promise<T> {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -69,7 +72,9 @@ export async function logout(): Promise<void> {
 
 // ─── Channels ───────────────────────────────────────────
 
-export async function fetchChannels(q?: string): Promise<{ channels: Channel[]; groups: ChannelGroup[] }> {
+export async function fetchChannels(
+  q?: string,
+): Promise<{ channels: Channel[]; groups: ChannelGroup[] }> {
   // CHN-13 design ②: optional `q` substring filter. Empty q
   // (undefined / "") keeps the existing `/api/v1/channels` URL
   // byte-identical so grep checks do not see a stray `?q=`. Special
@@ -93,9 +98,19 @@ export async function createChannel(
 
 export async function updateChannel(
   channelId: string,
-  updates: { name?: string; topic?: string; visibility?: 'public' | 'private' | 'creator_only'; archived?: boolean },
+  updates: {
+    name?: string;
+    topic?: string;
+    visibility?: 'public' | 'private' | 'creator_only';
+    archived?: boolean;
+  },
 ): Promise<Channel> {
-  if (updates.topic !== undefined && !updates.name && !updates.visibility && updates.archived === undefined) {
+  if (
+    updates.topic !== undefined &&
+    !updates.name &&
+    !updates.visibility &&
+    updates.archived === undefined
+  ) {
     const data = await request<{ channel: Channel }>(`/api/v1/channels/${channelId}/topic`, {
       method: 'PUT',
       body: JSON.stringify({ topic: updates.topic }),
@@ -119,7 +134,10 @@ export async function archiveChannel(channelId: string, archived: boolean): Prom
 // CHN-7: mute / unmute a channel for the current user. User API only;
 // no admin bypass route (ADM-0 §1.3 separation constraint + design ②). Server toggles bit 1
 // of user_channel_layout.collapsed and preserves bit 0 for CHN-3 collapse.
-export async function muteChannel(channelId: string, muted: boolean): Promise<{ collapsed: number; muted: boolean }> {
+export async function muteChannel(
+  channelId: string,
+  muted: boolean,
+): Promise<{ collapsed: number; muted: boolean }> {
   const method = muted ? 'POST' : 'DELETE';
   return request<{ collapsed: number; muted: boolean }>(`/api/v1/channels/${channelId}/mute`, {
     method,
@@ -149,7 +167,10 @@ export async function listArchivedChannels(): Promise<Channel[]> {
 // no admin bypass route (ADM-0 §1.3 separation constraint + design ②). Server stamps
 // position = -(nowMs) on pin and max(positive)+1.0 on unpin, complementing
 // the CHN-3.3 MIN-1.0 monotonic decimal ordering model.
-export async function pinChannel(channelId: string, pinned: boolean): Promise<{ position: number; pinned: boolean }> {
+export async function pinChannel(
+  channelId: string,
+  pinned: boolean,
+): Promise<{ position: number; pinned: boolean }> {
   const method = pinned ? 'POST' : 'DELETE';
   return request<{ position: number; pinned: boolean }>(`/api/v1/channels/${channelId}/pin`, {
     method,
@@ -177,8 +198,12 @@ export async function joinChannel(channelId: string): Promise<void> {
   });
 }
 
-export async function fetchChannelPreview(channelId: string): Promise<{ messages: Message[]; channel: Channel }> {
-  return request<{ messages: Message[]; channel: Channel }>(`/api/v1/channels/${channelId}/preview`);
+export async function fetchChannelPreview(
+  channelId: string,
+): Promise<{ messages: Message[]; channel: Channel }> {
+  return request<{ messages: Message[]; channel: Channel }>(
+    `/api/v1/channels/${channelId}/preview`,
+  );
 }
 
 export async function leaveChannel(channelId: string): Promise<void> {
@@ -193,11 +218,15 @@ export async function deleteChannel(channelId: string): Promise<void> {
   });
 }
 
-export async function reorderChannel(channelId: string, afterId: string | null, groupId?: string | null): Promise<void> {
+export async function reorderChannel(
+  channelId: string,
+  afterId: string | null,
+  groupId?: string | null,
+): Promise<void> {
   const body: Record<string, unknown> = { channel_id: channelId, after_id: afterId };
   if (groupId !== undefined) body.group_id = groupId;
   await request<{ ok: boolean }>(`/api/v1/channels/reorder`, {
-    method: "PUT",
+    method: 'PUT',
     body: JSON.stringify(body),
   });
 }
@@ -282,10 +311,13 @@ export async function setChannelMemberRequireMentionPolicy(
   userId: string,
   policy: RequireMentionPolicy,
 ): Promise<ChannelMemberRequireMentionState> {
-  return request<ChannelMemberRequireMentionState>(`/api/v1/channels/${channelId}/members/${userId}/require-mention`, {
-    method: 'PUT',
-    body: JSON.stringify({ policy }),
-  });
+  return request<ChannelMemberRequireMentionState>(
+    `/api/v1/channels/${channelId}/members/${userId}/require-mention`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ policy }),
+    },
+  );
 }
 
 // ─── Messages ───────────────────────────────────────────
@@ -334,20 +366,16 @@ export async function fetchEventsBackfill(
   );
 }
 
-
 export async function sendMessage(
   channelId: string,
   content: string,
   contentType: 'text' | 'image' = 'text',
   _mentions?: string[],
 ): Promise<Message> {
-  const data = await request<{ message: Message }>(
-    `/api/v1/channels/${channelId}/messages`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ content, content_type: contentType }),
-    },
-  );
+  const data = await request<{ message: Message }>(`/api/v1/channels/${channelId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content, content_type: contentType }),
+  });
   return data.message;
 }
 
@@ -423,10 +451,12 @@ export async function markChannelRead(channelId: string): Promise<void> {
 // ─── DM ─────────────────────────────────────────────────
 
 export async function createOrGetDm(userId: string): Promise<DmChannel> {
-  const data = await request<{ channel: DmChannel['id'] extends string ? { id: string; name: string; type: 'dm'; created_at: number; created_by: string } : never; peer: DmChannel['peer'] }>(
-    `/api/v1/dm/${userId}`,
-    { method: 'POST' },
-  );
+  const data = await request<{
+    channel: DmChannel['id'] extends string
+      ? { id: string; name: string; type: 'dm'; created_at: number; created_by: string }
+      : never;
+    peer: DmChannel['peer'];
+  }>(`/api/v1/dm/${userId}`, { method: 'POST' });
   return {
     id: data.channel.id,
     name: data.channel.name,
@@ -466,7 +496,12 @@ export async function fetchMyPermissions(): Promise<MyPermissionsResponse> {
 
 // ─── Auth Register ─────────────────────────────────────
 
-export async function register(inviteCode: string, email: string, password: string, displayName: string): Promise<User> {
+export async function register(
+  inviteCode: string,
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<User> {
   const data = await request<{ user: User }>('/api/v1/auth/register', {
     method: 'POST',
     body: JSON.stringify({ invite_code: inviteCode, email, password, display_name: displayName }),
@@ -498,7 +533,9 @@ export interface AggregatedReaction {
   user_ids: string[];
 }
 
-export async function getMessageReactions(messageId: string): Promise<{ reactions: AggregatedReaction[] }> {
+export async function getMessageReactions(
+  messageId: string,
+): Promise<{ reactions: AggregatedReaction[] }> {
   return request<{ reactions: AggregatedReaction[] }>(`/api/v1/messages/${messageId}/reactions`);
 }
 
@@ -595,18 +632,16 @@ export async function fetchAgentRuntime(agentId: string): Promise<AgentRuntime |
 // → 403; admin → 401 (ADM-0 §1.4 no admin bypass writes rule). Both endpoints
 // return the updated runtime row (#379 v2 §1 拆段 AL-4.2).
 export async function startAgentRuntime(agentId: string): Promise<AgentRuntime> {
-  const data = await request<{ runtime: AgentRuntime }>(
-    `/api/v1/agents/${agentId}/runtime/start`,
-    { method: 'POST' },
-  );
+  const data = await request<{ runtime: AgentRuntime }>(`/api/v1/agents/${agentId}/runtime/start`, {
+    method: 'POST',
+  });
   return data.runtime;
 }
 
 export async function stopAgentRuntime(agentId: string): Promise<AgentRuntime> {
-  const data = await request<{ runtime: AgentRuntime }>(
-    `/api/v1/agents/${agentId}/runtime/stop`,
-    { method: 'POST' },
-  );
+  const data = await request<{ runtime: AgentRuntime }>(`/api/v1/agents/${agentId}/runtime/stop`, {
+    method: 'POST',
+  });
   return data.runtime;
 }
 
@@ -615,7 +650,11 @@ export async function fetchAgents(): Promise<Agent[]> {
   return data.agents;
 }
 
-export async function createAgent(displayName: string, permissions?: string[], id?: string): Promise<Agent> {
+export async function createAgent(
+  displayName: string,
+  permissions?: string[],
+  id?: string,
+): Promise<Agent> {
   const data = await request<{ agent: Agent }>('/api/v1/agents', {
     method: 'POST',
     body: JSON.stringify({ display_name: displayName, permissions, ...(id ? { id } : {}) }),
@@ -641,11 +680,18 @@ export async function rotateAgentApiKey(id: string): Promise<string> {
   return data.api_key;
 }
 
-export async function fetchAgentPermissions(id: string): Promise<{ permissions: string[]; details: PermissionDetail[] }> {
-  return request<{ permissions: string[]; details: PermissionDetail[] }>(`/api/v1/agents/${id}/permissions`);
+export async function fetchAgentPermissions(
+  id: string,
+): Promise<{ permissions: string[]; details: PermissionDetail[] }> {
+  return request<{ permissions: string[]; details: PermissionDetail[] }>(
+    `/api/v1/agents/${id}/permissions`,
+  );
 }
 
-export async function updateAgentPermissions(id: string, permissions: { permission: string; scope?: string }[]): Promise<void> {
+export async function updateAgentPermissions(
+  id: string,
+  permissions: { permission: string; scope?: string }[],
+): Promise<void> {
   await request<{ agent_id: string }>(`/api/v1/agents/${id}/permissions`, {
     method: 'PUT',
     body: JSON.stringify({ permissions }),
@@ -708,7 +754,9 @@ export interface AgentFileResponse {
 }
 
 export async function getAgentFile(agentId: string, path: string): Promise<AgentFileResponse> {
-  return request<AgentFileResponse>(`/api/v1/agents/${agentId}/files?path=${encodeURIComponent(path)}`);
+  return request<AgentFileResponse>(
+    `/api/v1/agents/${agentId}/files?path=${encodeURIComponent(path)}`,
+  );
 }
 
 // ─── Agent invitations (CM-4.2) ───────────────────────
@@ -752,7 +800,9 @@ export async function createAgentInvitation(
   return data.invitation;
 }
 
-export async function listAgentInvitations(role: AgentInvitationListRole = 'owner'): Promise<AgentInvitation[]> {
+export async function listAgentInvitations(
+  role: AgentInvitationListRole = 'owner',
+): Promise<AgentInvitation[]> {
   const data = await request<{ invitations: AgentInvitation[] }>(
     `/api/v1/agent_invitations?role=${role}`,
   );
@@ -777,20 +827,32 @@ export async function decideAgentInvitation(
 
 // ─── Workspace ────────────────────────────────────────
 
-export async function listWorkspaceFiles(channelId: string, parentId?: string): Promise<WorkspaceFile[]> {
+export async function listWorkspaceFiles(
+  channelId: string,
+  parentId?: string,
+): Promise<WorkspaceFile[]> {
   const qs = parentId ? `?parentId=${parentId}` : '';
-  const data = await request<{ files: WorkspaceFile[] }>(`/api/v1/channels/${channelId}/workspace${qs}`);
+  const data = await request<{ files: WorkspaceFile[] }>(
+    `/api/v1/channels/${channelId}/workspace${qs}`,
+  );
   return data.files;
 }
 
-export async function uploadWorkspaceFile(channelId: string, file: File, parentId?: string): Promise<WorkspaceFile> {
+export async function uploadWorkspaceFile(
+  channelId: string,
+  file: File,
+  parentId?: string,
+): Promise<WorkspaceFile> {
   const form = new FormData();
   form.append('file', file);
   const qs = parentId ? `?parentId=${parentId}` : '';
-  const data = await request<{ file: WorkspaceFile }>(`/api/v1/channels/${channelId}/workspace/upload${qs}`, {
-    method: 'POST',
-    body: form,
-  });
+  const data = await request<{ file: WorkspaceFile }>(
+    `/api/v1/channels/${channelId}/workspace/upload${qs}`,
+    {
+      method: 'POST',
+      body: form,
+    },
+  );
   return data.file;
 }
 
@@ -807,11 +869,18 @@ export async function downloadWorkspaceFile(channelId: string, fileId: string): 
   return res;
 }
 
-export async function updateWorkspaceFile(channelId: string, fileId: string, content: string): Promise<WorkspaceFile> {
-  const data = await request<{ file: WorkspaceFile }>(`/api/v1/channels/${channelId}/workspace/files/${fileId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ content }),
-  });
+export async function updateWorkspaceFile(
+  channelId: string,
+  fileId: string,
+  content: string,
+): Promise<WorkspaceFile> {
+  const data = await request<{ file: WorkspaceFile }>(
+    `/api/v1/channels/${channelId}/workspace/files/${fileId}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    },
+  );
   return data.file;
 }
 
@@ -828,27 +897,48 @@ export async function deleteWorkspaceFile(channelId: string, fileId: string): Pr
   if (!res.ok) throw new ApiError(res.status, 'Delete failed');
 }
 
-export async function mkdirWorkspace(channelId: string, name: string, parentId?: string): Promise<WorkspaceFile> {
-  const data = await request<{ file: WorkspaceFile }>(`/api/v1/channels/${channelId}/workspace/mkdir`, {
-    method: 'POST',
-    body: JSON.stringify({ name, parentId }),
-  });
+export async function mkdirWorkspace(
+  channelId: string,
+  name: string,
+  parentId?: string,
+): Promise<WorkspaceFile> {
+  const data = await request<{ file: WorkspaceFile }>(
+    `/api/v1/channels/${channelId}/workspace/mkdir`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ name, parentId }),
+    },
+  );
   return data.file;
 }
 
-export async function moveWorkspaceFile(channelId: string, fileId: string, parentId: string | null): Promise<WorkspaceFile> {
-  const data = await request<{ file: WorkspaceFile }>(`/api/v1/channels/${channelId}/workspace/files/${fileId}/move`, {
-    method: 'POST',
-    body: JSON.stringify({ parentId }),
-  });
+export async function moveWorkspaceFile(
+  channelId: string,
+  fileId: string,
+  parentId: string | null,
+): Promise<WorkspaceFile> {
+  const data = await request<{ file: WorkspaceFile }>(
+    `/api/v1/channels/${channelId}/workspace/files/${fileId}/move`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ parentId }),
+    },
+  );
   return data.file;
 }
 
-export async function renameWorkspaceFile(channelId: string, fileId: string, name: string): Promise<WorkspaceFile> {
-  const data = await request<{ file: WorkspaceFile }>(`/api/v1/channels/${channelId}/workspace/files/${fileId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ name }),
-  });
+export async function renameWorkspaceFile(
+  channelId: string,
+  fileId: string,
+  name: string,
+): Promise<WorkspaceFile> {
+  const data = await request<{ file: WorkspaceFile }>(
+    `/api/v1/channels/${channelId}/workspace/files/${fileId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    },
+  );
   return data.file;
 }
 
@@ -906,7 +996,9 @@ export async function deleteRemoteNode(nodeId: string): Promise<void> {
 }
 
 export async function fetchRemoteBindings(nodeId: string): Promise<RemoteBinding[]> {
-  const data = await request<{ bindings: RemoteBinding[] }>(`/api/v1/remote/nodes/${nodeId}/bindings`);
+  const data = await request<{ bindings: RemoteBinding[] }>(
+    `/api/v1/remote/nodes/${nodeId}/bindings`,
+  );
   return data.bindings;
 }
 
@@ -916,10 +1008,13 @@ export async function createRemoteBinding(
   path: string,
   label?: string,
 ): Promise<RemoteBinding> {
-  const data = await request<{ binding: RemoteBinding }>(`/api/v1/remote/nodes/${nodeId}/bindings`, {
-    method: 'POST',
-    body: JSON.stringify({ channel_id: channelId, path, label }),
-  });
+  const data = await request<{ binding: RemoteBinding }>(
+    `/api/v1/remote/nodes/${nodeId}/bindings`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ channel_id: channelId, path, label }),
+    },
+  );
   return data.binding;
 }
 
@@ -930,16 +1025,28 @@ export async function deleteRemoteBinding(nodeId: string, bindingId: string): Pr
 }
 
 export async function fetchChannelRemoteBindings(channelId: string): Promise<RemoteBinding[]> {
-  const data = await request<{ bindings: RemoteBinding[] }>(`/api/v1/channels/${channelId}/remote-bindings`);
+  const data = await request<{ bindings: RemoteBinding[] }>(
+    `/api/v1/channels/${channelId}/remote-bindings`,
+  );
   return data.bindings;
 }
 
-export async function remoteLs(nodeId: string, path: string): Promise<{ entries: RemoteDirEntry[] }> {
-  return request<{ entries: RemoteDirEntry[] }>(`/api/v1/remote/nodes/${nodeId}/ls?path=${encodeURIComponent(path)}`);
+export async function remoteLs(
+  nodeId: string,
+  path: string,
+): Promise<{ entries: RemoteDirEntry[] }> {
+  return request<{ entries: RemoteDirEntry[] }>(
+    `/api/v1/remote/nodes/${nodeId}/ls?path=${encodeURIComponent(path)}`,
+  );
 }
 
-export async function remoteReadFile(nodeId: string, path: string): Promise<{ content: string; mimeType: string; size: number }> {
-  return request<{ content: string; mimeType: string; size: number }>(`/api/v1/remote/nodes/${nodeId}/read?path=${encodeURIComponent(path)}`);
+export async function remoteReadFile(
+  nodeId: string,
+  path: string,
+): Promise<{ content: string; mimeType: string; size: number }> {
+  return request<{ content: string; mimeType: string; size: number }>(
+    `/api/v1/remote/nodes/${nodeId}/read?path=${encodeURIComponent(path)}`,
+  );
 }
 
 export async function fetchRemoteNodeStatus(nodeId: string): Promise<{ online: boolean }> {
@@ -948,7 +1055,43 @@ export async function fetchRemoteNodeStatus(nodeId: string): Promise<{ online: b
 
 // ─── Helper Enrollments ─────────────────────────────────
 
-export type HelperEnrollmentStatus = 'pending' | 'connected' | 'offline' | 'revoked' | 'uninstalled';
+export type HelperEnrollmentStatus =
+  | 'pending'
+  | 'connected'
+  | 'offline'
+  | 'revoked'
+  | 'uninstalled';
+
+export type HelperConfigureOpenClawState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'denied'
+  | 'revoked'
+  | 'manual_debug'
+  | string;
+
+export interface HelperConfigureOpenClawStep {
+  job_type: string;
+  status: string;
+  created_at?: number;
+  completed_at?: number;
+  failure_code?: string;
+  failure_message?: string;
+  audit_refs: string[];
+  log_refs: string[];
+}
+
+export interface HelperConfigureOpenClawStatusView {
+  state: HelperConfigureOpenClawState;
+  label: string;
+  failure_code?: string;
+  failure_message?: string;
+  audit_refs: string[];
+  log_refs: string[];
+  steps: HelperConfigureOpenClawStep[];
+}
 
 export interface HelperEnrollmentStatusView {
   enrollment_id: string;
@@ -962,13 +1105,59 @@ export interface HelperEnrollmentStatusView {
   claimed_at?: number;
   revoked_at?: number;
   uninstalled_at?: number;
+  configure_openclaw?: HelperConfigureOpenClawStatusView;
+}
+
+function sanitizeBoundedRefs(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const refs: string[] = [];
+  for (const value of input) {
+    if (typeof value !== 'string') continue;
+    const ref = value.trim();
+    if (!ref || ref.length > 128 || /[\\/\0\n\r]/.test(ref)) continue;
+    refs.push(ref);
+    if (refs.length === 16) break;
+  }
+  return refs;
+}
+
+function sanitizeConfigureOpenClawStep(input: any): HelperConfigureOpenClawStep {
+  return {
+    job_type: String(input?.job_type ?? ''),
+    status: String(input?.status ?? 'unknown'),
+    ...(typeof input?.created_at === 'number' ? { created_at: input.created_at } : {}),
+    ...(typeof input?.completed_at === 'number' ? { completed_at: input.completed_at } : {}),
+    ...(typeof input?.failure_code === 'string' ? { failure_code: input.failure_code } : {}),
+    ...(typeof input?.failure_message === 'string'
+      ? { failure_message: input.failure_message }
+      : {}),
+    audit_refs: sanitizeBoundedRefs(input?.audit_refs),
+    log_refs: sanitizeBoundedRefs(input?.log_refs),
+  };
+}
+
+function sanitizeConfigureOpenClaw(input: any): HelperConfigureOpenClawStatusView | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  return {
+    state: typeof input?.state === 'string' ? input.state : 'manual_debug',
+    label: typeof input?.label === 'string' ? input.label : 'Manual debug required',
+    ...(typeof input?.failure_code === 'string' ? { failure_code: input.failure_code } : {}),
+    ...(typeof input?.failure_message === 'string'
+      ? { failure_message: input.failure_message }
+      : {}),
+    audit_refs: sanitizeBoundedRefs(input?.audit_refs),
+    log_refs: sanitizeBoundedRefs(input?.log_refs),
+    steps: Array.isArray(input?.steps) ? input.steps.map(sanitizeConfigureOpenClawStep) : [],
+  };
 }
 
 function sanitizeHelperEnrollment(input: any): HelperEnrollmentStatusView {
   return {
     enrollment_id: String(input?.enrollment_id ?? ''),
     host_label: String(input?.host_label ?? ''),
-    ...(typeof input?.helper_device_id === 'string' ? { helper_device_id: input.helper_device_id } : {}),
+    ...(typeof input?.helper_device_id === 'string'
+      ? { helper_device_id: input.helper_device_id }
+      : {}),
     allowed_categories: Array.isArray(input?.allowed_categories)
       ? input.allowed_categories.filter((v: unknown): v is string => typeof v === 'string')
       : [],
@@ -979,6 +1168,9 @@ function sanitizeHelperEnrollment(input: any): HelperEnrollmentStatusView {
     ...(typeof input?.claimed_at === 'number' ? { claimed_at: input.claimed_at } : {}),
     ...(typeof input?.revoked_at === 'number' ? { revoked_at: input.revoked_at } : {}),
     ...(typeof input?.uninstalled_at === 'number' ? { uninstalled_at: input.uninstalled_at } : {}),
+    ...(sanitizeConfigureOpenClaw(input?.configure_openclaw)
+      ? { configure_openclaw: sanitizeConfigureOpenClaw(input.configure_openclaw) }
+      : {}),
   };
 }
 
@@ -987,8 +1179,12 @@ export async function fetchHelperEnrollments(): Promise<HelperEnrollmentStatusVi
   return Array.isArray(data.enrollments) ? data.enrollments.map(sanitizeHelperEnrollment) : [];
 }
 
-export async function fetchHelperEnrollment(enrollmentId: string): Promise<HelperEnrollmentStatusView> {
-  const data = await request<{ enrollment: unknown }>(`/api/v1/helper/enrollments/${encodeURIComponent(enrollmentId)}`);
+export async function fetchHelperEnrollment(
+  enrollmentId: string,
+): Promise<HelperEnrollmentStatusView> {
+  const data = await request<{ enrollment: unknown }>(
+    `/api/v1/helper/enrollments/${encodeURIComponent(enrollmentId)}`,
+  );
   return sanitizeHelperEnrollment(data.enrollment);
 }
 
@@ -1033,12 +1229,7 @@ export async function listCommands(channelId?: string): Promise<CommandsResponse
  * 'video_link' / 'pdf_link' (byte-identical 跟 cv_2_v2_media_preview.go
  * schema CHECK + cv_3_2_artifact_validation.go ValidArtifactKinds 同源).
  */
-export type ArtifactKind =
-  | 'markdown'
-  | 'code'
-  | 'image_link'
-  | 'video_link'
-  | 'pdf_link';
+export type ArtifactKind = 'markdown' | 'code' | 'image_link' | 'video_link' | 'pdf_link';
 
 export interface Artifact {
   id: string;
@@ -1270,49 +1461,38 @@ export async function createAnchor(
   artifactId: string,
   payload: { version?: number; start_offset: number; end_offset: number },
 ): Promise<AnchorThread> {
-  return request<AnchorThread>(
-    `/api/v1/artifacts/${encodeURIComponent(artifactId)}/anchors`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-  );
+  return request<AnchorThread>(`/api/v1/artifacts/${encodeURIComponent(artifactId)}/anchors`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 /** GET /artifacts/:id/anchors — list active + resolved anchors (channel members). */
-export async function listAnchors(
-  artifactId: string,
-): Promise<{ anchors: AnchorThread[] }> {
+export async function listAnchors(artifactId: string): Promise<{ anchors: AnchorThread[] }> {
   return request<{ anchors: AnchorThread[] }>(
     `/api/v1/artifacts/${encodeURIComponent(artifactId)}/anchors`,
   );
 }
 
 /** POST /anchors/:id/comments — channel members may reply; agent only on threads with a human author (server-enforced). */
-export async function addAnchorComment(
-  anchorId: string,
-  body: string,
-): Promise<AnchorComment> {
-  return request<AnchorComment>(
-    `/api/v1/anchors/${encodeURIComponent(anchorId)}/comments`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ body }),
-    },
-  );
+export async function addAnchorComment(anchorId: string, body: string): Promise<AnchorComment> {
+  return request<AnchorComment>(`/api/v1/anchors/${encodeURIComponent(anchorId)}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
 }
 
 /** GET /anchors/:id/comments — pull comment list after WS signal. */
-export async function listAnchorComments(
-  anchorId: string,
-): Promise<{ comments: AnchorComment[] }> {
+export async function listAnchorComments(anchorId: string): Promise<{ comments: AnchorComment[] }> {
   return request<{ comments: AnchorComment[] }>(
     `/api/v1/anchors/${encodeURIComponent(anchorId)}/comments`,
   );
 }
 
 /** POST /anchors/:id/resolve — owner / creator only (server-enforced). */
-export async function resolveAnchor(anchorId: string): Promise<{ id: string; resolved_at: number }> {
+export async function resolveAnchor(
+  anchorId: string,
+): Promise<{ id: string; resolved_at: number }> {
   return request<{ id: string; resolved_at: number }>(
     `/api/v1/anchors/${encodeURIComponent(anchorId)}/resolve`,
     { method: 'POST' },
@@ -1441,7 +1621,9 @@ export async function postMeGrant(req: MeGrantRequest): Promise<MeGrantResponse>
     try {
       const body = await resp.json();
       if (body?.error_code) detail = body.error_code;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`me/grants ${detail}`);
   }
   return (await resp.json()) as MeGrantResponse;
@@ -1470,7 +1652,9 @@ export async function postAgentRecover(req: AL5RecoverPayload): Promise<AL5Recov
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`agents/recover ${detail}`);
   }
   return (await resp.json()) as AL5RecoverResponse;
@@ -1513,7 +1697,9 @@ export async function patchDMMessage(
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`dm/edit ${detail}`);
   }
   return (await resp.json()) as DM4EditResponse;
@@ -1545,13 +1731,10 @@ export async function postArtifactComment(
   body: string,
   agentId?: string,
 ): Promise<ArtifactComment> {
-  return request<ArtifactComment>(
-    `/api/v1/artifacts/${encodeURIComponent(artifactId)}/comments`,
-    {
-      method: 'POST',
-      body: JSON.stringify(agentId ? { body, agent_id: agentId } : { body }),
-    },
-  );
+  return request<ArtifactComment>(`/api/v1/artifacts/${encodeURIComponent(artifactId)}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(agentId ? { body, agent_id: agentId } : { body }),
+  });
 }
 
 /** GET /api/v1/artifacts/:id/comments — pull comment list after WS signal. */
@@ -1641,7 +1824,9 @@ export async function getEditHistory(
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`dm7/edit-history ${detail}`);
   }
   return (await resp.json()) as DM7EditHistoryResponse;
@@ -1672,7 +1857,9 @@ export async function getChannelDescriptionHistory(
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`chn14/description-history ${detail}`);
   }
   return (await resp.json()) as CHN14DescriptionHistoryResponse;
@@ -1705,9 +1892,7 @@ export interface ChannelPresenceResponse {
   counted_at: number;
 }
 
-export async function getChannelPresence(
-  channelId: string,
-): Promise<ChannelPresenceResponse> {
+export async function getChannelPresence(channelId: string): Promise<ChannelPresenceResponse> {
   return request<ChannelPresenceResponse>(
     `/api/v1/channels/${encodeURIComponent(channelId)}/presence`,
   );
@@ -1724,19 +1909,19 @@ export async function getChannelPresence(
  * 改 = 改三处: server const + 此 map + content-lock §4.
  */
 export const SEARCH_ERR_TOAST: Record<string, string> = {
-  'search.query_empty':         '请输入搜索词',
-  'search.query_too_long':      '搜索词太长 (最长 256 字符)',
-  'search.channel_not_member':  '无权访问此频道',
-  'search.cross_org_denied':    '跨组织搜索被禁',
-  'search.not_owner':           '需要频道所有者权限',
+  'search.query_empty': '请输入搜索词',
+  'search.query_too_long': '搜索词太长 (最长 256 字符)',
+  'search.channel_not_member': '无权访问此频道',
+  'search.cross_org_denied': '跨组织搜索被禁',
+  'search.not_owner': '需要频道所有者权限',
 };
 
 /** SearchResult — server response row shape. */
 export interface SearchResult {
   artifact_id: string;
   title: string;
-  snippet: string;          // server-side `<mark>...</mark>` 字面 byte-identical
-  kind: string;             // 5 enum: markdown / code / image_link / video_link / pdf_link
+  snippet: string; // server-side `<mark>...</mark>` 字面 byte-identical
+  kind: string; // 5 enum: markdown / code / image_link / video_link / pdf_link
   channel_id: string;
   current_version: number;
 }
@@ -1768,7 +1953,9 @@ export async function searchArtifacts(
     try {
       const body = await resp.json();
       errCode = (body?.error as string) || errCode;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(errCode);
   }
   return (await resp.json()) as SearchArtifactsResponse;
@@ -1806,7 +1993,9 @@ export async function setChannelReadonly(channelID: string): Promise<ChannelRead
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`channel/readonly ${detail}`);
   }
   return (await resp.json()) as ChannelReadonlyResponse;
@@ -1823,7 +2012,9 @@ export async function unsetChannelReadonly(channelID: string): Promise<ChannelRe
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`channel/readonly ${detail}`);
   }
   return (await resp.json()) as ChannelReadonlyResponse;
@@ -1841,9 +2032,9 @@ export async function unsetChannelReadonly(channelID: string): Promise<ChannelRe
  * 改 = 改三处: server const + 此 map + content-lock §3.
  */
 export const COMMENT_EDIT_HISTORY_ERR_TOAST: Record<string, string> = {
-  'comment.not_artifact_comment':  '该消息不是 artifact 评论',
-  'comment.not_owner':             '仅评论作者可查看历史',
-  'comment.message_not_found':     '消息不存在',
+  'comment.not_artifact_comment': '该消息不是 artifact 评论',
+  'comment.not_owner': '仅评论作者可查看历史',
+  'comment.message_not_found': '消息不存在',
 };
 
 export interface ArtifactCommentEditHistoryEntry {
@@ -1874,7 +2065,9 @@ export async function getArtifactCommentEditHistory(
     try {
       const body = await resp.json();
       if (body?.error) detail = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(`cv15/comment-edit-history ${detail}`);
   }
   return (await resp.json()) as ArtifactCommentEditHistoryResponse;

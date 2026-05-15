@@ -97,7 +97,7 @@ Impersonation/audit flow: user-facing grant state lives on the user rail, while 
 - Plugin frames are not trusted merely because the socket is connected; protocol validation and owner checks still apply.
 - Remote-node tokens authenticate machines, not browser users or admins.
 - Helper enrollment credentials authenticate only claim/status/rotation/uninstall for a Helper enrollment, and rotation replaces the active credential so later Helper lifecycle writes require the current credential plus matching device id. They are not user sessions, Helper job enqueue credentials, Remote Agent tokens, host grants, or user permissions.
-- Helper enrollment status is host/device enrollment visibility only. Helper job enqueue exists as a separate typed user-rail queue boundary; it is not Helper polling, a raw command channel, service-manager execution result, bounded logs, or Configure OpenClaw success state.
+- Helper enrollment status is host/device enrollment visibility. Helper enrollment list/detail responses may also include a server-derived `configure_openclaw` projection from Helper job metadata. That projection is display-only and exposes only closure state, safe labels, bounded failure reason fields, bounded audit/log refs, and safe step status. Helper job enqueue remains a separate typed user-rail queue boundary; the enrollment rail is not Helper polling, a raw command channel, service-manager execution, raw log transport, or Remote Agent rail reuse.
 - Admin metadata views must avoid content-bearing fields unless a route explicitly owns that disclosure.
 
 ## Non-Goals

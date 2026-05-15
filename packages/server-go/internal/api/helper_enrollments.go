@@ -10,8 +10,9 @@ import (
 )
 
 type HelperEnrollmentHandler struct {
-	Repo datalayer.HelperEnrollmentRepository
-	Now  func() time.Time
+	Repo    datalayer.HelperEnrollmentRepository
+	JobRepo datalayer.HelperJobRepository
+	Now     func() time.Time
 }
 
 func (h *HelperEnrollmentHandler) now() time.Time {
@@ -81,8 +82,9 @@ func (h *HelperEnrollmentHandler) handleList(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	out := make([]any, 0, len(rows))
+	configureByEnrollment := h.configureOpenClawForRows(r, user.ID, user.OrgID, rows)
 	for i := range rows {
-		out = append(out, h.serialize(&rows[i]))
+		out = append(out, h.serializeWithConfigure(&rows[i], configureByEnrollment[rows[i].ID]))
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{"enrollments": out})
 }
@@ -101,7 +103,8 @@ func (h *HelperEnrollmentHandler) handleGet(w http.ResponseWriter, r *http.Reque
 		h.writeUserLookupError(w, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, map[string]any{"enrollment": h.serialize(row)})
+	configureByEnrollment := h.configureOpenClawForRows(r, user.ID, user.OrgID, []datalayer.HelperEnrollment{*row})
+	writeJSONResponse(w, http.StatusOK, map[string]any{"enrollment": h.serializeWithConfigure(row, configureByEnrollment[row.ID])})
 }
 
 func (h *HelperEnrollmentHandler) handleRevoke(w http.ResponseWriter, r *http.Request) {
@@ -217,6 +220,10 @@ func (h *HelperEnrollmentHandler) handleUninstall(w http.ResponseWriter, r *http
 }
 
 func (h *HelperEnrollmentHandler) serialize(row *datalayer.HelperEnrollment) map[string]any {
+	return h.serializeWithConfigure(row, nil)
+}
+
+func (h *HelperEnrollmentHandler) serializeWithConfigure(row *datalayer.HelperEnrollment, configure *datalayer.HelperConfigureOpenClawStatus) map[string]any {
 	status := row.Status
 	fresh := false
 	if row.Status == "connected" || row.Status == "offline" {
@@ -253,6 +260,93 @@ func (h *HelperEnrollmentHandler) serialize(row *datalayer.HelperEnrollment) map
 	}
 	if row.CredentialRotatedAt != nil {
 		out["credential_rotated_at"] = *row.CredentialRotatedAt
+	}
+	if configure != nil {
+		out["configure_openclaw"] = serializeConfigureOpenClaw(configure)
+	}
+	return out
+}
+
+func (h *HelperEnrollmentHandler) configureOpenClawForRows(r *http.Request, ownerUserID, orgID string, rows []datalayer.HelperEnrollment) map[string]*datalayer.HelperConfigureOpenClawStatus {
+	out := map[string]*datalayer.HelperConfigureOpenClawStatus{}
+	ids := make([]string, 0, len(rows))
+	for i := range rows {
+		ids = append(ids, rows[i].ID)
+	}
+	if h.JobRepo != nil && len(ids) > 0 {
+		configured, err := h.JobRepo.ConfigureOpenClawForEnrollments(r.Context(), ownerUserID, orgID, ids)
+		if err == nil {
+			for id, status := range configured {
+				copy := status
+				out[id] = &copy
+			}
+		}
+	}
+	for i := range rows {
+		if rows[i].Status == "revoked" || rows[i].RevokedAt != nil {
+			out[rows[i].ID] = revokedConfigureOpenClawStatus("revoked")
+		} else if rows[i].Status == "uninstalled" || rows[i].UninstalledAt != nil {
+			out[rows[i].ID] = revokedConfigureOpenClawStatus("uninstalled")
+		}
+	}
+	return out
+}
+
+func revokedConfigureOpenClawStatus(code string) *datalayer.HelperConfigureOpenClawStatus {
+	return &datalayer.HelperConfigureOpenClawStatus{
+		State:       "revoked",
+		Label:       "Configure OpenClaw revoked",
+		FailureCode: code,
+	}
+}
+
+func serializeConfigureOpenClaw(status *datalayer.HelperConfigureOpenClawStatus) map[string]any {
+	out := map[string]any{
+		"state": status.State,
+		"label": status.Label,
+	}
+	if status.FailureCode != "" {
+		out["failure_code"] = status.FailureCode
+	}
+	if status.FailureMessage != "" {
+		out["failure_message"] = status.FailureMessage
+	}
+	if len(status.AuditRefs) > 0 {
+		out["audit_refs"] = status.AuditRefs
+	}
+	if len(status.LogRefs) > 0 {
+		out["log_refs"] = status.LogRefs
+	}
+	if len(status.Steps) > 0 {
+		steps := make([]any, 0, len(status.Steps))
+		for i := range status.Steps {
+			steps = append(steps, serializeConfigureOpenClawStep(status.Steps[i]))
+		}
+		out["steps"] = steps
+	}
+	return out
+}
+
+func serializeConfigureOpenClawStep(step datalayer.HelperConfigureOpenClawStep) map[string]any {
+	out := map[string]any{
+		"job_type":   step.JobType,
+		"status":     step.Status,
+		"created_at": step.CreatedAt,
+	}
+	if step.CompletedAt != nil {
+		out["completed_at"] = *step.CompletedAt
+	}
+	if step.FailureCode != "" {
+		out["failure_code"] = step.FailureCode
+	}
+	if step.FailureMessage != "" {
+		out["failure_message"] = step.FailureMessage
+	}
+	if len(step.AuditRefs) > 0 {
+		out["audit_refs"] = step.AuditRefs
+	}
+	if len(step.LogRefs) > 0 {
+		out["log_refs"] = step.LogRefs
 	}
 	return out
 }
