@@ -36,7 +36,7 @@ Rejected by this milestone:
 | Channel management surface | PLANNED | `task-4-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |
 | Channel allowed-action rules | PLANNED | `task-5-channel-allowed-action-rules` | management surface | yes, after management surface |
 | Channel authority checks | PLANNED | `task-6-channel-authority-checks` | management surface and allowed-action rules | no |
-| Private indicator state inventory | PLANNED | `task-7-private-indicator-state-inventory` | Milestone start or alongside management surface | yes, if UI ownership is clean |
+| Private indicator state inventory | ACCEPTING | `task-7-private-indicator-state-inventory` | Explicit parallel UI slot | yes, docs-only inventory; blocks visual treatment |
 | Private indicator visual treatment | PLANNED | `task-8-private-indicator-visual-treatment` | state inventory | no |
 | Sidebar state collision regression | PLANNED | `task-9-sidebar-state-collision-regression` | visual treatment | no |
 
