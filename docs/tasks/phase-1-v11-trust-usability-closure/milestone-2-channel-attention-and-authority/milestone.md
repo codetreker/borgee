@@ -38,7 +38,7 @@ Rejected by this milestone:
 | Channel authority checks | PLANNED | `task-6-channel-authority-checks` | management surface and allowed-action rules | no |
 | Private indicator state inventory | ACCEPTED | `task-7-private-indicator-state-inventory` | Explicit parallel UI slot; merged PR #945 | no |
 | Private indicator visual treatment | ACCEPTING | `task-8-private-indicator-visual-treatment` | state inventory accepted | no |
-| Sidebar state collision regression | PLANNED | `task-9-sidebar-state-collision-regression` | visual treatment | no |
+| Sidebar state collision regression | ACCEPTING | `task-9-sidebar-state-collision-regression` | visual treatment | no |
 
 ## Exit Gates
 

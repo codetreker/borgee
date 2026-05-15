@@ -104,6 +104,8 @@ Direct-message rows reuse `.channel-item` styling under `data-kind="dm"`, but th
 
 Known current boundary: the private-channel signal stays in the leading slot, so sidebar visual work must continue to prove it does not hide or compete with unread, selected, hover, drag-over, archived, preview, pinned, or DM-only presence/fault signals. This document records current anchors only; it does not promise additional channel-level presence or fault semantics.
 
+Task9 sidebar state collision regression is covered by `packages/client/src/__tests__/Sidebar-state-collision-regression.test.tsx`. The suite locks private/unread/selected/pinned/drag-over coexistence, archived override, public preview separation, and the DM-only presence/fault boundary for future sidebar row changes.
+
 ## Related Docs
 
 - [../ui-map.md](../ui-map.md)
