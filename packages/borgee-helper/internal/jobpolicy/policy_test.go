@@ -55,6 +55,24 @@ func TestEvaluateConfigureAgentRequiresSignedManifestAndApprovedConfigPath(t *te
 	}
 }
 
+func TestEvaluateAllowsPluginConfigureConnectionWithServerBoundChannelPayload(t *testing.T) {
+	now := time.Unix(1_760_000_000, 0)
+	input := pluginConfigureConnectionWithManifestInput(t, now)
+
+	decision := Evaluate(input)
+	assertDecision(t, decision, true, ReasonOK)
+
+	input.Job.PayloadJSON = mustJSON(t, map[string]any{
+		"connection_id": "borgee-plugin:abc123",
+		"agent_id":      "agent-1",
+		"channel_id":    "channel-1",
+		"base_url":      "https://evil.example",
+	})
+	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+	decision = Evaluate(input)
+	assertDecision(t, decision, false, ReasonSchemaInvalid)
+}
+
 func TestEvaluateRejectsMissingOrMismatchedPayloadHash(t *testing.T) {
 	now := time.Unix(1_760_000_000, 0)
 
@@ -580,6 +598,34 @@ func installInput(t *testing.T, now time.Time) EvaluationInput {
 	input.Job.PayloadJSON = mustJSON(t, map[string]string{"install_plan_id": "plan-1"})
 	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
 	input.Enrollment.AllowedCategories = []string{CategoryOpenClawLifecycle}
+	return input
+}
+
+func pluginConfigureConnectionWithManifestInput(t *testing.T, now time.Time) EvaluationInput {
+	t.Helper()
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestJSON, manifestDigest := signedManifest(t, priv, signedManifestSpec{
+		IssuedAt:  now.Add(-time.Minute),
+		ExpiresAt: now.Add(time.Hour),
+		Paths:     []PathDeclaration{{ID: "borgee_plugin_config", Root: "/var/lib/openclaw", Mode: "write_config"}},
+	})
+	input := baseInput(now)
+	input.TrustRoots = []ed25519.PublicKey{pub}
+	input.Job.JobType = JobTypePluginConfigureConnection
+	input.Job.Category = CategoryOpenClaw
+	input.Job.PayloadJSON = mustJSON(t, map[string]any{
+		"connection_id": "borgee-plugin:abc123",
+		"agent_id":      "agent-1",
+		"channel_id":    "channel-1",
+	})
+	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+	input.Job.ManifestDigest = manifestDigest
+	input.Job.ManifestJSON = manifestJSON
+	input.Job.ManifestBindingJSON = mustJSON(t, ManifestBinding{ManifestDigest: manifestDigest, PathIDs: []string{"borgee_plugin_config"}})
+	input.Sandbox = SandboxProfile{WriteRoots: []string{"/var/lib/openclaw"}}
 	return input
 }
 
