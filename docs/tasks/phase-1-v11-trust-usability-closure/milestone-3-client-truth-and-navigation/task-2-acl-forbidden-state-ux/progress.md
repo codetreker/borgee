@@ -5,7 +5,7 @@
 - Status: ACCEPTING
 - Worktree: `.worktrees/m3-task2-acl-forbidden-state-ux`
 - Branch: `feat/m3-task2-acl-forbidden-state-ux`
-- PR: pending
+- PR: #957 https://github.com/codetreker/borgee/pull/957
 - Blocker: none
 
 ## Dependency Decision
@@ -25,6 +25,8 @@
 - Implemented local non-leaky denied states without changing server authority or starting Task4.
 - Added task stance, spec, design, content lock, acceptance, progress, and current-doc sync.
 - Ran focused and package-level client verification.
+- Rebasing onto `origin/main` after PR #955 landed completed without conflict; post-rebase verification remained green.
+- Opened PR #957 for the single task branch.
 
 ## Verification Evidence
 
@@ -36,6 +38,10 @@
 | `./node_modules/.bin/tsc -b packages/client` | PASS. |
 | `pnpm --filter @borgee/client build` | PASS with existing large-chunk warning. |
 | `pnpm --filter @borgee/client test` | PASS: 134 files, 844 passed, 1 skipped. |
+| Post-rebase `./node_modules/.bin/vitest run --environment jsdom packages/client/src/__tests__/ArtifactPanel-artifact-comments.test.tsx packages/client/src/__tests__/ArtifactComments.test.tsx packages/client/src/__tests__/PermissionsView.test.tsx packages/client/src/__tests__/SettingsPage.test.tsx` | PASS: 4 files, 19 tests. |
+| Post-rebase `pnpm --filter @borgee/client build` | PASS with existing large-chunk warning. |
+| Post-rebase `pnpm --filter @borgee/client test` | PASS: 134 files, 847 passed, 1 skipped. |
+| Post-rebase `git diff --check HEAD~1..HEAD` | PASS. |
 
 ## Acceptance State
 
