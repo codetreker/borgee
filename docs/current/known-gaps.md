@@ -132,11 +132,11 @@ Relevant area: BPP internals and plugin lifecycle.
 
 ## Channel RequireMention Client Controls
 
-Current behavior: The server stores and enforces per-channel agent `requireMention` policy, including manager-only updates and the agent-owner ceiling for non-mention delivery. Channel member payloads expose the stored policy for later clients.
+Current behavior: The server stores and enforces per-channel agent `requireMention` policy, including manager-only updates and the agent-owner ceiling for non-mention delivery. The server also handles `@Everyone` as a reserved broadcast token: recipients are computed from channel membership, client-supplied recipient ids are rejected, agent-originated broadcasts are rejected, and repeated broadcasts are rate-limited per sender/channel. Channel member payloads expose the stored policy for later clients.
 
-Architecture impact: The current browser client does not yet provide a dedicated control or explanatory surface for channel managers to inspect and change this policy.
+Architecture impact: The current browser client does not yet provide a dedicated control or explanatory surface for channel managers to inspect and change this policy, nor a dedicated client mention-control surface explaining `@Everyone` behavior.
 
-Do not assume: users can manage per-channel agent attention from the client UI just because the server API and message-routing behavior exist.
+Do not assume: users can manage per-channel agent attention from the client UI just because the server API and message-routing behavior exist. Do not assume `@Everyone` has a dedicated client-side affordance before the client mention-control task lands.
 
 Relevant area: channel management, client mention controls, and agent attention UX.
 

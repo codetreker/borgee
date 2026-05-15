@@ -14,7 +14,6 @@ func TestP2ConcurrentHumanAgentMessages(t *testing.T) {
 	ts, _, _ := testutil.NewTestServer(t)
 	adminToken := testutil.LoginAs(t, ts.URL, "admin@test.com", "password123")
 	memberToken := testutil.LoginAs(t, ts.URL, "member@test.com", "password123")
-	memberID := testutil.GetUserIDByName(t, ts.URL, adminToken, "Member")
 	channelID := testutil.GetGeneralChannelID(t, ts.URL, adminToken)
 
 	agent := testutil.CreateAgent(t, ts.URL, memberToken, "P2 Relay Bot")
@@ -28,13 +27,12 @@ func TestP2ConcurrentHumanAgentMessages(t *testing.T) {
 		token       string
 		content     string
 		contentType string
-		mentions    []string
 		replyToID   string
 	}
 
 	cases := []postCase{
-		{token: memberToken, content: "human note for <@" + agentID + ">", contentType: "text", mentions: []string{agentID}, replyToID: rootID},
-		{token: agentKey, content: "agent command result for @Member", contentType: "command", mentions: []string{memberID}, replyToID: rootID},
+		{token: memberToken, content: "human note for <@" + agentID + ">", contentType: "text", replyToID: rootID},
+		{token: agentKey, content: "agent command result for @Member", contentType: "command", replyToID: rootID},
 		{token: memberToken, content: "human image payload", contentType: "image"},
 		{token: agentKey, content: "agent plain response"},
 	}
@@ -52,10 +50,6 @@ func TestP2ConcurrentHumanAgentMessages(t *testing.T) {
 			if tc.replyToID != "" {
 				body["reply_to_id"] = tc.replyToID
 			}
-			if tc.mentions != nil {
-				body["mentions"] = tc.mentions
-			}
-
 			resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/messages", tc.token, body)
 			if resp.StatusCode != http.StatusCreated {
 				errs <- fmt.Sprintf("post %d status %d body %v", i, resp.StatusCode, data)

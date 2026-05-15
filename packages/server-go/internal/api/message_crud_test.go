@@ -22,7 +22,6 @@ func TestP0MessageCRUD(t *testing.T) {
 	resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/messages", adminToken, map[string]any{
 		"content":     "reply mentions <@" + memberID + "> @Member",
 		"reply_to_id": rootID,
-		"mentions":    []string{memberID},
 	})
 	requireStatus(t, resp, http.StatusCreated, data)
 	reply := data["message"].(map[string]any)

@@ -108,7 +108,7 @@ func (s *Store) parseMentionNames(content string) []string {
 				}
 			}
 			name := content[i+1 : j]
-			if name != "" {
+			if name != "" && name != "Everyone" {
 				if user, err := s.GetUserByDisplayName(name); err == nil {
 					ids = append(ids, user.ID)
 				}

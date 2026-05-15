@@ -30,6 +30,7 @@ remote WS:     remote node token -> remote connection -> intended list/read tunn
 helper enroll: one-time enrollment secret -> persistent Helper credential -> status/rotation/uninstall only
 helper jobs:   human/member user credential -> owner/org/enrollment/category/job-type/channel checks -> queued typed metadata only
 channel attention: channel manager credential -> channel/org/member checks -> agent owner require-mention ceiling
+everyone fanout: message sender credential -> channel membership -> server-computed @Everyone recipients
 helper job pull: current Helper credential + helper_device_id -> poll/lease/ack/result with lease token, TTL, and terminal idempotency
 helper policy: delivered server-owned Helper job view -> local schema/state/manifest/artifact/path/domain/service/sandbox decision -> no action or settlement
 helper outbound prereq: Helper service config -> exact public HTTPS origin allowlist + Helper-owned state roots -> fixed-path outbound client only
@@ -53,6 +54,7 @@ installer:     manifest fetch -> partial verifier path -> local artifact deploy
 | --- | --- | --- | --- | --- | --- |
 | User API | user cookie, Bearer API key, development bypass in development | user row plus owner/capability checks | HTTP middleware and handlers | user serializers hide internal columns | user credential does not enter admin rail |
 | Channel attention policy | user cookie or Bearer API key on the user rail | channel manager permission plus channel org/member validation and the target agent's global `require_mention` setting | `PUT /api/v1/channels/{channelId}/members/{userId}/require-mention` and message-create dispatch | policy state is membership metadata; implicit delivery does not write mention history | channel managers can force or inherit mention-required behavior, but cannot set `off` unless the agent owner already allowed broader delivery |
+| `@Everyone` mention fanout | user cookie or Bearer API key on the user rail | existing message-send permission plus channel membership/visibility gates; recipients are current channel members only | `POST /api/v1/channels/{channelId}/messages` message-create path | broadcast recipients are server-computed `message_mentions`; client recipient ids are rejected; offline agent fallback keeps the fixed no-body owner nudge | agents cannot trigger `@Everyone`, and repeated sender/channel broadcasts are rate-limited |
 | Admin API | opaque admin session cookie | admin session row joined to admin identity | admin middleware | admin views use explicit whitelists for sensitive metadata | admin is not represented as user god-mode |
 | Capability checks | authenticated user context | user permission rows and scoped resources | authorization helper or legacy permission middleware | no direct serializer surface | app capabilities do not authorize host helper grants |
 | Plugin WebSocket | API key | user/agent row behind the key | plugin connection in hub | plugin lifecycle audit uses server audit source where wired | plugin API bridge is not Remote Agent |
@@ -75,6 +77,9 @@ Resource ownership gates appear alongside capability checks. Remote nodes, Helpe
 
 **Agent attention owner ceiling**
 Per-channel `requireMention` is a membership policy, not a capability grant. Channel managers can set `on` to narrow delivery or `inherit` to follow the agent's global policy. They can set `off` only when the agent's global `require_mention` flag is already false, preserving agent-owner authorization as the ceiling for broader non-mention delivery.
+
+**Broadcast mention authority**
+`@Everyone` fanout is computed by the server from channel membership after the sender passes the normal message-create gates. Clients cannot submit recipient ids, agents cannot trigger the broadcast token, and repeated broadcasts from the same sender in the same channel are rate-limited.
 
 **Metadata-only admin reads**
 Admin rail may read operational metadata, but selected raw fields remain owner-only or omitted. The runtime admin view is the clearest example: it exposes process metadata while omitting raw error reason text.
@@ -104,6 +109,8 @@ This page does not define new privileges or future unification. It records the c
 - `packages/server-go/internal/api/helper_enrollments.go` (`HelperEnrollmentHandler`)
 - `packages/server-go/internal/api/helper_jobs.go` (`HelperJobsHandler`)
 - `packages/server-go/internal/api/channels.go` (`ChannelHandler` require-mention policy endpoint)
+- `packages/server-go/internal/api/messages.go` (`@Everyone` message-create fanout guard)
+- `packages/server-go/internal/api/mention_dispatch.go`
 - `packages/server-go/internal/store/require_mention_policy.go`
 - `packages/server-go/internal/api/host_grants.go` (`HostGrantsHandler`)
 - `packages/server-go/internal/store/helper_enrollment_queries.go`

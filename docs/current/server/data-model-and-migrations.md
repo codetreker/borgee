@@ -74,6 +74,8 @@ Helper job enqueue flow: a human/member user-authenticated request to an enrolle
 
 Channel member attention-policy flow: a channel manager can update an agent member's per-channel policy through the user rail. The target must be an agent member of the same channel, DM channels are rejected, and cross-org callers fail before permission checks. Setting `off` is rejected when the agent's global `require_mention` remains true, so channel management can reduce or require attention but cannot broaden agent delivery beyond owner authorization.
 
+`@Everyone` message flow: message creation treats `@Everyone` as a reserved content token and does not accept client-supplied recipient ids. The server computes recipients from channel membership, excludes the sender and soft-deleted users, records the computed targets in `message_mentions`, and dispatches through the same mention fanout path as explicit mentions. The flow adds no schema table or migration; it uses existing `channel_members`, `users`, `messages`, and `message_mentions` rows.
+
 Hot event flow: user-facing realtime replay is based on an autoincrement cursor. Polling, streaming, and backfill clients consume cursor-ordered state, while WebSocket frame producers may allocate cursors for live delivery.
 
 Cold event flow: data-layer publishers write to an in-process bus first and asynchronously persist to channel-scoped or global cold event tables. The cold event retention job is started by the server runtime, but its current sweeper only reaps rows with an explicit non-negative `retention_days`. The ordinary cold event writers currently insert without `retention_days`, so the per-kind default policy is not effective for those rows. Archive offload remains a separate cold table lifecycle path.
@@ -92,6 +94,7 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 - Append-only audit/state-log tables should not be rewritten to hide history.
 - Organization and ownership fields are part of authorization, not merely display metadata.
 - Channel-level agent attention policy is membership-scoped. It can narrow attention locally, but it cannot override the agent owner's global require-mention ceiling.
+- `@Everyone` recipient history is server-computed from channel membership. Request-body recipient ids are rejected on message create.
 
 ## Non-Goals
 
@@ -106,6 +109,8 @@ The data model does not model plugin-local runtime secrets, LLM provider configu
 - `packages/server-go/internal/store/helper_enrollment_queries.go`
 - `packages/server-go/internal/store/helper_job_queries.go`
 - `packages/server-go/internal/store/require_mention_policy.go`
+- `packages/server-go/internal/api/messages.go`
+- `packages/server-go/internal/api/mention_dispatch.go`
 - `packages/server-go/internal/store/admin_actions.go`
 - `packages/server-go/internal/store/agent_state_log.go`
 - `packages/server-go/internal/migrations/migrations.go`
