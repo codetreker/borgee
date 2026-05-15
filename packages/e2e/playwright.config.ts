@@ -31,6 +31,8 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const SERVER_PORT = Number(process.env.E2E_SERVER_PORT ?? 4901);
 const CLIENT_PORT = Number(process.env.E2E_CLIENT_PORT ?? 5174);
 const CI_WORKERS = Number(process.env.E2E_CI_WORKERS ?? 2);
+const SERVER_COMMAND =
+  process.env.E2E_SERVER_COMMAND ?? 'go run -tags sqlite_fts5 ./cmd/collab';
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`;
 const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
 
@@ -81,9 +83,9 @@ export default defineConfig({
   // to proxy.
   webServer: [
     {
-      // server-go binary: rebuild on each run is cheap (incremental go
-      // build is sub-second). Avoids stale binaries on schema changes.
-      command: `go run -tags sqlite_fts5 ./cmd/collab`,
+      // CI can provide a prebuilt binary to avoid paying go run compile/startup
+      // cost inside the Playwright webServer phase.
+      command: SERVER_COMMAND,
       cwd: path.join(repoRoot, 'packages/server-go'),
       url: `${SERVER_URL}/health`,
       timeout: 60_000,

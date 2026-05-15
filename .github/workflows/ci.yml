@@ -183,14 +183,17 @@ jobs:
       - name: Install workspace deps
         run: pnpm install --frozen-lockfile --filter @borgee/e2e --filter @borgee/client
       - name: Install Playwright chromium
-        run: pnpm --filter @borgee/e2e exec playwright install --with-deps chromium
+        run: pnpm --filter @borgee/e2e exec playwright install chromium
       - name: Type-check client (vite dev needs tsc-clean code)
         run: pnpm --filter @borgee/client build
       - name: Pre-fetch server-go modules
         run: cd packages/server-go && go mod download
+      - name: Build server-go e2e binary
+        run: cd packages/server-go && go build -tags sqlite_fts5 -o bin/collab-e2e ./cmd/collab
       - name: Run E2E
         env:
           E2E_CI_WORKERS: "1"
+          E2E_SERVER_COMMAND: ./bin/collab-e2e
         run: pnpm --filter @borgee/e2e exec playwright test --shard=${{ matrix.shard }}/2
       - name: Upload Playwright report (on failure)
         if: failure()
