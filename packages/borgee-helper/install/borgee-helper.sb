@@ -23,9 +23,12 @@
   (subpath "/System")
 )
 
-; Audit log (单一 write 路径).
+; Audit log and Helper-owned outbound prerequisite state.
 (allow file-write*
   (subpath "/Library/Logs/Borgee")
+  (subpath "/Library/Application Support/Borgee/Helper/QueueState")
+  (subpath "/Library/Application Support/Borgee/Helper/StatusState")
+  (subpath "/Library/Application Support/Borgee/Helper/AuditHandoff")
 )
 
 ; HB-3 host_grants DB (read-only).
@@ -40,5 +43,6 @@
 (allow network-bind (local unix))
 (allow network-outbound (local unix))
 
-; v1 requires remote outbound network access to remain permanently disabled under blueprint §3.
-; (allow network-outbound (remote tcp))  ; permanently prohibited by blueprint §3
+; Outbound Helper polling prerequisite only. Destination control is enforced by
+; daemon startup origin validation; this profile does not authorize arbitrary hosts.
+(allow network-outbound (remote tcp))

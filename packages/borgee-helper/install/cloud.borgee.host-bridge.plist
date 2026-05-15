@@ -15,6 +15,11 @@
       <string>--socket=/Users/Shared/Borgee/borgee-helper.sock</string>
       <string>--audit-log=/Library/Logs/Borgee/audit.log.jsonl</string>
       <string>--grants-db=file:/Library/Application Support/Borgee/server.db?mode=ro&amp;_busy_timeout=5000</string>
+      <string>--outbound-server-origin=https://app.borgee.io</string>
+      <string>--outbound-allowed-origins=https://app.borgee.io</string>
+      <string>--queue-state-dir=/Library/Application Support/Borgee/Helper/QueueState</string>
+      <string>--status-state-dir=/Library/Application Support/Borgee/Helper/StatusState</string>
+      <string>--audit-handoff-dir=/Library/Application Support/Borgee/Helper/AuditHandoff</string>
     </array>
 
     <key>RunAtLoad</key>

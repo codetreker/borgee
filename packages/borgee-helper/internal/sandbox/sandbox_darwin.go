@@ -40,7 +40,7 @@ func Apply(_ Profile) error {
 //	(allow file-read* (subpath "/path1") (subpath "/path2"))
 //	(allow file-write* (literal "<audit_log>"))
 //	(allow process-exec* (literal "<self>"))
-//	(allow network-outbound)  ; outbound network access remains closed here
+//	(allow network-outbound (remote tcp))  ; destination allowlist lives in Helper config
 func GenerateProfile(p Profile) string {
 	var b strings.Builder
 	b.WriteString("(version 1)\n")
@@ -63,11 +63,15 @@ func GenerateProfile(p Profile) string {
 	if p.TmpCachePath != "" {
 		fmt.Fprintf(&b, "(allow file-write* (subpath %q))\n", p.TmpCachePath)
 	}
+	for _, path := range p.WritePaths {
+		fmt.Fprintf(&b, "(allow file-write* (subpath %q))\n", path)
+	}
 	// IPC socket path (UDS) — daemon must be able to bind/listen at
 	// $HOME/Library/Application Support/Borgee/borgee-helper.sock
 	b.WriteString("(allow file-write* (subpath \"/var/run\"))\n")
 	b.WriteString("(allow network-bind (local unix))\n")
 	b.WriteString("(allow network-outbound (local unix))\n")
+	b.WriteString("(allow network-outbound (remote tcp))\n")
 	return b.String()
 }
 
@@ -76,6 +80,7 @@ type Profile struct {
 	ReadPaths    []string
 	AuditLogPath string
 	TmpCachePath string
+	WritePaths   []string
 }
 
 // Platform identifies the Darwin implementation selected by this build tag.

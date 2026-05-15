@@ -8,7 +8,7 @@
 | Branch | `feat/task-2-helper-outbound-service-prereq` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | READY_FOR_DESIGN_REVIEW |
+| State | VERIFIED_LOCAL_READY_FOR_COMMIT |
 | Blocker | none |
 
 ## Checkpoints
@@ -21,10 +21,13 @@
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals
 - [x] Dev design drafted for review
 - [x] Dev design checked against parent scout constraints and kept at task-design granularity
-- [ ] Dev design reviewed
-- [ ] Product implementation complete
-- [ ] `docs/current` sync checked after implementation or no-op rationale recorded
-- [ ] Acceptance evidence recorded after implementation
+- [x] Dev design reviewed
+- [x] Design gate green: `ARCHITECT_LGTM`, `PM_LGTM`, `QA_LGTM`, `SECURITY_LGTM` at `558934bafa9bf41af8b2f8457f83a690c51e0b36`
+- [x] Implementation worker started strict TDD pass
+- [x] RED tests/static checks written before production/config changes
+- [x] Product implementation complete
+- [x] `docs/current` sync checked after implementation
+- [x] Acceptance evidence recorded after implementation
 - [ ] PR opened
 - [ ] PR merged
 
@@ -42,6 +45,24 @@
 | Four-piece | Created task-start `spec.md`, `stance.md`, and `acceptance.md`; this file records progress | PASS |
 | Product code | No product code changes made in task-start commit scope | PASS |
 | Dev design | Drafted `design.md` from the task four-piece, helper service assets, sandbox code, daemon startup, and parent scout constraints; kept to service/sandbox/config/write-path/verification boundaries without implementation micro-detail | PASS |
+| Design gate | Parent task handoff reports `ARCHITECT_LGTM`, `PM_LGTM`, `QA_LGTM`, and `SECURITY_LGTM` with latest design commit `558934bafa9bf41af8b2f8457f83a690c51e0b36` | PASS |
+
+## Implementation Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| RED validator tests | `go test ./internal/outbound ./install` failed before implementation with missing `ValidateAndPrepare`, `PrereqConfig`, and `ValidationOptions` symbols | PASS |
+| RED asset tests | `GOTMPDIR=$PWD/.gotmp go test ./install` failed before asset changes with missing `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6` and missing `--outbound-server-origin=https://app.borgee.io` | PASS |
+| Linux service prerequisite | `packages/borgee-helper/install/borgee-helper.service` now keeps `User=borgee-helper`, `Group=borgee-helper`, `NoNewPrivileges=yes`, widens only to `AF_UNIX AF_INET AF_INET6`, and names explicit Helper-owned queue/status/audit-handoff write paths | PASS |
+| macOS plist/sandbox prerequisite | `cloud.borgee.host-bridge.plist` passes exact origin/state flags; `borgee-helper.sb` keeps local Unix bind/outbound and adds remote TCP outbound only with explicit Helper state write paths | PASS |
+| Helper config validation | `internal/outbound.ValidateAndPrepare` disables when unconfigured, rejects partial/malformed origins, enforces exact allowed HTTPS origin matching, normalizes state dirs under Helper-owned roots, and creates dirs with `0700` | PASS |
+| Scope guard | No poll loop, lease/result/ack endpoint, local policy execution, OpenClaw action, service lifecycle restart, sudo cache, installer trust change, or Remote Agent rail reuse was implemented | PASS |
+| Focused GREEN | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound ./install` -> `ok borgee-helper/internal/outbound`; `ok borgee-helper/install` | PASS |
+| Helper breadth GREEN | `GOTMPDIR=$PWD/.gotmp go test ./cmd/borgee-helper ./internal/...` -> helper cmd/internal packages passed | PASS |
+| Helper module GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-helper` -> helper module passed, including install asset package | PASS |
+| Installer breadth GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-installer` -> installer packages passed after creating repo-local `.gotmp`; `/tmp` is not executable in this runtime | PASS |
+| Diff check GREEN | `git diff --check` -> no whitespace errors | PASS |
+| docs/current sync | Updated `docs/current/host-bridge/helper-daemon.md`, `docs/current/host-bridge/README.md`, `docs/current/security/README.md`, and `docs/current/known-gaps.md` for the prerequisite boundary and remaining pull-loop gaps | PASS |
 
 ## Scope Locks
 
@@ -50,4 +71,4 @@
 
 ## Acceptance State
 
-Dev design is ready for design review. Product implementation has not started, `content-lock.md` is N/A for this scope, and no PR has been opened per worker assignment.
+Implementation is locally verified and ready for commit. Acceptance evidence above covers Linux service, macOS plist/sandbox, Helper config validation, explicit state/write paths, docs/current sync, and out-of-scope locks. `content-lock.md` remains N/A for this scope, and no PR has been opened per worker assignment.

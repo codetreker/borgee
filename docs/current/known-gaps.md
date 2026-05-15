@@ -26,13 +26,23 @@ Relevant area: plugin transports, server realtime.
 
 ## Validation Coverage Boundaries
 
-Current behavior: default PR CI covers server-side helper IPC primitive and host-grants/manifest anchors, but not the real helper daemon runtime or sandbox integration. The docs sync guard is mapped-module only and currently misses the current helper, installer, and host-bridge docs paths. The installer gate is path-scoped or manual.
+Current behavior: default PR CI covers server-side helper IPC primitive and host-grants/manifest anchors, plus static Helper service/plist/sandbox asset checks and daemon outbound prerequisite validation tests. It still does not run the real helper daemon runtime or sandbox integration by default. The docs sync guard is mapped-module only and currently misses the current helper, installer, and host-bridge docs paths. The installer gate is path-scoped or manual.
 
 Architecture impact: validation signals are reliable inside their stated boundaries, but they are not proof of full host-bridge runtime coverage.
 
 Do not assume: E2E or default CI has run the privileged helper daemon/sandbox path.
 
 Relevant area: [E2E / verification](e2e/), host bridge.
+
+## Helper Pull Loop Not Implemented
+
+Current behavior: Helper job enqueue exists server-side, and the installed Helper service now has outbound HTTPS address-family/sandbox prerequisites, exact-origin startup validation, and explicit Helper-owned queue/status/audit-handoff state roots. The Helper daemon still does not poll, long-poll, lease jobs, upload results or acks, upload bounded logs, execute local policy, run OpenClaw actions, restart services, or use sudo cache.
+
+Architecture impact: the service/sandbox/config boundary is ready for later Helper-originated pull work, but job progress and Configure OpenClaw success must not be inferred from these prerequisites.
+
+Do not assume: a queued Helper job will be pulled or executed by a local Helper.
+
+Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server Helper jobs.
 
 ## Plugin WS Transport Selection
 
