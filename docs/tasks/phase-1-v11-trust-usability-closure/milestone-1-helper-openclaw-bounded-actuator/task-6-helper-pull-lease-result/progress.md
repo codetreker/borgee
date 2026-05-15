@@ -8,7 +8,7 @@
 | Branch | `feat/task-6-helper-pull-lease-result` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | READY_FOR_DESIGN_REVIEW |
+| State | IMPLEMENTED_READY_FOR_REVIEW |
 | Blocker | none |
 
 ## Checkpoints
@@ -24,6 +24,29 @@
 - [x] Dev and Security scouting inputs produced from server Helper jobs, Helper enrollment credential rail, outbound prereq code, current docs, and accepted task 4/task 5 designs.
 - [x] Dev design drafted in `design.md`.
 - [x] Progress advanced to READY_FOR_DESIGN_REVIEW.
+- [x] Design gate accepted by PM/QA, Architecture, and Security: `PM_QA_DESIGN_LGTM_BOTH`, `ARCHITECT_TASK6_DESIGN_LGTM`, `SECURITY_TASK6_DESIGN_LGTM`.
+- [x] Progress advanced through READY_FOR_IMPL to IMPLEMENTING.
+- [x] RED tests written and failure evidence captured.
+- [x] Implementation completed for Helper poll/lease/ack/result and outbound client.
+- [x] Focused and broader verification run.
+- [x] Acceptance state updated with RED/GREEN evidence.
+- [x] Local commit created; no push/PR opened.
+
+## Implementation Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Design gate | PM/QA, Architecture, and Security gate signals provided in worker dispatch: `PM_QA_DESIGN_LGTM_BOTH`, `ARCHITECT_TASK6_DESIGN_LGTM`, `SECURITY_TASK6_DESIGN_LGTM` | PASS |
+| Progress state | Advanced task from READY_FOR_DESIGN_REVIEW through READY_FOR_IMPL to IMPLEMENTING before product code changes | PASS |
+| RED: server/store | `GOTMPDIR=$PWD/.gotmp go test ./internal/api ./internal/store -run 'TestHelperJobsPollAckResultWithHelperCredential|TestHelperJobPollAckResultLeaseIdempotencyAndBoundaries|TestHelperJobHelperAuthorityAndExpiryFailures'` failed before implementation: store compile errors for missing `PollAndLeaseHelperJobForHelper`, `PollHelperJobInput`, `HelperJobStatusLeased`, `AckHelperJobForHelper`, and related task 6 symbols. The same run also exposed that server DB-backed tests need the repo's SQLite FTS5 build tag in this environment (`no such module: fts5`). | RED CAPTURED |
+| RED: helper outbound | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound -run 'TestClientPollAckResultUseFixedPathsAndHelperCredential|TestClientMapsNoWorkTransientAndStopDirectives|TestClientRejectsFullURLOrTraversalIdentifiers'` failed before implementation with missing `NewClient`, `StaticCredentialSource`, `WithHTTPClient`, `PollOptions`, `PollStatusLeased`, `DirectiveProcess`, `ResultRequest`, and `ResultSummary`. | RED CAPTURED |
+| GREEN: focused store | `GOTMPDIR=$PWD/.gotmp go test -tags fts5 ./internal/store -run 'TestHelperJobPollAckResultLeaseIdempotencyAndBoundaries|TestHelperJobHelperAuthorityAndExpiryFailures'` | PASS |
+| GREEN: focused API | `GOTMPDIR=$PWD/.gotmp go test -tags fts5 ./internal/api -run 'TestHelperJobsPollAckResultWithHelperCredential'` | PASS |
+| GREEN: broader server | `GOTMPDIR=$PWD/.gotmp go test -tags fts5 ./internal/api ./internal/datalayer ./internal/store ./internal/migrations` | PASS |
+| GREEN: helper | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound ./install ./cmd/borgee-helper` | PASS |
+| Whitespace | `git diff --check` | PASS |
+| Local commit | Local commit created in this worktree; no push or PR opened by worker | PASS |
+| Scope guard | Implementation stayed on Helper poll/lease/ack/result transport, Helper outbound client shape, and docs/current sync. It did not implement task 7 local policy/manifest/sandbox evaluation, OpenClaw action execution, bounded log upload, service lifecycle restart, sudo cache, or Remote Agent rail reuse. | PASS |
 
 ## Task-Prep Evidence
 
@@ -62,4 +85,4 @@
 
 ## Acceptance State
 
-Task 6 is READY_FOR_DESIGN_REVIEW. `content-lock.md` remains N/A for this scope; product implementation remains blocked until design review accepts `design.md`.
+Task 6 is IMPLEMENTED_READY_FOR_REVIEW after accepted design review. `content-lock.md` remains N/A for this scope. Helper outbound poll/lease/ack/result transport, atomic lease transitions, idempotent ack/result, bounded terminal metadata, stale/revoked/uninstalled/expired settlement, Helper outbound client shape, and docs/current sync are implemented. Task 7 local policy/manifest/sandbox work, OpenClaw execution, bounded log upload, service lifecycle, and Remote Agent rail reuse remain out of scope.

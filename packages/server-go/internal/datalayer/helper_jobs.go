@@ -25,6 +25,13 @@ var (
 	ErrHelperJobManifestRequired      = errors.New("datalayer: helper job manifest required")
 	ErrHelperJobIdempotencyConflict   = errors.New("datalayer: helper job idempotency conflict")
 	ErrHelperJobExpired               = errors.New("datalayer: helper job expired")
+	ErrHelperJobUnauthorized          = errors.New("datalayer: helper job unauthorized")
+	ErrHelperJobStaleCredential       = errors.New("datalayer: helper job stale credential")
+	ErrHelperJobDeviceMismatch        = errors.New("datalayer: helper job device mismatch")
+	ErrHelperJobNoWork                = errors.New("datalayer: helper job no work")
+	ErrHelperJobLeaseLost             = errors.New("datalayer: helper job lease lost")
+	ErrHelperJobTerminalConflict      = errors.New("datalayer: helper job terminal conflict")
+	ErrHelperJobNotFound              = errors.New("datalayer: helper job not found")
 )
 
 type EnqueueHelperJobInput struct {
@@ -53,9 +60,53 @@ type HelperJob struct {
 	CreatedAt      int64
 	ExpiresAt      int64
 	FailureCode    *string
+	FailureMessage *string
+	LeasedAt       *int64
+	LeaseExpiresAt *int64
 	CompletedAt    *int64
+	ResultSummary  *string
+}
+
+type HelperJobPollInput struct {
+	EnrollmentID     string
+	HelperCredential string
+	HelperDeviceID   string
+	WaitMS           int
+}
+
+type HelperJobAckInput struct {
+	EnrollmentID     string
+	JobID            string
+	HelperCredential string
+	HelperDeviceID   string
+	LeaseToken       string
+	AckStatus        string
+}
+
+type HelperJobResultInput struct {
+	EnrollmentID     string
+	JobID            string
+	HelperCredential string
+	HelperDeviceID   string
+	LeaseToken       string
+	Status           string
+	FailureCode      string
+	FailureMessage   string
+	ResultSummary    string
+}
+
+type HelperJobLease struct {
+	Status         string
+	Job            *HelperJob
+	LeaseToken     string
+	LeaseExpiresAt int64
+	Attempt        int
+	RetryAfterMS   int
 }
 
 type HelperJobRepository interface {
 	EnqueueForUser(ctx context.Context, input EnqueueHelperJobInput, now time.Time) (*HelperJob, bool, error)
+	PollAndLeaseForHelper(ctx context.Context, input HelperJobPollInput, now time.Time) (*HelperJobLease, error)
+	AckForHelper(ctx context.Context, input HelperJobAckInput, now time.Time) (*HelperJob, error)
+	CompleteForHelper(ctx context.Context, input HelperJobResultInput, now time.Time) (*HelperJob, error)
 }

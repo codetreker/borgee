@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -33,15 +34,73 @@ var (
 	ErrHelperJobManifestRequired      = errors.New("helper job: manifest required")
 	ErrHelperJobIdempotencyConflict   = errors.New("helper job: idempotency conflict")
 	ErrHelperJobExpired               = errors.New("helper job: expired")
+	ErrHelperJobUnauthorized          = errors.New("helper job: unauthorized")
+	ErrHelperJobStaleCredential       = errors.New("helper job: stale credential")
+	ErrHelperJobDeviceMismatch        = errors.New("helper job: device mismatch")
+	ErrHelperJobNoWork                = errors.New("helper job: no work")
+	ErrHelperJobLeaseLost             = errors.New("helper job: lease lost")
+	ErrHelperJobTerminalConflict      = errors.New("helper job: terminal conflict")
+	ErrHelperJobNotFound              = errors.New("helper job: not found")
 )
 
 const (
 	HelperJobTypeOpenClawConfigureAgent = "openclaw.configure_agent"
 	HelperJobStatusQueued               = "queued"
+	HelperJobStatusLeased               = "leased"
+	HelperJobStatusRunning              = "running"
+	HelperJobStatusSucceeded            = "succeeded"
+	HelperJobStatusFailed               = "failed"
+	HelperJobStatusCancelled            = "cancelled"
 	HelperJobStatusExpired              = "expired"
 	HelperJobDefaultTTL                 = 5 * time.Minute
 	HelperJobFreshnessWindow            = 5 * time.Minute
+	HelperJobDefaultLeaseDuration       = time.Minute
+	HelperJobDefaultRetryAfterNoWork    = 5 * time.Second
+	HelperJobPollLeased                 = "leased"
+	HelperJobPollNoWork                 = "no_work"
 )
+
+type PollHelperJobInput struct {
+	EnrollmentID      string
+	HelperCredential  string
+	HelperDeviceID    string
+	LeaseDuration     time.Duration
+	RetryAfterNoWork  time.Duration
+	MaxActiveLeases   int
+	AllowedCategories []string
+}
+
+type AckHelperJobInput struct {
+	EnrollmentID     string
+	JobID            string
+	HelperCredential string
+	HelperDeviceID   string
+	LeaseToken       string
+	AckStatus        string
+}
+
+type CompleteHelperJobInput struct {
+	EnrollmentID       string
+	JobID              string
+	HelperCredential   string
+	HelperDeviceID     string
+	LeaseToken         string
+	Status             string
+	FailureCode        string
+	FailureMessage     string
+	ResultSummaryJSON  string
+	MaxFailureMessage  int
+	MaxResultSummaries int
+}
+
+type HelperJobLease struct {
+	Status         string
+	Job            *HelperJob
+	LeaseToken     string
+	LeaseExpiresAt int64
+	Attempt        int
+	RetryAfter     time.Duration
+}
 
 type EnqueueHelperJobInput struct {
 	OwnerUserID    string
@@ -209,6 +268,295 @@ func (s *Store) EnqueueHelperJobForUser(input EnqueueHelperJobInput, now time.Ti
 	return &out, created, nil
 }
 
+func (s *Store) PollAndLeaseHelperJobForHelper(input PollHelperJobInput, now time.Time) (*HelperJobLease, error) {
+	input.EnrollmentID = strings.TrimSpace(input.EnrollmentID)
+	input.HelperCredential = strings.TrimSpace(input.HelperCredential)
+	input.HelperDeviceID = strings.TrimSpace(input.HelperDeviceID)
+	if input.EnrollmentID == "" || input.HelperCredential == "" || input.HelperDeviceID == "" || len(input.HelperDeviceID) > 255 {
+		return nil, ErrHelperJobInvalidInput
+	}
+	leaseDuration := input.LeaseDuration
+	if leaseDuration <= 0 || leaseDuration > HelperJobDefaultTTL {
+		leaseDuration = HelperJobDefaultLeaseDuration
+	}
+	retryAfter := input.RetryAfterNoWork
+	if retryAfter <= 0 {
+		retryAfter = HelperJobDefaultRetryAfterNoWork
+	}
+	maxActive := input.MaxActiveLeases
+	if maxActive <= 0 {
+		maxActive = 1
+	}
+
+	var out HelperJobLease
+	var authErr error
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := expireActiveHelperJobs(tx, now); err != nil {
+			return err
+		}
+		if err := expireLeaseLostHelperJobs(tx, now); err != nil {
+			return err
+		}
+		enrollment, err := validateHelperJobRouteAuthority(tx, input.EnrollmentID, input.HelperCredential, input.HelperDeviceID)
+		if err != nil {
+			if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
+				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "revoked"); settleErr != nil {
+					return settleErr
+				}
+			} else if errors.Is(err, ErrHelperJobEnrollmentUninstalled) {
+				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "uninstalled"); settleErr != nil {
+					return settleErr
+				}
+			}
+			authErr = err
+			return nil
+		}
+		var activeCount int64
+		if err := tx.Model(&HelperJob{}).
+			Where("enrollment_id = ? AND helper_device_id = ? AND status IN ? AND lease_expires_at > ? AND expires_at > ?", enrollment.ID, input.HelperDeviceID, []string{HelperJobStatusLeased, HelperJobStatusRunning}, now.UnixMilli(), now.UnixMilli()).
+			Count(&activeCount).Error; err != nil {
+			return err
+		}
+		if activeCount >= int64(maxActive) {
+			out = HelperJobLease{Status: HelperJobPollNoWork, RetryAfter: retryAfter}
+			return nil
+		}
+
+		var row HelperJob
+		if err := tx.Where("enrollment_id = ? AND helper_device_id = ? AND status = ? AND expires_at > ? AND active_idempotency_scope IS NOT NULL", enrollment.ID, input.HelperDeviceID, HelperJobStatusQueued, now.UnixMilli()).
+			Order("created_at ASC").First(&row).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				out = HelperJobLease{Status: HelperJobPollNoWork, RetryAfter: retryAfter}
+				return nil
+			}
+			return err
+		}
+		leasedAt := now.UnixMilli()
+		leaseExpiresAt := now.Add(leaseDuration).UnixMilli()
+		res := tx.Model(&HelperJob{}).
+			Where("id = ? AND status = ? AND active_idempotency_scope IS NOT NULL AND expires_at > ?", row.ID, HelperJobStatusQueued, now.UnixMilli()).
+			Updates(map[string]any{
+				"status":           HelperJobStatusLeased,
+				"leased_at":        leasedAt,
+				"lease_expires_at": leaseExpiresAt,
+				"updated_at":       leasedAt,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			out = HelperJobLease{Status: HelperJobPollNoWork, RetryAfter: retryAfter}
+			return nil
+		}
+		if err := tx.Where("id = ?", row.ID).First(&row).Error; err != nil {
+			return err
+		}
+		leaseToken := helperJobLeaseToken(&row, enrollment)
+		out = HelperJobLease{
+			Status:         HelperJobPollLeased,
+			Job:            helperJobLeaseProjection(&row),
+			LeaseToken:     leaseToken,
+			LeaseExpiresAt: leaseExpiresAt,
+			Attempt:        1,
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if authErr != nil {
+		return nil, authErr
+	}
+	return &out, nil
+}
+
+func (s *Store) AckHelperJobForHelper(input AckHelperJobInput, now time.Time) (*HelperJob, error) {
+	input.EnrollmentID = strings.TrimSpace(input.EnrollmentID)
+	input.JobID = strings.TrimSpace(input.JobID)
+	input.HelperCredential = strings.TrimSpace(input.HelperCredential)
+	input.HelperDeviceID = strings.TrimSpace(input.HelperDeviceID)
+	input.LeaseToken = strings.TrimSpace(input.LeaseToken)
+	input.AckStatus = strings.TrimSpace(input.AckStatus)
+	if input.EnrollmentID == "" || input.JobID == "" || input.HelperCredential == "" || input.HelperDeviceID == "" || input.LeaseToken == "" || input.AckStatus != "received" {
+		return nil, ErrHelperJobInvalidInput
+	}
+	var out HelperJob
+	var authErr error
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := expireActiveHelperJobs(tx, now); err != nil {
+			return err
+		}
+		if err := expireLeaseLostHelperJobs(tx, now); err != nil {
+			return err
+		}
+		enrollment, err := validateHelperJobRouteAuthority(tx, input.EnrollmentID, input.HelperCredential, input.HelperDeviceID)
+		if err != nil {
+			if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
+				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "revoked"); settleErr != nil {
+					return settleErr
+				}
+			} else if errors.Is(err, ErrHelperJobEnrollmentUninstalled) {
+				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "uninstalled"); settleErr != nil {
+					return settleErr
+				}
+			}
+			authErr = err
+			return nil
+		}
+		row, err := loadHelperJobForRoute(tx, input.EnrollmentID, input.JobID)
+		if err != nil {
+			return err
+		}
+		if !helperJobLeaseTokenMatches(&row, enrollment, input.LeaseToken) {
+			return ErrHelperJobLeaseLost
+		}
+		if row.Status == HelperJobStatusExpired && stringValue(row.FailureCode) == "lease_lost" {
+			out = row
+			return ErrHelperJobLeaseLost
+		}
+		if row.Status == HelperJobStatusRunning || helperJobIsTerminal(row.Status) {
+			out = row
+			return nil
+		}
+		if row.Status != HelperJobStatusLeased {
+			return ErrHelperJobLeaseLost
+		}
+		if row.LeaseExpiresAt == nil || *row.LeaseExpiresAt <= now.UnixMilli() || row.ExpiresAt <= now.UnixMilli() {
+			if err := settleHelperJob(tx, row.ID, now, HelperJobStatusExpired, "lease_lost", ""); err != nil {
+				return err
+			}
+			return ErrHelperJobLeaseLost
+		}
+		res := tx.Model(&HelperJob{}).
+			Where("id = ? AND status = ?", row.ID, HelperJobStatusLeased).
+			Updates(map[string]any{"status": HelperJobStatusRunning, "updated_at": now.UnixMilli()})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return ErrHelperJobLeaseLost
+		}
+		if err := tx.Where("id = ?", row.ID).First(&out).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if authErr != nil {
+		return nil, authErr
+	}
+	return &out, nil
+}
+
+func (s *Store) CompleteHelperJobForHelper(input CompleteHelperJobInput, now time.Time) (*HelperJob, error) {
+	input.EnrollmentID = strings.TrimSpace(input.EnrollmentID)
+	input.JobID = strings.TrimSpace(input.JobID)
+	input.HelperCredential = strings.TrimSpace(input.HelperCredential)
+	input.HelperDeviceID = strings.TrimSpace(input.HelperDeviceID)
+	input.LeaseToken = strings.TrimSpace(input.LeaseToken)
+	input.Status = strings.TrimSpace(input.Status)
+	input.FailureCode = strings.TrimSpace(input.FailureCode)
+	input.FailureMessage = strings.TrimSpace(input.FailureMessage)
+	if input.EnrollmentID == "" || input.JobID == "" || input.HelperCredential == "" || input.HelperDeviceID == "" || input.LeaseToken == "" {
+		return nil, ErrHelperJobInvalidInput
+	}
+	failureMessage, resultSummary, err := validateHelperJobTerminalInput(input)
+	if err != nil {
+		return nil, err
+	}
+	var out HelperJob
+	var authErr error
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := expireActiveHelperJobs(tx, now); err != nil {
+			return err
+		}
+		if err := expireLeaseLostHelperJobs(tx, now); err != nil {
+			return err
+		}
+		enrollment, err := validateHelperJobRouteAuthority(tx, input.EnrollmentID, input.HelperCredential, input.HelperDeviceID)
+		if err != nil {
+			if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
+				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "revoked"); settleErr != nil {
+					return settleErr
+				}
+			} else if errors.Is(err, ErrHelperJobEnrollmentUninstalled) {
+				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "uninstalled"); settleErr != nil {
+					return settleErr
+				}
+			}
+			authErr = err
+			return nil
+		}
+		row, err := loadHelperJobForRoute(tx, input.EnrollmentID, input.JobID)
+		if err != nil {
+			return err
+		}
+		if !helperJobLeaseTokenMatches(&row, enrollment, input.LeaseToken) {
+			return ErrHelperJobLeaseLost
+		}
+		if row.Status == HelperJobStatusExpired && stringValue(row.FailureCode) == "lease_lost" {
+			out = row
+			return ErrHelperJobLeaseLost
+		}
+		if helperJobIsTerminal(row.Status) {
+			if helperJobTerminalMatches(&row, input.Status, input.FailureCode, failureMessage, resultSummary) {
+				out = row
+				return nil
+			}
+			return ErrHelperJobTerminalConflict
+		}
+		if row.Status != HelperJobStatusLeased && row.Status != HelperJobStatusRunning {
+			return ErrHelperJobLeaseLost
+		}
+		if row.LeaseExpiresAt == nil || *row.LeaseExpiresAt <= now.UnixMilli() || row.ExpiresAt <= now.UnixMilli() {
+			if err := settleHelperJob(tx, row.ID, now, HelperJobStatusExpired, "lease_lost", ""); err != nil {
+				return err
+			}
+			return ErrHelperJobLeaseLost
+		}
+		updates := map[string]any{
+			"status":                   input.Status,
+			"failure_code":             nil,
+			"failure_message":          nil,
+			"result_summary_json":      nil,
+			"completed_at":             now.UnixMilli(),
+			"updated_at":               now.UnixMilli(),
+			"active_idempotency_scope": nil,
+		}
+		if input.FailureCode != "" {
+			updates["failure_code"] = input.FailureCode
+		}
+		if failureMessage != "" {
+			updates["failure_message"] = failureMessage
+		}
+		if resultSummary != "" {
+			updates["result_summary_json"] = resultSummary
+		}
+		res := tx.Model(&HelperJob{}).
+			Where("id = ? AND status IN ?", row.ID, []string{HelperJobStatusLeased, HelperJobStatusRunning}).
+			Updates(updates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return ErrHelperJobTerminalConflict
+		}
+		if err := tx.Where("id = ?", row.ID).First(&out).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if authErr != nil {
+		return nil, authErr
+	}
+	return &out, nil
+}
+
 func validateHelperEnrollmentForJob(row *HelperEnrollment, category string, now time.Time) error {
 	if row.OwnerUserID == "" || row.OrgID == "" || row.Status == "pending" || row.ClaimedAt == nil || row.HelperDeviceID == nil || row.PersistentCredentialDigest == nil {
 		return ErrHelperJobEnrollmentUnclaimed
@@ -339,6 +687,247 @@ func expireActiveHelperJobs(tx *gorm.DB, now time.Time) error {
 			"completed_at":             ts,
 			"active_idempotency_scope": nil,
 		}).Error
+}
+
+func expireLeaseLostHelperJobs(tx *gorm.DB, now time.Time) error {
+	ts := now.UnixMilli()
+	return tx.Model(&HelperJob{}).
+		Where("active_idempotency_scope IS NOT NULL AND status IN ? AND lease_expires_at IS NOT NULL AND lease_expires_at <= ?", []string{HelperJobStatusLeased, HelperJobStatusRunning}, ts).
+		Updates(map[string]any{
+			"status":                   HelperJobStatusExpired,
+			"failure_code":             "lease_lost",
+			"updated_at":               ts,
+			"completed_at":             ts,
+			"active_idempotency_scope": nil,
+		}).Error
+}
+
+func validateHelperJobRouteAuthority(tx *gorm.DB, enrollmentID, credential, helperDeviceID string) (*HelperEnrollment, error) {
+	var row HelperEnrollment
+	if err := tx.Where("id = ?", enrollmentID).First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrHelperJobEnrollmentNotFound
+		}
+		return nil, err
+	}
+	if row.OwnerUserID == "" || row.OrgID == "" || row.Status == "pending" || row.ClaimedAt == nil || row.PersistentCredentialDigest == nil || row.HelperDeviceID == nil {
+		return nil, ErrHelperJobEnrollmentUnclaimed
+	}
+	if row.Status == "revoked" || row.RevokedAt != nil {
+		return nil, errors.Join(ErrHelperJobEnrollmentInactive, ErrHelperJobEnrollmentRevoked)
+	}
+	if row.Status == "uninstalled" || row.UninstalledAt != nil {
+		return nil, errors.Join(ErrHelperJobEnrollmentInactive, ErrHelperJobEnrollmentUninstalled)
+	}
+	if !constantTimeDigestMatch(*row.PersistentCredentialDigest, credential) {
+		if row.CredentialRotatedAt != nil {
+			return nil, ErrHelperJobStaleCredential
+		}
+		return nil, ErrHelperJobUnauthorized
+	}
+	if *row.HelperDeviceID != helperDeviceID {
+		return nil, ErrHelperJobDeviceMismatch
+	}
+	return &row, nil
+}
+
+func loadHelperJobForRoute(tx *gorm.DB, enrollmentID, jobID string) (HelperJob, error) {
+	var row HelperJob
+	if err := tx.Where("id = ? AND enrollment_id = ?", jobID, enrollmentID).First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return HelperJob{}, ErrHelperJobNotFound
+		}
+		return HelperJob{}, err
+	}
+	return row, nil
+}
+
+func helperJobLeaseProjection(row *HelperJob) *HelperJob {
+	if row == nil {
+		return nil
+	}
+	copy := *row
+	copy.OwnerUserID = ""
+	copy.OrgID = ""
+	return &copy
+}
+
+func helperJobLeaseToken(row *HelperJob, enrollment *HelperEnrollment) string {
+	if row == nil || enrollment == nil || enrollment.PersistentCredentialDigest == nil || row.LeasedAt == nil || row.LeaseExpiresAt == nil {
+		return ""
+	}
+	mac := hmac.New(sha256.New, []byte(*enrollment.PersistentCredentialDigest))
+	_, _ = mac.Write([]byte(strings.Join([]string{
+		row.ID,
+		row.EnrollmentID,
+		stringValue(row.HelperDeviceID),
+		fmt.Sprint(*row.LeasedAt),
+		fmt.Sprint(*row.LeaseExpiresAt),
+	}, "\x00")))
+	return "v1:" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func helperJobLeaseTokenMatches(row *HelperJob, enrollment *HelperEnrollment, token string) bool {
+	want := helperJobLeaseToken(row, enrollment)
+	if want == "" || token == "" {
+		return false
+	}
+	return hmac.Equal([]byte(want), []byte(token))
+}
+
+func stringValue(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+func helperJobIsTerminal(status string) bool {
+	switch status {
+	case HelperJobStatusSucceeded, HelperJobStatusFailed, HelperJobStatusCancelled, HelperJobStatusExpired:
+		return true
+	default:
+		return false
+	}
+}
+
+func settleHelperJobsForEnrollment(tx *gorm.DB, enrollmentID string, now time.Time, reason string) error {
+	status := HelperJobStatusCancelled
+	if reason == "ttl_expired" || reason == "lease_lost" {
+		status = HelperJobStatusExpired
+	}
+	return tx.Model(&HelperJob{}).
+		Where("enrollment_id = ? AND active_idempotency_scope IS NOT NULL AND status IN ?", enrollmentID, []string{HelperJobStatusQueued, HelperJobStatusLeased}).
+		Updates(map[string]any{
+			"status":                   status,
+			"failure_code":             reason,
+			"completed_at":             now.UnixMilli(),
+			"updated_at":               now.UnixMilli(),
+			"active_idempotency_scope": nil,
+		}).Error
+}
+
+func settleHelperJob(tx *gorm.DB, jobID string, now time.Time, status, failureCode, failureMessage string) error {
+	updates := map[string]any{
+		"status":                   status,
+		"failure_code":             failureCode,
+		"completed_at":             now.UnixMilli(),
+		"updated_at":               now.UnixMilli(),
+		"active_idempotency_scope": nil,
+	}
+	if failureMessage != "" {
+		updates["failure_message"] = failureMessage
+	}
+	return tx.Model(&HelperJob{}).Where("id = ?", jobID).Updates(updates).Error
+}
+
+func validateHelperJobTerminalInput(input CompleteHelperJobInput) (string, string, error) {
+	if !validHelperJobTerminalStatus(input.Status) {
+		return "", "", ErrHelperJobSchemaInvalid
+	}
+	if input.Status == HelperJobStatusFailed && !validHelperJobFailureCode(input.FailureCode) {
+		return "", "", ErrHelperJobSchemaInvalid
+	}
+	if input.Status != HelperJobStatusFailed && input.FailureCode != "" && !validHelperJobFailureCode(input.FailureCode) {
+		return "", "", ErrHelperJobSchemaInvalid
+	}
+	maxMessage := input.MaxFailureMessage
+	if maxMessage <= 0 || maxMessage > 1024 {
+		maxMessage = 512
+	}
+	failureMessage := strings.Map(func(r rune) rune {
+		if r < 32 && r != '\t' && r != '\n' {
+			return -1
+		}
+		return r
+	}, input.FailureMessage)
+	if len(failureMessage) > maxMessage {
+		return "", "", ErrHelperJobSchemaInvalid
+	}
+	resultSummary, err := normalizeHelperJobResultSummary(input.ResultSummaryJSON, input.MaxResultSummaries)
+	if err != nil {
+		return "", "", err
+	}
+	return failureMessage, resultSummary, nil
+}
+
+func validHelperJobTerminalStatus(status string) bool {
+	switch status {
+	case HelperJobStatusSucceeded, HelperJobStatusFailed, HelperJobStatusCancelled, HelperJobStatusExpired:
+		return true
+	default:
+		return false
+	}
+}
+
+func validHelperJobFailureCode(code string) bool {
+	switch code {
+	case "schema_invalid", "unknown_job_type", "policy_denied", "manifest_invalid", "artifact_invalid", "path_denied", "domain_denied", "service_denied", "revoked", "stale_credential", "wrong_owner", "wrong_org", "ttl_expired", "lease_lost", "cancelled", "execution_failed":
+		return true
+	default:
+		return false
+	}
+}
+
+type helperJobResultSummary struct {
+	AuditRefs []string `json:"audit_refs"`
+	LogRefs   []string `json:"log_refs"`
+}
+
+func normalizeHelperJobResultSummary(raw string, maxRefs int) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	if len(raw) > 4096 {
+		return "", ErrHelperJobSchemaInvalid
+	}
+	if maxRefs <= 0 || maxRefs > 32 {
+		maxRefs = 16
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &top); err != nil || top == nil {
+		return "", ErrHelperJobSchemaInvalid
+	}
+	for key := range top {
+		switch key {
+		case "audit_refs", "log_refs":
+		default:
+			return "", ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var summary helperJobResultSummary
+	if err := dec.Decode(&summary); err != nil {
+		return "", ErrHelperJobSchemaInvalid
+	}
+	if len(summary.AuditRefs)+len(summary.LogRefs) > maxRefs {
+		return "", ErrHelperJobSchemaInvalid
+	}
+	for _, ref := range append(append([]string{}, summary.AuditRefs...), summary.LogRefs...) {
+		if strings.TrimSpace(ref) == "" || len(ref) > 128 || strings.ContainsAny(ref, "/\\\x00\n\r") {
+			return "", ErrHelperJobSchemaInvalid
+		}
+	}
+	b, err := json.Marshal(summary)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func helperJobTerminalMatches(row *HelperJob, status, failureCode, failureMessage, resultSummary string) bool {
+	if row == nil || row.Status != status {
+		return false
+	}
+	if stringValue(row.FailureCode) != failureCode {
+		return false
+	}
+	if stringValue(row.FailureMessage) != failureMessage {
+		return false
+	}
+	return stringValue(row.ResultSummaryJSON) == resultSummary
 }
 
 func activeHelperJobWithSameClientKey(tx *gorm.DB, input EnqueueHelperJobInput, scope string) (bool, error) {

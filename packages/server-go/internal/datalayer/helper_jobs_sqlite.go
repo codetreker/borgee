@@ -3,6 +3,7 @@ package datalayer
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"borgee-server/internal/store"
@@ -27,6 +28,45 @@ func (r *sqliteHelperJobRepo) EnqueueForUser(_ context.Context, input EnqueueHel
 	return helperJobFromStore(row), created, mapHelperJobErr(err)
 }
 
+func (r *sqliteHelperJobRepo) PollAndLeaseForHelper(_ context.Context, input HelperJobPollInput, now time.Time) (*HelperJobLease, error) {
+	lease, err := r.s.PollAndLeaseHelperJobForHelper(store.PollHelperJobInput{
+		EnrollmentID:     input.EnrollmentID,
+		HelperCredential: input.HelperCredential,
+		HelperDeviceID:   input.HelperDeviceID,
+	}, now)
+	if err != nil {
+		return nil, mapHelperJobErr(err)
+	}
+	return helperJobLeaseFromStore(lease), nil
+}
+
+func (r *sqliteHelperJobRepo) AckForHelper(_ context.Context, input HelperJobAckInput, now time.Time) (*HelperJob, error) {
+	row, err := r.s.AckHelperJobForHelper(store.AckHelperJobInput{
+		EnrollmentID:     input.EnrollmentID,
+		JobID:            input.JobID,
+		HelperCredential: input.HelperCredential,
+		HelperDeviceID:   input.HelperDeviceID,
+		LeaseToken:       input.LeaseToken,
+		AckStatus:        input.AckStatus,
+	}, now)
+	return helperJobFromStore(row), mapHelperJobErr(err)
+}
+
+func (r *sqliteHelperJobRepo) CompleteForHelper(_ context.Context, input HelperJobResultInput, now time.Time) (*HelperJob, error) {
+	row, err := r.s.CompleteHelperJobForHelper(store.CompleteHelperJobInput{
+		EnrollmentID:      input.EnrollmentID,
+		JobID:             input.JobID,
+		HelperCredential:  input.HelperCredential,
+		HelperDeviceID:    input.HelperDeviceID,
+		LeaseToken:        input.LeaseToken,
+		Status:            input.Status,
+		FailureCode:       input.FailureCode,
+		FailureMessage:    input.FailureMessage,
+		ResultSummaryJSON: input.ResultSummary,
+	}, now)
+	return helperJobFromStore(row), mapHelperJobErr(err)
+}
+
 func helperJobFromStore(row *store.HelperJob) *HelperJob {
 	if row == nil {
 		return nil
@@ -44,8 +84,42 @@ func helperJobFromStore(row *store.HelperJob) *HelperJob {
 		CreatedAt:      row.CreatedAt,
 		ExpiresAt:      row.ExpiresAt,
 		FailureCode:    row.FailureCode,
+		FailureMessage: row.FailureMessage,
+		LeasedAt:       row.LeasedAt,
+		LeaseExpiresAt: row.LeaseExpiresAt,
 		CompletedAt:    row.CompletedAt,
+		ResultSummary:  row.ResultSummaryJSON,
 	}
+}
+
+func helperJobLeaseFromStore(row *store.HelperJobLease) *HelperJobLease {
+	if row == nil {
+		return nil
+	}
+	retryAfterMS := 0
+	if row.RetryAfter > 0 {
+		ms := row.RetryAfter.Milliseconds()
+		if ms > math.MaxInt32 {
+			ms = math.MaxInt32
+		}
+		retryAfterMS = int(ms)
+	}
+	return &HelperJobLease{
+		Status:         row.Status,
+		Job:            helperJobLeaseJobFromStore(row.Job),
+		LeaseToken:     row.LeaseToken,
+		LeaseExpiresAt: row.LeaseExpiresAt,
+		Attempt:        row.Attempt,
+		RetryAfterMS:   retryAfterMS,
+	}
+}
+
+func helperJobLeaseJobFromStore(row *store.HelperJob) *HelperJob {
+	job := helperJobFromStore(row)
+	if job != nil && row != nil {
+		job.PayloadJSON = row.PayloadJSON
+	}
+	return job
 }
 
 func mapHelperJobErr(err error) error {
@@ -89,6 +163,20 @@ func mapHelperJobErr(err error) error {
 		return ErrHelperJobIdempotencyConflict
 	case errors.Is(err, store.ErrHelperJobExpired):
 		return ErrHelperJobExpired
+	case errors.Is(err, store.ErrHelperJobUnauthorized):
+		return ErrHelperJobUnauthorized
+	case errors.Is(err, store.ErrHelperJobStaleCredential):
+		return ErrHelperJobStaleCredential
+	case errors.Is(err, store.ErrHelperJobDeviceMismatch):
+		return ErrHelperJobDeviceMismatch
+	case errors.Is(err, store.ErrHelperJobNoWork):
+		return ErrHelperJobNoWork
+	case errors.Is(err, store.ErrHelperJobLeaseLost):
+		return ErrHelperJobLeaseLost
+	case errors.Is(err, store.ErrHelperJobTerminalConflict):
+		return ErrHelperJobTerminalConflict
+	case errors.Is(err, store.ErrHelperJobNotFound):
+		return ErrHelperJobNotFound
 	default:
 		return err
 	}
