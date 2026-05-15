@@ -9,7 +9,7 @@
 | PR | #936 |
 | Owner | Dev/Writer helper under Teamlead |
 | State | READY_FOR_PR |
-| Blocker | Coverage gate still exits 1 because `internal/migrations` remains 69.9% under the 70% package threshold and unrelated critical uncovered ranges remain outside task-2 helper enrollment test ownership; task-owned helper rotation critical range is fixed. |
+| Blocker | none; refreshed coverage gate passes with task-owned helper store and migration coverage fixes. |
 
 Review note: Design gate returned ARCHITECT_LGTM, PM_LGTM, SECURITY_LGTM, and QA_LGTM_REFRESH after the QA_BLOCKED patch that added positive post-rotation authority coverage for the new rotated credential plus same device.
 
@@ -62,6 +62,7 @@ PR #935 was closed before landing the shared task-1 acceptance-state cleanup. Th
 | RED review blocker | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run 'HelperEnrollment(CredentialRotation|TerminalRace|RevokeDoesNotOverwrite)'` failed before the blocker fix with missing `helperEnrollmentCredentialRaceHook` and `helperEnrollmentRevokeRaceHook` seams | PASS |
 | Implementation | Added v50 helper credential rotation migration, store rotation transaction, datalayer repository method, Helper-rail API route, rotation metadata serialization, conditional heartbeat/uninstall writes bound to the validated credential digest/device, and terminal-safe revoke update | PASS |
 | GREEN migrations | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run HelperEnrollments` -> `ok borgee-server/internal/migrations 0.063s` | PASS |
+| GREEN migration coverage refresh | `GOTMPDIR=/var/tmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run Helper` -> `ok borgee-server/internal/migrations 0.007s` after adding v50 DDL error propagation coverage | PASS |
 | GREEN store race slice | `GOTMPDIR=/var/tmp go test -count=1 -tags sqlite_fts5 ./internal/store -run 'HelperEnrollment(CredentialRotation|TerminalRace|RevokeDoesNotOverwrite)'` -> `ok borgee-server/internal/store 0.058s` in QA refresh; `/tmp` without `GOTMPDIR` is not executable in this runtime | PASS |
 | GREEN store full Helper slice | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollment` -> `ok borgee-server/internal/store 0.067s` | PASS |
 | GREEN store helper coverage refresh | `GOTMPDIR=/var/tmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollment` -> `ok borgee-server/internal/store 0.067s` after adding missing-id rotation coverage | PASS |
@@ -73,7 +74,7 @@ PR #935 was closed before landing the shared task-1 acceptance-state cleanup. Th
 | Reverse grep rail separation | `rg "helper.*remote_nodes|remote_nodes.*helper|connection_token.*helper|helper.*connection_token" internal/api internal/store internal/datalayer internal/migrations` and `rg "helper.*host_grants|host_grants.*helper|helper.*user_permissions|user_permissions.*helper" internal/api internal/store internal/datalayer internal/migrations` returned no hits | PASS |
 | Reverse grep scope | `rg "job queue|result schema|execute job|arbitrary shell|service manager|\blease\b" internal/api/helper_enrollments.go internal/store/helper_enrollment_queries.go internal/datalayer/helper_enrollments.go internal/datalayer/helper_enrollments_sqlite.go internal/migrations/helper_credential_rotation.go` returned no hits | PASS |
 | Diff hygiene | `git diff --check` completed with no output | PASS |
-| Coverage gate refresh | `CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false GOTMPDIR=/var/tmp go run ./scripts/lib/coverage/` -> exit 1; total 85.6%, `internal/store` 89.2%, `RotateHelperEnrollmentCredential` 81.1%, previous task-owned critical range `internal/store/helper_enrollment_queries.go:(261:66)-(265:14)` no longer listed; remaining blocker is `internal/migrations` 69.9% under the 70% package threshold plus unrelated critical ranges outside task-2 helper enrollment store-test ownership | BLOCKED |
+| Coverage gate refresh | `CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false GOTMPDIR=/var/tmp go run ./scripts/lib/coverage/` -> exit 0; total 85.7%, `internal/migrations` 70.3%, `internal/store` 89.2%, `RotateHelperEnrollmentCredential` 81.1%; task-owned helper store and v50 migration coverage blockers fixed. Unrelated critical ranges are still printed as required actions but non-blocking under `FAIL_ON_CRITICAL_BLOCKS=false`. | PASS |
 | docs/current sync | Updated current server data model/migrations, API/auth rails, security rail matrix/diagram, Host Bridge, and Remote Agent separation docs for implemented rotation behavior and current-credential semantics | PASS |
 
 ## Acceptance State

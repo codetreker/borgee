@@ -157,3 +157,25 @@ func TestHelperEnrollmentsMigrationIndexesAndRegistry(t *testing.T) {
 		t.Fatal("helperCredentialRotation v50 missing from registry All")
 	}
 }
+
+func TestHelperCredentialRotationMigrationPropagatesDDLErrors(t *testing.T) {
+	t.Parallel()
+	t.Run("missing helper enrollments table", func(t *testing.T) {
+		t.Parallel()
+		db := openMem(t)
+		if err := helperCredentialRotation.Up(db); err == nil {
+			t.Fatal("helper credential rotation should fail when helper_enrollments is missing")
+		}
+	})
+
+	t.Run("duplicate generation column", func(t *testing.T) {
+		t.Parallel()
+		db := openMem(t)
+		if err := db.Exec(`CREATE TABLE helper_enrollments (id TEXT PRIMARY KEY, credential_generation INTEGER NOT NULL DEFAULT 1)`).Error; err != nil {
+			t.Fatalf("create helper_enrollments: %v", err)
+		}
+		if err := helperCredentialRotation.Up(db); err == nil {
+			t.Fatal("helper credential rotation should fail when credential_generation already exists")
+		}
+	})
+}
