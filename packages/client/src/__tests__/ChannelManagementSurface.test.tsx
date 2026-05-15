@@ -6,6 +6,8 @@ import type { Channel, User } from '../types';
 
 const mockContext = vi.hoisted(() => ({
   value: null as unknown,
+  fetchChannelMembers: vi.fn(),
+  setChannelMemberRequireMentionPolicy: vi.fn(),
 }));
 
 vi.mock('../context/AppContext', () => ({
@@ -17,6 +19,8 @@ vi.mock('../lib/api', () => ({
   getMyImpersonateGrant: () => Promise.resolve({ grant: null }),
   createMyImpersonateGrant: () => Promise.resolve({ grant: null }),
   revokeMyImpersonateGrant: () => Promise.resolve(),
+  fetchChannelMembers: mockContext.fetchChannelMembers,
+  setChannelMemberRequireMentionPolicy: mockContext.setChannelMemberRequireMentionPolicy,
 }));
 
 import ChannelManagementSurface from '../components/Settings/ChannelManagementSurface';
@@ -57,8 +61,16 @@ beforeEach(() => {
     state: {
       currentUser,
       channels: [],
+      permissions: [],
     },
   };
+  mockContext.fetchChannelMembers.mockResolvedValue([]);
+  mockContext.setChannelMemberRequireMentionPolicy.mockResolvedValue({
+    channel_id: 'created-1',
+    user_id: 'agent-1',
+    require_mention_policy: 'inherit',
+    effective_require_mention: true,
+  });
 });
 
 afterEach(() => {
@@ -80,6 +92,7 @@ describe('ChannelManagementSurface', () => {
     mockContext.value = {
       state: {
         currentUser,
+        permissions: [],
         channels: [
           channel({ id: 'created-1', name: 'created', topic: 'Owned by me', created_by: 'user-1', is_member: true }),
           channel({ id: 'joined-1', name: 'joined', topic: 'Joined by me', created_by: 'user-2', is_member: true }),
@@ -95,6 +108,63 @@ describe('ChannelManagementSurface', () => {
     expect(surface?.querySelector('[data-section="joined"]')?.textContent).toContain('joined');
     expect(surface?.querySelector('[data-section="joined"]')?.textContent).not.toContain('created');
     expect(surface?.textContent).not.toMatch(/退出|删除|归档|转让/);
+  });
+
+  it('exposes server-owned mention delivery controls for channel agents', async () => {
+    mockContext.fetchChannelMembers.mockResolvedValue([
+      {
+        user_id: 'agent-1',
+        display_name: 'BuildBot',
+        role: 'agent',
+        avatar_url: null,
+        joined_at: 1000,
+        silent: true,
+        require_mention_policy: 'inherit',
+        effective_require_mention: true,
+      },
+      {
+        user_id: 'user-2',
+        display_name: 'Peer',
+        role: 'member',
+        avatar_url: null,
+        joined_at: 1001,
+      },
+    ]);
+    mockContext.setChannelMemberRequireMentionPolicy.mockResolvedValue({
+      channel_id: 'created-1',
+      user_id: 'agent-1',
+      require_mention_policy: 'on',
+      effective_require_mention: true,
+    });
+    mockContext.value = {
+      state: {
+        currentUser,
+        permissions: [{ id: 1, permission: 'channel.manage_members', scope: 'channel:created-1', granted_by: null, granted_at: 1 }],
+        channels: [channel({ id: 'created-1', name: 'created', topic: '', created_by: 'user-1', is_member: true })],
+      },
+    };
+
+    render(<ChannelManagementSurface />);
+
+    const open = container.querySelector('[data-testid="mention-controls-toggle-created-1"]') as HTMLButtonElement;
+    await act(async () => {
+      open.click();
+    });
+
+    expect(mockContext.fetchChannelMembers).toHaveBeenCalledWith('created-1');
+    expect(container.querySelector('[data-testid="everyone-authority-created-1"]')?.textContent).toContain('@Everyone');
+    expect(container.querySelector('[data-agent-id="agent-1"]')?.textContent).toContain('BuildBot');
+    expect(container.querySelector('[data-agent-id="agent-1"]')?.textContent).toContain('当前需要 @ 提及');
+
+    const select = container.querySelector('[aria-label="BuildBot 提及策略"]') as HTMLSelectElement;
+    expect(select.disabled).toBe(false);
+
+    await act(async () => {
+      select.value = 'on';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(mockContext.setChannelMemberRequireMentionPolicy).toHaveBeenCalledWith('created-1', 'agent-1', 'on');
   });
 
   it('is reachable from Settings without replacing the privacy entry', () => {

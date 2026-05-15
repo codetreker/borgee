@@ -32,13 +32,14 @@ type ChannelWithCounts struct {
 }
 
 type ChannelMemberInfo struct {
-	UserID               string `json:"user_id"`
-	DisplayName          string `json:"display_name"`
-	Role                 string `json:"role"`
-	AvatarURL            string `json:"avatar_url"`
-	JoinedAt             int64  `json:"joined_at"`
-	Silent               bool   `json:"silent"`
-	RequireMentionPolicy string `json:"require_mention_policy"`
+	UserID                  string `json:"user_id"`
+	DisplayName             string `json:"display_name"`
+	Role                    string `json:"role"`
+	AvatarURL               string `json:"avatar_url"`
+	JoinedAt                int64  `json:"joined_at"`
+	Silent                  bool   `json:"silent"`
+	RequireMentionPolicy    string `json:"require_mention_policy"`
+	EffectiveRequireMention bool   `json:"effective_require_mention"`
 }
 
 type PreviewMessage struct {
@@ -1169,7 +1170,12 @@ func (s *Store) GetChannelDetail(channelID string) ([]ChannelMemberInfo, error) 
 	var members []ChannelMemberInfo
 	err := s.db.Raw(`
 		SELECT cm.user_id, u.display_name, u.role, u.avatar_url, cm.joined_at, cm.silent,
-		       COALESCE(cm.require_mention_policy, 'inherit') AS require_mention_policy
+		       COALESCE(cm.require_mention_policy, 'inherit') AS require_mention_policy,
+		       CASE COALESCE(cm.require_mention_policy, 'inherit')
+		         WHEN 'on' THEN 1
+		         WHEN 'off' THEN u.require_mention
+		         ELSE u.require_mention
+		       END AS effective_require_mention
 		FROM channel_members cm
 		JOIN users u ON u.id = cm.user_id
 		WHERE cm.channel_id = ?

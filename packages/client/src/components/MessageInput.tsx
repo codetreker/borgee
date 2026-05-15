@@ -286,7 +286,6 @@ export default function MessageInput({ channelId, disabled, disabledHint }: Prop
       content: finalContent,
       content_type: 'text',
       client_message_id: clientMessageId,
-      mentions: mentionIds,
     });
 
     const timer = setTimeout(() => {

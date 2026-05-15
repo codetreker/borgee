@@ -50,7 +50,7 @@ SSE is a streaming view over the same cursor model, with heartbeat events and `L
 
 Message events carry the persisted message payload plus channel display metadata. `channel_type` distinguishes channel and DM conversations, and `channel_name` gives consumers a display-safe channel name while the raw channel id remains the routing key.
 
-Mention dispatch has three target sources. Explicit `@agent` tokens are validated against channel membership, persisted to `message_mentions`, and dispatched through the mention fanout path. Literal `@Everyone` is a reserved server token: the server computes recipients from current channel membership, excludes the sender and deleted users, persists those computed recipients to `message_mentions`, rate-limits repeated broadcasts per sender/channel, and rejects agent-originated broadcasts to prevent recursion. Agents whose effective per-channel require-mention policy resolves to off are also dispatched on ordinary channel messages, but those implicit delivery targets do not create `message_mentions` rows or alter the persisted message body. Offline agent fallback continues to use the existing owner system-DM path and does not forward the raw message body.
+Mention dispatch has three target sources. Explicit `@agent` tokens are validated from persisted message content against channel membership, persisted to `message_mentions`, and dispatched through the mention fanout path. Literal `@Everyone` is a reserved server token: the server computes recipients from current channel membership, excludes the sender and deleted users, persists those computed recipients to `message_mentions`, rate-limits repeated broadcasts per sender/channel, and rejects agent-originated broadcasts to prevent recursion. Agents whose effective per-channel require-mention policy resolves to off are also dispatched on ordinary channel messages, but those implicit delivery targets do not create `message_mentions` rows or alter the persisted message body. Offline agent fallback continues to use the existing owner system-DM path and does not forward the raw message body.
 
 ### Plugin Socket
 
@@ -68,7 +68,7 @@ The remote socket authenticates a remote node token and gives server REST handle
 - Live websocket fanout is best-effort; recovery uses poll/SSE/backfill or REST pull paths.
 - Browser, plugin, and remote sockets are distinct protocols even though they share the Hub process.
 - Plugin liveness is interpreted from plugin socket activity; browser heartbeat is separate.
-- Per-channel non-mention agent delivery and `@Everyone` expansion are server-derived from channel membership and agent owner policy; clients do not supply implicit or broadcast recipient ids.
+- Per-channel non-mention agent delivery, explicit mention targets, and `@Everyone` expansion are server-derived from message content, channel membership, and agent owner policy; clients do not supply recipient id arrays.
 - Agent senders cannot trigger `@Everyone` fanout.
 
 ## Implementation Anchors

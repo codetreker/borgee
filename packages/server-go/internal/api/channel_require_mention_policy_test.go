@@ -61,6 +61,26 @@ func TestChannelRequireMentionPolicyAPI(t *testing.T) {
 		t.Fatalf("set off response = %v, want policy off effective false", data)
 	}
 
+	resp, data = testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+chID+"/members", ownerToken, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list members after policy update: status %d body=%v", resp.StatusCode, data)
+	}
+	members := data["members"].([]any)
+	var agentMember map[string]any
+	for _, raw := range members {
+		m := raw.(map[string]any)
+		if m["user_id"] == agentID {
+			agentMember = m
+			break
+		}
+	}
+	if agentMember == nil {
+		t.Fatalf("agent member not found in members response: %v", members)
+	}
+	if agentMember["require_mention_policy"] != "off" || agentMember["effective_require_mention"] != false {
+		t.Fatalf("member policy state = %v, want off/effective false", agentMember)
+	}
+
 	if err := s.DB().Where("user_id = ?", member.ID).Delete(&store.UserPermission{}).Error; err != nil {
 		t.Fatalf("remove member wildcard perms: %v", err)
 	}
