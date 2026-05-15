@@ -53,6 +53,53 @@ func TestHelperEnrollmentCreateStampsOwnerOrgAndValidatesCategories(t *testing.T
 	}
 }
 
+func TestHelperEnrollmentListGetAndAllowedCategoryList(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-list")
+	other := helperOwner(t, s, "helper-list-other")
+	now := time.UnixMilli(1778840000000)
+
+	first, _, err := s.CreateHelperEnrollment(owner.ID, "First", []string{"openclaw_config"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment first: %v", err)
+	}
+	second, _, err := s.CreateHelperEnrollment(owner.ID, "Second", []string{"status_collect"}, now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment second: %v", err)
+	}
+	if _, _, err := s.CreateHelperEnrollment(other.ID, "Other", []string{"helper_lifecycle"}, now.Add(2*time.Minute)); err != nil {
+		t.Fatalf("CreateHelperEnrollment other: %v", err)
+	}
+
+	rows, err := s.ListHelperEnrollmentsForUser(owner.ID, owner.OrgID)
+	if err != nil {
+		t.Fatalf("ListHelperEnrollmentsForUser: %v", err)
+	}
+	if len(rows) != 2 || rows[0].ID != second.ID || rows[1].ID != first.ID {
+		t.Fatalf("list order/scope = %+v, want second then first", rows)
+	}
+	if cats := rows[0].AllowedCategoryList(); len(cats) != 1 || cats[0] != "status_collect" {
+		t.Fatalf("AllowedCategoryList = %v", cats)
+	}
+	if cats := (&HelperEnrollment{}).AllowedCategoryList(); len(cats) != 0 {
+		t.Fatalf("empty AllowedCategoryList = %v, want empty", cats)
+	}
+	if cats := (*HelperEnrollment)(nil).AllowedCategoryList(); len(cats) != 0 {
+		t.Fatalf("nil AllowedCategoryList = %v, want empty", cats)
+	}
+	if cats := (&HelperEnrollment{AllowedCategories: "not-json"}).AllowedCategoryList(); len(cats) != 0 {
+		t.Fatalf("invalid JSON AllowedCategoryList = %v, want empty", cats)
+	}
+
+	if _, err := s.GetHelperEnrollment("missing"); !errors.Is(err, ErrHelperEnrollmentNotFound) {
+		t.Fatalf("GetHelperEnrollment missing error=%v, want ErrHelperEnrollmentNotFound", err)
+	}
+	if _, _, err := s.ClaimHelperEnrollment("missing", "secret", "device-1", now); !errors.Is(err, ErrHelperEnrollmentNotFound) {
+		t.Fatalf("ClaimHelperEnrollment missing error=%v, want ErrHelperEnrollmentNotFound", err)
+	}
+}
+
 func TestHelperEnrollmentClaimIsSingleUseAndReturnsCredentialOnce(t *testing.T) {
 	t.Parallel()
 	s := migratedStore(t)

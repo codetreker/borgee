@@ -9,7 +9,7 @@
 | PR | #934 |
 | Owner | Dev |
 | State | ACCEPTING |
-| Blocker | none; PR #934 CI DL-1.2 direct-store import blocker reproduced and fixed |
+| Blocker | none; PR #934 DL-1.2 and coverage blockers reproduced and fixed |
 
 ## Checkpoints
 
@@ -49,6 +49,10 @@
 | DL-1.2 race GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 -race ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 1.028s` | PASS |
 | DL-1.2 cover GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 -cover ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 0.009s coverage: 0.0% of statements` | PASS |
 | Datalayer/server compile GREEN | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer ./internal/server` -> `ok borgee-server/internal/datalayer 3.233s`; `ok borgee-server/internal/server 0.502s` | PASS |
+| Coverage blocker RED | From module root, `CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false GOTMPDIR=/var/tmp/codex-go-tmp go run ./scripts/lib/coverage/` failed after coverage analysis; PR-introduced blockers included `internal/datalayer/helper_enrollments_sqlite.go` adapter methods at `0.0%`, plus store `ListHelperEnrollmentsForUser` and `AllowedCategoryList` at `0.0%` | PASS |
+| Coverage fix | Added focused datalayer HelperEnrollmentRepository lifecycle/error-mapping tests and store list/category/missing-row tests; no API/security behavior changed | PASS |
+| Coverage targeted GREEN | `GOTMPDIR=/var/tmp/codex-go-tmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollment` -> `ok borgee-server/internal/datalayer 0.044s`; `GOTMPDIR=/var/tmp/codex-go-tmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollment` -> `ok borgee-server/internal/store 0.048s`; `GOTMPDIR=/var/tmp/codex-go-tmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` -> `ok borgee-server/internal/api 0.064s` | PASS |
+| Coverage tool GREEN | From module root, `CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false GOTMPDIR=/var/tmp/codex-go-tmp go run ./scripts/lib/coverage/` -> exit `0`, total `85.7%`, `internal/datalayer 93.1%`, `internal/store 89.6%`, no Helper/DL function-threshold blockers remained | PASS |
 | Diff hygiene | `git diff --check` completed with no output | PASS |
 | Broad package suite note | Earlier broad `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/api ./internal/server` passed migrations/store/server but `./internal/api` failed with existing concurrent suite `sql: database is closed`/missing-table errors unrelated to HelperEnrollment tests; no broad-suite pass is claimed here | INFO |
 
@@ -68,4 +72,4 @@ Date: 2026-05-15
 Scope: API/data/security/current-doc
 Fixtures: `testutil.NewTestServer` owner/member users, store migrated template, Remote Node/Host Grant separation fixtures; secrets redacted
 Out-of-scope findings: Broad `./internal/api` package run still needs separate stabilization; targeted task acceptance and rail-adjacency tests pass.
-Decision: LGTM for PR #934 CI blocker fix; broad `./internal/api` full-suite instability is unrelated and not used as acceptance evidence
+Decision: LGTM for PR #934 DL-1.2 and coverage blocker fixes; broad `./internal/api` full-suite instability is unrelated and not used as acceptance evidence
