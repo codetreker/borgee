@@ -55,14 +55,12 @@ Response schema for accepted or converged idempotent enqueue:
     "category": "openclaw_config",
     "created_at": 1760000000000,
     "expires_at": 1760000300000,
-    "idempotency_key": "optional-client-retry-key",
-    "payload_hash": "sha256:...",
-    "manifest_digest": "sha256:..."
+    "idempotency_key": "optional-client-retry-key"
   }
 }
 ```
 
-The public serializer exposes safe metadata and status only. It never exposes credentials, credential digests, enrollment secret digests, token values, environment variables, raw private payload content, private file content, unbounded logs, or internal owner/org fields. `payload_hash` and `manifest_digest` may be exposed only if they are digests of public/server-owned manifest material and not credential-derived; if there is doubt, omit them from the public serializer and keep them internal.
+The public serializer exposes safe metadata and status only. It never exposes credentials, credential digests, enrollment secret digests, token values, environment variables, raw private payload content, private file content, unbounded logs, internal owner/org fields, `payload_hash`, or `manifest_digest`. Payload and manifest digests remain internal storage/idempotency fields only.
 
 Error response shape should stay close to existing `writeJSONError` conventions but include deterministic codes if that helper supports it in the implementation branch. Required enqueue-denial reasons are: `unknown_job_type`, `job_type_not_enabled`, `schema_invalid`, `extra_field`, `forbidden_field`, `not_found`, `wrong_owner`, `wrong_org`, `pending_or_unclaimed`, `revoked`, `uninstalled`, `stale_enrollment`, `delegation_denied`, `manifest_required`, `idempotency_conflict`, and `ttl_invalid`.
 

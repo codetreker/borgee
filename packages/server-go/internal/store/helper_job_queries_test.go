@@ -98,9 +98,17 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 	if err := s.DB().Model(&HelperEnrollment{}).Where("id = ?", stale.ID).Update("last_seen_at", oldLastSeen).Error; err != nil {
 		t.Fatalf("seed stale enrollment: %v", err)
 	}
+	missingLastSeen := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_config"}, now)
+	if err := s.DB().Exec(`UPDATE helper_enrollments SET last_seen_at = NULL WHERE id = ?`, missingLastSeen.ID).Error; err != nil {
+		t.Fatalf("seed missing last_seen_at enrollment: %v", err)
+	}
+	agentOwner := helperJobAgent(t, s, owner, "reject-agent-owner")
+	legacyAgentEnrollment := legacyClaimedHelperEnrollmentForOwner(t, s, agentOwner, []string{"openclaw_config"}, now)
 	agent := helperJobAgent(t, s, owner, "reject-agent")
+	agentOwnedChild := helperJobAgent(t, s, agentOwner, "reject-agent-owned-child")
 	otherAgent := helperJobAgent(t, s, other, "reject-other-agent")
 	seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "A"}, now)
+	seedAgentConfig(t, s, agentOwnedChild.ID, 1, map[string]any{"name": "Agent child"}, now)
 	seedAgentConfig(t, s, otherAgent.ID, 1, map[string]any{"name": "B"}, now)
 
 	base := EnqueueHelperJobInput{
@@ -119,12 +127,32 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 		{"wrong owner", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.OwnerUserID = other.ID; return in }, ErrHelperJobForbidden},
 		{"wrong org", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.OrgID = other.OrgID; return in }, ErrHelperJobForbidden},
 		{"stale enrollment", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = stale.ID; return in }, ErrHelperJobEnrollmentInactive},
+		{"missing last_seen_at", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = missingLastSeen.ID; return in }, ErrHelperJobEnrollmentInactive},
 		{"delegation denied", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = statusOnly.ID; return in }, ErrHelperJobDelegationDenied},
 		{"unknown type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "shell"; return in }, ErrHelperJobUnknownType},
-		{"recognized disabled type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "service.lifecycle"; return in }, ErrHelperJobTypeNotEnabled},
+		{"recognized install type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.JobType = "openclaw.install_from_manifest"
+			return in
+		}, ErrHelperJobManifestRequired},
+		{"recognized plugin connection type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.JobType = "borgee_plugin.configure_connection"
+			return in
+		}, ErrHelperJobTypeNotEnabled},
+		{"recognized service lifecycle type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "service.lifecycle"; return in }, ErrHelperJobTypeNotEnabled},
+		{"recognized state write type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "state.write"; return in }, ErrHelperJobTypeNotEnabled},
+		{"recognized status collect type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "status.collect"; return in }, ErrHelperJobTypeNotEnabled},
+		{"recognized delegation revoke type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "delegation.revoke"; return in }, ErrHelperJobTypeNotEnabled},
+		{"recognized helper uninstall type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "helper.uninstall"; return in }, ErrHelperJobTypeNotEnabled},
 		{"schema version", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.SchemaVersion = 2; return in }, ErrHelperJobSchemaInvalid},
 		{"cross-owner agent", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
 			in.PayloadJSON = `{"agent_id":"` + otherAgent.ID + `"}`
+			return in
+		}, ErrHelperJobForbidden},
+		{"agent owner authority", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.OwnerUserID = agentOwner.ID
+			in.OrgID = agentOwner.OrgID
+			in.EnrollmentID = legacyAgentEnrollment.ID
+			in.PayloadJSON = `{"agent_id":"` + agentOwnedChild.ID + `"}`
 			return in
 		}, ErrHelperJobForbidden},
 		{"payload forbidden field", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
@@ -143,6 +171,47 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 	if count := countHelperJobs(t, s); count != 0 {
 		t.Fatalf("rejected enqueue attempts inserted %d jobs, want 0", count)
 	}
+}
+
+func TestHelperJobChannelBindingRequiresTargetAgentAccess(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-channel-owner")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_config"}, now)
+	agent := helperJobAgent(t, s, owner, "channel-bound-agent")
+	seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Channel Bound"}, now)
+	privateChannel := helperJobChannel(t, s, owner, "helper-job-private", "private")
+	if err := s.AddChannelMember(&ChannelMember{ChannelID: privateChannel.ID, UserID: owner.ID}); err != nil {
+		t.Fatalf("add owner channel member: %v", err)
+	}
+
+	input := EnqueueHelperJobInput{
+		OwnerUserID:   owner.ID,
+		OrgID:         owner.OrgID,
+		EnrollmentID:  enrollment.ID,
+		JobType:       "openclaw.configure_agent",
+		SchemaVersion: 1,
+		PayloadJSON:   `{"agent_id":"` + agent.ID + `","channel_id":"` + privateChannel.ID + `"}`,
+	}
+	if _, _, err := s.EnqueueHelperJobForUser(input, now.Add(2*time.Minute)); !errors.Is(err, ErrHelperJobForbidden) {
+		t.Fatalf("private channel without target agent access error=%v, want ErrHelperJobForbidden", err)
+	}
+	if count := countHelperJobs(t, s); count != 0 {
+		t.Fatalf("denied channel binding inserted %d jobs, want 0", count)
+	}
+
+	if err := s.AddChannelMember(&ChannelMember{ChannelID: privateChannel.ID, UserID: agent.ID}); err != nil {
+		t.Fatalf("add agent channel member: %v", err)
+	}
+	job, created, err := s.EnqueueHelperJobForUser(input, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("private channel with target agent access: %v", err)
+	}
+	if !created || job.Status != "queued" {
+		t.Fatalf("expected queued job after channel access grant, created=%v job=%+v", created, job)
+	}
+	assertHelperJobPayloadBinding(t, job.PayloadJSON, agent.ID, int64(1))
 }
 
 func claimedFreshHelperEnrollment(t *testing.T, s *Store, owner *User, categories []string, now time.Time) *HelperEnrollment {
@@ -169,6 +238,46 @@ func helperJobAgent(t *testing.T, s *Store, owner *User, name string) *User {
 		t.Fatalf("CreateUser agent: %v", err)
 	}
 	return agent
+}
+
+func helperJobChannel(t *testing.T, s *Store, owner *User, name, visibility string) *Channel {
+	t.Helper()
+	ch := &Channel{Name: name, Visibility: visibility, CreatedBy: owner.ID, Type: "channel", OrgID: owner.OrgID}
+	if err := s.CreateChannel(ch); err != nil {
+		t.Fatalf("CreateChannel: %v", err)
+	}
+	return ch
+}
+
+func legacyClaimedHelperEnrollmentForOwner(t *testing.T, s *Store, owner *User, categories []string, now time.Time) *HelperEnrollment {
+	t.Helper()
+	b, err := json.Marshal(categories)
+	if err != nil {
+		t.Fatalf("marshal categories: %v", err)
+	}
+	deviceID := "legacy-device-" + owner.ID
+	digest := "sha256:legacy-digest"
+	ts := now.UnixMilli()
+	row := &HelperEnrollment{
+		ID:                         "legacy-helper-enrollment-" + owner.ID,
+		OwnerUserID:                owner.ID,
+		OrgID:                      owner.OrgID,
+		HostLabel:                  "Legacy Helper",
+		HelperDeviceID:             &deviceID,
+		AllowedCategories:          string(b),
+		Status:                     "connected",
+		LastSeenAt:                 &ts,
+		CreatedAt:                  ts,
+		UpdatedAt:                  ts,
+		ClaimedAt:                  &ts,
+		PersistentCredentialDigest: &digest,
+		CredentialCreatedAt:        &ts,
+		CredentialGeneration:       1,
+	}
+	if err := s.DB().Create(row).Error; err != nil {
+		t.Fatalf("seed legacy helper enrollment: %v", err)
+	}
+	return row
 }
 
 func seedAgentConfig(t *testing.T, s *Store, agentID string, version int64, blob map[string]any, now time.Time) {

@@ -123,6 +123,9 @@ func (s *Store) EnqueueHelperJobForUser(input EnqueueHelperJobInput, now time.Ti
 		if err := expireActiveHelperJobs(tx, now); err != nil {
 			return err
 		}
+		if !helperJobOwnerIsHumanMember(tx, input.OwnerUserID, input.OrgID) {
+			return ErrHelperJobForbidden
+		}
 
 		var enrollment HelperEnrollment
 		if err := tx.Where("id = ?", input.EnrollmentID).First(&enrollment).Error; err != nil {
@@ -231,6 +234,14 @@ func validateHelperEnrollmentForJob(row *HelperEnrollment, category string, now 
 	return ErrHelperJobDelegationDenied
 }
 
+func helperJobOwnerIsHumanMember(tx *gorm.DB, ownerUserID, orgID string) bool {
+	var count int64
+	tx.Model(&User{}).
+		Where("id = ? AND org_id = ? AND role = 'member' AND deleted_at IS NULL", ownerUserID, orgID).
+		Count(&count)
+	return count == 1
+}
+
 func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInput, now time.Time) ([]byte, string, string, error) {
 	switch input.JobType {
 	case HelperJobTypeOpenClawConfigureAgent:
@@ -253,7 +264,7 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 				}
 				return nil, "", "", err
 			}
-			if ch.OrgID != input.OrgID || !s.CanAccessChannel(payload.ChannelID, input.OwnerUserID) {
+			if ch.OrgID != input.OrgID || !s.CanAccessChannel(payload.ChannelID, input.OwnerUserID) || !s.CanAccessChannel(payload.ChannelID, agent.ID) {
 				return nil, "", "", ErrHelperJobForbidden
 			}
 		}

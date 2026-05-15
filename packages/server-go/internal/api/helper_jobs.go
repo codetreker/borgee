@@ -33,6 +33,10 @@ func (h *HelperJobsHandler) handleEnqueue(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
+	if !isHelperHumanOwner(user) {
+		h.writeErrorCode(w, http.StatusForbidden, "forbidden", "helper job enqueue forbidden")
+		return
+	}
 	req, code, err := decodeHelperJobEnqueueRequest(r)
 	if err != nil {
 		h.writeErrorCode(w, http.StatusBadRequest, code, err.Error())
@@ -125,16 +129,14 @@ func rejectHelperJobPayloadPreflight(raw json.RawMessage) string {
 
 func serializeHelperJob(job *datalayer.HelperJob) map[string]any {
 	out := map[string]any{
-		"job_id":          job.ID,
-		"enrollment_id":   job.EnrollmentID,
-		"job_type":        job.JobType,
-		"schema_version":  job.SchemaVersion,
-		"status":          job.Status,
-		"category":        job.Category,
-		"created_at":      job.CreatedAt,
-		"expires_at":      job.ExpiresAt,
-		"payload_hash":    job.PayloadHash,
-		"manifest_digest": job.ManifestDigest,
+		"job_id":         job.ID,
+		"enrollment_id":  job.EnrollmentID,
+		"job_type":       job.JobType,
+		"schema_version": job.SchemaVersion,
+		"status":         job.Status,
+		"category":       job.Category,
+		"created_at":     job.CreatedAt,
+		"expires_at":     job.ExpiresAt,
 	}
 	if job.IdempotencyKey != nil {
 		out["idempotency_key"] = *job.IdempotencyKey

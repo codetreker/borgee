@@ -3,8 +3,8 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"testing"
+	"time"
 
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
@@ -44,12 +44,6 @@ func TestHelperJobsEnqueueHappyPathIdempotencyAndSerializer(t *testing.T) {
 	if expiresAt, ok := job["expires_at"].(float64); !ok || expiresAt <= job["created_at"].(float64) {
 		t.Fatalf("job response missing server expires_at after created_at: %v", job)
 	}
-	if hash, _ := job["payload_hash"].(string); !strings.HasPrefix(hash, "sha256:") {
-		t.Fatalf("job response missing safe payload hash: %v", job)
-	}
-	if digest, _ := job["manifest_digest"].(string); !strings.HasPrefix(digest, "sha256:") {
-		t.Fatalf("job response missing safe manifest digest: %v", job)
-	}
 	assertNoHelperJobSensitiveFields(t, job)
 
 	resp, retry := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, body)
@@ -77,6 +71,82 @@ func TestHelperJobsEnqueueHappyPathIdempotencyAndSerializer(t *testing.T) {
 	}
 }
 
+func TestHelperJobsEnqueueChannelBindingRequiresTargetAgentAccess(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-1")
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "api-channel-agent")
+	seedHelperJobAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Channel Agent"})
+	privateChannel := testutil.CreateChannel(t, ts.URL, ownerToken, "helper-job-private", "private")
+	privateChannelID := privateChannel["id"].(string)
+
+	validWithChannel := map[string]any{
+		"job_type":       "openclaw.configure_agent",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "channel_id": privateChannelID},
+	}
+	resp, denied := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, validWithChannel)
+	if resp.StatusCode != http.StatusForbidden || denied["code"] != "forbidden" {
+		t.Fatalf("private channel without target agent access: status %d body %v", resp.StatusCode, denied)
+	}
+	if count := countAPIHelperJobs(t, s); count != 0 {
+		t.Fatalf("denied channel binding inserted %d jobs, want 0", count)
+	}
+
+	if err := s.AddChannelMember(&store.ChannelMember{ChannelID: privateChannelID, UserID: agent.ID}); err != nil {
+		t.Fatalf("add agent channel member: %v", err)
+	}
+	resp, allowed := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, validWithChannel)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("private channel with target agent access: status %d body %v", resp.StatusCode, allowed)
+	}
+	job := allowed["job"].(map[string]any)
+	if _, ok := job["payload_hash"]; ok {
+		t.Fatalf("helper job response leaked internal payload_hash: %v", job)
+	}
+	if _, ok := job["manifest_digest"]; ok {
+		t.Fatalf("helper job response leaked internal manifest_digest: %v", job)
+	}
+}
+
+func TestHelperJobsEnqueueRejectsAgentAPIKeyAuthority(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	pluginAgent := seedHelperJobAgent(t, s, "owner@test.com", "api-plugin-authority")
+	childAgent := seedHelperJobAgentForOwner(t, s, pluginAgent, "api-plugin-child")
+	seedHelperJobAgentConfig(t, s, childAgent.ID, 1, map[string]any{"name": "Plugin Child"})
+	legacyEnrollmentID := seedLegacyAgentOwnedHelperEnrollment(t, s, pluginAgent)
+
+	resp, createBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", *pluginAgent.APIKey, map[string]any{
+		"host_label":         "Plugin-created host",
+		"allowed_categories": []string{"openclaw_config"},
+	})
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("agent API key must not create helper enrollments, got %d body %v", resp.StatusCode, createBody)
+	}
+
+	valid := map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": childAgent.ID}}
+	resp, enqueueBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+legacyEnrollmentID+"/jobs", *pluginAgent.APIKey, valid)
+	if resp.StatusCode != http.StatusForbidden || enqueueBody["code"] != "forbidden" {
+		t.Fatalf("agent API key must not enqueue helper jobs, got %d body %v", resp.StatusCode, enqueueBody)
+	}
+	if count := countAPIHelperJobs(t, s); count != 0 {
+		t.Fatalf("agent-key enqueue inserted %d jobs, want 0", count)
+	}
+
+	ownerEnrollment, ownerSecret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	ownerEnrollmentID := ownerEnrollment["enrollment_id"].(string)
+	claimHelperEnrollmentViaAPI(t, ts.URL, ownerEnrollmentID, ownerSecret, "device-owner")
+	resp, invalidBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+ownerEnrollmentID+"/jobs", *pluginAgent.APIKey, map[string]any{"owner_user_id": "client"})
+	if resp.StatusCode != http.StatusForbidden || invalidBody["code"] != "forbidden" {
+		t.Fatalf("agent API key should be rejected before envelope decode, got %d body %v", resp.StatusCode, invalidBody)
+	}
+}
+
 func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -87,9 +157,26 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-1")
 	agent := seedHelperJobAgent(t, s, "owner@test.com", "api-reject-agent")
 	seedHelperJobAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Reject Agent"})
+	owner, err := s.GetUserByEmail("owner@test.com")
+	if err != nil {
+		t.Fatalf("GetUserByEmail owner: %v", err)
+	}
+	remoteNode, err := s.CreateRemoteNode(owner.ID, "helper-job-remote-node")
+	if err != nil {
+		t.Fatalf("CreateRemoteNode: %v", err)
+	}
+	resp, grantBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/host-grants", ownerToken, map[string]any{
+		"grant_type": "filesystem",
+		"scope":      "/tmp",
+		"ttl_kind":   "always",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("seed host grant: status %d body %v", resp.StatusCode, grantBody)
+	}
+	hostGrantID := grantBody["id"].(string)
 
 	valid := map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}}
-	resp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", "", valid)
+	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", "", valid)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("anonymous enqueue should be 401, got %d", resp.StatusCode)
 	}
@@ -101,6 +188,15 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 	if resp.StatusCode != http.StatusForbidden || wrongOwner["code"] != "wrong_owner" {
 		t.Fatalf("wrong owner enqueue: status %d body %v", resp.StatusCode, wrongOwner)
 	}
+	for name, token := range map[string]string{
+		"remote_node_token": remoteNode.ConnectionToken,
+		"host_grant_id":     hostGrantID,
+	} {
+		resp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", token, valid)
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("%s must not authenticate helper job enqueue, got %d", name, resp.StatusCode)
+		}
+	}
 
 	cases := []struct {
 		name string
@@ -109,9 +205,18 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 		code string
 	}{
 		{"unknown job type", map[string]any{"job_type": "command.run", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}}, http.StatusBadRequest, "unknown_job_type"},
-		{"recognized disabled type", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"recognized install type", map[string]any{"job_type": "openclaw.install_from_manifest", "schema_version": 1, "payload": map[string]any{"manifest_id": "server-owned"}}, http.StatusBadRequest, "manifest_required"},
+		{"recognized plugin connection type", map[string]any{"job_type": "borgee_plugin.configure_connection", "schema_version": 1, "payload": map[string]any{"connection_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"recognized service lifecycle type", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"recognized state write type", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"recognized status collect type", map[string]any{"job_type": "status.collect", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"recognized delegation revoke type", map[string]any{"job_type": "delegation.revoke", "schema_version": 1, "payload": map[string]any{"delegation_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"recognized helper uninstall type", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"extra top field owner", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}, "owner_user_id": "client"}, http.StatusBadRequest, "extra_field"},
 		{"client ttl", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}, "ttl": 999999}, http.StatusBadRequest, "ttl_invalid"},
+		{"payload expires_at", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID, "expires_at": 999999}}, http.StatusBadRequest, "ttl_invalid"},
+		{"payload deadline", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID, "deadline": 999999}}, http.StatusBadRequest, "ttl_invalid"},
+		{"payload lease_expires_at", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID, "lease_expires_at": 999999}}, http.StatusBadRequest, "ttl_invalid"},
 		{"payload shell", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID, "shell": "whoami"}}, http.StatusBadRequest, "forbidden_field"},
 		{"payload url", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID, "url": "https://example.com"}}, http.StatusBadRequest, "forbidden_field"},
 	}
@@ -146,6 +251,16 @@ func TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUn
 	if resp.StatusCode != http.StatusForbidden || stale["code"] != "stale_enrollment" {
 		t.Fatalf("stale enrollment enqueue: status %d body %v", resp.StatusCode, stale)
 	}
+	missingSeen, missingSecret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	missingSeenID := missingSeen["enrollment_id"].(string)
+	claimHelperEnrollmentViaAPI(t, ts.URL, missingSeenID, missingSecret, "device-missing-seen")
+	if err := s.DB().Exec(`UPDATE helper_enrollments SET last_seen_at = NULL WHERE id = ?`, missingSeenID).Error; err != nil {
+		t.Fatalf("seed missing last_seen_at: %v", err)
+	}
+	resp, missingSeenBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+missingSeenID+"/jobs", ownerToken, valid)
+	if resp.StatusCode != http.StatusForbidden || missingSeenBody["code"] != "stale_enrollment" {
+		t.Fatalf("missing last_seen_at enqueue: status %d body %v", resp.StatusCode, missingSeenBody)
+	}
 
 	fresh, freshSecret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
 	freshID := fresh["enrollment_id"].(string)
@@ -161,16 +276,27 @@ func TestHelperJobsEnqueueRejectsStaleAndRevokedEnrollmentsAndKeepsLaterRoutesUn
 
 	for _, path := range []string{
 		"/api/v1/helper/jobs/poll",
+		"/api/v1/helper/jobs/any-job/lease",
+		"/api/v1/helper/jobs/any-job/result",
+		"/api/v1/helper/jobs/any-job/ack",
+		"/api/v1/helper/jobs/any-job/logs",
 		"/api/v1/helper/enrollments/" + freshID + "/jobs/lease",
 		"/api/v1/helper/enrollments/" + freshID + "/jobs/result",
 		"/api/v1/helper/enrollments/" + freshID + "/jobs/ack",
 		"/api/v1/helper/enrollments/" + freshID + "/jobs/logs",
+		"/api/v1/helper/enrollments/" + freshID + "/jobs/install",
+		"/api/v1/helper/enrollments/" + freshID + "/jobs/uninstall",
+		"/api/v1/helper/enrollments/" + freshID + "/jobs/local-policy",
 		"/api/v1/helper/enrollments/" + freshID + "/service-lifecycle",
 	} {
 		resp, _ := testutil.JSON(t, http.MethodPost, ts.URL+path, ownerToken, map[string]any{})
 		if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusMethodNotAllowed {
 			t.Fatalf("later-scope route %s should remain unmounted, got %d", path, resp.StatusCode)
 		}
+	}
+	resp, _ = testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/helper/enrollments/"+freshID+"/jobs", ownerToken, nil)
+	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("helper enqueue route should reject GET, got %d", resp.StatusCode)
 	}
 }
 
@@ -180,12 +306,44 @@ func seedHelperJobAgent(t *testing.T, s *store.Store, ownerEmail, name string) *
 	if err != nil {
 		t.Fatalf("GetUserByEmail(%s): %v", ownerEmail, err)
 	}
+	return seedHelperJobAgentForOwner(t, s, owner, name)
+}
+
+func seedHelperJobAgentForOwner(t *testing.T, s *store.Store, owner *store.User, name string) *store.User {
+	t.Helper()
 	apiKey := name + "-key"
 	agent := &store.User{DisplayName: name, Role: "agent", OwnerID: &owner.ID, APIKey: &apiKey, OrgID: owner.OrgID, PasswordHash: "hash"}
 	if err := s.CreateUser(agent); err != nil {
 		t.Fatalf("CreateUser agent: %v", err)
 	}
 	return agent
+}
+
+func seedLegacyAgentOwnedHelperEnrollment(t *testing.T, s *store.Store, owner *store.User) string {
+	t.Helper()
+	now := time.Now().UnixMilli()
+	deviceID := "legacy-device-" + owner.ID
+	digest := "sha256:legacy-digest"
+	row := &store.HelperEnrollment{
+		ID:                         "legacy-agent-enrollment-" + owner.ID,
+		OwnerUserID:                owner.ID,
+		OrgID:                      owner.OrgID,
+		HostLabel:                  "Legacy agent-owned helper",
+		HelperDeviceID:             &deviceID,
+		AllowedCategories:          `["openclaw_config"]`,
+		Status:                     "connected",
+		LastSeenAt:                 &now,
+		CreatedAt:                  now,
+		UpdatedAt:                  now,
+		ClaimedAt:                  &now,
+		PersistentCredentialDigest: &digest,
+		CredentialCreatedAt:        &now,
+		CredentialGeneration:       1,
+	}
+	if err := s.DB().Create(row).Error; err != nil {
+		t.Fatalf("seed legacy agent-owned helper enrollment: %v", err)
+	}
+	return row.ID
 }
 
 func seedHelperJobAgentConfig(t *testing.T, s *store.Store, agentID string, version int64, blob map[string]any) {
@@ -204,6 +362,7 @@ func assertNoHelperJobSensitiveFields(t *testing.T, job map[string]any) {
 	for _, key := range []string{
 		"owner_user_id", "org_id", "helper_device_id", "payload", "payload_json",
 		"manifest_binding_json", "credential", "credential_digest", "token", "result_summary_json",
+		"payload_hash", "manifest_digest",
 	} {
 		if _, ok := job[key]; ok {
 			t.Fatalf("helper job response leaked field %q: %v", key, job)

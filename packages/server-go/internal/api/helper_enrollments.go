@@ -38,6 +38,10 @@ func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
+	if !isHelperHumanOwner(user) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
 	var req struct {
 		HostLabel         string   `json:"host_label"`
 		AllowedCategories []string `json:"allowed_categories"`
@@ -67,6 +71,10 @@ func (h *HelperEnrollmentHandler) handleList(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
+	if !isHelperHumanOwner(user) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
 	rows, err := h.Repo.ListForUser(r.Context(), user.ID, user.OrgID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Failed to list helper enrollments")
@@ -84,6 +92,10 @@ func (h *HelperEnrollmentHandler) handleGet(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
+	if !isHelperHumanOwner(user) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
 	row, err := h.Repo.GetForUser(r.Context(), r.PathValue("enrollmentId"), user.ID, user.OrgID)
 	if err != nil {
 		h.writeUserLookupError(w, err)
@@ -95,6 +107,10 @@ func (h *HelperEnrollmentHandler) handleGet(w http.ResponseWriter, r *http.Reque
 func (h *HelperEnrollmentHandler) handleRevoke(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
+		return
+	}
+	if !isHelperHumanOwner(user) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
 	row, err := h.Repo.RevokeForUser(r.Context(), r.PathValue("enrollmentId"), user.ID, user.OrgID, h.now())

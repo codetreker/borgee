@@ -38,7 +38,7 @@ The plugin rail authenticates an agent plugin by API key and then treats the con
 
 The remote rail authenticates remote nodes by connection token. It represents a user-owned machine connection, not a user browser session and not an admin session.
 
-The Helper enrollment rail has two server-side entry modes. User-management requests use the user rail to create, list, read, revoke enrollments, and enqueue typed Helper jobs scoped by owner and org. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat, rotate the persistent credential, or record helper-originated uninstall status with the current Helper credential plus matching helper device id.
+The Helper enrollment rail has two server-side entry modes. Human/member user-management requests use the user rail to create, list, read, revoke enrollments, and enqueue typed Helper jobs scoped by owner and org. Role=`agent` API-key identities are not Helper enrollment or enqueue owners. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat, rotate the persistent credential, or record helper-originated uninstall status with the current Helper credential plus matching helper device id.
 
 ## Collaborators
 
@@ -68,7 +68,7 @@ Remote authentication is token-specific to a remote node. A live remote connecti
 
 Helper enrollment authentication is token-specific to the enrollment lifecycle. The one-time enrollment secret is accepted only for claim and is stored only as a digest. Claim returns a persistent Helper credential once; the server stores only its digest and accepts the current credential only on Helper heartbeat, credential rotation, and helper-originated uninstall endpoints when the helper device id matches and the enrollment is non-terminal. Rotation returns the new raw credential once, replaces the active digest, and immediately makes the previous credential stale.
 
-Helper job enqueue is a user-rail authority boundary. `POST /api/v1/helper/enrollments/{enrollmentId}/jobs` requires user auth and derives owner, org, and enrollment from the authenticated user plus route path. Helper credentials, Remote Agent connection tokens, host grants, admin sessions, and user permission fallback do not authorize this route. The only currently enabled job type is `openclaw.configure_agent`; other v1 Helper job types are recognized but rejected until their server-side binding and Helper-side policy work lands.
+Helper job enqueue is a user-rail authority boundary. `POST /api/v1/helper/enrollments/{enrollmentId}/jobs` requires human/member user auth and derives owner, org, and enrollment from the authenticated user plus route path. Helper credentials, Remote Agent connection tokens, role=`agent`/plugin API-key identities, host grants, admin sessions, and user permission fallback do not authorize this route. The only currently enabled job type is `openclaw.configure_agent`; other v1 Helper job types are recognized but rejected until their server-side binding and Helper-side policy work lands.
 
 ## Key Flows
 
@@ -82,7 +82,7 @@ Remote connection flow: a remote node presents a connection token, the hub regis
 
 Helper enrollment flow: a signed-in owner creates an enrollment row, receives a one-time local enrollment secret, and a local Helper claims the row with a helper device id. Later heartbeat, rotation, and helper-originated uninstall requests present the current persistent Helper credential and matching helper device id. Revoked or uninstalled rows block future heartbeat and rotation writes.
 
-Helper job enqueue flow: a signed-in owner posts a strict typed envelope to the enrollment jobs route. The server verifies owner/org, claimed Helper state, current credential metadata, fresh last seen, category delegation, closed job type, typed payload, server-bound agent config version/hash, TTL, and active-window idempotency before creating or converging a queued job. The request cannot carry owner/org/device/category authority, Helper credentials, Remote Agent credentials, command text, service units, paths, URLs, domains, TTL, deadline, or config hash/version fields.
+Helper job enqueue flow: a signed-in human/member owner posts a strict typed envelope to the enrollment jobs route. The server verifies owner/org, claimed Helper state, current credential metadata, fresh last seen, category delegation, closed job type, typed payload, target agent access for optional `channel_id`, server-bound agent config version/hash, TTL, and active-window idempotency before creating or converging a queued job. The public response returns queued metadata only; internal payload and manifest digests are not exposed. The request cannot carry owner/org/device/category authority, Helper credentials, Remote Agent credentials, command text, service units, paths, URLs, domains, TTL, deadline, or config hash/version fields.
 
 Impersonation/audit flow: user-facing grant state lives on the user rail, while admin-facing audit views live on the admin rail. This split prevents a user credential from reading global audit state and prevents admin context from masquerading as the user rail without an explicit grant model.
 

@@ -23,6 +23,7 @@ func TestHelperEnrollmentCreateStampsOwnerOrgAndValidatesCategories(t *testing.T
 	t.Parallel()
 	s := migratedStore(t)
 	owner := helperOwner(t, s, "helper-owner")
+	agentOwner := helperJobAgent(t, s, owner, "helper-enrollment-agent-owner")
 	now := time.UnixMilli(1778840000000)
 
 	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Mac Studio", []string{"openclaw_config", "status_collect"}, now)
@@ -50,6 +51,9 @@ func TestHelperEnrollmentCreateStampsOwnerOrgAndValidatesCategories(t *testing.T
 	}
 	if _, _, err := s.CreateHelperEnrollment(owner.ID, "Mac Studio", []string{}, now); !errors.Is(err, ErrHelperEnrollmentInvalidCategory) {
 		t.Fatalf("empty categories error=%v, want ErrHelperEnrollmentInvalidCategory", err)
+	}
+	if _, _, err := s.CreateHelperEnrollment(agentOwner.ID, "Agent-owned host", []string{"openclaw_config"}, now); !errors.Is(err, ErrHelperEnrollmentInvalidOwner) {
+		t.Fatalf("agent owner error=%v, want ErrHelperEnrollmentInvalidOwner", err)
 	}
 }
 

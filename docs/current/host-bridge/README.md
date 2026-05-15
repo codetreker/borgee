@@ -19,7 +19,7 @@ The user SPA includes a read-only Helper status sidepane backed by the user Help
 
 - Grant control plane: user-owned rows describing host capability consent.
 - Helper enrollment control plane: owner/org-scoped rows describing enrolled Helper identity, allowed category visibility, device id, current credential lifecycle metadata, last seen, revoke, and helper-originated uninstall status.
-- Helper job enqueue control plane: owner/org/enrollment-scoped typed `helper_jobs` rows with server TTL, category gate, normalized payload digest, and active-window idempotency. Task-1 enables only `openclaw.configure_agent` enqueue and rejects later job types until their local-policy or service authority exists.
+- Helper job enqueue control plane: human/member owner/org/enrollment-scoped typed `helper_jobs` rows with server TTL, category gate, internal normalized payload digest, and active-window idempotency. Public job responses expose queued metadata only, not payload or manifest digests. Task-1 enables only `openclaw.configure_agent` enqueue and rejects later job types until their local-policy or service authority exists.
 - Helper data plane: local UDS IPC carrying agent-scoped requests.
 - Enforcement stack: handshake identity, action allowlist, path/scope normalization, grant lookup, read-only IO, audit, sandbox.
 - Installer path: current manifest verifier path, local operator confirmation, and platform service deployment.
@@ -42,8 +42,8 @@ Helper status UI flow:
   -> no browser claim/status/uninstall Helper credential call and no Configure OpenClaw success claim
 
 Helper job enqueue flow:
-  user posts typed job envelope -> server derives owner/org/enrollment
-  -> server validates fresh claimed Helper, category, job type, payload, config binding, TTL, idempotency
+  human/member user posts typed job envelope -> server derives owner/org/enrollment
+  -> server validates fresh claimed Helper, category, job type, payload, optional channel target-agent access, config binding, TTL, idempotency
   -> server stores queued metadata only; no Helper poll, lease, execution, result, ack, or logs route exists yet
 
 Helper request flow:

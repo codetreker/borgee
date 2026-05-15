@@ -8,8 +8,8 @@
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | IMPLEMENTING |
-| Blocker | None for implementation. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. |
+| State | REPAIR_VERIFIED |
+| Blocker | None for local repair. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. Implementation review blockers repaired locally; PR not opened per assignment. |
 
 ## Checkpoints
 
@@ -79,6 +79,22 @@
 | Diff hygiene | `git diff --check`. | PASS |
 | Docs/current sync | Updated server data model, auth/admin rails, startup routing, Host Bridge, and security current docs for enqueue-only Helper jobs and non-goals. | PASS |
 
+## Implementation Review Repair Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| RED repair matrix | `cd packages/server-go && GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/api ./internal/store -run 'TestHelperJobs\|TestHelperJob\|TestHelperEnrollmentCreateStampsOwnerOrgAndValidatesCategories' -count=1` failed after adding regression tests: public serializer leaked `payload_hash`; private channel binding without target agent access returned `201`; role=`agent` API key created Helper enrollment with `201`; store allowed agent-owner enqueue and inserted 1 job; store Helper enrollment creation returned nil for agent owner. | RED PASS |
+| Channel binding repair | Added API and store coverage for an owner-accessible private channel where the target agent is not a member/accessor (`403 forbidden`, no job row) and positive coverage after adding the target agent to the private channel (`201 queued`). Store now checks both owner and target agent channel access for optional `channel_id`. | PASS |
+| Agent/plugin API-key rail repair | Added API coverage for role=`agent` API keys against Helper enrollment creation, legacy agent-owned Helper enqueue, and invalid-envelope enqueue to prove rejection before decode/enqueue. Added store coverage for agent-owner Helper enrollment creation and legacy agent-owner enqueue. Handler gates and store boundaries now require human/member owner authority. | PASS |
+| Public serializer repair | Removed `payload_hash` and `manifest_digest` from `serializeHelperJob`; API tests assert both keys are absent. Digests remain in store/datalayer models for storage and idempotency. | PASS |
+| QA matrix expansion | Added coverage for missing `last_seen_at`, stale `last_seen_at`, all recognized v1 job types (`openclaw.install_from_manifest`, `borgee_plugin.configure_connection`, `service.lifecycle`, `state.write`, `status.collect`, `delegation.revoke`, `helper.uninstall`), payload TTL fields (`expires_at`, `deadline`, `lease_expires_at`), remote-node token and host-grant token negatives, extra later-scope route negatives, and GET rejection on the enqueue path. | PASS |
+| Focused repair GREEN | `cd packages/server-go && GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/api ./internal/store -run 'TestHelperJobs\|TestHelperJob\|TestHelperEnrollmentCreateStampsOwnerOrgAndValidatesCategories' -count=1` passed. | PASS |
+| Focused package GREEN | `cd packages/server-go && GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api ./internal/server -run 'TestHelperJobs\|TestHelperJob\|TestHelperEnrollment\|TestMigrationRegistryIncludesHelperJobs\|TestHelperJobs' -count=1` passed. | PASS |
+| Broader package GREEN | `cd packages/server-go && GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/server -count=1 && GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api ./internal/server -count=1` passed after the direct-store import guard was restored to baseline 50. | PASS |
+| Full server GREEN | `rm -rf /workspace/borgee/.gotmp-task1 /tmp/borgee-task1-gotmp && mkdir -p /workspace/borgee/.gotmp-task1 && cd packages/server-go && GOTMPDIR=/workspace/borgee/.gotmp-task1 go test -tags sqlite_fts5 ./... -count=1` passed. Note: using `GOTMPDIR=$PWD/.gotmp` for full `./...` is invalid for this repo because source-walk tests traverse the transient Go build directory; `/tmp` is noexec in this environment. | PASS |
+| Diff hygiene | `git diff --check` passed. | PASS |
+| Docs/current sync | Updated current server data model, API/auth rails, Host Bridge, and security docs for human/member Helper owner authority, target-agent channel access, role=`agent`/plugin API-key denial, and internal-only digests. Updated task design response schema to omit digests. | PASS |
+
 ## Scope Locks
 
 - In scope: typed job envelope boundary, server enqueue authority, closed job type handling at enqueue, idempotency/TTL seeds, and enqueue-time failure truthfulness.
@@ -86,4 +102,4 @@
 
 ## Acceptance State
 
-Implementation is complete in the local task branch with TDD RED/GREEN evidence, docs/current sync, full `packages/server-go` verification, and diff hygiene recorded above. PR has not been opened or merged per worker assignment.
+Local repair is complete with regression RED/GREEN evidence, docs/current sync, full `packages/server-go` verification, and diff hygiene recorded above. PR has not been opened or merged per worker assignment.
