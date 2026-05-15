@@ -22,6 +22,7 @@
 - [x] Implemented quiet private marker in `SortableChannelItem` and CSS.
 - [x] Updated current docs and task evidence.
 - [x] Opened PR #952.
+- [x] Rebased onto `origin/main` after Task 4 merged as PR #948; resolved the docs/index overlap without adding Task 4 as a Task 8 dependency.
 
 ## Scope Locks
 
@@ -38,6 +39,9 @@
 | Client build | `pnpm --filter @borgee/client build` completed `tsc -b && vite build`; Vite emitted the existing large-chunk warning only | PASS |
 | Whitespace check | `git diff --check` | PASS |
 | Scope guard | `git diff --name-only -- packages/client/src/components/Sidebar.tsx packages/client/src/components/Sidebar packages/client/src/components/SidebarFooter.tsx packages/client/src/components/PinnedChannelsSection.tsx packages/server-go packages/client/src/lib/api.ts packages/client/src/types.ts` returned no files | PASS |
+| Rebase whitespace check | `git diff --check` after rebasing onto PR #948 main | PASS |
+| Rebase targeted test | `pnpm --filter @borgee/client test -- src/__tests__/SortableChannelItem-private-indicator.test.tsx` passed after PR #948 rebase: 133 files, 838 tests, 1 skipped | PASS |
+| Rebase client build | `pnpm --filter @borgee/client build` passed after PR #948 rebase; Vite emitted the existing large-chunk warning only | PASS |
 
 ## Acceptance State
 
