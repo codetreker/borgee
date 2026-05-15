@@ -18,10 +18,11 @@ interface Props {
   onInvitationsOpen?: () => void;
   onWorkspacesOpen?: () => void;
   onRemoteNodesOpen?: () => void;
+  onHelperStatusOpen?: () => void;
   onSettingsOpen?: () => void;
 }
 
-export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOpen, onInvitationsOpen, onWorkspacesOpen, onRemoteNodesOpen, onSettingsOpen }: Props) {
+export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOpen, onInvitationsOpen, onWorkspacesOpen, onRemoteNodesOpen, onHelperStatusOpen, onSettingsOpen }: Props) {
   const { state, actions } = useAppContext();
   const { theme, toggleTheme } = useTheme();
   const canCreateChannel = useCan('channel.create');
@@ -354,6 +355,17 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 onClick={onRemoteNodesOpen}
               >
                 🖥️
+              </button>
+            )}
+            {state.currentUser.role !== 'agent' && onHelperStatusOpen && (
+              <button
+                className="icon-btn"
+                title="Helper Status"
+                aria-label="Helper Status"
+                onClick={onHelperStatusOpen}
+                data-action="open-helper-status"
+              >
+                🩺
               </button>
             )}
             {state.currentUser.role !== 'agent' && onSettingsOpen && (

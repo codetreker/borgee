@@ -16,6 +16,7 @@ flowchart TB
   AllWorkspaces[All workspaces sidepane]
   ChannelRemote[Channel remote tab]
   RemoteNodes[Remote nodes sidepane]
+  HelperStatus[Helper status sidepane]
   Agents[Agent ownership]
   Settings[Settings and admin-awareness]
 
@@ -29,6 +30,7 @@ flowchart TB
   Sidepanes --> Agents
   Sidepanes --> AllWorkspaces
   Sidepanes --> RemoteNodes
+  Sidepanes --> HelperStatus
   Sidepanes --> Settings
 ```
 
@@ -42,6 +44,7 @@ flowchart TB
 | All workspaces sidepane | Cross-channel workspace index and preview. | Pulls the all-workspaces projection from REST; grouping/filtering stays local. |
 | Channel remote tab | Browse remote bindings attached to the active channel. | Pulls channel binding metadata and read-only remote tree/file data from REST. |
 | Remote nodes sidepane | Manage user-owned remote nodes and channel bindings. | Pulls node, status, token, and binding data from the user remote API. |
+| Helper status sidepane | Inspect user-owned Helper enrollment status. | Pulls redacted Helper enrollment status from the user Helper enrollment API. |
 | Agent/invitation | Owner-side agent management and join approval. | Uses user agent APIs and signal-then-pull invitation updates. |
 | Settings | User privacy, admin-impact history, impersonation grant. | Uses user-owned admin-awareness endpoints only. |
 
@@ -96,6 +99,18 @@ Remote has two separate user surfaces: browsing a channel binding and managing n
 The remote browsing surface reads directory listings and file content through user APIs. It does not provide an admin bypass and does not write remote files in the current UI architecture.
 
 Sketch reference: [../remote-agent/ui/README.md](../remote-agent/ui/README.md) preserves a combined Remote Explorer reference sketch. Current user SPA architecture splits that concept into the channel remote tab and the remote nodes sidepane.
+
+## Helper Status Surface
+
+Helper status is a user-owned global sidepane for Host Bridge enrollment visibility. It lists Helper enrollments from the user Helper enrollment REST rail and renders connected, offline, revoked, uninstalled, and pending enrollment states with last-seen and allowed-category details.
+
+| Surface | State owner | Data owner |
+| --- | --- | --- |
+| Helper status sidepane | Enrollment list, selected enrollment, refresh/error state, status display, last-seen display, and allowed-category display. | User Helper enrollment list/detail endpoints. |
+
+The surface is read-only status. It does not call Helper credential claim, heartbeat/status, or uninstall endpoints from the browser, and it does not display raw enrollment secrets, Helper credentials, Remote Agent connection tokens, org internals, private file content, or local environment details.
+
+Helper connected means the enrolled Helper/device was recently seen by the server. It is not OpenClaw connected status, Configure OpenClaw success, job progress, job logs, or service lifecycle completion. Remote nodes remain the separate Remote Agent filesystem proxy surface.
 
 ## Agent And Invitation Surfaces
 

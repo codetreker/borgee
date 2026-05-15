@@ -10,6 +10,7 @@ import AgentManager from './components/AgentManager';
 import InvitationsInbox from './components/InvitationsInbox';
 import WorkspaceManager from './components/WorkspaceManager';
 import NodeManager from './components/NodeManager';
+import HelperStatusPanel from './components/HelperStatusPanel';
 import SettingsPage from './components/Settings/SettingsPage';
 import BannerImpersonate from './components/Settings/BannerImpersonate';
 import { getMyImpersonateGrant, revokeMyImpersonateGrant } from './lib/api';
@@ -217,7 +218,7 @@ function AppInner() {
         <div className="sidebar-overlay" onClick={closeSidebar} />
       )}
       <div className={`sidebar-wrapper ${isMobile ? (sidebarOpen ? 'sidebar-open' : 'sidebar-closed') : ''}`}>
-        <Sidebar onClose={isMobile ? closeSidebar : undefined} onChannelSelect={closeAllViews} onLogout={handleLogout} onAgentsOpen={() => requestMainView('agents')} onInvitationsOpen={() => requestMainView('invitations')} onWorkspacesOpen={() => requestMainView('workspaces')} onRemoteNodesOpen={() => requestMainView('remote-nodes')} onSettingsOpen={() => requestMainView('settings')} />
+        <Sidebar onClose={isMobile ? closeSidebar : undefined} onChannelSelect={closeAllViews} onLogout={handleLogout} onAgentsOpen={() => requestMainView('agents')} onInvitationsOpen={() => requestMainView('invitations')} onWorkspacesOpen={() => requestMainView('workspaces')} onRemoteNodesOpen={() => requestMainView('remote-nodes')} onHelperStatusOpen={() => requestMainView('helper-status')} onSettingsOpen={() => requestMainView('settings')} />
       </div>
 
       <div className="main-content">
@@ -235,6 +236,8 @@ function AppInner() {
           <WorkspaceManager onBack={() => setMainView('channel')} />
         ) : mainView === 'remote-nodes' ? (
           <NodeManager onBack={() => setMainView('channel')} />
+        ) : mainView === 'helper-status' ? (
+          <HelperStatusPanel onBack={() => setMainView('channel')} />
         ) : mainView === 'settings' ? (
           <SettingsPage onBack={() => setMainView('channel')} />
         ) : state.currentChannelId ? (

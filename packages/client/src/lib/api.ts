@@ -924,6 +924,52 @@ export async function fetchRemoteNodeStatus(nodeId: string): Promise<{ online: b
   return request<{ online: boolean }>(`/api/v1/remote/nodes/${nodeId}/status`);
 }
 
+// ─── Helper Enrollments ─────────────────────────────────
+
+export type HelperEnrollmentStatus = 'pending' | 'connected' | 'offline' | 'revoked' | 'uninstalled';
+
+export interface HelperEnrollmentStatusView {
+  enrollment_id: string;
+  host_label: string;
+  helper_device_id?: string;
+  allowed_categories: string[];
+  status: HelperEnrollmentStatus | string;
+  fresh: boolean;
+  last_seen_at?: number;
+  created_at: number;
+  claimed_at?: number;
+  revoked_at?: number;
+  uninstalled_at?: number;
+}
+
+function sanitizeHelperEnrollment(input: any): HelperEnrollmentStatusView {
+  return {
+    enrollment_id: String(input?.enrollment_id ?? ''),
+    host_label: String(input?.host_label ?? ''),
+    ...(typeof input?.helper_device_id === 'string' ? { helper_device_id: input.helper_device_id } : {}),
+    allowed_categories: Array.isArray(input?.allowed_categories)
+      ? input.allowed_categories.filter((v: unknown): v is string => typeof v === 'string')
+      : [],
+    status: typeof input?.status === 'string' ? input.status : 'unknown',
+    fresh: Boolean(input?.fresh),
+    ...(typeof input?.last_seen_at === 'number' ? { last_seen_at: input.last_seen_at } : {}),
+    created_at: typeof input?.created_at === 'number' ? input.created_at : 0,
+    ...(typeof input?.claimed_at === 'number' ? { claimed_at: input.claimed_at } : {}),
+    ...(typeof input?.revoked_at === 'number' ? { revoked_at: input.revoked_at } : {}),
+    ...(typeof input?.uninstalled_at === 'number' ? { uninstalled_at: input.uninstalled_at } : {}),
+  };
+}
+
+export async function fetchHelperEnrollments(): Promise<HelperEnrollmentStatusView[]> {
+  const data = await request<{ enrollments: unknown[] }>('/api/v1/helper/enrollments');
+  return Array.isArray(data.enrollments) ? data.enrollments.map(sanitizeHelperEnrollment) : [];
+}
+
+export async function fetchHelperEnrollment(enrollmentId: string): Promise<HelperEnrollmentStatusView> {
+  const data = await request<{ enrollment: unknown }>(`/api/v1/helper/enrollments/${encodeURIComponent(enrollmentId)}`);
+  return sanitizeHelperEnrollment(data.enrollment);
+}
+
 // ─── Commands ──────────────────────────────────────────
 
 export interface AgentCommandInfo {
