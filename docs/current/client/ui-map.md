@@ -13,8 +13,8 @@ User SPA
       Channel groups and channels
       Direct messages
       Global sidepane actions
-        Primary footer: avatar/account identity, Agents, Workspaces, Settings
-        Secondary footer overflow: Invitations, Remote nodes, Helper status, Logout
+        Primary footer: avatar account panel, Agents, Workspaces, Settings
+        Secondary footer overflow: Invitations, Remote nodes, Helper status
     Main workspace
       Channel host
         Chat
@@ -66,6 +66,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Remote nodes | Global sidepane | Local node/detail/binding state | Remote user REST rail |
 | Helper status | Global sidepane | Local enrollment list/detail/refresh state | User Helper enrollment REST rail |
 | Settings | Global sidepane | Local settings tab state | User admin-awareness endpoints plus the existing authorized channel list from app state |
+| Account panel | Shell chrome | Local sidebar panel state | Current user/session REST rail |
 
 ## Sketch Coverage
 

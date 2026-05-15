@@ -29,9 +29,11 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
   const [showCreate, setShowCreate] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showFooterMenu, setShowFooterMenu] = useState(false);
+  const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
   const footerMenuRef = useRef<HTMLDivElement>(null);
+  const accountPanelRef = useRef<HTMLDivElement>(null);
   const [newName, setNewName] = useState('');
   const [newTopic, setNewTopic] = useState('');
   const [creating, setCreating] = useState(false);
@@ -112,6 +114,15 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showFooterMenu]);
+
+  useEffect(() => {
+    if (!showAccountPanel) return;
+    const handler = (e: MouseEvent) => {
+      if (accountPanelRef.current && !accountPanelRef.current.contains(e.target as Node)) setShowAccountPanel(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showAccountPanel]);
 
   const handleSelect = (channelId: string) => {
     actions.selectChannel(channelId);
@@ -309,12 +320,55 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
       {state.currentUser && (
         <div className="sidebar-footer" data-testid="sidebar-footer-primary">
           <div className="current-user" data-testid="sidebar-footer-primary-actions">
-            <div
-              className="user-avatar-small"
-              title={state.currentUser.display_name}
-              aria-label={state.currentUser.display_name}
-            >
-              {state.currentUser.display_name[0]?.toUpperCase()}
+            <div className="sidebar-account" ref={accountPanelRef}>
+              <button
+                type="button"
+                className="sidebar-account-trigger"
+                title={state.currentUser.display_name}
+                aria-label={state.currentUser.display_name}
+                data-testid="sidebar-account-trigger"
+                onClick={() => {
+                  setShowFooterMenu(false);
+                  setShowAccountPanel(open => !open);
+                }}
+              >
+                <span className="user-avatar-small">
+                  {state.currentUser.display_name[0]?.toUpperCase()}
+                </span>
+              </button>
+              {showAccountPanel && (
+                <div className="sidebar-account-panel" data-testid="sidebar-account-panel">
+                  <div className="sidebar-account-panel-title">Account</div>
+                  <div className="sidebar-account-summary">
+                    <span className="user-avatar-small sidebar-account-summary-avatar">
+                      {state.currentUser.display_name[0]?.toUpperCase()}
+                    </span>
+                    <div className="sidebar-account-summary-text">
+                      <div className="sidebar-account-name" data-testid="sidebar-account-name">
+                        {state.currentUser.display_name}
+                      </div>
+                      <div className="sidebar-account-role" data-testid="sidebar-account-role">
+                        {state.currentUser.role}
+                      </div>
+                    </div>
+                  </div>
+                  {onLogout && (
+                    <button
+                      type="button"
+                      className="sidebar-footer-secondary-item logout-btn"
+                      title="Logout"
+                      data-testid="sidebar-account-logout"
+                      onClick={() => {
+                        setShowAccountPanel(false);
+                        void handleLogout();
+                      }}
+                    >
+                      <span>⏻</span>
+                      <span>Logout</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             {state.currentUser.role !== 'agent' && onAgentsOpen && (
               <button
@@ -346,19 +400,20 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 ⚙️
               </button>
             )}
-            {(
-              state.currentUser.role !== 'agent' && (onInvitationsOpen || onRemoteNodesOpen || onHelperStatusOpen)
-            ) || onLogout ? (
+            {state.currentUser.role !== 'agent' && (onInvitationsOpen || onRemoteNodesOpen || onHelperStatusOpen) ? (
               <div className="sidebar-footer-secondary" ref={footerMenuRef}>
                 <button
                   className="icon-btn sidebar-footer-more-btn"
                   title="更多"
                   aria-label="更多"
                   data-testid="sidebar-footer-secondary-toggle"
-                  onClick={() => setShowFooterMenu(open => !open)}
+                  onClick={() => {
+                    setShowAccountPanel(false);
+                    setShowFooterMenu(open => !open);
+                  }}
                 >
                   <span aria-hidden="true">⋯</span>
-                  {state.currentUser.role !== 'agent' && pendingInvitations > 0 && (
+                  {pendingInvitations > 0 && (
                     <span
                       className="unread-badge sidebar-footer-more-badge"
                       data-testid="sidebar-footer-more-badge"
@@ -370,7 +425,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 </button>
                 {showFooterMenu && (
                   <div className="sidebar-footer-secondary-menu" data-testid="sidebar-footer-secondary-menu">
-                    {state.currentUser.role !== 'agent' && onInvitationsOpen && (
+                    {onInvitationsOpen && (
                       <button
                         type="button"
                         className="sidebar-footer-secondary-item invitations-btn"
@@ -394,7 +449,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                         )}
                       </button>
                     )}
-                    {state.currentUser.role !== 'agent' && onRemoteNodesOpen && (
+                    {onRemoteNodesOpen && (
                       <button
                         type="button"
                         className="sidebar-footer-secondary-item"
@@ -409,7 +464,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                         <span>Remote Nodes</span>
                       </button>
                     )}
-                    {state.currentUser.role !== 'agent' && onHelperStatusOpen && (
+                    {onHelperStatusOpen && (
                       <button
                         type="button"
                         className="sidebar-footer-secondary-item"
@@ -424,21 +479,6 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                       >
                         <span>🩺</span>
                         <span>Helper Status</span>
-                      </button>
-                    )}
-                    {onLogout && (
-                      <button
-                        type="button"
-                        className="sidebar-footer-secondary-item logout-btn"
-                        title="Logout"
-                        data-testid="sidebar-secondary-logout"
-                        onClick={() => {
-                          setShowFooterMenu(false);
-                          void handleLogout();
-                        }}
-                      >
-                        <span>⏻</span>
-                        <span>Logout</span>
                       </button>
                     )}
                   </div>
