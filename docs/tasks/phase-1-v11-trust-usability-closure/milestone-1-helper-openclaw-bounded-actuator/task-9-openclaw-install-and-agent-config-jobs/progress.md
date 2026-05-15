@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/task-9-openclaw-install-agent-config-jobs` |
 | Branch | `task-9-openclaw-install-agent-config-jobs` |
-| PR | pending |
+| PR | #956 |
 | Owner | M1 Task9 owner worker |
-| State | IMPLEMENTING |
+| State | PR_OPEN |
 | Blocker | none |
 
 ## Checkpoints
@@ -22,7 +22,7 @@
 - [x] Implementation complete for server-owned OpenClaw install/config job binding and Helper policy alignment.
 - [x] Docs/current synced.
 - [x] Final verification complete.
-- [ ] PR opened.
+- [x] PR opened: #956.
 - [ ] CI monitored.
 
 ## Evidence
