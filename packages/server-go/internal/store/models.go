@@ -220,6 +220,8 @@ type HelperEnrollment struct {
 	EnrollmentSecretExpiresAt  *int64  `gorm:"column:enrollment_secret_expires_at" json:"-"`
 	PersistentCredentialDigest *string `gorm:"column:persistent_credential_digest" json:"-"`
 	CredentialCreatedAt        *int64  `gorm:"column:credential_created_at" json:"-"`
+	CredentialRotatedAt        *int64  `gorm:"column:credential_rotated_at" json:"-"`
+	CredentialGeneration       int     `gorm:"not null;default:1;column:credential_generation" json:"-"`
 }
 
 func (HelperEnrollment) TableName() string { return "helper_enrollments" }

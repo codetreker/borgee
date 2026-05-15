@@ -8,10 +8,10 @@
 | Branch | `feat/task-2-helper-credential-rotation-and-revoke` |
 | PR | pending |
 | Owner | Dev/Writer helper under Teamlead |
-| State | QA_BLOCKED |
-| Blocker | QA requested explicit positive post-rotation authority coverage for the new rotated credential plus same device |
+| State | READY_FOR_PR |
+| Blocker | none |
 
-Review note: QA_BLOCKED on design review because acceptance/TDD covered old credential staleness but did not explicitly require the new rotated credential to authenticate Helper status/heartbeat after rotation. Patched acceptance and design TDD plan; awaiting QA re-review.
+Review note: Design gate returned ARCHITECT_LGTM, PM_LGTM, SECURITY_LGTM, and QA_LGTM_REFRESH after the QA_BLOCKED patch that added positive post-rotation authority coverage for the new rotated credential plus same device.
 
 ## Process Repair Carried By This PR
 
@@ -32,11 +32,11 @@ PR #935 was closed before landing the shared task-1 acceptance-state cleanup. Th
 - [x] Four-piece baseline complete (`task.md`, `spec.md`, `stance.md`, `acceptance.md`)
 - [x] `content-lock.md` checked N/A because task 2 has no UI copy or DOM literals
 - [x] Dev design drafted for review
-- [ ] Dev design reviewed
-- [ ] TDD RED tests written before implementation
-- [ ] Implementation complete
-- [ ] docs/current sync checked or N/A recorded after implementation
-- [ ] Acceptance evidence recorded
+- [x] Dev design reviewed
+- [x] TDD RED tests written before implementation
+- [x] Implementation complete
+- [x] docs/current sync checked or N/A recorded after implementation
+- [x] Acceptance evidence recorded
 - [ ] PR opened
 - [ ] PR merged
 
@@ -49,6 +49,39 @@ PR #935 was closed before landing the shared task-1 acceptance-state cleanup. Th
 | Task 2 boundary | Four-piece and design preserve no typed job execution and no Remote Agent/host grant/user permission fallback | PASS |
 | Content lock | No UI copy or DOM literals identified in task 2 tasking/design scope | N/A |
 
+## Implementation Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Design review | ARCHITECT_LGTM, PM_LGTM, SECURITY_LGTM, and QA_LGTM_REFRESH after positive rotated-credential coverage patch | PASS |
+| RED migrations | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run HelperEnrollments` failed before production code with `undefined: helperCredentialRotation` | PASS |
+| RED store | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollmentCredentialRotation` failed before production code with missing `RotateHelperEnrollmentCredential`, `CredentialRotatedAt`, and `CredentialGeneration` | PASS |
+| RED datalayer | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollmentRepository` failed before production code with `repo.RotateCredential undefined` | PASS |
+| RED API | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` failed before production code with rotate route returning `404 Not found` | PASS |
+| Implementation | Added v50 helper credential rotation migration, store rotation transaction, datalayer repository method, Helper-rail API route, and rotation metadata serialization | PASS |
+| GREEN migrations | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run HelperEnrollments` -> `ok borgee-server/internal/migrations 0.008s` | PASS |
+| GREEN store | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollmentCredentialRotation` -> `ok borgee-server/internal/store 0.047s` | PASS |
+| GREEN datalayer | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollmentRepository` -> `ok borgee-server/internal/datalayer 0.045s` | PASS |
+| GREEN API | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` -> `ok borgee-server/internal/api 0.071s` | PASS |
+| Touched package breadth | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api` passed migrations/store/datalayer, then `./internal/api` failed in existing broad-suite instability with `sql: database is closed` and missing-table errors outside Helper enrollment tests; no broad API pass is claimed | INFO |
+| DL boundary | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 0.011s` | PASS |
+| Migration version re-grep | `rg "Version:\s*[0-9]+" internal/migrations -o | sed -E 's/.*Version:\s*([0-9]+).*/\1/' | sort -n | tail -12` -> max `50`; helper credential rotation migration owns v50 | PASS |
+| Reverse grep rail separation | `rg "helper.*remote_nodes|remote_nodes.*helper|connection_token.*helper|helper.*connection_token" internal/api internal/store internal/datalayer internal/migrations` and `rg "helper.*host_grants|host_grants.*helper|helper.*user_permissions|user_permissions.*helper" internal/api internal/store internal/datalayer internal/migrations` returned no hits | PASS |
+| Reverse grep scope | `rg "job queue|result schema|execute job|arbitrary shell|service manager|\blease\b" internal/api/helper_enrollments.go internal/store/helper_enrollment_queries.go internal/datalayer/helper_enrollments.go internal/datalayer/helper_enrollments_sqlite.go internal/migrations/helper_credential_rotation.go` returned no hits | PASS |
+| Diff hygiene | `git diff --check` completed with no output | PASS |
+| docs/current sync | Updated current server data model/migrations, API/auth rails, security rail matrix, Host Bridge, and Remote Agent separation docs for implemented rotation behavior | PASS |
+
 ## Acceptance State
 
-Task 2 is not accepted. It is in TASKING for four-piece and Dev design review. Production implementation must wait for Teamlead dispatch after design review and must start with TDD.
+Task 2 implementation is READY_FOR_PR. It is not marked accepted until PR review and merge complete.
+
+## Acceptance Evidence
+
+| Check | Evidence | Result |
+|---|---|---|
+| Segment A - credential rotation lifecycle | Store/datalayer/API tests cover current credential + matching device rotation, raw new credential returned once, digest replacement, generation/rotated metadata, preserved `credential_created_at`, old credential stale for heartbeat/rotate/uninstall, and new credential positive heartbeat/uninstall | PASS |
+| Segment B - stale credential and device semantics | Store/API tests cover wrong credential, old credential, wrong device, pending, revoked, and uninstalled rotation failures without authority mutation; new credential plus same device updates heartbeat/freshness | PASS |
+| Segment C - revoke authority | Store tests prove revoked rows reject rotation and keep terminal revoke timestamp/status; API/user rail revoke remains owner/org-scoped from task 1 | PASS |
+| Segment D - helper-originated uninstall authority | Store/datalayer/API tests prove uninstall requires the current rotated credential plus same device and remains terminal for later heartbeat | PASS |
+| Segment E - API/data-model and rail separation | API uses `datalayer.HelperEnrollmentRepository`; DL baseline passes; reverse-grep checks show no Remote Agent, host grant, or user permission fallback; no queue/lease/job/service execution terms added to implementation paths | PASS |
+| Segment F - current-doc sync and progress state | Current docs updated for rotation behavior and progress records explicit RED, GREEN, docs, and acceptance evidence in this task PR | PASS |

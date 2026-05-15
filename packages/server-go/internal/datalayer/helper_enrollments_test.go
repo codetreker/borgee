@@ -88,7 +88,29 @@ func TestHelperEnrollmentRepositoryLifecycle(t *testing.T) {
 		t.Fatalf("LastSeenAt = %v, want %d", seen.LastSeenAt, heartbeatAt.UnixMilli())
 	}
 
-	uninstalled, err := repo.MarkUninstalled(ctx, pending.ID, credential, "device-1", now.Add(3*time.Minute))
+	rotated, rotatedCredential, err := repo.RotateCredential(ctx, pending.ID, credential, "device-1", now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("RotateCredential: %v", err)
+	}
+	if rotatedCredential == "" || rotatedCredential == credential {
+		t.Fatalf("rotated credential=%q old=%q", rotatedCredential, credential)
+	}
+	if rotated.CredentialRotatedAt == nil || rotated.CredentialGeneration != 2 {
+		t.Fatalf("bad rotation metadata: %+v", rotated)
+	}
+	if _, err := repo.UpdateLastSeen(ctx, pending.ID, credential, "device-1", now.Add(4*time.Minute)); !errors.Is(err, ErrHelperEnrollmentUnauthorized) {
+		t.Fatalf("old credential UpdateLastSeen error=%v, want ErrHelperEnrollmentUnauthorized", err)
+	}
+	rotatedSeenAt := now.Add(5 * time.Minute)
+	rotatedSeen, err := repo.UpdateLastSeen(ctx, pending.ID, rotatedCredential, "device-1", rotatedSeenAt)
+	if err != nil {
+		t.Fatalf("rotated credential UpdateLastSeen: %v", err)
+	}
+	if rotatedSeen.LastSeenAt == nil || *rotatedSeen.LastSeenAt != rotatedSeenAt.UnixMilli() {
+		t.Fatalf("rotated LastSeenAt = %v, want %d", rotatedSeen.LastSeenAt, rotatedSeenAt.UnixMilli())
+	}
+
+	uninstalled, err := repo.MarkUninstalled(ctx, pending.ID, rotatedCredential, "device-1", now.Add(6*time.Minute))
 	if err != nil {
 		t.Fatalf("MarkUninstalled: %v", err)
 	}
@@ -126,6 +148,9 @@ func TestHelperEnrollmentRepositoryErrors(t *testing.T) {
 	}
 	if _, err := dl.HelperEnrollmentRepo.UpdateLastSeen(ctx, "missing", "credential", "device-1", now); !errors.Is(err, ErrHelperEnrollmentNotFound) {
 		t.Fatalf("UpdateLastSeen missing error=%v, want ErrHelperEnrollmentNotFound", err)
+	}
+	if _, _, err := dl.HelperEnrollmentRepo.RotateCredential(ctx, "missing", "credential", "device-1", now); !errors.Is(err, ErrHelperEnrollmentNotFound) {
+		t.Fatalf("RotateCredential missing error=%v, want ErrHelperEnrollmentNotFound", err)
 	}
 	if _, err := dl.HelperEnrollmentRepo.MarkUninstalled(ctx, "missing", "credential", "device-1", now); !errors.Is(err, ErrHelperEnrollmentNotFound) {
 		t.Fatalf("MarkUninstalled missing error=%v, want ErrHelperEnrollmentNotFound", err)

@@ -10,6 +10,7 @@ func runHelperEnrollments(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	e := New(db)
 	e.Register(helperEnrollments)
+	e.Register(helperCredentialRotation)
 	if err := e.Run(0); err != nil {
 		t.Fatalf("run helper enrollments: %v", err)
 	}
@@ -66,6 +67,8 @@ func TestHelperEnrollmentsMigrationSchema(t *testing.T) {
 		"enrollment_secret_expires_at": {"INTEGER", 0, 0},
 		"persistent_credential_digest": {"TEXT", 0, 0},
 		"credential_created_at":        {"INTEGER", 0, 0},
+		"credential_rotated_at":        {"INTEGER", 0, 0},
+		"credential_generation":        {"INTEGER", 1, 0},
 	}
 	if len(cols) != len(want) {
 		t.Fatalf("column count mismatch: got %d want %d", len(cols), len(want))
@@ -134,16 +137,23 @@ func TestHelperEnrollmentsMigrationIndexesAndRegistry(t *testing.T) {
 		}
 	}
 
-	if helperEnrollments.Version != 49 {
-		t.Fatalf("helperEnrollments.Version=%d, want 49", helperEnrollments.Version)
+	if helperEnrollments.Version != 49 || helperCredentialRotation.Version != 50 {
+		t.Fatalf("helper migration versions=%d/%d, want 49/50", helperEnrollments.Version, helperCredentialRotation.Version)
 	}
 	found := false
+	foundRotation := false
 	for _, m := range All {
 		if m.Version == 49 && m.Name == helperEnrollments.Name {
 			found = true
 		}
+		if m.Version == 50 && m.Name == helperCredentialRotation.Name {
+			foundRotation = true
+		}
 	}
 	if !found {
 		t.Fatal("helperEnrollments v49 missing from registry All")
+	}
+	if !foundRotation {
+		t.Fatal("helperCredentialRotation v50 missing from registry All")
 	}
 }

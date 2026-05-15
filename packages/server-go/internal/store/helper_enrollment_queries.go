@@ -73,6 +73,7 @@ func (s *Store) CreateHelperEnrollment(ownerUserID, hostLabel string, allowedCat
 		UpdatedAt:                 ts,
 		EnrollmentSecretDigest:    &digest,
 		EnrollmentSecretExpiresAt: &expires,
+		CredentialGeneration:      1,
 	}
 	if err := s.db.Create(row).Error; err != nil {
 		return nil, "", err
@@ -208,6 +209,67 @@ func (s *Store) MarkHelperEnrollmentUninstalled(id, credential, helperDeviceID s
 		return nil, err
 	}
 	return s.GetHelperEnrollment(id)
+}
+
+func (s *Store) RotateHelperEnrollmentCredential(id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, string, error) {
+	helperDeviceID = strings.TrimSpace(helperDeviceID)
+	if credential == "" || helperDeviceID == "" || len(helperDeviceID) > 255 {
+		return nil, "", ErrHelperEnrollmentInvalidInput
+	}
+	var out HelperEnrollment
+	var newCredential string
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var row HelperEnrollment
+		if err := tx.Where("id = ?", id).First(&row).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrHelperEnrollmentNotFound
+			}
+			return err
+		}
+		if row.OwnerUserID == "" || row.OrgID == "" || row.ClaimedAt == nil || row.PersistentCredentialDigest == nil || row.RevokedAt != nil || row.UninstalledAt != nil || row.Status == "revoked" || row.Status == "uninstalled" || row.Status == "pending" {
+			return ErrHelperEnrollmentInactive
+		}
+		if !constantTimeDigestMatch(*row.PersistentCredentialDigest, credential) {
+			return ErrHelperEnrollmentUnauthorized
+		}
+		if row.HelperDeviceID == nil || *row.HelperDeviceID != helperDeviceID {
+			return ErrHelperEnrollmentDeviceMismatch
+		}
+
+		var err error
+		newCredential, err = newHelperSecret()
+		if err != nil {
+			return err
+		}
+		newDigest := helperSecretDigest(newCredential)
+		ts := now.UnixMilli()
+		generation := row.CredentialGeneration
+		if generation < 1 {
+			generation = 1
+		}
+		res := tx.Model(&HelperEnrollment{}).
+			Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL AND persistent_credential_digest = ?", id, *row.PersistentCredentialDigest).
+			Updates(map[string]any{
+				"persistent_credential_digest": newDigest,
+				"credential_rotated_at":        ts,
+				"credential_generation":        generation + 1,
+				"updated_at":                   ts,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return ErrHelperEnrollmentUnauthorized
+		}
+		if err := tx.Where("id = ?", id).First(&out).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return &out, newCredential, nil
 }
 
 func (s *Store) RevokeHelperEnrollmentForUser(id, ownerUserID, orgID string, now time.Time) (*HelperEnrollment, error) {

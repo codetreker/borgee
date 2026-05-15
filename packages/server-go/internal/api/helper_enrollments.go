@@ -28,6 +28,7 @@ func (h *HelperEnrollmentHandler) RegisterRoutes(mux *http.ServeMux, authMw func
 	mux.Handle("GET /api/v1/helper/enrollments/{enrollmentId}", wrap(h.handleGet))
 	mux.Handle("DELETE /api/v1/helper/enrollments/{enrollmentId}", wrap(h.handleRevoke))
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/claim", h.handleClaim)
+	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/rotate-credential", h.handleRotateCredential)
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/status", h.handleStatus)
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/uninstall", h.handleUninstall)
 }
@@ -154,6 +155,30 @@ func (h *HelperEnrollmentHandler) handleStatus(w http.ResponseWriter, r *http.Re
 	writeJSONResponse(w, http.StatusOK, map[string]any{"enrollment": h.serialize(row)})
 }
 
+func (h *HelperEnrollmentHandler) handleRotateCredential(w http.ResponseWriter, r *http.Request) {
+	credential, ok := helperCredentialFromRequest(r)
+	if !ok {
+		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req struct {
+		HelperDeviceID string `json:"helper_device_id"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	row, newCredential, err := h.Repo.RotateCredential(r.Context(), r.PathValue("enrollmentId"), credential, req.HelperDeviceID, h.now())
+	if err != nil {
+		h.writeHelperError(w, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{
+		"enrollment":        h.serialize(row),
+		"helper_credential": newCredential,
+	})
+}
+
 func (h *HelperEnrollmentHandler) handleUninstall(w http.ResponseWriter, r *http.Request) {
 	credential, ok := helperCredentialFromRequest(r)
 	if !ok {
@@ -187,12 +212,13 @@ func (h *HelperEnrollmentHandler) serialize(row *datalayer.HelperEnrollment) map
 		}
 	}
 	out := map[string]any{
-		"enrollment_id":      row.ID,
-		"host_label":         row.HostLabel,
-		"allowed_categories": row.AllowedCategories,
-		"status":             status,
-		"fresh":              fresh,
-		"created_at":         row.CreatedAt,
+		"enrollment_id":         row.ID,
+		"host_label":            row.HostLabel,
+		"allowed_categories":    row.AllowedCategories,
+		"status":                status,
+		"fresh":                 fresh,
+		"credential_generation": row.CredentialGeneration,
+		"created_at":            row.CreatedAt,
 	}
 	if row.HelperDeviceID != nil {
 		out["helper_device_id"] = *row.HelperDeviceID
@@ -208,6 +234,9 @@ func (h *HelperEnrollmentHandler) serialize(row *datalayer.HelperEnrollment) map
 	}
 	if row.UninstalledAt != nil {
 		out["uninstalled_at"] = *row.UninstalledAt
+	}
+	if row.CredentialRotatedAt != nil {
+		out["credential_rotated_at"] = *row.CredentialRotatedAt
 	}
 	return out
 }

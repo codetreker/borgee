@@ -46,6 +46,11 @@ func (r *sqliteHelperEnrollmentRepo) Claim(_ context.Context, id, enrollmentSecr
 	return helperEnrollmentFromStore(row), credential, mapHelperEnrollmentErr(err)
 }
 
+func (r *sqliteHelperEnrollmentRepo) RotateCredential(_ context.Context, id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, string, error) {
+	row, newCredential, err := r.s.RotateHelperEnrollmentCredential(id, credential, helperDeviceID, now)
+	return helperEnrollmentFromStore(row), newCredential, mapHelperEnrollmentErr(err)
+}
+
 func (r *sqliteHelperEnrollmentRepo) UpdateLastSeen(_ context.Context, id, credential, helperDeviceID string, now time.Time) (*HelperEnrollment, error) {
 	row, err := r.s.UpdateHelperEnrollmentLastSeen(id, credential, helperDeviceID, now)
 	return helperEnrollmentFromStore(row), mapHelperEnrollmentErr(err)
@@ -72,6 +77,9 @@ func helperEnrollmentFromStore(row *store.HelperEnrollment) *HelperEnrollment {
 		RevokedAt:                 row.RevokedAt,
 		UninstalledAt:             row.UninstalledAt,
 		EnrollmentSecretExpiresAt: row.EnrollmentSecretExpiresAt,
+		CredentialCreatedAt:       row.CredentialCreatedAt,
+		CredentialRotatedAt:       row.CredentialRotatedAt,
+		CredentialGeneration:      row.CredentialGeneration,
 	}
 }
 
