@@ -17,7 +17,12 @@ function formatMemberCount(channel: Channel): string {
 
 function ChannelRow({ channel, currentUserId }: { channel: Channel; currentUserId: string | null | undefined }) {
   const canManageMembers = useCan('channel.manage_members', channel.id);
-  const actionRules = buildChannelAllowedActionRules(channel, currentUserId);
+  const canDelete = useCan('channel.delete', channel.id);
+  const canArchive = useCan('channel.manage_visibility', channel.id);
+  const actionRules = buildChannelAllowedActionRules(channel, currentUserId, {
+    canDelete,
+    canArchive,
+  });
 
   return (
     <li className="channel-management-row" data-channel-id={channel.id}>

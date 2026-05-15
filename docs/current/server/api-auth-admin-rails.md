@@ -58,6 +58,8 @@ User authentication accepts a product session cookie or an API key. The resultin
 
 User authorization has two layers. Coarse capability checks compare requested permission and scope against permission rows, with wildcard handling and organization-aware scope resolution. Domain handlers then add ownership, channel membership, private-channel visibility, artifact ownership, or agent-owner rules where those semantics are not expressible as a simple capability row.
 
+Channel management is one of those domain-handler authority layers. User-rail channel mutation routes do not treat a wildcard or scoped permission row as sufficient by itself: creators cannot leave their own channels, non-members cannot leave or manage channels, delete/archive require the authenticated user to be the channel creator, member management cannot remove the channel creator, and cross-org management attempts fail closed before mutating membership or ownership state.
+
 Admin authentication uses an opaque admin session cookie. The cookie value is a session token that must resolve to a live admin session row and then an admin row. This is intentionally separate from product user JWTs and API keys.
 
 Admin authorization is route-based. If a request reaches an admin route, admin session middleware establishes admin identity; the handler surface itself determines what an admin can do. The admin rail does not become a product user context.

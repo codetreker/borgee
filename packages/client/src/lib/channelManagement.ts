@@ -15,6 +15,11 @@ export interface ChannelManagementSections {
   joined: Channel[];
 }
 
+export interface ChannelAuthorityOptions {
+  canDelete?: boolean;
+  canArchive?: boolean;
+}
+
 function isGeneralChannel(channel: Channel): boolean {
   return channel.name === 'general';
 }
@@ -38,10 +43,13 @@ export function canLeaveChannel(channel: Channel, currentUserId: string | null |
 export function buildChannelAllowedActionRules(
   channel: Channel,
   currentUserId: string | null | undefined,
+  authority: ChannelAuthorityOptions = {},
 ): ChannelAllowedActionRule[] {
   const isOwner = isOwnedByCurrentUser(channel, currentUserId);
   const isGeneral = isGeneralChannel(channel);
   const member = isJoined(channel);
+  const canDeleteByPermission = authority.canDelete ?? true;
+  const canArchiveByPermission = authority.canArchive ?? true;
 
   const leaveReason = (() => {
     if (!currentUserId) return '当前用户未知，不能退出频道';
@@ -54,12 +62,14 @@ export function buildChannelAllowedActionRules(
   const deleteReason = (() => {
     if (isGeneral) return '默认频道不能删除';
     if (!isOwner) return '仅创建者可删除频道';
+    if (!canDeleteByPermission) return '服务器权限不允许删除频道';
     return '创建者可删除频道';
   })();
 
   const archiveReason = (() => {
     if (isGeneral) return '默认频道不能归档';
     if (!isOwner) return '仅创建者可归档频道';
+    if (!canArchiveByPermission) return '服务器权限不允许归档频道';
     return '创建者可归档频道';
   })();
 
@@ -73,14 +83,14 @@ export function buildChannelAllowedActionRules(
     {
       id: 'delete',
       label: '删除',
-      allowed: isOwner && !isGeneral,
+      allowed: isOwner && !isGeneral && canDeleteByPermission,
       reason: deleteReason,
       destructive: true,
     },
     {
       id: 'archive',
       label: '归档',
-      allowed: isOwner && !isGeneral,
+      allowed: isOwner && !isGeneral && canArchiveByPermission,
       reason: archiveReason,
     },
     {

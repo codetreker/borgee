@@ -315,7 +315,25 @@ func (h *ChannelHandler) handleUpdateChannel(w http.ResponseWriter, r *http.Requ
 			return
 		}
 	} else {
+		if store.CrossOrg(user.OrgID, ch.OrgID) {
+			writeJSONError(w, http.StatusForbidden, "Forbidden")
+			return
+		}
 		if !h.hasChannelPermission(user, "channel.manage_visibility", channelID) {
+			writeJSONError(w, http.StatusForbidden, "Forbidden")
+			return
+		}
+	}
+	if body.Archived != nil {
+		if ch.Type == "dm" {
+			writeJSONError(w, http.StatusBadRequest, "Cannot archive DM channels")
+			return
+		}
+		if ch.Name == "general" {
+			writeJSONError(w, http.StatusBadRequest, "Cannot archive #general")
+			return
+		}
+		if ch.CreatedBy != user.ID {
 			writeJSONError(w, http.StatusForbidden, "Forbidden")
 			return
 		}
@@ -511,6 +529,14 @@ func (h *ChannelHandler) handleLeaveChannel(w http.ResponseWriter, r *http.Reque
 		writeJSONError(w, http.StatusBadRequest, "Cannot leave #general")
 		return
 	}
+	if ch.CreatedBy == user.ID {
+		writeJSONError(w, http.StatusBadRequest, "Channel creator cannot leave own channel")
+		return
+	}
+	if !h.Store.IsChannelMember(channelID, user.ID) {
+		writeJSONError(w, http.StatusForbidden, "Must be a channel member")
+		return
+	}
 
 	h.Store.RemoveChannelMember(channelID, user.ID)
 	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
@@ -540,6 +566,14 @@ func (h *ChannelHandler) handleAddMember(w http.ResponseWriter, r *http.Request)
 
 	if ch.Type == "dm" {
 		writeJSONError(w, http.StatusBadRequest, "Cannot add members to DM channels")
+		return
+	}
+	if store.CrossOrg(user.OrgID, ch.OrgID) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+	if !h.Store.IsChannelMember(channelID, user.ID) {
+		writeJSONError(w, http.StatusForbidden, "Must be a channel member")
 		return
 	}
 
@@ -615,17 +649,37 @@ func (h *ChannelHandler) handleRemoveMember(w http.ResponseWriter, r *http.Reque
 		writeJSONError(w, http.StatusNotFound, "Channel not found")
 		return
 	}
+	if ch.Type == "dm" {
+		writeJSONError(w, http.StatusBadRequest, "Cannot remove members from DM channels")
+		return
+	}
 
 	if ch.Name == "general" {
 		writeJSONError(w, http.StatusBadRequest, "Cannot remove members from #general")
 		return
 	}
+	if !h.Store.IsChannelMember(channelID, user.ID) {
+		writeJSONError(w, http.StatusForbidden, "Must be a channel member")
+		return
+	}
+	if targetID == ch.CreatedBy {
+		writeJSONError(w, http.StatusBadRequest, "Cannot remove channel creator")
+		return
+	}
 
 	if targetID != user.ID {
+		if store.CrossOrg(user.OrgID, ch.OrgID) {
+			writeJSONError(w, http.StatusForbidden, "Forbidden")
+			return
+		}
 		if !h.hasChannelPermission(user, "channel.manage_members", channelID) {
 			writeJSONError(w, http.StatusForbidden, "Forbidden")
 			return
 		}
+	}
+	if !h.Store.IsChannelMember(channelID, targetID) {
+		writeJSONError(w, http.StatusNotFound, "Channel member not found")
+		return
 	}
 
 	h.Store.RemoveChannelMember(channelID, targetID)
@@ -690,6 +744,10 @@ func (h *ChannelHandler) handleSetMemberRequireMentionPolicy(w http.ResponseWrit
 	}
 	if store.CrossOrg(user.OrgID, ch.OrgID) {
 		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+	if !h.Store.IsChannelMember(channelID, user.ID) {
+		writeJSONError(w, http.StatusForbidden, "Must be a channel member")
 		return
 	}
 	if !h.hasChannelPermission(user, "channel.manage_members", channelID) {
@@ -774,7 +832,7 @@ func (h *ChannelHandler) handleMarkRead(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ChannelHandler) handleDeleteChannel(w http.ResponseWriter, r *http.Request) {
-	_, ok := mustUser(w, r)
+	user, ok := mustUser(w, r)
 	if !ok {
 		return
 	}
@@ -798,6 +856,14 @@ func (h *ChannelHandler) handleDeleteChannel(w http.ResponseWriter, r *http.Requ
 	}
 	if ch.Name == "general" {
 		writeJSONError(w, http.StatusBadRequest, "Cannot delete #general")
+		return
+	}
+	if store.CrossOrg(user.OrgID, ch.OrgID) {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+	if ch.CreatedBy != user.ID {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
 

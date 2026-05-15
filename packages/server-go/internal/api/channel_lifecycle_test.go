@@ -70,13 +70,16 @@ func TestP0ChannelLifecycle(t *testing.T) {
 	resp, data = testutil.JSON(t, http.MethodPut, ts.URL+"/api/v1/channels/"+channelID+"/read", memberToken, nil)
 	requireStatus(t, resp, http.StatusOK, data)
 
-	resp, data = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/leave", memberToken, nil)
+	resp, data = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/join", adminToken, nil)
 	requireStatus(t, resp, http.StatusOK, data)
 
-	resp, data = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/join", memberToken, nil)
+	resp, data = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/leave", adminToken, nil)
 	requireStatus(t, resp, http.StatusOK, data)
 
-	resp, data = testutil.JSON(t, http.MethodDelete, fmt.Sprintf("%s/api/v1/channels/%s", ts.URL, channelID), adminToken, nil)
+	resp, data = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/channels/"+channelID+"/join", adminToken, nil)
+	requireStatus(t, resp, http.StatusOK, data)
+
+	resp, data = testutil.JSON(t, http.MethodDelete, fmt.Sprintf("%s/api/v1/channels/%s", ts.URL, channelID), memberToken, nil)
 	requireStatus(t, resp, http.StatusOK, data)
 
 	resp, data = testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/channels/"+channelID, memberToken, nil)

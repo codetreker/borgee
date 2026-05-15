@@ -92,7 +92,10 @@ describe('ChannelManagementSurface', () => {
     mockContext.value = {
       state: {
         currentUser,
-        permissions: [],
+        permissions: [
+          { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+          { id: 2, permission: 'channel.manage_visibility', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+        ],
         channels: [
           channel({ id: 'created-1', name: 'created', topic: 'Owned by me', created_by: 'user-1', is_member: true }),
           channel({ id: 'joined-1', name: 'joined', topic: 'Joined by me', created_by: 'user-2', is_member: true }),
@@ -122,6 +125,24 @@ describe('ChannelManagementSurface', () => {
     expect(joinedRow?.querySelector('[data-action="owner-transfer"]')?.getAttribute('data-allowed')).toBe('false');
 
     expect(surface?.querySelector('button[data-action]')).toBeNull();
+  });
+
+  it('keeps ownership actions unavailable when server permissions are absent', () => {
+    mockContext.value = {
+      state: {
+        currentUser,
+        permissions: [],
+        channels: [channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true })],
+      },
+    };
+
+    render(<ChannelManagementSurface />);
+
+    const row = container.querySelector('[data-channel-id="created-1"]');
+    expect(row?.querySelector('[data-action="delete"]')?.getAttribute('data-allowed')).toBe('false');
+    expect(row?.querySelector('[data-action="delete"]')?.textContent).toContain('服务器权限不允许删除频道');
+    expect(row?.querySelector('[data-action="archive"]')?.getAttribute('data-allowed')).toBe('false');
+    expect(row?.querySelector('[data-action="archive"]')?.textContent).toContain('服务器权限不允许归档频道');
   });
 
   it('exposes server-owned mention delivery controls for channel agents', async () => {
