@@ -47,7 +47,7 @@ leased job -> ack receipt -> later policy/action handoff -> bounded terminal res
 - The helper's file IO surface is read-only.
 - Helper job policy is a pre-action gate only. It does not execute OpenClaw actions, write config, call a service manager, poll, lease, ack, or upload results.
 - Job payload fields cannot add shell, argv, executable path, script, arbitrary service unit, local path, network domain, credential, environment dump, or raw file authority.
-- Manifest-required jobs must bind to a verified Ed25519-signed runtime manifest digest, server-owned binding JSON, artifact cache bytes matching signed SHA-256 digests where artifacts are needed, and declared path/domain/service IDs before policy can allow. `openclaw.configure_agent` requires a signed manifest plus approved config path binding; `openclaw.install_from_manifest` requires signed manifest, artifact, approved paths, and approved artifact origin binding.
+- Manifest-required jobs must bind to a verified Ed25519-signed runtime manifest digest, server-owned binding JSON, artifact cache bytes matching signed SHA-256 digests where artifacts are needed, and declared path/domain/service IDs before policy can allow. `openclaw.configure_agent` requires a signed manifest plus approved config path binding; `openclaw.install_from_manifest` requires signed manifest, artifact, approved paths, and approved artifact origin binding; `borgee_plugin.configure_connection` requires a server-owned connection/channel payload plus approved Borgee plugin config path binding.
 - Local policy rechecks owner, org, enrollment id, Helper device id, credential generation, active enrollment status, category delegation, revocation, stale credential state, and job expiry.
 - Configured outbound prerequisites fail closed for literal origins: the server origin must be an allowed exact public HTTPS origin, literal host/IP input is classified with `netip`, localhost/private/link-local/metadata literal origins are rejected even over HTTPS, and state roots must normalize under Helper-owned state directories.
 - Helper job HTTP is outbound-only and fixed-path. Job payloads, manifests, Remote Agent state, host grants, and user input cannot supply a URL override.
@@ -89,11 +89,11 @@ This is transport and settlement plumbing. It does not implement local policy, m
 
 ## Audit Model
 
-Helper audit is local JSONL for the current IPC path. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log. Helper job policy decisions are shaped for future daemon-loop action wiring and bounded status handoff, but the current daemon does not upload or settle local policy decisions.
+Helper audit is local JSONL for the current IPC path. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log. Helper job policy decisions, including Borgee plugin connection/channel binding decisions, are shaped for future daemon-loop action wiring and bounded status handoff, but the current daemon does not upload or settle local policy decisions.
 
 ## Out Of Scope
 
-The helper does not create grants, write files, expose Remote Agent directories, install itself, provide an admin API, execute OpenClaw actions, upload bounded logs, or restart services. The local job-policy evaluator is present as a pure pre-action decision package; the outbound client is transport only and is not a host action loop.
+The helper does not create grants, write files, expose Remote Agent directories, install itself, provide an admin API, execute OpenClaw actions, write Borgee plugin config, upload bounded logs, or restart services. The local job-policy evaluator is present as a pure pre-action decision package; the outbound client is transport only and is not a host action loop.
 
 ## Known Gaps
 
@@ -101,7 +101,7 @@ The helper does not create grants, write files, expose Remote Agent directories,
 - The macOS sandbox depends on correct wrapper deployment.
 - Local JSONL audit is not currently a first-class server audit source.
 - Outbound origin validation rejects unsafe literal origins but does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses.
-- Helper outbound prerequisites, the fixed-path poll/ack/result client, bounded terminal settlement, and the local job-policy evaluator exist, but daemon-loop credential persistence, raw/bulk log upload, policy-to-action wiring, OpenClaw execution, and service lifecycle remain future work.
+- Helper outbound prerequisites, the fixed-path poll/ack/result client, bounded terminal settlement, and the local job-policy evaluator exist, but daemon-loop credential persistence, raw/bulk log upload, policy-to-action wiring, local Borgee plugin config writes, OpenClaw execution, and service lifecycle remain future work.
 
 ## Implementation Anchors
 

@@ -204,10 +204,10 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 			in.PayloadJSON = `{"runtime":"openclaw"}`
 			return in
 		}, ErrHelperJobDelegationDenied},
-		{"recognized plugin connection type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+		{"plugin connection requires channel binding", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
 			in.JobType = "borgee_plugin.configure_connection"
 			return in
-		}, ErrHelperJobTypeNotEnabled},
+		}, ErrHelperJobSchemaInvalid},
 		{"recognized service lifecycle type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "service.lifecycle"; return in }, ErrHelperJobTypeNotEnabled},
 		{"recognized state write type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "state.write"; return in }, ErrHelperJobTypeNotEnabled},
 		{"recognized status collect type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "status.collect"; return in }, ErrHelperJobTypeNotEnabled},
@@ -282,6 +282,78 @@ func TestHelperJobChannelBindingRequiresTargetAgentAccess(t *testing.T) {
 		t.Fatalf("expected queued job after channel access grant, created=%v job=%+v", created, job)
 	}
 	assertHelperJobPayloadBinding(t, job.PayloadJSON, agent.ID, int64(1))
+}
+
+func TestHelperJobPluginConfigureConnectionIsServerBound(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-plugin-owner")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_config"}, now)
+	agent := helperJobAgent(t, s, owner, "plugin-bound-agent")
+	privateChannel := helperJobChannel(t, s, owner, "helper-job-plugin-private", "private")
+	if err := s.AddChannelMember(&ChannelMember{ChannelID: privateChannel.ID, UserID: owner.ID}); err != nil {
+		t.Fatalf("add owner channel member: %v", err)
+	}
+
+	input := EnqueueHelperJobInput{
+		OwnerUserID:    owner.ID,
+		OrgID:          owner.OrgID,
+		EnrollmentID:   enrollment.ID,
+		JobType:        "borgee_plugin.configure_connection",
+		SchemaVersion:  1,
+		PayloadJSON:    `{"agent_id":"` + agent.ID + `","channel_id":"` + privateChannel.ID + `"}`,
+		IdempotencyKey: "plugin-bind-1",
+	}
+	if _, _, err := s.EnqueueHelperJobForUser(input, now.Add(2*time.Minute)); !errors.Is(err, ErrHelperJobForbidden) {
+		t.Fatalf("plugin binding without target agent channel access error=%v, want ErrHelperJobForbidden", err)
+	}
+	if count := countHelperJobs(t, s); count != 0 {
+		t.Fatalf("denied plugin binding inserted %d jobs, want 0", count)
+	}
+
+	if err := s.AddChannelMember(&ChannelMember{ChannelID: privateChannel.ID, UserID: agent.ID}); err != nil {
+		t.Fatalf("add agent channel member: %v", err)
+	}
+	job, created, err := s.EnqueueHelperJobForUser(input, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("plugin binding with target agent channel access: %v", err)
+	}
+	if !created || job.Status != HelperJobStatusQueued || job.Category != "openclaw_config" {
+		t.Fatalf("bad plugin binding job: created=%v job=%+v", created, job)
+	}
+	assertHelperJobPluginConnectionPayload(t, job.PayloadJSON, agent.ID, privateChannel.ID)
+	assertHelperJobManifestBinding(t, job, []string{"borgee_plugin_config"}, nil, nil)
+	if !strings.HasPrefix(job.ManifestDigest, "sha256:") {
+		t.Fatalf("plugin binding job missing manifest digest: %+v", job)
+	}
+
+	again, againCreated, err := s.EnqueueHelperJobForUser(input, now.Add(4*time.Minute))
+	if err != nil {
+		t.Fatalf("idempotent plugin binding retry: %v", err)
+	}
+	if againCreated || again.ID != job.ID {
+		t.Fatalf("same plugin binding idempotency scope should converge, created=%v again=%+v first=%s", againCreated, again, job.ID)
+	}
+
+	for _, payload := range []string{
+		`{"agent_id":"` + agent.ID + `"}`,
+		`{"agent_id":"` + agent.ID + `","channel_id":"` + privateChannel.ID + `","connection_id":"client"}`,
+		`{"agent_id":"` + agent.ID + `","channel_id":"` + privateChannel.ID + `","base_url":"https://evil.example"}`,
+		`{"agent_id":"` + agent.ID + `","channel_id":"` + privateChannel.ID + `","api_key":"secret"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "borgee_plugin.configure_connection",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(5*time.Minute))
+		if err == nil {
+			t.Fatalf("plugin binding payload %s unexpectedly succeeded", payload)
+		}
+	}
 }
 
 func TestHelperJobPollAckResultLeaseIdempotencyAndBoundaries(t *testing.T) {
@@ -838,6 +910,29 @@ func assertHelperJobInstallPayload(t *testing.T, payload string) {
 	for _, forbidden := range []string{"runtime", "manifest_id", "manifest_digest", "artifact_ids", "path_ids", "domain", "url", "command", "service_unit"} {
 		if _, ok := got[forbidden]; ok {
 			t.Fatalf("install payload leaked client authority field %q: %v", forbidden, got)
+		}
+	}
+}
+
+func assertHelperJobPluginConnectionPayload(t *testing.T, payload string, agentID string, channelID string) {
+	t.Helper()
+	var got map[string]any
+	if err := json.Unmarshal([]byte(payload), &got); err != nil {
+		t.Fatalf("payload is not JSON: %v", err)
+	}
+	if got["agent_id"] != agentID {
+		t.Fatalf("payload agent_id=%v, want %s in %v", got["agent_id"], agentID, got)
+	}
+	if got["channel_id"] != channelID {
+		t.Fatalf("payload channel_id=%v, want %s in %v", got["channel_id"], channelID, got)
+	}
+	connectionID, _ := got["connection_id"].(string)
+	if !strings.HasPrefix(connectionID, "borgee-plugin:") {
+		t.Fatalf("payload missing server-owned connection_id: %v", got)
+	}
+	for _, key := range []string{"owner_user_id", "org_id", "credential", "credentials", "token", "api_key", "base_url", "shell", "argv", "script", "service_unit", "path", "domain", "url"} {
+		if _, ok := got[key]; ok {
+			t.Fatalf("plugin payload leaked forbidden key %q: %v", key, got)
 		}
 	}
 }

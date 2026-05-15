@@ -47,6 +47,7 @@ var (
 const (
 	HelperJobTypeOpenClawConfigureAgent      = "openclaw.configure_agent"
 	HelperJobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
+	HelperJobTypePluginConfigureConnection   = "borgee_plugin.configure_connection"
 	HelperJobStatusQueued                    = "queued"
 	HelperJobStatusLeased                    = "leased"
 	HelperJobStatusRunning                   = "running"
@@ -67,6 +68,7 @@ const (
 	helperJobOpenClawPluginArtifactID  = "openclaw-plugin"
 	helperJobOpenClawInstallPathID     = "openclaw_install"
 	helperJobOpenClawAgentConfigPathID = "openclaw_agent_config"
+	helperJobBorgeePluginConfigPathID  = "borgee_plugin_config"
 	helperJobOpenClawPluginOrigin      = "https://cdn.borgee.io"
 	helperJobOpenClawPluginInstallPlan = "openclaw-plugin-v1"
 	helperJobOpenClawRuntimeIdentifier = "openclaw"
@@ -133,7 +135,7 @@ type helperJobSpec struct {
 var helperJobTaxonomy = map[string]helperJobSpec{
 	"openclaw.configure_agent":           {Category: "openclaw_config", Enabled: true, Manifest: true},
 	"openclaw.install_from_manifest":     {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
-	"borgee_plugin.configure_connection": {Category: "openclaw_config"},
+	"borgee_plugin.configure_connection": {Category: "openclaw_config", Enabled: true, Manifest: true},
 	"service.lifecycle":                  {Category: "openclaw_lifecycle"},
 	"state.write":                        {Category: "openclaw_config"},
 	"status.collect":                     {Category: "status_collect"},
@@ -150,6 +152,11 @@ type openClawInstallPayload struct {
 	Runtime string `json:"runtime"`
 }
 
+type borgeePluginConfigurePayload struct {
+	AgentID   string `json:"agent_id"`
+	ChannelID string `json:"channel_id"`
+}
+
 type openClawEffectivePayload struct {
 	AgentID             string `json:"agent_id"`
 	ChannelID           string `json:"channel_id,omitempty"`
@@ -159,6 +166,12 @@ type openClawEffectivePayload struct {
 
 type openClawInstallEffectivePayload struct {
 	InstallPlanID string `json:"install_plan_id"`
+}
+
+type borgeePluginEffectivePayload struct {
+	ConnectionID string `json:"connection_id"`
+	AgentID      string `json:"agent_id"`
+	ChannelID    string `json:"channel_id"`
 }
 
 type helperJobManifestBinding struct {
@@ -698,9 +711,50 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 			return nil, "", "", nil, err
 		}
 		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypePluginConfigureConnection:
+		payload, err := decodeBorgeePluginConfigurePayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		var agent User
+		if err := tx.Where("id = ? AND role = 'agent' AND owner_id = ? AND org_id = ? AND deleted_at IS NULL", payload.AgentID, input.OwnerUserID, input.OrgID).First(&agent).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, "", "", nil, ErrHelperJobForbidden
+			}
+			return nil, "", "", nil, err
+		}
+		var ch Channel
+		if err := tx.Where("id = ? AND deleted_at IS NULL", payload.ChannelID).First(&ch).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, "", "", nil, ErrHelperJobForbidden
+			}
+			return nil, "", "", nil, err
+		}
+		if ch.OrgID != input.OrgID || ch.Type != "channel" || !s.CanAccessChannel(payload.ChannelID, input.OwnerUserID) || !s.CanAccessChannel(payload.ChannelID, agent.ID) {
+			return nil, "", "", nil, ErrHelperJobForbidden
+		}
+		effective := borgeePluginEffectivePayload{
+			ConnectionID: serverOwnedBorgeePluginConnectionID(input.OrgID, payload.AgentID, payload.ChannelID),
+			AgentID:      payload.AgentID,
+			ChannelID:    payload.ChannelID,
+		}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
 	default:
 		return nil, "", "", nil, ErrHelperJobUnknownType
 	}
+}
+
+func serverOwnedBorgeePluginConnectionID(orgID, agentID, channelID string) string {
+	digest := helperJobDigest([]byte(orgID + "|" + agentID + "|" + channelID))
+	return "borgee-plugin:" + strings.TrimPrefix(digest, "sha256:")
 }
 
 func openClawManifestBindingForJob(jobType string) (string, *string, error) {
@@ -713,6 +767,8 @@ func openClawManifestBindingForJob(jobType string) (string, *string, error) {
 		binding.ArtifactIDs = []string{helperJobOpenClawPluginArtifactID}
 		binding.PathIDs = []string{helperJobOpenClawInstallPathID, helperJobOpenClawAgentConfigPathID}
 		binding.Domains = []string{helperJobOpenClawPluginOrigin}
+	case HelperJobTypePluginConfigureConnection:
+		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
 	default:
 		return "", nil, ErrHelperJobUnknownType
 	}
@@ -771,9 +827,33 @@ func decodeOpenClawInstallPayload(raw string) (openClawInstallPayload, error) {
 	return payload, nil
 }
 
+func decodeBorgeePluginConfigurePayload(raw string) (borgeePluginConfigurePayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return borgeePluginConfigurePayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return borgeePluginConfigurePayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload borgeePluginConfigurePayload
+	if err := dec.Decode(&payload); err != nil {
+		return borgeePluginConfigurePayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.AgentID = strings.TrimSpace(payload.AgentID)
+	payload.ChannelID = strings.TrimSpace(payload.ChannelID)
+	if payload.AgentID == "" || payload.ChannelID == "" || len(payload.AgentID) > 255 || len(payload.ChannelID) > 255 {
+		return borgeePluginConfigurePayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
 func helperJobForbiddenPayloadField(k string) bool {
 	switch strings.ToLower(strings.TrimSpace(k)) {
-	case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "paths", "path_id", "path_ids", "domain", "domains", "domain_id", "domain_ids", "url", "credential", "credentials", "token", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "manifest_id", "manifest_digest", "manifest_binding", "manifest_binding_json", "artifact", "artifact_id", "artifact_ids", "service_id", "service_ids", "install_plan_id", "ttl", "expires_at", "deadline", "lease_expires_at":
+	case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "paths", "path_id", "path_ids", "domain", "domains", "domain_id", "domain_ids", "url", "base_url", "credential", "credentials", "token", "api_key", "bot_user_id", "account_id", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "connection_id", "manifest_id", "manifest_digest", "manifest_binding", "manifest_binding_json", "artifact", "artifact_id", "artifact_ids", "service_id", "service_ids", "install_plan_id", "ttl", "expires_at", "deadline", "lease_expires_at":
 		return true
 	default:
 		return false

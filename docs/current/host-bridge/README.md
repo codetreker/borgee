@@ -19,7 +19,7 @@ The user SPA includes a read-only Helper status sidepane backed by the user Help
 
 - Grant control plane: user-owned rows describing host capability consent.
 - Helper enrollment control plane: owner/org-scoped rows describing enrolled Helper identity, allowed category visibility, device id, current credential lifecycle metadata, last seen, revoke, and helper-originated uninstall status.
-- Helper job enqueue control plane: human/member owner/org/enrollment-scoped typed `helper_jobs` rows with server TTL, category gate, internal normalized payload digest, server-owned manifest binding, and active-window idempotency. Public enqueue responses expose queued metadata only, not payload or manifest digests. OpenClaw Configure can enqueue `openclaw.configure_agent`, and OpenClaw install can enqueue `openclaw.install_from_manifest`; both use server-derived effective payloads and approved manifest/path or artifact/domain bindings. Plugin channel binding, service lifecycle, and other later job types remain disabled until their task-owned authority exists.
+- Helper job enqueue control plane: human/member owner/org/enrollment-scoped typed `helper_jobs` rows with server TTL, category gate, internal normalized payload digest, server-owned manifest binding, and active-window idempotency. Public enqueue responses expose queued metadata only, not payload or manifest digests. OpenClaw Configure can enqueue `openclaw.configure_agent`, OpenClaw install can enqueue `openclaw.install_from_manifest`, and Borgee plugin channel binding can enqueue `borgee_plugin.configure_connection`; these use server-derived effective payloads and approved manifest/path or artifact/domain bindings. Plugin binding jobs recheck owner/org/channel and target-agent channel access before queueing. Service lifecycle and other later job types remain disabled until their task-owned authority exists.
 - Helper job transport rail: Helper-credential `poll`, `ack`, and `result` routes atomically lease one queued job, move receipt to running, and settle terminal statuses with bounded redacted metadata. The rail checks current Helper credential, helper device id, enrollment status, lease token, TTL, lease expiry, non-success reason codes, redacted failure messages, bounded audit/log references, and terminal idempotency.
 - Helper data plane: local UDS IPC carrying agent-scoped requests, plus outbound-only Helper job HTTP client construction from validated prerequisite config.
 - Helper local job-policy gate: pure pre-action evaluator for delivered server-owned job views. It returns allow/deny reasons and does not perform IO, OpenClaw actions, service-manager calls, bounded log upload, or terminal settlement on its own.
@@ -45,7 +45,7 @@ Helper status UI flow:
 
 Helper job enqueue flow:
   human/member user posts typed job envelope -> server derives owner/org/enrollment
-  -> server validates fresh claimed Helper, category, job type, payload, optional channel target-agent access, config binding, install runtime intent, TTL, idempotency
+  -> server validates fresh claimed Helper, category, job type, payload, channel target-agent access when binding, config/plugin binding, install runtime intent, TTL, idempotency
   -> server stores queued metadata plus server-owned manifest binding only; user response does not expose payload, manifest digest, credentials, owner/org internals, or logs
 
 Helper pull/lease/result flow:
@@ -106,7 +106,7 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 - Runtime authorization and platform sandboxing do not have identical update lifecycles; [helper-daemon.md](helper-daemon.md) owns the daemon-level details.
 - Deployment trust and runtime authorization are separate boundaries; [installer.md](installer.md) owns installer trust details.
 - Helper outbound validation does not resolve allowed hostnames or inspect DNS answers/CNAMEs. The installed production allowlist is exactly `https://app.borgee.io`, but DNS rebinding or private/link-local/metadata resolution remains future hardening or runtime network-policy scope.
-- Helper enrollment has identity/status and current-credential rotation handling. Helper job enqueue, outbound poll-and-lease, ack, bounded redacted terminal result settlement, server-owned OpenClaw install/config manifest binding, and pure local job-policy evaluation are current behavior. Service lifecycle, plugin channel binding execution, local uninstall action execution, raw/bulk log upload, policy-to-action wiring, and OpenClaw execution are not current behavior.
+- Helper enrollment has identity/status and current-credential rotation handling. Helper job enqueue, outbound poll-and-lease, ack, bounded redacted terminal result settlement, server-owned OpenClaw install/config and Borgee plugin channel binding manifest/path binding, and pure local job-policy evaluation are current behavior. Local plugin config write execution, service lifecycle, local uninstall action execution, raw/bulk log upload, policy-to-action wiring, and OpenClaw execution are not current behavior.
 
 ## Implementation Anchors
 

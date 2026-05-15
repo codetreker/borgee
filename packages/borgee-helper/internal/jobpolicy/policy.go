@@ -258,8 +258,10 @@ func validatePayload(job Job) Reason {
 	case JobTypePluginConfigureConnection:
 		var payload struct {
 			ConnectionID string `json:"connection_id"`
+			AgentID      string `json:"agent_id"`
+			ChannelID    string `json:"channel_id"`
 		}
-		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || payload.ConnectionID == "" {
+		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || !strings.HasPrefix(payload.ConnectionID, "borgee-plugin:") || payload.AgentID == "" || payload.ChannelID == "" {
 			return ReasonSchemaInvalid
 		}
 	case JobTypeServiceLifecycle:

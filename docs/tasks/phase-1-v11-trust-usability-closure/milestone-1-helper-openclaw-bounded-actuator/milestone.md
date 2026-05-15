@@ -34,13 +34,13 @@ Rejected by this milestone:
 | Helper outbound service prerequisites | ACCEPTED | `task-5-helper-outbound-service-prereq` | PR #939 (`96dc0dc`) | complete |
 | Helper pull / lease / result | ACCEPTED | `task-6-helper-pull-lease-result` | PR #943 (`c2c61e`) | complete |
 | Local policy / manifest / sandbox profile | ACCEPTED | `task-7-local-policy-manifest-and-sandbox-profile` | PR #942 (`642fb57`) | complete |
-| Bounded status logs and revoke settlement | ACCEPTING | `task-8-bounded-status-logs-and-revoke-settlement` | PR #954 from `feat/task-8-bounded-status-logs-and-revoke-settlement`; after PR #943 (`c2c61e`) and PR #942 (`642fb57`) | no |
-| OpenClaw install and agent config jobs | BLOCKED | `task-9-openclaw-install-and-agent-config-jobs` | After typed job/policy substrate | no |
-| Borgee plugin channel binding job | BLOCKED | `task-10-borgee-plugin-channel-binding-job` | After install/config jobs; coordinate with channel authority if needed | yes, after dependency clears |
+| Bounded status logs and revoke settlement | ACCEPTED | `task-8-bounded-status-logs-and-revoke-settlement` | PR #954 (`419c5bf`) | complete |
+| OpenClaw install and agent config jobs | ACCEPTED | `task-9-openclaw-install-and-agent-config-jobs` | PR #956 (`5575b53`) | complete |
+| Borgee plugin channel binding job | IMPLEMENTING | `task-10-borgee-plugin-channel-binding-job` | After PR #956; existing channel access checks sufficient, no M2 Task6 blocker | yes |
 | Service lifecycle reliability | BLOCKED | `task-11-service-lifecycle-boot-crash` | After typed job/policy substrate | yes, after dependency clears |
 | Configure OpenClaw terminal UI | BLOCKED | `task-12-configure-openclaw-terminal-ui` | After install/config, binding, and lifecycle work | no |
 
-Current execution is PR acceptance for `task-8-bounded-status-logs-and-revoke-settlement` in PR #954. `task-6-helper-pull-lease-result` is accepted through PR #943 (`c2c61e`), and `task-7-local-policy-manifest-and-sandbox-profile` is accepted through PR #942 (`642fb57`).
+Current execution is `task-10-borgee-plugin-channel-binding-job`. `task-8-bounded-status-logs-and-revoke-settlement` is accepted through PR #954 (`419c5bf`), `task-9-openclaw-install-and-agent-config-jobs` is accepted through PR #956 (`5575b53`), and Task10 proceeds without an M2 Task6 blocker because it reuses existing channel access checks rather than adding channel management actions.
 
 ## Exit Gates
 

@@ -355,6 +355,61 @@ func TestHelperJobsEnqueueChannelBindingRequiresTargetAgentAccess(t *testing.T) 
 	}
 }
 
+func TestHelperJobsEnqueuePluginConfigureConnectionRequiresChannelAuthority(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-plugin")
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "api-plugin-bound-agent")
+	privateChannel := testutil.CreateChannel(t, ts.URL, ownerToken, "helper-job-plugin-private", "private")
+	privateChannelID := privateChannel["id"].(string)
+
+	valid := map[string]any{
+		"job_type":       "borgee_plugin.configure_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "channel_id": privateChannelID},
+	}
+	resp, denied := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, valid)
+	if resp.StatusCode != http.StatusForbidden || denied["code"] != "forbidden" {
+		t.Fatalf("plugin binding without target agent channel access: status %d body %v", resp.StatusCode, denied)
+	}
+	if count := countAPIHelperJobs(t, s); count != 0 {
+		t.Fatalf("denied plugin binding inserted %d jobs, want 0", count)
+	}
+
+	if err := s.AddChannelMember(&store.ChannelMember{ChannelID: privateChannelID, UserID: agent.ID}); err != nil {
+		t.Fatalf("add agent channel member: %v", err)
+	}
+	resp, allowed := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, valid)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("plugin binding with target agent channel access: status %d body %v", resp.StatusCode, allowed)
+	}
+	job := allowed["job"].(map[string]any)
+	if job["job_type"] != "borgee_plugin.configure_connection" || job["category"] != "openclaw_config" {
+		t.Fatalf("unexpected plugin binding job response: %v", job)
+	}
+	assertNoHelperJobSensitiveFields(t, job)
+
+	leaseResp, leaseBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-plugin"})
+	if leaseResp.StatusCode != http.StatusOK {
+		t.Fatalf("poll plugin binding job: status %d body %v", leaseResp.StatusCode, leaseBody)
+	}
+	leased := leaseBody["job"].(map[string]any)
+	payload := leased["payload"].(map[string]any)
+	if payload["agent_id"] != agent.ID || payload["channel_id"] != privateChannelID {
+		t.Fatalf("leased plugin payload lost channel binding: %v", payload)
+	}
+	connectionID, _ := payload["connection_id"].(string)
+	if !strings.HasPrefix(connectionID, "borgee-plugin:") {
+		t.Fatalf("leased plugin payload missing server-owned connection id: %v", payload)
+	}
+	binding := leased["manifest_binding"].(map[string]any)
+	assertAnyStringSet(t, "path_ids", binding["path_ids"], []string{"borgee_plugin_config"})
+	assertNoHelperLeaseSensitiveFields(t, leased)
+}
+
 func TestHelperJobsEnqueueRejectsAgentAPIKeyAuthority(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -449,7 +504,7 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 	}{
 		{"unknown job type", map[string]any{"job_type": "command.run", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}}, http.StatusBadRequest, "unknown_job_type"},
 		{"install client manifest authority", map[string]any{"job_type": "openclaw.install_from_manifest", "schema_version": 1, "payload": map[string]any{"runtime": "openclaw", "manifest_id": "client"}}, http.StatusBadRequest, "forbidden_field"},
-		{"recognized plugin connection type", map[string]any{"job_type": "borgee_plugin.configure_connection", "schema_version": 1, "payload": map[string]any{"connection_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"plugin connection client authority", map[string]any{"job_type": "borgee_plugin.configure_connection", "schema_version": 1, "payload": map[string]any{"connection_id": "server-owned"}}, http.StatusBadRequest, "forbidden_field"},
 		{"recognized service lifecycle type", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized state write type", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized status collect type", map[string]any{"job_type": "status.collect", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
