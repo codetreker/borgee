@@ -6,10 +6,10 @@
 |---|---|
 | Worktree | `.worktrees/task-7-local-policy-manifest-and-sandbox-profile` |
 | Branch | `feat/task-7-local-policy-manifest-and-sandbox-profile` |
-| PR | N/A; local task-start commit only |
+| PR | N/A; local task/design commits only |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | TASKING |
-| Blocker | none for task-start; implementation/design must coordinate with task 6 transport ownership |
+| State | READY_FOR_DESIGN_REVIEW |
+| Blocker | none for design review; implementation remains blocked until role review accepts `design.md` |
 
 ## Checkpoints
 
@@ -22,6 +22,9 @@
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals
 - [x] Shared milestone index intentionally not edited during task-start prep
 - [x] Product code intentionally not changed in task-start commit scope
+- [x] Dev/Security scouting completed against Helper sandbox/outbound, server Helper jobs/enrollment, manifest verifier, installer docs, plugin docs, and current docs
+- [x] `design.md` drafted with policy schema, manifest/artifact binding, signature/digest boundary, allowlists, sandbox alignment, auth/state rejection, test plan, docs/current sync, and non-goals
+- [x] Task state advanced to `READY_FOR_DESIGN_REVIEW`
 
 ## Task-Prep Evidence
 
@@ -38,6 +41,21 @@
 | Content lock | N/A; no UI copy, selectors, or product-facing text literals are part of task-start scope | PASS |
 | Product code | No product code changes made in task-start commit scope | PASS |
 
+## Design-Prep Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Helper daemon boundary | Read `packages/borgee-helper/cmd/borgee-helper/main.go`; daemon validates outbound prereqs, opens grants DB, applies sandbox, and serves UDS without polling jobs or local policy today | PASS |
+| Outbound prereq boundary | Read `packages/borgee-helper/internal/outbound/prereq.go`, tests, and install assets; exact public HTTPS origin and Helper-owned state root validation exist, with documented DNS/CNAME residual risk | PASS |
+| Sandbox/profile boundary | Read `packages/borgee-helper/internal/sandbox/*`, `install/borgee-helper.service`, `install/cloud.borgee.host-bridge.plist`, `install/borgee-helper.sb`, and asset tests | PASS |
+| Existing Helper ACL rail | Read `internal/acl`, `internal/grants`, `internal/fileio`, `internal/ipc`, `internal/audit`, and `internal/reasons`; these are current host-grant-backed IPC patterns, not Helper job policy authority | PASS |
+| Server Helper jobs | Read `packages/server-go/internal/store/helper_job_queries.go`, `internal/api/helper_jobs.go`, `internal/datalayer/helper_jobs*.go`, migration/tests, and model fields; enqueue is server-only and task 6 endpoints remain unmounted | PASS |
+| Helper enrollment/auth state | Read `helper_enrollment_queries.go`, API handler, migrations, and docs; owner/org/enrollment/device/current credential generation and terminal revoke/uninstall states are available as policy inputs | PASS |
+| Manifest/artifact baseline | Read `packages/borgee-installer/internal/manifest`, installer commands/docs, and `server-go/internal/api/host_manifest.go`; existing installer manifest trust remains partial and envelope shapes differ | PASS |
+| Plugin/OpenClaw context | Read OpenClaw plugin config/setup/docs enough to verify task 7 should not write plugin config or execute OpenClaw actions | PASS |
+| Design doc | Created `design.md` with explicit Dev and Security scouting inputs plus requested design sections | PASS |
+| Product code | No product code changes made in design-prep commit scope | PASS |
+
 ## Interface Assumptions For Dev Design
 
 - Task 7 may assume a server-owned typed job envelope exists after task 4 and is delivered/settled by task 6.
@@ -49,6 +67,13 @@
 - In scope: fixed schema validation, signed manifest/artifact binding, allowlisted paths/domains, declared service IDs, revoked/stale/wrong-owner/wrong-org rejection, sandbox/profile alignment, and Helper/Remote Agent rail separation.
 - Out of scope: Helper pull/lease/result transport, OpenClaw action execution, service lifecycle restart/boot/crash behavior, Configure OpenClaw terminal UI, sudo cache, persistent privileged service behavior, and Remote Agent rail reuse.
 
+## Design Review Handoff
+
+- Proposed implementation unit: new Helper-side `internal/jobpolicy` package that evaluates a delivered server-owned job candidate and returns allow/deny with reason, without owning HTTP polling or action execution.
+- Existing installer manifest verifier is not treated as sufficient runtime policy trust. Design calls out envelope mismatch and partial artifact-binding/key-wiring gaps, then defines the runtime manifest/artifact binding boundary for review.
+- Task 6 interface assumption stays narrow: task 6 may call policy and later report the returned reason; task 7 does not design task 6 endpoints, lease/result shape, retry/backoff, cancellation, or result upload.
+- Security review should focus on signed manifest canonical bytes, artifact byte/cache digest binding, no rail reuse, path/domain/service fail-closed checks, and sandbox/profile alignment.
+
 ## Acceptance State
 
-Task 7 is in task-start state. Four-piece prep docs exist, `content-lock.md` is N/A, shared milestone index was not edited, and no product code has been implemented.
+Task 7 is ready for design review. Four-piece prep docs and `design.md` exist, `content-lock.md` is N/A, shared milestone index was not edited, and no product code has been implemented.
