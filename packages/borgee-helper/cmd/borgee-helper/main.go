@@ -23,6 +23,7 @@ import (
 	"borgee-helper/internal/audit"
 	"borgee-helper/internal/grants"
 	"borgee-helper/internal/ipc"
+	"borgee-helper/internal/outbound"
 	"borgee-helper/internal/sandbox"
 )
 
@@ -31,14 +32,26 @@ func main() {
 	auditLog := flag.String("audit-log", "/var/log/borgee-helper/audit.log.jsonl", "audit JSON-line path")
 	grantsDSN := flag.String("grants-db", "", "sqlite DSN for HB-3 host_grants table (read-only) — REQUIRED for production")
 	readPathsFlag := flag.String("read-paths", "", "comma-separated absolute paths landlock allows (v0(D) static; v1+ pulls live from host_grants)")
+	outboundServerOrigin := flag.String("outbound-server-origin", "", "Borgee API server origin for future Helper outbound polling prerequisites")
+	outboundAllowedOrigins := flag.String("outbound-allowed-origins", "", "comma-separated exact Borgee API origins allowed for future Helper outbound polling prerequisites")
+	queueStateDir := flag.String("queue-state-dir", "", "Helper-owned queue cursor state directory for future outbound polling prerequisites")
+	statusStateDir := flag.String("status-state-dir", "", "Helper-owned bounded status state directory for future outbound polling prerequisites")
+	auditHandoffDir := flag.String("audit-handoff-dir", "", "Helper-owned local audit handoff directory for future outbound polling prerequisites")
 	flag.Parse()
 
-	if err := run(*socket, *auditLog, *grantsDSN, *readPathsFlag); err != nil {
+	outboundPrereq := outbound.PrereqConfig{
+		ServerOrigin:    *outboundServerOrigin,
+		AllowedOrigins:  *outboundAllowedOrigins,
+		QueueStateDir:   *queueStateDir,
+		StatusStateDir:  *statusStateDir,
+		AuditHandoffDir: *auditHandoffDir,
+	}
+	if err := run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq); err != nil {
 		log.Fatalf("borgee-helper: %v", err)
 	}
 }
 
-func run(socket, auditLogPath, grantsDSN, readPaths string) error {
+func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig) error {
 	// Audit log writer (forward-only, JSON-line).
 	logFile, err := os.OpenFile(auditLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -60,6 +73,14 @@ func run(socket, auditLogPath, grantsDSN, readPaths string) error {
 	defer sc.Close()
 	var gc grants.Consumer = sc
 	log.Printf("borgee-helper: SQLite consumer connected dsn=%s", grantsDSN)
+
+	preparedOutbound, err := outbound.ValidateAndPrepare(outboundPrereq, outbound.ValidationOptions{})
+	if err != nil {
+		return err
+	}
+	if preparedOutbound.Enabled {
+		log.Printf("borgee-helper: outbound prerequisites configured origin=%s state_dirs=3", preparedOutbound.ServerOrigin)
+	}
 
 	// ACL gate (Consumer interface).
 	gate := acl.New(gc)

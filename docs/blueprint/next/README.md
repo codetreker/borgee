@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-15
-Resume from: execute task-start/four-piece for `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-1-job-envelope-and-enqueue-authority/`.
+Resume from: execute task-start/four-piece for `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-2-helper-outbound-service-prereq/`.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -135,4 +135,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Continue Phase 1 Milestone 2 from `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-1-job-envelope-and-enqueue-authority/`. Phase 1 Milestone 1 is accepted through PR #934 (`547f869`), PR #936 (`1ca5f95`), and PR #937 (`2872905`). Milestone 2 task 1 is unlocked for task-start/four-piece review; product implementation has not started.
+Continue Phase 1 Milestone 2 from `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-2-helper-outbound-service-prereq/`. Phase 1 Milestone 1 is accepted through PR #934 (`547f869`), PR #936 (`1ca5f95`), and PR #937 (`2872905`). Milestone 2 task 1 is accepted and merged through PR #938 (`64d56f1`), unlocking task 2 for task-start/four-piece review. Product implementation has not started for task 2.

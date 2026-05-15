@@ -11,14 +11,19 @@ Group=borgee-helper
 ExecStart=/usr/local/bin/borgee-helper \
     --socket=/run/borgee-helper/borgee-helper.sock \
     --audit-log=/var/log/borgee-helper/audit.log.jsonl \
-    --grants-db=file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000
+    --grants-db=file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000 \
+    --outbound-server-origin=https://app.borgee.io \
+    --outbound-allowed-origins=https://app.borgee.io \
+    --queue-state-dir=/var/lib/borgee-helper/queue \
+    --status-state-dir=/var/lib/borgee-helper/status \
+    --audit-handoff-dir=/var/lib/borgee-helper/audit-handoff
 
 # v0(D) sandbox layers (defense in depth — landlock 在 daemon 内 + systemd OS-level):
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 NoNewPrivileges=yes
-RestrictAddressFamilies=AF_UNIX
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
@@ -26,8 +31,9 @@ RestrictRealtime=yes
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 
-# Writable paths (audit log + IPC socket dir).
-ReadWritePaths=/var/log/borgee-helper /run/borgee-helper
+# Writable paths (audit log, IPC socket dir, and Helper-owned outbound prerequisite state).
+StateDirectory=borgee-helper
+ReadWritePaths=/var/log/borgee-helper /run/borgee-helper /var/lib/borgee-helper/queue /var/lib/borgee-helper/status /var/lib/borgee-helper/audit-handoff
 
 # Read-only DB (HB-3 host_grants).
 ReadOnlyPaths=/var/lib/borgee

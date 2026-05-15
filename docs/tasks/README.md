@@ -14,14 +14,15 @@ Current execution resume state:
 
 - Milestone breakdown is accepted across all 8 v1.1 milestones.
 - Phase 1 milestone 1 is accepted through PR #934 (`547f869`), PR #936 (`1ca5f95`), and PR #937 (`2872905`).
-- Active task: `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-1-job-envelope-and-enqueue-authority`.
-- Current gate: task-start/four-piece review for the server-authorized typed job envelope and enqueue authority. Product implementation has not started.
+- Phase 1 milestone 2 task 1 is accepted and merged through PR #938 (`64d56f1`).
+- Active task: `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-2-helper-outbound-service-prereq`.
+- Current gate: task-start/four-piece review for Helper outbound service and sandbox prerequisites. Product implementation has not started.
 
 ## Active Task Resume
 
 | Scope | Execution | Active task | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
-| `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop` | TASKING | `task-1-job-envelope-and-enqueue-authority` | Blueprintflow tasking worker under Teamlead | `.worktrees/task-1-job-envelope-and-enqueue-authority` / `feat/task-1-job-envelope-and-enqueue-authority` | not opened | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-1-job-envelope-and-enqueue-authority/progress.md` |
+| `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop` | TASKING | `task-2-helper-outbound-service-prereq` | Blueprintflow tasking worker under Teamlead | `.worktrees/task-2-helper-outbound-service-prereq` / `feat/task-2-helper-outbound-service-prereq` | not opened | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-2-helper-outbound-service-prereq/progress.md` |
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 

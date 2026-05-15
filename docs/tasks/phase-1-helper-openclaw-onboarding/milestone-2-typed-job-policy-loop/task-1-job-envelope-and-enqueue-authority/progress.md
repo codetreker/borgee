@@ -8,8 +8,9 @@
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
 | PR | #938 |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | CI_COVERAGE_REPAIR_VERIFIED |
-| Blocker | PR #938 `go-test-cov` per-function blocker repaired locally. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. Implementation review blockers, QA acceptance evidence gap, and the later `mapHelperJobErr` coverage blocker are repaired. |
+| State | ACCEPTED |
+| Blocker | none |
+| Merge | PR #938 merged at squash commit `64d56f1d6b326bc3ceabd93412717c85aa0e0506`. |
 
 ## Checkpoints
 
@@ -27,8 +28,8 @@
 - [x] Product implementation complete
 - [x] `docs/current` sync checked after implementation or no-op rationale recorded
 - [x] Acceptance evidence recorded after implementation
-- [ ] PR opened
-- [ ] PR merged
+- [x] PR opened
+- [x] PR merged via #938 at `64d56f1d6b326bc3ceabd93412717c85aa0e0506`
 
 ## Task-Prep Evidence
 
