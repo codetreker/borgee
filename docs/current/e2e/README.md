@@ -114,6 +114,7 @@ E2E harness and test surface:
 
 - `packages/e2e/playwright.config.ts`
 - `packages/e2e/tests/`
+- `packages/e2e/tests/production-surface-reverse-proof.spec.ts`: focused product-surface reverse proof for ArtifactComments production mount, ArtifactComments/ArtifactPanel forbidden states, and Settings PermissionsView empty/forbidden/error states.
 
 Container and deployment release surface:
 
