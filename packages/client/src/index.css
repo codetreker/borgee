@@ -635,6 +635,83 @@ body {
   flex-wrap: nowrap;
 }
 
+.sidebar-account {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sidebar-account-trigger {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .sidebar-account-trigger:hover {
+    background: var(--bg-sidebar-hover);
+  }
+}
+
+.sidebar-account-panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: 220px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  z-index: 20;
+}
+
+.sidebar-account-panel-title {
+  padding: 4px 6px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sidebar-account-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px;
+  margin-bottom: 4px;
+}
+
+.sidebar-account-summary-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar-account-summary-text {
+  min-width: 0;
+}
+
+.sidebar-account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sidebar-account-role {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .sidebar-footer-secondary {
   position: relative;
   margin-left: auto;

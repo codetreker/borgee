@@ -70,7 +70,9 @@ beforeEach(() => {
   testState.onlineUserIds = new Set<string>();
   testState.dmChannels = [];
   testState.currentUser = { id: 'user-owner', display_name: 'Owner', role: 'member', avatar_url: null, created_at: 1 };
+  vi.mocked(listAgentInvitations).mockClear();
   vi.mocked(listAgentInvitations).mockResolvedValue([]);
+  vi.mocked(logout).mockClear();
   vi.mocked(logout).mockResolvedValue(undefined);
 });
 
@@ -115,7 +117,7 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
 
     const primary = container!.querySelector('[data-testid="sidebar-footer-primary-actions"]') as HTMLElement | null;
     expect(primary).toBeTruthy();
-    expect(primary!.querySelector('.user-avatar-small')).toBeTruthy();
+    expect(primary!.querySelector('[data-testid="sidebar-account-trigger"]')).toBeTruthy();
     expect(primary!.querySelector('[data-testid="sidebar-nav-agents"]')).toBeTruthy();
     expect(primary!.querySelector('[title="Workspaces"]')).toBeTruthy();
     expect(primary!.querySelector('[data-action="open-settings"]')).toBeTruthy();
@@ -127,7 +129,7 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
     expect(primary!.querySelector('[data-action="open-helper-status"]')).toBeNull();
   });
 
-  it('keeps secondary sidebar destinations reachable from the More menu', async () => {
+  it('keeps secondary sidebar destinations reachable from the More menu without logout', async () => {
     const onInvitationsOpen = vi.fn();
     const onRemoteNodesOpen = vi.fn();
     const onHelperStatusOpen = vi.fn();
@@ -149,10 +151,27 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
     expect(onHelperStatusOpen).toHaveBeenCalledTimes(1);
 
     click(container!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
+    expect(container!.querySelector('[data-testid="sidebar-secondary-logout"]')).toBeNull();
+    expect(logout).not.toHaveBeenCalled();
+    expect(onLogout).not.toHaveBeenCalled();
+  });
+
+  it('opens account panel from avatar and logs out from the panel', async () => {
+    const onLogout = vi.fn();
+    await renderSidebar({ onLogout });
+
+    click(container!.querySelector('[data-testid="sidebar-account-trigger"]')!);
+
+    const panel = container!.querySelector('[data-testid="sidebar-account-panel"]')!;
+    expect(panel).toBeTruthy();
+    expect(panel.querySelector('[data-testid="sidebar-account-name"]')?.textContent).toBe('Owner');
+    expect(panel.querySelector('[data-testid="sidebar-account-role"]')?.textContent).toBe('member');
+
     await act(async () => {
-      container!.querySelector('[data-testid="sidebar-secondary-logout"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      panel.querySelector('[data-testid="sidebar-account-logout"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await Promise.resolve();
     });
+
     expect(logout).toHaveBeenCalledTimes(1);
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
@@ -172,23 +191,31 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
     expect(action.querySelector('[data-testid="invitation-bell-badge"]')?.textContent).toBe('2');
   });
 
-  it('keeps logout reachable but does not expose owner-only footer actions to agent sessions', async () => {
+  it('keeps account logout reachable but does not expose owner-only footer actions to agent sessions', async () => {
     testState.currentUser = { id: 'agent-1', display_name: 'Agent', role: 'agent', avatar_url: null, created_at: 1 };
-    await renderSidebar();
+    const onLogout = vi.fn();
+    await renderSidebar({ onLogout });
 
     const primary = container!.querySelector('[data-testid="sidebar-footer-primary-actions"]') as HTMLElement | null;
     expect(primary).toBeTruthy();
-    expect(primary!.querySelector('.user-avatar-small')).toBeTruthy();
+    expect(primary!.querySelector('[data-testid="sidebar-account-trigger"]')).toBeTruthy();
     expect(primary!.querySelector('[title="Workspaces"]')).toBeTruthy();
     expect(primary!.querySelector('[data-testid="sidebar-nav-agents"]')).toBeNull();
     expect(primary!.querySelector('[data-action="open-settings"]')).toBeNull();
-    expect(primary!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')).toBeTruthy();
+    expect(primary!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')).toBeNull();
 
-    click(primary!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
-    const menu = container!.querySelector('[data-testid="sidebar-footer-secondary-menu"]')!;
-    expect(menu.querySelector('[data-testid="sidebar-secondary-logout"]')).toBeTruthy();
-    expect(menu.querySelector('[data-testid="sidebar-secondary-invitations"]')).toBeNull();
-    expect(menu.querySelector('[data-testid="sidebar-secondary-remote-nodes"]')).toBeNull();
-    expect(menu.querySelector('[data-testid="sidebar-secondary-helper-status"]')).toBeNull();
+    click(primary!.querySelector('[data-testid="sidebar-account-trigger"]')!);
+    const panel = container!.querySelector('[data-testid="sidebar-account-panel"]')!;
+    expect(panel.querySelector('[data-testid="sidebar-account-logout"]')).toBeTruthy();
+    expect(panel.querySelector('[data-testid="sidebar-secondary-invitations"]')).toBeNull();
+    expect(panel.querySelector('[data-testid="sidebar-secondary-remote-nodes"]')).toBeNull();
+    expect(panel.querySelector('[data-testid="sidebar-secondary-helper-status"]')).toBeNull();
+
+    await act(async () => {
+      panel.querySelector('[data-testid="sidebar-account-logout"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(onLogout).toHaveBeenCalledTimes(1);
   });
 });
