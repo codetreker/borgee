@@ -8,7 +8,7 @@ Host Bridge is the local host capability path. It is designed for actions that n
 Host Bridge lets Borgee-controlled agents request limited host capabilities through a local helper. The server owns user consent records and Helper enrollment/status rows, the helper owns local enforcement, and the installer owns deployment of the helper runtime.
 
 **Boundary**
-The current request boundary is a grant-backed helper request. A request must identify the agent, match the connection's agent identity, normalize to a grant scope, pass grant lookup, and then pass local OS/process constraints before host IO is attempted. Helper enrollment is a separate server-side identity/status boundary: it binds owner, org, enrollment id, helper device id, host label, allowed categories, and terminal revoke/uninstall state before later host-management work can rely on a Helper identity. Server-side Helper job enqueue now exists as a user-rail typed queue boundary, but only for bounded enqueue authority. The Helper service has outbound HTTPS and local state prerequisites for later polling, with exact public-origin startup validation that rejects localhost/private/link-local/metadata origins by default and explicit Helper-owned state roots; it still does not add Helper polling, local execution, or job settlement.
+The current request boundary is a grant-backed helper request. A request must identify the agent, match the connection's agent identity, normalize to a grant scope, pass grant lookup, and then pass local OS/process constraints before host IO is attempted. Helper enrollment is a separate server-side identity/status boundary: it binds owner, org, enrollment id, helper device id, host label, allowed categories, and terminal revoke/uninstall state before later host-management work can rely on a Helper identity. Server-side Helper job enqueue now exists as a user-rail typed queue boundary, but only for bounded enqueue authority. The Helper service has outbound HTTPS and local state prerequisites for later polling, with exact public-origin startup validation that rejects localhost/private/link-local/metadata literal origins by default and explicit Helper-owned state roots; it still does not add Helper polling, local execution, or job settlement.
 
 **Collaborators**
 Host Bridge collaborates with the user API for grants and Helper enrollment management, server storage for grant and enrollment state, the helper daemon for enforcement, the installer for deployment, and admin audit views for limited visibility. It does not collaborate with the remote-agent WebSocket token path.
@@ -48,7 +48,7 @@ Helper job enqueue flow:
 
 Helper outbound prerequisite flow:
   installed service starts helper with exact Borgee server origin, allowed origin list, and Helper-owned state dirs
-  -> daemon normalizes and validates origin/state roots fail-closed, rejecting local/private/link-local/metadata origins in production defaults
+  -> daemon normalizes and validates origin/state roots fail-closed, rejecting local/private/link-local/metadata literal origins in production defaults
   -> Linux systemd allows AF_UNIX plus IPv4/IPv6 only; macOS sandbox permits remote TCP while preserving local UDS-only inbound
   -> no HTTP poll request is made in this task
 
@@ -88,6 +88,7 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 
 - Runtime authorization and platform sandboxing do not have identical update lifecycles; [helper-daemon.md](helper-daemon.md) owns the daemon-level details.
 - Deployment trust and runtime authorization are separate boundaries; [installer.md](installer.md) owns installer trust details.
+- Helper outbound validation does not resolve allowed hostnames or inspect DNS answers/CNAMEs. The installed production allowlist is exactly `https://app.borgee.io`, but DNS rebinding or private/link-local/metadata resolution remains future hardening or runtime network-policy scope.
 - Helper enrollment has identity/status and current-credential rotation handling. Helper job enqueue has a queued metadata table and user-rail enqueue route only. Helper outbound service prerequisites are in place for service/sandbox/config/state shape only. Pull queues, service lifecycle, local uninstall action execution, bounded logs, result settlement, and local policy execution are not current behavior.
 
 ## Implementation Anchors

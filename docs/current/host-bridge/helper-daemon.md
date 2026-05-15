@@ -37,7 +37,7 @@ rejected -> rejection response -> audit
 - The request agent id must match the connection handshake agent id.
 - File actions require absolute normalized paths and are represented as filesystem scopes.
 - The helper's file IO surface is read-only.
-- Configured outbound prerequisites fail closed: the server origin must be an allowed exact public HTTPS origin, localhost/private/link-local/metadata origins are rejected even over HTTPS, and state roots must normalize under Helper-owned state directories.
+- Configured outbound prerequisites fail closed for literal origins: the server origin must be an allowed exact public HTTPS origin, literal host/IP input is classified with `netip`, localhost/private/link-local/metadata literal origins are rejected even over HTTPS, and state roots must normalize under Helper-owned state directories.
 - The local UDS remains the only inbound listener.
 
 ## Sandbox Model
@@ -48,7 +48,9 @@ macOS uses a wrapper model. The helper process itself does not self-apply a sand
 
 ## Outbound Prerequisite Model
 
-The daemon accepts optional startup flags for a Borgee server origin, an exact allowed-origin list, and three Helper-owned state directories: queue cursor state, bounded status state, and audit handoff state. If none of those flags are set, local/manual startup leaves outbound prerequisites disabled. If any of them are set, all are required and malformed values abort startup. Default validation rejects localhost, loopback, RFC1918, link-local, metadata, and IPv6 local/private address origins even when the scheme is HTTPS; the only local exception is an explicit test/development option for HTTP loopback.
+The daemon accepts optional startup flags for a Borgee server origin, an exact allowed-origin list, and three Helper-owned state directories: queue cursor state, bounded status state, and audit handoff state. If none of those flags are set, local/manual startup leaves outbound prerequisites disabled. If any of them are set, all are required and malformed values abort startup. Default validation classifies literal host/IP input with `netip` and rejects localhost, loopback, RFC1918, link-local, metadata, and IPv6 local/private literal origins even when the scheme is HTTPS; the only local exception is an explicit test/development option for HTTP loopback.
+
+This prerequisite validation does not resolve allowed hostnames and does not inspect DNS answers or CNAME chains. Production service assets use the exact `https://app.borgee.io` allowlist, but DNS resolution or rebinding to private, link-local, or metadata addresses remains outside this startup validator and should be handled by future hardening or runtime network policy.
 
 The installed Linux and macOS service assets set the production origin to `https://app.borgee.io`, allow only that exact origin, and name platform-specific Helper-owned state roots. The daemon creates configured state directories with owner-only permissions. These paths are service state only; clients, job payloads, Remote Agent state, and host grants do not choose them.
 
@@ -65,6 +67,7 @@ The helper does not create grants, write files, expose Remote Agent directories,
 - Sandbox read paths are fixed at daemon start; dynamic grants can change ACL outcomes without changing the already-applied platform sandbox.
 - The macOS sandbox depends on correct wrapper deployment.
 - Local JSONL audit is not currently a first-class server audit source.
+- Outbound origin validation rejects unsafe literal origins but does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses.
 - Helper outbound prerequisites are configured and validated, but Helper pull, lease, result, ack, bounded log upload, and local policy execution remain future work.
 
 ## Implementation Anchors

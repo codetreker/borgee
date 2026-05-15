@@ -8,8 +8,8 @@
 | Branch | `feat/task-2-helper-outbound-service-prereq` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | SECURITY_REPAIR_VERIFIED_LOCAL_READY_FOR_COMMIT |
-| Blocker | security review found HTTPS localhost/private/metadata origins were not rejected before repair |
+| State | SECURITY_DOCS_REPAIR_LOCAL_READY_FOR_COMMIT |
+| Blocker | security review blocker fixed in code; residual DNS/CNAME resolution risk needed accurate docs/progress treatment |
 
 ## Checkpoints
 
@@ -31,6 +31,7 @@
 - [x] `docs/current` sync checked after security repair
 - [x] Acceptance evidence recorded after implementation
 - [x] Security repair evidence recorded
+- [x] Security docs/progress repair recorded residual DNS/CNAME risk without overstating validator coverage
 - [ ] PR opened
 - [ ] PR merged
 
@@ -78,7 +79,16 @@
 | Helper module GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-helper` -> helper module passed | PASS |
 | Installer module GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-installer` -> installer module passed | PASS |
 | Diff check GREEN | `git diff --check` -> no whitespace errors | PASS |
-| docs/current sync | Updated host bridge and security docs to state that outbound prerequisite origins must be public and reject localhost/private/link-local/metadata origins by default even over HTTPS | PASS |
+| docs/current sync | Updated host bridge and security docs to state that outbound prerequisite origins must match the exact public HTTPS allowlist and reject localhost/private/link-local/metadata literal origins by default even over HTTPS | PASS |
+
+## Security Docs Repair Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Literal-origin scope | Docs now state the validator classifies literal host/IP input with `netip` and rejects localhost/private/link-local/metadata literal origins by default | PASS |
+| DNS residual risk | Docs now state allowed hostnames are not resolved and DNS answers/CNAME chains resolving to private, link-local, or metadata addresses are not guarded by this prerequisite validator | PASS |
+| Production allowlist boundary | Docs now state production assets use exact `https://app.borgee.io`, while DNS resolution/rebinding remains future hardening or runtime network-policy scope | PASS |
+| Diff check GREEN | `git diff --check` -> no whitespace errors | PASS |
 
 ## Scope Locks
 

@@ -36,11 +36,13 @@ Relevant area: [E2E / verification](e2e/), host bridge.
 
 ## Helper Pull Loop Not Implemented
 
-Current behavior: Helper job enqueue exists server-side, and the installed Helper service now has outbound HTTPS address-family/sandbox prerequisites, exact public-origin startup validation that rejects localhost/private/link-local/metadata origins by default, and explicit Helper-owned queue/status/audit-handoff state roots. The Helper daemon still does not poll, long-poll, lease jobs, upload results or acks, upload bounded logs, execute local policy, run OpenClaw actions, restart services, or use sudo cache.
+Current behavior: Helper job enqueue exists server-side, and the installed Helper service now has outbound HTTPS address-family/sandbox prerequisites, exact public-origin startup validation that classifies literal host/IP input with `netip` and rejects localhost/private/link-local/metadata literal origins by default, and explicit Helper-owned queue/status/audit-handoff state roots. Production assets use the exact `https://app.borgee.io` allowlist. The validator does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses. The Helper daemon still does not poll, long-poll, lease jobs, upload results or acks, upload bounded logs, execute local policy, run OpenClaw actions, restart services, or use sudo cache.
 
 Architecture impact: the service/sandbox/config boundary is ready for later Helper-originated pull work, but job progress and Configure OpenClaw success must not be inferred from these prerequisites.
 
 Do not assume: a queued Helper job will be pulled or executed by a local Helper.
+
+Do not assume: Helper startup validation prevents DNS rebinding or private/link-local/metadata DNS resolution for an otherwise allowed hostname; that remains future hardening or runtime network-policy scope.
 
 Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server Helper jobs.
 
