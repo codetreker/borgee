@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/m1-task10-helper-openclaw-bounded-actuator` |
 | Branch | `m1-task10-helper-openclaw-bounded-actuator` |
-| PR | pending |
+| PR | #958 |
 | Owner | M1 Task10 owner worker |
-| State | LOCAL_VERIFIED |
+| State | CI_GREEN |
 | Blocker | none |
 
 ## Dependency Decision
@@ -26,8 +26,8 @@ Task10 is unblocked. Task9 PR #956 is merged at `5575b53f657276c57ba319b14428128
 - [x] Implementation complete for server-owned Borgee plugin connection/channel binding jobs and Helper policy alignment.
 - [x] Docs/current synced.
 - [x] Focused and broader local verification complete.
-- [ ] PR opened.
-- [ ] CI monitored.
+- [x] PR opened: #958.
+- [x] CI monitored: all PR #958 checks passed on commit `f664fa0` before the final CI evidence doc update.
 
 ## Evidence
 
@@ -46,6 +46,7 @@ Task10 is unblocked. Task9 PR #956 is merged at `5575b53f657276c57ba319b14428128
 | Full server verification | `GOTMPDIR=/workspace/borgee/.worktrees/.gotmp-task10-server go test -tags sqlite_fts5 -count=1 ./...` from `packages/server-go` -> all packages `ok` / no test files. | PASS |
 | Full helper verification | `GOTMPDIR=/workspace/borgee/.worktrees/.gotmp-task10-helper go test -count=1 ./...` from `packages/borgee-helper` -> all packages `ok` / no test files. | PASS |
 | Whitespace | `git diff --check` -> no output, exit 0. | PASS |
+| PR CI | PR #958 checks passed on commit `f664fa0`: PR lint, bpp-envelope-lint, check, client-vitest, e2e, go-test-cov, go-test-race, go-test-race-heavy, and hb20-ipc-prereq on macOS/Ubuntu/Windows. | PASS |
 
 ## Implementation Summary
 
