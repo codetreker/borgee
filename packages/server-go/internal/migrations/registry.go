@@ -74,6 +74,7 @@ var All = []Migration{
 	helperEnrollments,
 	helperCredentialRotation,
 	helperJobs,
+	channelMemberRequireMentionPolicy,
 }
 
 // Default returns an Engine wired to db with All registered.

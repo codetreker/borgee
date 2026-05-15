@@ -32,12 +32,13 @@ type ChannelWithCounts struct {
 }
 
 type ChannelMemberInfo struct {
-	UserID      string `json:"user_id"`
-	DisplayName string `json:"display_name"`
-	Role        string `json:"role"`
-	AvatarURL   string `json:"avatar_url"`
-	JoinedAt    int64  `json:"joined_at"`
-	Silent      bool   `json:"silent"`
+	UserID               string `json:"user_id"`
+	DisplayName          string `json:"display_name"`
+	Role                 string `json:"role"`
+	AvatarURL            string `json:"avatar_url"`
+	JoinedAt             int64  `json:"joined_at"`
+	Silent               bool   `json:"silent"`
+	RequireMentionPolicy string `json:"require_mention_policy"`
 }
 
 type PreviewMessage struct {
@@ -178,7 +179,7 @@ func (s *Store) CreateUser(user *User) error {
 //
 // Atomicity: org row + users.org_id update happen in a single transaction so
 // a failure cannot leave a user with an empty org_id (the column is NOT NULL
-// DEFAULT '' but app-layer contract is that registered users always have a
+// DEFAULT ” but app-layer contract is that registered users always have a
 // non-empty org_id — verified by tests). If you call this for a user that
 // already has org_id != "", the call is a no-op and returns nil.
 func (s *Store) CreateOrgForUser(user *User, orgName string) (*Organization, error) {
@@ -302,6 +303,9 @@ func (s *Store) ListChannelMembers(channelID string) ([]ChannelMember, error) {
 func (s *Store) AddChannelMember(member *ChannelMember) error {
 	if member.JoinedAt == 0 {
 		member.JoinedAt = time.Now().UnixMilli()
+	}
+	if member.RequireMentionPolicy == "" {
+		member.RequireMentionPolicy = RequireMentionPolicyInherit
 	}
 	// CHN-1.1: stamp org_id_at_join from the user's current org when not
 	// explicitly supplied. Audit field; no read path consumes it.
@@ -726,7 +730,7 @@ type OrgStatsRow struct {
 }
 
 // StatsByOrg aggregates user/channel counts grouped by org_id.
-// Excludes soft-deleted rows. Empty org_id ('') is folded into a single
+// Excludes soft-deleted rows. Empty org_id (”) is folded into a single
 // "" bucket — v0 does not backfill, so 历史 rows surface as their own
 // group rather than being silently dropped.
 func (s *Store) StatsByOrg() ([]OrgStatsRow, error) {
@@ -1164,7 +1168,8 @@ func (s *Store) GetChannelWithCounts(channelID, userID string) (*ChannelWithCoun
 func (s *Store) GetChannelDetail(channelID string) ([]ChannelMemberInfo, error) {
 	var members []ChannelMemberInfo
 	err := s.db.Raw(`
-		SELECT cm.user_id, u.display_name, u.role, u.avatar_url, cm.joined_at, cm.silent
+		SELECT cm.user_id, u.display_name, u.role, u.avatar_url, cm.joined_at, cm.silent,
+		       COALESCE(cm.require_mention_policy, 'inherit') AS require_mention_policy
 		FROM channel_members cm
 		JOIN users u ON u.id = cm.user_id
 		WHERE cm.channel_id = ?

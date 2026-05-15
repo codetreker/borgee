@@ -30,7 +30,7 @@ Rejected by this milestone:
 
 | Task | Status | Canonical path | Depends on | Parallel? |
 |---|---|---|---|---|
-| requireMention policy model | PLANNED | `task-1-requiremention-policy-model` | Milestone start | no |
+| requireMention policy model | ACCEPTING | `task-1-requiremention-policy-model` | Milestone start | no |
 | `@Everyone` fanout ACL/rate loop | PLANNED | `task-2-everyone-fanout-acl-rate-loop` | requireMention policy | yes, after policy |
 | Client mention controls | PLANNED | `task-3-client-mention-controls` | policy and fanout behavior | no |
 | Channel management surface | PLANNED | `task-4-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |

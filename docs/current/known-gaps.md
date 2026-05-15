@@ -118,6 +118,16 @@ Do not assume: server queues plugin frames for later delivery.
 
 Relevant area: BPP internals and plugin lifecycle.
 
+## Channel RequireMention Client Controls
+
+Current behavior: The server stores and enforces per-channel agent `requireMention` policy, including manager-only updates and the agent-owner ceiling for non-mention delivery. Channel member payloads expose the stored policy for later clients.
+
+Architecture impact: The current browser client does not yet provide a dedicated control or explanatory surface for channel managers to inspect and change this policy.
+
+Do not assume: users can manage per-channel agent attention from the client UI just because the server API and message-routing behavior exist.
+
+Relevant area: channel management, client mention controls, and agent attention UX.
+
 ## Implementation Anchors
 
 - Plugin transport/config: `packages/plugins/openclaw/src/ws-client.ts`, `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/config-schema.ts`, `packages/plugins/openclaw/src/types.ts`

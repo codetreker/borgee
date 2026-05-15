@@ -97,10 +97,11 @@ type Message struct {
 }
 
 type ChannelMember struct {
-	ChannelID  string `gorm:"primaryKey;size:36" json:"channel_id"`
-	UserID     string `gorm:"primaryKey;size:36;index" json:"user_id"`
-	JoinedAt   int64  `gorm:"not null" json:"joined_at"`
-	LastReadAt *int64 `json:"last_read_at,omitempty"`
+	ChannelID            string `gorm:"primaryKey;size:36" json:"channel_id"`
+	UserID               string `gorm:"primaryKey;size:36;index" json:"user_id"`
+	JoinedAt             int64  `gorm:"not null" json:"joined_at"`
+	LastReadAt           *int64 `json:"last_read_at,omitempty"`
+	RequireMentionPolicy string `gorm:"column:require_mention_policy;not null;default:inherit;size:16" json:"require_mention_policy"`
 	// Silent (CHN-1.1, migration v=11): when true, the member does not
 	// auto-broadcast on lifecycle events. Default 0 for humans; backfilled
 	// to 1 for agents. concept-model §1.4 — agent = colleague, not chatter.
