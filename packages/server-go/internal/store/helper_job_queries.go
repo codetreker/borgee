@@ -299,7 +299,11 @@ func (s *Store) PollAndLeaseHelperJobForHelper(input PollHelperJobInput, now tim
 		}
 		enrollment, err := validateHelperJobRouteAuthority(tx, input.EnrollmentID, input.HelperCredential, input.HelperDeviceID)
 		if err != nil {
-			if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
+			if errors.Is(err, ErrHelperJobStaleCredential) {
+				if settleErr := settleActiveHelperJobsForEnrollment(tx, input.EnrollmentID, now, "stale_credential"); settleErr != nil {
+					return settleErr
+				}
+			} else if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
 				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "revoked"); settleErr != nil {
 					return settleErr
 				}
@@ -391,7 +395,11 @@ func (s *Store) AckHelperJobForHelper(input AckHelperJobInput, now time.Time) (*
 		}
 		enrollment, err := validateHelperJobRouteAuthority(tx, input.EnrollmentID, input.HelperCredential, input.HelperDeviceID)
 		if err != nil {
-			if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
+			if errors.Is(err, ErrHelperJobStaleCredential) {
+				if settleErr := settleActiveHelperJobsForEnrollment(tx, input.EnrollmentID, now, "stale_credential"); settleErr != nil {
+					return settleErr
+				}
+			} else if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
 				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "revoked"); settleErr != nil {
 					return settleErr
 				}
@@ -477,7 +485,11 @@ func (s *Store) CompleteHelperJobForHelper(input CompleteHelperJobInput, now tim
 		}
 		enrollment, err := validateHelperJobRouteAuthority(tx, input.EnrollmentID, input.HelperCredential, input.HelperDeviceID)
 		if err != nil {
-			if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
+			if errors.Is(err, ErrHelperJobStaleCredential) {
+				if settleErr := settleActiveHelperJobsForEnrollment(tx, input.EnrollmentID, now, "stale_credential"); settleErr != nil {
+					return settleErr
+				}
+			} else if errors.Is(err, ErrHelperJobEnrollmentRevoked) {
 				if settleErr := settleHelperJobsForEnrollment(tx, input.EnrollmentID, now, "revoked"); settleErr != nil {
 					return settleErr
 				}
@@ -797,9 +809,21 @@ func settleHelperJobsForEnrollment(tx *gorm.DB, enrollmentID string, now time.Ti
 		status = HelperJobStatusExpired
 	}
 	return tx.Model(&HelperJob{}).
-		Where("enrollment_id = ? AND active_idempotency_scope IS NOT NULL AND status IN ?", enrollmentID, []string{HelperJobStatusQueued, HelperJobStatusLeased}).
+		Where("enrollment_id = ? AND active_idempotency_scope IS NOT NULL AND status IN ?", enrollmentID, []string{HelperJobStatusQueued, HelperJobStatusLeased, HelperJobStatusRunning}).
 		Updates(map[string]any{
 			"status":                   status,
+			"failure_code":             reason,
+			"completed_at":             now.UnixMilli(),
+			"updated_at":               now.UnixMilli(),
+			"active_idempotency_scope": nil,
+		}).Error
+}
+
+func settleActiveHelperJobsForEnrollment(tx *gorm.DB, enrollmentID string, now time.Time, reason string) error {
+	return tx.Model(&HelperJob{}).
+		Where("enrollment_id = ? AND active_idempotency_scope IS NOT NULL AND status IN ?", enrollmentID, []string{HelperJobStatusLeased, HelperJobStatusRunning}).
+		Updates(map[string]any{
+			"status":                   HelperJobStatusCancelled,
 			"failure_code":             reason,
 			"completed_at":             now.UnixMilli(),
 			"updated_at":               now.UnixMilli(),

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -122,6 +123,48 @@ func TestClientMapsNoWorkTransientAndStopDirectives(t *testing.T) {
 			}
 			if poll.Directive != tc.want || poll.RetryAfter != tc.retryAfter {
 				t.Fatalf("directive=%s retry=%s want %s/%s", poll.Directive, poll.RetryAfter, tc.want, tc.retryAfter)
+			}
+		})
+	}
+}
+
+func TestClientAckAndResultMapCredentialStopDirectives(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name       string
+		statusCode int
+		body       map[string]any
+		want       Directive
+	}{
+		{"ack stale credential", http.StatusForbidden, map[string]any{"code": "stale_credential"}, DirectiveStopStaleCredential},
+		{"ack revoked", http.StatusForbidden, map[string]any{"code": "revoked"}, DirectiveStopRevoked},
+		{"ack uninstalled", http.StatusForbidden, map[string]any{"code": "uninstalled"}, DirectiveStopUninstalled},
+		{"result stale credential", http.StatusForbidden, map[string]any{"code": "stale_credential"}, DirectiveStopStaleCredential},
+		{"result revoked", http.StatusForbidden, map[string]any{"code": "revoked"}, DirectiveStopRevoked},
+		{"result uninstalled", http.StatusForbidden, map[string]any{"code": "uninstalled"}, DirectiveStopUninstalled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.statusCode)
+				writeOutboundTestJSON(w, tc.body)
+			}))
+			t.Cleanup(ts.Close)
+			client, err := NewClient(PreparedConfig{Enabled: true, ServerOrigin: ts.URL}, StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"}, WithHTTPClient(ts.Client()))
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+
+			var got JobState
+			if strings.HasPrefix(tc.name, "ack ") {
+				got, err = client.Ack(ctx, "enroll-1", "job-1", "lease-token")
+			} else {
+				got, err = client.Result(ctx, "enroll-1", "job-1", ResultRequest{LeaseToken: "lease-token", Status: "failed", FailureCode: "policy_denied"})
+			}
+			if err != nil {
+				t.Fatalf("stop directive response should not be generic error: %v", err)
+			}
+			if got.Directive != tc.want {
+				t.Fatalf("directive=%s want %s", got.Directive, tc.want)
 			}
 		})
 	}

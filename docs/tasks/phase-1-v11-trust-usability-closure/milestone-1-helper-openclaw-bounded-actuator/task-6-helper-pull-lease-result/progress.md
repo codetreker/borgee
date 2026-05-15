@@ -48,6 +48,21 @@
 | Local commit | Local commit created in this worktree; no push or PR opened by worker | PASS |
 | Scope guard | Implementation stayed on Helper poll/lease/ack/result transport, Helper outbound client shape, and docs/current sync. It did not implement task 7 local policy/manifest/sandbox evaluation, OpenClaw action execution, bounded log upload, service lifecycle restart, sudo cache, or Remote Agent rail reuse. | PASS |
 
+## Review Blocker Repair Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Repair RED: stale/uninstall settlement | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/store -run 'TestHelperJob(StaleCredentialSettlesActiveJobsAndCurrentCredentialCanPoll\|UninstallSettlementCoversRunningJob)$' -count=1 -v` failed before repair: stale credential poll/ack/result left leased/running jobs active with no `stale_credential` terminal settlement; uninstall result left a running job active instead of `cancelled`/`uninstalled`. | RED CAPTURED |
+| Repair RED: helper stop directives | `go test ./internal/outbound -run TestClientAckAndResultMapCredentialStopDirectives -count=1 -v` failed before repair with `got.Directive undefined (type JobState has no field or method Directive)`, proving ack/result could not return daemon-loop stop directives. | RED CAPTURED |
+| Repair GREEN: stale/uninstall settlement | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/store -run 'TestHelperJob(StaleCredentialSettlesActiveJobsAndCurrentCredentialCanPoll\|UninstallSettlementCoversRunningJob)$' -count=1 -v` passed after repair. | PASS |
+| Repair GREEN: helper stop directives | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound -run TestClientAckAndResultMapCredentialStopDirectives -count=1 -v` passed after repair. | PASS |
+| Focused server store/API | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/store ./internal/api -count=1` passed. | PASS |
+| Helper outbound package | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound -count=1` passed. | PASS |
+| Broader server packages | `GOTMPDIR=/workspace/.gotmp-borgee-task6 go test -p 1 -tags sqlite_fts5 ./... -count=1` passed. A first broad attempt with `GOTMPDIR` inside `packages/server-go/.gotmp` failed because repo-walking tests inspected Go build scratch files, so the final passing run uses a temp dir outside the repo. | PASS |
+| Broader Helper packages | `GOTMPDIR=/workspace/.gotmp-borgee-task6 go test ./... -count=1` passed. | PASS |
+| Whitespace | `git diff --check` passed. | PASS |
+| Build tag note | The server verification used `sqlite_fts5`, matching `packages/server-go/Makefile`; prior notes that mention `fts5` are historical evidence from the original implementation pass, not the tag used for this repair gate. | PASS |
+
 ## Task-Prep Evidence
 
 | Item | Evidence | Result |

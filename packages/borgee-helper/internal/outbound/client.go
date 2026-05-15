@@ -74,9 +74,10 @@ type LeasedJob struct {
 }
 
 type JobState struct {
-	JobID       string `json:"job_id"`
-	Status      string `json:"status"`
-	FailureCode string `json:"failure_code,omitempty"`
+	JobID       string    `json:"job_id"`
+	Status      string    `json:"status"`
+	FailureCode string    `json:"failure_code,omitempty"`
+	Directive   Directive `json:"-"`
 }
 
 type ResultSummary struct {
@@ -174,6 +175,9 @@ func (c *Client) Ack(ctx context.Context, enrollmentID, jobID, leaseToken string
 	if err != nil {
 		return JobState{}, err
 	}
+	if stop := stopDirective(statusCode, code); stop != "" {
+		return JobState{Directive: stop}, nil
+	}
 	if statusCode != http.StatusOK {
 		return JobState{}, fmt.Errorf("helper ack failed: status=%d code=%s", statusCode, code)
 	}
@@ -207,6 +211,9 @@ func (c *Client) Result(ctx context.Context, enrollmentID, jobID string, result 
 	statusCode, code, err := c.doJSON(ctx, "/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", body, &resp)
 	if err != nil {
 		return JobState{}, err
+	}
+	if stop := stopDirective(statusCode, code); stop != "" {
+		return JobState{Directive: stop}, nil
 	}
 	if statusCode != http.StatusOK {
 		return JobState{}, fmt.Errorf("helper result failed: status=%d code=%s", statusCode, code)

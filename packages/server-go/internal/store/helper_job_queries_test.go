@@ -393,6 +393,133 @@ func TestHelperJobHelperAuthorityAndExpiryFailures(t *testing.T) {
 	}
 }
 
+func TestHelperJobStaleCredentialSettlesActiveJobsAndCurrentCredentialCanPoll(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		settle      func(t *testing.T, s *Store, enrollment *HelperEnrollment, oldCredential string, jobID, leaseToken string, now time.Time)
+		activeState string
+	}{
+		{
+			name:        "poll settles leased job after credential rotation",
+			activeState: HelperJobStatusLeased,
+			settle: func(t *testing.T, s *Store, enrollment *HelperEnrollment, oldCredential string, _ string, _ string, now time.Time) {
+				t.Helper()
+				if _, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{EnrollmentID: enrollment.ID, HelperCredential: oldCredential, HelperDeviceID: *enrollment.HelperDeviceID, MaxActiveLeases: 1}, now); !errors.Is(err, ErrHelperJobStaleCredential) {
+					t.Fatalf("stale poll error=%v, want ErrHelperJobStaleCredential", err)
+				}
+			},
+		},
+		{
+			name:        "ack settles leased job after credential rotation",
+			activeState: HelperJobStatusLeased,
+			settle: func(t *testing.T, s *Store, enrollment *HelperEnrollment, oldCredential string, jobID, leaseToken string, now time.Time) {
+				t.Helper()
+				if _, err := s.AckHelperJobForHelper(AckHelperJobInput{EnrollmentID: enrollment.ID, JobID: jobID, HelperCredential: oldCredential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: leaseToken, AckStatus: "received"}, now); !errors.Is(err, ErrHelperJobStaleCredential) {
+					t.Fatalf("stale ack error=%v, want ErrHelperJobStaleCredential", err)
+				}
+			},
+		},
+		{
+			name:        "result settles running job after credential rotation",
+			activeState: HelperJobStatusRunning,
+			settle: func(t *testing.T, s *Store, enrollment *HelperEnrollment, oldCredential string, jobID, leaseToken string, now time.Time) {
+				t.Helper()
+				if _, err := s.CompleteHelperJobForHelper(CompleteHelperJobInput{EnrollmentID: enrollment.ID, JobID: jobID, HelperCredential: oldCredential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: leaseToken, Status: HelperJobStatusSucceeded}, now); !errors.Is(err, ErrHelperJobStaleCredential) {
+					t.Fatalf("stale result error=%v, want ErrHelperJobStaleCredential", err)
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := migratedStore(t)
+			owner := helperOwner(t, s, "helper-job-stale-"+strings.ReplaceAll(tc.name, " ", "-"))
+			now := time.UnixMilli(1778840000000)
+			enrollment, oldCredential := claimedFreshHelperEnrollmentWithCredential(t, s, owner, []string{"openclaw_config"}, now)
+			agent := helperJobAgent(t, s, owner, "stale-openclaw-agent-"+strings.ReplaceAll(tc.name, " ", "-"))
+			seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Stale Agent"}, now)
+
+			activeJob, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{OwnerUserID: owner.ID, OrgID: owner.OrgID, EnrollmentID: enrollment.ID, JobType: "openclaw.configure_agent", SchemaVersion: 1, PayloadJSON: `{"agent_id":"` + agent.ID + `"}`}, now.Add(2*time.Minute))
+			if err != nil {
+				t.Fatalf("enqueue active fixture: %v", err)
+			}
+			lease, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{EnrollmentID: enrollment.ID, HelperCredential: oldCredential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseDuration: time.Minute, MaxActiveLeases: 1}, now.Add(3*time.Minute))
+			if err != nil || lease == nil || lease.Job == nil {
+				t.Fatalf("lease active fixture=%+v err=%v", lease, err)
+			}
+			if tc.activeState == HelperJobStatusRunning {
+				if _, err := s.AckHelperJobForHelper(AckHelperJobInput{EnrollmentID: enrollment.ID, JobID: activeJob.ID, HelperCredential: oldCredential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: lease.LeaseToken, AckStatus: "received"}, now.Add(3*time.Minute+time.Second)); err != nil {
+					t.Fatalf("ack running fixture: %v", err)
+				}
+			}
+			nextJob, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{OwnerUserID: owner.ID, OrgID: owner.OrgID, EnrollmentID: enrollment.ID, JobType: "openclaw.configure_agent", SchemaVersion: 1, PayloadJSON: `{"agent_id":"` + agent.ID + `"}`, IdempotencyKey: "next-" + tc.activeState}, now.Add(3*time.Minute+2*time.Second))
+			if err != nil {
+				t.Fatalf("enqueue next fixture: %v", err)
+			}
+
+			_, currentCredential, err := s.RotateHelperEnrollmentCredential(enrollment.ID, oldCredential, *enrollment.HelperDeviceID, now.Add(3*time.Minute+3*time.Second))
+			if err != nil {
+				t.Fatalf("rotate fixture: %v", err)
+			}
+			tc.settle(t, s, enrollment, oldCredential, activeJob.ID, lease.LeaseToken, now.Add(3*time.Minute+4*time.Second))
+
+			var settled HelperJob
+			if err := s.DB().Where("id = ?", activeJob.ID).First(&settled).Error; err != nil {
+				t.Fatalf("load settled job: %v", err)
+			}
+			if settled.Status != HelperJobStatusCancelled || settled.FailureCode == nil || *settled.FailureCode != "stale_credential" || settled.ActiveIdempotencyScope != nil {
+				t.Fatalf("stale credential should settle active job, got %+v", settled)
+			}
+
+			nextLease, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{EnrollmentID: enrollment.ID, HelperCredential: currentCredential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseDuration: time.Minute, MaxActiveLeases: 1}, now.Add(3*time.Minute+5*time.Second))
+			if err != nil {
+				t.Fatalf("current credential poll after stale settlement: %v", err)
+			}
+			if nextLease == nil || nextLease.Job == nil || nextLease.Job.ID != nextJob.ID {
+				t.Fatalf("current credential should lease queued next job, got %+v want %s", nextLease, nextJob.ID)
+			}
+		})
+	}
+}
+
+func TestHelperJobUninstallSettlementCoversRunningJob(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-uninstall-running")
+	now := time.UnixMilli(1778840000000)
+	enrollment, credential := claimedFreshHelperEnrollmentWithCredential(t, s, owner, []string{"openclaw_config"}, now)
+	agent := helperJobAgent(t, s, owner, "uninstall-running-agent")
+	seedAgentConfig(t, s, agent.ID, 1, map[string]any{"name": "Uninstall Agent"}, now)
+
+	activeJob, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{OwnerUserID: owner.ID, OrgID: owner.OrgID, EnrollmentID: enrollment.ID, JobType: "openclaw.configure_agent", SchemaVersion: 1, PayloadJSON: `{"agent_id":"` + agent.ID + `"}`}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("enqueue active fixture: %v", err)
+	}
+	lease, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{EnrollmentID: enrollment.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseDuration: time.Minute}, now.Add(3*time.Minute))
+	if err != nil || lease == nil {
+		t.Fatalf("lease active fixture=%+v err=%v", lease, err)
+	}
+	if _, err := s.AckHelperJobForHelper(AckHelperJobInput{EnrollmentID: enrollment.ID, JobID: activeJob.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: lease.LeaseToken, AckStatus: "received"}, now.Add(3*time.Minute+time.Second)); err != nil {
+		t.Fatalf("ack running fixture: %v", err)
+	}
+
+	if _, err := s.MarkHelperEnrollmentUninstalled(enrollment.ID, credential, *enrollment.HelperDeviceID, now.Add(3*time.Minute+2*time.Second)); err != nil {
+		t.Fatalf("uninstall fixture: %v", err)
+	}
+	if _, err := s.CompleteHelperJobForHelper(CompleteHelperJobInput{EnrollmentID: enrollment.ID, JobID: activeJob.ID, HelperCredential: credential, HelperDeviceID: *enrollment.HelperDeviceID, LeaseToken: lease.LeaseToken, Status: HelperJobStatusSucceeded}, now.Add(3*time.Minute+3*time.Second)); !errors.Is(err, ErrHelperJobEnrollmentUninstalled) {
+		t.Fatalf("uninstalled result error=%v, want ErrHelperJobEnrollmentUninstalled", err)
+	}
+
+	var settled HelperJob
+	if err := s.DB().Where("id = ?", activeJob.ID).First(&settled).Error; err != nil {
+		t.Fatalf("load settled job: %v", err)
+	}
+	if settled.Status != HelperJobStatusCancelled || settled.FailureCode == nil || *settled.FailureCode != "uninstalled" || settled.ActiveIdempotencyScope != nil {
+		t.Fatalf("uninstall should settle running job, got %+v", settled)
+	}
+}
+
 func claimedFreshHelperEnrollment(t *testing.T, s *Store, owner *User, categories []string, now time.Time) *HelperEnrollment {
 	t.Helper()
 	claimed, _ := claimedFreshHelperEnrollmentWithCredential(t, s, owner, categories, now)
