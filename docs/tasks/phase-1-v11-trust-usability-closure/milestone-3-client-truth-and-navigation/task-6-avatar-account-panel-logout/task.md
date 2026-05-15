@@ -1,4 +1,4 @@
-# task-2-avatar-account-panel-logout
+# task-6-avatar-account-panel-logout
 
 Purpose:
 - Make avatar/account the account entry and move logout into that panel.
@@ -11,7 +11,7 @@ Out of scope:
 - No account settings product expansion, privacy/compliance promises, or broad profile redesign.
 
 Depends on:
-- `task-1-sidebar-footer-primary-entries`
+- `task-5-sidebar-footer-primary-entries`
 
 Blueprint anchors:
 - `IA-1`: `docs/blueprint/next/migration-analysis.md` §7.3

@@ -1,4 +1,4 @@
-# Phase 1: Helper / OpenClaw Onboarding
+# Superseded Helper / OpenClaw Onboarding Plan
 
 > Superseded for v1.1 execution grouping. This file is retained as accepted planning history and task-detail context. Canonical grouping now lives in `docs/tasks/phase-1-v11-trust-usability-closure/phase-plan.md`, with these three old milestones collapsed into `milestone-1-helper-openclaw-bounded-actuator`. The collapse records that this was one prerequisite chain toward one user-facing Helper/OpenClaw loop, not three separate coarse milestones.
 

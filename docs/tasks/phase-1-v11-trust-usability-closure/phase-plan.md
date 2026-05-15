@@ -22,8 +22,9 @@ Close selected v1.1 trust/usability gaps: Helper/OpenClaw bounded actuator onboa
 
 The previous v1.1 shape split selected work into three Phases and eight milestones. That fragmentation slowed execution without adding a real prerequisite, integration, or downstream coordination boundary.
 
-- Old Phase 1 milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop, so they are now one coarse milestone.
-- Old Phase 2 and Phase 3 were execution slots, not dependency or integration boundaries, so they are now coarse milestones inside the same active Phase.
+- The prior Helper/OpenClaw milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop, so they are now one coarse milestone.
+- The prior channel-control and client-truth slices were execution slots, not dependency or integration boundaries, so they are now coarse milestones inside the same active Phase.
+- The unexecuted former channel-control and client-truth phase folders were removed; their task skeletons now live under the canonical Milestone 2 and Milestone 3 directories.
 - A new Phase must not be opened casually. It needs a real prerequisite boundary, integration boundary, or downstream integration/coordination reason.
 
 ## Boundary

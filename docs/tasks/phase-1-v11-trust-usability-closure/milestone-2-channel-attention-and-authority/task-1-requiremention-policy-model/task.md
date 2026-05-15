@@ -22,7 +22,7 @@ Acceptance slice:
 - A reviewer can verify `requireMention` supports inherit/on/off and cannot let a channel owner expand an external agent's attention or capability.
 
 Parallelism:
-- First task for this milestone after execution slot clears. Blocks fanout and client-control tasks.
+- First task for this milestone when the canonical milestone opens. Blocks fanout and client-control tasks.
 
 Sensitive paths:
 - auth, channel ACL, cross-org capability, privacy

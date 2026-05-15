@@ -1,4 +1,4 @@
-# task-1-private-indicator-state-inventory
+# task-7-private-indicator-state-inventory
 
 Purpose:
 - Define which sidebar states private indicators must coexist with before changing visuals.

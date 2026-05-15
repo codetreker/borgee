@@ -1,4 +1,4 @@
-# task-3-channel-authority-checks
+# task-6-channel-authority-checks
 
 Purpose:
 - Ensure channel management actions remain server-authoritative and match client-visible options.
@@ -11,8 +11,8 @@ Out of scope:
 - No unrelated channel sorting, notification, or private-indicator work.
 
 Depends on:
-- `task-1-channel-management-surface`
-- `task-2-channel-allowed-action-rules`
+- `task-4-channel-management-surface`
+- `task-5-channel-allowed-action-rules`
 
 Blueprint anchors:
 - `CH-1`: `docs/blueprint/next/migration-analysis.md` §4.3

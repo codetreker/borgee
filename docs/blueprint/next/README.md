@@ -20,15 +20,15 @@ This directory tracks planned or in-discussion blueprint work that is not yet ac
 
 Decision values are `OPEN`, `LOCKED`, or `REOPENED`. Work values are `PENDING`, `IMPLEMENTING`, or `COMPLETED`. Only `LOCKED` anchors may move into `docs/tasks/` Phase/Milestone planning.
 
-The v1.1 selected anchors are now one active Phase with three coarse user-facing milestones. The earlier `3 phases / 8 milestones` plan is superseded because old Phase 2 and Phase 3 were execution slots, not dependency or integration boundaries, and the old Phase 1 milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop. Accepted task history remains valid and is remapped under the new canonical structure.
+The v1.1 selected anchors are now one active Phase with three coarse user-facing milestones. The earlier `3 phases / 8 milestones` plan is superseded because the channel-control and client-truth slices were execution slots, not dependency or integration boundaries, and the prior Helper/OpenClaw milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop. Accepted task history remains valid and is remapped under the new canonical structure.
 
 ### §0.1 Canonical Phase/Milestone Shape
 
 | Canonical Phase | Milestone | Status | Remapped prior structure |
 |---|---|---|---|
-| Phase 1: v1.1 Trust And Usability Closure | Milestone 1: Helper / OpenClaw Bounded Actuator | IMPLEMENTING | Old Phase 1 milestones 1-3 |
-| Phase 1: v1.1 Trust And Usability Closure | Milestone 2: Channel Attention And Authority | PLANNED | Old Phase 2 milestones 1-3 |
-| Phase 1: v1.1 Trust And Usability Closure | Milestone 3: Client Truth And Navigation | PLANNED | Old Phase 3 milestones 1-2 |
+| Phase 1: v1.1 Trust And Usability Closure | Milestone 1: Helper / OpenClaw Bounded Actuator | IMPLEMENTING | Prior Helper/OpenClaw prerequisite chain |
+| Phase 1: v1.1 Trust And Usability Closure | Milestone 2: Channel Attention And Authority | PLANNED | Former channel-control execution slot, now canonical task homes under this milestone |
+| Phase 1: v1.1 Trust And Usability Closure | Milestone 3: Client Truth And Navigation | PLANNED | Former client-truth/navigation execution slot, now canonical task homes under this milestone |
 
 Phase opening rule: a new Phase requires a real prerequisite boundary, integration boundary, or downstream integration/coordination reason. Coarser Phase/Milestone structure is preferred; implementation detail belongs in task execution and Dev design.
 

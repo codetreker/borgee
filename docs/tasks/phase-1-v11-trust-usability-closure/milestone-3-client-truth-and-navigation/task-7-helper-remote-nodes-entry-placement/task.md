@@ -1,4 +1,4 @@
-# task-3-helper-remote-nodes-entry-placement
+# task-7-helper-remote-nodes-entry-placement
 
 Purpose:
 - Place Helper/Remote Nodes entry points coherently without merging Helper and Remote Agent authority.
@@ -12,7 +12,7 @@ Out of scope:
 - No broad sidebar redesign.
 
 Depends on:
-- `task-1-sidebar-footer-primary-entries`
+- `task-5-sidebar-footer-primary-entries`
 
 Blueprint anchors:
 - `IA-1`: `docs/blueprint/next/migration-analysis.md` §7.3

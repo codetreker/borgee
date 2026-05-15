@@ -1,4 +1,4 @@
-# task-3-sidebar-state-collision-regression
+# task-9-sidebar-state-collision-regression
 
 Purpose:
 - Prove private indicator changes do not regress other sidebar state signals.
@@ -11,7 +11,7 @@ Out of scope:
 - No broad e2e platform expansion or unrelated sidebar redesign.
 
 Depends on:
-- `task-2-private-indicator-visual-treatment`
+- `task-8-private-indicator-visual-treatment`
 
 Blueprint anchors:
 - `CH-1`: `docs/blueprint/next/migration-analysis.md` §4.3

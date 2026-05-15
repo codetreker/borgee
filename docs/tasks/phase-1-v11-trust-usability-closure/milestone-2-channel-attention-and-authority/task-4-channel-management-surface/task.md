@@ -1,4 +1,4 @@
-# task-1-channel-management-surface
+# task-4-channel-management-surface
 
 Purpose:
 - Give users a clear place to understand joined and created channels.
@@ -22,7 +22,7 @@ Acceptance slice:
 - A reviewer can reach a management surface that distinguishes joined and created channels without changing channel authority.
 
 Parallelism:
-- First task for this milestone after execution slot clears. Blocks action-rule tasks.
+- First task for this milestone when the canonical milestone opens. Blocks action-rule tasks.
 
 Sensitive paths:
 - channel ACL, ownership visibility, privacy

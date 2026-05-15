@@ -22,7 +22,7 @@ Acceptance slice:
 - A reviewer can reach ArtifactComments from the production ArtifactPanel for an authorized artifact and verify unauthorized access does not leak protected content.
 
 Parallelism:
-- First task for this milestone after execution slot clears. Blocks named-surface forbidden-state and e2e reverse-proof work.
+- First task for this milestone when the canonical milestone opens. Blocks named-surface forbidden-state and e2e reverse-proof work.
 
 Sensitive paths:
 - auth, ACL, privacy, protected content visibility

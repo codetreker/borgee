@@ -4,14 +4,11 @@
 
 Make selected production surfaces reachable and truthful, show forbidden states without leaking protected data, and simplify account/sidebar navigation without expanding privacy/compliance product scope.
 
-## Remapped Prior Structure
+## Canonical Task Homes
 
-This milestone replaces the old Phase 3 milestone split:
+This milestone is the only execution home for the client truth and navigation work. The former client-truth/navigation phase folder was never executed and has been removed to avoid presenting it as an available Phase.
 
-- `phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness`
-- `phase-3-client-truth-navigation/milestone-2-sidebar-account-entry`
-
-Old Phase 3 was an execution slot, not a prerequisite or integration boundary. Those folders remain detailed task homes; this file is the authoritative coarse milestone grouping.
+The collapsed planning content is represented here as canonical tasks: production surface truthfulness and sidebar/account navigation both belong inside this one milestone.
 
 ## Acceptance Boundary
 
@@ -31,15 +28,15 @@ Rejected by this milestone:
 
 ## Task Index
 
-| Task | Status | Prior path | Depends on | Parallel? |
+| Task | Status | Canonical path | Depends on | Parallel? |
 |---|---|---|---|---|
-| ArtifactComments production mount | PLANNED | `phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness/task-1-artifactcomments-production-mount` | Milestone start | no |
-| ACL forbidden-state UX | PLANNED | `phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness/task-2-acl-forbidden-state-ux` | ArtifactComments mount | yes, after mount |
-| Settings PermissionsView reachability | PLANNED | `phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness/task-3-security-permission-surface-reachability` | Milestone start | yes, if shell/settings files are separable |
-| Production-surface e2e reverse proof | PLANNED | `phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness/task-4-production-surface-e2e-reverse-proof` | forbidden-state UX and PermissionsView reachability | no |
-| Sidebar footer primary entries | PLANNED | `phase-3-client-truth-navigation/milestone-2-sidebar-account-entry/task-1-sidebar-footer-primary-entries` | Milestone start | yes, if shell files do not conflict with truthfulness work |
-| Avatar account panel/logout | PLANNED | `phase-3-client-truth-navigation/milestone-2-sidebar-account-entry/task-2-avatar-account-panel-logout` | sidebar footer primary entries | yes, after footer entry budget |
-| Helper/Remote Nodes placement | PLANNED | `phase-3-client-truth-navigation/milestone-2-sidebar-account-entry/task-3-helper-remote-nodes-entry-placement` | sidebar footer primary entries | yes, after footer entry budget |
+| ArtifactComments production mount | PLANNED | `task-1-artifactcomments-production-mount` | Milestone start | no |
+| ACL forbidden-state UX | PLANNED | `task-2-acl-forbidden-state-ux` | ArtifactComments mount | yes, after mount |
+| Settings PermissionsView reachability | PLANNED | `task-3-security-permission-surface-reachability` | Milestone start | yes, if shell/settings files are separable |
+| Production-surface e2e reverse proof | PLANNED | `task-4-production-surface-e2e-reverse-proof` | forbidden-state UX and PermissionsView reachability | no |
+| Sidebar footer primary entries | PLANNED | `task-5-sidebar-footer-primary-entries` | Milestone start | yes, if shell files do not conflict with truthfulness work |
+| Avatar account panel/logout | PLANNED | `task-6-avatar-account-panel-logout` | sidebar footer primary entries | yes, after footer entry budget |
+| Helper/Remote Nodes placement | PLANNED | `task-7-helper-remote-nodes-entry-placement` | sidebar footer primary entries | yes, after footer entry budget |
 
 ## Exit Gates
 

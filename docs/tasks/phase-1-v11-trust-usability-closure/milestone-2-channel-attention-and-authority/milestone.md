@@ -4,15 +4,11 @@
 
 Let users understand and control agent attention, broadcast mention behavior, channel membership/ownership actions, allowed actions, authority checks, and private/sidebar state meaning without hidden fanout or confusing owner leave behavior.
 
-## Remapped Prior Structure
+## Canonical Task Homes
 
-This milestone replaces the old Phase 2 milestone split:
+This milestone is the only execution home for the channel attention and authority work. The former channel-control phase folder was never executed and has been removed to avoid presenting it as an available Phase.
 
-- `phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls`
-- `phase-2-collaboration-channel-control/milestone-2-channel-management-authority`
-- `phase-2-collaboration-channel-control/milestone-3-channel-visual-truth`
-
-Old Phase 2 was an execution slot, not a prerequisite or integration boundary. Those folders remain detailed task homes; this file is the authoritative coarse milestone grouping.
+The collapsed planning content is represented here as canonical tasks: mention delivery controls, channel management authority, and channel visual truth all belong inside this one milestone.
 
 ## Acceptance Boundary
 
@@ -32,17 +28,17 @@ Rejected by this milestone:
 
 ## Task Index
 
-| Task | Status | Prior path | Depends on | Parallel? |
+| Task | Status | Canonical path | Depends on | Parallel? |
 |---|---|---|---|---|
-| requireMention policy model | PLANNED | `phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls/task-1-requiremention-policy-model` | Milestone start | no |
-| `@Everyone` fanout ACL/rate loop | PLANNED | `phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls/task-2-everyone-fanout-acl-rate-loop` | requireMention policy | yes, after policy |
-| Client mention controls | PLANNED | `phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls/task-3-client-mention-controls` | policy and fanout behavior | no |
-| Channel management surface | PLANNED | `phase-2-collaboration-channel-control/milestone-2-channel-management-authority/task-1-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |
-| Channel allowed-action rules | PLANNED | `phase-2-collaboration-channel-control/milestone-2-channel-management-authority/task-2-channel-allowed-action-rules` | management surface | yes, after management surface |
-| Channel authority checks | PLANNED | `phase-2-collaboration-channel-control/milestone-2-channel-management-authority/task-3-channel-authority-checks` | management surface and allowed-action rules | no |
-| Private indicator state inventory | PLANNED | `phase-2-collaboration-channel-control/milestone-3-channel-visual-truth/task-1-private-indicator-state-inventory` | Milestone start or alongside management surface | yes, if UI ownership is clean |
-| Private indicator visual treatment | PLANNED | `phase-2-collaboration-channel-control/milestone-3-channel-visual-truth/task-2-private-indicator-visual-treatment` | state inventory | no |
-| Sidebar state collision regression | PLANNED | `phase-2-collaboration-channel-control/milestone-3-channel-visual-truth/task-3-sidebar-state-collision-regression` | visual treatment | no |
+| requireMention policy model | PLANNED | `task-1-requiremention-policy-model` | Milestone start | no |
+| `@Everyone` fanout ACL/rate loop | PLANNED | `task-2-everyone-fanout-acl-rate-loop` | requireMention policy | yes, after policy |
+| Client mention controls | PLANNED | `task-3-client-mention-controls` | policy and fanout behavior | no |
+| Channel management surface | PLANNED | `task-4-channel-management-surface` | Milestone start | yes, if files are disjoint from mention policy |
+| Channel allowed-action rules | PLANNED | `task-5-channel-allowed-action-rules` | management surface | yes, after management surface |
+| Channel authority checks | PLANNED | `task-6-channel-authority-checks` | management surface and allowed-action rules | no |
+| Private indicator state inventory | PLANNED | `task-7-private-indicator-state-inventory` | Milestone start or alongside management surface | yes, if UI ownership is clean |
+| Private indicator visual treatment | PLANNED | `task-8-private-indicator-visual-treatment` | state inventory | no |
+| Sidebar state collision regression | PLANNED | `task-9-sidebar-state-collision-regression` | visual treatment | no |
 
 ## Exit Gates
 

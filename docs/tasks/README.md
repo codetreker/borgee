@@ -6,9 +6,9 @@
 |---|---|---|---|
 | Phase 1: v1.1 Trust And Usability Closure | IMPLEMENTING | Close selected v1.1 trust/usability gaps: Helper/OpenClaw bounded actuator onboarding, channel attention/authority clarity, production client truthfulness, and account/sidebar IA, without expanding privacy/compliance scope or merging Helper/Remote Agent rails | `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` |
 
-This one-phase index supersedes the earlier v1.1 `3 phases / 8 milestones` shape. A new Phase must now require a real prerequisite boundary, integration boundary, or downstream coordination reason. The old Phase 2 and Phase 3 slices were execution slots, not dependency or integration boundaries; the old Phase 1 milestones were one prerequisite chain toward the same user-facing Helper/OpenClaw loop. Coarser Phase/Milestone structure is authoritative for new execution.
+This one-phase index supersedes the earlier v1.1 `3 phases / 8 milestones` shape. A new Phase must now require a real prerequisite boundary, integration boundary, or downstream coordination reason. The prior channel-control and client-truth slices were execution slots, not dependency or integration boundaries; the prior Helper/OpenClaw milestones were one prerequisite chain toward the same user-facing Helper/OpenClaw loop. Coarser Phase/Milestone structure is authoritative for new execution.
 
-The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work. The old `phase-1-helper-openclaw-onboarding/`, `phase-2-collaboration-channel-control/`, and `phase-3-client-truth-navigation/` folders are retained as accepted task history and task-detail homes. Their canonical execution grouping is now recorded under `phase-1-v11-trust-usability-closure/`.
+The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work. The prior `phase-1-helper-openclaw-onboarding/` folder remains accepted task history and the retained task-detail home for remapped Helper/OpenClaw tasks. The unexecuted channel-control and client-truth task skeletons now live only under the canonical milestones in `phase-1-v11-trust-usability-closure/`; their former phase folders were removed to avoid presenting multiple active phases.
 
 Current execution resume state:
 
@@ -25,11 +25,11 @@ Current execution resume state:
 
 ## Canonical v1.1 Milestone Mapping
 
-| Canonical milestone | Status | Remapped prior folders | Resume notes |
+| Canonical milestone | Status | Task-detail source | Resume notes |
 |---|---|---|---|
 | `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status`; `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop`; `phase-1-helper-openclaw-onboarding/milestone-3-configure-openclaw-closure` | Accepted work through PR #934, #936, #937, #938, and #939 is preserved. Continue with pull/lease/result and local policy/manifest/sandbox tasks before terminal settlement and Configure OpenClaw closure. |
-| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | PLANNED | `phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls`; `phase-2-collaboration-channel-control/milestone-2-channel-management-authority`; `phase-2-collaboration-channel-control/milestone-3-channel-visual-truth` | Old Phase 2 was an execution slot. It is now one milestone covering requireMention policy, `@Everyone`, client mention controls, channel management, allowed-action rules, authority checks, private indicator treatment, and sidebar state collision regression. |
-| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | PLANNED | `phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness`; `phase-3-client-truth-navigation/milestone-2-sidebar-account-entry` | Old Phase 3 was an execution slot. It is now one milestone covering production client truthfulness, forbidden-state UX, Settings PermissionsView reachability, reverse proof, sidebar/footer IA, avatar/logout, and Helper/Remote Nodes placement. |
+| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | PLANNED | Canonical task homes `task-1-requiremention-policy-model` through `task-9-sidebar-state-collision-regression` | The former channel-control execution slot is now one milestone covering requireMention policy, `@Everyone`, client mention controls, channel management, allowed-action rules, authority checks, private indicator treatment, and sidebar state collision regression. |
+| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | PLANNED | Canonical task homes `task-1-artifactcomments-production-mount` through `task-7-helper-remote-nodes-entry-placement` | The former client-truth/navigation execution slot is now one milestone covering production client truthfulness, forbidden-state UX, Settings PermissionsView reachability, reverse proof, sidebar/footer IA, avatar/logout, and Helper/Remote Nodes placement. |
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 

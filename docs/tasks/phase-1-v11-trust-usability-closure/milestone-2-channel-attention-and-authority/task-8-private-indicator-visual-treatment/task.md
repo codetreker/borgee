@@ -1,4 +1,4 @@
-# task-2-private-indicator-visual-treatment
+# task-8-private-indicator-visual-treatment
 
 Purpose:
 - Make private-channel indicators accurate without dominating the sidebar.
@@ -11,7 +11,7 @@ Out of scope:
 - No broad visual redesign, pixel-art restyling, or privacy/security boundary change.
 
 Depends on:
-- `task-1-private-indicator-state-inventory`
+- `task-7-private-indicator-state-inventory`
 
 Blueprint anchors:
 - `CH-1`: `docs/blueprint/next/migration-analysis.md` §4.3

@@ -1,4 +1,4 @@
-# task-2-channel-allowed-action-rules
+# task-5-channel-allowed-action-rules
 
 Purpose:
 - Make allowed channel actions explicit and prevent misleading owner leave behavior.
@@ -12,7 +12,7 @@ Out of scope:
 - No notification/collapse/sort controls unless explicitly scoped later.
 
 Depends on:
-- `task-1-channel-management-surface`
+- `task-4-channel-management-surface`
 
 Blueprint anchors:
 - `CH-1`: `docs/blueprint/next/migration-analysis.md` §4.3
