@@ -8,8 +8,8 @@
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | READY_FOR_DESIGN_REVIEW |
-| Blocker | none; Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. |
+| State | DESIGN_REVIEW_REPAIRED |
+| Blocker | Design review blockers repaired locally; awaiting re-review. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. |
 
 ## Checkpoints
 
@@ -20,7 +20,8 @@
 - [x] Four-piece task-start docs created: `spec.md`, `stance.md`, `acceptance.md`, `progress.md`
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals
 - [x] Dev design drafted for review
-- [ ] Dev design reviewed
+- [x] Dev design reviewed: PM_LGTM, ARCHITECT_BLOCKED, QA_BLOCKED, SECURITY_BLOCKED
+- [x] Design blockers repaired in `design.md`
 - [ ] TDD RED tests written before implementation
 - [ ] Product implementation complete
 - [ ] `docs/current` sync checked after implementation or no-op rationale recorded
@@ -44,6 +45,26 @@
 | Dev inventory | Reviewed Helper enrollment API, datalayer, store queries, migration registry, route wiring, tests, and current docs; highest current migration is v50, so design reserves likely v51 with re-check instruction | PASS |
 | Security pre-scan | Design records user-rail-only enqueue, strict typed JSON validation, closed job taxonomy, category mapping, idempotency/TTL, redaction, and explicit non-goals for poll/lease/result/execution/UI | PASS |
 
+## Design Review Repair Evidence
+
+| Reviewer | Blocker | Repair |
+|---|---|---|
+| Architect | `openclaw.configure_agent` referenced nonexistent `agent_config_id` | Replaced payload with `agent_id`; design now binds to existing `agent_configs(agent_id, schema_version, blob)` and captures server-derived config version/hash in the effective payload. |
+| Architect | Store/datalayer must verify referenced config/channel against owner/org and capture effective payload for idempotency | Store responsibilities now require owner/org agent validation, channel authority validation, config row lookup, and server-derived effective payload before idempotency hashing. |
+| QA | RED stale enrollment coverage | Test plan now requires API/store stale enrollment coverage: missing or older-than-five-minute `last_seen_at` returns `403 stale_enrollment` and creates no job row. |
+| QA | TTL coverage | Design now requires server-generated bounded `expires_at`, rejects client `ttl`/`expires_at`/`deadline`/`lease_expires_at` with no job row, and treats expired queued rows as terminal/non-executable. |
+| QA | Route negative tests | Test plan now requires proving only the task 1 enqueue route is mounted and poll/lease/result/ack/log/service/local-policy/install/uninstall/execution endpoints remain unmounted. |
+| Security | Explicit task 1 enabled job type set | Taxonomy now says task 1 enables exactly `openclaw.configure_agent`; install, service, local-policy/write, status/log, revoke, and uninstall job types are recognized-but-rejected until owning tasks. |
+| Security | Mandatory stale enrollment rejection | Enrollment checks now require fail-closed freshness: `last_seen_at` present and within five minutes, otherwise `stale_enrollment` and no job row. |
+| Security | Idempotency/TTL must not globally block same job after expiry | Migration/model guidance now uses an active-window idempotency mechanism and forbids a permanent global unique index over `idempotency_scope`; expired/terminal rows stop participating in convergence/conflict. |
+
+## Repair Verification
+
+| Check | Result |
+|---|---|
+| Stale design wording scan | PASS: no remaining enqueue payload dependency on nonexistent `agent_config_id`; remaining mention is an explicit rejection note. |
+| `git diff --check` | PASS |
+
 ## Scope Locks
 
 - In scope: typed job envelope boundary, server enqueue authority, closed job type handling at enqueue, idempotency/TTL seeds, and enqueue-time failure truthfulness.
@@ -51,4 +72,4 @@
 
 ## Acceptance State
 
-Dev design is ready for review in `design.md`. Product implementation has not started and this task is not accepted until design review, TDD, implementation, verification, docs/current sync, PR review, and merge complete.
+Dev design blockers from ARCHITECT, QA, and SECURITY review are repaired in `design.md`. Product implementation has not started and this task is not accepted until re-review, TDD, implementation, verification, docs/current sync, PR review, and merge complete.
