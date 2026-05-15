@@ -1,7 +1,3 @@
-ROOT_TMP := $(CURDIR)/.tmp
-GO_TMP := $(ROOT_TMP)/go-build
-COV_PROFILE := $(ROOT_TMP)/coverage.out
-
 .PHONY: registry-totals precheck precheck-fast
 
 registry-totals:
@@ -11,15 +7,19 @@ registry-totals:
 
 precheck:
 	@echo "==> go coverage (CI parity)"
-	@mkdir -p "$(GO_TMP)"
-	@cd packages/server-go && env \
-		GOTMPDIR="$(GO_TMP)" \
+	@tmp_root="$${BORGE_PRECHECK_TMPDIR:-$${TMPDIR:-/tmp}}"; \
+	mkdir -p "$$tmp_root"; \
+	tmp_dir="$$(mktemp -d "$$tmp_root/borgee-precheck.XXXXXX")"; \
+	trap 'rm -rf "$$tmp_dir"' EXIT; \
+	mkdir -p "$$tmp_dir/go-build"; \
+	cd packages/server-go && env \
+		GOTMPDIR="$$tmp_dir/go-build" \
 		THRESHOLD_TOTAL=85 \
 		THRESHOLD_FUNC=50 \
 		THRESHOLD_PACKAGE=70 \
 		THRESHOLD_PRINT=85 \
 		BUILD_TAGS="sqlite_fts5 race_heavy" \
-		COVERPROFILE="$(COV_PROFILE)" \
+		COVERPROFILE="$$tmp_dir/coverage.out" \
 		FAIL_ON_CRITICAL_BLOCKS=false \
 		GENERATE_HTML=false \
 		RACE_DETECTION=false \
