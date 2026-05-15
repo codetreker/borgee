@@ -38,7 +38,7 @@ The plugin rail authenticates an agent plugin by API key and then treats the con
 
 The remote rail authenticates remote nodes by connection token. It represents a user-owned machine connection, not a user browser session and not an admin session.
 
-The Helper enrollment rail has two server-side entry modes. User-management requests use the user rail to create, list, read, and revoke enrollments scoped by owner and org. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat, rotate the persistent credential, or record helper-originated uninstall status with the current Helper credential plus matching helper device id.
+The Helper enrollment rail has two server-side entry modes. User-management requests use the user rail to create, list, read, revoke enrollments, and enqueue typed Helper jobs scoped by owner and org. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat, rotate the persistent credential, or record helper-originated uninstall status with the current Helper credential plus matching helper device id.
 
 ## Collaborators
 
@@ -68,6 +68,8 @@ Remote authentication is token-specific to a remote node. A live remote connecti
 
 Helper enrollment authentication is token-specific to the enrollment lifecycle. The one-time enrollment secret is accepted only for claim and is stored only as a digest. Claim returns a persistent Helper credential once; the server stores only its digest and accepts the current credential only on Helper heartbeat, credential rotation, and helper-originated uninstall endpoints when the helper device id matches and the enrollment is non-terminal. Rotation returns the new raw credential once, replaces the active digest, and immediately makes the previous credential stale.
 
+Helper job enqueue is a user-rail authority boundary. `POST /api/v1/helper/enrollments/{enrollmentId}/jobs` requires user auth and derives owner, org, and enrollment from the authenticated user plus route path. Helper credentials, Remote Agent connection tokens, host grants, admin sessions, and user permission fallback do not authorize this route. The only currently enabled job type is `openclaw.configure_agent`; other v1 Helper job types are recognized but rejected until their server-side binding and Helper-side policy work lands.
+
 ## Key Flows
 
 User request flow: a browser or API client presents a product session or API key, the server resolves a user, capability or domain checks validate the action, and the handler reads or mutates product state. Side effects may include audit rows, realtime fanout, push, or event publication.
@@ -80,6 +82,8 @@ Remote connection flow: a remote node presents a connection token, the hub regis
 
 Helper enrollment flow: a signed-in owner creates an enrollment row, receives a one-time local enrollment secret, and a local Helper claims the row with a helper device id. Later heartbeat, rotation, and helper-originated uninstall requests present the current persistent Helper credential and matching helper device id. Revoked or uninstalled rows block future heartbeat and rotation writes.
 
+Helper job enqueue flow: a signed-in owner posts a strict typed envelope to the enrollment jobs route. The server verifies owner/org, claimed Helper state, current credential metadata, fresh last seen, category delegation, closed job type, typed payload, server-bound agent config version/hash, TTL, and active-window idempotency before creating or converging a queued job. The request cannot carry owner/org/device/category authority, Helper credentials, Remote Agent credentials, command text, service units, paths, URLs, domains, TTL, deadline, or config hash/version fields.
+
 Impersonation/audit flow: user-facing grant state lives on the user rail, while admin-facing audit views live on the admin rail. This split prevents a user credential from reading global audit state and prevents admin context from masquerading as the user rail without an explicit grant model.
 
 ## Invariants
@@ -90,8 +94,8 @@ Impersonation/audit flow: user-facing grant state lives on the user rail, while 
 - Agent wildcard capability is narrower than human wildcard behavior.
 - Plugin frames are not trusted merely because the socket is connected; protocol validation and owner checks still apply.
 - Remote-node tokens authenticate machines, not browser users or admins.
-- Helper enrollment credentials authenticate only claim/status/rotation/uninstall for a Helper enrollment, and rotation replaces the active credential so later Helper lifecycle writes require the current credential plus matching device id. They are not user sessions, Remote Agent tokens, host grants, or user permissions.
-- Helper enrollment status is host/device enrollment visibility only. It is not a job queue, command channel, service lifecycle result, or Configure OpenClaw success state.
+- Helper enrollment credentials authenticate only claim/status/rotation/uninstall for a Helper enrollment, and rotation replaces the active credential so later Helper lifecycle writes require the current credential plus matching device id. They are not user sessions, Helper job enqueue credentials, Remote Agent tokens, host grants, or user permissions.
+- Helper enrollment status is host/device enrollment visibility only. Helper job enqueue exists as a separate typed user-rail queue boundary; it is not Helper polling, a raw command channel, service lifecycle result, bounded logs, or Configure OpenClaw success state.
 - Admin metadata views must avoid content-bearing fields unless a route explicitly owns that disclosure.
 
 ## Non-Goals
@@ -110,6 +114,7 @@ Rails do not define every endpoint, replace domain-specific authorization, or me
 - `packages/server-go/internal/api/admin_endpoints.go`
 - `packages/server-go/internal/api/admin_audit_query.go`
 - `packages/server-go/internal/api/helper_enrollments.go`
+- `packages/server-go/internal/api/helper_jobs.go`
 - `packages/server-go/internal/api/runtimes.go`
 - `packages/server-go/internal/ws/client.go`
 - `packages/server-go/internal/ws/plugin.go`
@@ -118,5 +123,6 @@ Rails do not define every endpoint, replace domain-specific authorization, or me
 - `packages/server-go/internal/bpp/envelope.go`
 - `packages/server-go/internal/store/queries.go`
 - `packages/server-go/internal/store/helper_enrollment_queries.go`
+- `packages/server-go/internal/store/helper_job_queries.go`
 - `packages/server-go/internal/store/admin_actions.go`
 - `admin.Handler`

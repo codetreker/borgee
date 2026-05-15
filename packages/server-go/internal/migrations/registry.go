@@ -73,6 +73,7 @@ var All = []Migration{
 	capabilitiesDotNotationBackfill,
 	helperEnrollments,
 	helperCredentialRotation,
+	helperJobs,
 }
 
 // Default returns an Engine wired to db with All registered.

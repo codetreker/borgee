@@ -28,7 +28,7 @@ flowchart TB
 
 The store owns durable state. The realtime hub owns live socket presence, in-memory connection maps, and transient delivery buffers. The data layer owns abstraction boundaries over store-backed repositories, presence reads, storage, and cold events. These boundaries overlap deliberately, but they are not interchangeable.
 
-Core user collaboration state is persisted in relational aggregates: users/agents, channels/memberships, messages/mentions/reactions, permissions, files, remote nodes, Helper enrollments, artifacts/versions/comments/iterations, admin records, and agent state tables.
+Core user collaboration state is persisted in relational aggregates: users/agents, channels/memberships, messages/mentions/reactions, permissions, files, remote nodes, Helper enrollments, Helper jobs, artifacts/versions/comments/iterations, admin records, and agent state tables.
 
 Event state is split. Hot events use a numeric cursor stream for user-facing realtime replay. Cold data-layer events use lexicographic ids and can carry row-level retention metadata for longer-lived event records. A feature must choose the correct stream explicitly.
 
@@ -56,6 +56,8 @@ Core aggregates are intentionally not normalized into one generic resource table
 
 Helper enrollment state is stored in `helper_enrollments`. The row is the server-side Helper identity/status authority and binds `owner_user_id`, `org_id`, host label, optional `helper_device_id`, closed allowed-category JSON, status, last-seen timestamps, active credential lifecycle metadata, and terminal revoke/uninstall timestamps. One-time enrollment secrets and persistent Helper credentials are stored only as digests; raw values are returned only once by the API path that creates, claims, or rotates them. The active credential digest is replaced on rotation, while `credential_created_at`, `credential_rotated_at`, and `credential_generation` record lifecycle metadata. The table is separate from `remote_nodes`, `host_grants`, and `user_permissions`.
 
+Helper enqueue state is stored in `helper_jobs`. The current aggregate is enqueue-only: it records server-derived owner, org, enrollment, helper device, closed job type, category gate, schema version, normalized payload digest, manifest/no-manifest digest, optional bounded idempotency key, active-window idempotency scope, status, failure metadata, and server-generated TTL timestamps. Active idempotency is enforced through a partial unique index on `active_idempotency_scope`, so expired or terminal rows do not permanently block the same effective job later. The only enabled task-1 job type is `openclaw.configure_agent`; later v1 taxonomy entries are recognized but rejected until their server-side binding and local-policy/service work exists. The table does not store raw Helper credentials, Remote Agent credentials, command text, service units, arbitrary paths, arbitrary domains, private file content, or unbounded logs.
+
 Agent state is deliberately multi-part: runtime process metadata, plugin socket liveness, presence sessions, busy/idle task state, and append-only state transitions are separate concepts. Collapsing them would lose information about whether an agent process is registered, connected, reachable, executing work, or historically failed.
 
 ## Key Flows
@@ -65,6 +67,8 @@ Boot migration flow: opening the store prepares SQLite runtime settings, baselin
 Write flow: a handler validates the operation, writes one or more aggregate rows, and then chooses side effects such as hot event rows, WebSocket fanout, cold event publication, audit rows, or push notification. Persistence and fanout are related but not automatically coupled.
 
 Helper enrollment write flow: the owner user creates or revokes enrollment rows through user-authenticated routes scoped by owner and org. The local Helper claims with a one-time enrollment secret, then updates heartbeat, rotates its credential, or records helper-originated uninstall status with the current persistent Helper credential and matching helper device id. Rotation replaces the active credential digest; the previous credential becomes stale immediately and cannot heartbeat, rotate, or uninstall. Revoked or uninstalled rows are terminal for future heartbeat and rotation writes. Offline freshness is derived from `last_seen_at`; it is recoverable by the same valid Helper credential and device id, including the new credential after rotation.
+
+Helper job enqueue flow: a user-authenticated request to an enrolled Helper creates a queued job only after the server verifies owner, org, claimed Helper identity, non-terminal state, fresh `last_seen_at`, category delegation, closed job type, typed payload, and server-owned agent config binding. The client cannot supply owner, org, device, category, TTL, deadline, config version/hash, credentials, command text, service unit, path, URL, or domain authority. Accepted jobs begin as `queued` with server TTL metadata; rejected enqueue attempts do not create executable queue rows.
 
 Hot event flow: user-facing realtime replay is based on an autoincrement cursor. Polling, streaming, and backfill clients consume cursor-ordered state, while WebSocket frame producers may allocate cursors for live delivery.
 
@@ -79,14 +83,14 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 - Forward migrations are immutable once applied; changes are made by appending a later migration.
 - Admin identity is stored outside the user aggregate.
 - Agents are users for ownership and API-key purposes, but agent runtime state is stored in separate runtime/state aggregates.
-- Helper enrollments are distinct server-owned aggregates. Their credentials do not authorize Remote Agent filesystem proxying, host grants, user API actions, or app permissions.
+- Helper enrollments and Helper jobs are distinct server-owned aggregates. Helper credentials do not authorize Remote Agent filesystem proxying, host grants, user API actions, app permissions, or user-rail Helper job enqueue. Helper jobs are typed enqueue records, not raw command execution records.
 - Hot cursor events and cold data-layer events are separate streams with different identifiers and retention behavior; default per-kind cold retention is policy intent, not current behavior for rows written without `retention_days`.
 - Append-only audit/state-log tables should not be rewritten to hide history.
 - Organization and ownership fields are part of authorization, not merely display metadata.
 
 ## Non-Goals
 
-The data model does not model plugin-local runtime secrets, LLM provider configuration, or a universal event table for all delivery paths. Helper enrollment currently does not model a job queue, lease/result state, service lifecycle execution, local policy engine, credential history beyond current active-digest metadata, or Configure OpenClaw success state.
+The data model does not model plugin-local runtime secrets, LLM provider configuration, or a universal event table for all delivery paths. Helper jobs currently model enqueue authority and active-window idempotency only; they do not model Helper poll/lease/result/ack routes, service lifecycle execution, local policy execution, credential history beyond current active-digest metadata, bounded logs, or Configure OpenClaw success state.
 
 ## Implementation Anchors
 
@@ -95,6 +99,7 @@ The data model does not model plugin-local runtime secrets, LLM provider configu
 - `packages/server-go/internal/store/migrations.go`
 - `packages/server-go/internal/store/queries.go`
 - `packages/server-go/internal/store/helper_enrollment_queries.go`
+- `packages/server-go/internal/store/helper_job_queries.go`
 - `packages/server-go/internal/store/admin_actions.go`
 - `packages/server-go/internal/store/agent_state_log.go`
 - `packages/server-go/internal/migrations/migrations.go`
@@ -108,6 +113,7 @@ The data model does not model plugin-local runtime secrets, LLM provider configu
 - `packages/server-go/internal/migrations/channel_events.go`
 - `packages/server-go/internal/migrations/global_events.go`
 - `packages/server-go/internal/migrations/helper_enrollments.go`
+- `packages/server-go/internal/migrations/helper_jobs.go`
 - `packages/server-go/internal/datalayer/factory.go`
 - `packages/server-go/internal/datalayer/v1_sqlite.go`
 - `packages/server-go/internal/datalayer/events_store.go`

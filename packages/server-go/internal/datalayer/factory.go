@@ -29,6 +29,7 @@ type DataLayer struct {
 	ChannelRepo          ChannelRepository
 	MessageRepo          MessageRepository
 	HelperEnrollmentRepo HelperEnrollmentRepository
+	HelperJobRepo        HelperJobRepository
 }
 
 // NewDataLayer assembles the v1 (SQLite + in-memory) bundle. Caller owns
@@ -48,5 +49,6 @@ func NewDataLayer(s *store.Store, pt presence.PresenceTracker, logger *slog.Logg
 		ChannelRepo:          NewSQLiteChannelRepository(s),
 		MessageRepo:          NewSQLiteMessageRepository(s),
 		HelperEnrollmentRepo: NewSQLiteHelperEnrollmentRepository(s),
+		HelperJobRepo:        NewSQLiteHelperJobRepository(s),
 	}
 }

@@ -8,8 +8,8 @@
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | DESIGN_REVIEW_REPAIRED |
-| Blocker | Design review blockers repaired locally; awaiting re-review. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. |
+| State | IMPLEMENTING |
+| Blocker | None for implementation. Design gate is green: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH. Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. |
 
 ## Checkpoints
 
@@ -22,10 +22,11 @@
 - [x] Dev design drafted for review
 - [x] Dev design reviewed: PM_LGTM, ARCHITECT_BLOCKED, QA_BLOCKED, SECURITY_BLOCKED
 - [x] Design blockers repaired in `design.md`
-- [ ] TDD RED tests written before implementation
-- [ ] Product implementation complete
-- [ ] `docs/current` sync checked after implementation or no-op rationale recorded
-- [ ] Acceptance evidence recorded after implementation
+- [x] Design gate green for implementation: PM_LGTM, ARCHITECT_LGTM_REFRESH, QA_LGTM_REFRESH, SECURITY_LGTM_REFRESH
+- [x] TDD RED tests written before implementation
+- [x] Product implementation complete
+- [x] `docs/current` sync checked after implementation or no-op rationale recorded
+- [x] Acceptance evidence recorded after implementation
 - [ ] PR opened
 - [ ] PR merged
 
@@ -65,6 +66,19 @@
 | Stale design wording scan | PASS: no remaining enqueue payload dependency on nonexistent `agent_config_id`; remaining mention is an explicit rejection note. |
 | `git diff --check` | PASS |
 
+## Implementation Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| RED migration | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/migrations -run 'TestHelperJobs\|TestMigrationRegistryIncludesHelperJobs' -count=1` failed before implementation because the registry still ended at v50 and `helper_jobs` did not exist. | RED PASS |
+| RED store | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/store -run 'TestHelperJob' -count=1` failed before implementation with missing `EnqueueHelperJobInput`, `EnqueueHelperJobForUser`, and Helper job sentinel errors. | RED PASS |
+| RED datalayer | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/datalayer -run 'TestHelperJob' -count=1` failed before implementation with missing `HelperJobRepo`, `EnqueueHelperJobInput`, and mapping sentinels. | RED PASS |
+| RED API | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/api -run 'TestHelperJobs' -count=1` failed before implementation with `404 Not found` for the new enqueue route. | RED PASS |
+| Focused GREEN | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/migrations -run 'TestHelperJobs\|TestMigrationRegistryIncludesHelperJobs' -count=1`; `./internal/store -run 'TestHelperJob'`; `./internal/datalayer -run 'TestHelperJob'`; `./internal/api -run 'TestHelperJobs'`. | PASS |
+| Broader server verification | `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/server -count=1`; `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api ./internal/server -count=1`; `GOTMPDIR=$PWD/.gotmp go test -tags sqlite_fts5 ./... -count=1`. | PASS |
+| Diff hygiene | `git diff --check`. | PASS |
+| Docs/current sync | Updated server data model, auth/admin rails, startup routing, Host Bridge, and security current docs for enqueue-only Helper jobs and non-goals. | PASS |
+
 ## Scope Locks
 
 - In scope: typed job envelope boundary, server enqueue authority, closed job type handling at enqueue, idempotency/TTL seeds, and enqueue-time failure truthfulness.
@@ -72,4 +86,4 @@
 
 ## Acceptance State
 
-Dev design blockers from ARCHITECT, QA, and SECURITY review are repaired in `design.md`. Product implementation has not started and this task is not accepted until re-review, TDD, implementation, verification, docs/current sync, PR review, and merge complete.
+Implementation is complete in the local task branch with TDD RED/GREEN evidence, docs/current sync, full `packages/server-go` verification, and diff hygiene recorded above. PR has not been opened or merged per worker assignment.
