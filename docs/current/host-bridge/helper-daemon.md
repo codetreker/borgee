@@ -83,9 +83,9 @@ The helper outbound package now has a typed client for the server Helper job rai
 - `POST /api/v1/helper/enrollments/{enrollmentId}/jobs/{jobId}/ack`
 - `POST /api/v1/helper/enrollments/{enrollmentId}/jobs/{jobId}/result`
 
-Every request sends `Authorization: Bearer <helper credential>` and `helper_device_id`. Poll can return `no_work` with bounded retry metadata or one leased typed job with a lease token and lease expiry. Ack records receipt only. Result upload sends terminal status, closed failure codes, a bounded failure message, and small opaque audit/log references. `401`, `stale_credential`, `revoked`, and `uninstalled` are stop directives for the daemon loop.
+Every request sends `Authorization: Bearer <helper credential>` and `helper_device_id`. Poll can return `no_work` with bounded retry metadata or one leased typed job with a lease token and lease expiry. Ack records receipt only. Result upload sends terminal status, closed failure codes, a bounded redacted failure message, and small opaque audit/log references. Non-success terminal statuses require a reason code; matching terminal replays are idempotent and conflicting terminal replays are rejected. `401`, `stale_credential`, `revoked`, and `uninstalled` are stop directives for the daemon loop.
 
-This is transport and settlement plumbing. It does not implement local policy, manifest/artifact verification, sandbox allowlist decisions, OpenClaw execution, service lifecycle restart, bounded log upload, or Configure OpenClaw success.
+This is transport and settlement plumbing. It does not implement local policy, manifest/artifact verification, sandbox allowlist decisions, OpenClaw execution, service lifecycle restart, raw log upload, or Configure OpenClaw success. Result summaries are references only; raw tokens, credentials, private file/message content, full environment dumps, command text, scripts, arbitrary paths, URLs, and service unit names are not accepted as result metadata.
 
 ## Audit Model
 
@@ -101,7 +101,7 @@ The helper does not create grants, write files, expose Remote Agent directories,
 - The macOS sandbox depends on correct wrapper deployment.
 - Local JSONL audit is not currently a first-class server audit source.
 - Outbound origin validation rejects unsafe literal origins but does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses.
-- Helper outbound prerequisites, the fixed-path poll/ack/result client, and the local job-policy evaluator exist, but daemon-loop credential persistence, bounded log upload, policy-to-action wiring, OpenClaw execution, and service lifecycle remain future work.
+- Helper outbound prerequisites, the fixed-path poll/ack/result client, bounded terminal settlement, and the local job-policy evaluator exist, but daemon-loop credential persistence, raw/bulk log upload, policy-to-action wiring, OpenClaw execution, and service lifecycle remain future work.
 
 ## Implementation Anchors
 

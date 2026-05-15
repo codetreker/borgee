@@ -9,5 +9,7 @@ This file preserves the accepted Helper/OpenClaw task history after the coarse v
 | #937 | `2872905` | Helper status UI and current-doc sync | `task-3-helper-status-ui-and-current-sync` |
 | #938 | `64d56f1` | Helper job envelope and enqueue authority | `task-4-job-envelope-and-enqueue-authority` |
 | #939 | `96dc0dc` | Helper outbound service prerequisites | `task-5-helper-outbound-service-prereq` |
+| #942 | `642fb57` | Local policy, manifest, and sandbox profile | `task-7-local-policy-manifest-and-sandbox-profile` |
+| #943 | `c2c61e6` | Helper pull, lease, ack, and result transport | `task-6-helper-pull-lease-result` |
 
-Unexecuted skeletons were moved into the same canonical milestone as `task-6` through `task-12`. They are not accepted history and should receive their own worktree, branch, PR, four-piece, implementation, verification, progress, and acceptance state when executed.
+Unexecuted skeletons remain in the same canonical milestone as `task-8` through `task-12`. They are not accepted history and should receive their own worktree, branch, PR, four-piece, implementation, verification, progress, and acceptance state when executed.

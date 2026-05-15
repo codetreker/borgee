@@ -3,6 +3,7 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -80,6 +81,19 @@ func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
 		t.Fatalf("ack replay should be idempotent: status %d body %v", resp.StatusCode, ackReplay)
 	}
 
+	resp, rawLogRejected := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, map[string]any{
+		"helper_device_id": "device-1",
+		"lease_token":      leaseToken,
+		"status":           "failed",
+		"failure_code":     "policy_denied",
+		"result_summary": map[string]any{
+			"raw_logs": "token=secret and private file content",
+		},
+	})
+	if resp.StatusCode != http.StatusBadRequest || rawLogRejected["code"] != "forbidden_field" {
+		t.Fatalf("raw logs must be rejected before terminal settlement: status %d body %v", resp.StatusCode, rawLogRejected)
+	}
+
 	resultBody := map[string]any{
 		"helper_device_id": "device-1",
 		"lease_token":      leaseToken,
@@ -95,6 +109,17 @@ func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
 	if resp.StatusCode != http.StatusOK || result["job"].(map[string]any)["status"] != "failed" || result["job"].(map[string]any)["failure_code"] != "policy_denied" {
 		t.Fatalf("result should settle terminal failed state: status %d body %v", resp.StatusCode, result)
 	}
+	resultJob := result["job"].(map[string]any)
+	if resultJob["failure_message"] != "policy handoff denied" {
+		t.Fatalf("result response should expose bounded failure_message, got %v", resultJob)
+	}
+	resultSummary := resultJob["result_summary"].(map[string]any)
+	if refs := resultSummary["audit_refs"].([]any); len(refs) != 1 || refs[0] != "audit-1" {
+		t.Fatalf("result response should expose bounded audit refs, got %v", resultSummary)
+	}
+	if _, ok := resultJob["result_summary_json"]; ok {
+		t.Fatalf("result response leaked raw result_summary_json: %v", resultJob)
+	}
 	resp, resultReplay := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, resultBody)
 	if resp.StatusCode != http.StatusOK || resultReplay["job"].(map[string]any)["status"] != "failed" {
 		t.Fatalf("same terminal result replay should be idempotent: status %d body %v", resp.StatusCode, resultReplay)
@@ -103,6 +128,67 @@ func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
 	resp, conflict := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, resultBody)
 	if resp.StatusCode != http.StatusConflict || conflict["code"] != "terminal_conflict" {
 		t.Fatalf("conflicting terminal replay should fail: status %d body %v", resp.StatusCode, conflict)
+	}
+}
+
+func TestHelperJobsResultRedactsSensitiveFailureMessageInAPIResponse(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-1")
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "api-redaction-agent")
+	seedHelperJobAgentConfig(t, s, agent.ID, 2, map[string]any{"name": "OpenClaw", "enabled": true})
+
+	resp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "openclaw.configure_agent",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("enqueue helper job: status %d", resp.StatusCode)
+	}
+	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-1"})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("poll status %d body %v", resp.StatusCode, poll)
+	}
+	job := poll["job"].(map[string]any)
+	jobID := job["job_id"].(string)
+	leaseToken := job["lease_token"].(string)
+	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/ack", helperCredential, map[string]any{"helper_device_id": "device-1", "lease_token": leaseToken, "ack_status": "received"})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ack status %d", resp.StatusCode)
+	}
+
+	resp, result := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, map[string]any{
+		"helper_device_id": "device-1",
+		"lease_token":      leaseToken,
+		"status":           "failed",
+		"failure_code":     "execution_failed",
+		"failure_message":  "token=secret-token Authorization: Bearer auth-secret private file content /home/alice/.ssh/id_rsa env=OPENAI_API_KEY=sk-test",
+		"result_summary":   map[string]any{"audit_refs": []string{"audit-1"}, "log_refs": []string{"log-1"}},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("result status %d body %v", resp.StatusCode, result)
+	}
+	msg := result["job"].(map[string]any)["failure_message"].(string)
+	for _, forbidden := range []string{"secret-token", "auth-secret", "private file content", "/home/alice/.ssh/id_rsa", "sk-test"} {
+		if strings.Contains(msg, forbidden) {
+			t.Fatalf("API failure_message leaked %q: %q", forbidden, msg)
+		}
+	}
+	if !strings.Contains(msg, "[redacted]") {
+		t.Fatalf("API failure_message should include redaction marker, got %q", msg)
+	}
+
+	resp, bad := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, map[string]any{
+		"helper_device_id": "device-1",
+		"lease_token":      leaseToken,
+		"status":           "cancelled",
+	})
+	if resp.StatusCode != http.StatusBadRequest || bad["code"] != "schema_invalid" {
+		t.Fatalf("terminal replay without reason should fail schema validation, status %d body %v", resp.StatusCode, bad)
 	}
 }
 
