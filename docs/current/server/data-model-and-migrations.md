@@ -100,7 +100,7 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 
 ## Non-Goals
 
-The data model does not model plugin-local runtime secrets, LLM provider configuration, or a universal event table for all delivery paths. Helper jobs currently model enqueue authority, active-window idempotency, and server-owned service lifecycle service-ID binding only; they do not model service-manager execution, local policy execution, credential history beyond current active-digest metadata, raw/bulk logs, or Configure OpenClaw success state.
+The data model does not model plugin-local runtime secrets, LLM provider configuration, or a universal event table for all delivery paths. Helper jobs currently model enqueue authority, active-window idempotency, server-owned service lifecycle service-ID binding, and the metadata used to derive the read-only Configure OpenClaw closure projection. They do not model service-manager execution, local policy execution, credential history beyond current active-digest metadata, raw/bulk logs, or client-supplied Configure OpenClaw success state.
 
 ## Implementation Anchors
 

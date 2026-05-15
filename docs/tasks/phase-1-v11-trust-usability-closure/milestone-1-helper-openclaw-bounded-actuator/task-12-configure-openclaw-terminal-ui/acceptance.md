@@ -55,3 +55,5 @@ Verification commands:
 - `pnpm --filter @borgee/client test`.
 - `pnpm --filter @borgee/client typecheck`.
 - `git diff --check`.
+- `GOTMPDIR=/workspace/borgee/.worktrees/m1-task12-configure-openclaw-terminal-ui/.gotmp/server-go go test -tags sqlite_fts5 -count=1 ./internal/datalayer -run 'TestHelperJobConfigureOpenClaw'` from `packages/server-go`.
+- `GOTMPDIR=/workspace/borgee/.worktrees/m1-task12-configure-openclaw-terminal-ui/.gotmp/coverage CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false go run ./scripts/lib/coverage/` from `packages/server-go`.

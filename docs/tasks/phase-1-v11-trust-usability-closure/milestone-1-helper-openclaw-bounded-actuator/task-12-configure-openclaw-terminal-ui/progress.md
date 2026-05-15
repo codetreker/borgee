@@ -42,6 +42,10 @@ Task12 is unblocked. The required M1 typed job chain is merged into `origin/main
 | BROAD: client | `pnpm --filter @borgee/client test` passed: 135 files, 859 tests passed, 1 skipped. | PASS |
 | TYPECHECK: client | `pnpm --filter @borgee/client typecheck` passed after fixing the Task12 test fixture shape. | PASS |
 | DIFF CHECK | `git diff --check` passed. | PASS |
+| CI: current sync lint | PR #964 initially failed Rule 6 because `packages/server-go/internal/` and `packages/client/src/` changed without `docs/current/server/` and `docs/current/client/` updates. Added narrow current-doc sync for the server projection and client Helper Status surface. | FIXED LOCALLY |
+| CI: go-test-cov | PR #964 initially failed because new datalayer projection helpers were covered through API tests but not datalayer package-local coverage. Added direct datalayer tests for projection derivation, bounded refs, repo scoping, and label/state branches. | FIXED LOCALLY |
+| GREEN: focused datalayer | `GOTMPDIR=/workspace/borgee/.worktrees/m1-task12-configure-openclaw-terminal-ui/.gotmp/server-go go test -tags sqlite_fts5 -count=1 ./internal/datalayer -run 'TestHelperJobConfigureOpenClaw'` passed. | PASS |
+| GREEN: CI coverage parity | `GOTMPDIR=/workspace/borgee/.worktrees/m1-task12-configure-openclaw-terminal-ui/.gotmp/coverage CI=true THRESHOLD_TOTAL=85 THRESHOLD_FUNC=50 THRESHOLD_PACKAGE=70 THRESHOLD_PRINT=85 BUILD_TAGS='sqlite_fts5 race_heavy' COVERPROFILE=coverage.out FAIL_ON_CRITICAL_BLOCKS=false RACE_DETECTION=false go run ./scripts/lib/coverage/` passed with total coverage 85.3%. | PASS |
 
 ## Implementation Summary
 

@@ -104,15 +104,15 @@ Sketch reference: [../remote-agent/ui/README.md](../remote-agent/ui/README.md) p
 
 ## Helper Status Surface
 
-Helper status is a user-owned global sidepane for Host Bridge enrollment visibility. It lists Helper enrollments from the user Helper enrollment REST rail and renders connected, offline, revoked, uninstalled, and pending enrollment states with last-seen and allowed-category details.
+Helper status is a user-owned global sidepane for Host Bridge enrollment visibility. It lists Helper enrollments from the user Helper enrollment REST rail and renders connected, offline, revoked, uninstalled, and pending enrollment states with last-seen and allowed-category details. When the server includes a safe Configure OpenClaw projection, the same surface also renders queued, running, succeeded, failed, denied, revoked, and manual-debug Configure OpenClaw states.
 
 | Surface | State owner | Data owner |
 | --- | --- | --- |
-| Helper status sidepane | Enrollment list, selected enrollment, refresh/error state, status display, last-seen display, and allowed-category display. | User Helper enrollment list/detail endpoints. |
+| Helper status sidepane | Enrollment list, selected enrollment, refresh/error state, status display, last-seen display, allowed-category display, and bounded Configure OpenClaw terminal-state display. | User Helper enrollment list/detail endpoints. |
 
-The surface is read-only status. It does not call Helper credential claim, heartbeat/status, or uninstall endpoints from the browser, and it does not display raw enrollment secrets, Helper credentials, Remote Agent connection tokens, org internals, private file content, or local environment details.
+The surface is read-only status. It does not call Helper credential claim, heartbeat/status, or uninstall endpoints from the browser, and it does not display raw enrollment secrets, Helper credentials, Remote Agent connection tokens, org internals, private file content, raw job payloads, payload hashes, manifest digests, raw result summaries, raw logs, or local environment details.
 
-Helper connected means the enrolled Helper/device was recently seen by the server. It is not OpenClaw connected status, Configure OpenClaw success, job progress, job logs, or service lifecycle completion. Remote nodes remain the separate Remote Agent filesystem proxy surface.
+Helper connected means the enrolled Helper/device was recently seen by the server. It is not OpenClaw connected status. Configure OpenClaw success appears only from the server-derived closure projection after the required typed job chain succeeds; failed, denied, revoked, and manual-debug projections expose only bounded reason fields and bounded audit/log refs. Remote nodes remain the separate Remote Agent filesystem proxy surface.
 
 ## Agent And Invitation Surfaces
 
