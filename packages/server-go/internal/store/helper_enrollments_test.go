@@ -382,3 +382,184 @@ func TestHelperEnrollmentCredentialRotationRejectsInvalidAndTerminalAuthorityWit
 		t.Fatalf("uninstalled rotate mutated terminal row: %+v", afterUninstall)
 	}
 }
+
+func TestHelperEnrollmentCredentialRotationRejectsStaleCredentialAfterHeartbeatValidation(t *testing.T) {
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-rotate-heartbeat-race")
+	now := time.UnixMilli(1778840000000)
+
+	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Heartbeat Race", []string{"status_collect"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment: %v", err)
+	}
+	claimed, credential, err := s.ClaimHelperEnrollment(enrollment.ID, secret, "device-race", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment: %v", err)
+	}
+	originalSeen := *claimed.LastSeenAt
+	tracedAt := now.Add(2 * time.Minute)
+
+	helperEnrollmentCredentialRaceHook = func(s *Store, row *HelperEnrollment) error {
+		newDigest := helperSecretDigest("newer-credential")
+		return s.DB().Model(&HelperEnrollment{}).
+			Where("id = ?", row.ID).
+			Updates(map[string]any{"persistent_credential_digest": newDigest, "credential_rotated_at": tracedAt.UnixMilli(), "credential_generation": row.CredentialGeneration + 1}).Error
+	}
+	t.Cleanup(func() { helperEnrollmentCredentialRaceHook = nil })
+
+	if _, err := s.UpdateHelperEnrollmentLastSeen(enrollment.ID, credential, "device-race", now.Add(3*time.Minute)); !errors.Is(err, ErrHelperEnrollmentUnauthorized) {
+		t.Fatalf("heartbeat with credential stale after validation error=%v, want ErrHelperEnrollmentUnauthorized", err)
+	}
+	after, err := s.GetHelperEnrollment(enrollment.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment: %v", err)
+	}
+	if after.LastSeenAt == nil || *after.LastSeenAt != originalSeen {
+		t.Fatalf("stale-after-validation heartbeat mutated last_seen_at: got %v want %d", after.LastSeenAt, originalSeen)
+	}
+	if after.Status != "connected" || after.UninstalledAt != nil {
+		t.Fatalf("stale-after-validation heartbeat mutated terminal/status fields: %+v", after)
+	}
+}
+
+func TestHelperEnrollmentCredentialRotationRejectsStaleCredentialAfterUninstallValidation(t *testing.T) {
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-rotate-uninstall-race")
+	now := time.UnixMilli(1778840000000)
+
+	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Uninstall Race", []string{"helper_lifecycle"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment: %v", err)
+	}
+	claimed, credential, err := s.ClaimHelperEnrollment(enrollment.ID, secret, "device-race", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment: %v", err)
+	}
+	originalSeen := *claimed.LastSeenAt
+	tracedAt := now.Add(2 * time.Minute)
+
+	helperEnrollmentCredentialRaceHook = func(s *Store, row *HelperEnrollment) error {
+		newDigest := helperSecretDigest("newer-credential")
+		return s.DB().Model(&HelperEnrollment{}).
+			Where("id = ?", row.ID).
+			Updates(map[string]any{"persistent_credential_digest": newDigest, "credential_rotated_at": tracedAt.UnixMilli(), "credential_generation": row.CredentialGeneration + 1}).Error
+	}
+	t.Cleanup(func() { helperEnrollmentCredentialRaceHook = nil })
+
+	if _, err := s.MarkHelperEnrollmentUninstalled(enrollment.ID, credential, "device-race", now.Add(3*time.Minute)); !errors.Is(err, ErrHelperEnrollmentUnauthorized) {
+		t.Fatalf("uninstall with credential stale after validation error=%v, want ErrHelperEnrollmentUnauthorized", err)
+	}
+	after, err := s.GetHelperEnrollment(enrollment.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment: %v", err)
+	}
+	if after.LastSeenAt == nil || *after.LastSeenAt != originalSeen {
+		t.Fatalf("stale-after-validation uninstall mutated last_seen_at: got %v want %d", after.LastSeenAt, originalSeen)
+	}
+	if after.Status != "connected" || after.UninstalledAt != nil {
+		t.Fatalf("stale-after-validation uninstall mutated terminal/status fields: %+v", after)
+	}
+}
+
+func TestHelperEnrollmentTerminalRaceBlocksHeartbeatAndUninstallAfterValidation(t *testing.T) {
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-terminal-race")
+	now := time.UnixMilli(1778840000000)
+
+	heartbeat, heartbeatSecret, err := s.CreateHelperEnrollment(owner.ID, "Heartbeat Terminal Race", []string{"status_collect"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment heartbeat: %v", err)
+	}
+	heartbeatClaim, heartbeatCredential, err := s.ClaimHelperEnrollment(heartbeat.ID, heartbeatSecret, "device-heartbeat", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Claim heartbeat: %v", err)
+	}
+	heartbeatSeen := *heartbeatClaim.LastSeenAt
+	uninstalledAt := now.Add(2 * time.Minute).UnixMilli()
+	helperEnrollmentCredentialRaceHook = func(s *Store, row *HelperEnrollment) error {
+		return s.DB().Model(&HelperEnrollment{}).
+			Where("id = ?", row.ID).
+			Updates(map[string]any{"status": "uninstalled", "uninstalled_at": uninstalledAt}).Error
+	}
+	if _, err := s.UpdateHelperEnrollmentLastSeen(heartbeat.ID, heartbeatCredential, "device-heartbeat", now.Add(3*time.Minute)); !errors.Is(err, ErrHelperEnrollmentInactive) {
+		t.Fatalf("heartbeat after terminal race error=%v, want ErrHelperEnrollmentInactive", err)
+	}
+	helperEnrollmentCredentialRaceHook = nil
+	afterHeartbeat, err := s.GetHelperEnrollment(heartbeat.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment heartbeat: %v", err)
+	}
+	if afterHeartbeat.Status != "uninstalled" || afterHeartbeat.UninstalledAt == nil || *afterHeartbeat.UninstalledAt != uninstalledAt {
+		t.Fatalf("heartbeat terminal race row=%+v, want uninstalled at %d", afterHeartbeat, uninstalledAt)
+	}
+	if afterHeartbeat.LastSeenAt == nil || *afterHeartbeat.LastSeenAt != heartbeatSeen {
+		t.Fatalf("heartbeat terminal race mutated last_seen_at: got %v want %d", afterHeartbeat.LastSeenAt, heartbeatSeen)
+	}
+
+	uninstall, uninstallSecret, err := s.CreateHelperEnrollment(owner.ID, "Uninstall Terminal Race", []string{"helper_lifecycle"}, now.Add(4*time.Minute))
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment uninstall: %v", err)
+	}
+	_, uninstallCredential, err := s.ClaimHelperEnrollment(uninstall.ID, uninstallSecret, "device-uninstall", now.Add(5*time.Minute))
+	if err != nil {
+		t.Fatalf("Claim uninstall: %v", err)
+	}
+	revokedAt := now.Add(6 * time.Minute).UnixMilli()
+	helperEnrollmentCredentialRaceHook = func(s *Store, row *HelperEnrollment) error {
+		return s.DB().Model(&HelperEnrollment{}).
+			Where("id = ?", row.ID).
+			Updates(map[string]any{"status": "revoked", "revoked_at": revokedAt}).Error
+	}
+	t.Cleanup(func() { helperEnrollmentCredentialRaceHook = nil })
+	if _, err := s.MarkHelperEnrollmentUninstalled(uninstall.ID, uninstallCredential, "device-uninstall", now.Add(7*time.Minute)); !errors.Is(err, ErrHelperEnrollmentInactive) {
+		t.Fatalf("uninstall after terminal race error=%v, want ErrHelperEnrollmentInactive", err)
+	}
+	afterUninstall, err := s.GetHelperEnrollment(uninstall.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment uninstall: %v", err)
+	}
+	if afterUninstall.Status != "revoked" || afterUninstall.RevokedAt == nil || *afterUninstall.RevokedAt != revokedAt || afterUninstall.UninstalledAt != nil {
+		t.Fatalf("uninstall terminal race row=%+v, want revoked at %d without uninstall", afterUninstall, revokedAt)
+	}
+}
+
+func TestHelperEnrollmentRevokeDoesNotOverwriteUninstallRace(t *testing.T) {
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-revoke-race")
+	now := time.UnixMilli(1778840000000)
+
+	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Revoke Race", []string{"helper_lifecycle"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment: %v", err)
+	}
+	_, credential, err := s.ClaimHelperEnrollment(enrollment.ID, secret, "device-race", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment: %v", err)
+	}
+	uninstalledAt := now.Add(2 * time.Minute).UnixMilli()
+	helperEnrollmentRevokeRaceHook = func(s *Store, row *HelperEnrollment) error {
+		if row.Status != "connected" {
+			t.Fatalf("revoke hook saw status=%q, want connected before race", row.Status)
+		}
+		if _, err := s.MarkHelperEnrollmentUninstalled(row.ID, credential, "device-race", time.UnixMilli(uninstalledAt)); err != nil {
+			return err
+		}
+		return nil
+	}
+	t.Cleanup(func() { helperEnrollmentRevokeRaceHook = nil })
+
+	row, err := s.RevokeHelperEnrollmentForUser(enrollment.ID, owner.ID, owner.OrgID, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("RevokeHelperEnrollmentForUser: %v", err)
+	}
+	if row.Status != "uninstalled" || row.UninstalledAt == nil || *row.UninstalledAt != uninstalledAt || row.RevokedAt != nil {
+		t.Fatalf("revoke overwrote uninstall race: %+v", row)
+	}
+	reloaded, err := s.GetHelperEnrollment(enrollment.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment: %v", err)
+	}
+	if reloaded.Status != "uninstalled" || reloaded.RevokedAt != nil {
+		t.Fatalf("persisted revoke race row=%+v, want uninstalled without revoked_at", reloaded)
+	}
+}

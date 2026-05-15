@@ -27,7 +27,7 @@ user API:      user credential -> user context -> owner/capability/resource chec
 admin API:     admin session cookie -> admin context -> admin rail only
 plugin WS:     API key -> agent/plugin connection -> scoped API bridge
 remote WS:     remote node token -> remote connection -> intended list/read tunnel
-helper enroll: one-time enrollment secret -> persistent Helper credential -> status/uninstall only
+helper enroll: one-time enrollment secret -> persistent Helper credential -> status/rotation/uninstall only
 helper IPC:    local agent id -> ACL -> host grant lookup -> local action
 installer:     manifest fetch -> partial verifier path -> local artifact deploy
 ```
@@ -77,7 +77,7 @@ This page does not define new privileges or future unification. It records the c
 
 - Some rails have intentionally separate but not yet unified audit sinks, so cross-source audit completeness varies by module.
 - Remote Agent's rail separation is clearer than its current end-to-end filesystem proxy contract.
-- Helper enrollment currently provides identity/status authority only: claim, heartbeat, revoke, and helper-originated uninstall state. It does not provide a job queue, command channel, service lifecycle execution, or Configure OpenClaw success state.
+- Helper enrollment currently provides identity/status authority only: claim, heartbeat, credential rotation, revoke, and helper-originated uninstall state. It does not provide a job queue, command channel, service lifecycle execution, or Configure OpenClaw success state.
 - Installer deployment trust is partial wiring; [../host-bridge/installer.md](../host-bridge/installer.md) owns the envelope, signing-key, and artifact-binding details.
 - Capability and legacy permission checks are close but not identical, which matters for agent wildcard reasoning.
 

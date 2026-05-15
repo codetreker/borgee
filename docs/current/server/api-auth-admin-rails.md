@@ -90,7 +90,7 @@ Impersonation/audit flow: user-facing grant state lives on the user rail, while 
 - Agent wildcard capability is narrower than human wildcard behavior.
 - Plugin frames are not trusted merely because the socket is connected; protocol validation and owner checks still apply.
 - Remote-node tokens authenticate machines, not browser users or admins.
-- Helper enrollment credentials authenticate only claim/status/uninstall for a Helper enrollment. They are not user sessions, Remote Agent tokens, host grants, or user permissions.
+- Helper enrollment credentials authenticate only claim/status/rotation/uninstall for a Helper enrollment, and rotation replaces the active credential so later Helper lifecycle writes require the current credential plus matching device id. They are not user sessions, Remote Agent tokens, host grants, or user permissions.
 - Helper enrollment status is host/device enrollment visibility only. It is not a job queue, command channel, service lifecycle result, or Configure OpenClaw success state.
 - Admin metadata views must avoid content-bearing fields unless a route explicitly owns that disclosure.
 

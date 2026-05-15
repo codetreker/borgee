@@ -54,22 +54,25 @@ PR #935 was closed before landing the shared task-1 acceptance-state cleanup. Th
 | Item | Evidence | Result |
 |---|---|---|
 | Design review | ARCHITECT_LGTM, PM_LGTM, SECURITY_LGTM, and QA_LGTM_REFRESH after positive rotated-credential coverage patch | PASS |
+| Review blocker | ARCHITECT_BLOCKED found heartbeat/uninstall final writes could race with credential rotation and revoke could overwrite uninstall; QA found stale current-doc wording around rotation | FIXED |
 | RED migrations | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run HelperEnrollments` failed before production code with `undefined: helperCredentialRotation` | PASS |
 | RED store | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollmentCredentialRotation` failed before production code with missing `RotateHelperEnrollmentCredential`, `CredentialRotatedAt`, and `CredentialGeneration` | PASS |
 | RED datalayer | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollmentRepository` failed before production code with `repo.RotateCredential undefined` | PASS |
 | RED API | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` failed before production code with rotate route returning `404 Not found` | PASS |
-| Implementation | Added v50 helper credential rotation migration, store rotation transaction, datalayer repository method, Helper-rail API route, and rotation metadata serialization | PASS |
-| GREEN migrations | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run HelperEnrollments` -> `ok borgee-server/internal/migrations 0.008s` | PASS |
-| GREEN store | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollmentCredentialRotation` -> `ok borgee-server/internal/store 0.047s` | PASS |
-| GREEN datalayer | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollmentRepository` -> `ok borgee-server/internal/datalayer 0.045s` | PASS |
-| GREEN API | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` -> `ok borgee-server/internal/api 0.071s` | PASS |
+| RED review blocker | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run 'HelperEnrollment(CredentialRotation\|TerminalRace\|RevokeDoesNotOverwrite)'` failed before the blocker fix with missing `helperEnrollmentCredentialRaceHook` and `helperEnrollmentRevokeRaceHook` seams | PASS |
+| Implementation | Added v50 helper credential rotation migration, store rotation transaction, datalayer repository method, Helper-rail API route, rotation metadata serialization, conditional heartbeat/uninstall writes bound to the validated credential digest/device, and terminal-safe revoke update | PASS |
+| GREEN migrations | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations -run HelperEnrollments` -> `ok borgee-server/internal/migrations 0.063s` | PASS |
+| GREEN store race slice | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run 'HelperEnrollment(CredentialRotation\|TerminalRace\|RevokeDoesNotOverwrite)'` -> `ok borgee-server/internal/store 0.104s` | PASS |
+| GREEN store full Helper slice | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/store -run HelperEnrollment` -> `ok borgee-server/internal/store 0.067s` | PASS |
+| GREEN datalayer | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/datalayer -run HelperEnrollmentRepository` -> `ok borgee-server/internal/datalayer 0.047s` | PASS |
+| GREEN API | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run HelperEnrollment` -> `ok borgee-server/internal/api 0.062s` | PASS |
 | Touched package breadth | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/migrations ./internal/store ./internal/datalayer ./internal/api` passed migrations/store/datalayer, then `./internal/api` failed in existing broad-suite instability with `sql: database is closed` and missing-table errors outside Helper enrollment tests; no broad API pass is claimed | INFO |
-| DL boundary | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 0.011s` | PASS |
+| DL boundary | `GOTMPDIR=$PWD/.gotmp go test -count=1 -tags sqlite_fts5 ./internal/api -run TestDL12_DirectStoreImportBaseline` -> `ok borgee-server/internal/api 0.007s` | PASS |
 | Migration version re-grep | `rg "Version:\s*[0-9]+" internal/migrations -o | sed -E 's/.*Version:\s*([0-9]+).*/\1/' | sort -n | tail -12` -> max `50`; helper credential rotation migration owns v50 | PASS |
 | Reverse grep rail separation | `rg "helper.*remote_nodes|remote_nodes.*helper|connection_token.*helper|helper.*connection_token" internal/api internal/store internal/datalayer internal/migrations` and `rg "helper.*host_grants|host_grants.*helper|helper.*user_permissions|user_permissions.*helper" internal/api internal/store internal/datalayer internal/migrations` returned no hits | PASS |
 | Reverse grep scope | `rg "job queue|result schema|execute job|arbitrary shell|service manager|\blease\b" internal/api/helper_enrollments.go internal/store/helper_enrollment_queries.go internal/datalayer/helper_enrollments.go internal/datalayer/helper_enrollments_sqlite.go internal/migrations/helper_credential_rotation.go` returned no hits | PASS |
 | Diff hygiene | `git diff --check` completed with no output | PASS |
-| docs/current sync | Updated current server data model/migrations, API/auth rails, security rail matrix, Host Bridge, and Remote Agent separation docs for implemented rotation behavior | PASS |
+| docs/current sync | Updated current server data model/migrations, API/auth rails, security rail matrix/diagram, Host Bridge, and Remote Agent separation docs for implemented rotation behavior and current-credential semantics | PASS |
 
 ## Acceptance State
 
@@ -80,8 +83,8 @@ Task 2 implementation is READY_FOR_PR. It is not marked accepted until PR review
 | Check | Evidence | Result |
 |---|---|---|
 | Segment A - credential rotation lifecycle | Store/datalayer/API tests cover current credential + matching device rotation, raw new credential returned once, digest replacement, generation/rotated metadata, preserved `credential_created_at`, old credential stale for heartbeat/rotate/uninstall, and new credential positive heartbeat/uninstall | PASS |
-| Segment B - stale credential and device semantics | Store/API tests cover wrong credential, old credential, wrong device, pending, revoked, and uninstalled rotation failures without authority mutation; new credential plus same device updates heartbeat/freshness | PASS |
-| Segment C - revoke authority | Store tests prove revoked rows reject rotation and keep terminal revoke timestamp/status; API/user rail revoke remains owner/org-scoped from task 1 | PASS |
-| Segment D - helper-originated uninstall authority | Store/datalayer/API tests prove uninstall requires the current rotated credential plus same device and remains terminal for later heartbeat | PASS |
+| Segment B - stale credential and device semantics | Store/API tests cover wrong credential, old credential, wrong device, pending, revoked, and uninstalled rotation failures without authority mutation; race tests prove stale-after-validation credential changes cannot mutate heartbeat/uninstall state; new credential plus same device updates heartbeat/freshness | PASS |
+| Segment C - revoke authority | Store tests prove revoked rows reject rotation and keep terminal revoke timestamp/status; revoke race test proves revoke does not overwrite helper-originated uninstall if uninstall wins after revoke's read; API/user rail revoke remains owner/org-scoped from task 1 | PASS |
+| Segment D - helper-originated uninstall authority | Store/datalayer/API tests prove uninstall requires the current rotated credential plus same device, remains terminal for later heartbeat, and fails inactive when terminal state wins before the final conditional update | PASS |
 | Segment E - API/data-model and rail separation | API uses `datalayer.HelperEnrollmentRepository`; DL baseline passes; reverse-grep checks show no Remote Agent, host grant, or user permission fallback; no queue/lease/job/service execution terms added to implementation paths | PASS |
 | Segment F - current-doc sync and progress state | Current docs updated for rotation behavior and progress records explicit RED, GREEN, docs, and acceptance evidence in this task PR | PASS |
