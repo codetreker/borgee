@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-15
-Resume from: execute task-start/four-piece for `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-2-helper-outbound-service-prereq/`.
+Resume from: execute task-start/four-piece for the next ready Helper/OpenClaw bounded actuator tasks under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -10,17 +10,29 @@ This directory tracks planned or in-discussion blueprint work that is not yet ac
 
 | Anchor | Topic | Decision | Work | Source issues | Reference | Milestone path | Next action |
 |---|---|---|---|---|---|---|---|
-| `HB-RA-1A` | Helper bounded actuator product guardrails | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §1.1-§1.2; `migration-analysis.md` §2.1 | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-3-configure-openclaw-closure` | Execute through Phase 1 milestones; do not inherit whole-doc draft scope beyond locked guardrails. |
-| `HB-RA-1B` | Helper actuator execution contract | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §5-§14; `migration-analysis.md` §2.2 | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-3-configure-openclaw-closure` | Carry execution contract into Helper enrollment, typed job policy loop, and Configure OpenClaw closure milestones. |
-| `MR-1` | Mention routing granularity and `@Everyone` broadcast | LOCKED | IMPLEMENTING | gh#674, gh#693 | `migration-analysis.md` §3 | `docs/tasks/phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls` | Implement owner-safe per-channel mention delivery and server-authoritative `@Everyone`. |
-| `CH-1` | Channel authority and user-side channel management | LOCKED | IMPLEMENTING | gh#685, gh#688, gh#690 | `migration-analysis.md` §4 | `docs/tasks/phase-2-collaboration-channel-control/milestone-2-channel-management-authority`; `docs/tasks/phase-2-collaboration-channel-control/milestone-3-channel-visual-truth` | Implement channel management authority and private-channel visual truth milestones. |
-| `CT-1` | Client truthfulness and forbidden-state visibility | LOCKED | IMPLEMENTING | gh#724 | `migration-analysis.md` §5 | `docs/tasks/phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness` | Implement ArtifactComments/ArtifactPanel reachability, Settings `PermissionsView` reachability, and non-leaky forbidden states. |
-| `PS-1` | Privacy scope guard | LOCKED | IMPLEMENTING | gh#654 | `migration-analysis.md` §6.1 | all v1.1 milestone folders under `docs/tasks/phase-*` | Carry as locked guardrail: exclude new user-facing privacy/compliance product expansion while preserving existing admin, privacy, security, impersonation, audit/enforcement, data-minimization, capability, and rail-separation controls. |
-| `IA-1` | Sidebar footer and account entry IA | LOCKED | IMPLEMENTING | gh#669, gh#670 | `migration-analysis.md` §7 | `docs/tasks/phase-3-client-truth-navigation/milestone-2-sidebar-account-entry` | Implement calmer footer IA and avatar/account entry without rail merge. |
+| `HB-RA-1A` | Helper bounded actuator product guardrails | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §1.1-§1.2; `migration-analysis.md` §2.1 | `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | Execute through one Helper/OpenClaw bounded actuator milestone; do not inherit whole-doc draft scope beyond locked guardrails. |
+| `HB-RA-1B` | Helper actuator execution contract | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §5-§14; `migration-analysis.md` §2.2 | `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | Carry execution contract into the bounded actuator milestone across accepted enrollment, job substrate, and Configure OpenClaw closure tasks. |
+| `MR-1` | Mention routing granularity and `@Everyone` broadcast | LOCKED | IMPLEMENTING | gh#674, gh#693 | `migration-analysis.md` §3 | `docs/tasks/phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | Implement owner-safe per-channel mention delivery and server-authoritative `@Everyone` inside one channel attention/authority milestone. |
+| `CH-1` | Channel authority and user-side channel management | LOCKED | IMPLEMENTING | gh#685, gh#688, gh#690 | `migration-analysis.md` §4 | `docs/tasks/phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | Implement channel management authority and private-channel visual truth inside one channel attention/authority milestone. |
+| `CT-1` | Client truthfulness and forbidden-state visibility | LOCKED | IMPLEMENTING | gh#724 | `migration-analysis.md` §5 | `docs/tasks/phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | Implement ArtifactComments/ArtifactPanel reachability, Settings `PermissionsView` reachability, and non-leaky forbidden states inside one client truth/navigation milestone. |
+| `PS-1` | Privacy scope guard | LOCKED | IMPLEMENTING | gh#654 | `migration-analysis.md` §6.1 | all v1.1 canonical milestones under `docs/tasks/phase-1-v11-trust-usability-closure` | Carry as locked guardrail: exclude new user-facing privacy/compliance product expansion while preserving existing admin, privacy, security, impersonation, audit/enforcement, data-minimization, capability, and rail-separation controls. |
+| `IA-1` | Sidebar footer and account entry IA | LOCKED | IMPLEMENTING | gh#669, gh#670 | `migration-analysis.md` §7 | `docs/tasks/phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | Implement calmer footer IA and avatar/account entry without rail merge inside one client truth/navigation milestone. |
 
 Decision values are `OPEN`, `LOCKED`, or `REOPENED`. Work values are `PENDING`, `IMPLEMENTING`, or `COMPLETED`. Only `LOCKED` anchors may move into `docs/tasks/` Phase/Milestone planning.
 
-The v1.1 selected anchors fit into 3 Phases and 8 user-facing milestones. Each Phase stays within the default limit of 3 milestones; milestone breakdown was accepted in one PR across all planned milestones.
+The v1.1 selected anchors are now one active Phase with three coarse user-facing milestones. The earlier `3 phases / 8 milestones` plan is superseded because the channel-control and client-truth slices were execution slots, not dependency or integration boundaries, and the prior Helper/OpenClaw milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop. Accepted task history remains valid and is remapped under the new canonical structure.
+
+### §0.1 Canonical Phase/Milestone Shape
+
+| Canonical Phase | Milestone | Status | Remapped prior structure |
+|---|---|---|---|
+| Phase 1: v1.1 Trust And Usability Closure | Milestone 1: Helper / OpenClaw Bounded Actuator | IMPLEMENTING | Prior Helper/OpenClaw prerequisite chain |
+| Phase 1: v1.1 Trust And Usability Closure | Milestone 2: Channel Attention And Authority | PLANNED | Former channel-control execution slot, now canonical task homes under this milestone |
+| Phase 1: v1.1 Trust And Usability Closure | Milestone 3: Client Truth And Navigation | PLANNED | Former client-truth/navigation execution slot, now canonical task homes under this milestone |
+
+Phase opening rule: a new Phase requires a real prerequisite boundary, integration boundary, or downstream integration/coordination reason. Coarser Phase/Milestone structure is preferred; implementation detail belongs in task execution and Dev design.
+
+Accepted history preserved under Milestone 1: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`).
 
 ## §1 Iteration Positioning
 
@@ -57,7 +69,7 @@ Locked planning scope carried into milestone breakdown and task-level Dev design
 - Service permissions: allowed service manager operations, long-lived service privilege level, restart/crash-recovery boundaries, and install-time privilege handoff.
 - Exact queue/lease/result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server/helper clock authority.
 
-`docs/tasks/681-remote-agent-openclaw/` is a legacy intake folder. The v1.1 execution path is now the Phase 1 Helper/OpenClaw Phase/Milestone plan under `docs/tasks/phase-1-helper-openclaw-onboarding/`.
+`docs/tasks/681-remote-agent-openclaw/` is a legacy intake folder. The v1.1 canonical execution grouping is now the coarse Phase 1 plan under `docs/tasks/phase-1-v11-trust-usability-closure/`. Accepted Helper/OpenClaw task artifacts and the remaining Helper/OpenClaw skeletons now live under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
 
 ### §2.3 `MR-1` Mention routing
 
@@ -135,4 +147,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Continue Phase 1 Milestone 2 from `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-2-helper-outbound-service-prereq/`. Phase 1 Milestone 1 is accepted through PR #934 (`547f869`), PR #936 (`1ca5f95`), and PR #937 (`2872905`). Milestone 2 task 1 is accepted and merged through PR #938 (`64d56f1`), unlocking task 2 for task-start/four-piece review. Product implementation has not started for task 2.
+Continue the canonical Phase 1 Milestone 1 Helper/OpenClaw loop from the next ready tasks after PR #939. Accepted history remains: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`). The next ready canonical tasks are `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result/` and `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile/`; they may start in parallel if file ownership/conflict risk is manageable. Product implementation has not started for those remaining tasks.
