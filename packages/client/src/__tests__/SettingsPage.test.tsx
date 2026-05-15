@@ -97,4 +97,40 @@ describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.
     expect(fetch).toHaveBeenCalledWith('/api/v1/me/permissions', { credentials: 'include' });
     expect(container!.querySelector('[data-ap2-empty]')?.textContent).toBe('暂无授权');
   });
+
+  it('places Remote Nodes and Helper Status as separate runtime Settings entries', async () => {
+    const onRemoteNodesOpen = vi.fn();
+    const onHelperStatusOpen = vi.fn();
+    await render(
+      <SettingsPage
+        onBack={() => {}}
+        onRemoteNodesOpen={onRemoteNodesOpen}
+        onHelperStatusOpen={onHelperStatusOpen}
+      />,
+    );
+
+    await act(async () => {
+      (container!.querySelector('[data-tab="runtime"]') as HTMLButtonElement).click();
+    });
+
+    const runtime = container!.querySelector('[data-settings-runtime-surface="true"]')!;
+    const remoteEntry = runtime.querySelector('[data-runtime-entry="remote-nodes"]') as HTMLButtonElement;
+    const helperEntry = runtime.querySelector('[data-runtime-entry="helper-status"]') as HTMLButtonElement;
+
+    expect(remoteEntry).toBeTruthy();
+    expect(remoteEntry.textContent).toContain('Remote Nodes');
+    expect(remoteEntry.getAttribute('data-authority-rail')).toBe('remote-agent');
+    expect(helperEntry).toBeTruthy();
+    expect(helperEntry.textContent).toContain('Helper Status');
+    expect(helperEntry.getAttribute('data-authority-rail')).toBe('helper-actuator');
+    expect(runtime.textContent).not.toContain('Helper/Remote Nodes');
+
+    await act(async () => {
+      remoteEntry.click();
+      helperEntry.click();
+    });
+
+    expect(onRemoteNodesOpen).toHaveBeenCalledTimes(1);
+    expect(onHelperStatusOpen).toHaveBeenCalledTimes(1);
+  });
 });

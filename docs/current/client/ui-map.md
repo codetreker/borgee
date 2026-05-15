@@ -14,7 +14,7 @@ User SPA
       Direct messages
       Global sidepane actions
         Primary footer: avatar account panel, Agents, Workspaces, Settings
-        Secondary footer overflow: Invitations, Remote nodes, Helper status
+        Secondary footer overflow: Invitations
     Main workspace
       Channel host
         Chat
@@ -30,6 +30,7 @@ User SPA
         Settings
           Privacy/admin-awareness tab
           Channel management tab
+          Runtime tab: Remote Nodes and Helper Status launch entries
 ```
 
 ## Responsibilities
@@ -65,7 +66,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | All workspaces | Global sidepane | Local grouping/filter/preview state | Workspace REST rail |
 | Remote nodes | Global sidepane | Local node/detail/binding state | Remote user REST rail |
 | Helper status | Global sidepane | Local enrollment list/detail/refresh state | User Helper enrollment REST rail |
-| Settings | Global sidepane | Local settings tab state | User admin-awareness endpoints plus the existing authorized channel list from app state |
+| Settings | Global sidepane | Local settings tab state | User admin-awareness endpoints, existing authorized channel list from app state, and runtime launch callbacks for Remote Nodes and Helper Status |
 | Account panel | Shell chrome | Local sidebar panel state | Current user/session REST rail |
 
 ## Sketch Coverage
@@ -80,7 +81,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Canvas/artifact | [ui/canvas-modal.md](ui/canvas-modal.md) | In-app decision flow reference for canvas actions. |
 | Workspace | [ui/workspace.md](ui/workspace.md) | File tree and viewer reference. |
 | Agents | [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), [ui/agent-collab.md](ui/agent-collab.md) | Owner-side agent management and collaboration references. |
-| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching, Helper status placement, channel-management overview, and admin-awareness references. |
+| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching, Settings Runtime placement for Helper Status and Remote Nodes, channel-management overview, and admin-awareness references. |
 | Remote surfaces | [../remote-agent/ui/README.md](../remote-agent/ui/README.md) | Combined Remote Explorer reference sketch; current client architecture splits remote nodes from channel remote browsing. |
 
 ## Cross-Surface Signals

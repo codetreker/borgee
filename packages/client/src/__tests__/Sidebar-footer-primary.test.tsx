@@ -92,8 +92,6 @@ async function renderSidebar(props: Partial<React.ComponentProps<typeof Sidebar>
         onAgentsOpen={() => {}}
         onInvitationsOpen={() => {}}
         onWorkspacesOpen={() => {}}
-        onRemoteNodesOpen={() => {}}
-        onHelperStatusOpen={() => {}}
         onSettingsOpen={() => {}}
         onLogout={() => {}}
         {...props}
@@ -129,12 +127,10 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
     expect(primary!.querySelector('[data-action="open-helper-status"]')).toBeNull();
   });
 
-  it('keeps secondary sidebar destinations reachable from the More menu without logout', async () => {
+  it('keeps invitations reachable from the More menu without runtime entries or logout', async () => {
     const onInvitationsOpen = vi.fn();
-    const onRemoteNodesOpen = vi.fn();
-    const onHelperStatusOpen = vi.fn();
     const onLogout = vi.fn();
-    await renderSidebar({ onInvitationsOpen, onRemoteNodesOpen, onHelperStatusOpen, onLogout });
+    await renderSidebar({ onInvitationsOpen, onLogout });
 
     click(container!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
     const menu = container!.querySelector('[data-testid="sidebar-footer-secondary-menu"]')!;
@@ -143,14 +139,8 @@ describe('Sidebar footer primary entries — M3 task 5', () => {
     expect(onInvitationsOpen).toHaveBeenCalledTimes(1);
 
     click(container!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
-    click(container!.querySelector('[data-testid="sidebar-secondary-remote-nodes"]')!);
-    expect(onRemoteNodesOpen).toHaveBeenCalledTimes(1);
-
-    click(container!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
-    click(container!.querySelector('[data-testid="sidebar-secondary-helper-status"]')!);
-    expect(onHelperStatusOpen).toHaveBeenCalledTimes(1);
-
-    click(container!.querySelector('[data-testid="sidebar-footer-secondary-toggle"]')!);
+    expect(container!.querySelector('[data-testid="sidebar-secondary-remote-nodes"]')).toBeNull();
+    expect(container!.querySelector('[data-testid="sidebar-secondary-helper-status"]')).toBeNull();
     expect(container!.querySelector('[data-testid="sidebar-secondary-logout"]')).toBeNull();
     expect(logout).not.toHaveBeenCalled();
     expect(onLogout).not.toHaveBeenCalled();
