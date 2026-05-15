@@ -50,6 +50,7 @@ func TestHelperJobEnqueueAuthorityAndActiveIdempotency(t *testing.T) {
 	if !strings.HasPrefix(job.PayloadHash, "sha256:") || !strings.HasPrefix(job.ManifestDigest, "sha256:") {
 		t.Fatalf("missing safe digests: payload=%q manifest=%q", job.PayloadHash, job.ManifestDigest)
 	}
+	assertHelperJobManifestBinding(t, job, []string{"openclaw_agent_config"}, nil, nil)
 	assertHelperJobPayloadBinding(t, job.PayloadJSON, agent.ID, int64(3))
 
 	again, againCreated, err := s.EnqueueHelperJobForUser(input, now.Add(3*time.Minute))
@@ -84,6 +85,56 @@ func TestHelperJobEnqueueAuthorityAndActiveIdempotency(t *testing.T) {
 	}
 	if !createdAfterExpiry || afterExpiry.ID == job.ID {
 		t.Fatalf("expired active scope should not permanently block new enqueue: created=%v job=%+v first=%s", createdAfterExpiry, afterExpiry, job.ID)
+	}
+}
+
+func TestHelperJobOpenClawInstallFromManifestIsServerBound(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-install-openclaw")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_lifecycle"}, now)
+
+	job, created, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+		OwnerUserID:    owner.ID,
+		OrgID:          owner.OrgID,
+		EnrollmentID:   enrollment.ID,
+		JobType:        "openclaw.install_from_manifest",
+		SchemaVersion:  1,
+		PayloadJSON:    `{"runtime":"openclaw"}`,
+		IdempotencyKey: "install-openclaw-1",
+	}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("EnqueueHelperJobForUser install: %v", err)
+	}
+	if !created || job.Status != HelperJobStatusQueued || job.Category != "openclaw_lifecycle" {
+		t.Fatalf("bad install job: created=%v job=%+v", created, job)
+	}
+	assertHelperJobInstallPayload(t, job.PayloadJSON)
+	assertHelperJobManifestBinding(t, job, []string{"openclaw_install", "openclaw_agent_config"}, []string{"openclaw-plugin"}, []string{"https://cdn.borgee.io"})
+	if job.ManifestDigest == helperJobDigest([]byte("no-manifest")) {
+		t.Fatalf("install job must bind a real manifest digest, got %q", job.ManifestDigest)
+	}
+
+	denied := []string{
+		`{"runtime":"openclaw","manifest_id":"client"}`,
+		`{"runtime":"openclaw","manifest_digest":"sha256:client"}`,
+		`{"runtime":"openclaw","artifact_ids":["client"]}`,
+		`{"runtime":"openclaw","path_ids":["client"]}`,
+		`{"runtime":"openclaw","domain":"https://evil.example"}`,
+	}
+	for _, payload := range denied {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "openclaw.install_from_manifest",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(3*time.Minute))
+		if !errors.Is(err, ErrHelperJobForbiddenField) {
+			t.Fatalf("payload %s error=%v, want ErrHelperJobForbiddenField", payload, err)
+		}
 	}
 }
 
@@ -148,10 +199,11 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 		{"missing last_seen_at", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = missingLastSeen.ID; return in }, ErrHelperJobEnrollmentInactive},
 		{"delegation denied", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.EnrollmentID = statusOnly.ID; return in }, ErrHelperJobDelegationDenied},
 		{"unknown type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "shell"; return in }, ErrHelperJobUnknownType},
-		{"recognized install type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+		{"install requires lifecycle delegation", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
 			in.JobType = "openclaw.install_from_manifest"
+			in.PayloadJSON = `{"runtime":"openclaw"}`
 			return in
-		}, ErrHelperJobManifestRequired},
+		}, ErrHelperJobDelegationDenied},
 		{"recognized plugin connection type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
 			in.JobType = "borgee_plugin.configure_connection"
 			return in
@@ -770,6 +822,64 @@ func assertHelperJobPayloadBinding(t *testing.T, payload string, agentID string,
 	for _, key := range []string{"owner_user_id", "org_id", "credential", "token", "shell", "argv", "script", "service_unit", "path", "domain", "url"} {
 		if _, ok := got[key]; ok {
 			t.Fatalf("payload leaked forbidden key %q: %v", key, got)
+		}
+	}
+}
+
+func assertHelperJobInstallPayload(t *testing.T, payload string) {
+	t.Helper()
+	var got map[string]any
+	if err := json.Unmarshal([]byte(payload), &got); err != nil {
+		t.Fatalf("payload is not JSON: %v", err)
+	}
+	if got["install_plan_id"] != "openclaw-plugin-v1" {
+		t.Fatalf("install payload did not use server-owned install plan: %v", got)
+	}
+	for _, forbidden := range []string{"runtime", "manifest_id", "manifest_digest", "artifact_ids", "path_ids", "domain", "url", "command", "service_unit"} {
+		if _, ok := got[forbidden]; ok {
+			t.Fatalf("install payload leaked client authority field %q: %v", forbidden, got)
+		}
+	}
+}
+
+func assertHelperJobManifestBinding(t *testing.T, job *HelperJob, wantPaths, wantArtifacts, wantDomains []string) {
+	t.Helper()
+	if job.ManifestBindingJSON == nil || strings.TrimSpace(*job.ManifestBindingJSON) == "" {
+		t.Fatalf("job missing manifest binding: %+v", job)
+	}
+	var binding struct {
+		ManifestDigest string   `json:"manifest_digest"`
+		ArtifactIDs    []string `json:"artifact_ids"`
+		PathIDs        []string `json:"path_ids"`
+		Domains        []string `json:"domains"`
+		ServiceIDs     []string `json:"service_ids"`
+	}
+	if err := json.Unmarshal([]byte(*job.ManifestBindingJSON), &binding); err != nil {
+		t.Fatalf("manifest binding is not JSON: %v", err)
+	}
+	if binding.ManifestDigest == "" || binding.ManifestDigest != job.ManifestDigest {
+		t.Fatalf("binding digest %q did not match job digest %q", binding.ManifestDigest, job.ManifestDigest)
+	}
+	assertStringSet(t, "path_ids", binding.PathIDs, wantPaths)
+	assertStringSet(t, "artifact_ids", binding.ArtifactIDs, wantArtifacts)
+	assertStringSet(t, "domains", binding.Domains, wantDomains)
+	if len(binding.ServiceIDs) != 0 {
+		t.Fatalf("Task9 must not grant service IDs, got %v", binding.ServiceIDs)
+	}
+}
+
+func assertStringSet(t *testing.T, label string, got, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s got %v, want %v", label, got, want)
+	}
+	seen := map[string]bool{}
+	for _, value := range got {
+		seen[value] = true
+	}
+	for _, value := range want {
+		if !seen[value] {
+			t.Fatalf("%s got %v, missing %q", label, got, value)
 		}
 	}
 }

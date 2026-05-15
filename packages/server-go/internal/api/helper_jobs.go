@@ -298,7 +298,7 @@ func rejectHelperJobPayloadPreflight(raw json.RawMessage) string {
 		switch strings.ToLower(strings.TrimSpace(key)) {
 		case "ttl", "expires_at", "deadline", "lease_expires_at":
 			return "ttl_invalid"
-		case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "domain", "url", "credential", "credentials", "token", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash":
+		case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "paths", "path_id", "path_ids", "domain", "domains", "domain_id", "domain_ids", "url", "credential", "credentials", "token", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "manifest_id", "manifest_digest", "manifest_binding", "manifest_binding_json", "artifact", "artifact_id", "artifact_ids", "service_id", "service_ids", "install_plan_id":
 			return "forbidden_field"
 		}
 	}
@@ -366,6 +366,39 @@ func serializeHelperJobLease(lease *datalayer.HelperJobLease) map[string]any {
 		"lease_token":      lease.LeaseToken,
 		"lease_expires_at": lease.LeaseExpiresAt,
 		"attempt":          lease.Attempt,
+	}
+	if binding := decodeHelperJobManifestBinding(job.ManifestBindingJSON); binding != nil {
+		out["manifest_binding"] = binding
+	}
+	return out
+}
+
+func decodeHelperJobManifestBinding(raw *string) map[string]any {
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return nil
+	}
+	var binding struct {
+		ManifestDigest string   `json:"manifest_digest"`
+		ArtifactIDs    []string `json:"artifact_ids"`
+		PathIDs        []string `json:"path_ids"`
+		Domains        []string `json:"domains"`
+		ServiceIDs     []string `json:"service_ids"`
+	}
+	if err := json.Unmarshal([]byte(*raw), &binding); err != nil || strings.TrimSpace(binding.ManifestDigest) == "" {
+		return nil
+	}
+	out := map[string]any{"manifest_digest": binding.ManifestDigest}
+	if len(binding.ArtifactIDs) > 0 {
+		out["artifact_ids"] = binding.ArtifactIDs
+	}
+	if len(binding.PathIDs) > 0 {
+		out["path_ids"] = binding.PathIDs
+	}
+	if len(binding.Domains) > 0 {
+		out["domains"] = binding.Domains
+	}
+	if len(binding.ServiceIDs) > 0 {
+		out["service_ids"] = binding.ServiceIDs
 	}
 	return out
 }
