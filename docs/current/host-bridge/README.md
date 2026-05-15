@@ -13,6 +13,8 @@ The current request boundary is a grant-backed helper request. A request must id
 **Collaborators**
 Host Bridge collaborates with the user API for grants and Helper enrollment management, server storage for grant and enrollment state, the helper daemon for enforcement, the installer for deployment, and admin audit views for limited visibility. It does not collaborate with the remote-agent WebSocket token path.
 
+The user SPA includes a read-only Helper status sidepane backed by the user Helper enrollment API. It shows server-known Helper enrollment status, last seen, and allowed categories without exposing Helper credentials or treating Helper status as Remote Agent status.
+
 **Internal Architecture**
 
 - Grant control plane: user-owned rows describing host capability consent.
@@ -33,6 +35,11 @@ Helper enrollment flow:
   -> helper heartbeat updates last seen with the current credential
   -> user revoke or helper-originated uninstall makes the enrollment terminal
 
+Helper status UI flow:
+  user opens Helper Status -> browser lists redacted Helper enrollments
+  -> UI renders connected/offline/revoked/uninstalled/pending, last seen, and allowed categories
+  -> no browser claim/status/uninstall Helper credential call and no Configure OpenClaw success claim
+
 Helper request flow:
   local client connects -> handshake agent id -> request action/target
   -> ACL decision -> SQLite grant lookup -> IO or rejection -> local audit
@@ -48,6 +55,7 @@ Install flow:
 - Helper enrollment is represented as `helper_enrollments`, not as Remote Agent nodes, host grants, or user permissions.
 - Helper enforcement is per request; grant state is not cached in the helper decision path.
 - Helper enrollment status and credential rotation are identity/status only; they do not execute jobs or prove Configure OpenClaw success.
+- Helper status UI is read-only enrollment visibility; it is not job progress, bounded logs, OpenClaw connectivity, or service lifecycle status.
 - Helper filesystem IO is read-only in the current capability set.
 - Remote Agent and Host Bridge are separate capabilities with separate credentials, transports, and boundaries.
 - Server-side host grant ownership does not imply admin-wide override.
