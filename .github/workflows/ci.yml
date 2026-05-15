@@ -107,22 +107,23 @@ jobs:
         #   - UncoveredLimit + AST analysis to locate uncovered blocks
         # Thresholds: ThresholdTotal=85 / ThresholdFunc=50 / ThresholdPackage=70
         # These match the #612 coverage recovery to 85.2% and protect against
-        # the #610 drop to 84%. The race_heavy build tag is passed through
-        # BUILD_TAGS so the 11 tagged sub-tests count toward coverage. CI=true
-        # enables GitHub error formatting. FAIL_ON_CRITICAL_BLOCKS stays false
-        # because enabling 30+ current critical-block findings at once would be
-        # a separate cleanup ramp.
+        # the #610 drop to 84%. The race_heavy build tag stays isolated in
+        # go-test-race-heavy; including it here duplicates that work and adds
+        # coverage-job time without changing the coverage gate materially.
+        # CI=true enables GitHub error formatting. FAIL_ON_CRITICAL_BLOCKS stays
+        # false because enabling 30+ current critical-block findings at once
+        # would be a separate cleanup ramp.
         #
         # Coverage policy: do not lower the threshold. The measured 85.2% result
-        # is produced by deterministic coverage additions plus the race_heavy tag,
-        # not by depending on scheduler variance in CI.
+        # is produced by deterministic coverage additions and does not depend on
+        # scheduler variance in CI.
         env:
           CI: "true"
           THRESHOLD_TOTAL: "85"
           THRESHOLD_FUNC: "50"
           THRESHOLD_PACKAGE: "70"
           THRESHOLD_PRINT: "85"
-          BUILD_TAGS: "sqlite_fts5 race_heavy"
+          BUILD_TAGS: "sqlite_fts5"
           COVERPROFILE: "coverage.out"
           FAIL_ON_CRITICAL_BLOCKS: "false"
           RACE_DETECTION: "false"
