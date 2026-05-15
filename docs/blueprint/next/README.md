@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-15
-Resume from: review the corrected v1.1 Phase/Milestone plan, then run one milestone-breakdown PR across the v1.1 milestones when feasible instead of starting the obsolete single planning-preflight task.
+Resume from: review the v1.1 milestone-breakdown PR. It creates task skeletons only; task execution starts only after the breakdown gate is accepted.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -10,17 +10,17 @@ This directory tracks planned or in-discussion blueprint work that is not yet ac
 
 | Anchor | Topic | Decision | Work | Source issues | Reference | Milestone path | Next action |
 |---|---|---|---|---|---|---|---|
-| `HB-RA-1A` | Helper bounded actuator product guardrails | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §1.1-§1.2; `migration-analysis.md` §2.1 | `docs/tasks/phase-1-helper-openclaw-onboarding/` | Execute through Phase 1 milestones; do not inherit whole-doc draft scope beyond locked guardrails. |
-| `HB-RA-1B` | Helper actuator execution contract | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §5-§14; `migration-analysis.md` §2.2 | `docs/tasks/phase-1-helper-openclaw-onboarding/` | Carry execution contract into Helper enrollment, typed job policy loop, and Configure OpenClaw closure milestones. |
+| `HB-RA-1A` | Helper bounded actuator product guardrails | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §1.1-§1.2; `migration-analysis.md` §2.1 | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-3-configure-openclaw-closure` | Execute through Phase 1 milestones; do not inherit whole-doc draft scope beyond locked guardrails. |
+| `HB-RA-1B` | Helper actuator execution contract | LOCKED | IMPLEMENTING | gh#681, gh#659 | `remote-actuator-design.md` §5-§14; `migration-analysis.md` §2.2 | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop`; `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-3-configure-openclaw-closure` | Carry execution contract into Helper enrollment, typed job policy loop, and Configure OpenClaw closure milestones. |
 | `MR-1` | Mention routing granularity and `@Everyone` broadcast | LOCKED | IMPLEMENTING | gh#674, gh#693 | `migration-analysis.md` §3 | `docs/tasks/phase-2-collaboration-channel-control/milestone-1-mention-delivery-controls` | Implement owner-safe per-channel mention delivery and server-authoritative `@Everyone`. |
-| `CH-1` | Channel authority and user-side channel management | LOCKED | IMPLEMENTING | gh#685, gh#688, gh#690 | `migration-analysis.md` §4 | `docs/tasks/phase-2-collaboration-channel-control/` | Implement channel management authority and private-channel visual truth milestones. |
-| `CT-1` | Client truthfulness and forbidden-state visibility | LOCKED | IMPLEMENTING | gh#724 | `migration-analysis.md` §5 | `docs/tasks/phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness` | Implement selected production surface reachability and non-leaky forbidden states. |
-| `PS-1` | Privacy scope guard | LOCKED | IMPLEMENTING | gh#654 | `migration-analysis.md` §6.1 | all v1.1 phases | Carry as locked guardrail: exclude new user-facing privacy/compliance product expansion while preserving existing admin, privacy, security, impersonation, audit/enforcement, data-minimization, capability, and rail-separation controls. |
+| `CH-1` | Channel authority and user-side channel management | LOCKED | IMPLEMENTING | gh#685, gh#688, gh#690 | `migration-analysis.md` §4 | `docs/tasks/phase-2-collaboration-channel-control/milestone-2-channel-management-authority`; `docs/tasks/phase-2-collaboration-channel-control/milestone-3-channel-visual-truth` | Implement channel management authority and private-channel visual truth milestones. |
+| `CT-1` | Client truthfulness and forbidden-state visibility | LOCKED | IMPLEMENTING | gh#724 | `migration-analysis.md` §5 | `docs/tasks/phase-3-client-truth-navigation/milestone-1-production-surface-truthfulness` | Implement ArtifactComments/ArtifactPanel reachability, Settings `PermissionsView` reachability, and non-leaky forbidden states. |
+| `PS-1` | Privacy scope guard | LOCKED | IMPLEMENTING | gh#654 | `migration-analysis.md` §6.1 | all v1.1 milestone folders under `docs/tasks/phase-*` | Carry as locked guardrail: exclude new user-facing privacy/compliance product expansion while preserving existing admin, privacy, security, impersonation, audit/enforcement, data-minimization, capability, and rail-separation controls. |
 | `IA-1` | Sidebar footer and account entry IA | LOCKED | IMPLEMENTING | gh#669, gh#670 | `migration-analysis.md` §7 | `docs/tasks/phase-3-client-truth-navigation/milestone-2-sidebar-account-entry` | Implement calmer footer IA and avatar/account entry without rail merge. |
 
 Decision values are `OPEN`, `LOCKED`, or `REOPENED`. Work values are `PENDING`, `IMPLEMENTING`, or `COMPLETED`. Only `LOCKED` anchors may move into `docs/tasks/` Phase/Milestone planning.
 
-The v1.1 selected anchors now fit into 3 Phases and 8 user-facing milestones. Each Phase stays within the default limit of 3 milestones; milestone breakdown should be published in one PR across all planned milestones when feasible.
+The v1.1 selected anchors now fit into 3 Phases and 8 user-facing milestones. Each Phase stays within the default limit of 3 milestones; milestone breakdown is being published in one PR across all planned milestones.
 
 ## §1 Iteration Positioning
 
@@ -96,7 +96,7 @@ Safe guardrails:
 Locked planning choices:
 
 - Forbidden state is local/in-surface by default unless a task proves redirect or full-page state is better.
-- Selected `CT-1` surfaces require e2e reverse proof as milestone acceptance. This is not a broad quality-platform expansion and not a global blueprint invariant.
+- ArtifactComments/ArtifactPanel and Settings `PermissionsView` require e2e reverse proof as milestone acceptance. This is not a broad quality-platform expansion and not a global blueprint invariant.
 
 ### §2.6 `PS-1` Privacy scope guard
 
@@ -135,4 +135,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Review and accept the corrected Phase/Milestone plan under `docs/tasks/`. After that, run one milestone-breakdown PR across all v1.1 milestones when feasible rather than continuing the obsolete single-task planning-preflight route. The first executable work starts only after that breakdown PR is accepted, under `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/`.
+Review and accept the milestone breakdown under `docs/tasks/`. The first executable work starts only after that breakdown PR is accepted, under `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/`.

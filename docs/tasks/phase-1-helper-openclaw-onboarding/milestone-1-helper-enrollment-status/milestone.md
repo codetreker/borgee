@@ -35,3 +35,23 @@ Run milestone breakdown after the phase-plan PR is accepted. This milestone shou
 Likely first task: `task-1-helper-enrollment-model-and-status`.
 
 The task should establish Helper enrollment identity and visible status only; it must not execute host-management jobs.
+
+## Task Index
+
+| Task | Status | Purpose | Depends on | Parallel? | First ready? |
+|---|---|---|---|---|---|
+| `task-1-helper-enrollment-model-and-status` | READY | Create distinct Helper enrollment identity and visible host status foundation | none | no | yes |
+| `task-2-helper-credential-rotation-and-revoke` | PLANNED | Add helper credential lifecycle, stale-device handling, and revoke/uninstall authority | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
+| `task-3-helper-status-ui-and-current-sync` | PLANNED | Surface Helper status and sync accepted enrollment/status contracts to current docs | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
+
+Dependency order: task 1 must land first because later credential and UI work need the enrollment identity and owner/org binding. Tasks 2 and 3 can run in parallel after task 1 if their touched files do not conflict.
+
+## Breakdown Review
+
+| Role | Decision | Notes |
+|---|---|---|
+| Architect | LGTM | Enrollment identity, credential lifecycle, and status UI boundaries are separated with task 1 as the dependency base. |
+| PM | LGTM | User-visible value flows from enroll/status to credential/revoke and status UI without merging Helper and Remote Agent rails. |
+| QA | LGTM | Acceptance slices are checkable for identity, credential rotation/revoke, and status/current-doc sync. |
+| Dev | LGTM | Each task is sized for one PR; tasks 2 and 3 can split after enrollment identity lands. |
+| Security | LGTM | Sensitive credential, owner/org authority, revoke, and rail-separation paths are identified for task execution. |

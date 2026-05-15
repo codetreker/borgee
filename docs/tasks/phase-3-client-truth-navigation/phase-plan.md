@@ -24,7 +24,7 @@ This Phase has 2 user-facing milestones, within the project default.
 
 Strict checks:
 
-- ArtifactComments and selected permission/security surfaces are reachable through production UI when claimed.
+- ArtifactComments/ArtifactPanel and Settings `PermissionsView` are reachable through production UI when claimed.
 - Forbidden states do not leak private channel, artifact, message, file, or body content before authorization succeeds.
 - Sidebar/account IA movement does not merge credentials, grants, or enforcement rails.
 - No new user-facing privacy/compliance product surface is introduced through gh#654.
