@@ -8,7 +8,7 @@ Complete one user-facing Helper/OpenClaw loop: enroll Helper once, authorize bou
 
 This milestone is the canonical execution home for the Helper/OpenClaw bounded actuator chain. Accepted task artifacts and progress from the previous finer-grained Helper/OpenClaw planning shape have been moved here so that no old phase directory remains live.
 
-Historical PR evidence is summarized in `accepted-history.md`. Future task execution resumes from the task directories listed below.
+Historical PR evidence is summarized in `accepted-history.md`. Accepted task execution is recorded in the task directories listed below.
 
 ## Acceptance Boundary
 
@@ -38,9 +38,9 @@ Rejected by this milestone:
 | OpenClaw install and agent config jobs | ACCEPTED | `task-9-openclaw-install-and-agent-config-jobs` | PR #956 (`5575b53`) | complete |
 | Borgee plugin channel binding job | ACCEPTED | `task-10-borgee-plugin-channel-binding-job` | PR #958 (`ad50575`) | complete |
 | Service lifecycle reliability | ACCEPTED | `task-11-service-lifecycle-boot-crash` | PR #963 (`d8d179e`) | complete |
-| Configure OpenClaw terminal UI | IMPLEMENTING | `task-12-configure-openclaw-terminal-ui` | After PR #963; closure task in branch `task/m1-task12-configure-openclaw-terminal-ui` | no |
+| Configure OpenClaw terminal UI | ACCEPTED | `task-12-configure-openclaw-terminal-ui` | PR #964 (`3450d8c`) | complete |
 
-Current execution is `task-12-configure-openclaw-terminal-ui`. `task-8-bounded-status-logs-and-revoke-settlement` is accepted through PR #954 (`419c5bf`), `task-9-openclaw-install-and-agent-config-jobs` is accepted through PR #956 (`5575b53`), `task-10-borgee-plugin-channel-binding-job` is accepted through PR #958 (`ad50575`), and `task-11-service-lifecycle-boot-crash` is accepted through PR #963 (`d8d179e`). Task12 is the remaining M1 closure task.
+Milestone 1 is accepted. `task-8-bounded-status-logs-and-revoke-settlement` is accepted through PR #954 (`419c5bf`), `task-9-openclaw-install-and-agent-config-jobs` is accepted through PR #956 (`5575b53`), `task-10-borgee-plugin-channel-binding-job` is accepted through PR #958 (`ad50575`), `task-11-service-lifecycle-boot-crash` is accepted through PR #963 (`d8d179e`), and `task-12-configure-openclaw-terminal-ui` is accepted through PR #964 (`3450d8c`).
 
 ## Exit Gates
 

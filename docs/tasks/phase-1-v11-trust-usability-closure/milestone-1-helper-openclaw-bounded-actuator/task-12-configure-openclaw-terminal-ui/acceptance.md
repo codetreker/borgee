@@ -5,6 +5,7 @@
 - Task: `task-12-configure-openclaw-terminal-ui`
 - Milestone: `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator`
 - Dependencies: Task9 PR #956 (`5575b53`), Task10 PR #958 (`ad50575`), Task11 PR #963 (`d8d179e`)
+- Accepted PR: #964 (`3450d8c`)
 
 ## Segment A: Server Projection
 
@@ -35,7 +36,7 @@ Acceptance checks:
 Acceptance checks:
 
 - Task12 docs record scope, design, progress, and acceptance evidence.
-- M1 marks Task10 and Task11 accepted, Task12 as the closure task, and M2/M3 as accepted without opening status-only PRs.
+- M1 marks Task10, Task11, and Task12 accepted, and M2/M3 remain accepted without opening status-only PRs.
 
 ## Evidence
 

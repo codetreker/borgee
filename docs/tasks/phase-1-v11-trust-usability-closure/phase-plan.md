@@ -2,7 +2,7 @@
 
 ## Status
 
-CLOSING. This is the single active v1.1 Phase; M2 and M3 are accepted, and M1 is in its Task12 closure branch.
+ACCEPTED. This v1.1 Phase is complete; M1, M2, and M3 are accepted, with M1 closed by Task12 PR #964 (`3450d8c`).
 
 ## Exit Condition
 
@@ -47,7 +47,7 @@ Out of scope:
 
 | Milestone | Goal | Status | Canonical doc |
 |---|---|---|---|
-| Milestone 1: Helper / OpenClaw Bounded Actuator | Complete one user-facing Helper/OpenClaw loop from accepted enrollment through bounded typed jobs, service reliability, and Configure OpenClaw terminal UI | CLOSING | `milestone-1-helper-openclaw-bounded-actuator/milestone.md` |
+| Milestone 1: Helper / OpenClaw Bounded Actuator | Complete one user-facing Helper/OpenClaw loop from accepted enrollment through bounded typed jobs, service reliability, and Configure OpenClaw terminal UI | ACCEPTED | `milestone-1-helper-openclaw-bounded-actuator/milestone.md` |
 | Milestone 2: Channel Attention And Authority | Let users understand and control channel attention, membership, allowed actions, authority, and private/sidebar state meaning | ACCEPTED | `milestone-2-channel-attention-and-authority/milestone.md` |
 | Milestone 3: Client Truth And Navigation | Make selected production surfaces truthful and reachable while simplifying account/sidebar navigation | ACCEPTED | `milestone-3-client-truth-and-navigation/milestone.md` |
 
@@ -70,8 +70,9 @@ Accepted work remains accepted and is remapped into Milestone 1:
 | #956 | `5575b53` | OpenClaw install and agent config jobs | Milestone 1 |
 | #958 | `ad50575` | Borgee plugin channel binding job | Milestone 1 |
 | #963 | `d8d179e` | Service lifecycle boot/crash reliability | Milestone 1 |
+| #964 | `3450d8c` | Configure OpenClaw terminal UI | Milestone 1 |
 
-Accepted task docs and progress now live under the canonical milestone directories. Milestone 1 accepted history is summarized in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`, with `task-12-configure-openclaw-terminal-ui` carrying the final Helper/OpenClaw closure work. Milestone 2 and Milestone 3 task indexes are status-synced as accepted in their canonical milestone docs.
+Accepted task docs and progress now live under the canonical milestone directories. Milestone 1 accepted history is summarized in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`, including the final Helper/OpenClaw closure work in `task-12-configure-openclaw-terminal-ui`. Milestone 2 and Milestone 3 task indexes are status-synced as accepted in their canonical milestone docs.
 
 ## Exit Gates
 
