@@ -235,6 +235,8 @@ export async function reorderChannelGroup(groupId: string, afterId: string | nul
 
 // ─── Channel Members ────────────────────────────────────
 
+export type RequireMentionPolicy = 'inherit' | 'on' | 'off';
+
 export interface ChannelMember {
   user_id: string;
   display_name: string;
@@ -246,6 +248,15 @@ export interface ChannelMember {
   // to true for agents — UI renders a "silent" badge so peers know the agent
   // listens but won't chime in unprompted.
   silent?: boolean;
+  require_mention_policy?: RequireMentionPolicy;
+  effective_require_mention?: boolean;
+}
+
+export interface ChannelMemberRequireMentionState {
+  channel_id: string;
+  user_id: string;
+  require_mention_policy: RequireMentionPolicy;
+  effective_require_mention: boolean;
 }
 
 export async function fetchChannelMembers(channelId: string): Promise<ChannelMember[]> {
@@ -263,6 +274,17 @@ export async function addChannelMember(channelId: string, userId: string): Promi
 export async function removeChannelMember(channelId: string, userId: string): Promise<void> {
   await request<{ ok: boolean }>(`/api/v1/channels/${channelId}/members/${userId}`, {
     method: 'DELETE',
+  });
+}
+
+export async function setChannelMemberRequireMentionPolicy(
+  channelId: string,
+  userId: string,
+  policy: RequireMentionPolicy,
+): Promise<ChannelMemberRequireMentionState> {
+  return request<ChannelMemberRequireMentionState>(`/api/v1/channels/${channelId}/members/${userId}/require-mention`, {
+    method: 'PUT',
+    body: JSON.stringify({ policy }),
   });
 }
 
@@ -317,13 +339,13 @@ export async function sendMessage(
   channelId: string,
   content: string,
   contentType: 'text' | 'image' = 'text',
-  mentions?: string[],
+  _mentions?: string[],
 ): Promise<Message> {
   const data = await request<{ message: Message }>(
     `/api/v1/channels/${channelId}/messages`,
     {
       method: 'POST',
-      body: JSON.stringify({ content, content_type: contentType, mentions }),
+      body: JSON.stringify({ content, content_type: contentType }),
     },
   );
   return data.message;

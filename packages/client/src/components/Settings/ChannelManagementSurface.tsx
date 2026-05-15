@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import type { Channel } from '../../types';
 import { buildChannelManagementSections } from '../../lib/channelManagement';
+import { useCan } from '../../hooks/usePermissions';
+import ChannelMentionControls from './ChannelMentionControls';
 
 function formatVisibility(channel: Channel): string {
   if (channel.visibility === 'private') return '私有';
@@ -14,6 +16,8 @@ function formatMemberCount(channel: Channel): string {
 }
 
 function ChannelRow({ channel }: { channel: Channel }) {
+  const canManageMembers = useCan('channel.manage_members', channel.id);
+
   return (
     <li className="channel-management-row" data-channel-id={channel.id}>
       <div className="channel-management-row-main">
@@ -24,6 +28,7 @@ function ChannelRow({ channel }: { channel: Channel }) {
       <div className="channel-management-meta">
         <span>{formatMemberCount(channel)}</span>
       </div>
+      <ChannelMentionControls channelId={channel.id} canManage={canManageMembers} />
     </li>
   );
 }
@@ -64,7 +69,7 @@ export default function ChannelManagementSurface() {
     <div className="channel-management-surface" data-testid="channel-management-surface">
       <header className="channel-management-header">
         <h1>频道管理</h1>
-        <p>查看你创建和加入的频道。成员操作和所有权操作会在后续任务中补齐。</p>
+        <p>查看频道成员、提及送达和广播提及行为。成员操作和所有权操作会在后续任务中补齐。</p>
       </header>
       <ChannelSection
         title="我创建的频道"
