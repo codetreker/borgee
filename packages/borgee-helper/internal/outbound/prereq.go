@@ -2,7 +2,7 @@ package outbound
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -152,12 +152,15 @@ func normalizeOrigin(raw string, opts ValidationOptions) (string, error) {
 	if u.Path != "" && u.Path != "/" {
 		return "", fmt.Errorf("path is not allowed")
 	}
-	if u.Scheme != "https" {
-		if !(opts.AllowLoopbackHTTP && u.Scheme == "http" && isLoopbackHost(u.Hostname())) {
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "https" {
+		if !(opts.AllowLoopbackHTTP && scheme == "http" && isLoopbackHost(u.Hostname())) {
 			return "", fmt.Errorf("https is required")
 		}
+	} else if isLocalOrPrivateHost(u.Hostname()) {
+		return "", fmt.Errorf("local/private origins are not allowed")
 	}
-	u.Scheme = strings.ToLower(u.Scheme)
+	u.Scheme = scheme
 	u.Host = strings.ToLower(u.Host)
 	u.Path = ""
 	u.RawPath = ""
@@ -166,12 +169,36 @@ func normalizeOrigin(raw string, opts ValidationOptions) (string, error) {
 }
 
 func isLoopbackHost(host string) bool {
-	host = strings.TrimSuffix(strings.ToLower(host), ".")
-	if host == "localhost" {
+	host = canonicalOriginHost(host)
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return true
 	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	addr, ok := parseOriginHostAddr(host)
+	return ok && addr.IsLoopback()
+}
+
+func isLocalOrPrivateHost(host string) bool {
+	host = canonicalOriginHost(host)
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	addr, ok := parseOriginHostAddr(host)
+	if !ok {
+		return false
+	}
+	return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsUnspecified()
+}
+
+func canonicalOriginHost(host string) string {
+	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+}
+
+func parseOriginHostAddr(host string) (netip.Addr, bool) {
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	return addr.Unmap(), true
 }
 
 func normalizeRoots(roots []string) []string {

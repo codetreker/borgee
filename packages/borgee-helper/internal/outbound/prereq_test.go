@@ -90,6 +90,89 @@ func TestPrereqValidateRejectsMalformedOrigins(t *testing.T) {
 	}
 }
 
+func TestPrereqValidateRejectsLocalAndPrivateHTTPSOriginsByDefault(t *testing.T) {
+	root := t.TempDir()
+	for _, origin := range []string{
+		"https://localhost",
+		"https://localhost.",
+		"https://127.0.0.1",
+		"https://[::1]",
+		"https://[::ffff:127.0.0.1]",
+		"https://10.0.0.1",
+		"https://172.16.0.1",
+		"https://172.31.255.255",
+		"https://192.168.1.10",
+		"https://169.254.1.1",
+		"https://169.254.169.254",
+		"https://[fc00::1]",
+		"https://[fd12:3456:789a::1]",
+		"https://[::ffff:10.0.0.1]",
+		"https://[fe80::1]",
+		"https://[fe80::1%25lo0]",
+	} {
+		t.Run(origin, func(t *testing.T) {
+			cfg := PrereqConfig{
+				ServerOrigin:    origin,
+				AllowedOrigins:  origin,
+				QueueStateDir:   filepath.Join(root, "queue"),
+				StatusStateDir:  filepath.Join(root, "status"),
+				AuditHandoffDir: filepath.Join(root, "audit-handoff"),
+			}
+			if _, err := ValidateAndPrepare(cfg, ValidationOptions{AllowedStateRoots: []string{root}}); err == nil {
+				t.Fatalf("expected local/private origin %q to fail closed", origin)
+			}
+		})
+	}
+}
+
+func TestPrereqValidateRejectsLocalAndPrivateAllowedOriginsByDefault(t *testing.T) {
+	root := t.TempDir()
+	cfg := PrereqConfig{
+		ServerOrigin:    "https://app.borgee.io",
+		AllowedOrigins:  "https://app.borgee.io, https://169.254.169.254",
+		QueueStateDir:   filepath.Join(root, "queue"),
+		StatusStateDir:  filepath.Join(root, "status"),
+		AuditHandoffDir: filepath.Join(root, "audit-handoff"),
+	}
+	_, err := ValidateAndPrepare(cfg, ValidationOptions{AllowedStateRoots: []string{root}})
+	if err == nil || !strings.Contains(err.Error(), "local/private origins are not allowed") {
+		t.Fatalf("expected private allowed origin to fail closed, got %v", err)
+	}
+}
+
+func TestPrereqValidateLoopbackHTTPAllowanceStaysConstrained(t *testing.T) {
+	root := t.TempDir()
+	for name, tc := range map[string]struct {
+		origin  string
+		allowed bool
+	}{
+		"http loopback allowed":         {origin: "http://127.0.0.1:4900", allowed: true},
+		"http localhost allowed":        {origin: "http://localhost:4900", allowed: true},
+		"http private remains denied":   {origin: "http://10.0.0.1:4900", allowed: false},
+		"https loopback remains denied": {origin: "https://127.0.0.1:4900", allowed: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := PrereqConfig{
+				ServerOrigin:    tc.origin,
+				AllowedOrigins:  tc.origin,
+				QueueStateDir:   filepath.Join(root, "queue"),
+				StatusStateDir:  filepath.Join(root, "status"),
+				AuditHandoffDir: filepath.Join(root, "audit-handoff"),
+			}
+			_, err := ValidateAndPrepare(cfg, ValidationOptions{
+				AllowedStateRoots: []string{root},
+				AllowLoopbackHTTP: true,
+			})
+			if tc.allowed && err != nil {
+				t.Fatalf("expected explicit loopback allowance for %q, got %v", tc.origin, err)
+			}
+			if !tc.allowed && err == nil {
+				t.Fatalf("expected constrained loopback allowance to reject %q", tc.origin)
+			}
+		})
+	}
+}
+
 func TestPrereqValidateRejectsPartialConfig(t *testing.T) {
 	_, err := ValidateAndPrepare(PrereqConfig{ServerOrigin: "https://app.borgee.io"}, ValidationOptions{})
 	if err == nil || !strings.Contains(err.Error(), "partial outbound prerequisite config") {

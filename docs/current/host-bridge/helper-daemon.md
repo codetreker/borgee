@@ -37,7 +37,7 @@ rejected -> rejection response -> audit
 - The request agent id must match the connection handshake agent id.
 - File actions require absolute normalized paths and are represented as filesystem scopes.
 - The helper's file IO surface is read-only.
-- Configured outbound prerequisites fail closed: the server origin must be an allowed exact HTTPS origin, and state roots must normalize under Helper-owned state directories.
+- Configured outbound prerequisites fail closed: the server origin must be an allowed exact public HTTPS origin, localhost/private/link-local/metadata origins are rejected even over HTTPS, and state roots must normalize under Helper-owned state directories.
 - The local UDS remains the only inbound listener.
 
 ## Sandbox Model
@@ -48,7 +48,7 @@ macOS uses a wrapper model. The helper process itself does not self-apply a sand
 
 ## Outbound Prerequisite Model
 
-The daemon accepts optional startup flags for a Borgee server origin, an exact allowed-origin list, and three Helper-owned state directories: queue cursor state, bounded status state, and audit handoff state. If none of those flags are set, local/manual startup leaves outbound prerequisites disabled. If any of them are set, all are required and malformed values abort startup.
+The daemon accepts optional startup flags for a Borgee server origin, an exact allowed-origin list, and three Helper-owned state directories: queue cursor state, bounded status state, and audit handoff state. If none of those flags are set, local/manual startup leaves outbound prerequisites disabled. If any of them are set, all are required and malformed values abort startup. Default validation rejects localhost, loopback, RFC1918, link-local, metadata, and IPv6 local/private address origins even when the scheme is HTTPS; the only local exception is an explicit test/development option for HTTP loopback.
 
 The installed Linux and macOS service assets set the production origin to `https://app.borgee.io`, allow only that exact origin, and name platform-specific Helper-owned state roots. The daemon creates configured state directories with owner-only permissions. These paths are service state only; clients, job payloads, Remote Agent state, and host grants do not choose them.
 

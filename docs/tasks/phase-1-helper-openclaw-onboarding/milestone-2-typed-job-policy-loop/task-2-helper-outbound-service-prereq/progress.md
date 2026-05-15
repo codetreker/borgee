@@ -8,8 +8,8 @@
 | Branch | `feat/task-2-helper-outbound-service-prereq` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | VERIFIED_LOCAL_READY_FOR_COMMIT |
-| Blocker | none |
+| State | SECURITY_REPAIR_VERIFIED_LOCAL_READY_FOR_COMMIT |
+| Blocker | security review found HTTPS localhost/private/metadata origins were not rejected before repair |
 
 ## Checkpoints
 
@@ -26,8 +26,11 @@
 - [x] Implementation worker started strict TDD pass
 - [x] RED tests/static checks written before production/config changes
 - [x] Product implementation complete
+- [x] Security repair added after review: default HTTPS local/private/link-local/metadata origin rejection
 - [x] `docs/current` sync checked after implementation
+- [x] `docs/current` sync checked after security repair
 - [x] Acceptance evidence recorded after implementation
+- [x] Security repair evidence recorded
 - [ ] PR opened
 - [ ] PR merged
 
@@ -63,6 +66,19 @@
 | Installer breadth GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-installer` -> installer packages passed after creating repo-local `.gotmp`; `/tmp` is not executable in this runtime | PASS |
 | Diff check GREEN | `git diff --check` -> no whitespace errors | PASS |
 | docs/current sync | Updated `docs/current/host-bridge/helper-daemon.md`, `docs/current/host-bridge/README.md`, `docs/current/security/README.md`, and `docs/current/known-gaps.md` for the prerequisite boundary and remaining pull-loop gaps | PASS |
+
+## Security Repair Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Review blocker reproduced | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound` failed before production repair: HTTPS `localhost`, `localhost.`, `127.0.0.1`, `::1`, IPv4-mapped loopback/private, RFC1918, link-local, metadata `169.254.169.254`, IPv6 unique-local, and `fe80::1` cases were accepted; allowed-origin list containing metadata IP also returned nil | PASS |
+| Default fail-closed origin validation | `normalizeOrigin` now rejects local/private origins for default HTTPS validation using canonical host/IP classification for localhost, loopback, private, link-local, multicast link-local, unspecified, and IPv4-mapped IP addresses | PASS |
+| Test/dev loopback constraint | `ValidationOptions.AllowLoopbackHTTP` remains limited to explicit HTTP loopback; HTTP private and HTTPS loopback remain rejected | PASS |
+| Focused GREEN | `GOTMPDIR=$PWD/.gotmp go test ./internal/outbound ./install` from `packages/borgee-helper` -> `ok borgee-helper/internal/outbound`; `ok borgee-helper/install` | PASS |
+| Helper module GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-helper` -> helper module passed | PASS |
+| Installer module GREEN | `GOTMPDIR=$PWD/.gotmp go test ./...` from `packages/borgee-installer` -> installer module passed | PASS |
+| Diff check GREEN | `git diff --check` -> no whitespace errors | PASS |
+| docs/current sync | Updated host bridge and security docs to state that outbound prerequisite origins must be public and reject localhost/private/link-local/metadata origins by default even over HTTPS | PASS |
 
 ## Scope Locks
 
