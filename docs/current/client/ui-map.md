@@ -93,7 +93,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Invitation signal | Footer More badge and invitation sidepane | Signal wakes both surfaces; REST remains authoritative. |
 | Artifact/comment signal | Canvas and comment surfaces | Signal wakes scoped artifact surfaces; bodies are pulled. |
 | Admin-awareness grant | Global banner and settings | User-owned grant state can affect the whole authenticated shell. |
-| Channel list state | Rail and settings channel tab | The authorized channel list feeds both navigation and display-only channel management grouping. |
+| Channel list state | Rail and settings channel tab | The authorized channel list feeds both navigation and read-only channel management grouping/action availability. |
 
 ## Interfaces To Other Modules
 
@@ -113,5 +113,5 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | App state | `packages/client/src/context/AppContext.tsx`, `AppState` |
 | Surface hosts | `packages/client/src/components/Sidebar.tsx`, `packages/client/src/components/ChannelView.tsx` |
 | Feature surfaces | `packages/client/src/components/`, `packages/client/src/components/Settings/` |
-| Channel management grouping | `packages/client/src/lib/channelManagement.ts`, `packages/client/src/components/Settings/ChannelManagementSurface.tsx` |
+| Channel management grouping and allowed actions | `packages/client/src/lib/channelManagement.ts`, `packages/client/src/components/Settings/ChannelManagementSurface.tsx` |
 | Global hooks | `packages/client/src/hooks/` |

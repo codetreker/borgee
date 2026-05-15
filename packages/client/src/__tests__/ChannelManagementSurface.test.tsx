@@ -88,7 +88,7 @@ function render(node: React.ReactElement) {
 }
 
 describe('ChannelManagementSurface', () => {
-  it('renders created and joined-only sections without action controls', () => {
+  it('renders created and joined-only sections with explicit allowed action rules', () => {
     mockContext.value = {
       state: {
         currentUser,
@@ -107,7 +107,21 @@ describe('ChannelManagementSurface', () => {
     expect(surface?.querySelector('[data-section="created"]')?.textContent).toContain('created');
     expect(surface?.querySelector('[data-section="joined"]')?.textContent).toContain('joined');
     expect(surface?.querySelector('[data-section="joined"]')?.textContent).not.toContain('created');
-    expect(surface?.textContent).not.toMatch(/退出|删除|归档|转让/);
+
+    const createdRow = surface?.querySelector('[data-channel-id="created-1"]');
+    const joinedRow = surface?.querySelector('[data-channel-id="joined-1"]');
+    expect(createdRow?.querySelector('[data-action="leave"]')?.getAttribute('data-allowed')).toBe('false');
+    expect(createdRow?.querySelector('[data-action="leave"]')?.textContent).toContain('创建者不能退出自己创建的频道');
+    expect(createdRow?.querySelector('[data-action="delete"]')?.getAttribute('data-allowed')).toBe('true');
+    expect(createdRow?.querySelector('[data-action="archive"]')?.getAttribute('data-allowed')).toBe('true');
+    expect(createdRow?.querySelector('[data-action="owner-transfer"]')?.getAttribute('data-allowed')).toBe('false');
+
+    expect(joinedRow?.querySelector('[data-action="leave"]')?.getAttribute('data-allowed')).toBe('true');
+    expect(joinedRow?.querySelector('[data-action="delete"]')?.getAttribute('data-allowed')).toBe('false');
+    expect(joinedRow?.querySelector('[data-action="archive"]')?.getAttribute('data-allowed')).toBe('false');
+    expect(joinedRow?.querySelector('[data-action="owner-transfer"]')?.getAttribute('data-allowed')).toBe('false');
+
+    expect(surface?.querySelector('button[data-action]')).toBeNull();
   });
 
   it('exposes server-owned mention delivery controls for channel agents', async () => {
