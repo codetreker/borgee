@@ -8,8 +8,8 @@
 | Branch | `feat/task-7-local-policy-manifest-and-sandbox-profile` |
 | PR | N/A; local task/design commits only |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | READY_FOR_DESIGN_REVIEW |
-| Blocker | none for design review; implementation remains blocked until role review accepts `design.md` |
+| State | READY_FOR_LOCAL_COMMIT |
+| Blocker | none; design gate green via `PM_QA_DESIGN_LGTM_BOTH` and `ARCH_SECURITY_TASK7_DESIGN_LGTM` |
 
 ## Checkpoints
 
@@ -25,6 +25,13 @@
 - [x] Dev/Security scouting completed against Helper sandbox/outbound, server Helper jobs/enrollment, manifest verifier, installer docs, plugin docs, and current docs
 - [x] `design.md` drafted with policy schema, manifest/artifact binding, signature/digest boundary, allowlists, sandbox alignment, auth/state rejection, test plan, docs/current sync, and non-goals
 - [x] Task state advanced to `READY_FOR_DESIGN_REVIEW`
+- [x] Design gate accepted: `PM_QA_DESIGN_LGTM_BOTH` and `ARCH_SECURITY_TASK7_DESIGN_LGTM`
+- [x] Task state advanced through `READY_FOR_IMPL` to `IMPLEMENTING`
+- [x] RED tests written first for `packages/borgee-helper/internal/jobpolicy`
+- [x] RED evidence captured with missing policy API/types before production implementation
+- [x] Helper-side local policy evaluator implemented without task 6 transport or action execution
+- [x] Focused and broader Helper verification passed locally
+- [x] Docs/current synced for landed local policy behavior and remaining no-poll/no-action limits
 
 ## Task-Prep Evidence
 
@@ -74,6 +81,19 @@
 - Task 6 interface assumption stays narrow: task 6 may call policy and later report the returned reason; task 7 does not design task 6 endpoints, lease/result shape, retry/backoff, cancellation, or result upload.
 - Security review should focus on signed manifest canonical bytes, artifact byte/cache digest binding, no rail reuse, path/domain/service fail-closed checks, and sandbox/profile alignment.
 
+## Implementation Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| RED test-first run | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy` failed before production implementation with undefined API/types including `JobTypeOpenClawConfigureAgent`, `ArtifactDeclaration`, `PathDeclaration`, `ServiceDeclaration`, `EvaluationInput`, `ManifestBinding`, `Decision`, and `Reason` | PASS |
+| Additional RED hardening | Added artifact-origin binding test; `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy` failed with `artifact_origin_not_bound_as_allowed_domain` returning `allow=true reason=ok` instead of `domain_denied` before the fix | PASS |
+| Focused GREEN | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy` -> `ok borgee-helper/internal/jobpolicy 0.008s` | PASS |
+| Focused Helper verification | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy ./internal/outbound ./install` -> `ok` for all three packages | PASS |
+| Broader Helper verification | `GOTMPDIR=$PWD/.gotmp go test ./cmd/borgee-helper ./internal/...` -> `ok` for helper internal packages and `cmd/borgee-helper` no test files | PASS |
+| Whitespace check | `git diff --check` -> no output, exit 0 | PASS |
+| Scope boundary | Added pure `internal/jobpolicy` package only; no Helper poll/lease/result routes, result upload, OpenClaw action execution, service-manager calls, sudo, Remote Agent credential reuse, or server transport implementation | PASS |
+| Docs/current sync | Updated Host Bridge helper, Host Bridge overview, Security boundaries, and Known Gaps to document the pure evaluator and remaining no-poll/no-action/no-settlement limits | PASS |
+
 ## Acceptance State
 
-Task 7 is ready for design review. Four-piece prep docs and `design.md` exist, `content-lock.md` is N/A, shared milestone index was not edited, and no product code has been implemented.
+Task 7 implementation is ready for local commit. The Helper-side pure local policy evaluator is implemented and verified for fixed schema validation, signed manifest and artifact binding, path/domain/service allowlists, revoked/stale/wrong-owner/wrong-org denial, and sandbox/profile mismatch denial. Task 6 transport, result upload, OpenClaw action execution, and service lifecycle execution remain out of scope and unimplemented.
