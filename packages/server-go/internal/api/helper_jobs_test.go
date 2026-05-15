@@ -314,6 +314,69 @@ func TestHelperJobsEnqueueOpenClawInstallLeaseCarriesServerManifestBinding(t *te
 	}
 }
 
+func TestHelperJobsEnqueueServiceLifecycleLeaseCarriesDeclaredServiceID(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	resp, created := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         "Mac Studio",
+		"allowed_categories": []string{"openclaw_lifecycle"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create lifecycle enrollment: status %d body %v", resp.StatusCode, created)
+	}
+	enrollment := created["enrollment"].(map[string]any)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	secret := created["enrollment_secret"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-service")
+
+	resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":        "service.lifecycle",
+		"schema_version":  1,
+		"payload":         map[string]any{"target": "openclaw", "operation": "restart"},
+		"idempotency_key": "restart-openclaw-api-1",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("enqueue service lifecycle job: status %d body %v", resp.StatusCode, data)
+	}
+	job := data["job"].(map[string]any)
+	if job["category"] != "openclaw_lifecycle" || job["job_type"] != "service.lifecycle" {
+		t.Fatalf("service lifecycle enqueue response had wrong category/type: %v", job)
+	}
+	assertNoHelperJobSensitiveFields(t, job)
+
+	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
+		"helper_device_id": "device-service",
+	})
+	if resp.StatusCode != http.StatusOK || poll["status"] != "leased" {
+		t.Fatalf("poll service lifecycle job: status %d body %v", resp.StatusCode, poll)
+	}
+	leased := poll["job"].(map[string]any)
+	if leased["job_type"] != "service.lifecycle" || leased["manifest_digest"] == nil {
+		t.Fatalf("leased service lifecycle job missing type/digest: %v", leased)
+	}
+	payload := leased["payload"].(map[string]any)
+	if payload["operation"] != "restart" {
+		t.Fatalf("leased service lifecycle payload should be server-owned restart operation: %v", payload)
+	}
+	for _, forbidden := range []string{"target", "service_id", "service_ids", "service_unit", "command", "shell", "argv"} {
+		if _, ok := payload[forbidden]; ok {
+			t.Fatalf("leased service lifecycle payload leaked %q: %v", forbidden, payload)
+		}
+	}
+	binding := leased["manifest_binding"].(map[string]any)
+	if binding["manifest_digest"] != leased["manifest_digest"] {
+		t.Fatalf("manifest binding digest mismatch: leased=%v binding=%v", leased, binding)
+	}
+	assertAnyStringSet(t, "service_ids", binding["service_ids"], []string{"openclaw-user"})
+	if _, ok := binding["path_ids"]; ok {
+		t.Fatalf("service lifecycle binding must not grant path ids: %v", binding)
+	}
+	if count := countAPIHelperJobs(t, s); count != 1 {
+		t.Fatalf("service lifecycle enqueue inserted %d jobs, want 1", count)
+	}
+}
+
 func TestHelperJobsEnqueueChannelBindingRequiresTargetAgentAccess(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -505,7 +568,7 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 		{"unknown job type", map[string]any{"job_type": "command.run", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}}, http.StatusBadRequest, "unknown_job_type"},
 		{"install client manifest authority", map[string]any{"job_type": "openclaw.install_from_manifest", "schema_version": 1, "payload": map[string]any{"runtime": "openclaw", "manifest_id": "client"}}, http.StatusBadRequest, "forbidden_field"},
 		{"plugin connection client authority", map[string]any{"job_type": "borgee_plugin.configure_connection", "schema_version": 1, "payload": map[string]any{"connection_id": "server-owned"}}, http.StatusBadRequest, "forbidden_field"},
-		{"recognized service lifecycle type", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"service lifecycle requires lifecycle delegation", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusForbidden, "delegation_denied"},
 		{"recognized state write type", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized status collect type", map[string]any{"job_type": "status.collect", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized delegation revoke type", map[string]any{"job_type": "delegation.revoke", "schema_version": 1, "payload": map[string]any{"delegation_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
@@ -526,6 +589,38 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 			}
 		})
 	}
+
+	resp, lifecycleCreated := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         "Lifecycle reject host",
+		"allowed_categories": []string{"openclaw_lifecycle"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create lifecycle enrollment: status %d body %v", resp.StatusCode, lifecycleCreated)
+	}
+	lifecycleEnrollment := lifecycleCreated["enrollment"].(map[string]any)
+	lifecycleEnrollmentID := lifecycleEnrollment["enrollment_id"].(string)
+	lifecycleSecret := lifecycleCreated["enrollment_secret"].(string)
+	claimHelperEnrollmentViaAPI(t, ts.URL, lifecycleEnrollmentID, lifecycleSecret, "device-lifecycle-reject")
+
+	lifecycleInvalidCases := []struct {
+		name string
+		body map[string]any
+		want int
+		code string
+	}{
+		{"service lifecycle requires closed payload", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusBadRequest, "schema_invalid"},
+		{"service lifecycle rejects client service id", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw", "operation": "restart", "service_id": "evil"}}, http.StatusBadRequest, "forbidden_field"},
+		{"service lifecycle rejects client service unit", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw", "operation": "restart", "service_unit": "evil.service"}}, http.StatusBadRequest, "forbidden_field"},
+	}
+	for _, tc := range lifecycleInvalidCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+lifecycleEnrollmentID+"/jobs", ownerToken, tc.body)
+			if resp.StatusCode != tc.want || data["code"] != tc.code {
+				t.Fatalf("status/body = %d %v, want %d code %s", resp.StatusCode, data, tc.want, tc.code)
+			}
+		})
+	}
+
 	if count := countAPIHelperJobs(t, s); count != 0 {
 		t.Fatalf("rejected enqueue attempts inserted %d jobs, want 0", count)
 	}

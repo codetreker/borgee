@@ -500,6 +500,110 @@ func TestEvaluateValidatesServiceLifecycleWithoutExecutingServiceManager(t *test
 	assertDecision(t, Evaluate(input), false, ReasonSchemaInvalid)
 }
 
+func TestEvaluateServiceLifecycleRequiresDeclaredLogicalServiceBoundary(t *testing.T) {
+	now := time.Unix(1_760_000_000, 0)
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	base := func(t *testing.T, services []ServiceDeclaration, serviceIDs []string, sandboxIDs []string, platform string) EvaluationInput {
+		t.Helper()
+		manifestJSON, manifestDigest := signedManifest(t, priv, signedManifestSpec{
+			IssuedAt:  now.Add(-time.Minute),
+			ExpiresAt: now.Add(time.Hour),
+			Services:  services,
+		})
+		input := baseInput(now)
+		input.TrustRoots = []ed25519.PublicKey{pub}
+		input.Platform = platform
+		input.Job.JobType = JobTypeServiceLifecycle
+		input.Job.Category = CategoryOpenClawLifecycle
+		input.Job.PayloadJSON = mustJSON(t, map[string]string{"operation": "restart"})
+		input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+		input.Job.ManifestDigest = manifestDigest
+		input.Job.ManifestJSON = manifestJSON
+		input.Job.ManifestBindingJSON = mustJSON(t, ManifestBinding{ManifestDigest: manifestDigest, ServiceIDs: serviceIDs})
+		input.Enrollment.AllowedCategories = []string{CategoryOpenClawLifecycle}
+		input.Sandbox.ServiceIDs = sandboxIDs
+		return input
+	}
+
+	allowed := base(t,
+		[]ServiceDeclaration{{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"}},
+		[]string{"openclaw-user"},
+		[]string{"openclaw-user"},
+		"linux-x64",
+	)
+	assertDecision(t, Evaluate(allowed), true, ReasonOK)
+
+	for name, tc := range map[string]struct {
+		services   []ServiceDeclaration
+		bindingIDs []string
+		sandboxIDs []string
+		platform   string
+		want       Reason
+	}{
+		"client cannot bind undeclared logical service id": {
+			services:   []ServiceDeclaration{{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"}},
+			bindingIDs: []string{"evil-service"},
+			sandboxIDs: []string{"evil-service"},
+			platform:   "linux-x64",
+			want:       ReasonServiceDenied,
+		},
+		"sandbox must carry the declared service id": {
+			services:   []ServiceDeclaration{{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"}},
+			bindingIDs: []string{"openclaw-user"},
+			sandboxIDs: []string{"other-service"},
+			platform:   "linux-x64",
+			want:       ReasonPolicyDenied,
+		},
+		"linux service lifecycle requires systemd manager": {
+			services:   []ServiceDeclaration{{ID: "openclaw-user", Platform: "linux", Manager: "launchd", Unit: "cloud.borgee.openclaw"}},
+			bindingIDs: []string{"openclaw-user"},
+			sandboxIDs: []string{"openclaw-user"},
+			platform:   "linux-x64",
+			want:       ReasonServiceDenied,
+		},
+		"systemd service lifecycle requires service unit name": {
+			services:   []ServiceDeclaration{{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.timer"}},
+			bindingIDs: []string{"openclaw-user"},
+			sandboxIDs: []string{"openclaw-user"},
+			platform:   "linux-x64",
+			want:       ReasonServiceDenied,
+		},
+		"logical service ids cannot be path-like": {
+			services:   []ServiceDeclaration{{ID: "../openclaw", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"}},
+			bindingIDs: []string{"../openclaw"},
+			sandboxIDs: []string{"../openclaw"},
+			platform:   "linux-x64",
+			want:       ReasonServiceDenied,
+		},
+		"duplicate manifest service ids are denied": {
+			services: []ServiceDeclaration{
+				{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"},
+				{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "other.service"},
+			},
+			bindingIDs: []string{"openclaw-user"},
+			sandboxIDs: []string{"openclaw-user"},
+			platform:   "linux-x64",
+			want:       ReasonServiceDenied,
+		},
+		"darwin service lifecycle requires launchd label": {
+			services:   []ServiceDeclaration{{ID: "openclaw-user", Platform: "darwin", Manager: "launchd", Unit: "openclaw.service"}},
+			bindingIDs: []string{"openclaw-user"},
+			sandboxIDs: []string{"openclaw-user"},
+			platform:   "darwin-arm64",
+			want:       ReasonServiceDenied,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			input := base(t, tc.services, tc.bindingIDs, tc.sandboxIDs, tc.platform)
+			assertDecision(t, Evaluate(input), false, tc.want)
+		})
+	}
+}
+
 func TestEvaluateStateWriteRequiresWritePathModeAndWriteSandboxCapability(t *testing.T) {
 	now := time.Unix(1_760_000_000, 0)
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)

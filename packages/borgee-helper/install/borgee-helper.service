@@ -3,6 +3,8 @@ Description=Borgee host-bridge daemon (HB-2 v0(D))
 Documentation=https://github.com/codetreker/borgee
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=5min
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -39,7 +41,7 @@ ReadWritePaths=/var/log/borgee-helper /run/borgee-helper /var/lib/borgee-helper/
 ReadOnlyPaths=/var/lib/borgee
 
 Restart=on-failure
-RestartSec=2s
+RestartSec=10s
 
 [Install]
 WantedBy=multi-user.target
