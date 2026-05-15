@@ -6,10 +6,10 @@
 |---|---|
 | Worktree | `.worktrees/task-3-helper-status-ui-and-current-sync` |
 | Branch | `feat/task-3-helper-status-ui-and-current-sync` |
-| PR | none; do not open during task-prep |
+| PR | #937 |
 | Owner | Dev/Writer helper under Teamlead |
-| State | READY_FOR_PR |
-| Blocker | HOLD for Teamlead coordination if task 2 shared-state remediation requires rebase before PR opening; no task-local implementation blocker |
+| State | RECONCILED_AFTER_TASK_2 |
+| Blocker | none after Task 2 PR #936 merge and Host Bridge current-doc reconciliation |
 
 ## Checkpoints
 
@@ -52,10 +52,16 @@
 | Final focused client tests | From `packages/client`: `npm test -- src/__tests__/helper-enrollments-api.test.ts src/__tests__/HelperStatusPanel.test.tsx src/__tests__/main-view.test.ts` -> 3 files passed, 22 tests passed | PASS |
 | Final client typecheck | From `packages/client`: `npm run typecheck` -> `tsc --noEmit` exit 0 | PASS |
 | Final diff hygiene | `git diff --check` completed with no output | PASS |
+| Post-#936 rebase reconcile | Rebased onto `origin/main` after Task 2 merge SHA `1ca5f950223dfce2ea8f075ef46aadd00779ba1a`; resolved `docs/current/host-bridge/README.md` by preserving credential rotation/current credential lifecycle wording and read-only Helper status UI wording | PASS |
+| Process-doc carry-forward | Added the Teamlead operating rule to `AGENTS.md`: parent/main Teamlead delegates git/GitHub operations to workers asynchronously | PASS |
+| Post-rebase diff hygiene | `git diff --check` completed with no output | PASS |
+| Post-rebase client typecheck | From `packages/client`: `npm run typecheck` -> `tsc --noEmit` exit 0 | PASS |
+| Post-rebase client tests | From `packages/client`: `npm test` -> 129 files passed, 825 tests passed, 1 skipped | PASS |
+| Post-rebase PR lint rehearsal | Local current-sync workflow logic reported `ok: packages/client/src/ touched, docs/current/client/ also updated`; `scripts/check-openclaw-plugin-version-bump.sh` reported no OpenClaw plugin files changed; `scripts/check-openclaw-plugin-version-bump.test.sh` passed | PASS |
 
 ## Blockers And Coordination Notes
 
-- Task 2 is running in a separate worktree and owns shared process/state repair files for now. Task 3 PR finalization should wait for task 2 remediation/rebase if acceptance state, task index, milestone state, or shared README updates become necessary.
+- Task 2 PR #936 merged at `1ca5f950223dfce2ea8f075ef46aadd00779ba1a`; Task 3 has been rebased and the known Host Bridge current-doc conflict has been reconciled.
 - Design gate passed and implementation was dispatched by Teamlead. Production code began only after focused RED tests failed.
 - `content-lock.md` now locks the exact UI copy and DOM selectors introduced by task 3 tests.
 

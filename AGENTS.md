@@ -12,3 +12,9 @@
 - Publish `phase-plan` work in one PR. Publish milestone breakdowns in one PR across all planned milestones when feasible; if dependency order requires staging, record why one PR would be worse.
 - One task = one worktree = one branch = one PR. All task-related four-piece, Dev design, implementation, tests, docs/current sync, progress, and acceptance state land in that task PR; do not open a closure/status follow-up PR for state that belongs to the task.
 - Do not create excessive PRs for pure documentation or process work. The goal of Blueprintflow planning is to get to feature development and ship the feature.
+
+## Blueprintflow Operating Rules
+
+- Main/parent Teamlead context is orchestration only: advance workflow, decide gates, dispatch workers, synthesize results, and preserve context.
+- Main/parent Teamlead context must not run `git` or `gh`. Delegate all git/GitHub work asynchronously to workers, including status, diff, commits, pushes, PR creation/checks/merge, branch/worktree cleanup, and CI gate polling.
+- Main context should avoid leaf implementation and detailed verification; delegate those to workers and synthesize outcomes.
