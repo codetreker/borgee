@@ -356,15 +356,7 @@ func TestChannelAdvanced(t *testing.T) {
 	t.Run("AddMemberToPrivateChannel", func(t *testing.T) {
 		privCh := testutil.CreateChannel(t, ts.URL, adminToken, "priv-member-test", "private")
 		privID := privCh["id"].(string)
-
-		users, _ := s.ListUsers()
-		var memberID string
-		for _, u := range users {
-			if u.Role == "member" {
-				memberID = u.ID
-				break
-			}
-		}
+		memberID := mustUserByEmail(t, s, "member@test.com").ID
 
 		resp, _ := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+privID+"/members", adminToken, map[string]string{
 			"user_id": memberID,

@@ -123,6 +123,7 @@ describe('channel management API/client surface', () => {
     const rules = buildChannelAllowedActionRules(
       channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true }),
       'user-1',
+      { canDelete: true, canArchive: true },
     );
 
     expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
@@ -134,6 +135,23 @@ describe('channel management API/client surface', () => {
     expect(rules.find(rule => rule.id === 'owner-transfer')).toMatchObject({
       allowed: false,
       reason: '本轮不支持所有权转让',
+    });
+  });
+
+  it('requires server authority before exposing ownership actions as available', () => {
+    const rules = buildChannelAllowedActionRules(
+      channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true }),
+      'user-1',
+      { canDelete: false, canArchive: false },
+    );
+
+    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({
+      allowed: false,
+      reason: '服务器权限不允许删除频道',
+    });
+    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({
+      allowed: false,
+      reason: '服务器权限不允许归档频道',
     });
   });
 

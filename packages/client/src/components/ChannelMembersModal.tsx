@@ -37,11 +37,13 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
   const isGeneral = channelName === 'general';
   const isDm = channel?.type === 'dm';
   const currentUser = state.currentUser;
+  const isChannelOwner = currentUser?.id === channelCreatedBy;
   const canManageMembers = useCan('channel.manage_members', channelId);
   const canDeleteChannel = useCan('channel.delete', channelId);
   const canManageVisibility = useCan('channel.manage_visibility', channelId);
   const canManage = canManageMembers;
-  const canDelete = canDeleteChannel && !isGeneral && !isDm;
+  const canDelete = isChannelOwner && canDeleteChannel && !isGeneral && !isDm;
+  const canArchive = isChannelOwner && canManageVisibility && !isGeneral && !isDm;
   const visibility = channel?.visibility ?? 'public';
 
   const load = useCallback(async () => {
@@ -221,7 +223,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
                     <span className="user-badge user-badge-silent" title="silent: 不计入 unread / mention 计数">🔕 silent</span>
                   )}
                   {m.user_id === channelCreatedBy && <span className="user-badge">创建者</span>}
-                  {canManage && !isGeneral && m.user_id !== currentUser?.id && (
+                  {canManage && !isGeneral && m.user_id !== currentUser?.id && m.user_id !== channelCreatedBy && (
                     <button
                       className="btn btn-sm btn-danger"
                       onClick={() => handleRemove(m.user_id)}
@@ -267,10 +269,10 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
               </div>
             )}
 
-            {(canDelete || (canManageVisibility && !isGeneral && !isDm)) && (
+            {(canDelete || canArchive) && (
               <div className="danger-section">
                 <div className="danger-section-label">危险区域</div>
-                {canManageVisibility && !isGeneral && !isDm && (
+                {canArchive && (
                   <button
                     className="btn btn-sm"
                     onClick={handleArchive}

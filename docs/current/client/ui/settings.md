@@ -15,7 +15,7 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 - The Settings tab state is local to the settings sidepane; switching between Privacy and Channel does not alter app-level sidepane routing.
 - Channel management reads the authorized channel list already held in app state. It groups non-DM channels by explicit `created_by` and `is_member` fields.
 - Mention delivery controls load channel members on demand, show `@Everyone` as server-computed, and update agent `requireMention` policy through the user rail when the signed-in user has `channel.manage_members`.
-- Channel management derives read-only leave/delete/archive/owner-transfer availability from the current user, channel ownership, membership, and the default-channel rule.
+- Channel management derives read-only leave/delete/archive/owner-transfer availability from the current user, channel ownership, membership, the default-channel rule, and the current permission state for delete/archive.
 - Admin-awareness content is scoped to the signed-in user.
 - Capability visibility is scoped to the signed-in user and is rendered by the same `PermissionsView` surface that reads `/api/v1/me/permissions`. If that endpoint denies access, Settings shows a local forbidden state without rendering response-body details or turning the client view into an authorization decision.
 - Grant state can affect a shell-level banner, but the settings form state remains local to the surface.
@@ -67,10 +67,11 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 - This is a user rail surface backed by user endpoints, not an admin SPA page.
 - The capability section is visibility only. Server capability checks remain authoritative; Settings does not make authorization decisions.
 - The channel-management tab exposes mention delivery controls and read-only action availability. It does not execute leave, delete, archive, owner-transfer, notification, collapse, sort, pin, group, or private-indicator controls.
+- Server-side user-rail mutations remain authoritative: creator-owned channels cannot be left, delete/archive require the channel creator as well as permission state, managers must be channel members, creator removal is rejected, and cross-org management attempts fail closed.
 - `@Everyone` has explanatory copy only. The client cannot select broadcast recipients; message send payloads omit recipient id arrays and the server computes recipients from membership.
 - Agent `requireMention` selects are disabled unless the user has channel member management authority. Server policy checks remain authoritative and can reject `off` when the agent owner has not allowed broader delivery.
 - Created channels appear in the created section only; joined channels created by someone else appear in the joined section. DM channels are outside this surface.
-- Self-created or owned channels do not expose leave as an available action. Joined-only non-general channels can show leave as available. Owner transfer is unavailable for v1.
+- Self-created or owned channels do not expose leave as an available action. Joined-only non-general channels can show leave as available. Delete/archive can show available only for owned channels with matching permission state. Owner transfer is unavailable for v1.
 - Notification, collapse, sort, pin, group, and private-indicator controls are outside this Settings channel-management surface.
 - The admin privacy/audit module owns the durable audit projection and current limitations.
 - The shell may show a global banner when user-owned grant state is active.

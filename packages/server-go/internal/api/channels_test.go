@@ -78,7 +78,7 @@ func TestChannelCRUD(t *testing.T) {
 	})
 
 	t.Run("DeleteChannel", func(t *testing.T) {
-		resp, _ := testutil.JSON(t, "DELETE", ts.URL+"/api/v1/channels/"+channelID, adminToken, nil)
+		resp, _ := testutil.JSON(t, "DELETE", ts.URL+"/api/v1/channels/"+channelID, memberToken, nil)
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}

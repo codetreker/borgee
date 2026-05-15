@@ -52,11 +52,11 @@ Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server
 
 ## Channel Management Mutations Not Implemented
 
-Current behavior: the user Settings sidepane has a channel-management tab that groups non-DM channels into channels created by the current user and channels joined by the current user. The tab renders read-only leave/delete/archive/owner-transfer availability from the authorized channel list already present in client app state. Self-created or owned channels do not show leave as available, joined-only non-general channels can show leave as available, and owner transfer is unavailable for v1.
+Current behavior: the user Settings sidepane has a channel-management tab that groups non-DM channels into channels created by the current user and channels joined by the current user. The tab renders read-only leave/delete/archive/owner-transfer availability from the authorized channel list already present in client app state. Self-created or owned channels do not show leave as available, joined-only non-general channels can show leave as available, delete/archive require the matching permission state as well as channel ownership, and owner transfer is unavailable for v1.
 
-Architecture impact: users can inspect ownership, membership grouping, and action availability, but the Settings surface does not execute channel-management mutations and does not prove server-side action authorization.
+Architecture impact: users can inspect ownership, membership grouping, and action availability. Server-side user-rail channel mutations enforce the current authority boundary: creators cannot leave their own channel, non-members cannot leave or manage a channel, delete/archive require channel creator authority, member management cannot remove the channel creator, and cross-org management attempts fail closed.
 
-Do not assume: Settings channel management can leave, delete, archive, transfer ownership, change membership, change notification preferences, collapse/sort/pin/group channels, or prove server-side action authorization.
+Do not assume: Settings channel management can leave, delete, archive, transfer ownership, change membership, change notification preferences, collapse/sort/pin/group channels, or execute any mutation just because the server routes now enforce authority for existing mutation surfaces.
 
 Relevant area: [client feature surfaces](client/feature-surfaces.md), [settings UI sketch](client/ui/settings.md).
 
