@@ -8,7 +8,7 @@
 | Branch | `task-9-openclaw-install-agent-config-jobs` |
 | PR | #956 |
 | Owner | M1 Task9 owner worker |
-| State | PR_OPEN |
+| State | CI_GREEN |
 | Blocker | none |
 
 ## Checkpoints
@@ -23,7 +23,7 @@
 - [x] Docs/current synced.
 - [x] Final verification complete.
 - [x] PR opened: #956.
-- [ ] CI monitored.
+- [x] CI monitored: all PR #956 checks passed on commit `bb1178e` before the final CI evidence doc update.
 
 ## Evidence
 
@@ -40,6 +40,7 @@
 | Broad server verification | `GOTMPDIR=/workspace/borgee/.worktrees/.gotmp-task9-server go test -tags sqlite_fts5 -count=1 ./...` from `packages/server-go` -> all packages `ok` / no test files. | PASS |
 | Broad helper verification | `GOTMPDIR=/workspace/borgee/.worktrees/.gotmp-task9-helper go test -count=1 ./...` from `packages/borgee-helper` -> all packages `ok` / no test files. | PASS |
 | Whitespace | `git diff --check` -> no output, exit 0. | PASS |
+| PR CI | PR #956 checks passed on commit `bb1178e`: PR lint, bpp-envelope-lint, check, client-vitest, e2e, go-test-cov, go-test-race, go-test-race-heavy, and hb20-ipc-prereq on macOS/Ubuntu/Windows. | PASS |
 
 ## Implementation Summary
 
