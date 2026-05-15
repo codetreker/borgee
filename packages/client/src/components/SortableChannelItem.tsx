@@ -15,6 +15,27 @@ interface Props {
   pinned?: boolean;
 }
 
+function ChannelVisibilityMarker({ isArchived, isPrivate }: { isArchived: boolean; isPrivate: boolean }) {
+  if (isArchived) {
+    return <span className="channel-hash">📦</span>;
+  }
+
+  if (isPrivate) {
+    return (
+      <span
+        className="channel-hash channel-private-indicator"
+        data-private-indicator="true"
+        aria-label="私有频道"
+        title="私有频道"
+      >
+        锁
+      </span>
+    );
+  }
+
+  return <span className="channel-hash">#</span>;
+}
+
 export default function SortableChannelItem({ channel, active, isOwner, onClick, groupId, onContextMenu, pinned }: Props) {
   const {
     attributes,
@@ -49,7 +70,9 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
       className={`channel-item ${active ? "channel-item-active" : ""} ${!isMember ? "channel-item-preview" : ""} ${isArchived ? "channel-item-archived" : ""} ${isDragging ? "channel-item-dragging" : ""} ${pinned ? "channel-item-pinned" : ""}`}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      data-kind="channel"
       data-archived={isArchived ? "true" : undefined}
+      data-private={isPrivate && !isArchived ? "true" : undefined}
       data-pinned={pinned ? "true" : undefined}
     >
       {isOver && !isDragging && (
@@ -77,7 +100,7 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
           ⋮⋮
         </button>
       )}
-      <span className="channel-hash">{isArchived ? "📦" : isPrivate ? "🔒" : "#"}</span>
+      <ChannelVisibilityMarker isArchived={isArchived} isPrivate={isPrivate} />
       <span className="channel-name">{channel.name}</span>
       {pinned && <span className="channel-pinned-indicator" title="已置顶">📌</span>}
       {isArchived && <span className="archived-badge" title="已归档">已归档</span>}
@@ -102,9 +125,11 @@ export function ChannelItemStatic({ channel, active, onClick }: Omit<Props, "isO
     <button
       className={`channel-item ${active ? "channel-item-active" : ""} ${!isMember ? "channel-item-preview" : ""} ${isArchived ? "channel-item-archived" : ""}`}
       onClick={onClick}
+      data-kind="channel"
       data-archived={isArchived ? "true" : undefined}
+      data-private={isPrivate && !isArchived ? "true" : undefined}
     >
-      <span className="channel-hash">{isArchived ? "📦" : isPrivate ? "🔒" : "#"}</span>
+      <ChannelVisibilityMarker isArchived={isArchived} isPrivate={isPrivate} />
       <span className="channel-name">{channel.name}</span>
       {isArchived && <span className="archived-badge" title="已归档">已归档</span>}
       {!isMember && !isPrivate && !isArchived && (
