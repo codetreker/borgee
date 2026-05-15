@@ -8,8 +8,10 @@
 | Branch | `feat/task-1-helper-enrollment-model-and-status` |
 | PR | #934 |
 | Owner | Dev |
-| State | ACCEPTING |
-| Blocker | none; PR #934 DL-1.2 and coverage blockers reproduced and fixed |
+| State | ACCEPTED |
+| Blocker | none; PR #934 merged as `547f869` |
+
+State note: Task 1 was accepted through PR #934 and merge commit `547f869`. This progress-state remediation is landing in the task 2 PR because the intended follow-up PR #935 was closed.
 
 ## Checkpoints
 
@@ -19,7 +21,7 @@
 - [x] Implementation complete
 - [x] docs/current sync checked or N/A recorded
 - [x] Acceptance evidence recorded through `bf-verification`
-- [ ] PR merged
+- [x] PR merged as `547f869`
 
 ## Implementation Evidence
 
