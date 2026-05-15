@@ -1,5 +1,7 @@
 # Milestone 2: Sidebar Account Entry
 
+> Remapped history. This milestone remains the detailed task home for sidebar/account IA tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation/`.
+
 ## Capability Goal
 
 Make the sidebar footer calmer and put account/logout behavior behind the avatar/account panel.
@@ -25,7 +27,7 @@ Break down after phase-plan acceptance or after production-surface tasks if shar
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-sidebar-footer-primary-entries` | PLANNED | Reduce sidebar footer clutter to a small primary entry set | Phase 3 execution slot | no | after dependency clears |
+| `task-1-sidebar-footer-primary-entries` | PLANNED | Reduce sidebar footer clutter to a small primary entry set | Canonical Milestone 3 start | no | after dependency clears |
 | `task-2-avatar-account-panel-logout` | PLANNED | Move account/logout behavior behind avatar/account panel | `task-1-sidebar-footer-primary-entries` | yes, after task 1 | no |
 | `task-3-helper-remote-nodes-entry-placement` | PLANNED | Move Helper/Remote Nodes entry points without merging rails | `task-1-sidebar-footer-primary-entries` | yes, after task 1 | no |
 

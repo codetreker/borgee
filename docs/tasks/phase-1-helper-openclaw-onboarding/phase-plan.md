@@ -1,5 +1,7 @@
 # Phase 1: Helper / OpenClaw Onboarding
 
+> Superseded for v1.1 execution grouping. This file is retained as accepted planning history and task-detail context. Canonical grouping now lives in `docs/tasks/phase-1-v11-trust-usability-closure/phase-plan.md`, with these three old milestones collapsed into `milestone-1-helper-openclaw-bounded-actuator`. The collapse records that this was one prerequisite chain toward one user-facing Helper/OpenClaw loop, not three separate coarse milestones.
+
 ## Source Anchors
 
 - `HB-RA-1A`: Helper bounded actuator product guardrails.
@@ -36,7 +38,7 @@ Out of scope:
 | `milestone-2-typed-job-policy-loop` | Add server enqueue authority, Helper outbound pull, lease/result/status semantics, local policy checks, and bounded logs | PLANNED | Break down after milestone 1 task skeletons show enrollment/status contracts are executable |
 | `milestone-3-configure-openclaw-closure` | Deliver Web-side Configure OpenClaw: plugin install/config, agent config, channel binding, boot/crash service reliability, and terminal UI states | PLANNED | Break down after the typed job/policy loop is planned |
 
-This Phase has 3 user-facing milestones, within the project default of 3 or fewer.
+Historical note: this superseded Phase had 3 user-facing milestones, which are now one canonical Helper/OpenClaw milestone.
 
 ## Exit Gates
 

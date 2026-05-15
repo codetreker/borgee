@@ -12,7 +12,7 @@ Out of scope:
 - No private-channel visual treatment; that is milestone 3.
 
 Depends on:
-- Phase 2 execution slot
+- Canonical Milestone 2 start
 
 Blueprint anchors:
 - `CH-1`: `docs/blueprint/next/migration-analysis.md` §4.3

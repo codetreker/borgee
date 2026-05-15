@@ -12,7 +12,7 @@ Out of scope:
 - No notification, collapse, sort, or history backfill rewrite.
 
 Depends on:
-- Phase 1 execution slot or explicit Teamlead parallel start decision
+- Canonical Milestone 2 start or explicit Teamlead parallel start decision
 
 Blueprint anchors:
 - `MR-1`: `docs/blueprint/next/migration-analysis.md` §3.3

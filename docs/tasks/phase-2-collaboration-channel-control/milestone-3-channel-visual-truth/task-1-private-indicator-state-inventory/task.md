@@ -11,7 +11,7 @@ Out of scope:
 - No visual redesign, authority change, ACL change, or channel management action work.
 
 Depends on:
-- Phase 2 management surface or explicit parallel UI slot
+- Canonical Milestone 2 start or explicit parallel UI slot
 
 Blueprint anchors:
 - `CH-1`: `docs/blueprint/next/migration-analysis.md` §4.3

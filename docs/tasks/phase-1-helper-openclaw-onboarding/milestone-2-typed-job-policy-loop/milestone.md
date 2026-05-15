@@ -1,5 +1,7 @@
 # Milestone 2: Typed Job Policy Loop
 
+> Remapped history. This milestone remains the detailed task home for typed job policy-loop tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
+
 ## Capability Goal
 
 Make Web-side Configure OpenClaw requests flow through server-authorized, Helper-revalidated, schema-bound jobs with truthful terminal status and bounded logs.
@@ -24,7 +26,7 @@ Rejected by this milestone:
 | Helper enrollment/status | ACCEPTED | Supplied by Phase 1 milestone 1 through PR #934, PR #936, and PR #937 |
 | Typed job enqueue authority | ACCEPTED | Supplied by task 1 through PR #938 (`64d56f1`) |
 | Signed manifest/artifact authority | PLANNED | Task design must bind install/config jobs to signed artifacts before execution |
-| Linux outbound poll permission | PLANNED | Task design must resolve current AF_UNIX-only long-lived service restriction |
+| Linux outbound poll permission | ACCEPTED | Supplied by task 2 through PR #939 (`96dc0dc`) |
 
 ## Task-Split Trigger
 
@@ -35,12 +37,12 @@ Run milestone breakdown after enrollment/status task skeletons are accepted and 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
 | `task-1-job-envelope-and-enqueue-authority` | ACCEPTED | Define server-authorized typed job envelope and enqueue authority | Phase 1 milestone 1 task set accepted | no | yes |
-| `task-2-helper-outbound-service-prereq` | TASKING | Resolve Helper service permission/sandbox prerequisites for outbound poll/long-poll | `task-1-job-envelope-and-enqueue-authority` | no | yes |
-| `task-3-helper-pull-lease-result` | BLOCKED | Add Helper outbound pull, lease, ack, result, retry, and cancellation loop | `task-2-helper-outbound-service-prereq` | no | no |
-| `task-4-local-policy-manifest-and-sandbox-profile` | BLOCKED | Add local policy checks, manifest/artifact binding, allowlists, and declared service ID checks | `task-2-helper-outbound-service-prereq` | yes, after task 2 | no |
+| `task-2-helper-outbound-service-prereq` | ACCEPTED | Resolve Helper service permission/sandbox prerequisites for outbound poll/long-poll | `task-1-job-envelope-and-enqueue-authority` | no | complete |
+| `task-3-helper-pull-lease-result` | READY | Add Helper outbound pull, lease, ack, result, retry, and cancellation loop | `task-2-helper-outbound-service-prereq` | yes, with task 4 if file ownership is clean | yes |
+| `task-4-local-policy-manifest-and-sandbox-profile` | READY | Add local policy checks, manifest/artifact binding, allowlists, and declared service ID checks | `task-2-helper-outbound-service-prereq` | yes, with task 3 if file ownership is clean | yes |
 | `task-5-bounded-status-logs-and-revoke-settlement` | BLOCKED | Make terminal status, bounded logs, and revoke/uninstall race settlement truthful | `task-3-helper-pull-lease-result`, `task-4-local-policy-manifest-and-sandbox-profile` | no | no |
 
-Dependency order: Helper enrollment/status contracts are accepted, and task 1 is accepted through PR #938 (`64d56f1`), so task 2 is unlocked for task-start/four-piece and later Dev design. Task 2 deliberately precedes Helper pull and local policy work because the Linux AF_UNIX-only service restriction and sandbox/network permissions must be resolved before outbound poll can execute.
+Dependency order: Helper enrollment/status contracts are accepted, task 1 is accepted through PR #938 (`64d56f1`), and task 2 is accepted through PR #939 (`96dc0dc`). Tasks 3 and 4 are now ready and may run in parallel if Teamlead confirms disjoint file ownership. Terminal status/log/revoke settlement still waits for both pull/lease/result and local policy/manifest/sandbox work.
 
 ## Breakdown Review
 

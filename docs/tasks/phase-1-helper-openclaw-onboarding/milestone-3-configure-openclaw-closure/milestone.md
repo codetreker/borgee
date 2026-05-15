@@ -1,5 +1,7 @@
 # Milestone 3: Configure OpenClaw Closure
 
+> Remapped history. This milestone remains the detailed task home for Configure OpenClaw closure tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
+
 ## Capability Goal
 
 Deliver the user-visible Configure OpenClaw loop after the Helper job/policy substrate exists.

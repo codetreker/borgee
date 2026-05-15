@@ -12,7 +12,7 @@ Out of scope:
 - No new privacy dashboard, compliance center, GDPR/DPA workflow, user-facing audit surface, or impersonation consent product expansion.
 
 Depends on:
-- Phase 3 execution slot
+- Canonical Milestone 3 start
 
 Blueprint anchors:
 - `CT-1`: `docs/blueprint/next/migration-analysis.md` §5.3

@@ -1,5 +1,7 @@
 # Milestone 1: Mention Delivery Controls
 
+> Remapped history. This milestone remains the detailed task home for mention delivery tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/`.
+
 ## Capability Goal
 
 Let channel context control agent attention and broadcast mentions without hidden fanout or capability expansion.
@@ -25,7 +27,7 @@ Break down after phase-plan acceptance. Expected tasks should cover data/API, se
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-requiremention-policy-model` | PLANNED | Add inherit/on/off channel mention policy without expanding agent-owner authority | Phase 1 execution slot or explicit parallel start | no | after dependency clears |
+| `task-1-requiremention-policy-model` | PLANNED | Add inherit/on/off channel mention policy without expanding agent-owner authority | Canonical Milestone 2 start or explicit parallel start | no | after dependency clears |
 | `task-2-everyone-fanout-acl-rate-loop` | PLANNED | Add server-authoritative `@Everyone` fanout with ACL, rate, and loop guards | `task-1-requiremention-policy-model` | yes, after task 1 | no |
 | `task-3-client-mention-controls` | PLANNED | Expose mention delivery controls and broadcast behavior truthfully in client UI | `task-1-requiremention-policy-model`, `task-2-everyone-fanout-acl-rate-loop` | no | no |
 

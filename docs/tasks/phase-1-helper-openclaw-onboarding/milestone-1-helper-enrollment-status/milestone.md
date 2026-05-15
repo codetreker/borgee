@@ -1,5 +1,7 @@
 # Milestone 1: Helper Enrollment Status
 
+> Remapped history. This milestone remains the detailed task home for accepted Helper enrollment/status tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
+
 ## Capability Goal
 
 Create the visible and authoritative foundation for Helper enrollment before any typed host-management job executes.

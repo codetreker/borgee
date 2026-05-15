@@ -1,5 +1,7 @@
 # Milestone 1: Production Surface Truthfulness
 
+> Remapped history. This milestone remains the detailed task home for production truthfulness tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation/`.
+
 ## Capability Goal
 
 Make named already-built client surfaces reachable in production and make forbidden states explicit without leaking protected data.
@@ -25,9 +27,9 @@ Break down after phase-plan acceptance. Expected tasks should cover production m
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-artifactcomments-production-mount` | PLANNED | Mount ArtifactComments series inside the production ArtifactPanel surface | Phase 3 execution slot | no | after dependency clears |
+| `task-1-artifactcomments-production-mount` | PLANNED | Mount ArtifactComments series inside the production ArtifactPanel surface | Canonical Milestone 3 start | no | after dependency clears |
 | `task-2-acl-forbidden-state-ux` | PLANNED | Show non-leaky forbidden states for ArtifactPanel/ArtifactComments and Settings PermissionsView | `task-1-artifactcomments-production-mount` | yes, after task 1 | no |
-| `task-3-security-permission-surface-reachability` | PLANNED | Mount user PermissionsView under Settings without expanding privacy product scope | Phase 3 execution slot | yes | no |
+| `task-3-security-permission-surface-reachability` | PLANNED | Mount user PermissionsView under Settings without expanding privacy product scope | Canonical Milestone 3 start | yes | no |
 | `task-4-production-surface-e2e-reverse-proof` | PLANNED | Add reverse proof for ArtifactComments, forbidden states, and Settings PermissionsView | `task-2-acl-forbidden-state-ux`, `task-3-security-permission-surface-reachability` | no | no |
 
 Dependency order: ArtifactComments reachability is first for comment-surface proof. Settings PermissionsView reachability can run independently of ArtifactComments if shell/settings files are separable. Reverse proof waits for both mounted surfaces and forbidden-state UX.

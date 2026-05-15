@@ -1,5 +1,7 @@
 # Milestone 2: Channel Management Authority
 
+> Remapped history. This milestone remains the detailed task home for channel management tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/`.
+
 ## Capability Goal
 
 Give users a clear place to understand channel ownership, membership, and allowed actions.
@@ -25,7 +27,7 @@ Break down after phase-plan acceptance. Expected tasks should cover management s
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-channel-management-surface` | PLANNED | Add a user-side place to inspect joined/created channels and available management actions | Phase 2 execution slot | no | after dependency clears |
+| `task-1-channel-management-surface` | PLANNED | Add a user-side place to inspect joined/created channels and available management actions | Canonical Milestone 2 start | no | after dependency clears |
 | `task-2-channel-allowed-action-rules` | PLANNED | Define leave/delete/archive/owner-transfer availability without accidental defaults | `task-1-channel-management-surface` | yes, after task 1 | no |
 | `task-3-channel-authority-checks` | PLANNED | Enforce server/client authority checks for membership and ownership actions | `task-1-channel-management-surface`, `task-2-channel-allowed-action-rules` | no | no |
 

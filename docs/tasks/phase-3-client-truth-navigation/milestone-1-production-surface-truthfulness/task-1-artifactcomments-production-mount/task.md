@@ -12,7 +12,7 @@ Out of scope:
 - No broad e2e platform rewrite, mobile expansion, modal a11y sweep, or visual redesign.
 
 Depends on:
-- Phase 3 execution slot
+- Canonical Milestone 3 start
 
 Blueprint anchors:
 - `CT-1`: `docs/blueprint/next/migration-analysis.md` §5.3

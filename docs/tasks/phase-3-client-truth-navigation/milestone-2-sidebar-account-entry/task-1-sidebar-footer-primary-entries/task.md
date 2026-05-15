@@ -11,7 +11,7 @@ Out of scope:
 - No full visual redesign, pixel-art restyling, account settings expansion, or Helper/Remote Agent rail merge.
 
 Depends on:
-- Phase 3 execution slot
+- Canonical Milestone 3 start
 
 Blueprint anchors:
 - `IA-1`: `docs/blueprint/next/migration-analysis.md` §7.3

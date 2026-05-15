@@ -6,10 +6,10 @@
 |---|---|
 | Worktree | `.worktrees/task-2-helper-outbound-service-prereq` |
 | Branch | `feat/task-2-helper-outbound-service-prereq` |
-| PR | not opened |
+| PR | #939, merged at `96dc0dc` |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | PR_READINESS_LOCAL_VERIFIED |
-| Blocker | none for PR open; residual DNS/CNAME resolution risk is documented as future hardening/runtime network-policy scope |
+| State | ACCEPTED |
+| Blocker | none; residual DNS/CNAME resolution risk is documented as future hardening/runtime network-policy scope |
 
 ## Checkpoints
 
@@ -33,8 +33,8 @@
 - [x] Security repair evidence recorded
 - [x] Security docs/progress repair recorded residual DNS/CNAME risk without overstating validator coverage
 - [x] Final PR readiness verification run by operator worker
-- [ ] PR opened
-- [ ] PR merged
+- [x] PR opened as #939
+- [x] PR merged at `96dc0dca19c243bfc53c8e8a4af56dbd33214a26`
 
 ## Task-Prep Evidence
 
@@ -111,4 +111,4 @@
 
 ## Acceptance State
 
-Implementation and final PR-readiness checks are locally verified. Acceptance evidence above covers Linux service, macOS plist/sandbox, Helper config validation, explicit state/write paths, docs/current sync, and out-of-scope locks. `content-lock.md` remains N/A for this scope, and only PR-open/merge bookkeeping remains unchecked.
+Task 2 is accepted through PR #939, merged at `96dc0dc`. Acceptance evidence above covers Linux service, macOS plist/sandbox, Helper config validation, explicit state/write paths, docs/current sync, and out-of-scope locks. `content-lock.md` remains N/A for this scope.

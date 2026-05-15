@@ -1,5 +1,7 @@
 # Phase 2: Collaboration Channel Control
 
+> Superseded for v1.1 execution grouping. This file is retained as accepted planning history and task-detail context. This is no longer a current Phase; the work is remapped into `docs/tasks/phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/`. The old Phase 2 boundary was an execution slot, not a prerequisite, integration, or downstream coordination boundary.
+
 ## Source Anchors
 
 - `MR-1`: Mention routing granularity and `@Everyone` broadcast.
@@ -15,11 +17,11 @@ A user can understand and control who receives attention in a channel, what chan
 
 | Milestone | Goal | Status | Task-split trigger |
 |---|---|---|---|
-| `milestone-1-mention-delivery-controls` | Add per-channel mention delivery controls and `@Everyone` fanout with server-authoritative ACL/rate/loop guards | PLANNED | Break down after Phase 1 planning is stable or in parallel if no shared files conflict |
+| `milestone-1-mention-delivery-controls` | Add per-channel mention delivery controls and `@Everyone` fanout with server-authoritative ACL/rate/loop guards | PLANNED | Remapped into canonical Milestone 2; start when that milestone opens or in parallel if no shared files conflict |
 | `milestone-2-channel-management-authority` | Add user-side channel management for membership/ownership actions and clarify owner cannot leave self-owned channels | PLANNED | Break down with mention controls if UI/API surfaces are independent enough |
 | `milestone-3-channel-visual-truth` | Reduce private-channel lock weight and prevent collisions with unread, fault, or presence indicators | PLANNED | Break down with channel-management UI if design surface is shared |
 
-This Phase has 3 user-facing milestones, within the project default.
+Historical note: this superseded Phase had 3 user-facing milestones, which are now one canonical channel attention/authority milestone.
 
 ## Exit Gates
 

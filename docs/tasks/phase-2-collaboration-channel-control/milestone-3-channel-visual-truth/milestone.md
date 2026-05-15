@@ -1,5 +1,7 @@
 # Milestone 3: Channel Visual Truth
 
+> Remapped history. This milestone remains the detailed task home for private/sidebar visual-truth tasks, but the authoritative coarse grouping is now `docs/tasks/phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/`.
+
 ## Capability Goal
 
 Make private-channel visual state accurate without overpowering unread, fault, or presence signals.
@@ -24,7 +26,7 @@ Break down with channel-management tasks if shared components make that cheaper;
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-private-indicator-state-inventory` | PLANNED | Inventory private/unread/fault/presence sidebar states and define collision boundaries | Phase 2 management surface or explicit parallel UI slot | no | after dependency clears |
+| `task-1-private-indicator-state-inventory` | PLANNED | Inventory private/unread/fault/presence sidebar states and define collision boundaries | Canonical Milestone 2 start or explicit parallel UI slot | no | after dependency clears |
 | `task-2-private-indicator-visual-treatment` | PLANNED | Make private indicators quieter without changing authority | `task-1-private-indicator-state-inventory` | no | no |
 | `task-3-sidebar-state-collision-regression` | PLANNED | Add regression proof that private indicators do not hide unread/fault/presence states | `task-2-private-indicator-visual-treatment` | no | no |
 

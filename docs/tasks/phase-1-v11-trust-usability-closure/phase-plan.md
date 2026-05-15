@@ -1,0 +1,83 @@
+# Phase 1: v1.1 Trust And Usability Closure
+
+## Status
+
+IMPLEMENTING. This is the single active v1.1 Phase.
+
+## Exit Condition
+
+Close selected v1.1 trust/usability gaps: Helper/OpenClaw bounded actuator onboarding, channel attention/authority clarity, production client truthfulness, and account/sidebar IA, without expanding privacy/compliance scope or merging Helper/Remote Agent rails.
+
+## Source Anchors
+
+- `HB-RA-1A`: Helper bounded actuator product guardrails.
+- `HB-RA-1B`: Helper actuator execution contract for implementation planning.
+- `MR-1`: Mention routing granularity and `@Everyone` broadcast.
+- `CH-1`: Channel authority and user-side channel management.
+- `CT-1`: Client truthfulness and forbidden-state visibility.
+- `PS-1`: Privacy scope guard.
+- `IA-1`: Sidebar footer and account entry IA.
+
+## Replan Rationale
+
+The previous v1.1 shape split selected work into three Phases and eight milestones. That fragmentation slowed execution without adding a real prerequisite, integration, or downstream coordination boundary.
+
+- Old Phase 1 milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop, so they are now one coarse milestone.
+- Old Phase 2 and Phase 3 were execution slots, not dependency or integration boundaries, so they are now coarse milestones inside the same active Phase.
+- A new Phase must not be opened casually. It needs a real prerequisite boundary, integration boundary, or downstream integration/coordination reason.
+
+## Boundary
+
+In scope:
+
+- Helper/OpenClaw bounded actuator onboarding and Configure OpenClaw closure.
+- Channel attention controls, channel authority, and private/sidebar state clarity.
+- Production client truthfulness, forbidden-state UX, Settings permissions reachability, and reverse proof for selected production surfaces.
+- Account/sidebar IA cleanup, including avatar/logout and Helper/Remote Nodes placement.
+
+Out of scope:
+
+- Arbitrary host command channel, shell, argv, executable path, script, or client-supplied service unit dispatch.
+- Reusing or merging Helper actuator and Remote Agent credentials, grants, or enforcement rails.
+- New user-facing privacy/compliance product expansion.
+- Broad visual redesign, broad e2e platform expansion, or unrelated quality backlog unless explicitly pulled into a task.
+
+## Milestones
+
+| Milestone | Goal | Status | Canonical doc |
+|---|---|---|---|
+| Milestone 1: Helper / OpenClaw Bounded Actuator | Complete one user-facing Helper/OpenClaw loop from accepted enrollment through bounded typed jobs, service reliability, and Configure OpenClaw terminal UI | IMPLEMENTING | `milestone-1-helper-openclaw-bounded-actuator/milestone.md` |
+| Milestone 2: Channel Attention And Authority | Let users understand and control channel attention, membership, allowed actions, authority, and private/sidebar state meaning | PLANNED | `milestone-2-channel-attention-and-authority/milestone.md` |
+| Milestone 3: Client Truth And Navigation | Make selected production surfaces truthful and reachable while simplifying account/sidebar navigation | PLANNED | `milestone-3-client-truth-and-navigation/milestone.md` |
+
+This Phase has three user-facing milestones, within the project default. More milestones or a second Phase require an explicit boundary reason.
+
+## Accepted History Remap
+
+Accepted work remains accepted and is remapped into Milestone 1:
+
+| PR | Commit | Accepted scope | Canonical milestone |
+|---|---|---|---|
+| #934 | `547f869` | Helper enrollment/status foundation | Milestone 1 |
+| #936 | `1ca5f95` | Helper credential rotation/revoke lifecycle | Milestone 1 |
+| #937 | `2872905` | Helper status UI and current-doc sync | Milestone 1 |
+| #938 | `64d56f1` | Helper job envelope and enqueue authority | Milestone 1 |
+| #939 | `96dc0dc` | Helper outbound service prerequisites | Milestone 1 |
+
+The existing old task folders remain the task-detail source of record. This canonical Phase doc owns grouping and resume direction.
+
+## Exit Gates
+
+Strict checks:
+
+- Helper/OpenClaw work keeps Helper actuator credentials, grants, and enforcement separate from Remote Agent rails.
+- Server enqueue authorization and Helper local policy both validate owner, org, enrollment, delegation, job type, manifest/artifact, paths/domains, service IDs, and revocation state before action.
+- Channel attention and channel management remain server-authoritative for ACL, membership, ownership, and fanout.
+- Forbidden states do not leak private channel, artifact, message, file, or body content before authorization succeeds.
+- `PS-1` blocks new user-facing privacy/compliance product expansion while preserving existing admin, privacy, security, audit, data-minimization, capability, and rail-separation controls.
+
+User-perceivable checks:
+
+- Users can configure OpenClaw through bounded Helper jobs and see truthful terminal status, bounded logs, and revoke/uninstall behavior.
+- Users can understand channel mention/attention behavior, channel ownership/actions, and private/sidebar state signals.
+- Users can reach selected production surfaces, understand forbidden/empty/error states, and find account/logout plus primary sidebar entries without footer clutter.
