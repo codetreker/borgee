@@ -302,6 +302,9 @@ func TestHelperEnrollmentCredentialRotationRejectsInvalidAndTerminalAuthorityWit
 	s := migratedStore(t)
 	owner := helperOwner(t, s, "helper-rotate-invalid")
 	now := time.UnixMilli(1778840000000)
+	if _, _, err := s.RotateHelperEnrollmentCredential("missing", "credential", "device-missing", now); !errors.Is(err, ErrHelperEnrollmentNotFound) {
+		t.Fatalf("missing rotate error=%v, want ErrHelperEnrollmentNotFound", err)
+	}
 
 	pending, _, err := s.CreateHelperEnrollment(owner.ID, "Pending", []string{"helper_lifecycle"}, now)
 	if err != nil {
