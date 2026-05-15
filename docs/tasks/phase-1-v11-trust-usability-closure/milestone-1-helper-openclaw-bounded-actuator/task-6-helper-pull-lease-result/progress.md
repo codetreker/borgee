@@ -8,8 +8,8 @@
 | Branch | `feat/task-6-helper-pull-lease-result` |
 | PR | #943 |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | PR_VERIFYING |
-| Blocker | CI coverage repair in progress |
+| State | PR_READY_TO_MERGE |
+| Blocker | none known; GitHub branch protection gate pending merge attempt |
 
 ## Checkpoints
 
@@ -31,7 +31,8 @@
 - [x] Focused and broader verification run.
 - [x] Acceptance state updated with RED/GREEN evidence.
 - [x] Local commit created; PR #943 opened after rebase onto Task7-accepted `origin/main`.
-- [x] PR coverage gate produced a branch-owned coverage gap; focused coverage tests added for Helper rail repo-error mapping, datalayer lease projection, and terminal settlement metadata.
+- [x] PR coverage gate produced a branch-owned coverage gap; focused coverage tests added for Helper rail repo-error mapping, datalayer lease projection, terminal settlement metadata, handler success/no-work paths, and ack settlement branches.
+- [x] Final local verification passed on current-main rebase using external `GOTMPDIR` and `sqlite_fts5`.
 
 ## Implementation Evidence
 
@@ -63,6 +64,18 @@
 | Broader Helper packages | `GOTMPDIR=/workspace/.gotmp-borgee-task6 go test ./... -count=1` passed. | PASS |
 | Whitespace | `git diff --check` passed. | PASS |
 | Build tag note | The server verification used `sqlite_fts5`, matching `packages/server-go/Makefile`; prior notes that mention `fts5` are historical evidence from the original implementation pass, not the tag used for this repair gate. | PASS |
+
+## Final PR Gate Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Current-main rebase | Rebased through PR #949 (`c25ef60`) and later confirmed PR #943 remained mergeable after subsequent main movement; conflicts preserved canonical channel requireMention/current state while layering only Task6 Helper transport/lease/result content | PASS |
+| Branch state | `git status --short --branch` showed clean `feat/task-6-helper-pull-lease-result...origin/feat/task-6-helper-pull-lease-result`; `HEAD` matched remote branch at `29e48b9` | PASS |
+| Server verification | `env GOTMPDIR=/workspace/borgee-gotmp-task6 CGO_ENABLED=1 go test -tags sqlite_fts5 ./...` in `packages/server-go` | PASS |
+| Helper verification | `env GOTMPDIR=/workspace/borgee-gotmp-task6 CGO_ENABLED=1 go test -tags sqlite_fts5 ./...` in `packages/borgee-helper` | PASS |
+| Coverage verification | `env GOTMPDIR=/workspace/borgee-gotmp-task6 CGO_ENABLED=1 GOFLAGS='-tags=sqlite_fts5' go run ./scripts/lib/coverage/` in `packages/server-go`; total reported 85.0% and command exited 0 | PASS |
+| Whitespace | `git diff --check` | PASS |
+| PR body | Includes verification, design evidence `PM_QA_DESIGN_LGTM_BOTH`, `ARCHITECT_TASK6_DESIGN_LGTM`, `SECURITY_TASK6_DESIGN_LGTM`, implementation evidence `TASK6_IMPL_LGTM_FINAL`, and non-goals | PASS |
 
 ## Task-Prep Evidence
 
