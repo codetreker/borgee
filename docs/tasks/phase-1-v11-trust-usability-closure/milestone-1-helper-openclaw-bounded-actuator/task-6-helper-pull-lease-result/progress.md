@@ -8,7 +8,7 @@
 | Branch | `feat/task-6-helper-pull-lease-result` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | TASKING |
+| State | READY_FOR_DESIGN_REVIEW |
 | Blocker | none |
 
 ## Checkpoints
@@ -21,6 +21,9 @@
 - [x] Four-piece task-start docs created: `spec.md`, `stance.md`, `acceptance.md`, `progress.md`.
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals.
 - [x] Product implementation deliberately not started in task-start commit scope.
+- [x] Dev and Security scouting inputs produced from server Helper jobs, Helper enrollment credential rail, outbound prereq code, current docs, and accepted task 4/task 5 designs.
+- [x] Dev design drafted in `design.md`.
+- [x] Progress advanced to READY_FOR_DESIGN_REVIEW.
 
 ## Task-Prep Evidence
 
@@ -38,6 +41,20 @@
 | Four-piece | Created task-start `spec.md`, `stance.md`, and `acceptance.md`; this file records progress and content-lock N/A | PASS |
 | Product code | No product code changes made in task-start commit scope | PASS |
 
+## Design Scout Evidence
+
+| Item | Evidence | Result |
+|---|---|---|
+| Server API | Inspected `packages/server-go/internal/api/helper_jobs.go`; existing `HelperJobsHandler` mounts only user-rail enqueue, so task 6 must add Helper-credential poll/ack/result routes without changing enqueue auth | PASS |
+| Datalayer | Inspected `packages/server-go/internal/datalayer/helper_jobs.go` and `helper_jobs_sqlite.go`; task 6 should extend `HelperJobRepository` instead of importing store from API | PASS |
+| Store model | Inspected `packages/server-go/internal/store/helper_job_queries.go`, `models.go`, and migration v51; existing table already includes `leased_at`, `lease_expires_at`, `completed_at`, `failure_code`, `failure_message`, and `result_summary_json` | PASS |
+| Credential rail | Inspected `packages/server-go/internal/api/helper_enrollments.go`, store enrollment queries, and datalayer enrollment tests; Helper routes use bearer Helper credential plus `helper_device_id`, separate from user/authMw rails | PASS |
+| Outbound prereq | Inspected `packages/borgee-helper/internal/outbound/prereq.go`, prereq tests, daemon startup, and install asset tests; task 6 client should consume `PreparedConfig` and fixed relative paths without adding Remote Agent/service lifecycle/sudo flags | PASS |
+| Current docs | Inspected `docs/current/host-bridge/helper-daemon.md`, `docs/current/host-bridge/README.md`, `docs/current/security/README.md`, and `docs/current/known-gaps.md`; design names required docs/current sync targets | PASS |
+| Accepted dependency docs | Reused accepted task 4 and task 5 designs for enqueue authority and outbound prerequisite boundaries | PASS |
+| Design coverage | `design.md` includes API/route shape, datalayer/store model, Helper poll client shape, auth/credential checks, lease/result statuses, idempotency/retry/cancellation, stale/revoke settlement, RED test plan, docs/current sync, and non-goals | PASS |
+| Task 7 ownership | Design keeps local policy/manifest/sandbox execution as handoff/non-goal and does not edit task 7 files | PASS |
+
 ## Scope Locks
 
 - In scope: outbound Helper poll/long-poll retrieval, lease, ack, result upload, retry/backoff/idempotency/cancellation semantics, stale credential/revoke settlement, and interface handoff to local policy/status tasks.
@@ -45,4 +62,4 @@
 
 ## Acceptance State
 
-Task 6 is in task-start/four-piece review. `content-lock.md` remains N/A for this scope.
+Task 6 is READY_FOR_DESIGN_REVIEW. `content-lock.md` remains N/A for this scope; product implementation remains blocked until design review accepts `design.md`.
