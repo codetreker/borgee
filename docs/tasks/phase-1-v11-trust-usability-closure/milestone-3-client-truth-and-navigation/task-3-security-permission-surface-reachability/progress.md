@@ -5,7 +5,7 @@
 - Status: ACCEPTING
 - Worktree: `.worktrees/m3-task3-settings-permissionsview-reachability`
 - Branch: `feat/m3-task3-settings-permissionsview-reachability`
-- PR: not opened
+- PR: #944
 - Blocker: none
 
 ## Log
@@ -18,6 +18,7 @@
 - Mounted `PermissionsView` in the existing user Settings content area.
 - Updated `docs/current/client/ui/settings.md` to describe current Settings capability visibility.
 - Ran focused verification and moved the task to PR acceptance.
+- Opened PR #944 for the single task branch.
 
 ## Verification Evidence
 
