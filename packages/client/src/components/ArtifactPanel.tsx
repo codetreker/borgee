@@ -48,6 +48,7 @@ import {
   rollbackArtifact,
 } from '../lib/api';
 import AnchorThreadPanel from './AnchorThreadPanel';
+import ArtifactComments from './ArtifactComments';
 import IteratePanel from './IteratePanel';
 import DiffView, { parseDiffParam, formatDiffParam } from './DiffView';
 
@@ -559,6 +560,10 @@ export default function ArtifactPanel({ channelId }: Props) {
         )}
         {errMsg && !editing && <p className="artifact-err">{errMsg}</p>}
       </div>
+
+      <section className="artifact-comments-section" aria-label="Artifact comments">
+        <ArtifactComments artifactId={artifact.id} />
+      </section>
 
       {/* CV-2.3 anchor side panel — list active threads, click → open. */}
       {anchors.length > 0 && (

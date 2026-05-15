@@ -29,6 +29,7 @@ import {
   type ArtifactComment,
 } from '../lib/api';
 import { useArtifactCommentAdded } from '../hooks/useWsHubFrames';
+import ArtifactCommentBody from './ArtifactCommentBody';
 
 interface ArtifactCommentsProps {
   artifactId: string;
@@ -109,7 +110,7 @@ export default function ArtifactComments({ artifactId }: ArtifactCommentsProps) 
               >
                 {c.sender_role === 'agent' ? '🤖' : '👤'} {c.sender_id}
               </span>
-              <span className="cv5-artifact-comment-body">{c.body}</span>
+              <ArtifactCommentBody body={c.body} />
               <span className="cv5-artifact-comment-time">
                 {new Date(c.created_at).toLocaleString()}
               </span>

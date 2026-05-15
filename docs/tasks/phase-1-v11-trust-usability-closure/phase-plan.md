@@ -49,7 +49,7 @@ Out of scope:
 |---|---|---|---|
 | Milestone 1: Helper / OpenClaw Bounded Actuator | Complete one user-facing Helper/OpenClaw loop from accepted enrollment through bounded typed jobs, service reliability, and Configure OpenClaw terminal UI | IMPLEMENTING | `milestone-1-helper-openclaw-bounded-actuator/milestone.md` |
 | Milestone 2: Channel Attention And Authority | Let users understand and control channel attention, membership, allowed actions, authority, and private/sidebar state meaning | PLANNED | `milestone-2-channel-attention-and-authority/milestone.md` |
-| Milestone 3: Client Truth And Navigation | Make selected production surfaces truthful and reachable while simplifying account/sidebar navigation | PLANNED | `milestone-3-client-truth-and-navigation/milestone.md` |
+| Milestone 3: Client Truth And Navigation | Make selected production surfaces truthful and reachable while simplifying account/sidebar navigation | IMPLEMENTING | `milestone-3-client-truth-and-navigation/milestone.md` |
 
 This Phase has three user-facing milestones, within the project default. More milestones or a second Phase require an explicit boundary reason.
 
