@@ -8,8 +8,10 @@
 | Branch | `feat/task-2-helper-credential-rotation-and-revoke` |
 | PR | pending |
 | Owner | Dev/Writer helper under Teamlead |
-| State | TASKING |
-| Blocker | none |
+| State | QA_BLOCKED |
+| Blocker | QA requested explicit positive post-rotation authority coverage for the new rotated credential plus same device |
+
+Review note: QA_BLOCKED on design review because acceptance/TDD covered old credential staleness but did not explicitly require the new rotated credential to authenticate Helper status/heartbeat after rotation. Patched acceptance and design TDD plan; awaiting QA re-review.
 
 ## Process Repair Carried By This PR
 

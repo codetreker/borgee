@@ -13,6 +13,7 @@ Acceptance checks:
 
 - A claimed Helper enrollment can rotate its persistent credential only by presenting the current valid Helper credential and matching `helper_device_id`.
 - Rotation returns the new raw credential once and stores only a digest plus lifecycle metadata.
+- The new rotated credential plus the same `helper_device_id` can authenticate Helper lifecycle status/heartbeat after rotation and can be used for later task-2 lifecycle authority.
 - The previous credential is immediately stale and cannot authenticate heartbeat, rotation, or uninstall.
 
 Negative checks:
@@ -27,6 +28,7 @@ Acceptance checks:
 
 - Stale credentials fail without mutating `last_seen_at`, credential metadata, revoke/uninstall timestamps, or device binding.
 - Wrong or stale `helper_device_id` values fail without rotating credentials or rebinding the enrolled device.
+- After rotation, the same enrolled device remains valid with the new credential and can update heartbeat/freshness through the Helper lifecycle rail.
 - Failure responses are distinguishable enough for server/helper policy review without leaking raw credential material.
 
 Negative checks:

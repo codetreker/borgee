@@ -95,8 +95,9 @@ Do not add UI copy, DOM literals, or client surfaces in this task. Task 3 owns s
 Write RED tests before production changes:
 
 - Store/datalayer rotation success: current credential + matching device returns one new credential, stores a new digest, bumps rotation metadata, and old credential fails heartbeat/rotate/uninstall.
+- Store/datalayer post-rotation authority: new rotated credential + same device successfully updates Helper heartbeat/status after rotation and can perform scoped lifecycle authority such as helper-originated uninstall.
 - Store/datalayer stale paths: wrong credential, old credential after rotation, wrong device, pending enrollment, revoked enrollment, and uninstalled enrollment do not mutate rows.
-- API rotation route: current Helper credential succeeds; old credential fails after rotation; user token, Remote Agent token, host grant id, and wrong device fail.
+- API rotation route: current Helper credential succeeds; new rotated credential + same device succeeds for status/heartbeat after rotation; old credential fails after rotation; user token, Remote Agent token, host grant id, and wrong device fail.
 - Revoke/uninstall precedence: revoke blocks future rotate/uninstall/heartbeat; uninstall blocks future rotate/heartbeat; terminal timestamps are not overwritten unexpectedly.
 - Reverse-grep or focused tests confirm no Remote Agent/host grant/user permission fallback enters Helper credential paths.
 
