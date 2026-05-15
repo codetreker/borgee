@@ -282,6 +282,11 @@ func (s *Server) SetupRoutes() {
 	}
 	hostGrantsHandler.RegisterRoutes(s.mux, authMw)
 
+	// Helper enrollment/status foundation. User management routes use authMw;
+	// claim/status/uninstall use the distinct Helper credential rail.
+	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Store: s.store}
+	helperEnrollmentHandler.RegisterRoutes(s.mux, authMw)
+
 	// AL-1.4 agent state log — owner-only GET /api/v1/agents/:id/state-log
 	// (蓝图 §2.3 "故障可解释" — owner 看 agent state 历史轨迹查病因).
 	al14Handler := &api.AgentStateLogHandler{Store: s.store, Logger: s.logger}

@@ -201,3 +201,25 @@ type RemoteBinding struct {
 	Label     string `gorm:"size:255" json:"label"`
 	CreatedAt int64  `gorm:"not null" json:"created_at"`
 }
+
+type HelperEnrollment struct {
+	ID                         string  `gorm:"primaryKey;size:36;column:id" json:"id"`
+	OwnerUserID                string  `gorm:"not null;size:36;column:owner_user_id" json:"-"`
+	OrgID                      string  `gorm:"not null;size:36;column:org_id" json:"-"`
+	HostLabel                  string  `gorm:"not null;size:255;column:host_label" json:"host_label"`
+	HelperDeviceID             *string `gorm:"size:255;column:helper_device_id" json:"helper_device_id,omitempty"`
+	AllowedCategories          string  `gorm:"not null;column:allowed_categories" json:"-"`
+	Status                     string  `gorm:"not null;size:32;column:status" json:"status"`
+	LastSeenAt                 *int64  `gorm:"column:last_seen_at" json:"last_seen_at,omitempty"`
+	CreatedAt                  int64   `gorm:"not null;column:created_at" json:"created_at"`
+	UpdatedAt                  int64   `gorm:"not null;column:updated_at" json:"updated_at"`
+	ClaimedAt                  *int64  `gorm:"column:claimed_at" json:"claimed_at,omitempty"`
+	RevokedAt                  *int64  `gorm:"column:revoked_at" json:"revoked_at,omitempty"`
+	UninstalledAt              *int64  `gorm:"column:uninstalled_at" json:"uninstalled_at,omitempty"`
+	EnrollmentSecretDigest     *string `gorm:"column:enrollment_secret_digest" json:"-"`
+	EnrollmentSecretExpiresAt  *int64  `gorm:"column:enrollment_secret_expires_at" json:"-"`
+	PersistentCredentialDigest *string `gorm:"column:persistent_credential_digest" json:"-"`
+	CredentialCreatedAt        *int64  `gorm:"column:credential_created_at" json:"-"`
+}
+
+func (HelperEnrollment) TableName() string { return "helper_enrollments" }

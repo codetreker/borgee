@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-15
-Resume from: review the v1.1 milestone-breakdown PR. It creates task skeletons only; task execution starts only after the breakdown gate is accepted.
+Resume from: execute `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/`.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -20,7 +20,7 @@ This directory tracks planned or in-discussion blueprint work that is not yet ac
 
 Decision values are `OPEN`, `LOCKED`, or `REOPENED`. Work values are `PENDING`, `IMPLEMENTING`, or `COMPLETED`. Only `LOCKED` anchors may move into `docs/tasks/` Phase/Milestone planning.
 
-The v1.1 selected anchors now fit into 3 Phases and 8 user-facing milestones. Each Phase stays within the default limit of 3 milestones; milestone breakdown is being published in one PR across all planned milestones.
+The v1.1 selected anchors fit into 3 Phases and 8 user-facing milestones. Each Phase stays within the default limit of 3 milestones; milestone breakdown was accepted in one PR across all planned milestones.
 
 ## §1 Iteration Positioning
 

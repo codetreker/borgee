@@ -40,7 +40,7 @@ The task should establish Helper enrollment identity and visible status only; it
 
 | Task | Status | Purpose | Depends on | Parallel? | First ready? |
 |---|---|---|---|---|---|
-| `task-1-helper-enrollment-model-and-status` | READY | Create distinct Helper enrollment identity and visible host status foundation | none | no | yes |
+| `task-1-helper-enrollment-model-and-status` | ACCEPTING | Create distinct Helper enrollment identity and visible host status foundation | none | no | yes |
 | `task-2-helper-credential-rotation-and-revoke` | PLANNED | Add helper credential lifecycle, stale-device handling, and revoke/uninstall authority | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
 | `task-3-helper-status-ui-and-current-sync` | PLANNED | Surface Helper status and sync accepted enrollment/status contracts to current docs | `task-1-helper-enrollment-model-and-status` | yes, after task 1 | no |
 

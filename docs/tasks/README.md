@@ -4,17 +4,23 @@
 
 | Phase | Status | Exit condition | Current milestone |
 |---|---|---|---|
-| Phase 1: Helper / OpenClaw Onboarding | TASK_SET_READY | A user can enroll Helper once, configure OpenClaw from Web, see truthful status/logs, and revoke the delegation without merging Helper and Remote Agent rails | `milestone-1-helper-enrollment-status` |
+| Phase 1: Helper / OpenClaw Onboarding | IMPLEMENTING | A user can enroll Helper once, configure OpenClaw from Web, see truthful status/logs, and revoke the delegation without merging Helper and Remote Agent rails | `milestone-1-helper-enrollment-status` |
 | Phase 2: Collaboration Channel Control | TASK_SET_READY | A user can control agent attention and channel membership/authority without hidden fanout, confusing leave actions, or overloaded private-channel indicators | `milestone-1-mention-delivery-controls` |
 | Phase 3: Client Truth And Navigation | TASK_SET_READY | Production-visible surfaces are reachable and forbidden states are truthful, while account/sidebar IA exposes the right primary entries without expanding privacy/compliance product scope | `milestone-1-production-surface-truthfulness` |
 
 This Phase Index records the v1.1 execution path opened from the selected next-blueprint anchors. The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work.
 
-Current breakdown resume state:
+Current execution resume state:
 
-- Milestone breakdown is reviewed across all 8 v1.1 milestones. This task set creates `task.md` skeletons only; it does not start task execution or create four-piece/design/progress files.
-- Reviewed task skeleton count: 28. The only unblocked first task is `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status` until later milestone dependencies clear.
-- Next step after this breakdown PR is accepted: route that first ready task to `bf-task-execute`.
+- Milestone breakdown is accepted across all 8 v1.1 milestones.
+- Active task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status`.
+- Current gate: acceptance evidence complete; PR open/review gate.
+
+## Active Task Resume
+
+| Scope | Execution | Active task | Owner | Worktree/branch | PR | Blocker | Progress |
+|---|---|---|---|---|---|---|---|
+| `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status` | ACCEPTING | `task-1-helper-enrollment-model-and-status` | Dev | `.worktrees/task-1-helper-enrollment-model-and-status` / `feat/task-1-helper-enrollment-model-and-status` | #934 | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/progress.md` |
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 

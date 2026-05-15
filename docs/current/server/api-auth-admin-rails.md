@@ -12,16 +12,19 @@ flowchart TB
   admin[Admin rail]
   plugin[Plugin rail]
   remote[Remote rail]
+  helperEnroll[Helper enrollment rail]
   caps[Capability and ownership checks]
   adminSession[Admin session lookup]
   pluginState[Plugin session and BPP dispatch]
   remoteState[Remote node binding]
+  helperState[Helper enrollment binding]
   store[(Server store)]
 
   user --> caps --> store
   admin --> adminSession --> store
   plugin --> pluginState --> store
   remote --> remoteState --> store
+  helperEnroll --> helperState --> store
   pluginState --> caps
 ```
 
@@ -35,6 +38,8 @@ The plugin rail authenticates an agent plugin by API key and then treats the con
 
 The remote rail authenticates remote nodes by connection token. It represents a user-owned machine connection, not a user browser session and not an admin session.
 
+The Helper enrollment rail has two server-side entry modes. User-management requests use the user rail to create, list, read, and revoke enrollments scoped by owner and org. Local Helper requests do not use user auth; they claim an enrollment with a one-time secret, then update heartbeat or helper-originated uninstall status with a persistent Helper credential plus matching helper device id.
+
 ## Collaborators
 
 The user auth subsystem resolves user identity from session cookies, bearer API keys, and development-only bypasses. It attaches a user object to request context for the application layer.
@@ -43,7 +48,7 @@ The capability subsystem reads permission rows and resolves resource scopes. It 
 
 The admin subsystem owns admin login, session creation, session resolution, logout, and admin context. It deliberately avoids depending on the user auth subsystem for admin identity.
 
-The REST application layer is the consumer of rail identity. Handlers decide whether an operation is user-owned, member-scoped, permission-scoped, admin-scoped, or read-only metadata.
+The REST application layer is the consumer of rail identity. Handlers decide whether an operation is user-owned, member-scoped, permission-scoped, admin-scoped, Helper-credential-scoped, or read-only metadata.
 
 The realtime hub owns plugin and remote connection registration. It validates credentials at socket entry and gives the rest of the server a live transport for fanout or proxy requests.
 
@@ -61,6 +66,8 @@ Plugin authentication is socket-specific. The plugin uses an agent API key to es
 
 Remote authentication is token-specific to a remote node. A live remote connection is associated with a registered node and its owning user, and later REST calls can use that live connection to proxy node operations.
 
+Helper enrollment authentication is token-specific to the enrollment lifecycle. The one-time enrollment secret is accepted only for claim and is stored only as a digest. Claim returns a persistent Helper credential once; the server stores only its digest and accepts it only on Helper heartbeat and helper-originated uninstall endpoints when the helper device id matches and the enrollment is non-terminal.
+
 ## Key Flows
 
 User request flow: a browser or API client presents a product session or API key, the server resolves a user, capability or domain checks validate the action, and the handler reads or mutates product state. Side effects may include audit rows, realtime fanout, push, or event publication.
@@ -70,6 +77,8 @@ Admin request flow: an admin client presents the admin session cookie, the serve
 Plugin connection flow: an agent plugin presents an API key, the hub registers the plugin connection, RPC frames can be proxied into the application surface, and BPP frames are routed through typed dispatchers. Task lifecycle frames can update live agent task state and fan out to clients.
 
 Remote connection flow: a remote node presents a connection token, the hub registers it under the remote-node identity, and user-owned remote routes can proxy requests to that connection when it is online.
+
+Helper enrollment flow: a signed-in owner creates an enrollment row, receives a one-time local enrollment secret, and a local Helper claims the row with a helper device id. Later heartbeat and helper-originated uninstall requests present the persistent Helper credential and matching helper device id. Revoked or uninstalled rows block future heartbeat writes.
 
 Impersonation/audit flow: user-facing grant state lives on the user rail, while admin-facing audit views live on the admin rail. This split prevents a user credential from reading global audit state and prevents admin context from masquerading as the user rail without an explicit grant model.
 
@@ -81,6 +90,8 @@ Impersonation/audit flow: user-facing grant state lives on the user rail, while 
 - Agent wildcard capability is narrower than human wildcard behavior.
 - Plugin frames are not trusted merely because the socket is connected; protocol validation and owner checks still apply.
 - Remote-node tokens authenticate machines, not browser users or admins.
+- Helper enrollment credentials authenticate only claim/status/uninstall for a Helper enrollment. They are not user sessions, Remote Agent tokens, host grants, or user permissions.
+- Helper enrollment status is host/device enrollment visibility only. It is not a job queue, command channel, service lifecycle result, or Configure OpenClaw success state.
 - Admin metadata views must avoid content-bearing fields unless a route explicitly owns that disclosure.
 
 ## Non-Goals
@@ -98,6 +109,7 @@ Rails do not define every endpoint, replace domain-specific authorization, or me
 - `packages/server-go/internal/api/admin.go`
 - `packages/server-go/internal/api/admin_endpoints.go`
 - `packages/server-go/internal/api/admin_audit_query.go`
+- `packages/server-go/internal/api/helper_enrollments.go`
 - `packages/server-go/internal/api/runtimes.go`
 - `packages/server-go/internal/ws/client.go`
 - `packages/server-go/internal/ws/plugin.go`
@@ -105,5 +117,6 @@ Rails do not define every endpoint, replace domain-specific authorization, or me
 - `packages/server-go/internal/bpp/plugin_frame_dispatcher.go`
 - `packages/server-go/internal/bpp/envelope.go`
 - `packages/server-go/internal/store/queries.go`
+- `packages/server-go/internal/store/helper_enrollment_queries.go`
 - `packages/server-go/internal/store/admin_actions.go`
 - `admin.Handler`

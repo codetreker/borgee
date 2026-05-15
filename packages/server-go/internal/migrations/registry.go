@@ -71,6 +71,7 @@ var All = []Migration{
 	channelEvents,
 	globalEvents,
 	capabilitiesDotNotationBackfill,
+	helperEnrollments,
 }
 
 // Default returns an Engine wired to db with All registered.
