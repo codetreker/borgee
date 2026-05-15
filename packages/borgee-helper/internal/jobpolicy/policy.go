@@ -44,9 +44,10 @@ const (
 	JobTypeDelegationRevoke            = "delegation.revoke"
 	JobTypeHelperUninstall             = "helper.uninstall"
 
-	CategoryOpenClaw         = "openclaw"
-	CategoryServiceLifecycle = "service.lifecycle"
-	CategoryHelperLifecycle  = "helper.lifecycle"
+	CategoryOpenClaw          = "openclaw_config"
+	CategoryOpenClawLifecycle = "openclaw_lifecycle"
+	CategoryServiceLifecycle  = "service.lifecycle"
+	CategoryHelperLifecycle   = "helper.lifecycle"
 )
 
 type Decision struct {
@@ -239,10 +240,12 @@ func validatePayload(job Job) Reason {
 	switch job.JobType {
 	case JobTypeOpenClawConfigureAgent:
 		var payload struct {
-			AgentID       string `json:"agent_id"`
-			ConfigBinding string `json:"config_binding"`
+			AgentID             string `json:"agent_id"`
+			ChannelID           string `json:"channel_id,omitempty"`
+			ConfigSchemaVersion int64  `json:"config_schema_version"`
+			ConfigHash          string `json:"config_hash"`
 		}
-		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || payload.AgentID == "" || payload.ConfigBinding == "" {
+		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || payload.AgentID == "" || payload.ConfigSchemaVersion <= 0 || !strings.HasPrefix(payload.ConfigHash, "sha256:") || strings.TrimSpace(payload.ConfigHash) != payload.ConfigHash {
 			return ReasonSchemaInvalid
 		}
 	case JobTypeOpenClawInstallFromManifest:
@@ -359,7 +362,7 @@ func validateLocalState(job Job, enrollment EnrollmentState, now time.Time) Reas
 
 func requiresManifest(jobType string) bool {
 	switch jobType {
-	case JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypeServiceLifecycle, JobTypeStateWrite, JobTypeHelperUninstall:
+	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypeServiceLifecycle, JobTypeStateWrite, JobTypeHelperUninstall:
 		return true
 	default:
 		return false
@@ -423,6 +426,10 @@ func verifyManifestAuthority(input EvaluationInput, now time.Time) (manifestAuth
 
 func validateManifestRequirements(jobType string, binding ManifestBinding) Reason {
 	switch jobType {
+	case JobTypeOpenClawConfigureAgent:
+		if len(binding.PathIDs) == 0 {
+			return ReasonPathDenied
+		}
 	case JobTypeOpenClawInstallFromManifest:
 		if len(binding.ArtifactIDs) == 0 {
 			return ReasonArtifactInvalid
@@ -519,7 +526,12 @@ func validatePaths(jobType string, authority manifestAuthority, sandbox SandboxP
 }
 
 func jobRequiresWritePath(jobType string) bool {
-	return jobType == JobTypeStateWrite
+	switch jobType {
+	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypeStateWrite:
+		return true
+	default:
+		return false
+	}
 }
 
 func pathModeAllowsWrite(mode string) bool {

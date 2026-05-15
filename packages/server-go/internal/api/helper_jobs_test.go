@@ -253,6 +253,67 @@ func TestHelperJobsEnqueueHappyPathIdempotencyAndSerializer(t *testing.T) {
 	}
 }
 
+func TestHelperJobsEnqueueOpenClawInstallLeaseCarriesServerManifestBinding(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	resp, created := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         "Mac Studio",
+		"allowed_categories": []string{"openclaw_lifecycle"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create lifecycle enrollment: status %d body %v", resp.StatusCode, created)
+	}
+	enrollment := created["enrollment"].(map[string]any)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	secret := created["enrollment_secret"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-install")
+
+	resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":        "openclaw.install_from_manifest",
+		"schema_version":  1,
+		"payload":         map[string]any{"runtime": "openclaw"},
+		"idempotency_key": "install-openclaw-api-1",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("enqueue install job: status %d body %v", resp.StatusCode, data)
+	}
+	job := data["job"].(map[string]any)
+	if job["category"] != "openclaw_lifecycle" || job["job_type"] != "openclaw.install_from_manifest" {
+		t.Fatalf("install enqueue response had wrong category/type: %v", job)
+	}
+	assertNoHelperJobSensitiveFields(t, job)
+
+	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
+		"helper_device_id": "device-install",
+	})
+	if resp.StatusCode != http.StatusOK || poll["status"] != "leased" {
+		t.Fatalf("poll install job: status %d body %v", resp.StatusCode, poll)
+	}
+	leased := poll["job"].(map[string]any)
+	if leased["job_type"] != "openclaw.install_from_manifest" || leased["manifest_digest"] == nil {
+		t.Fatalf("leased install job missing type/digest: %v", leased)
+	}
+	payload := leased["payload"].(map[string]any)
+	if payload["install_plan_id"] != "openclaw-plugin-v1" {
+		t.Fatalf("leased install payload should be server-owned effective payload: %v", payload)
+	}
+	binding := leased["manifest_binding"].(map[string]any)
+	if binding["manifest_digest"] != leased["manifest_digest"] {
+		t.Fatalf("manifest binding digest mismatch: leased=%v binding=%v", leased, binding)
+	}
+	assertAnyStringSet(t, "artifact_ids", binding["artifact_ids"], []string{"openclaw-plugin"})
+	assertAnyStringSet(t, "path_ids", binding["path_ids"], []string{"openclaw_install", "openclaw_agent_config"})
+	assertAnyStringSet(t, "domains", binding["domains"], []string{"https://cdn.borgee.io"})
+	if serviceIDs, ok := binding["service_ids"]; ok {
+		t.Fatalf("Task9 install binding must not grant service ids, got %v", serviceIDs)
+	}
+	assertNoHelperLeaseSensitiveFields(t, leased)
+	if count := countAPIHelperJobs(t, s); count != 1 {
+		t.Fatalf("install enqueue inserted %d jobs, want 1", count)
+	}
+}
+
 func TestHelperJobsEnqueueChannelBindingRequiresTargetAgentAccess(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -387,7 +448,7 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 		code string
 	}{
 		{"unknown job type", map[string]any{"job_type": "command.run", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}}, http.StatusBadRequest, "unknown_job_type"},
-		{"recognized install type", map[string]any{"job_type": "openclaw.install_from_manifest", "schema_version": 1, "payload": map[string]any{"manifest_id": "server-owned"}}, http.StatusBadRequest, "manifest_required"},
+		{"install client manifest authority", map[string]any{"job_type": "openclaw.install_from_manifest", "schema_version": 1, "payload": map[string]any{"runtime": "openclaw", "manifest_id": "client"}}, http.StatusBadRequest, "forbidden_field"},
 		{"recognized plugin connection type", map[string]any{"job_type": "borgee_plugin.configure_connection", "schema_version": 1, "payload": map[string]any{"connection_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized service lifecycle type", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized state write type", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
@@ -585,6 +646,30 @@ func assertNoHelperLeaseSensitiveFields(t *testing.T, job map[string]any) {
 	for _, key := range []string{"owner_user_id", "org_id", "credential", "credentials", "token", "shell", "argv", "command", "script", "service_unit", "path", "domain", "url"} {
 		if _, ok := payload[key]; ok {
 			t.Fatalf("helper lease payload leaked field %q: %v", key, payload)
+		}
+	}
+}
+
+func assertAnyStringSet(t *testing.T, label string, raw any, want []string) {
+	t.Helper()
+	gotRaw, ok := raw.([]any)
+	if !ok {
+		t.Fatalf("%s was not an array: %v", label, raw)
+	}
+	if len(gotRaw) != len(want) {
+		t.Fatalf("%s got %v, want %v", label, gotRaw, want)
+	}
+	seen := map[string]bool{}
+	for _, item := range gotRaw {
+		value, ok := item.(string)
+		if !ok {
+			t.Fatalf("%s item was not string: %v", label, gotRaw)
+		}
+		seen[value] = true
+	}
+	for _, value := range want {
+		if !seen[value] {
+			t.Fatalf("%s got %v, missing %q", label, gotRaw, value)
 		}
 	}
 }

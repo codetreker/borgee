@@ -45,20 +45,31 @@ var (
 )
 
 const (
-	HelperJobTypeOpenClawConfigureAgent = "openclaw.configure_agent"
-	HelperJobStatusQueued               = "queued"
-	HelperJobStatusLeased               = "leased"
-	HelperJobStatusRunning              = "running"
-	HelperJobStatusSucceeded            = "succeeded"
-	HelperJobStatusFailed               = "failed"
-	HelperJobStatusCancelled            = "cancelled"
-	HelperJobStatusExpired              = "expired"
-	HelperJobDefaultTTL                 = 5 * time.Minute
-	HelperJobFreshnessWindow            = 5 * time.Minute
-	HelperJobDefaultLeaseDuration       = time.Minute
-	HelperJobDefaultRetryAfterNoWork    = 5 * time.Second
-	HelperJobPollLeased                 = "leased"
-	HelperJobPollNoWork                 = "no_work"
+	HelperJobTypeOpenClawConfigureAgent      = "openclaw.configure_agent"
+	HelperJobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
+	HelperJobStatusQueued                    = "queued"
+	HelperJobStatusLeased                    = "leased"
+	HelperJobStatusRunning                   = "running"
+	HelperJobStatusSucceeded                 = "succeeded"
+	HelperJobStatusFailed                    = "failed"
+	HelperJobStatusCancelled                 = "cancelled"
+	HelperJobStatusExpired                   = "expired"
+	HelperJobDefaultTTL                      = 5 * time.Minute
+	HelperJobFreshnessWindow                 = 5 * time.Minute
+	HelperJobDefaultLeaseDuration            = time.Minute
+	HelperJobDefaultRetryAfterNoWork         = 5 * time.Second
+	HelperJobPollLeased                      = "leased"
+	HelperJobPollNoWork                      = "no_work"
+)
+
+const (
+	helperJobOpenClawManifestSeed      = "borgee-helper-openclaw-runtime-policy-manifest-v1"
+	helperJobOpenClawPluginArtifactID  = "openclaw-plugin"
+	helperJobOpenClawInstallPathID     = "openclaw_install"
+	helperJobOpenClawAgentConfigPathID = "openclaw_agent_config"
+	helperJobOpenClawPluginOrigin      = "https://cdn.borgee.io"
+	helperJobOpenClawPluginInstallPlan = "openclaw-plugin-v1"
+	helperJobOpenClawRuntimeIdentifier = "openclaw"
 )
 
 type PollHelperJobInput struct {
@@ -120,8 +131,8 @@ type helperJobSpec struct {
 }
 
 var helperJobTaxonomy = map[string]helperJobSpec{
-	"openclaw.configure_agent":           {Category: "openclaw_config", Enabled: true},
-	"openclaw.install_from_manifest":     {Category: "openclaw_lifecycle", Manifest: true},
+	"openclaw.configure_agent":           {Category: "openclaw_config", Enabled: true, Manifest: true},
+	"openclaw.install_from_manifest":     {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
 	"borgee_plugin.configure_connection": {Category: "openclaw_config"},
 	"service.lifecycle":                  {Category: "openclaw_lifecycle"},
 	"state.write":                        {Category: "openclaw_config"},
@@ -135,11 +146,27 @@ type openClawConfigurePayload struct {
 	ChannelID string `json:"channel_id,omitempty"`
 }
 
+type openClawInstallPayload struct {
+	Runtime string `json:"runtime"`
+}
+
 type openClawEffectivePayload struct {
 	AgentID             string `json:"agent_id"`
 	ChannelID           string `json:"channel_id,omitempty"`
 	ConfigSchemaVersion int64  `json:"config_schema_version"`
 	ConfigHash          string `json:"config_hash"`
+}
+
+type openClawInstallEffectivePayload struct {
+	InstallPlanID string `json:"install_plan_id"`
+}
+
+type helperJobManifestBinding struct {
+	ManifestDigest string   `json:"manifest_digest"`
+	ArtifactIDs    []string `json:"artifact_ids,omitempty"`
+	PathIDs        []string `json:"path_ids,omitempty"`
+	Domains        []string `json:"domains,omitempty"`
+	ServiceIDs     []string `json:"service_ids,omitempty"`
 }
 
 type helperAgentConfigRow struct {
@@ -169,9 +196,6 @@ func (s *Store) EnqueueHelperJobForUser(input EnqueueHelperJobInput, now time.Ti
 	}
 	if input.SchemaVersion != 1 {
 		return nil, false, ErrHelperJobSchemaInvalid
-	}
-	if spec.Manifest {
-		return nil, false, ErrHelperJobManifestRequired
 	}
 	if !spec.Enabled {
 		return nil, false, ErrHelperJobTypeNotEnabled
@@ -204,7 +228,7 @@ func (s *Store) EnqueueHelperJobForUser(input EnqueueHelperJobInput, now time.Ti
 			return err
 		}
 
-		effectivePayload, payloadHash, manifestDigest, err := s.effectiveHelperJobPayload(tx, input, now)
+		effectivePayload, payloadHash, manifestDigest, manifestBindingJSON, err := s.effectiveHelperJobPayload(tx, input, now)
 		if err != nil {
 			return err
 		}
@@ -248,6 +272,7 @@ func (s *Store) EnqueueHelperJobForUser(input EnqueueHelperJobInput, now time.Ti
 			PayloadJSON:            string(effectivePayload),
 			PayloadHash:            payloadHash,
 			ManifestDigest:         manifestDigest,
+			ManifestBindingJSON:    manifestBindingJSON,
 			IdempotencyKey:         idemKey,
 			IdempotencyScope:       idempotencyScope,
 			ActiveIdempotencyScope: &activeScope,
@@ -603,42 +628,42 @@ func helperJobOwnerIsHumanMember(tx *gorm.DB, ownerUserID, orgID string) bool {
 	return count == 1
 }
 
-func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInput, now time.Time) ([]byte, string, string, error) {
+func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInput, now time.Time) ([]byte, string, string, *string, error) {
 	switch input.JobType {
 	case HelperJobTypeOpenClawConfigureAgent:
 		payload, err := decodeOpenClawConfigurePayload(input.PayloadJSON)
 		if err != nil {
-			return nil, "", "", err
+			return nil, "", "", nil, err
 		}
 		var agent User
 		if err := tx.Where("id = ? AND role = 'agent' AND owner_id = ? AND org_id = ? AND deleted_at IS NULL", payload.AgentID, input.OwnerUserID, input.OrgID).First(&agent).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, "", "", ErrHelperJobForbidden
+				return nil, "", "", nil, ErrHelperJobForbidden
 			}
-			return nil, "", "", err
+			return nil, "", "", nil, err
 		}
 		if payload.ChannelID != "" {
 			var ch Channel
 			if err := tx.Where("id = ? AND deleted_at IS NULL", payload.ChannelID).First(&ch).Error; err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return nil, "", "", ErrHelperJobForbidden
+					return nil, "", "", nil, ErrHelperJobForbidden
 				}
-				return nil, "", "", err
+				return nil, "", "", nil, err
 			}
 			if ch.OrgID != input.OrgID || !s.CanAccessChannel(payload.ChannelID, input.OwnerUserID) || !s.CanAccessChannel(payload.ChannelID, agent.ID) {
-				return nil, "", "", ErrHelperJobForbidden
+				return nil, "", "", nil, ErrHelperJobForbidden
 			}
 		}
 		var cfg helperAgentConfigRow
 		if err := tx.Raw(`SELECT agent_id, schema_version, blob FROM agent_configs WHERE agent_id = ?`, payload.AgentID).Scan(&cfg).Error; err != nil {
-			return nil, "", "", err
+			return nil, "", "", nil, err
 		}
 		if cfg.AgentID == "" {
-			return nil, "", "", ErrHelperJobSchemaInvalid
+			return nil, "", "", nil, ErrHelperJobSchemaInvalid
 		}
 		canonicalConfig, err := canonicalJSON([]byte(cfg.Blob))
 		if err != nil {
-			return nil, "", "", ErrHelperJobSchemaInvalid
+			return nil, "", "", nil, ErrHelperJobSchemaInvalid
 		}
 		effective := openClawEffectivePayload{
 			AgentID:             payload.AgentID,
@@ -648,12 +673,55 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 		}
 		b, err := json.Marshal(effective)
 		if err != nil {
-			return nil, "", "", err
+			return nil, "", "", nil, err
 		}
-		return b, helperJobDigest(b), helperJobDigest([]byte("no-manifest")), nil
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypeOpenClawInstallFromManifest:
+		payload, err := decodeOpenClawInstallPayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		if payload.Runtime != helperJobOpenClawRuntimeIdentifier {
+			return nil, "", "", nil, ErrHelperJobSchemaInvalid
+		}
+		effective := openClawInstallEffectivePayload{InstallPlanID: helperJobOpenClawPluginInstallPlan}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
 	default:
-		return nil, "", "", ErrHelperJobUnknownType
+		return nil, "", "", nil, ErrHelperJobUnknownType
 	}
+}
+
+func openClawManifestBindingForJob(jobType string) (string, *string, error) {
+	manifestDigest := helperJobDigest([]byte(helperJobOpenClawManifestSeed))
+	binding := helperJobManifestBinding{ManifestDigest: manifestDigest}
+	switch jobType {
+	case HelperJobTypeOpenClawConfigureAgent:
+		binding.PathIDs = []string{helperJobOpenClawAgentConfigPathID}
+	case HelperJobTypeOpenClawInstallFromManifest:
+		binding.ArtifactIDs = []string{helperJobOpenClawPluginArtifactID}
+		binding.PathIDs = []string{helperJobOpenClawInstallPathID, helperJobOpenClawAgentConfigPathID}
+		binding.Domains = []string{helperJobOpenClawPluginOrigin}
+	default:
+		return "", nil, ErrHelperJobUnknownType
+	}
+	raw, err := json.Marshal(binding)
+	if err != nil {
+		return "", nil, err
+	}
+	encoded := string(raw)
+	return manifestDigest, &encoded, nil
 }
 
 func decodeOpenClawConfigurePayload(raw string) (openClawConfigurePayload, error) {
@@ -680,9 +748,32 @@ func decodeOpenClawConfigurePayload(raw string) (openClawConfigurePayload, error
 	return payload, nil
 }
 
+func decodeOpenClawInstallPayload(raw string) (openClawInstallPayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return openClawInstallPayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return openClawInstallPayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload openClawInstallPayload
+	if err := dec.Decode(&payload); err != nil {
+		return openClawInstallPayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.Runtime = strings.TrimSpace(payload.Runtime)
+	if payload.Runtime == "" || len(payload.Runtime) > 64 {
+		return openClawInstallPayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
 func helperJobForbiddenPayloadField(k string) bool {
 	switch strings.ToLower(strings.TrimSpace(k)) {
-	case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "domain", "url", "credential", "credentials", "token", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "ttl", "expires_at", "deadline", "lease_expires_at":
+	case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "paths", "path_id", "path_ids", "domain", "domains", "domain_id", "domain_ids", "url", "credential", "credentials", "token", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "manifest_id", "manifest_digest", "manifest_binding", "manifest_binding_json", "artifact", "artifact_id", "artifact_ids", "service_id", "service_ids", "install_plan_id", "ttl", "expires_at", "deadline", "lease_expires_at":
 		return true
 	default:
 		return false

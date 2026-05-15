@@ -45,26 +45,27 @@ type EnqueueHelperJobInput struct {
 }
 
 type HelperJob struct {
-	ID             string
-	OwnerUserID    string
-	OrgID          string
-	EnrollmentID   string
-	JobType        string
-	Category       string
-	SchemaVersion  int
-	Status         string
-	PayloadJSON    string
-	PayloadHash    string
-	ManifestDigest string
-	IdempotencyKey *string
-	CreatedAt      int64
-	ExpiresAt      int64
-	FailureCode    *string
-	FailureMessage *string
-	LeasedAt       *int64
-	LeaseExpiresAt *int64
-	CompletedAt    *int64
-	ResultSummary  *string
+	ID                  string
+	OwnerUserID         string
+	OrgID               string
+	EnrollmentID        string
+	JobType             string
+	Category            string
+	SchemaVersion       int
+	Status              string
+	PayloadJSON         string
+	PayloadHash         string
+	ManifestDigest      string
+	ManifestBindingJSON *string
+	IdempotencyKey      *string
+	CreatedAt           int64
+	ExpiresAt           int64
+	FailureCode         *string
+	FailureMessage      *string
+	LeasedAt            *int64
+	LeaseExpiresAt      *int64
+	CompletedAt         *int64
+	ResultSummary       *string
 }
 
 type HelperJobPollInput struct {

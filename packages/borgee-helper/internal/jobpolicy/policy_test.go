@@ -14,17 +14,45 @@ import (
 
 func TestEvaluateAllowsMinimalConfigureAgentWhenEnvelopeAndEnrollmentMatch(t *testing.T) {
 	now := time.Unix(1_760_000_000, 0)
-	input := baseInput(now)
-	input.Job.JobType = JobTypeOpenClawConfigureAgent
-	input.Job.Category = CategoryOpenClaw
-	input.Job.PayloadJSON = mustJSON(t, map[string]string{
-		"agent_id":       "agent-1",
-		"config_binding": "server-config-1",
-	})
-	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+	input := configureAgentWithManifestInput(t, now)
 
 	decision := Evaluate(input)
 	assertDecision(t, decision, true, ReasonOK)
+}
+
+func TestEvaluateConfigureAgentRequiresSignedManifestAndApprovedConfigPath(t *testing.T) {
+	now := time.Unix(1_760_000_000, 0)
+
+	for name, tc := range map[string]struct {
+		mutate func(*EvaluationInput)
+		want   Reason
+	}{
+		"missing manifest": {
+			mutate: func(in *EvaluationInput) {
+				in.Job.ManifestDigest = ""
+				in.Job.ManifestJSON = nil
+				in.Job.ManifestBindingJSON = nil
+			},
+			want: ReasonManifestInvalid,
+		},
+		"missing path binding": {
+			mutate: func(in *EvaluationInput) {
+				in.Job.ManifestBindingJSON = mustJSON(t, ManifestBinding{ManifestDigest: in.Job.ManifestDigest})
+			},
+			want: ReasonPathDenied,
+		},
+		"missing write sandbox": {
+			mutate: func(in *EvaluationInput) { in.Sandbox.WriteRoots = nil },
+			want:   ReasonPolicyDenied,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			input := configureAgentWithManifestInput(t, now)
+			tc.mutate(&input)
+			decision := Evaluate(input)
+			assertDecision(t, decision, false, tc.want)
+		})
+	}
 }
 
 func TestEvaluateRejectsMissingOrMismatchedPayloadHash(t *testing.T) {
@@ -74,19 +102,19 @@ func TestEvaluateRejectsClosedSchemaAndForbiddenPayloadAuthority(t *testing.T) {
 		},
 		"extra payload field": {
 			mutate: func(in *EvaluationInput) {
-				in.Job.PayloadJSON = []byte(`{"agent_id":"agent-1","config_binding":"server-config-1","extra":true}`)
+				in.Job.PayloadJSON = []byte(`{"agent_id":"agent-1","config_schema_version":2,"config_hash":"sha256:abc","extra":true}`)
 			},
 			want: ReasonSchemaInvalid,
 		},
 		"shell payload authority": {
 			mutate: func(in *EvaluationInput) {
-				in.Job.PayloadJSON = []byte(`{"agent_id":"agent-1","config_binding":"server-config-1","shell":"/bin/sh"}`)
+				in.Job.PayloadJSON = []byte(`{"agent_id":"agent-1","config_schema_version":2,"config_hash":"sha256:abc","shell":"/bin/sh"}`)
 			},
 			want: ReasonSchemaInvalid,
 		},
 		"argv payload authority": {
 			mutate: func(in *EvaluationInput) {
-				in.Job.PayloadJSON = []byte(`{"agent_id":"agent-1","config_binding":"server-config-1","argv":["restart"]}`)
+				in.Job.PayloadJSON = []byte(`{"agent_id":"agent-1","config_schema_version":2,"config_hash":"sha256:abc","argv":["restart"]}`)
 			},
 			want: ReasonSchemaInvalid,
 		},
@@ -515,11 +543,32 @@ func configureAgentInput(t *testing.T, now time.Time) EvaluationInput {
 	input := baseInput(now)
 	input.Job.JobType = JobTypeOpenClawConfigureAgent
 	input.Job.Category = CategoryOpenClaw
-	input.Job.PayloadJSON = mustJSON(t, map[string]string{
-		"agent_id":       "agent-1",
-		"config_binding": "server-config-1",
+	input.Job.PayloadJSON = mustJSON(t, map[string]any{
+		"agent_id":              "agent-1",
+		"config_schema_version": 2,
+		"config_hash":           "sha256:abc",
 	})
 	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+	return input
+}
+
+func configureAgentWithManifestInput(t *testing.T, now time.Time) EvaluationInput {
+	t.Helper()
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestJSON, manifestDigest := signedManifest(t, priv, signedManifestSpec{
+		IssuedAt:  now.Add(-time.Minute),
+		ExpiresAt: now.Add(time.Hour),
+		Paths:     []PathDeclaration{{ID: "openclaw_agent_config", Root: "/var/lib/openclaw", Mode: "write_config"}},
+	})
+	input := configureAgentInput(t, now)
+	input.TrustRoots = []ed25519.PublicKey{pub}
+	input.Job.ManifestDigest = manifestDigest
+	input.Job.ManifestJSON = manifestJSON
+	input.Job.ManifestBindingJSON = mustJSON(t, ManifestBinding{ManifestDigest: manifestDigest, PathIDs: []string{"openclaw_agent_config"}})
+	input.Sandbox = SandboxProfile{WriteRoots: []string{"/var/lib/openclaw"}}
 	return input
 }
 
@@ -527,9 +576,10 @@ func installInput(t *testing.T, now time.Time) EvaluationInput {
 	t.Helper()
 	input := baseInput(now)
 	input.Job.JobType = JobTypeOpenClawInstallFromManifest
-	input.Job.Category = CategoryOpenClaw
+	input.Job.Category = CategoryOpenClawLifecycle
 	input.Job.PayloadJSON = mustJSON(t, map[string]string{"install_plan_id": "plan-1"})
 	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+	input.Enrollment.AllowedCategories = []string{CategoryOpenClawLifecycle}
 	return input
 }
 
