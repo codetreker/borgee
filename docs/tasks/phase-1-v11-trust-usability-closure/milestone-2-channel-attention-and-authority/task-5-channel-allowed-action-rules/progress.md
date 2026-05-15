@@ -22,7 +22,7 @@
 - [x] RED tests written and verified failing.
 - [x] Implementation added for read-only allowed-action rules.
 - [x] Focused GREEN tests passed.
-- [x] Branch rebased onto current `origin/main` at `c2c61e6` after unrelated Helper PR #943 merged.
+- [x] Branch rebased onto current `origin/main` at `3659ce1` after Task 2 PR #951 merged; Task 2 remains non-blocking for Task 5.
 - [x] Full verification passed.
 - [x] PR opened as #953.
 - [ ] CI passed.
@@ -39,7 +39,7 @@
 | Command | Evidence | Result |
 |---|---|---|
 | `timeout 600s pnpm --filter @borgee/client test -- ChannelManagementSurface channel-management-api --testTimeout=10000` | RED failed before implementation because `buildChannelAllowedActionRules` was missing and Settings rows had no action availability DOM | PASS |
-| `timeout 600s pnpm --filter @borgee/client test -- ChannelManagementSurface channel-management-api --testTimeout=10000` | GREEN after implementation; `132` test files, `838` tests passed, `1` skipped | PASS |
+| `timeout 600s pnpm --filter @borgee/client test -- ChannelManagementSurface channel-management-api --testTimeout=10000` | GREEN after current-main rebase; `132` test files, `839` tests passed, `1` skipped | PASS |
 | `timeout 600s pnpm --filter @borgee/client typecheck` | `tsc --noEmit` exited 0 | PASS |
 | `timeout 600s pnpm --filter @borgee/client build` | `tsc -b && vite build` exited 0 with the repo's existing large-chunk warning | PASS |
 | `git diff --check` | exited 0 | PASS |
