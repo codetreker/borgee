@@ -6,9 +6,9 @@
 |---|---|
 | Worktree | `.worktrees/m2-task5-channel-allowed-action-rules` |
 | Branch | `feat/m2-task5-channel-allowed-action-rules` |
-| PR | not opened |
+| PR | #953 |
 | Owner | M2 Task5 owner worker |
-| State | TASKING |
+| State | ACCEPTING |
 | Blocker | none |
 
 ## Checkpoints
@@ -24,7 +24,7 @@
 - [x] Focused GREEN tests passed.
 - [x] Branch rebased onto current `origin/main` at `c2c61e6` after unrelated Helper PR #943 merged.
 - [x] Full verification passed.
-- [ ] PR opened.
+- [x] PR opened as #953.
 - [ ] CI passed.
 - [ ] PR merged and worktree cleaned up.
 
