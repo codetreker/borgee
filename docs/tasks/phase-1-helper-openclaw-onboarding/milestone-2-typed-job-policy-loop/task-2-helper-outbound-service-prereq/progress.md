@@ -8,7 +8,7 @@
 | Branch | `feat/task-2-helper-outbound-service-prereq` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | TASKING |
+| State | READY_FOR_DESIGN_REVIEW |
 | Blocker | none |
 
 ## Checkpoints
@@ -19,7 +19,8 @@
 - [x] Shared Blueprintflow state refreshed for task 1 accepted/merged through PR #938 and task 2 unlocked
 - [x] Four-piece task-start docs created: `spec.md`, `stance.md`, `acceptance.md`, `progress.md`
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals
-- [ ] Dev design drafted for review
+- [x] Dev design drafted for review
+- [x] Dev design checked against parent scout constraints and kept at task-design granularity
 - [ ] Dev design reviewed
 - [ ] Product implementation complete
 - [ ] `docs/current` sync checked after implementation or no-op rationale recorded
@@ -40,6 +41,7 @@
 | Milestone 2 unlock | Refreshed milestone 2 task index so task 1 is `ACCEPTED` and task 2 is `TASKING` | PASS |
 | Four-piece | Created task-start `spec.md`, `stance.md`, and `acceptance.md`; this file records progress | PASS |
 | Product code | No product code changes made in task-start commit scope | PASS |
+| Dev design | Drafted `design.md` from the task four-piece, helper service assets, sandbox code, daemon startup, and parent scout constraints; kept to service/sandbox/config/write-path/verification boundaries without implementation micro-detail | PASS |
 
 ## Scope Locks
 
@@ -48,4 +50,4 @@
 
 ## Acceptance State
 
-Task-start preparation is complete for design review. Product implementation has not started, `content-lock.md` is N/A for this scope, and no PR has been opened per worker assignment.
+Dev design is ready for design review. Product implementation has not started, `content-lock.md` is N/A for this scope, and no PR has been opened per worker assignment.
