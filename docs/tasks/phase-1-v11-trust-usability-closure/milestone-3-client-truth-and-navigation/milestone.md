@@ -32,7 +32,7 @@ Rejected by this milestone:
 |---|---|---|---|---|
 | ArtifactComments production mount | PLANNED | `task-1-artifactcomments-production-mount` | Milestone start | no |
 | ACL forbidden-state UX | PLANNED | `task-2-acl-forbidden-state-ux` | ArtifactComments mount | yes, after mount |
-| Settings PermissionsView reachability | PLANNED | `task-3-security-permission-surface-reachability` | Milestone start | yes, if shell/settings files are separable |
+| Settings PermissionsView reachability | ACCEPTING | `task-3-security-permission-surface-reachability` | Milestone start | yes, if shell/settings files are separable |
 | Production-surface e2e reverse proof | PLANNED | `task-4-production-surface-e2e-reverse-proof` | forbidden-state UX and PermissionsView reachability | no |
 | Sidebar footer primary entries | PLANNED | `task-5-sidebar-footer-primary-entries` | Milestone start | yes, if shell files do not conflict with truthfulness work |
 | Avatar account panel/logout | PLANNED | `task-6-avatar-account-panel-logout` | sidebar footer primary entries | yes, after footer entry budget |
