@@ -87,13 +87,16 @@
 |---|---|---|
 | RED test-first run | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy` failed before production implementation with undefined API/types including `JobTypeOpenClawConfigureAgent`, `ArtifactDeclaration`, `PathDeclaration`, `ServiceDeclaration`, `EvaluationInput`, `ManifestBinding`, `Decision`, and `Reason` | PASS |
 | Additional RED hardening | Added artifact-origin binding test; `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy` failed with `artifact_origin_not_bound_as_allowed_domain` returning `allow=true reason=ok` instead of `domain_denied` before the fix | PASS |
+| Repair RED: payload hash and state.write path semantics | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy -run 'TestEvaluateRejectsMissingOrMismatchedPayloadHash\|TestEvaluateStateWriteRequiresWritePathModeAndWriteSandboxCapability'` failed before the repair: missing/mismatched `PayloadHash` returned `allow=true reason=ok`, and `state.write` with manifest mode `read` plus read-only sandbox returned `allow=true reason=ok` | PASS |
+| Repair fix | Local policy now requires `PayloadHash` to match the current delivered `PayloadJSON`, and `state.write` path bindings require a write-capable manifest path mode plus write sandbox root capability | PASS |
+| Repair focused GREEN | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy -run 'TestEvaluateRejectsMissingOrMismatchedPayloadHash\|TestEvaluateStateWriteRequiresWritePathModeAndWriteSandboxCapability'` -> `ok borgee-helper/internal/jobpolicy 0.005s` | PASS |
 | Focused GREEN | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy` -> `ok borgee-helper/internal/jobpolicy 0.008s` | PASS |
-| Focused Helper verification | `GOTMPDIR=$PWD/.gotmp go test ./internal/jobpolicy ./internal/outbound ./install` -> `ok` for all three packages | PASS |
-| Broader Helper verification | `GOTMPDIR=$PWD/.gotmp go test ./cmd/borgee-helper ./internal/...` -> `ok` for helper internal packages and `cmd/borgee-helper` no test files | PASS |
+| Focused Helper verification | `GOTMPDIR=$PWD/.gotmp go test -count=1 ./internal/jobpolicy ./internal/outbound ./install` -> `ok` for all three packages | PASS |
+| Broader Helper verification | `GOTMPDIR=$PWD/.gotmp go test -count=1 ./cmd/borgee-helper ./internal/...` -> `ok` for helper internal packages and `cmd/borgee-helper` no test files | PASS |
 | Whitespace check | `git diff --check` -> no output, exit 0 | PASS |
 | Scope boundary | Added pure `internal/jobpolicy` package only; no Helper poll/lease/result routes, result upload, OpenClaw action execution, service-manager calls, sudo, Remote Agent credential reuse, or server transport implementation | PASS |
 | Docs/current sync | Updated Host Bridge helper, Host Bridge overview, Security boundaries, and Known Gaps to document the pure evaluator and remaining no-poll/no-action/no-settlement limits | PASS |
 
 ## Acceptance State
 
-Task 7 implementation is ready for local commit. The Helper-side pure local policy evaluator is implemented and verified for fixed schema validation, signed manifest and artifact binding, path/domain/service allowlists, revoked/stale/wrong-owner/wrong-org denial, and sandbox/profile mismatch denial. Task 6 transport, result upload, OpenClaw action execution, and service lifecycle execution remain out of scope and unimplemented.
+Task 7 implementation repair is ready for local commit. The Helper-side pure local policy evaluator is implemented and verified for fixed schema validation, server-owned payload hash enforcement over the delivered payload JSON, signed manifest and artifact binding, path/domain/service allowlists, revoked/stale/wrong-owner/wrong-org denial, and sandbox/profile mismatch denial including `state.write` write-mode/write-sandbox alignment. Task 6 transport, result upload, OpenClaw action execution, and service lifecycle execution remain out of scope and unimplemented.

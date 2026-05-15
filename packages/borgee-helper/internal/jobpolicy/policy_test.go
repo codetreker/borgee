@@ -21,9 +21,36 @@ func TestEvaluateAllowsMinimalConfigureAgentWhenEnvelopeAndEnrollmentMatch(t *te
 		"agent_id":       "agent-1",
 		"config_binding": "server-config-1",
 	})
+	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
 
 	decision := Evaluate(input)
 	assertDecision(t, decision, true, ReasonOK)
+}
+
+func TestEvaluateRejectsMissingOrMismatchedPayloadHash(t *testing.T) {
+	now := time.Unix(1_760_000_000, 0)
+
+	for name, tc := range map[string]struct {
+		mutate func(*EvaluationInput)
+	}{
+		"missing payload hash": {
+			mutate: func(in *EvaluationInput) { in.Job.PayloadHash = "" },
+		},
+		"mismatched payload hash": {
+			mutate: func(in *EvaluationInput) {
+				in.Job.PayloadHash = digestHex([]byte(`{"agent_id":"agent-1","config_binding":"tampered"}`))
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			input := configureAgentInput(t, now)
+			input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+			tc.mutate(&input)
+
+			decision := Evaluate(input)
+			assertDecision(t, decision, false, ReasonSchemaInvalid)
+		})
+	}
 }
 
 func TestEvaluateRejectsClosedSchemaAndForbiddenPayloadAuthority(t *testing.T) {
@@ -414,6 +441,7 @@ func TestEvaluateValidatesServiceLifecycleWithoutExecutingServiceManager(t *test
 	input.Job.JobType = JobTypeServiceLifecycle
 	input.Job.Category = CategoryServiceLifecycle
 	input.Job.PayloadJSON = mustJSON(t, map[string]string{"operation": "restart"})
+	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
 	input.Job.ManifestDigest = manifestDigest
 	input.Job.ManifestJSON = manifestJSON
 	input.Job.ManifestBindingJSON = mustJSON(t, ManifestBinding{ManifestDigest: manifestDigest, ServiceIDs: []string{"openclaw-user"}})
@@ -424,6 +452,53 @@ func TestEvaluateValidatesServiceLifecycleWithoutExecutingServiceManager(t *test
 
 	input.Job.PayloadJSON = mustJSON(t, map[string]string{"operation": "reload"})
 	assertDecision(t, Evaluate(input), false, ReasonSchemaInvalid)
+}
+
+func TestEvaluateStateWriteRequiresWritePathModeAndWriteSandboxCapability(t *testing.T) {
+	now := time.Unix(1_760_000_000, 0)
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for name, tc := range map[string]struct {
+		pathMode string
+		sandbox  SandboxProfile
+		want     Reason
+	}{
+		"read path mode with read only sandbox": {
+			pathMode: "read",
+			sandbox:  SandboxProfile{ReadRoots: []string{"/var/lib/borgee-helper/state"}},
+			want:     ReasonPolicyDenied,
+		},
+		"write path mode without write sandbox capability": {
+			pathMode: "write_state",
+			sandbox:  SandboxProfile{ReadRoots: []string{"/var/lib/borgee-helper/state"}},
+			want:     ReasonPolicyDenied,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			manifestJSON, manifestDigest := signedManifest(t, priv, signedManifestSpec{
+				IssuedAt:  now.Add(-time.Minute),
+				ExpiresAt: now.Add(time.Hour),
+				Paths:     []PathDeclaration{{ID: "helper_state", Root: "/var/lib/borgee-helper/state", Mode: tc.pathMode}},
+			})
+
+			input := baseInput(now)
+			input.TrustRoots = []ed25519.PublicKey{pub}
+			input.Job.JobType = JobTypeStateWrite
+			input.Job.Category = CategoryOpenClaw
+			input.Job.PayloadJSON = mustJSON(t, map[string]string{"state_key": "openclaw/config"})
+			input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
+			input.Job.ManifestDigest = manifestDigest
+			input.Job.ManifestJSON = manifestJSON
+			input.Job.ManifestBindingJSON = mustJSON(t, ManifestBinding{ManifestDigest: manifestDigest, PathIDs: []string{"helper_state"}})
+			input.Sandbox = tc.sandbox
+
+			decision := Evaluate(input)
+			assertDecision(t, decision, false, tc.want)
+		})
+	}
 }
 
 type signedManifestSpec struct {
@@ -444,6 +519,7 @@ func configureAgentInput(t *testing.T, now time.Time) EvaluationInput {
 		"agent_id":       "agent-1",
 		"config_binding": "server-config-1",
 	})
+	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
 	return input
 }
 
@@ -453,6 +529,7 @@ func installInput(t *testing.T, now time.Time) EvaluationInput {
 	input.Job.JobType = JobTypeOpenClawInstallFromManifest
 	input.Job.Category = CategoryOpenClaw
 	input.Job.PayloadJSON = mustJSON(t, map[string]string{"install_plan_id": "plan-1"})
+	input.Job.PayloadHash = digestHex(input.Job.PayloadJSON)
 	return input
 }
 

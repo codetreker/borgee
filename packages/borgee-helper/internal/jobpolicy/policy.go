@@ -157,6 +157,9 @@ func Evaluate(input EvaluationInput) Decision {
 	if reason := validateJobSchema(input.Job); reason != ReasonOK {
 		return deny(reason)
 	}
+	if reason := validatePayloadHash(input.Job); reason != ReasonOK {
+		return deny(reason)
+	}
 	if reason := validatePayload(input.Job); reason != ReasonOK {
 		return deny(reason)
 	}
@@ -178,7 +181,7 @@ func Evaluate(input EvaluationInput) Decision {
 	if reason := validateArtifacts(authority, input.Artifacts, input.Platform); reason != ReasonOK {
 		return deny(reason)
 	}
-	if reason := validatePaths(authority, input.Sandbox); reason != ReasonOK {
+	if reason := validatePaths(input.Job.JobType, authority, input.Sandbox); reason != ReasonOK {
 		return deny(reason)
 	}
 	if reason := validateDomains(authority, input.Sandbox); reason != ReasonOK {
@@ -203,13 +206,20 @@ func deny(reason Reason) Decision { return Decision{Allow: false, Reason: reason
 func validateJobSchema(job Job) Reason {
 	if strings.TrimSpace(job.JobID) == "" || strings.TrimSpace(job.OwnerUserID) == "" || strings.TrimSpace(job.OrgID) == "" ||
 		strings.TrimSpace(job.EnrollmentID) == "" || strings.TrimSpace(job.HelperDeviceID) == "" || strings.TrimSpace(job.Category) == "" ||
-		job.SchemaVersion == 0 || len(job.PayloadJSON) == 0 || job.ExpiresAt.IsZero() {
+		job.SchemaVersion == 0 || len(job.PayloadJSON) == 0 || strings.TrimSpace(job.PayloadHash) == "" || job.ExpiresAt.IsZero() {
 		return ReasonSchemaInvalid
 	}
 	if !knownJobType(job.JobType) {
 		return ReasonUnknownJobType
 	}
 	if job.SchemaVersion != 1 {
+		return ReasonSchemaInvalid
+	}
+	return ReasonOK
+}
+
+func validatePayloadHash(job Job) Reason {
+	if digestBytes(job.PayloadJSON) != job.PayloadHash {
 		return ReasonSchemaInvalid
 	}
 	return ReasonOK
@@ -481,7 +491,7 @@ func validateArtifacts(authority manifestAuthority, cache map[string][]byte, pla
 	return ReasonOK
 }
 
-func validatePaths(authority manifestAuthority, sandbox SandboxProfile) Reason {
+func validatePaths(jobType string, authority manifestAuthority, sandbox SandboxProfile) Reason {
 	byID := make(map[string]PathDeclaration, len(authority.manifest.Paths))
 	for _, path := range authority.manifest.Paths {
 		if path.ID == "" {
@@ -498,11 +508,22 @@ func validatePaths(authority manifestAuthority, sandbox SandboxProfile) Reason {
 		if !ok || decl.Mode == "" {
 			return ReasonPathDenied
 		}
+		if jobRequiresWritePath(jobType) && !pathModeAllowsWrite(decl.Mode) {
+			return ReasonPolicyDenied
+		}
 		if !sandboxHasPath(root, sandbox, decl.Mode) {
 			return ReasonPolicyDenied
 		}
 	}
 	return ReasonOK
+}
+
+func jobRequiresWritePath(jobType string) bool {
+	return jobType == JobTypeStateWrite
+}
+
+func pathModeAllowsWrite(mode string) bool {
+	return strings.HasPrefix(mode, "write") || strings.Contains(mode, "write")
 }
 
 func normalizePolicyPath(raw string) (string, bool) {
@@ -527,7 +548,7 @@ func hasDotDotSegment(path string) bool {
 
 func sandboxHasPath(path string, sandbox SandboxProfile, mode string) bool {
 	roots := sandbox.ReadRoots
-	if strings.HasPrefix(mode, "write") || strings.Contains(mode, "write") {
+	if pathModeAllowsWrite(mode) {
 		roots = sandbox.WriteRoots
 	}
 	for _, root := range roots {
