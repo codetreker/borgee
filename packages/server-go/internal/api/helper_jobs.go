@@ -26,6 +26,9 @@ func (h *HelperJobsHandler) now() time.Time {
 
 func (h *HelperJobsHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/helper/enrollments/{enrollmentId}/jobs", authMw(http.HandlerFunc(h.handleEnqueue)))
+	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/jobs/poll", h.handlePoll)
+	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/jobs/{jobId}/ack", h.handleAck)
+	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/jobs/{jobId}/result", h.handleResult)
 }
 
 func (h *HelperJobsHandler) handleEnqueue(w http.ResponseWriter, r *http.Request) {
@@ -62,11 +65,186 @@ func (h *HelperJobsHandler) handleEnqueue(w http.ResponseWriter, r *http.Request
 	writeJSONResponse(w, status, map[string]any{"job": serializeHelperJob(job)})
 }
 
+func (h *HelperJobsHandler) handlePoll(w http.ResponseWriter, r *http.Request) {
+	credential, ok := helperCredentialFromRequest(r)
+	if !ok {
+		h.writeErrorCode(w, http.StatusUnauthorized, "unauthorized", "helper credential required")
+		return
+	}
+	req, code, err := decodeHelperJobPollRequest(r)
+	if err != nil {
+		h.writeErrorCode(w, http.StatusBadRequest, code, err.Error())
+		return
+	}
+	lease, err := h.Repo.PollAndLeaseForHelper(r.Context(), datalayer.HelperJobPollInput{
+		EnrollmentID:     r.PathValue("enrollmentId"),
+		HelperCredential: credential,
+		HelperDeviceID:   req.HelperDeviceID,
+		WaitMS:           req.WaitMS,
+	}, h.now())
+	if err != nil {
+		h.writeHelperRailRepoError(w, err)
+		return
+	}
+	if lease == nil || lease.Status == "no_work" || lease.Job == nil {
+		retryAfter := 5000
+		if lease != nil && lease.RetryAfterMS > 0 {
+			retryAfter = lease.RetryAfterMS
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"status": "no_work", "retry_after_ms": retryAfter})
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"status": "leased", "job": serializeHelperJobLease(lease)})
+}
+
+func (h *HelperJobsHandler) handleAck(w http.ResponseWriter, r *http.Request) {
+	credential, ok := helperCredentialFromRequest(r)
+	if !ok {
+		h.writeErrorCode(w, http.StatusUnauthorized, "unauthorized", "helper credential required")
+		return
+	}
+	req, code, err := decodeHelperJobAckRequest(r)
+	if err != nil {
+		h.writeErrorCode(w, http.StatusBadRequest, code, err.Error())
+		return
+	}
+	job, err := h.Repo.AckForHelper(r.Context(), datalayer.HelperJobAckInput{
+		EnrollmentID:     r.PathValue("enrollmentId"),
+		JobID:            r.PathValue("jobId"),
+		HelperCredential: credential,
+		HelperDeviceID:   req.HelperDeviceID,
+		LeaseToken:       req.LeaseToken,
+		AckStatus:        req.AckStatus,
+	}, h.now())
+	if err != nil {
+		h.writeHelperRailRepoError(w, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"job": serializeHelperJob(job)})
+}
+
+func (h *HelperJobsHandler) handleResult(w http.ResponseWriter, r *http.Request) {
+	credential, ok := helperCredentialFromRequest(r)
+	if !ok {
+		h.writeErrorCode(w, http.StatusUnauthorized, "unauthorized", "helper credential required")
+		return
+	}
+	req, code, err := decodeHelperJobResultRequest(r)
+	if err != nil {
+		h.writeErrorCode(w, http.StatusBadRequest, code, err.Error())
+		return
+	}
+	job, err := h.Repo.CompleteForHelper(r.Context(), datalayer.HelperJobResultInput{
+		EnrollmentID:     r.PathValue("enrollmentId"),
+		JobID:            r.PathValue("jobId"),
+		HelperCredential: credential,
+		HelperDeviceID:   req.HelperDeviceID,
+		LeaseToken:       req.LeaseToken,
+		Status:           req.Status,
+		FailureCode:      req.FailureCode,
+		FailureMessage:   req.FailureMessage,
+		ResultSummary:    req.ResultSummary,
+	}, h.now())
+	if err != nil {
+		h.writeHelperRailRepoError(w, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"job": serializeHelperJob(job)})
+}
+
 type helperJobEnqueueRequest struct {
 	JobType        string          `json:"job_type"`
 	SchemaVersion  int             `json:"schema_version"`
 	Payload        json.RawMessage `json:"payload"`
 	IdempotencyKey string          `json:"idempotency_key,omitempty"`
+}
+
+type helperJobPollRequest struct {
+	HelperDeviceID string `json:"helper_device_id"`
+	WaitMS         int    `json:"wait_ms,omitempty"`
+}
+
+type helperJobAckRequest struct {
+	HelperDeviceID string `json:"helper_device_id"`
+	LeaseToken     string `json:"lease_token"`
+	AckStatus      string `json:"ack_status"`
+}
+
+type helperJobResultRequest struct {
+	HelperDeviceID string          `json:"helper_device_id"`
+	LeaseToken     string          `json:"lease_token"`
+	Status         string          `json:"status"`
+	FailureCode    string          `json:"failure_code,omitempty"`
+	FailureMessage string          `json:"failure_message,omitempty"`
+	ResultSummary  string          `json:"-"`
+	RawSummary     json.RawMessage `json:"result_summary,omitempty"`
+}
+
+func decodeHelperJobPollRequest(r *http.Request) (helperJobPollRequest, string, error) {
+	var req helperJobPollRequest
+	if code, err := decodeStrictHelperJobRequest(r, &req, map[string]bool{"helper_device_id": true, "wait_ms": true}); err != nil {
+		return req, code, err
+	}
+	req.HelperDeviceID = strings.TrimSpace(req.HelperDeviceID)
+	if req.HelperDeviceID == "" || len(req.HelperDeviceID) > 255 || req.WaitMS < 0 || req.WaitMS > 30000 {
+		return req, "schema_invalid", errors.New("invalid helper poll request")
+	}
+	return req, "", nil
+}
+
+func decodeHelperJobAckRequest(r *http.Request) (helperJobAckRequest, string, error) {
+	var req helperJobAckRequest
+	if code, err := decodeStrictHelperJobRequest(r, &req, map[string]bool{"helper_device_id": true, "lease_token": true, "ack_status": true}); err != nil {
+		return req, code, err
+	}
+	req.HelperDeviceID = strings.TrimSpace(req.HelperDeviceID)
+	req.LeaseToken = strings.TrimSpace(req.LeaseToken)
+	req.AckStatus = strings.TrimSpace(req.AckStatus)
+	if req.HelperDeviceID == "" || req.LeaseToken == "" || req.AckStatus != "received" {
+		return req, "schema_invalid", errors.New("invalid helper ack request")
+	}
+	return req, "", nil
+}
+
+func decodeHelperJobResultRequest(r *http.Request) (helperJobResultRequest, string, error) {
+	var req helperJobResultRequest
+	if code, err := decodeStrictHelperJobRequest(r, &req, map[string]bool{"helper_device_id": true, "lease_token": true, "status": true, "failure_code": true, "failure_message": true, "result_summary": true}); err != nil {
+		return req, code, err
+	}
+	req.HelperDeviceID = strings.TrimSpace(req.HelperDeviceID)
+	req.LeaseToken = strings.TrimSpace(req.LeaseToken)
+	req.Status = strings.TrimSpace(req.Status)
+	req.FailureCode = strings.TrimSpace(req.FailureCode)
+	req.FailureMessage = strings.TrimSpace(req.FailureMessage)
+	if len(req.RawSummary) > 0 && string(req.RawSummary) != "null" {
+		req.ResultSummary = string(req.RawSummary)
+	}
+	if req.HelperDeviceID == "" || req.LeaseToken == "" || req.Status == "" {
+		return req, "schema_invalid", errors.New("invalid helper result request")
+	}
+	return req, "", nil
+}
+
+func decodeStrictHelperJobRequest(r *http.Request, out any, allowed map[string]bool) (string, error) {
+	raw, err := io.ReadAll(http.MaxBytesReader(nil, r.Body, 1<<20))
+	if err != nil {
+		return "schema_invalid", errors.New("invalid helper job request")
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil || top == nil {
+		return "schema_invalid", errors.New("invalid helper job request")
+	}
+	for key := range top {
+		if !allowed[key] {
+			return "forbidden_field", errors.New("unknown helper job request field")
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(out); err != nil {
+		return "schema_invalid", errors.New("invalid helper job request")
+	}
+	return "", nil
 }
 
 func decodeHelperJobEnqueueRequest(r *http.Request) (helperJobEnqueueRequest, string, error) {
@@ -150,6 +328,28 @@ func serializeHelperJob(job *datalayer.HelperJob) map[string]any {
 	return out
 }
 
+func serializeHelperJobLease(lease *datalayer.HelperJobLease) map[string]any {
+	job := lease.Job
+	payload := map[string]any{}
+	if strings.TrimSpace(job.PayloadJSON) != "" {
+		_ = json.Unmarshal([]byte(job.PayloadJSON), &payload)
+	}
+	out := map[string]any{
+		"job_id":           job.ID,
+		"enrollment_id":    job.EnrollmentID,
+		"job_type":         job.JobType,
+		"schema_version":   job.SchemaVersion,
+		"status":           job.Status,
+		"category":         job.Category,
+		"payload":          payload,
+		"manifest_digest":  job.ManifestDigest,
+		"lease_token":      lease.LeaseToken,
+		"lease_expires_at": lease.LeaseExpiresAt,
+		"attempt":          lease.Attempt,
+	}
+	return out
+}
+
 func (h *HelperJobsHandler) writeRepoError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, datalayer.ErrHelperJobUnknownType):
@@ -184,6 +384,37 @@ func (h *HelperJobsHandler) writeRepoError(w http.ResponseWriter, err error) {
 		h.writeErrorCode(w, http.StatusForbidden, "forbidden", "helper job enqueue forbidden")
 	default:
 		h.writeErrorCode(w, http.StatusInternalServerError, "helper_job_error", "helper job enqueue failed")
+	}
+}
+
+func (h *HelperJobsHandler) writeHelperRailRepoError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, datalayer.ErrHelperJobInvalidInput), errors.Is(err, datalayer.ErrHelperJobSchemaInvalid):
+		h.writeErrorCode(w, http.StatusBadRequest, "schema_invalid", "invalid helper job request")
+	case errors.Is(err, datalayer.ErrHelperJobForbiddenField):
+		h.writeErrorCode(w, http.StatusBadRequest, "forbidden_field", "forbidden helper job field")
+	case errors.Is(err, datalayer.ErrHelperJobUnauthorized):
+		h.writeErrorCode(w, http.StatusUnauthorized, "unauthorized", "helper credential unauthorized")
+	case errors.Is(err, datalayer.ErrHelperJobStaleCredential):
+		h.writeErrorCode(w, http.StatusForbidden, "stale_credential", "helper credential is stale")
+	case errors.Is(err, datalayer.ErrHelperJobDeviceMismatch):
+		h.writeErrorCode(w, http.StatusForbidden, "device_mismatch", "helper device mismatch")
+	case errors.Is(err, datalayer.ErrHelperJobEnrollmentRevoked):
+		h.writeErrorCode(w, http.StatusForbidden, "revoked", "helper enrollment is revoked")
+	case errors.Is(err, datalayer.ErrHelperJobEnrollmentUninstalled):
+		h.writeErrorCode(w, http.StatusForbidden, "uninstalled", "helper enrollment is uninstalled")
+	case errors.Is(err, datalayer.ErrHelperJobEnrollmentUnclaimed), errors.Is(err, datalayer.ErrHelperJobEnrollmentInactive), errors.Is(err, datalayer.ErrHelperJobForbidden):
+		h.writeErrorCode(w, http.StatusForbidden, "forbidden", "helper job forbidden")
+	case errors.Is(err, datalayer.ErrHelperJobEnrollmentNotFound), errors.Is(err, datalayer.ErrHelperJobNotFound):
+		h.writeErrorCode(w, http.StatusNotFound, "not_found", "helper job not found")
+	case errors.Is(err, datalayer.ErrHelperJobLeaseLost):
+		h.writeErrorCode(w, http.StatusConflict, "lease_lost", "helper job lease lost")
+	case errors.Is(err, datalayer.ErrHelperJobExpired):
+		h.writeErrorCode(w, http.StatusConflict, "ttl_expired", "helper job expired")
+	case errors.Is(err, datalayer.ErrHelperJobTerminalConflict):
+		h.writeErrorCode(w, http.StatusConflict, "terminal_conflict", "helper job terminal state conflicts")
+	default:
+		h.writeErrorCode(w, http.StatusInternalServerError, "helper_job_error", "helper job request failed")
 	}
 }
 

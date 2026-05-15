@@ -67,6 +67,92 @@ func TestHelperJobRepositoryEnqueueProjectionAndErrorMapping(t *testing.T) {
 	}
 }
 
+func TestHelperJobRepositoryPollAckCompleteProjection(t *testing.T) {
+	t.Parallel()
+	dl, s, owner := newHelperJobRepoFixture(t, "helper-job-dl-transport")
+	now := time.UnixMilli(1778840000000)
+	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Mac Studio", []string{"openclaw_config"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment: %v", err)
+	}
+	claimed, credential, err := s.ClaimHelperEnrollment(enrollment.ID, secret, "device-1", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment: %v", err)
+	}
+	agent := datalayerHelperJobAgent(t, s, owner, "dl-transport-agent")
+	seedDatalayerAgentConfig(t, s, agent.ID, 3, map[string]any{"name": "DL Transport"}, now)
+
+	job, created, err := dl.HelperJobRepo.EnqueueForUser(context.Background(), EnqueueHelperJobInput{
+		OwnerUserID:   owner.ID,
+		OrgID:         owner.OrgID,
+		EnrollmentID:  claimed.ID,
+		JobType:       "openclaw.configure_agent",
+		SchemaVersion: 1,
+		PayloadJSON:   `{"agent_id":"` + agent.ID + `"}`,
+	}, now.Add(2*time.Minute))
+	if err != nil || !created {
+		t.Fatalf("EnqueueForUser created=%v err=%v", created, err)
+	}
+
+	lease, err := dl.HelperJobRepo.PollAndLeaseForHelper(context.Background(), HelperJobPollInput{
+		EnrollmentID:     claimed.ID,
+		HelperCredential: credential,
+		HelperDeviceID:   "device-1",
+	}, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("PollAndLeaseForHelper: %v", err)
+	}
+	if lease == nil || lease.Status != store.HelperJobPollLeased || lease.Job == nil || lease.Job.ID != job.ID || lease.Job.PayloadJSON == "" || lease.LeaseToken == "" {
+		t.Fatalf("bad lease projection: %+v", lease)
+	}
+
+	acked, err := dl.HelperJobRepo.AckForHelper(context.Background(), HelperJobAckInput{
+		EnrollmentID:     claimed.ID,
+		JobID:            job.ID,
+		HelperCredential: credential,
+		HelperDeviceID:   "device-1",
+		LeaseToken:       lease.LeaseToken,
+		AckStatus:        "received",
+	}, now.Add(3*time.Minute+time.Second))
+	if err != nil || acked == nil || acked.Status != store.HelperJobStatusRunning {
+		t.Fatalf("AckForHelper job=%+v err=%v", acked, err)
+	}
+
+	completed, err := dl.HelperJobRepo.CompleteForHelper(context.Background(), HelperJobResultInput{
+		EnrollmentID:     claimed.ID,
+		JobID:            job.ID,
+		HelperCredential: credential,
+		HelperDeviceID:   "device-1",
+		LeaseToken:       lease.LeaseToken,
+		Status:           store.HelperJobStatusFailed,
+		FailureCode:      "policy_denied",
+		FailureMessage:   "policy denied",
+		ResultSummary:    `{"audit_refs":["audit-1"],"log_refs":[]}`,
+	}, now.Add(3*time.Minute+2*time.Second))
+	if err != nil || completed == nil || completed.Status != store.HelperJobStatusFailed || completed.FailureCode == nil || *completed.FailureCode != "policy_denied" || completed.CompletedAt == nil {
+		t.Fatalf("CompleteForHelper job=%+v err=%v", completed, err)
+	}
+
+	if _, err := dl.HelperJobRepo.PollAndLeaseForHelper(context.Background(), HelperJobPollInput{EnrollmentID: claimed.ID, HelperCredential: "wrong", HelperDeviceID: "device-1"}, now.Add(4*time.Minute)); !errors.Is(err, ErrHelperJobUnauthorized) {
+		t.Fatalf("wrong credential error=%v, want ErrHelperJobUnauthorized", err)
+	}
+}
+
+func TestHelperJobLeaseProjectionRetryBounds(t *testing.T) {
+	t.Parallel()
+	if helperJobLeaseFromStore(nil) != nil {
+		t.Fatal("helperJobLeaseFromStore(nil) should return nil")
+	}
+	row := &store.HelperJobLease{
+		Status:     store.HelperJobPollNoWork,
+		RetryAfter: 60 * 24 * time.Hour,
+	}
+	lease := helperJobLeaseFromStore(row)
+	if lease == nil || lease.RetryAfterMS != 2147483647 {
+		t.Fatalf("retry_after_ms should cap at MaxInt32, got %+v", lease)
+	}
+}
+
 func TestHelperJobErrorMapping(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -92,6 +178,13 @@ func TestHelperJobErrorMapping(t *testing.T) {
 		{"manifest required", store.ErrHelperJobManifestRequired, ErrHelperJobManifestRequired},
 		{"idempotency conflict", store.ErrHelperJobIdempotencyConflict, ErrHelperJobIdempotencyConflict},
 		{"expired", store.ErrHelperJobExpired, ErrHelperJobExpired},
+		{"unauthorized", store.ErrHelperJobUnauthorized, ErrHelperJobUnauthorized},
+		{"stale credential", store.ErrHelperJobStaleCredential, ErrHelperJobStaleCredential},
+		{"device mismatch", store.ErrHelperJobDeviceMismatch, ErrHelperJobDeviceMismatch},
+		{"no work", store.ErrHelperJobNoWork, ErrHelperJobNoWork},
+		{"lease lost", store.ErrHelperJobLeaseLost, ErrHelperJobLeaseLost},
+		{"terminal conflict", store.ErrHelperJobTerminalConflict, ErrHelperJobTerminalConflict},
+		{"not found", store.ErrHelperJobNotFound, ErrHelperJobNotFound},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

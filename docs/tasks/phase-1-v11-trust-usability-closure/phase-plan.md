@@ -64,8 +64,9 @@ Accepted work remains accepted and is remapped into Milestone 1:
 | #937 | `2872905` | Helper status UI and current-doc sync | Milestone 1 |
 | #938 | `64d56f1` | Helper job envelope and enqueue authority | Milestone 1 |
 | #939 | `96dc0dc` | Helper outbound service prerequisites | Milestone 1 |
+| #942 | `642fb57` | Helper local policy / manifest / sandbox profile | Milestone 1 |
 
-Accepted task docs and progress now live under `milestone-1-helper-openclaw-bounded-actuator/task-1-helper-enrollment-model-and-status` through `task-5-helper-outbound-service-prereq`, with the summary in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`. Remaining Helper/OpenClaw skeletons live under `task-6` through `task-12` in the same canonical milestone. This canonical Phase doc owns grouping and resume direction.
+Accepted task docs and progress now live under `milestone-1-helper-openclaw-bounded-actuator/task-1-helper-enrollment-model-and-status` through `task-5-helper-outbound-service-prereq`, plus accepted task 7 local policy work, with the summary in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`. Task 6 pull/lease/result is in final PR verification; remaining Helper/OpenClaw skeletons live under `task-8` through `task-12` in the same canonical milestone. This canonical Phase doc owns grouping and resume direction.
 
 ## Exit Gates
 

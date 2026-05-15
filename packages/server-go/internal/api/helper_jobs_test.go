@@ -10,6 +10,102 @@ import (
 	"borgee-server/internal/testutil"
 )
 
+func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-1")
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "api-poll-agent")
+	seedHelperJobAgentConfig(t, s, agent.ID, 2, map[string]any{"name": "OpenClaw", "enabled": true})
+
+	enqueueBody := map[string]any{
+		"job_type":        "openclaw.configure_agent",
+		"schema_version":  1,
+		"payload":         map[string]any{"agent_id": agent.ID},
+		"idempotency_key": "poll-ack-result-1",
+	}
+	resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, enqueueBody)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("enqueue helper job: status %d body %v", resp.StatusCode, data)
+	}
+
+	resp, wrongRail := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", ownerToken, map[string]any{
+		"helper_device_id": "device-1",
+	})
+	if resp.StatusCode != http.StatusUnauthorized || wrongRail["code"] != "unauthorized" {
+		t.Fatalf("user token must not poll helper rail: status %d body %v", resp.StatusCode, wrongRail)
+	}
+
+	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
+		"helper_device_id": "device-1",
+		"wait_ms":          0,
+	})
+	if resp.StatusCode != http.StatusOK || poll["status"] != "leased" {
+		t.Fatalf("helper poll should lease queued job: status %d body %v", resp.StatusCode, poll)
+	}
+	job := poll["job"].(map[string]any)
+	jobID, _ := job["job_id"].(string)
+	leaseToken, _ := job["lease_token"].(string)
+	if jobID == "" || leaseToken == "" || job["status"] != "leased" || job["job_type"] != "openclaw.configure_agent" {
+		t.Fatalf("leased job missing identity/lease fields: %v", job)
+	}
+	if job["enrollment_id"] != enrollmentID || job["schema_version"] != float64(1) || job["attempt"] != float64(1) {
+		t.Fatalf("leased job missing enrollment/schema/attempt: %v", job)
+	}
+	if _, ok := job["lease_expires_at"].(float64); !ok {
+		t.Fatalf("leased job missing lease_expires_at: %v", job)
+	}
+	payload := job["payload"].(map[string]any)
+	if payload["agent_id"] != agent.ID || payload["config_schema_version"] != float64(2) {
+		t.Fatalf("leased job payload should be safe effective payload: %v", payload)
+	}
+	assertNoHelperLeaseSensitiveFields(t, job)
+
+	resp, secondPoll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
+		"helper_device_id": "device-1",
+	})
+	if resp.StatusCode != http.StatusOK || secondPoll["status"] != "no_work" || secondPoll["retry_after_ms"] == nil {
+		t.Fatalf("second poll should not lease duplicate work: status %d body %v", resp.StatusCode, secondPoll)
+	}
+
+	ackBody := map[string]any{"helper_device_id": "device-1", "lease_token": leaseToken, "ack_status": "received"}
+	resp, ack := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/ack", helperCredential, ackBody)
+	if resp.StatusCode != http.StatusOK || ack["job"].(map[string]any)["status"] != "running" {
+		t.Fatalf("ack should move leased job to running: status %d body %v", resp.StatusCode, ack)
+	}
+	resp, ackReplay := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/ack", helperCredential, ackBody)
+	if resp.StatusCode != http.StatusOK || ackReplay["job"].(map[string]any)["status"] != "running" {
+		t.Fatalf("ack replay should be idempotent: status %d body %v", resp.StatusCode, ackReplay)
+	}
+
+	resultBody := map[string]any{
+		"helper_device_id": "device-1",
+		"lease_token":      leaseToken,
+		"status":           "failed",
+		"failure_code":     "policy_denied",
+		"failure_message":  "policy handoff denied",
+		"result_summary": map[string]any{
+			"audit_refs": []string{"audit-1"},
+			"log_refs":   []string{},
+		},
+	}
+	resp, result := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, resultBody)
+	if resp.StatusCode != http.StatusOK || result["job"].(map[string]any)["status"] != "failed" || result["job"].(map[string]any)["failure_code"] != "policy_denied" {
+		t.Fatalf("result should settle terminal failed state: status %d body %v", resp.StatusCode, result)
+	}
+	resp, resultReplay := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, resultBody)
+	if resp.StatusCode != http.StatusOK || resultReplay["job"].(map[string]any)["status"] != "failed" {
+		t.Fatalf("same terminal result replay should be idempotent: status %d body %v", resp.StatusCode, resultReplay)
+	}
+	resultBody["failure_code"] = "execution_failed"
+	resp, conflict := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/result", helperCredential, resultBody)
+	if resp.StatusCode != http.StatusConflict || conflict["code"] != "terminal_conflict" {
+		t.Fatalf("conflicting terminal replay should fail: status %d body %v", resp.StatusCode, conflict)
+	}
+}
+
 func TestHelperJobsEnqueueHappyPathIdempotencyAndSerializer(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -384,6 +480,25 @@ func assertNoHelperJobSensitiveFields(t *testing.T, job map[string]any) {
 	} {
 		if _, ok := job[key]; ok {
 			t.Fatalf("helper job response leaked field %q: %v", key, job)
+		}
+	}
+}
+
+func assertNoHelperLeaseSensitiveFields(t *testing.T, job map[string]any) {
+	t.Helper()
+	for _, key := range []string{
+		"owner_user_id", "org_id", "helper_device_id", "payload_json", "manifest_binding_json",
+		"credential", "credentials", "credential_digest", "persistent_credential_digest", "token",
+		"result_summary_json", "payload_hash", "idempotency_key",
+	} {
+		if _, ok := job[key]; ok {
+			t.Fatalf("helper lease response leaked field %q: %v", key, job)
+		}
+	}
+	payload, _ := job["payload"].(map[string]any)
+	for _, key := range []string{"owner_user_id", "org_id", "credential", "credentials", "token", "shell", "argv", "command", "script", "service_unit", "path", "domain", "url"} {
+		if _, ok := payload[key]; ok {
+			t.Fatalf("helper lease payload leaked field %q: %v", key, payload)
 		}
 	}
 }

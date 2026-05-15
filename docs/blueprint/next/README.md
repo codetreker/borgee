@@ -2,7 +2,7 @@
 
 Target version: v1.1 candidate
 Last updated: 2026-05-15
-Resume from: execute task-start/four-piece for the next ready Helper/OpenClaw bounded actuator tasks under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
+Resume from: finish PR verification for task 6 Helper pull/lease/result under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/` after task 7 local policy acceptance.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -32,7 +32,7 @@ The v1.1 selected anchors are now one active Phase with three coarse user-facing
 
 Phase opening rule: a new Phase requires a real prerequisite boundary, integration boundary, or downstream integration/coordination reason. Coarser Phase/Milestone structure is preferred; implementation detail belongs in task execution and Dev design.
 
-Accepted history preserved under Milestone 1: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`).
+Accepted history preserved under Milestone 1: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), PR #939 (`96dc0dc`), and PR #942 (`642fb57`).
 
 ## §1 Iteration Positioning
 
@@ -147,4 +147,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Continue the canonical Phase 1 Milestone 1 Helper/OpenClaw loop from the next ready tasks after PR #939. Accepted history remains: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`). The next ready canonical tasks are `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result/` and `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile/`; they may start in parallel if file ownership/conflict risk is manageable. Product implementation has not started for those remaining tasks.
+Continue the canonical Phase 1 Milestone 1 Helper/OpenClaw loop from task 6 PR #943 verification after PR #942. Accepted history remains: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), PR #939 (`96dc0dc`), and PR #942 (`642fb57`). `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result/` is implemented and in PR CI/review. `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile/` is accepted through PR #942. Task 8 remains blocked until task 6 is accepted.

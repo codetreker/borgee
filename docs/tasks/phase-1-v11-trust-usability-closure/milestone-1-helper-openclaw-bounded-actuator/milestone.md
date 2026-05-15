@@ -32,15 +32,15 @@ Rejected by this milestone:
 | Helper status UI and current sync | ACCEPTED | `task-3-helper-status-ui-and-current-sync` | PR #937 (`2872905`) | complete |
 | Job envelope and enqueue authority | ACCEPTED | `task-4-job-envelope-and-enqueue-authority` | PR #938 (`64d56f1`) | complete |
 | Helper outbound service prerequisites | ACCEPTED | `task-5-helper-outbound-service-prereq` | PR #939 (`96dc0dc`) | complete |
-| Helper pull / lease / result | READY | `task-6-helper-pull-lease-result` | After PR #939 | yes, with local policy if file ownership is clean |
-| Local policy / manifest / sandbox profile | READY | `task-7-local-policy-manifest-and-sandbox-profile` | After PR #939 | yes, with pull/lease/result if file ownership is clean |
+| Helper pull / lease / result | PR_VERIFYING | `task-6-helper-pull-lease-result` | PR #943 from `feat/task-6-helper-pull-lease-result`; coverage repair in progress | no, final PR gate |
+| Local policy / manifest / sandbox profile | ACCEPTED | `task-7-local-policy-manifest-and-sandbox-profile` | PR #942 (`642fb57`) | complete |
 | Bounded status logs and revoke settlement | BLOCKED | `task-8-bounded-status-logs-and-revoke-settlement` | After pull/lease/result and local policy | no |
 | OpenClaw install and agent config jobs | BLOCKED | `task-9-openclaw-install-and-agent-config-jobs` | After typed job/policy substrate | no |
 | Borgee plugin channel binding job | BLOCKED | `task-10-borgee-plugin-channel-binding-job` | After install/config jobs; coordinate with channel authority if needed | yes, after dependency clears |
 | Service lifecycle reliability | BLOCKED | `task-11-service-lifecycle-boot-crash` | After typed job/policy substrate | yes, after dependency clears |
 | Configure OpenClaw terminal UI | BLOCKED | `task-12-configure-openclaw-terminal-ui` | After install/config, binding, and lifecycle work | no |
 
-Next execution should start from the two READY tasks when Teamlead confirms disjoint write ownership. If only one task can be dispatched first, use `task-6-helper-pull-lease-result` as the first resume point because terminal settlement depends on the pull/lease/result contract.
+Current execution is PR verification for `task-6-helper-pull-lease-result`. `task-7-local-policy-manifest-and-sandbox-profile` is accepted through PR #942 (`642fb57`). Terminal settlement remains blocked until task 6 pull/lease/result is accepted.
 
 ## Exit Gates
 
