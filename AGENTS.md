@@ -10,4 +10,5 @@
 - Milestone breakdown does not create a `task-0-breakdown-*` first task inside the milestone. The first numbered task skeleton is real product/planning work, starts at `task-1-*`, and milestone-start bookkeeping happens when the whole milestone starts, not as a milestone task.
 - Within a milestone, run multiple tasks in parallel when there is no real dependency and file ownership/conflict risk is manageable. Record true dependencies in the milestone task index; do not serialize independent work by habit.
 - Publish `phase-plan` work in one PR. Publish milestone breakdowns in one PR across all planned milestones when feasible; if dependency order requires staging, record why one PR would be worse.
+- One task = one worktree = one branch = one PR. All task-related four-piece, Dev design, implementation, tests, docs/current sync, progress, and acceptance state land in that task PR; do not open a closure/status follow-up PR for state that belongs to the task.
 - Do not create excessive PRs for pure documentation or process work. The goal of Blueprintflow planning is to get to feature development and ship the feature.

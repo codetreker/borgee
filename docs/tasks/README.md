@@ -13,14 +13,15 @@ This Phase Index records the v1.1 execution path opened from the selected next-b
 Current execution resume state:
 
 - Milestone breakdown is accepted across all 8 v1.1 milestones.
-- Active task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status`.
-- Current gate: acceptance evidence complete; PR open/review gate.
+- Accepted task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status` via PR #934, merged at `547f869`.
+- Active task: `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-2-helper-credential-rotation-and-revoke`.
+- Current gate: tasking/four-piece and Dev design review before implementation; PR #935 was closed, so this task PR carries the task-1 acceptance-state remediation.
 
 ## Active Task Resume
 
 | Scope | Execution | Active task | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
-| `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status` | ACCEPTING | `task-1-helper-enrollment-model-and-status` | Dev | `.worktrees/task-1-helper-enrollment-model-and-status` / `feat/task-1-helper-enrollment-model-and-status` | #934 | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status/progress.md` |
+| `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status` | TASKING | `task-2-helper-credential-rotation-and-revoke` | Dev/Writer helper under Teamlead | `.worktrees/task-2-helper-credential-rotation-and-revoke` / `feat/task-2-helper-credential-rotation-and-revoke` | pending | none | `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-2-helper-credential-rotation-and-revoke/progress.md` |
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 
