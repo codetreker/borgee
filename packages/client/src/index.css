@@ -632,7 +632,64 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.sidebar-footer-secondary {
+  position: relative;
+  margin-left: auto;
+}
+
+.sidebar-footer-more-btn {
+  position: relative;
+}
+
+.sidebar-footer-more-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.sidebar-footer-secondary-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 178px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  z-index: 20;
+}
+
+.sidebar-footer-secondary-item {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-footer-secondary-item:hover {
+  background: var(--bg-sidebar-hover);
+}
+
+.sidebar-footer-secondary-item .unread-badge {
+  margin-left: auto;
 }
 
 .user-avatar-small {

@@ -11,7 +11,8 @@ Sidepane navigation belongs to the app shell and UI map. It chooses which global
 ## Interaction Model
 
 - The shell exposes one active main view at a time.
-- Sidepane buttons open settings, agents, invitations, all workspaces, or remote nodes.
+- Primary sidebar footer buttons open Agents, all workspaces, and Settings. The avatar remains the account identity signal until the account-panel task replaces it.
+- Secondary footer overflow actions open Invitations, Remote nodes, Helper status, or Logout while those surfaces still need a reachable shell entry.
 - A back or close action returns the shell to the selected channel view.
 - Feature surfaces that own local draft state can participate in unsaved-change guards before navigation changes.
 
@@ -26,11 +27,14 @@ Sidepane navigation belongs to the app shell and UI map. It chooses which global
 │                    │  Surface-specific content           │
 │ Direct messages    │                                    │
 │                    │                                    │
-│ [Settings]         │                                    │
-│ [Agents]           │                                    │
-│ [Invitations]      │                                    │
+│ [AV][Agents]       │                                    │
 │ [Workspaces]       │                                    │
-│ [Remote nodes]     │                                    │
+│ [Settings][More]   │                                    │
+│   More:            │                                    │
+│   Invitations      │                                    │
+│   Remote nodes     │                                    │
+│   Helper status    │                                    │
+│   Logout           │                                    │
 +────────────────────+────────────────────────────────────+
 ```
 
@@ -39,6 +43,7 @@ Sidepane navigation belongs to the app shell and UI map. It chooses which global
 - Sidepanes are not independent browser routes in the user SPA.
 - Sidepane selection is shell orchestration; durable feature data still belongs to each feature's REST rail.
 - This sketch maps to [../ui-map.md](../ui-map.md) and the app shell state boundary.
+- The overflow menu is not the account panel and not final Helper/Remote Nodes IA placement. It preserves reachability without merging credentials, grants, status, or enforcement rails.
 
 ## Related Docs
 

@@ -28,8 +28,10 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
   const canCreateChannel = useCan('channel.create');
   const [showCreate, setShowCreate] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showFooterMenu, setShowFooterMenu] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const footerMenuRef = useRef<HTMLDivElement>(null);
   const [newName, setNewName] = useState('');
   const [newTopic, setNewTopic] = useState('');
   const [creating, setCreating] = useState(false);
@@ -38,7 +40,7 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
   const [channelMembers, setChannelMembers] = useState<ChannelMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<number>(0);
 
-  // Poll pending agent-invitation count for the bell badge. Only owners
+  // Poll pending agent-invitation count for the footer badge. Only owners
   // (non-agent accounts) ever receive owner-side invitations, so we skip
   // polling for agent sessions. RT-0 (#40) keeps the 60s poll as a
   // belt-and-suspenders fallback (offline reconnect, missed frames),
@@ -102,6 +104,15 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
     return () => document.removeEventListener('mousedown', handler);
   }, [showAddMenu]);
 
+  useEffect(() => {
+    if (!showFooterMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (footerMenuRef.current && !footerMenuRef.current.contains(e.target as Node)) setShowFooterMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showFooterMenu]);
+
   const handleSelect = (channelId: string) => {
     actions.selectChannel(channelId);
     onChannelSelect?.();
@@ -142,8 +153,18 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      onLogout?.();
+    } catch {
+      window.location.reload();
+    }
+  };
+
   // Filter out DMs — sorting is handled by ChannelList component
   const nonDmChannels = state.channels.filter(c => c.type !== 'dm');
+  const pendingInvitationBadgeText = pendingInvitations > 99 ? '99+' : pendingInvitations;
 
   // Sort DMs by last message time
   const sortedDms = [...state.dmChannels].sort((a, b) => {
@@ -286,8 +307,8 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
       )}
 
       {state.currentUser && (
-        <div className="sidebar-footer">
-          <div className="current-user">
+        <div className="sidebar-footer" data-testid="sidebar-footer-primary">
+          <div className="current-user" data-testid="sidebar-footer-primary-actions">
             <div
               className="user-avatar-small"
               title={state.currentUser.display_name}
@@ -295,20 +316,6 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
             >
               {state.currentUser.display_name[0]?.toUpperCase()}
             </div>
-            <button
-              className="icon-btn logout-btn"
-              title="Logout"
-              onClick={async () => {
-                try {
-                  await logout();
-                  onLogout?.();
-                } catch {
-                  window.location.reload();
-                }
-              }}
-            >
-              ⏻
-            </button>
             {state.currentUser.role !== 'agent' && onAgentsOpen && (
               <button
                 className="icon-btn"
@@ -319,26 +326,6 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 🤖
               </button>
             )}
-            {state.currentUser.role !== 'agent' && onInvitationsOpen && (
-              <button
-                className="icon-btn invitations-btn"
-                title="Agent 邀请"
-                onClick={onInvitationsOpen}
-                style={{ position: 'relative' }}
-              >
-                🔔
-                {pendingInvitations > 0 && (
-                  <span
-                    className="unread-badge"
-                    data-testid="invitation-bell-badge"
-                    style={{ position: 'absolute', top: -2, right: -2 }}
-                    aria-label={`${pendingInvitations} 待处理邀请`}
-                  >
-                    {pendingInvitations > 99 ? '99+' : pendingInvitations}
-                  </span>
-                )}
-              </button>
-            )}
             {onWorkspacesOpen && (
               <button
                 className="icon-btn"
@@ -346,26 +333,6 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 onClick={onWorkspacesOpen}
               >
                 📂
-              </button>
-            )}
-            {state.currentUser.role !== 'agent' && onRemoteNodesOpen && (
-              <button
-                className="icon-btn"
-                title="Remote Nodes"
-                onClick={onRemoteNodesOpen}
-              >
-                🖥️
-              </button>
-            )}
-            {state.currentUser.role !== 'agent' && onHelperStatusOpen && (
-              <button
-                className="icon-btn"
-                title="Helper Status"
-                aria-label="Helper Status"
-                onClick={onHelperStatusOpen}
-                data-action="open-helper-status"
-              >
-                🩺
               </button>
             )}
             {state.currentUser.role !== 'agent' && onSettingsOpen && (
@@ -379,6 +346,105 @@ export default function Sidebar({ onClose, onChannelSelect, onLogout, onAgentsOp
                 ⚙️
               </button>
             )}
+            {(
+              state.currentUser.role !== 'agent' && (onInvitationsOpen || onRemoteNodesOpen || onHelperStatusOpen)
+            ) || onLogout ? (
+              <div className="sidebar-footer-secondary" ref={footerMenuRef}>
+                <button
+                  className="icon-btn sidebar-footer-more-btn"
+                  title="更多"
+                  aria-label="更多"
+                  data-testid="sidebar-footer-secondary-toggle"
+                  onClick={() => setShowFooterMenu(open => !open)}
+                >
+                  <span aria-hidden="true">⋯</span>
+                  {state.currentUser.role !== 'agent' && pendingInvitations > 0 && (
+                    <span
+                      className="unread-badge sidebar-footer-more-badge"
+                      data-testid="sidebar-footer-more-badge"
+                      aria-label={`${pendingInvitations} 待处理邀请`}
+                    >
+                      {pendingInvitationBadgeText}
+                    </span>
+                  )}
+                </button>
+                {showFooterMenu && (
+                  <div className="sidebar-footer-secondary-menu" data-testid="sidebar-footer-secondary-menu">
+                    {state.currentUser.role !== 'agent' && onInvitationsOpen && (
+                      <button
+                        type="button"
+                        className="sidebar-footer-secondary-item invitations-btn"
+                        title="Agent 邀请"
+                        data-testid="sidebar-secondary-invitations"
+                        onClick={() => {
+                          setShowFooterMenu(false);
+                          onInvitationsOpen();
+                        }}
+                      >
+                        <span>🔔</span>
+                        <span>Agent 邀请</span>
+                        {pendingInvitations > 0 && (
+                          <span
+                            className="unread-badge"
+                            data-testid="invitation-bell-badge"
+                            aria-label={`${pendingInvitations} 待处理邀请`}
+                          >
+                            {pendingInvitationBadgeText}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    {state.currentUser.role !== 'agent' && onRemoteNodesOpen && (
+                      <button
+                        type="button"
+                        className="sidebar-footer-secondary-item"
+                        title="Remote Nodes"
+                        data-testid="sidebar-secondary-remote-nodes"
+                        onClick={() => {
+                          setShowFooterMenu(false);
+                          onRemoteNodesOpen();
+                        }}
+                      >
+                        <span>🖥️</span>
+                        <span>Remote Nodes</span>
+                      </button>
+                    )}
+                    {state.currentUser.role !== 'agent' && onHelperStatusOpen && (
+                      <button
+                        type="button"
+                        className="sidebar-footer-secondary-item"
+                        title="Helper Status"
+                        aria-label="Helper Status"
+                        data-testid="sidebar-secondary-helper-status"
+                        data-action="open-helper-status"
+                        onClick={() => {
+                          setShowFooterMenu(false);
+                          onHelperStatusOpen();
+                        }}
+                      >
+                        <span>🩺</span>
+                        <span>Helper Status</span>
+                      </button>
+                    )}
+                    {onLogout && (
+                      <button
+                        type="button"
+                        className="sidebar-footer-secondary-item logout-btn"
+                        title="Logout"
+                        data-testid="sidebar-secondary-logout"
+                        onClick={() => {
+                          setShowFooterMenu(false);
+                          void handleLogout();
+                        }}
+                      >
+                        <span>⏻</span>
+                        <span>Logout</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       )}

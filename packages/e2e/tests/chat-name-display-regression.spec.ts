@@ -151,11 +151,12 @@ test.describe('bug-029 regression — invitation sanitizer ships display names',
     }]);
     await ownerPage.goto('/');
 
-    // Open the invitations inbox by clicking the bell. The badge appears
-    // because of the pending invitation; click the bell to mount the
-    // InvitationsInbox modal (Sidebar.tsx onClick={onInvitationsOpen}).
-    const badge = ownerPage.locator('[data-testid=invitation-bell-badge]');
+    // Open the invitations inbox through the sidebar footer More menu.
+    // The primary More badge appears because of the pending invitation;
+    // the secondary Invitations item mounts InvitationsInbox.
+    const badge = ownerPage.locator('[data-testid=sidebar-footer-more-badge]');
     await badge.waitFor({ state: 'visible', timeout: 5000 });
+    await ownerPage.locator('[data-testid=sidebar-footer-secondary-toggle]').click();
     await ownerPage.locator('button.invitations-btn').click();
 
     // Display names must render in the inbox; UUIDs must not.

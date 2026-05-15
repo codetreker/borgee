@@ -2,7 +2,7 @@
 //
 // 测试范围 (1 case):
 //   - requester POST /api/v1/agent_invitations 创建邀请
-//   - owner 浏览器 sidebar bell badge 从 0 个变为可见 (websocket 推 agent_invitation_pending 帧 → dispatchInvitationPending → Sidebar listener)
+//   - owner 浏览器 sidebar More badge 从 0 个变为可见 (websocket 推 agent_invitation_pending 帧 → dispatchInvitationPending → Sidebar listener)
 //   - latency 实测 ≤ 3s (硬性指标, 60s 轮询不算)
 //   - 截图证据存 docs/qa/screenshots/g2.4-realtime-latency.png 供 PM 出口闸用
 //
@@ -10,10 +10,10 @@
 //   - 蓝图: docs/blueprint/current/realtime.md (websocket push 走 agent_invitation_pending 帧)
 //   - 验收: docs/_archive/qa/acceptance-templates/cm-4.md (REG-RT0-008 / G2.4 latency proof)
 //   - 单测: server-side push hub (internal/ws/hub.go) Go 单元测覆盖路由逻辑
-//   - 客户端: useWebSocket switch + dispatchInvitationPending → Sidebar bell re-fetch
+//   - 客户端: useWebSocket switch + dispatchInvitationPending → Sidebar invitation-badge re-fetch
 //
 // 实施约束:
-//   - 真 UI: owner page.goto + page.locator('[data-testid=invitation-bell-badge]') + waitFor visible 是真浏览器路径
+//   - 真 UI: owner page.goto + page.locator('[data-testid=sidebar-footer-more-badge]') + waitFor visible 是真浏览器路径
 //   - REST seed: requester 端创建邀请没有 production UI 入口 (createAgentInvitation 仅在 lib/api.ts, 反向 grep 0 production caller), 用 REST 直调合规作 seed
 //   - INFRA-2 依赖: 双 server 编排 (server-go + vite) 已 ship
 //   - 不允许 fs.* / page.evaluate(fetch) / noop
@@ -30,7 +30,7 @@ const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
 
 test.describe('RT-0 invitation push latency (≤ 3s)', () => {
-  test('owner bell badge updates within 3s of POST /agent_invitations', async ({
+  test('owner More badge updates within 3s of POST /agent_invitations', async ({
     browser,
     baseURL,
   }, testInfo) => {
@@ -105,7 +105,7 @@ test.describe('RT-0 invitation push latency (≤ 3s)', () => {
     }]);
     await ownerPage.goto('/');
 
-    const badge = ownerPage.locator('[data-testid=invitation-bell-badge]');
+    const badge = ownerPage.locator('[data-testid=sidebar-footer-more-badge]');
     await expect(badge).toHaveCount(0);
 
     const sw = stopwatch();
