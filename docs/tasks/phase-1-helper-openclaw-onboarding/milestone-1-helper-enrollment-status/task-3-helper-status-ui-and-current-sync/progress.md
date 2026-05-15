@@ -8,8 +8,8 @@
 | Branch | `feat/task-3-helper-status-ui-and-current-sync` |
 | PR | none; do not open during task-prep |
 | Owner | Dev/Writer helper under Teamlead |
-| State | TASKING-PREP |
-| Blocker | Waiting for task 2 shared state remediation/rebase before PR finalization if shared task index, milestone state, or blueprint-next README changes are needed |
+| State | READY_FOR_IMPL |
+| Blocker | Implementation intentionally waiting on Teamlead dispatch and shared-state coordination after task 2 |
 
 ## Checkpoints
 
@@ -18,7 +18,7 @@
 - [x] Four-piece baseline created: `spec.md`, `stance.md`, `acceptance.md`
 - [x] Implementation design drafted for design review
 - [x] `content-lock.md` decision recorded
-- [ ] Design reviewed by Teamlead/roles
+- [x] Design reviewed by Teamlead/roles
 - [ ] TDD RED tests written after dispatch
 - [ ] Implementation complete after dispatch
 - [ ] `docs/current` sync checked or no-op rationale recorded after implementation
@@ -34,6 +34,7 @@
 | Read-only exploration | Checked `packages/client`, `packages/server-go`, `docs/current`, and blueprint anchors for Helper status/API/UI placement patterns | PASS |
 | Four-piece baseline | Created `spec.md`, `stance.md`, and `acceptance.md` under the task 3 directory | PASS |
 | Design draft | Created `design.md` covering UI/API flow, connected/offline/last-seen/revoked/uninstalled, allowed categories, OpenClaw-success avoidance, docs/current targets, edge cases, alternatives, and privacy/security review points | PASS |
+| Design gate | Reviews complete: ARCHITECT_LGTM, PM_DESIGN_LGTM, QA_LGTM, SECURITY_LGTM; task state moved to READY_FOR_IMPL | PASS |
 | Content lock decision | No `content-lock.md` created during task-prep because exact UI copy and DOM literals are not chosen yet; design requires creating it later only if review locks exact copy/selectors | PASS |
 | Shared state avoidance | Did not edit `AGENTS.md`, `docs/tasks/README.md`, `milestone.md`, or `docs/blueprint/next/README.md` | PASS |
 | Doc hygiene | `git add -N docs/tasks/phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-3-helper-status-ui-and-current-sync/{spec.md,stance.md,acceptance.md,design.md,progress.md} && git diff --check` completed with no output | PASS |
@@ -41,7 +42,7 @@
 ## Blockers And Coordination Notes
 
 - Task 2 is running in a separate worktree and owns shared process/state repair files for now. Task 3 PR finalization should wait for task 2 remediation/rebase if acceptance state, task index, milestone state, or shared README updates become necessary.
-- Production implementation is blocked on Teamlead/design review. Code work must begin later with TDD RED tests.
+- Design gate passed; production implementation is intentionally waiting on Teamlead dispatch and shared-state coordination after task 2. Code work must begin later with TDD RED tests.
 - `content-lock.md` is intentionally absent until the UI copy/DOM selectors are selected during review or implementation design refinement.
 
 ## Planned Current-Doc Sync Review Targets
