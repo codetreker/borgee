@@ -8,7 +8,7 @@
 | Branch | `feat/task-1-job-envelope-and-enqueue-authority` |
 | PR | not opened |
 | Owner | Blueprintflow tasking worker under Teamlead |
-| State | TASKING |
+| State | READY_FOR_DESIGN_REVIEW |
 | Blocker | none; Phase 1 milestone 1 is accepted through PR #934, PR #936, and PR #937. |
 
 ## Checkpoints
@@ -19,7 +19,7 @@
 - [x] Shared Blueprintflow state refreshed for milestone 1 accepted and milestone 2 task 1 unlocked
 - [x] Four-piece task-start docs created: `spec.md`, `stance.md`, `acceptance.md`, `progress.md`
 - [x] `content-lock.md` checked N/A because task-start scope has no UI copy, DOM selectors, or product-facing content literals
-- [ ] Dev design drafted for review
+- [x] Dev design drafted for review
 - [ ] Dev design reviewed
 - [ ] TDD RED tests written before implementation
 - [ ] Product implementation complete
@@ -41,6 +41,8 @@
 | Milestone 2 unlock | Refreshed milestone 2 task index so task 1 is `TASKING` and no longer blocked by milestone 1 | PASS |
 | Four-piece | Created task-start `spec.md`, `stance.md`, and `acceptance.md`; this file records progress | PASS |
 | Product code | No product code changes made in task-start commit scope | PASS |
+| Dev inventory | Reviewed Helper enrollment API, datalayer, store queries, migration registry, route wiring, tests, and current docs; highest current migration is v50, so design reserves likely v51 with re-check instruction | PASS |
+| Security pre-scan | Design records user-rail-only enqueue, strict typed JSON validation, closed job taxonomy, category mapping, idempotency/TTL, redaction, and explicit non-goals for poll/lease/result/execution/UI | PASS |
 
 ## Scope Locks
 
@@ -49,4 +51,4 @@
 
 ## Acceptance State
 
-Task-start/four-piece prep is ready for review. Product implementation has not started and this task is not accepted until Dev design, TDD, implementation, verification, docs/current sync decision, PR review, and merge complete.
+Dev design is ready for review in `design.md`. Product implementation has not started and this task is not accepted until design review, TDD, implementation, verification, docs/current sync, PR review, and merge complete.
