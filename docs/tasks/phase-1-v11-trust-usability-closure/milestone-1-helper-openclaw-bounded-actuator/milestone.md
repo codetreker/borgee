@@ -32,7 +32,7 @@ Rejected by this milestone:
 | Helper status UI and current sync | ACCEPTED | `task-3-helper-status-ui-and-current-sync` | PR #937 (`2872905`) | complete |
 | Job envelope and enqueue authority | ACCEPTED | `task-4-job-envelope-and-enqueue-authority` | PR #938 (`64d56f1`) | complete |
 | Helper outbound service prerequisites | ACCEPTED | `task-5-helper-outbound-service-prereq` | PR #939 (`96dc0dc`) | complete |
-| Helper pull / lease / result | READY | `task-6-helper-pull-lease-result` | After PR #939 | yes, with local policy if file ownership is clean |
+| Helper pull / lease / result | TASKING | `task-6-helper-pull-lease-result` | After PR #939; task-start/four-piece in progress | yes, with local policy if file ownership is clean |
 | Local policy / manifest / sandbox profile | READY | `task-7-local-policy-manifest-and-sandbox-profile` | After PR #939 | yes, with pull/lease/result if file ownership is clean |
 | Bounded status logs and revoke settlement | BLOCKED | `task-8-bounded-status-logs-and-revoke-settlement` | After pull/lease/result and local policy | no |
 | OpenClaw install and agent config jobs | BLOCKED | `task-9-openclaw-install-and-agent-config-jobs` | After typed job/policy substrate | no |
@@ -40,7 +40,7 @@ Rejected by this milestone:
 | Service lifecycle reliability | BLOCKED | `task-11-service-lifecycle-boot-crash` | After typed job/policy substrate | yes, after dependency clears |
 | Configure OpenClaw terminal UI | BLOCKED | `task-12-configure-openclaw-terminal-ui` | After install/config, binding, and lifecycle work | no |
 
-Next execution should start from the two READY tasks when Teamlead confirms disjoint write ownership. If only one task can be dispatched first, use `task-6-helper-pull-lease-result` as the first resume point because terminal settlement depends on the pull/lease/result contract.
+Current execution is task-start/four-piece review for `task-6-helper-pull-lease-result`. `task-7-local-policy-manifest-and-sandbox-profile` remains READY and may proceed in parallel if Teamlead confirms disjoint write ownership. Terminal settlement remains blocked until both pull/lease/result and local policy/manifest/sandbox work are accepted.
 
 ## Exit Gates
 

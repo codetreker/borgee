@@ -13,15 +13,15 @@ The legacy `681-remote-agent-openclaw/` folder remains intake history and is not
 Current execution resume state:
 
 - Phase/Milestone structure is replanned into one active Phase with three coarse milestones.
-- Accepted history is preserved and remapped: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`) remain accepted work.
-- Milestone 1 is active. Next ready work is the Helper/OpenClaw bounded actuator continuation after PR #939: `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result` and `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile` may start in parallel if file ownership/conflict risk is manageable.
-- Current gate: task-start/four-piece review for the next ready Helper/OpenClaw tasks. Product implementation has not started for those remaining tasks.
+- Accepted history is preserved and remapped: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), PR #939 (`96dc0dc`), and PR #942 (`642fb57`) remain accepted work.
+- Milestone 1 is active. Task 6 `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result` is in PR #943 verification from a dedicated worktree; task 7 `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile` is accepted through PR #942.
+- Current gate: task 6 PR CI/review and merge. Task 8 remains blocked until task 6 is accepted.
 
 ## Active Task Resume
 
 | Scope | Execution | Next task(s) | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
-| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | TASK_READY | `task-6-helper-pull-lease-result`; `task-7-local-policy-manifest-and-sandbox-profile` | Blueprintflow tasking workers under Teamlead | create one worktree/branch per task | not opened | none | See canonical milestone task index and accepted history |
+| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | `task-6-helper-pull-lease-result` PR #943 in verification; task 8 blocked until task 6 accepted | Blueprintflow tasking workers under Teamlead | `.worktrees/task-6-helper-pull-lease-result` / `feat/task-6-helper-pull-lease-result` | #943 | CI re-run after current-main rebase | See task 6 `progress.md`, canonical milestone task index, and accepted history |
 | `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | ACCEPTING | `task-3-security-permission-surface-reachability` | owner worker | `.worktrees/m3-task3-settings-permissionsview-reachability` / `feat/m3-task3-settings-permissionsview-reachability` | #944 | none | `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation/task-3-security-permission-surface-reachability/progress.md` |
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-1-requiremention-policy-model` | Blueprintflow owner worker | `.worktrees/task-1-requiremention-policy-model` / `feat/task-1-requiremention-policy-model` | not opened | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-1-requiremention-policy-model/progress.md` |
 
@@ -29,7 +29,7 @@ Current execution resume state:
 
 | Canonical milestone | Status | Task-detail source | Resume notes |
 |---|---|---|---|
-| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | Canonical task homes `task-1-helper-enrollment-model-and-status` through `task-12-configure-openclaw-terminal-ui` | Accepted work through PR #934, #936, #937, #938, and #939 is preserved in `accepted-history.md` and the accepted task folders. Continue with pull/lease/result and local policy/manifest/sandbox tasks before terminal settlement and Configure OpenClaw closure. |
+| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | Canonical task homes `task-1-helper-enrollment-model-and-status` through `task-12-configure-openclaw-terminal-ui` | Accepted work through PR #934, #936, #937, #938, #939, and #942 is preserved in `accepted-history.md` and the accepted task folders. Continue with task 6 pull/lease/result acceptance before terminal settlement and Configure OpenClaw closure. |
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | PLANNED | Canonical task homes `task-1-requiremention-policy-model` through `task-9-sidebar-state-collision-regression` | The former channel-control execution slot is now one milestone covering requireMention policy, `@Everyone`, client mention controls, channel management, allowed-action rules, authority checks, private indicator treatment, and sidebar state collision regression. |
 | `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | PLANNED | Canonical task homes `task-1-artifactcomments-production-mount` through `task-7-helper-remote-nodes-entry-placement` | The former client-truth/navigation execution slot is now one milestone covering production client truthfulness, forbidden-state UX, Settings PermissionsView reachability, reverse proof, sidebar/footer IA, avatar/logout, and Helper/Remote Nodes placement. |
 
