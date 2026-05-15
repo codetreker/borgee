@@ -4,16 +4,17 @@
 
 | Phase | Status | Exit condition | Current milestone |
 |---|---|---|---|
-| Phase 1: Helper / OpenClaw Onboarding | PLANNED | A user can enroll Helper once, configure OpenClaw from Web, see truthful status/logs, and revoke the delegation without merging Helper and Remote Agent rails | `milestone-1-helper-enrollment-status` |
-| Phase 2: Collaboration Channel Control | PLANNED | A user can control agent attention and channel membership/authority without hidden fanout, confusing leave actions, or overloaded private-channel indicators | `milestone-1-mention-delivery-controls` |
-| Phase 3: Client Truth And Navigation | PLANNED | Production-visible surfaces are reachable and forbidden states are truthful, while account/sidebar IA exposes the right primary entries without expanding privacy/compliance product scope | `milestone-1-production-surface-truthfulness` |
+| Phase 1: Helper / OpenClaw Onboarding | TASK_SET_READY | A user can enroll Helper once, configure OpenClaw from Web, see truthful status/logs, and revoke the delegation without merging Helper and Remote Agent rails | `milestone-1-helper-enrollment-status` |
+| Phase 2: Collaboration Channel Control | TASK_SET_READY | A user can control agent attention and channel membership/authority without hidden fanout, confusing leave actions, or overloaded private-channel indicators | `milestone-1-mention-delivery-controls` |
+| Phase 3: Client Truth And Navigation | TASK_SET_READY | Production-visible surfaces are reachable and forbidden states are truthful, while account/sidebar IA exposes the right primary entries without expanding privacy/compliance product scope | `milestone-1-production-surface-truthfulness` |
 
 This Phase Index records the v1.1 execution path opened from the selected next-blueprint anchors. The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work.
 
-Current planning resume state:
+Current breakdown resume state:
 
-- Phase plan redo is the active planning step. No task skeletons are ready for execution yet.
-- Next step after this phase plan is accepted: run one milestone-breakdown PR across all v1.1 milestones when feasible, with real task skeletons under each milestone. If dependency order requires staging, record the reason before splitting the breakdown PR.
+- Milestone breakdown is reviewed across all 8 v1.1 milestones. This task set creates `task.md` skeletons only; it does not start task execution or create four-piece/design/progress files.
+- Reviewed task skeleton count: 28. The only unblocked first task is `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status/task-1-helper-enrollment-model-and-status` until later milestone dependencies clear.
+- Next step after this breakdown PR is accepted: route that first ready task to `bf-task-execute`.
 
 每个 milestone 或 issue 一个文件夹. spec / design / acceptance / regression / progress 都放在同一文件夹里.
 
@@ -25,11 +26,11 @@ Current planning resume state:
 
 ## 文件夹里放什么
 
-按需要选, 不强制四件套:
+Milestone breakdown 只创建 `task.md` skeleton。下面这些文件在具体 task 进入 `bf-task-execute` 后按需要创建，不在 breakdown PR 里预生成:
 
 | 文件 | 什么时候要 |
 |---|---|
-| `spec.md` | 任何 task 都要 — 写要做什么 / 不做什么 / 边界 |
+| `spec.md` | task 开始后创建 — 写要做什么 / 不做什么 / 边界 |
 | `design.md` | 实施前的技术方案 (改哪里 / 怎么改) |
 | `acceptance.md` | 验收清单 (用户能看到的行为) |
 | `regression.md` | 跨 milestone 长期回归项 (如果有) |
