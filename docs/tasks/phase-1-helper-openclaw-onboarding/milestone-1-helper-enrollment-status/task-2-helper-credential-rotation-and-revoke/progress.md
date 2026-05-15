@@ -8,8 +8,8 @@
 | Branch | `feat/task-2-helper-credential-rotation-and-revoke` |
 | PR | #936 |
 | Owner | Dev/Writer helper under Teamlead |
-| State | READY_FOR_PR |
-| Blocker | none; refreshed coverage gate passes with task-owned helper store and migration coverage fixes. |
+| State | ACCEPTED |
+| Blocker | none; PR #936 merged at `1ca5f95`. |
 
 Review note: Design gate returned ARCHITECT_LGTM, PM_LGTM, SECURITY_LGTM, and QA_LGTM_REFRESH after the QA_BLOCKED patch that added positive post-rotation authority coverage for the new rotated credential plus same device.
 
@@ -79,7 +79,7 @@ PR #935 was closed before landing the shared task-1 acceptance-state cleanup. Th
 
 ## Acceptance State
 
-Task 2 implementation is READY_FOR_PR. It is not marked accepted until PR review and merge complete.
+Task 2 is accepted through PR #936, merged at `1ca5f95`. Phase 1 milestone 1 credential lifecycle/revoke authority state is no longer pending.
 
 ## Acceptance Evidence
 
