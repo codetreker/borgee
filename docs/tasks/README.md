@@ -8,26 +8,26 @@
 
 This one-phase index supersedes the earlier v1.1 `3 phases / 8 milestones` shape. A new Phase must now require a real prerequisite boundary, integration boundary, or downstream coordination reason. The prior channel-control and client-truth slices were execution slots, not dependency or integration boundaries; the prior Helper/OpenClaw milestones were one prerequisite chain toward the same user-facing Helper/OpenClaw loop. Coarser Phase/Milestone structure is authoritative for new execution.
 
-The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work. The prior `phase-1-helper-openclaw-onboarding/` folder remains accepted task history and the retained task-detail home for remapped Helper/OpenClaw tasks. The unexecuted channel-control and client-truth task skeletons now live only under the canonical milestones in `phase-1-v11-trust-usability-closure/`; their former phase folders were removed to avoid presenting multiple active phases.
+The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work. Accepted Helper/OpenClaw task docs and the remaining unexecuted Helper/OpenClaw skeletons now live under the canonical Milestone 1 directory in `phase-1-v11-trust-usability-closure/`. The unexecuted channel-control and client-truth task skeletons also live only under the canonical milestones in `phase-1-v11-trust-usability-closure/`; their former phase folders were removed to avoid presenting multiple active phases.
 
 Current execution resume state:
 
 - Phase/Milestone structure is replanned into one active Phase with three coarse milestones.
 - Accepted history is preserved and remapped: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`) remain accepted work.
-- Milestone 1 is active. Next ready work is the Helper/OpenClaw bounded actuator continuation after PR #939: `task-3-helper-pull-lease-result` and `task-4-local-policy-manifest-and-sandbox-profile` may start in parallel if file ownership/conflict risk is manageable.
+- Milestone 1 is active. Next ready work is the Helper/OpenClaw bounded actuator continuation after PR #939: `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result` and `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile` may start in parallel if file ownership/conflict risk is manageable.
 - Current gate: task-start/four-piece review for the next ready Helper/OpenClaw tasks. Product implementation has not started for those remaining tasks.
 
 ## Active Task Resume
 
 | Scope | Execution | Next task(s) | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
-| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | TASK_READY | `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-3-helper-pull-lease-result`; `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-4-local-policy-manifest-and-sandbox-profile` | Blueprintflow tasking workers under Teamlead | create one worktree/branch per task | not opened | none | See canonical milestone mapping below and retained task folders |
+| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | TASK_READY | `task-6-helper-pull-lease-result`; `task-7-local-policy-manifest-and-sandbox-profile` | Blueprintflow tasking workers under Teamlead | create one worktree/branch per task | not opened | none | See canonical milestone task index and accepted history |
 
 ## Canonical v1.1 Milestone Mapping
 
 | Canonical milestone | Status | Task-detail source | Resume notes |
 |---|---|---|---|
-| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | `phase-1-helper-openclaw-onboarding/milestone-1-helper-enrollment-status`; `phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop`; `phase-1-helper-openclaw-onboarding/milestone-3-configure-openclaw-closure` | Accepted work through PR #934, #936, #937, #938, and #939 is preserved. Continue with pull/lease/result and local policy/manifest/sandbox tasks before terminal settlement and Configure OpenClaw closure. |
+| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | IMPLEMENTING | Canonical task homes `task-1-helper-enrollment-model-and-status` through `task-12-configure-openclaw-terminal-ui` | Accepted work through PR #934, #936, #937, #938, and #939 is preserved in `accepted-history.md` and the accepted task folders. Continue with pull/lease/result and local policy/manifest/sandbox tasks before terminal settlement and Configure OpenClaw closure. |
 | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | PLANNED | Canonical task homes `task-1-requiremention-policy-model` through `task-9-sidebar-state-collision-regression` | The former channel-control execution slot is now one milestone covering requireMention policy, `@Everyone`, client mention controls, channel management, allowed-action rules, authority checks, private indicator treatment, and sidebar state collision regression. |
 | `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | PLANNED | Canonical task homes `task-1-artifactcomments-production-mount` through `task-7-helper-remote-nodes-entry-placement` | The former client-truth/navigation execution slot is now one milestone covering production client truthfulness, forbidden-state UX, Settings PermissionsView reachability, reverse proof, sidebar/footer IA, avatar/logout, and Helper/Remote Nodes placement. |
 

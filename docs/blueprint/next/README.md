@@ -69,7 +69,7 @@ Locked planning scope carried into milestone breakdown and task-level Dev design
 - Service permissions: allowed service manager operations, long-lived service privilege level, restart/crash-recovery boundaries, and install-time privilege handoff.
 - Exact queue/lease/result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server/helper clock authority.
 
-`docs/tasks/681-remote-agent-openclaw/` is a legacy intake folder. The v1.1 canonical execution grouping is now the coarse Phase 1 plan under `docs/tasks/phase-1-v11-trust-usability-closure/`. The old `phase-1-helper-openclaw-onboarding/` task folders remain retained task history and execution homes for their remapped Helper/OpenClaw tasks.
+`docs/tasks/681-remote-agent-openclaw/` is a legacy intake folder. The v1.1 canonical execution grouping is now the coarse Phase 1 plan under `docs/tasks/phase-1-v11-trust-usability-closure/`. Accepted Helper/OpenClaw task artifacts and the remaining Helper/OpenClaw skeletons now live under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
 
 ### §2.3 `MR-1` Mention routing
 
@@ -147,4 +147,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Continue the canonical Phase 1 Milestone 1 Helper/OpenClaw loop from the next ready tasks after PR #939. Accepted history remains: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`). The next ready old-path tasks are `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-3-helper-pull-lease-result/` and `docs/tasks/phase-1-helper-openclaw-onboarding/milestone-2-typed-job-policy-loop/task-4-local-policy-manifest-and-sandbox-profile/`; they may start in parallel if file ownership/conflict risk is manageable. Product implementation has not started for those remaining tasks.
+Continue the canonical Phase 1 Milestone 1 Helper/OpenClaw loop from the next ready tasks after PR #939. Accepted history remains: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), and PR #939 (`96dc0dc`). The next ready canonical tasks are `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result/` and `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile/`; they may start in parallel if file ownership/conflict risk is manageable. Product implementation has not started for those remaining tasks.

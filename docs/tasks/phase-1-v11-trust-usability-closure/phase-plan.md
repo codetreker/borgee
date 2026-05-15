@@ -24,7 +24,7 @@ The previous v1.1 shape split selected work into three Phases and eight mileston
 
 - The prior Helper/OpenClaw milestones were one prerequisite chain toward one user-facing Helper/OpenClaw loop, so they are now one coarse milestone.
 - The prior channel-control and client-truth slices were execution slots, not dependency or integration boundaries, so they are now coarse milestones inside the same active Phase.
-- The unexecuted former channel-control and client-truth phase folders were removed; their task skeletons now live under the canonical Milestone 2 and Milestone 3 directories.
+- The former Helper/OpenClaw phase directory and the unexecuted former channel-control and client-truth phase folders were removed; their accepted task artifacts and unexecuted task skeletons now live under the canonical Milestone 1, Milestone 2, and Milestone 3 directories.
 - A new Phase must not be opened casually. It needs a real prerequisite boundary, integration boundary, or downstream integration/coordination reason.
 
 ## Boundary
@@ -65,7 +65,7 @@ Accepted work remains accepted and is remapped into Milestone 1:
 | #938 | `64d56f1` | Helper job envelope and enqueue authority | Milestone 1 |
 | #939 | `96dc0dc` | Helper outbound service prerequisites | Milestone 1 |
 
-The existing old task folders remain the task-detail source of record. This canonical Phase doc owns grouping and resume direction.
+Accepted task docs and progress now live under `milestone-1-helper-openclaw-bounded-actuator/task-1-helper-enrollment-model-and-status` through `task-5-helper-outbound-service-prereq`, with the summary in `milestone-1-helper-openclaw-bounded-actuator/accepted-history.md`. Remaining Helper/OpenClaw skeletons live under `task-6` through `task-12` in the same canonical milestone. This canonical Phase doc owns grouping and resume direction.
 
 ## Exit Gates
 
