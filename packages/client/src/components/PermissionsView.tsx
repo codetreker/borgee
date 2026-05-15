@@ -27,10 +27,17 @@ interface MePermissionsResponse {
   capabilities?: string[];
 }
 
+class PermissionsFetchError extends Error {
+  constructor(public status: number, path: string) {
+    super(`fetch ${path}: ${status}`);
+    this.name = 'PermissionsFetchError';
+  }
+}
+
 async function fetchPermissions(path: string): Promise<MePermissionsResponse> {
   const res = await fetch(path, { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(`fetch ${path}: ${res.status}`);
+    throw new PermissionsFetchError(res.status, path);
   }
   return (await res.json()) as MePermissionsResponse;
 }
@@ -43,13 +50,19 @@ async function fetchPermissions(path: string): Promise<MePermissionsResponse> {
 export function PermissionsView({ entries, fetchPath = '/api/v1/me/permissions' }: PermissionsViewProps) {
   const [resolved, setResolved] = useState<PermissionEntry[] | null>(entries ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     if (entries) {
       setResolved(entries);
+      setError(null);
+      setForbidden(false);
       return;
     }
     let cancelled = false;
+    setResolved(null);
+    setError(null);
+    setForbidden(false);
     fetchPermissions(fetchPath)
       .then((data) => {
         if (cancelled) return;
@@ -57,6 +70,11 @@ export function PermissionsView({ entries, fetchPath = '/api/v1/me/permissions' 
       })
       .catch((e) => {
         if (cancelled) return;
+        if (e instanceof PermissionsFetchError && (e.status === 401 || e.status === 403)) {
+          setResolved(null);
+          setForbidden(true);
+          return;
+        }
         setError(e instanceof Error ? e.message : String(e));
       });
     return () => {
@@ -64,6 +82,13 @@ export function PermissionsView({ entries, fetchPath = '/api/v1/me/permissions' 
     };
   }, [entries, fetchPath]);
 
+  if (forbidden) {
+    return (
+      <div data-ap2-forbidden="true" role="alert">
+        无权查看授权
+      </div>
+    );
+  }
   if (error) {
     return (
       <div data-ap2-error="true" role="alert">

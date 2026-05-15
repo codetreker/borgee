@@ -35,22 +35,35 @@ interface ArtifactCommentsProps {
   artifactId: string;
 }
 
+type CommentListState = 'loading' | 'ready' | 'forbidden' | 'unavailable';
+
+function isForbiddenError(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403);
+}
+
 export default function ArtifactComments({ artifactId }: ArtifactCommentsProps) {
   const [comments, setComments] = useState<ArtifactComment[]>([]);
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [listState, setListState] = useState<CommentListState>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     try {
       const out = await listArtifactComments(artifactId);
       setComments(out.comments ?? []);
-    } catch {
-      // silent — list path is best-effort; WS push will retry on next frame.
+      setListState('ready');
+    } catch (err) {
+      setComments([]);
+      setListState(isForbiddenError(err) ? 'forbidden' : 'unavailable');
     }
   }, [artifactId]);
 
   useEffect(() => {
+    setComments([]);
+    setBody('');
+    setErrorMessage(null);
+    setListState('loading');
     void refetch();
   }, [refetch]);
 
@@ -77,17 +90,46 @@ export default function ArtifactComments({ artifactId }: ArtifactCommentsProps) 
       setBody('');
       await refetch();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setErrorMessage(err.message || 'failed');
-      } else if (err instanceof Error) {
-        setErrorMessage(err.message);
+      if (isForbiddenError(err)) {
+        setComments([]);
+        setListState('forbidden');
       } else {
-        setErrorMessage('failed');
+        setErrorMessage('Comment could not be posted.');
       }
     } finally {
       setSubmitting(false);
     }
   }, [artifactId, body, refetch]);
+
+  if (listState === 'loading') {
+    return (
+      <div className="cv5-artifact-comments" data-testid="cv5-artifact-comments">
+        <div className="cv5-artifact-comments-state" data-cv5-loading="true">
+          Loading comments...
+        </div>
+      </div>
+    );
+  }
+
+  if (listState === 'forbidden') {
+    return (
+      <div className="cv5-artifact-comments" data-testid="cv5-artifact-comments">
+        <div className="cv5-artifact-comments-state" data-cv5-forbidden="true" role="alert">
+          You do not have access to these comments.
+        </div>
+      </div>
+    );
+  }
+
+  if (listState === 'unavailable') {
+    return (
+      <div className="cv5-artifact-comments" data-testid="cv5-artifact-comments">
+        <div className="cv5-artifact-comments-state" data-cv5-unavailable="true" role="alert">
+          Comments are unavailable right now.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cv5-artifact-comments" data-testid="cv5-artifact-comments">
