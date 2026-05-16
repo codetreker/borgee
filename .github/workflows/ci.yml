@@ -38,10 +38,18 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter @borgee/client
       - run: pnpm --filter @borgee/client test
 
-  go-test-race:
+  go-test-race-shard:
+    name: go-test-race (${{ matrix.group }})
     # CI-SPLIT-RACE-COV: race-only job, no coverage. Pure data-race signal —
-    # fail-fast for goroutine bugs without coverage's race-flake.
+    # fail-fast for goroutine bugs without coverage's race-flake. The main race
+    # suite is split by package group so CI still runs the same `./...` package
+    # set under -race, but the dominant internal/api package no longer serializes
+    # every other package behind it.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [api, rest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -50,6 +58,23 @@ jobs:
           cache-dependency-path: packages/server-go/go.sum
       - name: Install dependencies
         run: cd packages/server-go && go mod download
+      - name: Resolve race package group
+        run: |
+          cd packages/server-go
+          case "${{ matrix.group }}" in
+            api)
+              go list -tags sqlite_fts5 ./internal/api > /tmp/go-race-packages.txt
+              ;;
+            rest)
+              go list -tags sqlite_fts5 ./... | grep -v '^borgee-server/internal/api$' > /tmp/go-race-packages.txt
+              ;;
+            *)
+              echo "unknown race group: ${{ matrix.group }}" >&2
+              exit 1
+              ;;
+          esac
+          test -s /tmp/go-race-packages.txt
+          cat /tmp/go-race-packages.txt
       - name: Run tests with race detector (no coverage)
         # CI race budget: keep this 180s timeout byte-identical with the
         # go-test-race-heavy sub-job. Issue #649 showed the previous 120s
@@ -61,7 +86,16 @@ jobs:
         # Coverage quality is not hidden by this timeout. Coverage thresholds
         # are enforced by go-test-cov, while race regressions remain visible
         # through stack dumps, data-race reports, and overall job runtime.
-        run: cd packages/server-go && go test -tags sqlite_fts5 -timeout=180s -race ./...
+        run: cd packages/server-go && xargs go test -tags sqlite_fts5 -timeout=180s -race < /tmp/go-race-packages.txt
+
+  go-test-race:
+    # Required-check compatibility wrapper for the sharded race suite. The two
+    # go-test-race-shard matrix jobs carry the actual -race signal; this job only
+    # succeeds after both package groups have passed.
+    runs-on: ubuntu-latest
+    needs: go-test-race-shard
+    steps:
+      - run: echo "go-test-race shards passed"
 
   go-test-race-heavy:
     # TEST-FIX-3: isolated race-heavy sub-job for files guarded by the
