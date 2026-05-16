@@ -75,10 +75,12 @@ func TestConfigLoad(t *testing.T) {
 	os.Setenv("NODE_ENV", "development")
 	os.Setenv("PORT", "5000")
 	os.Setenv("ADMIN_USER", "root")
+	os.Setenv("SQLITE_TXLOCK", "immediate")
 	t.Cleanup(func() {
 		os.Unsetenv("NODE_ENV")
 		os.Unsetenv("PORT")
 		os.Unsetenv("ADMIN_USER")
+		os.Unsetenv("SQLITE_TXLOCK")
 	})
 
 	cfg, err := Load()
@@ -93,6 +95,9 @@ func TestConfigLoad(t *testing.T) {
 	}
 	if cfg.AdminUser != "root" {
 		t.Fatalf("expected admin user root, got %s", cfg.AdminUser)
+	}
+	if cfg.SQLiteTxLock != "immediate" {
+		t.Fatalf("expected sqlite txlock immediate, got %q", cfg.SQLiteTxLock)
 	}
 }
 

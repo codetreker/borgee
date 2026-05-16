@@ -62,3 +62,11 @@ func TestSQLiteDSNWithPragmas(t *testing.T) {
 		t.Fatal("existing query DSN should append pragmas with &")
 	}
 }
+
+func TestSQLiteDSNWithOptionsAddsTxLock(t *testing.T) {
+	t.Parallel()
+	got := sqliteDSNWithOptions("data/collab.db", OpenOptions{TxLock: "immediate"})
+	if !strings.Contains(got, "_txlock=immediate") {
+		t.Fatalf("DSN %q missing txlock option", got)
+	}
+}

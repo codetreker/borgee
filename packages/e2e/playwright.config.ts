@@ -46,6 +46,9 @@ const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
 // Server-go opens the sqlite file directly (no auto-mkdir), so we have
 // to materialize the dir before webServer boots.
 const dataDir = path.join(__dirname, '.playwright-data');
+if (process.env.CI && process.env.TEST_WORKER_INDEX === undefined) {
+  fs.rmSync(dataDir, { recursive: true, force: true });
+}
 fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
 fs.mkdirSync(path.join(dataDir, 'workspaces'), { recursive: true });
 
@@ -101,6 +104,7 @@ export default defineConfig({
         NODE_ENV: 'development',
         DEV_AUTH_BYPASS: 'false',
         DATABASE_PATH: path.join(dataDir, 'collab-e2e.db'),
+        SQLITE_TXLOCK: 'immediate',
         UPLOAD_DIR: path.join(dataDir, 'uploads'),
         WORKSPACE_DIR: path.join(dataDir, 'workspaces'),
         CLIENT_DIST: path.join(repoRoot, 'packages/client/dist'),

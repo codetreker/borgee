@@ -194,15 +194,19 @@ func (h *Hub) BroadcastToChannel(channelID string, payload any, exclude *Client)
 	if err != nil {
 		return
 	}
+	var recipients []*Client
 	h.mu.RLock()
-	defer h.mu.RUnlock()
 	for c := range h.clients {
 		if c == exclude {
 			continue
 		}
 		if c.IsSubscribed(channelID) {
-			c.Send(data)
+			recipients = append(recipients, c)
 		}
+	}
+	h.mu.RUnlock()
+	for _, c := range recipients {
+		c.SendReliable(data)
 	}
 }
 

@@ -33,7 +33,10 @@ func main() {
 	}
 	logger := slog.New(handler)
 
-	s, err := store.Open(cfg.DatabasePath)
+	s, err := store.OpenWithOptions(cfg.DatabasePath, store.OpenOptions{
+		MaxOpenConns: cfg.SQLiteMaxOpenConns,
+		TxLock:       cfg.SQLiteTxLock,
+	})
 	if err != nil {
 		logger.Error("failed to open database", "error", err)
 		os.Exit(1)

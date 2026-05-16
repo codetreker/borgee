@@ -83,16 +83,27 @@ async function attachToken(page: Page, baseURL: string, token: string) {
   }]);
 }
 
-// installWsCapture wraps `window.WebSocket` so each constructed
-// instance is stashed at `window.__lastWS`. Tests use this to force a
+// installWsCapture wraps `window.WebSocket` so the currently-open
+// instance is stashed at `window.__openWS`. Tests use this to force a
 // real `onclose` (which `setOffline` does NOT do) so the client's
-// reconnect→backfill path actually fires.
+// reconnect→backfill path actually fires. Tracking open count/timestamps lets
+// the latency assertion start at the actual reconnect-open boundary instead of
+// charging browser close delivery and handshake variance to the backfill budget.
 async function installWsCapture(page: Page) {
   await page.addInitScript(() => {
     const NativeWS = window.WebSocket;
     const Wrapped = function (this: WebSocket, url: string | URL, protocols?: string | string[]) {
       const ws = new NativeWS(url, protocols);
-      (window as unknown as { __lastWS?: WebSocket }).__lastWS = ws;
+      ws.addEventListener('open', () => {
+        const state = window as unknown as { __openWS?: WebSocket; __wsOpenCount?: number; __lastWsOpenAt?: number };
+        state.__openWS = ws;
+        state.__wsOpenCount = (state.__wsOpenCount ?? 0) + 1;
+        state.__lastWsOpenAt = Date.now();
+      });
+      ws.addEventListener('close', () => {
+        const state = window as unknown as { __openWS?: WebSocket };
+        if (state.__openWS === ws) state.__openWS = undefined;
+      });
       return ws;
     } as unknown as typeof WebSocket;
     Wrapped.prototype = NativeWS.prototype;
@@ -167,25 +178,37 @@ test.describe('RT-1.2 client backfill on reconnect', () => {
     // doesn't fire.
     await expect.poll(async () => {
       return await page.evaluate(() => {
-        const ws = (window as unknown as { __lastWS?: WebSocket }).__lastWS;
+        const ws = (window as unknown as { __openWS?: WebSocket }).__openWS;
         return ws ? ws.readyState : -1;
       });
     }, { timeout: 5_000 }).toBe(1 /* OPEN */);
+    const firstOpenCount = await page.evaluate(() => {
+      return (window as unknown as { __wsOpenCount?: number }).__wsOpenCount ?? 0;
+    });
 
     // Force a real onclose by calling close() on the captured WS
     // instance. setOffline does NOT close already-open WebSocket frame
     // streams (root cause of #297 flake — backfillCalls.length stayed
     // 0 because onclose never fired). close() drives the same code
     // path as a real network drop.
-    const reconnectAt = Date.now();
     await page.evaluate(() => {
-      const ws = (window as unknown as { __lastWS?: WebSocket }).__lastWS;
+      const ws = (window as unknown as { __openWS?: WebSocket }).__openWS;
       ws?.close();
     });
 
+    // Wait for the replacement socket to open. This keeps the ≤3s assertion
+    // focused on reconnect backfill behavior instead of browser close delivery
+    // and WebSocket handshake scheduling under parallel CI load.
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        return (window as unknown as { __wsOpenCount?: number }).__wsOpenCount ?? 0;
+      });
+    }, { timeout: 5_000 }).toBeGreaterThan(firstOpenCount);
+    const reconnectAt = await page.evaluate(() => {
+      return (window as unknown as { __lastWsOpenAt?: number }).__lastWsOpenAt ?? Date.now();
+    });
+
     // Wait up to 3s for the backfill GET to fire after the WS reopens.
-    // Reconnect delay is RECONNECT_DELAYS[0] = 1000ms (useWebSocket.ts
-    // line 17), so backfill should land ~1.0–1.5s after close().
     await expect.poll(() => backfillCalls.length, {
       message: 'expected GET /api/v1/events backfill on reconnect within 3s',
       timeout: 3_000,
