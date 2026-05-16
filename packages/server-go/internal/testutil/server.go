@@ -11,20 +11,25 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"borgee-server/internal/admin"
 	"borgee-server/internal/auth"
 	"borgee-server/internal/config"
 	"borgee-server/internal/server"
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil/clock"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var testPasswordHash string
+var adminSessionTokens sync.Map
+var userSessionTokens sync.Map
 
 // Performance note: ADM-0.1/0.2 require BORGEE_ADMIN_* env vars when
 // server.New() runs admin.Bootstrap. Before 2026-04-29, NewTestServer used
@@ -165,12 +170,67 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	// workers out of the API harness; those workers have dedicated package tests.
 	srv := server.New(t.Context(), cfg, logger, s)
 	ts := httptest.NewServer(srv.Handler())
+	adminSessionToken := seedAdminSession(t, s)
+	adminSessionTokens.Store(ts.URL, adminSessionToken)
+	userSessionTokens.Store(ts.URL, seedUserSessions(t, owner, admin, member, cfg.JWTSecret))
 	t.Cleanup(func() {
+		adminSessionTokens.Delete(ts.URL)
+		userSessionTokens.Delete(ts.URL)
 		ts.Close()
 		s.Close()
 	})
 
 	return ts, s, cfg
+}
+
+func seedAdminSession(t *testing.T, s *store.Store) string {
+	t.Helper()
+	a, err := admin.FindByLogin(s.DB(), "test-admin")
+	if err != nil {
+		t.Fatalf("find admin: %v", err)
+	}
+	if a == nil {
+		t.Fatal("test-admin not bootstrapped")
+	}
+	token, err := admin.CreateSession(s.DB(), a.ID, time.Now())
+	if err != nil {
+		t.Fatalf("create admin session: %v", err)
+	}
+	return token
+}
+
+func seedUserSessions(t *testing.T, owner, adminUser, member *store.User, jwtSecret string) map[string]string {
+	t.Helper()
+	tokens := make(map[string]string, 3)
+	for _, u := range []*store.User{owner, adminUser, member} {
+		if u.Email == nil {
+			continue
+		}
+		tokens[*u.Email] = mintUserToken(t, u, jwtSecret, time.Now())
+	}
+	return tokens
+}
+
+func mintUserToken(t *testing.T, user *store.User, jwtSecret string, now time.Time) string {
+	t.Helper()
+	email := ""
+	if user.Email != nil {
+		email = *user.Email
+	}
+	claims := auth.Claims{
+		UserID: user.ID,
+		Email:  email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		t.Fatalf("sign test user token: %v", err)
+	}
+	return signed
 }
 
 // NewTestServerWithFakeClock is the PERF-JWT-CLOCK variant: returns the same
@@ -206,17 +266,26 @@ func NewTestServerWithFakeClock(t *testing.T) (*httptest.Server, *store.Store, *
 	srv := server.New(t.Context(), cfg, logger, s)
 	srv.SetClock(fake)
 	// Replace the handler atomically: close prior ts, mount new one.
+	adminToken, _ := adminSessionTokens.Load(ts.URL)
 	ts.Close()
 	ts2 := httptest.NewServer(srv.Handler())
+	if adminToken != nil {
+		adminSessionTokens.Store(ts2.URL, adminToken.(string))
+		t.Cleanup(func() { adminSessionTokens.Delete(ts2.URL) })
+	}
 	t.Cleanup(func() { ts2.Close() })
 	return ts2, s, cfg, fake
 }
 
-// LoginAsAdmin posts to the new ADM-0.2 admin auth endpoint and returns the
-// `borgee_admin_session` cookie value. The legacy borgee_admin_token JWT path
-// was removed in ADM-0.2.
+// LoginAsAdmin returns an ADM-0.2 admin session token for test servers. The
+// full HTTP login path stays covered in internal/admin; this helper uses the
+// pre-seeded session from NewTestServer to avoid repeated bcrypt cost in API
+// tests. It falls back to the HTTP login endpoint for non-testutil servers.
 func LoginAsAdmin(t *testing.T, serverURL string) string {
 	t.Helper()
+	if token, ok := adminSessionTokens.Load(serverURL); ok {
+		return token.(string)
+	}
 
 	body, _ := json.Marshal(map[string]string{"login": "test-admin", "password": "password123"})
 	resp, err := http.Post(serverURL+"/admin-api/v1/auth/login", "application/json", bytes.NewReader(body))
@@ -270,6 +339,13 @@ func AdminJSON(t *testing.T, method, url, sessionToken string, body any) (*http.
 
 func LoginAs(t *testing.T, serverURL, email, password string) string {
 	t.Helper()
+	if password == "password123" {
+		if tokens, ok := userSessionTokens.Load(serverURL); ok {
+			if token, ok := tokens.(map[string]string)[strings.ToLower(strings.TrimSpace(email))]; ok {
+				return token
+			}
+		}
+	}
 
 	body, _ := json.Marshal(map[string]string{"email": email, "password": password})
 	resp, err := http.Post(serverURL+"/api/v1/auth/login", "application/json", bytes.NewReader(body))

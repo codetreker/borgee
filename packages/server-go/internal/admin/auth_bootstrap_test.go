@@ -1,6 +1,8 @@
 package admin_test
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"borgee-server/internal/admin"
@@ -11,14 +13,32 @@ import (
 	"gorm.io/gorm"
 )
 
+var hashAtCache struct {
+	sync.Mutex
+	values map[string]string
+}
+
 // hashAt returns a bcrypt hash for plain at the given cost. Used to satisfy
 // review checklist invariant "bcrypt cost ≥ 10" (the package's MinBcryptCost).
 func hashAt(t *testing.T, plain string, cost int) string {
 	t.Helper()
+	key := fmt.Sprintf("%d:%s", cost, plain)
+	hashAtCache.Lock()
+	if hashAtCache.values != nil {
+		if h, ok := hashAtCache.values[key]; ok {
+			hashAtCache.Unlock()
+			return h
+		}
+	} else {
+		hashAtCache.values = make(map[string]string)
+	}
 	h, err := bcrypt.GenerateFromPassword([]byte(plain), cost)
 	if err != nil {
+		hashAtCache.Unlock()
 		t.Fatalf("bcrypt: %v", err)
 	}
+	hashAtCache.values[key] = string(h)
+	hashAtCache.Unlock()
 	return string(h)
 }
 

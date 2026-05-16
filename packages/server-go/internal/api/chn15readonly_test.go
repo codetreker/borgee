@@ -9,7 +9,6 @@ package api_test
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -216,21 +215,5 @@ func chn15RepoRoot(t *testing.T) string {
 
 func chn15GrepCount(t *testing.T, dir string, re *regexp.Regexp) int {
 	t.Helper()
-	count := 0
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
-		}
-		base := info.Name()
-		if !strings.HasSuffix(base, ".go") || strings.HasSuffix(base, "_test.go") {
-			return nil
-		}
-		b, ferr := os.ReadFile(path)
-		if ferr != nil {
-			return nil
-		}
-		count += len(re.FindAllIndex(b, -1))
-		return nil
-	})
-	return count
+	return countRegexpInCachedGoFiles(t, dir, re, false)
 }

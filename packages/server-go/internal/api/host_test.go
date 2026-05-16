@@ -255,20 +255,7 @@ func TestHB_NoAdminWritePath(t *testing.T) {
 	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
 	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/heartbeat-lag`)
 	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("HB-6 design item 3 broken — admin write on heartbeat-lag in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
+		assertNoRegexpInCachedGoFiles(t, dir, pat, false, "HB-6 design item 3 broken — admin write on heartbeat-lag in %s: %q")
 	}
 }
 
@@ -281,21 +268,7 @@ func TestHB_NoLagSampleQueue(t *testing.T) {
 		"deadLetterLag",
 	}
 	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST alignment chain extension checkpoint 16 broken — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
+	assertNoTokensInCachedGoFiles(t, dir, forbidden, false, "AST alignment chain extension checkpoint 16 broken — token %q in %s")
 }
 
 // REG-HB6-006c — zero client UI v1 surface (grep check client/src/).
@@ -306,21 +279,16 @@ func TestHB_NoClientUIv1(t *testing.T) {
 		t.Skipf("client dir not present: %v", err)
 	}
 	forbidden := []string{"useHeartbeatLag", "HeartbeatLagPanel"}
-	_ = filepath.Walk(clientDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
+	for _, f := range cachedFilesUnder(t, clientDir) {
+		if !strings.HasSuffix(f.Name, ".ts") && !strings.HasSuffix(f.Name, ".tsx") {
+			continue
 		}
-		if !strings.HasSuffix(p, ".ts") && !strings.HasSuffix(p, ".tsx") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
 		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("HB-6 design item 6 broken — client UI v1 token %q in %s", tok, p)
+			if strings.Contains(string(f.Body), tok) {
+				t.Errorf("HB-6 design item 6 broken — client UI v1 token %q in %s", tok, f.Path)
 			}
 		}
-		return nil
-	})
+	}
 }
 
 // helpers ----------------------------------------------------------------

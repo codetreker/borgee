@@ -3,22 +3,21 @@
 // since/until/archived/actions). 0 schema / 0 新 endpoint.
 //
 // Pins:
-//   REG-AL8-001 TestAL_NoSchemaChange — migrations/ 0 新 ALTER admin_actions
-//   REG-AL8-002 TestAL_NoNewEndpoint — internal/api 0 新 audit-log path
-//   REG-AL8-003 TestAL82_ArchivedView_* — 三态 (active/archived/all + reject)
-//   REG-AL8-004 TestAL82_TimeRange_* — since/until clamp + reject
-//   REG-AL8-005 TestAL82_Actions_* — 多值 + 单值 backward-compat
-//   REG-AL8-006 TestAL_RejectsUserRail + TestAL_NoAuditQueryQueue
+//
+//	REG-AL8-001 TestAL_NoSchemaChange — migrations/ 0 新 ALTER admin_actions
+//	REG-AL8-002 TestAL_NoNewEndpoint — internal/api 0 新 audit-log path
+//	REG-AL8-003 TestAL82_ArchivedView_* — 三态 (active/archived/all + reject)
+//	REG-AL8-004 TestAL82_TimeRange_* — since/until clamp + reject
+//	REG-AL8-005 TestAL82_Actions_* — 多值 + 单值 backward-compat
+//	REG-AL8-006 TestAL_RejectsUserRail + TestAL_NoAuditQueryQueue
 package api_test
 
 import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -50,19 +49,7 @@ func TestAL_NoSchemaChange(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "migrations")
 	pat := regexp.MustCompile(`(?i)al_8_\d+|ALTER TABLE admin_actions ADD COLUMN(?:.*audit_log)|CREATE INDEX.*audit_log`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if pat.Find(body) != nil {
-			t.Errorf("AL-8 设计 ① broken — schema mismatch in %s", p)
-		}
-		return nil
-	})
+	assertNoRegexpInCachedGoFiles(t, dir, pat, true, "AL-8 设计 ① broken — schema mismatch in %s: %q")
 }
 
 // REG-AL8-002 — 0 新 endpoint 反向断言: internal/api/ 除 ADM-2.2 既有
@@ -76,25 +63,18 @@ func TestAL_NoNewEndpoint(t *testing.T) {
 	// alternative audit-log path variants. Whitelist ADM-3 multi-source.
 	pat := regexp.MustCompile(`audit-log/(?:query|search)|/admin-api/v[0-9]+/audit/[a-z]+`)
 	allow := regexp.MustCompile(`/admin-api/v[0-9]+/audit/multi-source`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if loc := pat.FindIndex(body); loc != nil {
+	auditLogSubpath := regexp.MustCompile(`audit-log/(?:query|search)`)
+	for _, f := range cachedGoFilesUnder(t, dir, false) {
+		if loc := pat.FindIndex(f.Body); loc != nil {
 			// Re-check via allow (full ADM-3 path includes "/multi-source"
 			// which the deny pattern truncates at the dash).
-			if allow.Match(body) && !regexp.MustCompile(`audit-log/(?:query|search)`).Match(body) {
-				return nil
+			if allow.Match(f.Body) && !auditLogSubpath.Match(f.Body) {
+				continue
 			}
 			t.Errorf("AL-8 设计 ① broken — new audit-log endpoint in %s: %q",
-				p, body[loc[0]:loc[1]])
+				f.Path, f.Body[loc[0]:loc[1]])
 		}
-		return nil
-	})
+	}
 }
 
 // REG-AL8-002b — user-rail 反向断言: /api/v1/.*audit-log 在 user-rail
@@ -103,20 +83,7 @@ func TestAL_NoUserRailAuditLog(t *testing.T) {
 	t.Parallel()
 	dir := filepath.Join("..", "api")
 	pat := regexp.MustCompile(`"/api/v[0-9]+/[^"]*audit-log[^"]*"`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if loc := pat.FindIndex(body); loc != nil {
-			t.Errorf("AL-8 设计 ② broken — user-rail audit-log in %s: %q",
-				p, body[loc[0]:loc[1]])
-		}
-		return nil
-	})
+	assertNoRegexpInCachedGoFiles(t, dir, pat, false, "AL-8 设计 ② broken — user-rail audit-log in %s: %q")
 }
 
 // al8AdminGET wraps testutil.JSON for shorter 调用 site.
@@ -345,19 +312,7 @@ func TestAL_ReasonChain_NotExpanded(t *testing.T) {
 	dirs := []string{filepath.Join("..", "auth"), filepath.Join("..", "api")}
 	pat := regexp.MustCompile(`runtime_recovered|al8_specific_reason|16th[ _-]?reason|audit_query_reason`)
 	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("AL-1a 对齐链漂移 — pattern hit in %s", p)
-			}
-			return nil
-		})
+		assertNoRegexpInCachedGoFiles(t, dir, pat, false, "AL-1a 对齐链漂移 — pattern hit in %s: %q")
 	}
 }
 
@@ -371,20 +326,6 @@ func TestAL_NoAuditQueryQueue(t *testing.T) {
 	}
 	dirs := []string{filepath.Join("..", "auth"), filepath.Join("..", "api")}
 	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			for _, tok := range forbidden {
-				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 对齐链延伸第 8 处 broken — token %q in %s", tok, p)
-				}
-			}
-			return nil
-		})
+		assertNoTokensInCachedGoFiles(t, dir, forbidden, false, "AST 对齐链延伸第 8 处 broken — token %q in %s")
 	}
 }
