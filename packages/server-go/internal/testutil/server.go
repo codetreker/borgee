@@ -24,6 +24,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var testPasswordHash string
+
 // Performance note: ADM-0.1/0.2 require BORGEE_ADMIN_* env vars when
 // server.New() runs admin.Bootstrap. Before 2026-04-29, NewTestServer used
 // t.Setenv per call, which prevents tests from using t.Parallel. Env setup now
@@ -38,6 +40,11 @@ func init() {
 	// keeps cost=10 (var BcryptCost defaults via env BORGEE_TEST_FAST_BCRYPT
 	// not set in production cmd/*). Direct override to bypass env-once init.
 	auth.BcryptCost = bcrypt.MinCost
+	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+	if err != nil {
+		panic(err)
+	}
+	testPasswordHash = string(hash)
 }
 
 func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config) {
@@ -53,15 +60,16 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	// PERF (was t.Setenv blocking parallel): admin env now in package init.
 
 	cfg := &config.Config{
-		JWTSecret:     "test-secret",
-		NodeEnv:       "development",
-		DevAuthBypass: false,
-		AdminUser:     "admin",
-		AdminPassword: "password123",
-		UploadDir:     t.TempDir(),
-		WorkspaceDir:  t.TempDir(),
-		ClientDist:    t.TempDir(),
-		CORSOrigin:    "*",
+		JWTSecret:                "test-secret",
+		NodeEnv:                  "development",
+		DevAuthBypass:            false,
+		DisableBackgroundWorkers: true,
+		AdminUser:                "admin",
+		AdminPassword:            "password123",
+		UploadDir:                t.TempDir(),
+		WorkspaceDir:             t.TempDir(),
+		ClientDist:               t.TempDir(),
+		CORSOrigin:               "*",
 	}
 
 	// ADM-0.3 (v=10): users.role enum collapsed to {'member', 'agent'}; admin
@@ -72,13 +80,12 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	// The ADM-0.2 explicit `(*, *)` splice is now redundant (the member default
 	// grant covers it) and the ADM-0.3 migration sweeps any leftover wildcard
 	// rows belonging to deleted role='admin' users.
-	ownerHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 	ownerEmail := "owner@test.com"
 	owner := &store.User{
 		DisplayName:  "Owner",
 		Role:         "member",
 		Email:        &ownerEmail,
-		PasswordHash: string(ownerHash),
+		PasswordHash: testPasswordHash,
 	}
 	if err := s.CreateUser(owner); err != nil {
 		t.Fatalf("create owner: %v", err)
@@ -93,7 +100,6 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 		t.Fatalf("grant owner perms: %v", err)
 	}
 
-	adminHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 	adminEmail := "admin@test.com"
 	admin := &store.User{
 		// Display name retained for back-compat with existing tests that
@@ -102,7 +108,7 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 		DisplayName:  "Admin",
 		Role:         "member",
 		Email:        &adminEmail,
-		PasswordHash: string(adminHash),
+		PasswordHash: testPasswordHash,
 	}
 	if err := s.CreateUser(admin); err != nil {
 		t.Fatalf("create admin: %v", err)
@@ -116,13 +122,12 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 		t.Fatalf("grant admin perms: %v", err)
 	}
 
-	memberHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 	memberEmail := "member@test.com"
 	member := &store.User{
 		DisplayName:  "Member",
 		Role:         "member",
 		Email:        &memberEmail,
-		PasswordHash: string(memberHash),
+		PasswordHash: testPasswordHash,
 	}
 	if err := s.CreateUser(member); err != nil {
 		t.Fatalf("create member: %v", err)
@@ -155,10 +160,9 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 	s.AddChannelMember(&store.ChannelMember{ChannelID: general.ID, UserID: member.ID})
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	// TEST-FIX-2: pass t.Context() so server goroutines (rateLimiter
-	// cleanup / RetentionSweeper / HeartbeatRetentionSweeper / hub.StartHeartbeat
-	// / heartbeat watchdog) all exit on test teardown — prevents leak into
-	// next sub-test's race accumulator (>120s timeout panic).
+	// TEST-FIX-2: pass t.Context() so goroutines spawned by the server exit on
+	// test teardown. DisableBackgroundWorkers keeps unrelated production ticker
+	// workers out of the API harness; those workers have dedicated package tests.
 	srv := server.New(t.Context(), cfg, logger, s)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(func() {
@@ -556,16 +560,12 @@ func (c *SSEClient) ReadEvent(t *testing.T) SSEEvent {
 // absent.
 func SeedLegacyAgent(t *testing.T, s *store.Store, displayName string) *store.User {
 	t.Helper()
-	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
-	if err != nil {
-		t.Fatalf("bcrypt: %v", err)
-	}
 	email := strings.ToLower(strings.ReplaceAll(displayName, " ", "-")) + "@legacy-agent.test"
 	u := &store.User{
 		DisplayName:  displayName,
 		Role:         "agent",
 		Email:        &email,
-		PasswordHash: string(hash),
+		PasswordHash: testPasswordHash,
 	}
 	if err := s.CreateUser(u); err != nil {
 		t.Fatalf("create legacy agent: %v", err)
@@ -612,15 +612,11 @@ func CreateAgent(t *testing.T, serverURL, token, displayName string) map[string]
 // CM-3 cross-org 403 reverse assertions. Returns the user with OrgID populated.
 func SeedForeignOrgUser(t *testing.T, s *store.Store, displayName, email string) *store.User {
 	t.Helper()
-	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
-	if err != nil {
-		t.Fatalf("bcrypt: %v", err)
-	}
 	u := &store.User{
 		DisplayName:  displayName,
 		Role:         "member",
 		Email:        &email,
-		PasswordHash: string(hash),
+		PasswordHash: testPasswordHash,
 	}
 	if err := s.CreateUser(u); err != nil {
 		t.Fatalf("create foreign-org user: %v", err)

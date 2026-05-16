@@ -165,8 +165,10 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 	// tests via separate (NewTestServer doesn't invoke this path).
 	watchdog := bpp.NewHeartbeatWatchdog(&hubLivenessAdapter{hub}, srv.agentTracker, logger)
 
-	go hub.StartHeartbeat(ctx)
-	go watchdog.Run(ctx)
+	if !cfg.DisableBackgroundWorkers {
+		go hub.StartHeartbeat(ctx)
+		go watchdog.Run(ctx)
+	}
 
 	return srv
 }
@@ -460,28 +462,38 @@ func (s *Server) SetupRoutes() {
 	// AL-7.2 retention sweeper goroutine (1h ticker, ctx-aware shutdown). Same
 	// pattern as AP-2 ExpiresSweeper #525. Forward-only soft-archive via
 	// admin_actions.archived_at column (立场 ① 不真删 / 不裂表).
-	(&auth.RetentionSweeper{Store: s.store, Logger: s.logger}).Start(s.ctx)
+	if !s.cfg.DisableBackgroundWorkers {
+		(&auth.RetentionSweeper{Store: s.store, Logger: s.logger}).Start(s.ctx)
+	}
 	// HB-5.2 heartbeat retention sweeper + admin override (复用 AL-7 既有
 	// audit retention override action; metadata target='heartbeat' 字面区分,
 	// 立场 ② 不挂 admin_actions CHECK 第 13 项 enum).
 	hb5HeartbeatRetentionHandler := &api.HostRetentionOverrideHandler{Store: s.store, Logger: s.logger}
 	hb5HeartbeatRetentionHandler.RegisterAdminRoutes(s.mux, adminMw)
-	(&auth.HeartbeatRetentionSweeper{Store: s.store, Logger: s.logger}).Start(s.ctx)
+	if !s.cfg.DisableBackgroundWorkers {
+		(&auth.HeartbeatRetentionSweeper{Store: s.store, Logger: s.logger}).Start(s.ctx)
+	}
 	// DL-2 events retention sweeper (1h ticker, ctx-aware shutdown). Reaps
 	// expired rows from channel_events + global_events per per-kind retention
 	// (must-persist 4 类永久 / channel/message 30d / agent_task/artifact 60d /
 	// 默认 90d). 跟 AL-7 / HB-5 retention sweeper 同精神承袭.
-	datalayer.NewEventsRetentionSweeper(s.store.DB(), s.logger, time.Hour).Start(s.ctx)
+	if !s.cfg.DisableBackgroundWorkers {
+		datalayer.NewEventsRetentionSweeper(s.store.DB(), s.logger, time.Hour).Start(s.ctx)
+	}
 	// DL-3 §1 阈值哨 — 4 metric (db_size_mb / wal_pending_pages /
 	// write_lock_wait_ms / events_row_count) WARN/CRITICAL slog 输出, ctx-aware
 	// shutdown (蓝图 data-layer.md §5). 反 admin god-mode endpoint
 	// (ADM-0 §1.3 红线): 仅 slog stdout, 不挂 /admin-api/threshold.
-	datalayer.NewThresholdMonitor(s.store.DB(), s.logger, time.Hour).Start(s.ctx)
+	if !s.cfg.DisableBackgroundWorkers {
+		datalayer.NewThresholdMonitor(s.store.DB(), s.logger, time.Hour).Start(s.ctx)
+	}
 	// WIRE-1 §1 wire-2 — DL-3 cold archive offloader 真启 (跟 ThresholdMonitor
 	// 同精神 ctx-aware Start). 1h ticker, threshold/cutoffAge/archiveDir 走
 	// default (1M rows / 30d / ./data). audit "events.archive_offload" 走
 	// dl.EventBus (DL-2 cold consumer 必落 kind).
-	datalayer.NewEventsArchiveOffloader(s.store.DB(), s.dl.EventBus, s.logger, "", 0, 0, time.Hour).Start(s.ctx)
+	if !s.cfg.DisableBackgroundWorkers {
+		datalayer.NewEventsArchiveOffloader(s.store.DB(), s.dl.EventBus, s.logger, "", 0, 0, time.Hour).Start(s.ctx)
+	}
 	// Note: AdminHandler.RegisterAppRoutes (the legacy /api/v1/admin/* user-rail
 	// god-mode mount) is intentionally NOT wired — review checklist §ADM-0.2 §1
 	// 反向断言 2.B (user cookie 调 admin endpoints 必须 401).

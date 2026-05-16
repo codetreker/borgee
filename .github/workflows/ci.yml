@@ -55,8 +55,7 @@ jobs:
         # go-test-race-heavy sub-job. Issue #649 showed the previous 120s
         # budget could fail from legitimate runtime cost rather than a leaked
         # goroutine: the race detector is roughly 3x slower, cold Ubuntu CI
-        # runners add build and toolchain warmup time, the API suite is large,
-        # and each test starts several context-aware sweeper/monitor goroutines.
+        # runners add build and toolchain warmup time, and the API suite is large.
         #
         # Coverage quality is not hidden by this timeout. Coverage thresholds
         # are enforced by go-test-cov, while race regressions remain visible

@@ -9,21 +9,22 @@ import (
 )
 
 type Config struct {
-	Port               int
-	Host               string
-	LogLevelStr        string
-	NodeEnv            string
-	CORSOrigin         string
-	DatabasePath       string
-	UploadDir          string
-	WorkspaceDir       string
-	ClientDist         string
-	JWTSecret          string
-	SQLiteMaxOpenConns int
-	SQLiteTxLock       string
-	DevAuthBypass      bool
-	AdminUser          string
-	AdminPassword      string
+	Port                     int
+	Host                     string
+	LogLevelStr              string
+	NodeEnv                  string
+	CORSOrigin               string
+	DatabasePath             string
+	UploadDir                string
+	WorkspaceDir             string
+	ClientDist               string
+	JWTSecret                string
+	SQLiteMaxOpenConns       int
+	SQLiteTxLock             string
+	DisableBackgroundWorkers bool
+	DevAuthBypass            bool
+	AdminUser                string
+	AdminPassword            string
 }
 
 func Load() (*Config, error) {
