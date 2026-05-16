@@ -25,11 +25,19 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 
+type TraceMode = 'off' | 'on' | 'retain-on-failure' | 'on-first-retry' | 'retain-on-first-failure';
+type VideoMode = 'off' | 'on' | 'retain-on-failure' | 'on-first-retry';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 
 const SERVER_PORT = Number(process.env.E2E_SERVER_PORT ?? 4901);
 const CLIENT_PORT = Number(process.env.E2E_CLIENT_PORT ?? 5174);
+const CI_WORKERS = Number(process.env.E2E_CI_WORKERS ?? 2);
+const SERVER_COMMAND =
+  process.env.E2E_SERVER_COMMAND ?? 'go run -tags sqlite_fts5 ./cmd/collab';
+const TRACE_MODE = (process.env.E2E_TRACE_MODE ?? (process.env.CI ? 'retain-on-failure' : 'on-first-retry')) as TraceMode;
+const VIDEO_MODE = (process.env.E2E_VIDEO_MODE ?? 'retain-on-failure') as VideoMode;
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`;
 const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
 
@@ -43,21 +51,22 @@ fs.mkdirSync(path.join(dataDir, 'workspaces'), { recursive: true });
 
 export default defineConfig({
   testDir: './tests',
-  // CI path needs determinism: serialize, retry once on flake, full traces.
-  // Local path: parallel workers, no retry, trace only on failure.
+  // CI keeps per-file ordering deterministic but runs two files at a time.
+  // E2E_CI_WORKERS lets CI dial this back without changing committed config.
+  // Local path: Playwright default workers, no retry, trace only on failure.
   fullyParallel: !process.env.CI,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? CI_WORKERS : undefined,
   reporter: process.env.CI
     ? [['github'], ['html', { open: 'never' }]]
     : [['list'], ['html', { open: 'never' }]],
 
   use: {
     baseURL: CLIENT_URL,
-    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+    trace: TRACE_MODE,
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: VIDEO_MODE,
     // Attach SERVER_URL into test context so fixtures can hit the
     // server directly (e.g. seed users via REST) instead of clicking
     // through the UI for every preconditon.
@@ -79,9 +88,9 @@ export default defineConfig({
   // to proxy.
   webServer: [
     {
-      // server-go binary: rebuild on each run is cheap (incremental go
-      // build is sub-second). Avoids stale binaries on schema changes.
-      command: `go run -tags sqlite_fts5 ./cmd/collab`,
+      // CI can provide a prebuilt binary to avoid paying go run compile/startup
+      // cost inside the Playwright webServer phase.
+      command: SERVER_COMMAND,
       cwd: path.join(repoRoot, 'packages/server-go'),
       url: `${SERVER_URL}/health`,
       timeout: 60_000,

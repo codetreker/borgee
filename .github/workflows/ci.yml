@@ -151,9 +151,8 @@ jobs:
 
   e2e:
     # INFRA-2: Playwright dual-server smoke. Boots server-go (4901) + vite (5174)
-    # via playwright.config webServer. The smoke test has 3 assertions (~5s),
-    # while Chromium installation dominates runtime (~1min). RT-0,
-    # CM-onboarding, and G2.4 tests are expected to extend this job.
+    # via playwright.config webServer. CI keeps per-file ordering deterministic
+    # while allowing multiple spec files to run at once.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -178,12 +177,19 @@ jobs:
       - name: Install workspace deps
         run: pnpm install --frozen-lockfile --filter @borgee/e2e --filter @borgee/client
       - name: Install Playwright chromium
-        run: pnpm --filter @borgee/e2e exec playwright install --with-deps chromium
+        run: pnpm --filter @borgee/e2e exec playwright install chromium
       - name: Type-check client (vite dev needs tsc-clean code)
         run: pnpm --filter @borgee/client build
       - name: Pre-fetch server-go modules
         run: cd packages/server-go && go mod download
+      - name: Build server-go e2e binary
+        run: cd packages/server-go && go build -tags sqlite_fts5 -o bin/collab-e2e ./cmd/collab
       - name: Run E2E
+        env:
+          E2E_CI_WORKERS: "4"
+          E2E_SERVER_COMMAND: ./bin/collab-e2e
+          E2E_TRACE_MODE: on-first-retry
+          E2E_VIDEO_MODE: on-first-retry
         run: pnpm --filter @borgee/e2e test
       - name: Upload Playwright report (on failure)
         if: failure()

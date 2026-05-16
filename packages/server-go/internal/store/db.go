@@ -1,6 +1,8 @@
 package store
 
 import (
+	"strings"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -11,7 +13,7 @@ type Store struct {
 }
 
 func Open(dsn string) (*Store, error) {
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(sqliteDSNWithPragmas(dsn)), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
@@ -45,6 +47,23 @@ func Open(dsn string) (*Store, error) {
 	}
 
 	return &Store{db: db}, nil
+}
+
+func sqliteDSNWithPragmas(dsn string) string {
+	if dsn == ":memory:" {
+		return dsn
+	}
+
+	params := []string{
+		"_busy_timeout=5000",
+		"_foreign_keys=on",
+		"_journal_mode=WAL",
+	}
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
+	}
+	return dsn + sep + strings.Join(params, "&")
 }
 
 func (s *Store) DB() *gorm.DB {

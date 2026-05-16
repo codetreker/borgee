@@ -24,6 +24,7 @@ import {
   type APIRequestContext,
   type Page,
   type BrowserContext,
+  type WebSocket,
 } from '@playwright/test';
 
 const ADMIN_LOGIN = 'e2e-admin';
@@ -162,6 +163,41 @@ async function getUnreadCount(page: Page, channelName: string): Promise<number> 
   return parseInt(text, 10) || 0;
 }
 
+async function waitForOnline(ctx: APIRequestContext, userId: string): Promise<void> {
+  await expect(async () => {
+    const res = await ctx.get('/api/v1/online');
+    expect(res.ok(), `online list: ${res.status()}`).toBe(true);
+    const body = (await res.json()) as { user_ids: string[] };
+    expect(body.user_ids, `user ${userId} should have an active websocket`).toContain(userId);
+  }).toPass({ timeout: 5_000 });
+}
+
+function waitForChannelSubscription(page: Page, channelId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      page.off('websocket', onWebSocket);
+      reject(new Error(`timed out waiting for websocket subscription to ${channelId}`));
+    }, 10_000);
+
+    const finish = () => {
+      clearTimeout(timer);
+      page.off('websocket', onWebSocket);
+      resolve();
+    };
+
+    const onWebSocket = (ws: WebSocket) => {
+      ws.on('framereceived', (event: { payload: string | Buffer }) => {
+        const payload = typeof event.payload === 'string' ? event.payload : event.payload.toString();
+        if (payload.includes('"type":"subscribed"') && payload.includes(channelId)) {
+          finish();
+        }
+      });
+    };
+
+    page.on('websocket', onWebSocket);
+  });
+}
+
 test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
   // 设置 desktop viewport 防 mobile sidebar closed (那是 #698 修过的另一条路径).
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -244,8 +280,17 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     const peerCtxBrowser = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await attachToken(peerCtxBrowser, peer.token);
     const peerPage = await peerCtxBrowser.newPage();
+    const peerSubscribedToShared = waitForChannelSubscription(peerPage, shared!.id);
     await peerPage.goto('/');
     await expect(peerPage.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
+    const peerWelcomeChannel = peerPage.locator('.channel-name').filter({ hasText: /^welcome/ }).first();
+    await expect(peerWelcomeChannel).toBeVisible({ timeout: 5_000 });
+    const peerWelcomeName = (await peerWelcomeChannel.textContent())?.trim() ?? '';
+    expect(peerWelcomeName, 'peer welcome channel name').toMatch(/^welcome/);
+    await expect(peerPage.locator('.channel-name', { hasText: sharedName })).toBeVisible({ timeout: 10_000 });
+    await peerSubscribedToShared;
+    await switchToChannel(peerPage, peerWelcomeName);
+    await waitForOnline(peer.ctx, peer.userId);
 
     // Owner 走真 UI 在 shared 发消息.
     await switchToChannel(ownerPage, sharedName);

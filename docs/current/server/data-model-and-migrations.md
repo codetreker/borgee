@@ -48,7 +48,7 @@ The data layer wraps selected store behavior behind interfaces and provides the 
 
 ## Internal Architecture
 
-The storage runtime is SQLite through GORM. File-backed databases run with WAL and busy-timeout pragmas; in-memory test databases use a single connection to avoid isolated per-connection databases.
+The storage runtime is SQLite through GORM. File-backed databases run with WAL, busy-timeout, and foreign-key pragmas attached to the SQLite DSN so every pooled connection gets the same concurrency and integrity settings. In-memory test databases use a single connection to avoid isolated per-connection databases.
 
 The baseline migration creates the original core tables, applies guarded column additions, creates indexes, performs backfills, and cleans up legacy direct-message state. It remains part of boot because the server still supports databases that were born before the numbered migration registry.
 
@@ -74,7 +74,7 @@ Helper job enqueue flow: a human/member user-authenticated request to an enrolle
 
 Channel member attention-policy flow: a channel manager can update an agent member's per-channel policy through the user rail. The target must be an agent member of the same channel, DM channels are rejected, and cross-org callers fail before permission checks. Setting `off` is rejected when the agent's global `require_mention` remains true, so channel management can reduce or require attention but cannot broaden agent delivery beyond owner authorization. Channel member listing returns both the stored `require_mention_policy` and server-derived `effective_require_mention` so clients can display current delivery state without recomputing authority.
 
-Channel membership and ownership mutations layer domain checks on top of permission rows. Leaving requires the caller to be a current member and not the channel creator. Adding/removing members and changing member attention policy require the manager to be a current channel member, and member removal cannot target the channel creator. Delete/archive require the authenticated user to be the channel creator after the relevant permission check, and cross-org channel management attempts fail closed.
+Channel membership and ownership mutations layer domain checks on top of permission rows. Leaving requires the caller to be a current member and not the channel creator. Adding/removing members and changing member attention policy require the manager to be a current channel member, and member removal cannot target the channel creator. Delete/archive require the authenticated user to be the channel creator after the relevant permission check, and cross-org channel management attempts fail closed. Automatic public-channel joins are organization-scoped: registering a user or creating an agent joins only public channels in that user's or agent's org, not public channels owned by other orgs.
 
 `@Everyone` message flow: message creation treats `@Everyone` as a reserved content token and does not accept client-supplied recipient ids. The server computes recipients from channel membership, excludes the sender and soft-deleted users, records the computed targets in `message_mentions`, and dispatches through the same mention fanout path as explicit mentions. Explicit mentions are also parsed from persisted message content, not trusted from client recipient arrays. The flow adds no schema table or migration; it uses existing `channel_members`, `users`, `messages`, and `message_mentions` rows.
 

@@ -56,6 +56,8 @@ The docs sync gate is also scoped, not universal. It currently protects only mod
 
 The E2E harness is intentionally a two-process local system. Playwright drives a real browser against a Vite-served client, while Vite proxies API and WebSocket traffic to a real server process. The server uses isolated temporary SQLite and file-storage directories for each harness run.
 
+The default PR E2E gate is a single CI job, not a shard matrix. CI prebuilds the server binary and points Playwright at it with `E2E_SERVER_COMMAND=./bin/collab-e2e`, avoiding `go run` startup work inside the test phase. CI keeps `fullyParallel=false` so ordering inside each spec file remains deterministic, but sets `E2E_CI_WORKERS=4` so independent spec files can run concurrently in one runner. Trace and video collection are configurable through `E2E_TRACE_MODE` and `E2E_VIDEO_MODE`; the default CI workflow uses `on-first-retry` for both so clean runs avoid capture overhead while failures that reproduce on retry still collect diagnostics.
+
 ```mermaid
 sequenceDiagram
   participant Browser as Playwright browser
