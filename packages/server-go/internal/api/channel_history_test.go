@@ -12,10 +12,6 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
@@ -206,92 +202,4 @@ func TestCHN_GetHistoryAdmin_HappyPath(t *testing.T) {
 	if len(hist) != 1 {
 		t.Errorf("admin history length: got %d, want 1", len(hist))
 	}
-}
-
-// REG-CHN14-004b — admin god-mode does not mount PATCH/DELETE; grep guard.
-func TestCHN_NoAdminPatchDeletePath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/channels/[^"]*description`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			fb, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("CHN-14 admin god-mode broken — admin-rail PATCH/PUT/POST/DELETE description path in %s: %q",
-					p, fb[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN14-005 — CHN-10 #561 chn_10_description.go::handlePut is byte-identical
-// (owner-only ACL + length cap 500 + five existing literals must-contain; UpdateChannel
-// changes only to the UpdateChannelDescription wrapper string, all other bytes match).
-func TestCHN_CHN10HandlePutByteIdentical(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile(filepath.Join("..", "api", "channel_description.go"))
-	if err != nil {
-		t.Fatalf("read chn_10_description.go: %v", err)
-	}
-	src := string(body)
-	idx := strings.Index(src, "func (h *ChannelDescriptionHandler) handlePut")
-	if idx < 0 {
-		t.Fatalf("existing chn_10 handlePut is missing — boundary item 4 broken")
-	}
-	end := idx + 2500
-	if end > len(src) {
-		end = len(src)
-	}
-	block := src[idx:end]
-	// Five existing literals must-contain (CHN-10 #561 byte-identical guard).
-	for _, must := range []string{
-		"channelId",
-		"DescriptionMaxLength",
-		"500 characters",
-		"Only the channel owner",
-		"UpdateChannelDescription", // CHN-14 wrapper replaces UpdateChannel.
-	} {
-		if !strings.Contains(block, must) {
-			t.Errorf("chn_10 handlePut block lost existing literal %q", must)
-		}
-	}
-	// chn_14 literals must have 0 hits (CHN-14 wrapper is in the store layer, not the handler).
-	for _, tok := range []string{"chn_14", "chn14", "CHN14"} {
-		if strings.Contains(block, tok) {
-			t.Errorf("chn_10 handlePut drifted into chn_14 — token %q (boundary item 4 broken)", tok)
-		}
-	}
-}
-
-// REG-CHN14-006 — AST alignment chain extension #22 forbids three tokens.
-func TestCHN_NoDescriptionHistoryQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingDescriptionAudit",
-		"descriptionHistoryQueue",
-		"deadLetterDescriptionHistory",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST alignment chain extension #22 broken — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
 }

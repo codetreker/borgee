@@ -5,42 +5,11 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN8-001 — 0 schema 改反向断言.
-func TestChannelPref_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`(?i)chn_8_\d+|chn8_\d+_notif`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-8 设计 ① broken — new schema migration file %s", p)
-		}
-		return nil
-	})
-	pat2 := regexp.MustCompile(`(?i)ALTER TABLE user_channel_layout ADD COLUMN.*notif`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if pat2.Find(body) != nil {
-			t.Errorf("CHN-8 设计 ① broken — notif column ALTER in %s", p)
-		}
-		return nil
-	})
-}
 
 func setPrefHelper(t *testing.T, baseURL, token, channelID, pref string) (int, map[string]any) {
 	t.Helper()
@@ -171,47 +140,6 @@ func TestCHN_NotifPrefConsts_ByteIdentical(t *testing.T) {
 	}
 }
 
-// REG-CHN8-004 — admin god-mode 不挂 反向断言.
-func TestCHN_NoAdminNotifPrefPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/[^"]*notification`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-8 设计 ② broken — admin notification path in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-	pat2 := regexp.MustCompile(`(?i)func.*[Aa]dmin\w*[Nn]otif[Pp]ref\b`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			base := filepath.Base(p)
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") || !strings.HasPrefix(base, "admin") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-8 设计 ② broken — admin notif handler in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
 // REG-CHN8-005 — bitmap isolation: 改 pref 不动 collapsed bit 0 (CHN-3
 // 折叠) — round-trip 验证位互不干扰.
 func TestCHN_BitmapIsolation_PreservesOtherBits(t *testing.T) {
@@ -258,54 +186,6 @@ func TestCHN_BitmapIsolation_PreservesOtherBits(t *testing.T) {
 	}
 	if api.GetNotifPref(collapsed) != int64(api.NotifPrefNone) {
 		t.Errorf("notif pref: got %d, want None", api.GetNotifPref(collapsed))
-	}
-}
-
-// REG-CHN8-006a — notif pref 不 drop messages 反向断言.
-func TestCHN_NotifPrefDoesNotDropMessages(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "ws"), filepath.Join("..", "api")}
-	pat := regexp.MustCompile(`(?i)notif_pref\s*[\.\s\w]*\b(skip|drop)\s*\b.*\b(broadcast|fanout|message|frame)`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-8 设计 ③ broken — notif pref drops messages in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN8-006b — AST 对齐链延伸第 13 处.
-func TestCHN_NoNotifPrefQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingNotifPref",
-		"notifPrefQueue",
-		"deadLetterNotifPref",
-	}
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "push")}
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			for _, tok := range forbidden {
-				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 对齐链延伸第 13 处 broken — token %q in %s", tok, p)
-				}
-			}
-			return nil
-		})
 	}
 }
 

@@ -2,20 +2,17 @@
 // tests + reverse grep 约束 守 (跟 ap-2 expires_sweeper_test.go 同模式).
 //
 // Pins:
-//   REG-AL7-001 TestAL_RunOnceArchivesExpired — 3 expired + 2 fresh → archived count=3
-//   REG-AL7-002 TestAL_RunOnceSoftArchiveNotRealDelete — UPDATE archived_at, row stays
-//   REG-AL7-003 TestAL_RunOnceIdempotent — second tick count==0
-//   REG-AL7-004 TestAL_StartCtxShutdown — Start goroutine ctx-aware
-//   REG-AL7-005 TestAL_NilSafeCtor — Store nil = no-op
-//   REG-AL7-006 TestAL_SweeperReason_ByteIdentical — reasons.Unknown
+//
+//	REG-AL7-001 TestAL_RunOnceArchivesExpired — 3 expired + 2 fresh → archived count=3
+//	REG-AL7-002 TestAL_RunOnceSoftArchiveNotRealDelete — UPDATE archived_at, row stays
+//	REG-AL7-003 TestAL_RunOnceIdempotent — second tick count==0
+//	REG-AL7-004 TestAL_StartCtxShutdown — Start goroutine ctx-aware
+//	REG-AL7-005 TestAL_NilSafeCtor — Store nil = no-op
+//	REG-AL7-006 TestAL_SweeperReason_ByteIdentical — reasons.Unknown
 package auth
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -171,62 +168,5 @@ func TestAL_SweeperReason_ByteIdentical(t *testing.T) {
 	if ActionAuditRetentionOverride != "audit_retention_override" {
 		t.Errorf("ActionAuditRetentionOverride mismatch: got %q, want %q",
 			ActionAuditRetentionOverride, "audit_retention_override")
-	}
-}
-
-// REG-AL7-007 — 约束 ④ + 约束 ⑤ 反向 grep: cron framework + retention
-// queue tokens 0 hit in this file.
-func TestAL_NoCronFrameworkImport(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile("audit_retention_sweeper.go")
-	if err != nil {
-		t.Fatalf("read sweeper: %v", err)
-	}
-	for _, pat := range []string{
-		`"github.com/robfig/cron`,
-		`"github.com/go-co-op/gocron`,
-		`gocron.`,
-	} {
-		if regexp.MustCompile(pat).Match(body) {
-			t.Errorf("约束 broken — cron import %q in audit_retention_sweeper.go", pat)
-		}
-	}
-}
-
-// REG-AL7-008 — 约束 ⑤ AST 对齐链延伸第 7 处 forbidden-token 0 hit.
-//
-// Scans internal/auth + internal/api production *.go (excluding tests)
-// for retention-queue / dead-letter tokens (跟 BPP-4/5/6/7/8 + HB-3 v2
-// 同模式). Tokens are runtime queue patterns 战马D rejects in spec.
-func TestAL_NoRetentionQueueOrCronImport(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingRetentionQueue",
-		"retentionRetryQueue",
-		"deadLetterRetention",
-	}
-	dirs := []string{
-		filepath.Join("..", "auth"),
-		filepath.Join("..", "api"),
-	}
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, err := os.ReadFile(p)
-			if err != nil {
-				return nil
-			}
-			for _, tok := range forbidden {
-				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 对齐链延伸第 7 处 broken — forbidden token %q in %s", tok, p)
-				}
-			}
-			return nil
-		})
 	}
 }

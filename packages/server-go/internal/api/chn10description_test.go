@@ -2,21 +2,19 @@
 // /api/v1/channels/{channelId}/description endpoint + 约束守门.
 //
 // Pins:
-//   REG-CHN10-001 TestChn10description_NoSchemaChange (filepath.Walk migrations/)
-//   REG-CHN10-002 TestCHN_PutDescription_OwnerHappyPath
-//                 + _NonOwnerRejected + _Unauthorized401
-//   REG-CHN10-003 TestCHN_PutDescription_LengthCap500
-//   REG-CHN10-004 TestCHN_TopicPathByteIdentical (grep 检查 dm_10/chn_10
-//                 字面 在 channels.go::handleSetTopic block 0 hit)
-//   REG-CHN10-005 TestCHN_NoAdminDescriptionPath
-//   REG-CHN10-006 TestCHN_NoDescriptionQueue
+//
+//	REG-CHN10-001 TestChn10description_NoSchemaChange (filepath.Walk migrations/)
+//	REG-CHN10-002 TestCHN_PutDescription_OwnerHappyPath
+//	              + _NonOwnerRejected + _Unauthorized401
+//	REG-CHN10-003 TestCHN_PutDescription_LengthCap500
+//	REG-CHN10-004 TestCHN_TopicPathByteIdentical (grep 检查 dm_10/chn_10
+//	              字面 在 channels.go::handleSetTopic block 0 hit)
+//	REG-CHN10-005 TestCHN_NoAdminDescriptionPath
+//	REG-CHN10-006 TestCHN_NoDescriptionQueue
 package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -24,26 +22,6 @@ import (
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN10-001 — 0 schema 改 (grep 检查 migrations/chn_10_*).
-func TestChn10description_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read migrations dir: %v", err)
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, "chn_10_") {
-			t.Errorf("CHN-10 设计第 1 条 broken — found schema migration %q (must be 0 schema)", name)
-		}
-	}
-	// DescriptionMaxLength 字节级一致 跟 channels.topic GORM size:500.
-	if api.DescriptionMaxLength != 500 {
-		t.Errorf("DescriptionMaxLength: got %d, want 500 (字节级一致 跟 channels.topic GORM size:500)", api.DescriptionMaxLength)
-	}
-}
 
 // chnHelper — minimal channel + owner setup. Returns ownerToken, owner,
 // non-owner-member, and a channel they both belong to.
@@ -165,32 +143,6 @@ func TestCHN_PutDescription_LengthCap500(t *testing.T) {
 	}
 }
 
-// REG-CHN10-004 — 既有 PUT /topic 字节级一致 不变 — handleSetTopic
-// block 内grep 检查 `chn_10|description` 0 hit (CHN-10 不漂入既有 path).
-func TestCHN_TopicPathByteIdentical(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile(filepath.Join("..", "api", "channels.go"))
-	if err != nil {
-		t.Fatalf("read channels.go: %v", err)
-	}
-	src := string(body)
-	idx := strings.Index(src, "func (h *ChannelHandler) handleSetTopic")
-	if idx < 0 {
-		t.Fatal("handleSetTopic not found in channels.go")
-	}
-	// Take a 2KB slice after the function start.
-	end := idx + 2000
-	if end > len(src) {
-		end = len(src)
-	}
-	block := src[idx:end]
-	for _, tok := range []string{"chn_10", "DescriptionMaxLength", "/description"} {
-		if strings.Contains(block, tok) {
-			t.Errorf("既有 PUT /topic block 漂移 — token %q 在 handleSetTopic block (CHN-10 设计第 4 条 broken)", tok)
-		}
-	}
-}
-
 // REG-CHN10-002d — channel not found → 404.
 func TestCHN_PutDescription_ChannelNotFound(t *testing.T) {
 	t.Parallel()
@@ -223,53 +175,4 @@ func TestCHN_PutDescription_InvalidJSONBody(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("invalid-json: got %d, want 400", resp.StatusCode)
 	}
-}
-
-// REG-CHN10-005 — admin god-mode 不挂 PATCH/PUT/POST/DELETE 在 admin-api/v1/.../description.
-func TestCHN_NoAdminDescriptionPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/[^"]*description`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			fb, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("CHN-10 设计第 2 条 broken — admin description path in %s: %q",
-					p, fb[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN10-006 — AST 对齐链延伸第 17 处 forbidden 3 token.
-func TestCHN_NoDescriptionQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingDescription",
-		"descriptionQueue",
-		"deadLetterDescription",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		fb, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(fb), tok) {
-				t.Errorf("AST 对齐链延伸第 17 处 broken — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
 }

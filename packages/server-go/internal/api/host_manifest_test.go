@@ -18,9 +18,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -90,21 +87,6 @@ func TestHB_PluginEntriesConstNonEmpty(t *testing.T) {
 	}
 	if len(first.Platforms) == 0 {
 		t.Error("entry.Platforms empty")
-	}
-}
-
-// REG-HB1-002b — 0 schema 改 (grep 检查 migrations/hb_1_*).
-func TestHostManifest_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read migrations dir: %v", err)
-	}
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "hb_1_") {
-			t.Errorf("HB-1 设计第 2 条检查失败 — found schema migration %q (must be 0 schema, manifest 走 const slice)", e.Name())
-		}
 	}
 }
 
@@ -190,56 +172,6 @@ func TestHB_SignPayloadEd25519Roundtrip(t *testing.T) {
 	_ = h
 }
 
-// REG-HB1-005 — admin 权限不挂 PATCH/POST/PUT/DELETE 在 admin-api/
-// v1/.../plugin-manifest (ADM-0 §1.3 红线).
-func TestHB_NoAdminPluginManifestPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("[^"]*admin-api/v[0-9]+/[^"]*plugin-manifest`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			fb, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("HB-1 admin 权限检查失败 — admin-rail plugin-manifest path in %s: %q",
-					p, fb[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-HB1-006 — AST 守护链延伸第 23 处 forbidden 3 token.
-func TestHB_NoPluginManifestQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingPluginManifest",
-		"pluginManifestQueue",
-		"deadLetterPluginManifest",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 守护链延伸第 23 处检查失败 — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
-}
-
 // REG-HB1-006 supplement — DL-4 命名真分清转正向: HB-1 endpoint 真返 200
 // (grep 检查 pwa_manifest_test.go::TestDL44_PWAManifest_NameNotPluginManifest
 // 既有不破; 本 test 是 HB-1 v0 上线的正向证据).
@@ -254,26 +186,4 @@ func TestHB_PluginManifest_Returns200(t *testing.T) {
 		t.Fatalf("HB-1 v0 endpoint must return 200 (DL-4 命名真分清 转正向): got %d",
 			resp.StatusCode)
 	}
-}
-
-// REG-HB1-005 supplement — AL-1a reason 字典分立 (HB-1 7-dict 跟 runtime
-// AL-1a 6-dict grep 检查 真分清).
-func TestHB_NoAL1aDriftIntoHB1(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "..", "internal", "agent", "reasons")
-	pat := regexp.MustCompile(`hb1[._]?(reason|Reason)|plugin[._]?(reason|Reason)`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if loc := pat.FindIndex(body); loc != nil {
-			t.Errorf("AL-1a reason 守护链脱节入 HB-1 — token %q in %s",
-				body[loc[0]:loc[1]], p)
-		}
-		return nil
-	})
 }

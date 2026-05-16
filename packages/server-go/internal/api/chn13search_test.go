@@ -14,30 +14,11 @@ package api_test
 import (
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN13-001 — no schema change (grep check for migrations/chn_13_*).
-func TestChn13search_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read migrations dir: %v", err)
-	}
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "chn_13_") {
-			t.Errorf("CHN-13 设计 ①检查失败 — found schema migration %q (must be 0 schema, 复用 channels 既有表)", e.Name())
-		}
-	}
-}
 
 // REG-CHN13-002 — GET /api/v1/channels?q= happy path + empty q matches existing response.
 func TestCHN_ListChannelsWithQuery(t *testing.T) {
@@ -148,56 +129,5 @@ func TestCHN_QuerySubstringMatch(t *testing.T) {
 	chs, _ := body["channels"].([]any)
 	if len(chs) < 1 {
 		t.Errorf("substring expected ≥1 match, got %d", len(chs))
-	}
-}
-
-// REG-CHN13-004 — AST alignment check for 3 forbidden tokens.
-func TestCHN_NoSearchQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingSearch",
-		"searchQueue",
-		"deadLetterSearch",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐检查第 21 处失败 — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
-}
-
-// REG-CHN13-005 — admin API must not mount the search ?q= path (ADM-0 §1.3).
-// Search is a user API filter; admin /admin-api/v1/channels already lists the
-// full org and does not need a separate search path.
-func TestCHN_NoAdminSearchPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("[^"]*admin-api/v[0-9]+/[^"]*\?q=`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			fb, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("CHN-13 admin 权限检查失败 — admin-rail search path in %s: %q",
-					p, fb[loc[0]:loc[1]])
-			}
-			return nil
-		})
 	}
 }

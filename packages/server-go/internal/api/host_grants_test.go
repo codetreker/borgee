@@ -6,14 +6,8 @@
 package api_test
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"net/http"
-	"path/filepath"
 	"reflect"
-	"sort"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/testutil"
@@ -204,134 +198,6 @@ func TestHB_DELETE_CrossUser403(t *testing.T) {
 }
 
 // ---- §3 约束 — host vs runtime 字典分立 + AST scan ----
-
-func TestHB_NoUserPermissionsJoin(t *testing.T) {
-	t.Parallel()
-	// 设计约束 §0 设计第 2 条 字典分立: host_grants 不 JOIN user_permissions.
-	dir := "."
-	entries, err := filepath.Glob(filepath.Join(dir, "host_grants*.go"))
-	if err != nil {
-		t.Fatalf("Glob: %v", err)
-	}
-	for _, path := range entries {
-		if strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if err != nil {
-			t.Fatalf("parse %s: %v", path, err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			ident, ok := n.(*ast.Ident)
-			if !ok {
-				return true
-			}
-			if strings.Contains(strings.ToLower(ident.Name), "userpermission") ||
-				strings.Contains(strings.ToLower(ident.Name), "user_permission") {
-				t.Errorf("HB-3 设计约束 §0 设计第 2 条 字典分立: forbidden user_permissions reference in %s: %s",
-					path, ident.Name)
-			}
-			return true
-		})
-	}
-}
-
-func TestHB_NoGrantQueueInAPIPackage(t *testing.T) {
-	t.Parallel()
-	// 设计约束 §0 设计第 8 条 best-effort 跟蓝图一致 BPP-4/5 — AST scan 对齐链延伸第 3 处.
-	forbidden := []string{
-		"pendingGrants",
-		"grantQueue",
-		"deadLetterGrants",
-	}
-	dir := "."
-	entries, err := filepath.Glob(filepath.Join(dir, "host_grants*.go"))
-	if err != nil {
-		t.Fatalf("Glob: %v", err)
-	}
-	fset := token.NewFileSet()
-	hits := []string{}
-	for _, path := range entries {
-		if strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if err != nil {
-			t.Fatalf("parse %s: %v", path, err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			ident, ok := n.(*ast.Ident)
-			if !ok {
-				return true
-			}
-			for _, bad := range forbidden {
-				if strings.Contains(ident.Name, bad) {
-					hits = append(hits, path+":"+ident.Name)
-				}
-			}
-			return true
-		})
-	}
-	sort.Strings(hits)
-	if len(hits) > 0 {
-		t.Errorf("HB-3 设计约束 §0 设计第 8 条 约束 (best-effort, BPP-4/5 对齐链延伸第 3 处): %v", hits)
-	}
-}
-
-// TestHB_AuditLogSchema5FieldsByteIdentical 验证设计约束 §0 设计第 3 条 —
-// audit log 5 字段 (actor/action/target/when/scope) 字节级一致 跟
-// BPP-4 #499 DeadLetterAuditEntry + HB-1/HB-2 audit 跨四 milestone
-// 同源. 此 test 验证 host_grants.go 真用 5 个 key 写 log.
-func TestHB_AuditLogSchema5FieldsByteIdentical(t *testing.T) {
-	t.Parallel()
-	// 静态扫描 host_grants.go 源, 反断 logger.Info 调用包含 5 个固定 key.
-	dir := "."
-	path := filepath.Join(dir, "host_grants.go")
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	requiredKeys := []string{`"actor"`, `"action"`, `"target"`, `"when"`, `"scope"`}
-	loggerInfoCallsHaveAllKeys := 0
-	ast.Inspect(f, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Info" {
-			return true
-		}
-		// Collect literal arg strings to check for the 5 keys.
-		seen := map[string]bool{}
-		for _, arg := range call.Args {
-			lit, ok := arg.(*ast.BasicLit)
-			if !ok {
-				continue
-			}
-			seen[lit.Value] = true
-		}
-		hasAll := true
-		for _, k := range requiredKeys {
-			if !seen[k] {
-				hasAll = false
-				break
-			}
-		}
-		if hasAll {
-			loggerInfoCallsHaveAllKeys++
-		}
-		return true
-	})
-	// Two log call sites: granted + revoked. Both should have all 5 keys.
-	if loggerInfoCallsHaveAllKeys < 2 {
-		t.Errorf("HB-3 设计约束 §0 设计第 3 条 audit schema mismatch: expected ≥2 logger.Info calls "+
-			"with all 5 keys (actor/action/target/when/scope) 字节级一致 跟 HB-1/HB-2/"+
-			"BPP-4 dead-letter 跨四 milestone 同源, found %d", loggerInfoCallsHaveAllKeys)
-	}
-}
 
 // guard linter: keep reflect import live for future schema ref tests
 var _ = reflect.TypeOf

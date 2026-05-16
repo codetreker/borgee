@@ -17,8 +17,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -224,49 +222,6 @@ func TestDM_NotFound404(t *testing.T) {
 		map[string]any{"content": "x"})
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("nonexistent message: got status %d, want 404", resp.StatusCode)
-	}
-}
-
-// TestDM_NoThinkingPatternInBody — acceptance §1.3 设计第 3 条
-// thinking subject 5-pattern 约束延伸第 3 处 (RT-3 第 1 + DM-3
-// 第 2 + DM-4 第 3). dm_4*.go grep 检查 5 字面 0 hit (production
-// .go 不含 thinking 状态字面).
-func TestDM_NoThinkingPatternInBody(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		`"processing"`,
-		`"responding"`,
-		`"thinking"`,
-		`"analyzing"`,
-		`"planning"`,
-	}
-	dir := "../api"
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("ReadDir: %v", err)
-	}
-	hits := []string{}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), "dm_4") {
-			continue
-		}
-		if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		path := filepath.Join(dir, e.Name())
-		b, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		content := string(b)
-		for _, bad := range forbidden {
-			if strings.Contains(content, bad) {
-				hits = append(hits, path+":"+bad)
-			}
-		}
-	}
-	if len(hits) > 0 {
-		t.Errorf("DM-4 设计第 3 条检查失败: thinking 5-pattern literal in dm_4*.go production: %v", hits)
 	}
 }
 

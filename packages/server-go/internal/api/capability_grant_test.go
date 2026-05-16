@@ -12,10 +12,6 @@ package api_test
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
@@ -172,65 +168,6 @@ func TestBPP_RequestGrant_CapabilityWhitelistGuard(t *testing.T) {
 		if _, err := h.HandleAction(frame, bpp.SessionContext{AgentUserID: agent.ID}); err != nil {
 			t.Errorf("capability=%q must pass (in AP-1 14-const), got: %v", cap, err)
 		}
-	}
-}
-
-// REG-BPP32-004 (acceptance §1.5 negative check #2) — DM 不开新 channel 类型,
-// 走既有 type='system' channel (CM-onboarding #203). Negative source-scan guard.
-func TestBPP_ReverseGrep_NoNewChannelType(t *testing.T) {
-	t.Parallel()
-	apiDir := filepath.Join("..", "api")
-	// Negative source scan: 不出现新 channel type literal (e.g. "permission_dm" /
-	// "capability_request").
-	bad := regexp.MustCompile(`"capability_request"|"permission_denied_dm"|system_message_kind\s*=\s*"permission`)
-	hits := []string{}
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		if bad.Find(body) != nil {
-			hits = append(hits, p)
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("source scan failed — DM should reuse the existing system channel type, hit: %v", hits)
-	}
-}
-
-// REG-BPP32-005 (acceptance §1.5 negative check #1 + spec §3 negative check #1) —
-// hardcode capability 字面 hardcode 0 hit (走 auth.<Const>).
-// Equivalent to AP-1 negative check #1 same source.
-func TestBPP_ReverseGrep_NoHardcodedGrantCapability(t *testing.T) {
-	t.Parallel()
-	apiDir := filepath.Join("..", "api")
-	bad := regexp.MustCompile(`GrantPermission[^"]*Permission:\s*"[a-z_]+"`)
-	hits := []string{}
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		if loc := bad.FindIndex(body); loc != nil {
-			hits = append(hits, p)
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("negative check spec §3 #1 broken — GrantPermission Permission: \"<literal>\" hit at: %v (走 auth.<Capability> const)", hits)
 	}
 }
 

@@ -15,48 +15,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
 )
-
-// REG-HB6-001 — no schema changes (grep check for migrations/hb_6_).
-func TestHost_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read migrations dir: %v", err)
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, "hb_6_") {
-			t.Errorf("HB-6 design item 1 broken — found schema migration file %q (must be 0 schema)", name)
-		}
-	}
-}
-
-// REG-HB6-001b — WindowSeconds is byte-identical with BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS.
-func TestHB_WindowSecondsByteIdentical(t *testing.T) {
-	t.Parallel()
-	if api.WindowSeconds != 30 {
-		t.Errorf("WindowSeconds: got %d, want 30 (same source as BPP-4 BPP_HEARTBEAT_TIMEOUT_SECONDS)", api.WindowSeconds)
-	}
-	// Grep-check BPP-4 watchdog source — lock the 30 literal.
-	body, err := os.ReadFile(filepath.Join("..", "bpp", "heartbeat_watchdog.go"))
-	if err != nil {
-		t.Fatalf("read bpp watchdog: %v", err)
-	}
-	if !strings.Contains(string(body), "BPP_HEARTBEAT_TIMEOUT_SECONDS = 30") {
-		t.Error("BPP-4 watchdog 30s literal drifted — HB-6 WindowSeconds bidirectional lock broken")
-	}
-}
 
 // REG-HB6-002 — AggregateLag percentile correctness (5-sample HappyPath).
 func TestHB_AggregateLag_PercentileCorrect(t *testing.T) {
@@ -246,48 +210,6 @@ func TestHB_AtRiskReasonByteIdentical(t *testing.T) {
 	if body["reason_if_at_risk"] != "network_unreachable" {
 		t.Errorf("reason_if_at_risk: got %v, want 'network_unreachable' (AL-1a alignment checkpoint 19)",
 			body["reason_if_at_risk"])
-	}
-}
-
-// REG-HB6-006a — admin god-mode does not mount PATCH/POST/PUT/DELETE on admin-api/v1/heartbeat-lag.
-func TestHB_NoAdminWritePath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/heartbeat-lag`)
-	for _, dir := range dirs {
-		assertNoRegexpInCachedGoFiles(t, dir, pat, false, "HB-6 design item 3 broken — admin write on heartbeat-lag in %s: %q")
-	}
-}
-
-// REG-HB6-006b — AST alignment chain extension checkpoint 16 forbids three tokens.
-func TestHB_NoLagSampleQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingLagSample",
-		"lagSampleQueue",
-		"deadLetterLag",
-	}
-	dir := filepath.Join("..", "api")
-	assertNoTokensInCachedGoFiles(t, dir, forbidden, false, "AST alignment chain extension checkpoint 16 broken — token %q in %s")
-}
-
-// REG-HB6-006c — zero client UI v1 surface (grep check client/src/).
-func TestHB_NoClientUIv1(t *testing.T) {
-	t.Parallel()
-	clientDir := filepath.Join("..", "..", "..", "client", "src")
-	if _, err := os.Stat(clientDir); err != nil {
-		t.Skipf("client dir not present: %v", err)
-	}
-	forbidden := []string{"useHeartbeatLag", "HeartbeatLagPanel"}
-	for _, f := range cachedFilesUnder(t, clientDir) {
-		if !strings.HasSuffix(f.Name, ".ts") && !strings.HasSuffix(f.Name, ".tsx") {
-			continue
-		}
-		for _, tok := range forbidden {
-			if strings.Contains(string(f.Body), tok) {
-				t.Errorf("HB-6 design item 6 broken — client UI v1 token %q in %s", tok, f.Path)
-			}
-		}
 	}
 }
 

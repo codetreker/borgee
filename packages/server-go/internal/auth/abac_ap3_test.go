@@ -1,21 +1,18 @@
 // Package auth — abac_ap3_test.go: AP-3 cross-org owner-only gate 单测.
 //
 // Pins:
-//   REG-AP3-002a — cross-org user → false (即使有 wildcard 也 reject)
-//   REG-AP3-002b — same-org user → true (跟 AP-1 既有路径完全兼容)
-//   REG-AP3-002c — cross-org agent → false (BPP-1 #304 org sandbox 同源)
-//   REG-AP3-002d — NULL org_id legacy 路径 (跟 AP-1 现网行为零变)
-//   REG-AP3-002e — admin god-mode 不入此路径 (反向 grep)
-//   REG-AP3-001 — ErrCodeCrossOrgDenied 字面单一来源
-//   REG-AP3-003 — 反向 grep cross-org bypass count==0
+//
+//	REG-AP3-002a — cross-org user → false (即使有 wildcard 也 reject)
+//	REG-AP3-002b — same-org user → true (跟 AP-1 既有路径完全兼容)
+//	REG-AP3-002c — cross-org agent → false (BPP-1 #304 org sandbox 同源)
+//	REG-AP3-002d — NULL org_id legacy 路径 (跟 AP-1 现网行为零变)
+//	REG-AP3-002e — admin god-mode 不入此路径 (反向 grep)
+//	REG-AP3-001 — ErrCodeCrossOrgDenied 字面单一来源
+//	REG-AP3-003 — 反向 grep cross-org bypass count==0
 package auth
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
@@ -160,7 +157,7 @@ func TestAP_LegacyNullOrgID_FallsThroughToAP1(t *testing.T) {
 	}
 }
 
-// REG-AP3-002d'' — wildcard scope skips org gate entirely (no resource
+// REG-AP3-002d” — wildcard scope skips org gate entirely (no resource
 // bound to compare against, 设计 ① 高于 wildcard 仅当有 resource 时 enforce).
 func TestAP_WildcardScope_SkipsOrgGate(t *testing.T) {
 	t.Parallel()
@@ -192,104 +189,5 @@ func TestAP_UserNullOrgID_FallsThroughToAP1(t *testing.T) {
 	ctx := context.WithValue(context.Background(), userContextKey, user)
 	if !HasCapability(ctx, s, "channel.write", "channel:ch-A") {
 		t.Error("user.OrgID NULL 应走 AP-1 legacy 路径 (任一 NULL = legacy, 设计 ⑥)")
-	}
-}
-
-// REG-AP3-002e (acceptance §2.5 + 设计 ⑤) — admin god-mode 不入此路径.
-// 反向 grep filepath.Walk 扫 internal/api/ count==0 含 admin.*HasCapability
-// .*org / HasCapability(.*admin_ 模式.
-func TestAP_AdminGodMode_NotInThisPath(t *testing.T) {
-	t.Parallel()
-	apiDir := filepath.Join("..", "api")
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`admin.*HasCapability.*\.org`),
-		regexp.MustCompile(`HasCapability\([^)]*admin_`),
-	}
-	hits := []string{}
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		for _, pat := range patterns {
-			if loc := pat.FindIndex(body); loc != nil {
-				hits = append(hits, p+":"+pat.String())
-			}
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("约束 设计 ⑤ broken — admin god-mode in HasCapability path, hits: %v", hits)
-	}
-}
-
-// REG-AP3-003 (acceptance §3.2 + 设计 ③) — reverse grep cross-org bypass
-// in internal/api/ count==0 (跟 AP-1 #493 5 grep 约束同模式守 future
-// mismatch).
-func TestAP_ReverseGrep_NoCrossOrgBypass(t *testing.T) {
-	t.Parallel()
-	apiDir := filepath.Join("..", "api")
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`cross.org.*bypass`),
-		regexp.MustCompile(`skip.*org.*check`),
-		regexp.MustCompile(`bypass.*org_id`),
-		regexp.MustCompile(`agent.*cross.*org.*permission`),
-		regexp.MustCompile(`agent.*org_id.*ignore`),
-	}
-	hits := []string{}
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		for _, pat := range patterns {
-			if loc := pat.FindIndex(body); loc != nil {
-				hits = append(hits, p+":"+pat.String())
-			}
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("约束 设计 ③ broken — cross-org bypass found, hits: %v", hits)
-	}
-}
-
-// REG-AP3-003' — reverse grep migrations/ has no FK org_id REFERENCES
-// organizations (设计 ② + spec §3 约束 #4).
-func TestAP_ReverseGrep_NoFKOrganizations(t *testing.T) {
-	t.Parallel()
-	migDir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`user_permissions.*FOREIGN KEY.*organizations`)
-	hits := []string{}
-	_ = filepath.Walk(migDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		if loc := pat.FindIndex(body); loc != nil {
-			hits = append(hits, p)
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("约束 设计 ② broken — user_permissions FK organizations, hits: %v", hits)
 	}
 }

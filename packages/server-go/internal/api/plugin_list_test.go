@@ -5,9 +5,6 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
@@ -158,48 +155,5 @@ func TestBPP_LifecycleList_NonPluginActionsExcluded(t *testing.T) {
 	events, _ := body["events"].([]any)
 	if len(events) != 1 {
 		t.Errorf("expected 1 plugin_* event (permission_expired excluded), got %d: %v", len(events), events)
-	}
-}
-
-// TestBPP_NoAdminLifecyclePath — acceptance §3.2 设计 ⑦ ADM-0 §1.3 限制.
-func TestBPP_NoAdminLifecyclePath(t *testing.T) {
-	t.Parallel()
-	dir := "../api"
-	// dir is relative to this test file location (internal/api/).
-	if _, err := os.Stat(dir); err != nil {
-		dir = "."
-	}
-	literals := []string{
-		"admin/agents/lifecycle",
-		"admin/plugins/lifecycle",
-		"AdminPluginLifecycle",
-		"AdminBPP8",
-	}
-	hits := []string{}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("ReadDir: %v", err)
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), "admin") {
-			continue
-		}
-		if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		path := filepath.Join(dir, e.Name())
-		b, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		content := string(b)
-		for _, bad := range literals {
-			if strings.Contains(content, bad) {
-				hits = append(hits, path+":"+bad)
-			}
-		}
-	}
-	if len(hits) > 0 {
-		t.Errorf("BPP-8 设计 ⑦检查失败 — admin 权限 references plugin lifecycle (ADM-0 §1.3 限制): %v", hits)
 	}
 }

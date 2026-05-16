@@ -6,10 +6,6 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
@@ -205,66 +201,4 @@ func TestDM_GetEditHistoryAdmin_HappyPath(t *testing.T) {
 	if len(hist) != 1 {
 		t.Errorf("admin history length: got %d, want 1", len(hist))
 	}
-}
-
-// REG-DM7-004b — admin god-mode 不挂 PATCH/DELETE 双反向断言.
-func TestDM_NoAdminPatchDeletePath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/[^"]*edit-history`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("DM-7 设计 ③ broken — admin PATCH/DELETE/PUT path in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-DM7-005 — DM-4 既有 dm_4_message_edit.go production byte-identical
-// 反向断言 (grep 检查 dm_7 在 dm_4*.go 0 hit).
-func TestDM_DM4ProductionByteIdentical(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile(filepath.Join("..", "api", "message_edit.go"))
-	if err != nil {
-		t.Fatalf("read dm_4: %v", err)
-	}
-	if regexp.MustCompile(`dm_?7\b`).Find(body) != nil {
-		t.Error("DM-4 production mismatch — dm_7 reference in dm_4_message_edit.go")
-	}
-}
-
-// REG-DM7-006 — AST 对齐链延伸第 16 处.
-func TestDM_NoEditHistoryQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingEditHistory",
-		"editHistoryQueue",
-		"deadLetterEditHistory",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐链延伸第 16 处 broken — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
 }

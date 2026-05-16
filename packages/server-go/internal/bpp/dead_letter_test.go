@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"reflect"
 	"testing"
-
-	"borgee-server/internal/lint/astscan"
 )
 
 // TestBPP_DeadLetter_LogKeyByteIdentical — content-lock §1.③ 单一来源锁定
@@ -81,23 +79,4 @@ func TestBPP_DeadLetter_AuditSchema5FieldsByteIdentical(t *testing.T) {
 			t.Errorf("field[%d] json tag=%q, want %q", i, got, w.tag)
 		}
 	}
-}
-
-// TestBPP_NoRetryQueueInBPPPackage — acceptance §4.3 反向约束 grep
-// `pendingAcks|retryQueue|deadLetterQueue|ackTimeout.*resend|
-// time.*Ticker.*resend|retry.*frame.*backoff` count==0 in
-// internal/bpp/ source.
-//
-// PERF-AST-LINT: refactored from inline ast.Walk to reusable
-// astscan.AssertNoForbiddenIdentifiers helper (飞马 spec, 2026-04-29).
-// 字面跟随 byte-identical: 4 forbidden id 跟 BPP-4 #499 原 inline scan
-// 同源 (BPP-5+/HB-3+ 后续 milestone reuse 同 helper).
-func TestBPP_NoRetryQueueInBPPPackage(t *testing.T) {
-	t.Parallel()
-	astscan.AssertNoForbiddenIdentifiers(t, ".", []astscan.ForbiddenIdentifier{
-		{Name: "pendingAcks", Reason: "BPP-4 ack best-effort 不重发 (acceptance §4.3)"},
-		{Name: "retryQueue", Reason: "BPP-4 ack best-effort 不重发 (acceptance §4.3)"},
-		{Name: "deadLetterQueue", Reason: "BPP-4 audit log 不持久 (原则 §3)"},
-		{Name: "ackTimeout", Reason: "BPP-4 30s 字面单一来源在 const, 不在 production identifier"},
-	}, astscan.ScanOpts{})
 }

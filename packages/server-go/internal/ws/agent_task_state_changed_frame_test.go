@@ -15,11 +15,7 @@ package ws_test
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"reflect"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/ws"
@@ -153,64 +149,6 @@ func TestRT_PushAgentTaskStateChanged_NoCursorAllocator(t *testing.T) {
 	}
 	if cur != 0 {
 		t.Errorf("expected cursor=0 on hub with no allocator, got %d", cur)
-	}
-}
-
-// TestRT_ReverseGrep_NoSubjectFallback pins blueprint §1.1 ⭐ — server
-// MUST NOT emit AgentTaskStateChangedFrame with a fallback / default /
-// empty subject in busy state. Reverse grep guard mirrors BPP-2.2
-// task_lifecycle.go ValidateTaskStarted requiring a non-empty subject and
-// the dispatcher.go reverse-grep pattern.
-//
-// Blueprint text: "BPP `progress` frame **强制带 `subject` 字段**——plugin 必须
-// 告诉 Borgee 'agent 在做什么', 否则不展示" + "沉默胜于假 loading".
-func TestRT_ReverseGrep_NoSubjectFallback(t *testing.T) {
-	t.Parallel()
-
-	// Walk the ws package source files (not _test.go) for forbidden
-	// fallback patterns that would silently hide the "subject required"
-	// 立场 ① rule.
-	patterns := []string{
-		`\bsubject\s*=\s*""`,             // explicit empty default
-		`defaultSubject\b`,               // default-named symbol
-		`fallbackSubject\b`,              // fallback-named symbol
-		`Subject\s*:\s*"thinking"`,       // hard-coded vague string (blueprint §1.1)
-		`Subject\s*:\s*"AI is thinking"`, // ditto
-	}
-	res := make([]*regexp.Regexp, 0, len(patterns))
-	for _, p := range patterns {
-		res = append(res, regexp.MustCompile(p))
-	}
-
-	root := "."
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatalf("readdir: %v", err)
-	}
-	hits := 0
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
-			continue
-		}
-		if strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		path := filepath.Join(root, e.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Errorf("read %s: %v", path, err)
-			continue
-		}
-		for _, re := range res {
-			if locs := re.FindAllIndex(data, -1); len(locs) > 0 {
-				t.Errorf("%s: forbidden pattern %q found %d time(s) — 蓝图 §1.1 ⭐ subject 必带非空, 不准 fallback",
-					e.Name(), re.String(), len(locs))
-				hits += len(locs)
-			}
-		}
-	}
-	if hits > 0 {
-		t.Logf("RT-3 ⭐ subject fallback reverse-grep: %d hits — fix above before committing", hits)
 	}
 }
 

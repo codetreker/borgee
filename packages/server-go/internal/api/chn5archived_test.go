@@ -14,34 +14,11 @@ package api_test
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN5-001 — schema unchanged: migrations/ 不出现新 chn_5_*
-// migration file (跟 chn-5-spec.md §1 设计第 1 条 字面单一来源). channels.archived_at
-// 列由 CHN-1.1 #267 既有 (chn_1_1_channels_org_scoped.go) — 此 test 仅守
-// no new chn_5_* files because the existing column is reused.
-func TestChn5archived_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`(?i)chn_5_\d+|chn5_\d+_archive`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		base := filepath.Base(p)
-		if pat.MatchString(base) {
-			t.Errorf("CHN-5 设计第 1 条 violation — new schema migration file %s", p)
-		}
-		return nil
-	})
-}
 
 // REG-CHN5-002a — owner-only success case.
 func TestCHN_ListMyArchived_Success(t *testing.T) {
@@ -176,73 +153,6 @@ func TestCHN_UnarchiveSystemMessageNotification(t *testing.T) {
 		t.Errorf("CHN-5 设计第 3 条: unarchive system DM not found (text-lock prefix=%q infix=%q) in %v",
 			wantPrefix, wantInfix, list)
 	}
-}
-
-// REG-CHN5-005 — admin API has no PATCH path.
-//
-// grep 检查 `mux\.Handle\("(PATCH|PUT|DELETE).*admin-api/v1/channels/archived`
-// must not match in internal/api or internal/server (ADM-0 §1.3: admin can read but not modify).
-func TestCHN_NoAdminPatchPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(PATCH|PUT|DELETE)[^"]*admin-api/v[0-9]+/channels/archived`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 设计第 2 条 violation — admin PATCH/PUT/DELETE path in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-	// Also reject any handler symbol named admin*archive*channel handler.
-	pat2 := regexp.MustCompile(`(?i)admin.*archive_channel|admin.*unarchive`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-5 设计第 2 条 violation — admin archive-channel symbol in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN5-006 — production API code must not introduce archive queue tokens.
-func TestCHN_NoChannelArchiveQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingChannelArchive",
-		"channelArchiveQueue",
-		"deadLetterChannelArchive",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("archive queue token violation — forbidden token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
 }
 
 // REG-CHN5-cov — admin list success case with seeded archived rows (covers

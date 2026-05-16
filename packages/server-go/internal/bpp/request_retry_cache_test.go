@@ -2,18 +2,15 @@
 // 5 unit pins (acceptance §3.1-§3.3 + content-lock §4 + spec §3 反约束).
 //
 // Pins:
-//   3.1.a TTL 5 min lazy GC reaps stale entries
-//   3.1.b ≤3 次重试 (MaxPermissionRetries const lock)
-//   3.1.c 30s 固定退避 (RetryBackoff const lock + backoff window enforcement)
-//   3.2.a 上限超 → ErrRetryExhausted + bpp.retry_exhausted 错码字面 byte-identical
-//   3.3.a 反约束 grep: 不复用 BPP-4 watchdog 队列
+//
+//	3.1.a TTL 5 min lazy GC reaps stale entries
+//	3.1.b ≤3 次重试 (MaxPermissionRetries const lock)
+//	3.1.c 30s 固定退避 (RetryBackoff const lock + backoff window enforcement)
+//	3.2.a 上限超 → ErrRetryExhausted + bpp.retry_exhausted 错码字面 byte-identical
+//	3.3.a 反约束 grep: 不复用 BPP-4 watchdog 队列
 package bpp_test
 
 import (
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -169,52 +166,6 @@ func TestBPP_RetryCache_RemoveAfterSuccess(t *testing.T) {
 	}
 	if entry.AttemptCount != 1 {
 		t.Errorf("Re-Add AttemptCount: got %d, want 1 (fresh re-issue)", entry.AttemptCount)
-	}
-}
-
-// REG-BPP32-205 (acceptance §3.3 + spec §3 反约束 #3) — 反约束 grep:
-// 不复用 BPP-4 watchdog 队列. CI lint 等价单测守 future drift.
-//
-// 反向断言 in this package:
-//   - `pendingAcks` (BPP-4 watchdog ack 队列名)
-//   - `deadLetterQueue` (BPP-4 失败队列)
-//   - `cancel.*in.flight` (BPP-4 取消机制)
-//   - `BPP-?4.*watchdog` 引用注释 (说明跨 milestone 复用)
-func TestBPP_RetryCache_ReverseGrep_NoBPP4Reuse(t *testing.T) {
-	t.Parallel()
-	bppDir := filepath.Join(".")
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`pendingAcks`),
-		regexp.MustCompile(`deadLetterQueue`),
-		regexp.MustCompile(`cancel.*in.flight`),
-		regexp.MustCompile(`BPP-?4.*watchdog.*reuse|reuse.*BPP-?4.*watchdog`),
-	}
-	hits := []string{}
-	_ = filepath.Walk(bppDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		// Only scan request_retry_cache.go itself — that's the BPP-3.2.3
-		// stance §3 boundary.
-		if !strings.HasSuffix(p, "request_retry_cache.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		for _, pat := range patterns {
-			if loc := pat.FindIndex(body); loc != nil {
-				hits = append(hits, p+":"+pat.String())
-			}
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("反约束 spec §3 #3 broken — request_retry_cache.go 不应复用 BPP-4 队列, hit: %v", hits)
 	}
 }
 

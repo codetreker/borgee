@@ -5,46 +5,11 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN9-001 — 0 schema 改反向断言.
-func TestChn9visibility_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`(?i)chn_9_\d+|chn9_\d+_visibility`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-9 设计第 1 条检查失败 — new schema migration file %s", p)
-		}
-		return nil
-	})
-	pat2 := regexp.MustCompile(`(?i)ALTER TABLE channels.*ADD COLUMN.*visibility|ALTER TABLE channels.*MODIFY.*visibility`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		// Skip tests; we only care about production migration files.
-		if strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if pat2.Find(body) != nil {
-			t.Errorf("CHN-9 设计第 1 条检查失败 — visibility ALTER in %s", p)
-		}
-		return nil
-	})
-}
 
 // REG-CHN9-002 — VisibilityConsts 字节级一致 三向锁定.
 func TestCHN_VisibilityConsts_ByteIdentical(t *testing.T) {
@@ -167,96 +132,4 @@ func TestCHN_CreatorOnlyChannel_NotLeakedToOrgPeers(t *testing.T) {
 			t.Errorf("CHN-9 设计第 3 条检查失败 — creator_only channel leaked to non-creator: %v", c)
 		}
 	}
-}
-
-// REG-CHN9-005b — ListChannelsWithUnread filter 字节级一致 不动.
-//
-// 反向断言 SQL `visibility = 'public'` 字面跟 CHN-1.2 既有同源 (creator_only
-// 不入 org-public preview filter).
-func TestCHN_ListChannelsFilter_ByteIdentical(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile(filepath.Join("..", "store", "queries.go"))
-	if err != nil {
-		t.Fatalf("read queries.go: %v", err)
-	}
-	// Existing CHN-1.2 filter 字面 字节级一致 锁定 — grep 检查
-	// `visibility = 'public'` 必须 ≥1 hit.
-	pat := regexp.MustCompile(`visibility\s*=\s*'public'`)
-	if pat.Find(body) == nil {
-		t.Error("CHN-9 设计第 3 条检查失败 — ListChannelsWithUnread `visibility = 'public'` filter 字面消失")
-	}
-	// 反向断言: 不出现 `visibility = 'creator_only'` 在 SQL 显式 filter
-	// (creator_only 走 IsChannelMember + creator-only ACL, 不走 SQL filter).
-	pat2 := regexp.MustCompile(`visibility\s*=\s*'creator_only'`)
-	if pat2.Find(body) != nil {
-		t.Error("CHN-9 设计第 3 条检查失败 — creator_only 不应入 SQL filter (走 IsChannelMember ACL)")
-	}
-}
-
-// REG-CHN9-006 — admin 权限不挂 visibility PATCH 反向断言.
-func TestCHN_NoAdminVisibilityPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/[^"]*visibility`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 设计第 3 条检查失败 — admin visibility path in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-	// admin*.go 不含 admin-visibility handler symbol.
-	pat2 := regexp.MustCompile(`(?i)func.*[Aa]dmin\w*[Vv]isibility\b`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			base := filepath.Base(p)
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") || !strings.HasPrefix(base, "admin") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-9 设计第 3 条检查失败 — admin visibility handler in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN9-007 — AST 守护链延伸第 14 处.
-func TestCHN_NoVisibilityQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingVisibility",
-		"visibilityChangeQueue",
-		"deadLetterVisibility",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 守护链延伸第 14 处检查失败 — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
 }

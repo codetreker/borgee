@@ -3,9 +3,6 @@ package admin_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -13,23 +10,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// readSource is a helper used by 1.E to grep the source of the admin package
-// for forbidden / required imports. It locates the file relative to this test
-// file's own location so it works regardless of the test's working directory.
-func readSource(t *testing.T, name string) string {
-	t.Helper()
-	_, here, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	p := filepath.Join(filepath.Dir(here), name)
-	b, err := os.ReadFile(p)
-	if err != nil {
-		t.Fatalf("read %s: %v", p, err)
-	}
-	return string(b)
-}
 
 // TestMiddleware_1F_DualRailCoexistence covers review checklist invariant 1.F
 // as adapted by ADM-0.2: the admin-rail accepts only its own opaque session

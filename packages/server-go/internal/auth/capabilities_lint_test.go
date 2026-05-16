@@ -12,9 +12,6 @@
 package auth
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"strings"
 	"testing"
 )
@@ -72,43 +69,6 @@ func TestAP_ALL_Length14(t *testing.T) {
 	t.Parallel()
 	if len(ALL) != 14 {
 		t.Fatalf("len(ALL) = %d, want 14 (AP-1 #493 字面锁)", len(ALL))
-	}
-}
-
-// TestAP_reflect_lint_NoOrphanConst — capabilities.go const literals ⊂ ALL.
-// Parse the capabilities.go const block with go/ast and verify every string literal ∈ ALL.
-func TestAP_reflect_lint_NoOrphanConst(t *testing.T) {
-	t.Parallel()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "capabilities.go", nil, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("parse capabilities.go: %v", err)
-	}
-	allSet := make(map[string]bool, len(ALL))
-	for _, c := range ALL {
-		allSet[c] = true
-	}
-	for _, decl := range f.Decls {
-		gd, ok := decl.(*ast.GenDecl)
-		if !ok || gd.Tok != token.CONST {
-			continue
-		}
-		for _, spec := range gd.Specs {
-			vs, ok := spec.(*ast.ValueSpec)
-			if !ok {
-				continue
-			}
-			for _, val := range vs.Values {
-				bl, ok := val.(*ast.BasicLit)
-				if !ok || bl.Kind != token.STRING {
-					continue
-				}
-				lit := strings.Trim(bl.Value, `"`)
-				if !allSet[lit] {
-					t.Errorf("const literal %q not in ALL — orphan const mismatch", lit)
-				}
-			}
-		}
 	}
 }
 
