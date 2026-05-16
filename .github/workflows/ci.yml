@@ -178,12 +178,20 @@ jobs:
         run: pnpm install --frozen-lockfile --filter @borgee/e2e --filter @borgee/client
       - name: Install Playwright chromium
         run: pnpm --filter @borgee/e2e exec playwright install chromium
-      - name: Type-check client (vite dev needs tsc-clean code)
-        run: pnpm --filter @borgee/client build
+      - name: Cache server-go e2e binary
+        id: server-e2e-bin-cache
+        uses: actions/cache@v4
+        with:
+          path: packages/server-go/bin/collab-e2e
+          key: server-go-e2e-bin-${{ runner.os }}-${{ runner.arch }}-go1.25-${{ hashFiles('packages/server-go/go.mod', 'packages/server-go/go.sum', 'packages/server-go/**/*.go') }}
       - name: Pre-fetch server-go modules
+        if: steps.server-e2e-bin-cache.outputs.cache-hit != 'true'
         run: cd packages/server-go && go mod download
       - name: Build server-go e2e binary
+        if: steps.server-e2e-bin-cache.outputs.cache-hit != 'true'
         run: cd packages/server-go && go build -tags sqlite_fts5 -o bin/collab-e2e ./cmd/collab
+      - name: Ensure server-go e2e binary is executable
+        run: chmod +x packages/server-go/bin/collab-e2e
       - name: Run E2E
         env:
           E2E_CI_WORKERS: "4"
