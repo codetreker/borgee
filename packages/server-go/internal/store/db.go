@@ -12,8 +12,17 @@ type Store struct {
 	db *gorm.DB
 }
 
+type OpenOptions struct {
+	MaxOpenConns int
+	TxLock       string
+}
+
 func Open(dsn string) (*Store, error) {
-	db, err := gorm.Open(sqlite.Open(sqliteDSNWithPragmas(dsn)), &gorm.Config{
+	return OpenWithOptions(dsn, OpenOptions{})
+}
+
+func OpenWithOptions(dsn string, opts OpenOptions) (*Store, error) {
+	db, err := gorm.Open(sqlite.Open(sqliteDSNWithOptions(dsn, opts)), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
@@ -28,6 +37,8 @@ func Open(dsn string) (*Store, error) {
 		// :memory: requires single conn — sqlite creates a fresh DB per
 		// connection, so a pool of >1 conn would see N independent DBs.
 		sqlDB.SetMaxOpenConns(1)
+	} else if opts.MaxOpenConns > 0 {
+		sqlDB.SetMaxOpenConns(opts.MaxOpenConns)
 	}
 
 	// PERF: WAL only meaningful on file-backed sqlite. :memory: WAL is no-op
@@ -50,6 +61,10 @@ func Open(dsn string) (*Store, error) {
 }
 
 func sqliteDSNWithPragmas(dsn string) string {
+	return sqliteDSNWithOptions(dsn, OpenOptions{})
+}
+
+func sqliteDSNWithOptions(dsn string, opts OpenOptions) string {
 	if dsn == ":memory:" {
 		return dsn
 	}
@@ -58,6 +73,9 @@ func sqliteDSNWithPragmas(dsn string) string {
 		"_busy_timeout=5000",
 		"_foreign_keys=on",
 		"_journal_mode=WAL",
+	}
+	if opts.TxLock != "" {
+		params = append(params, "_txlock="+opts.TxLock)
 	}
 	sep := "?"
 	if strings.Contains(dsn, "?") {

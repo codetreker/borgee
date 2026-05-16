@@ -201,7 +201,12 @@ func (h *ChannelHandler) handleCreateChannel(w http.ResponseWriter, r *http.Requ
 		Payload: mustJSON(map[string]any{"channel": ch}),
 	})
 	if h.Hub != nil {
-		h.Hub.BroadcastEventToAll("channel_created", map[string]any{"channel": ch})
+		// The POST response is the creator's source of truth, and explicit
+		// member adds use channel_added below. Broadcasting channel_created to
+		// every browser bypasses ListChannelsWithUnread's org/member scoping and
+		// makes unrelated clients accumulate other users' channels under parallel
+		// e2e load.
+		h.Hub.BroadcastEventToChannel(ch.ID, "channel_created", map[string]any{"channel": ch})
 	}
 }
 

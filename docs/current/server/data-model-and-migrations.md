@@ -48,7 +48,9 @@ The data layer wraps selected store behavior behind interfaces and provides the 
 
 ## Internal Architecture
 
-The storage runtime is SQLite through GORM. File-backed databases run with WAL, busy-timeout, and foreign-key pragmas attached to the SQLite DSN so every pooled connection gets the same concurrency and integrity settings. In-memory test databases use a single connection to avoid isolated per-connection databases.
+The storage runtime is SQLite through GORM. File-backed databases run with WAL, busy-timeout, and foreign-key pragmas attached to the SQLite DSN so every pooled connection gets the same concurrency and integrity settings. In-memory test databases use a single connection to avoid isolated per-connection databases. Runtime config can also cap SQLite open connections with `SQLITE_MAX_OPEN_CONNS` or set SQLite transaction locking with `SQLITE_TXLOCK`; the Playwright e2e server uses immediate transaction locking to avoid deferred read-to-write lock upgrade failures under multi-worker load without changing the production default pool behavior.
+
+Realtime channel fanout treats channel-scoped frames, including `new_message`, as reliable within a bounded send window instead of silently dropping them when a browser's websocket buffer is briefly full. Global presence-style frames remain best-effort.
 
 The baseline migration creates the original core tables, applies guarded column additions, creates indexes, performs backfills, and cleans up legacy direct-message state. It remains part of boot because the server still supports databases that were born before the numbered migration registry.
 

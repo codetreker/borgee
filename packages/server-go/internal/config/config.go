@@ -9,36 +9,40 @@ import (
 )
 
 type Config struct {
-	Port          int
-	Host          string
-	LogLevelStr   string
-	NodeEnv       string
-	CORSOrigin    string
-	DatabasePath  string
-	UploadDir     string
-	WorkspaceDir  string
-	ClientDist    string
-	JWTSecret     string
-	DevAuthBypass bool
-	AdminUser     string
-	AdminPassword string
+	Port               int
+	Host               string
+	LogLevelStr        string
+	NodeEnv            string
+	CORSOrigin         string
+	DatabasePath       string
+	UploadDir          string
+	WorkspaceDir       string
+	ClientDist         string
+	JWTSecret          string
+	SQLiteMaxOpenConns int
+	SQLiteTxLock       string
+	DevAuthBypass      bool
+	AdminUser          string
+	AdminPassword      string
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:          envInt("PORT", 4900),
-		Host:          envStr("HOST", "0.0.0.0"),
-		LogLevelStr:   envStr("LOG_LEVEL", "info"),
-		NodeEnv:       envStr("NODE_ENV", ""),
-		CORSOrigin:    envStr("CORS_ORIGIN", ""),
-		DatabasePath:  envStr("DATABASE_PATH", "data/collab.db"),
-		UploadDir:     envStr("UPLOAD_DIR", "data/uploads"),
-		WorkspaceDir:  envStr("WORKSPACE_DIR", "data/workspaces"),
-		ClientDist:    envStr("CLIENT_DIST", "packages/client/dist"),
-		JWTSecret:     envStr("JWT_SECRET", ""),
-		DevAuthBypass: envBool("DEV_AUTH_BYPASS", false),
-		AdminUser:     envStr("ADMIN_USER", ""),
-		AdminPassword: envStr("ADMIN_PASSWORD", ""),
+		Port:               envInt("PORT", 4900),
+		Host:               envStr("HOST", "0.0.0.0"),
+		LogLevelStr:        envStr("LOG_LEVEL", "info"),
+		NodeEnv:            envStr("NODE_ENV", ""),
+		CORSOrigin:         envStr("CORS_ORIGIN", ""),
+		DatabasePath:       envStr("DATABASE_PATH", "data/collab.db"),
+		UploadDir:          envStr("UPLOAD_DIR", "data/uploads"),
+		WorkspaceDir:       envStr("WORKSPACE_DIR", "data/workspaces"),
+		ClientDist:         envStr("CLIENT_DIST", "packages/client/dist"),
+		JWTSecret:          envStr("JWT_SECRET", ""),
+		SQLiteMaxOpenConns: envInt("SQLITE_MAX_OPEN_CONNS", 0),
+		SQLiteTxLock:       envStr("SQLITE_TXLOCK", ""),
+		DevAuthBypass:      envBool("DEV_AUTH_BYPASS", false),
+		AdminUser:          envStr("ADMIN_USER", ""),
+		AdminPassword:      envStr("ADMIN_PASSWORD", ""),
 	}
 
 	if cfg.JWTSecret == "" && cfg.IsDevelopment() {

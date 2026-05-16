@@ -79,6 +79,14 @@ func (c *Client) Send(data []byte) {
 	}
 }
 
+func (c *Client) SendReliable(data []byte) {
+	select {
+	case c.send <- data:
+	case <-c.done:
+	case <-time.After(250 * time.Millisecond):
+	}
+}
+
 func (c *Client) SendJSON(v any) {
 	data, err := json.Marshal(v)
 	if err != nil {
