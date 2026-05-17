@@ -35,7 +35,6 @@ import (
 	"strings"
 	"time"
 
-
 	"borgee-server/internal/idgen"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -50,6 +49,10 @@ const CookieName = "borgee_admin_session"
 const (
 	EnvAdminLogin        = "BORGEE_ADMIN_LOGIN"
 	EnvAdminPasswordHash = "BORGEE_ADMIN_PASSWORD_HASH"
+	// EnvTestFastAdminPassword is an explicit e2e-only shortcut for admin login
+	// checks. It does not relax bootstrap: the stored admin hash must still be
+	// a valid bcrypt hash with cost >= MinBcryptCost.
+	EnvTestFastAdminPassword = "BORGEE_TEST_FAST_ADMIN_PASSWORD"
 	// EnvAdminPassword (ADMIN-PASSWORD-PLAIN-ENV option B): plaintext password env.
 	// At startup, bcrypt.GenerateFromPassword hashes it before storing it in
 	// memory; this code never writes the plaintext to disk. It is mutually
@@ -114,6 +117,9 @@ func FindByLogin(db *gorm.DB, login string) (*Admin, error) {
 // review checklist §1.E we additionally wrap the success signal in
 // subtle.ConstantTimeCompare so timing of the boolean result cannot leak.
 func VerifyPassword(hash, plain string) bool {
+	if expected := os.Getenv(EnvTestFastAdminPassword); expected != "" {
+		return subtle.ConstantTimeCompare([]byte(plain), []byte(expected)) == 1
+	}
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain))
 	ok := byte(0)
 	if err == nil {

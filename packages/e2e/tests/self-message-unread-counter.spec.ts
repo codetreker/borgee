@@ -12,7 +12,8 @@
 //
 // 实施约束:
 //   - 真 UI input / click / screenshot, 不用 page.evaluate(fetch) / cURL 直调
-//   - 创 channel 走 sidebar UI (+ 按钮 → 创建频道 → form submit)
+//   - 主路径 case 创 channel 走 sidebar UI (+ 按钮 → 创建频道 → form submit);
+//     非被测前置条件可走 REST seed
 //   - 发消息走 ProseMirror editor input + Enter
 //   - 切 channel 走 sidebar .channel-name click
 //   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
@@ -72,6 +73,16 @@ async function registerUser(
   const tok = cookies.cookies.find((c) => c.name === 'borgee_token');
   expect(tok, 'borgee_token cookie missing').toBeTruthy();
   return { email, token: tok!.value, userId: body.user.id, ctx };
+}
+
+async function createChannelViaAPI(user: RegisteredUser, name: string): Promise<string> {
+  const res = await user.ctx.post('/api/v1/channels', {
+    data: { name, visibility: 'private' },
+  });
+  expect(res.ok(), `channel create: ${res.status()} ${await res.text()}`).toBe(true);
+  const body = (await res.json()) as { channel: { id: string; name: string } };
+  expect(body.channel.name).toBe(name);
+  return body.channel.id;
 }
 
 function clientURL(): string {
@@ -253,7 +264,6 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     const owner = await registerUser(serverURL, ownerInv, 'owner-peer');
     const peer = await registerUser(serverURL, peerInv, 'peer');
 
-    // Owner 通过 UI 创建一个 shared channel.
     const ownerCtxBrowser = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await attachToken(ownerCtxBrowser, owner.token);
     const ownerPage = await ownerCtxBrowser.newPage();
@@ -317,23 +327,30 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     const inv = await mintInvite(adminCtx, 'me1-multi-device');
     const owner = await registerUser(serverURL, inv, 'multi');
 
+    const channelAName = `me1-chan-a-${Date.now().toString(36)}`;
+    await createChannelViaAPI(owner, channelAName);
+
     // 设备 A: owner 登录, 在 channel A 发 own message.
     const deviceA = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await attachToken(deviceA, owner.token);
-    const pageA = await deviceA.newPage();
-    await pageA.goto('/');
-    await expect(pageA.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
+    const deviceB = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await Promise.all([
+      attachToken(deviceA, owner.token),
+      attachToken(deviceB, owner.token),
+    ]);
+    const [pageA, pageB] = await Promise.all([
+      deviceA.newPage(),
+      deviceB.newPage(),
+    ]);
+    await Promise.all([pageA.goto('/'), pageB.goto('/')]);
+    await Promise.all([
+      expect(pageA.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 }),
+      expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 }),
+    ]);
 
-    // 设备 A 创建 channel A.
-    const channelAName = `me1-chan-a-${Date.now().toString(36)}`;
-    await createChannelViaUI(pageA, channelAName);
+    await expect(pageA.locator('.channel-name', { hasText: channelAName })).toBeVisible({ timeout: 5_000 });
+    await switchToChannel(pageA, channelAName);
 
     // 设备 B: 同 owner 登录, 在 welcome (停 non-A) 等 ws push.
-    const deviceB = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await attachToken(deviceB, owner.token);
-    const pageB = await deviceB.newPage();
-    await pageB.goto('/');
-    await expect(pageB.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
     // 等 welcome render (停留默认 welcome).
     const welcomeChannelB = pageB.locator('.channel-name').filter({ hasText: /^welcome/ }).first();
     await expect(welcomeChannelB).toBeVisible({ timeout: 5_000 });

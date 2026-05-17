@@ -72,7 +72,7 @@ test.describe('G2.4 demo screenshots — Phase 2 退出 gate', () => {
     // 立场锁: 第一眼非空屏 — system message + 不含 "👈 选择频道"
     await expect(page.locator('.message-system-content').first()).toContainText('欢迎来到 Borgee');
     await expect(page.getByText('👈 选择一个频道开始聊天')).toHaveCount(0);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g2.4-1-welcome-first-glance.png'),
       fullPage: true,
     });
@@ -86,7 +86,7 @@ test.describe('G2.4 demo screenshots — Phase 2 退出 gate', () => {
     const cta = page.locator('button.message-system-quick-action');
     await expect(cta).toHaveText('创建 agent');
     // 局部截屏: message bubble + button (非 fullPage)
-    await messageBubble.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await messageBubble.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g2.4-5-system-message-cta.png'),
     });
   });

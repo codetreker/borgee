@@ -155,7 +155,7 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     }
 
     // G4.1 demo 截屏 #1 — 首屏渲染 (含 3 承诺 + 表格头).
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g4.1-adm1-privacy-promise.png'),
       fullPage: false,
     });
@@ -183,7 +183,7 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
 
     // G4.1 demo 截屏 #2 — 八行表格 (滚动到表格视野).
     await page.locator('.privacy-promise-table').scrollIntoViewIfNeeded();
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g4.1-adm1-privacy-table.png'),
       fullPage: false,
     });

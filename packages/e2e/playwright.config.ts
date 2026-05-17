@@ -123,6 +123,7 @@ export default defineConfig({
         BORGEE_ADMIN_PASSWORD_HASH:
           '$2a$10$4Qtu/ZynUPfAMPXPCtPa2uY7B04RVGK6V1gQfyihHgnW4LYvcY01i',
         BORGEE_TEST_FAST_BCRYPT: '1',
+        BORGEE_TEST_FAST_ADMIN_PASSWORD: 'e2e-admin-pass-12345',
       },
       stdout: WEB_SERVER_LOG_MODE,
       stderr: WEB_SERVER_LOG_MODE,

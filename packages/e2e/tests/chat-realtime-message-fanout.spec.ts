@@ -121,7 +121,7 @@ test.describe('RT-0 invitation push latency (≤ 3s)', () => {
 
     // G2.4 evidence screenshot — pinned path consumed by 烈马
     // regression registry (REG-RT0-008 / G2.4 latency proof).
-    await ownerPage.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await ownerPage.screenshot({
       path: path.join(__dirname, '../../../docs/qa/screenshots/g2.4-realtime-latency.png'),
       fullPage: false,
     });

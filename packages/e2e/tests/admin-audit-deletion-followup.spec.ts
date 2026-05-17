@@ -94,7 +94,7 @@ test.describe('ADM-2-FOLLOWUP — REG-ADM2-011 admin SPA audit-log 页 + G4.2 �
     await expect(page.locator('h2', { hasText: '审计日志' })).toBeVisible();
 
     // §2.1 G4.2 screenshot #1: audit-list first viewport.
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g4.2-adm2-audit-list.png'),
       fullPage: false,
     });
@@ -124,7 +124,7 @@ test.describe('ADM-2-FOLLOWUP — REG-ADM2-011 admin SPA audit-log 页 + G4.2 �
 
     // §2.2 G4.2 screenshot #2: persistent red banner.
     await banner.scrollIntoViewIfNeeded();
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g4.2-adm2-red-banner.png'),
       fullPage: false,
     });

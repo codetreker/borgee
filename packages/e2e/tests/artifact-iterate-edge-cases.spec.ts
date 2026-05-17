@@ -173,7 +173,7 @@ test.describe('CV-4.3 follow-up — unfixme 评估 + 真态 screenshot 替换', 
 
     // 截屏 — 替换 #416 留账的 pending baseline 为 pre-trigger 富状态.
     // 路径锁 byte-identical 跟 #416 commit 同源.
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-pending.png'),
       fullPage: false,
     });
@@ -215,7 +215,7 @@ test.describe('CV-4.3 follow-up — unfixme 评估 + 真态 screenshot 替换', 
     // 截屏 — error baseline (form filled, 即使 trigger 不可点 — picker 空).
     // server #409 merge 后此截屏切真 failed state inline DOM (data-iteration-state="failed").
     await page.locator('.iterate-intent').fill('展示 failed reason 文案锁: REASON_LABELS 三处单测锁同源');
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-error-baseline.png'),
       fullPage: false,
     });

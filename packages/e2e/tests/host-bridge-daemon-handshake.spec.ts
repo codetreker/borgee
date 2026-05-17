@@ -81,6 +81,7 @@ async function registerUser(inviteCode: string, suffix: string): Promise<Registe
 }
 
 function ensureEvidenceDir(): void {
+  if (process.env.E2E_EVIDENCE_SCREENSHOTS !== '1') return;
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 }
 
@@ -97,7 +98,7 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     expect(res.status, 'server-go /health: HB stack 上游就绪').toBe(200);
     // Page render anchor proves the E2E environment can load a browser page.
     await page.goto(`${SERVER_URL}/health`);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'hb-2-v0d-daemon-startup.png'),
       fullPage: true,
     });
@@ -115,7 +116,7 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     const res = await anonCtx.get('/api/v1/plugin-manifest');
     expect(res.status(), 'anonymous → 401 (Bearer 鉴权 反 silent accept)').toBe(401);
     await page.goto(`${SERVER_URL}/health`);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'hb-2-v0d-ipc-handshake.png'),
       fullPage: true,
     });
@@ -134,7 +135,7 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     const res = await fetch(`${SERVER_URL}/health`);
     expect(res.status).toBe(200);
     await page.goto(`${SERVER_URL}/health`);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'hb-2-v0d-sandbox-apply.png'),
       fullPage: true,
     });
@@ -207,7 +208,7 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
       },
       JSON.stringify(body, null, 2),
     );
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'hb-2-v0d-ed25519-verify.png'),
       fullPage: true,
     });
@@ -266,7 +267,7 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     await page.evaluate((data: string) => {
       document.body.innerHTML = `<pre style="font:14px monospace;padding:20px;white-space:pre-wrap;">${data}</pre>`;
     }, evidence);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(EVIDENCE_DIR, 'hb-2-v0d-sqlite-consumer-revoke.png'),
       fullPage: true,
     });

@@ -263,7 +263,7 @@ test.describe('CV-3.3 client kind renderers — acceptance §3', () => {
     await expect(page.locator('.artifact-panel[data-artifact-kind="markdown"]')).toBeVisible();
 
     // §3.4 G3.4 demo screenshot: markdown baseline.
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-cv3-markdown.png'),
       fullPage: false,
     });

@@ -142,7 +142,7 @@ test.describe('CHN-4 follow-up — constraints + cross-org isolation', () => {
     expect(dmRowsWithHandle, 'DM 行 sidebar 不挂 drag handle ⋮⋮').toBe(0);
 
     // Edge-case screenshot: DM sidebar without a drag handle.
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.x-chn4-followup-dm-no-handle.png'),
       fullPage: false,
     });
@@ -191,7 +191,7 @@ test.describe('CHN-4 follow-up — constraints + cross-org isolation', () => {
       page.locator('.channel-name', { hasText: chName }),
       `userB sidebar 不应见 ${chName}`,
     ).toHaveCount(0);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.x-chn4-followup-cross-org-isolation.png'),
       fullPage: false,
     });

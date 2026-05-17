@@ -229,7 +229,7 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     // future running/error states, permissions, and API key. This uses the same
     // screenshot set as G2.7; start/stop/error coverage stays in follow-up work
     // once the real runtime path is available.
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g2.7-runtime-agent-settings.png'),
       fullPage: false,
     });
