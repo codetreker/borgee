@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useCan } from '../hooks/usePermissions';
-import { fetchChannelMembers, addChannelMember, removeChannelMember, updateChannel, deleteChannel, archiveChannel } from '../lib/api';
-import type { ChannelMember } from '../lib/api';
+import { fetchChannelMembers, addChannelMember, removeChannelMember, updateChannel, deleteChannel, archiveChannel, fetchAgents } from '../lib/api';
+import type { ChannelMember, Agent } from '../lib/api';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import { useToast } from './Toast';
 import PresenceDot from './PresenceDot';
@@ -59,16 +59,35 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
 
   useEffect(() => {
     if (!showAddList) return;
-    const general = state.channels.find(c => c.name === 'general');
-    if (!general || general.id === channelId) {
-      setCandidateMembers([]);
-      return;
-    }
     let cancelled = false;
-    fetchChannelMembers(general.id).then(next => {
-      if (!cancelled) setCandidateMembers(next);
-    }).catch(() => {
-      if (!cancelled) setCandidateMembers([]);
+    // 候选成员有两个来源:
+    //   1. #general 频道的人类成员 — 作为"workspace 人员"的代理 (现在没专门的
+    //      `/users` endpoint, #general 通常承载所有 human; agents 不在里面).
+    //   2. 调用者拥有的 agents — server `handleAddMember` 只允许 agent owner
+    //      把它加进 channel, 所以候选范围就限定于自己拥有的 agent.
+    // 合并后按 user_id 去重, 排除 channel 已有成员.
+    const general = state.channels.find(c => c.name === 'general');
+    const generalPromise: Promise<ChannelMember[]> = (general && general.id !== channelId)
+      ? fetchChannelMembers(general.id).catch(() => [])
+      : Promise.resolve([]);
+    const agentsPromise: Promise<Agent[]> = fetchAgents().catch(() => []);
+    Promise.all([generalPromise, agentsPromise]).then(([generalMembers, agents]) => {
+      if (cancelled) return;
+      const agentsAsMembers: ChannelMember[] = agents.map(a => ({
+        user_id: a.id,
+        display_name: a.display_name,
+        role: 'agent',
+        avatar_url: a.avatar_url,
+        joined_at: a.created_at,
+      }));
+      const seen = new Set<string>();
+      const merged: ChannelMember[] = [];
+      for (const m of [...agentsAsMembers, ...generalMembers]) {
+        if (seen.has(m.user_id)) continue;
+        seen.add(m.user_id);
+        merged.push(m);
+      }
+      setCandidateMembers(merged);
     });
     return () => { cancelled = true; };
   }, [showAddList, state.channels, channelId]);
