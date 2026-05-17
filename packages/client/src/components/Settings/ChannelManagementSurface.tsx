@@ -150,7 +150,7 @@ export default function ChannelManagementSurface() {
     <div className="channel-management-surface" data-testid="channel-management-surface">
       <header className="channel-management-header">
         <h1>频道管理</h1>
-        <p>查看你创建或加入的频道；创建者可以删除自己的频道 (soft delete, 可由管理员恢复)。</p>
+        <p>查看你创建或加入的频道；创建者可以删除自己的频道 (soft delete)。</p>
       </header>
       <ChannelSection
         title="我创建的频道"
