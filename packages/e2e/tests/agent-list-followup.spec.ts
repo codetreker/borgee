@@ -213,6 +213,11 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
   });
 
   test('G2.7 demo screenshot — AL-4 admin runtime list 主路径 (agent settings page 全景)', async ({ page, baseURL }) => {
+    test.skip(
+      process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
+      'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
+    );
+
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
     const inviteCode = await mintInvite(adminCtx, 'al-4.3-demo');

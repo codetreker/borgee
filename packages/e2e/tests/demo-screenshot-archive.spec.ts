@@ -63,6 +63,11 @@ async function bootstrapUser(serverURL: string, page: any, baseURL: string, disp
 }
 
 test.describe('G2.4 demo screenshots — Phase 2 退出 gate', () => {
+  test.skip(
+    process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
+    'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
+  );
+
   const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
   const serverURL = `http://127.0.0.1:${serverPort}`;
 

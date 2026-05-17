@@ -206,6 +206,11 @@ test.describe('CV-3.3 client kind renderers — acceptance §3', () => {
   });
 
   test('§3.4 G3.4 demo markdown 截屏 (panel render baseline 撑 Phase 3 退出公告)', async ({ browser }) => {
+    test.skip(
+      process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
+      'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
+    );
+
     // ArtifactPanel v1 only renders the artifact created in the user's UI session
     // (CV-1.3 spec §3 literal; no list endpoint). The markdown path uses UI creation
     // plus a commit body containing a code block, which exercises the existing

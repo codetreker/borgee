@@ -153,10 +153,12 @@ test.describe('message reaction 真 UI toggle + 聚合 + 跨频道隔离', () =>
     await expect(pill).toContainText('2');
 
     // tooltip (title attribute) 含双 user 显示名.
+    await expect.poll(async () => await pill.getAttribute('title'), {
+      timeout: 5_000,
+    }).toContain(peer.displayName);
     const titleAttr = await pill.getAttribute('title');
     expect(titleAttr, 'pill title attribute').toBeTruthy();
     expect(titleAttr).toContain(owner.displayName);
-    expect(titleAttr).toContain(peer.displayName);
   });
 
   test('同 user 重复 toggle 真 UI 点击 → 加入 active+count++, 再点退出 active-class+count--', async ({

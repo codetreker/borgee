@@ -205,6 +205,11 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
   });
 
   test('§6 G3.4 退出闸双截屏归档 — chat + workspace 各 1', async ({ browser }) => {
+    test.skip(
+      process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
+      'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
+    );
+
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);

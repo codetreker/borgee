@@ -235,6 +235,11 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
     page,
     baseURL,
   }) => {
+    test.skip(
+      process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
+      'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
+    );
+
     // Screenshot path matches #391 §1 + chn-3-content-lock §3.
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;

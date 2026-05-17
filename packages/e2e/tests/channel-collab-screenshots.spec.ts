@@ -111,6 +111,11 @@ async function gotoChannel(page: Page, channelName: string): Promise<void> {
 }
 
 test.describe('CHN-4 G3.4 5 张截屏 follow-up — 野马 PM 双 tab + 边界态文案锁字面验', () => {
+  test.skip(
+    process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
+    'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
+  );
+
   test('§1 协作场骨架 overview — 主路径 demo 截屏 (野马 PM 签字主图)', async ({ browser }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
