@@ -198,7 +198,7 @@ jobs:
         run: chmod +x packages/server-go/bin/collab-e2e
       - name: Run E2E
         env:
-          E2E_CI_WORKERS: "4"
+          E2E_CI_WORKERS: "6"
           E2E_SERVER_COMMAND: ./bin/collab-e2e
           E2E_TRACE_MODE: on-first-retry
           E2E_VIDEO_MODE: on-first-retry
