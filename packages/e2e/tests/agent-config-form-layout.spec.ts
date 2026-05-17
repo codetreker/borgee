@@ -157,44 +157,42 @@ async function openAgentConfigPanel(page: Page) {
   await expect(page.locator('[data-agent-config="root"]')).toBeVisible({ timeout: 5_000 });
 }
 
-test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
-  test.beforeEach(async ({ page, baseURL }) => {
+async function setupAgentConfigPanel(page: Page, baseURL: string): Promise<void> {
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
     const inviteCode = await mintInvite(adminCtx, 'gh698-layout');
     const owner = await registerUser(serverURL, inviteCode, 'owner');
     await createAgent(serverURL, owner.token, `gh698-agent-${Date.now().toString(36)}`);
-    await attachToken(page.context(), baseURL!, owner.token);
-  });
+    await attachToken(page.context(), baseURL, owner.token);
+}
 
-  test('立场 ① 1280 viewport: 6 个 label 各占独立行 (label.bottom <= input.top)', async ({ page }) => {
+async function assertStackedFields(page: Page, viewportWidth: number): Promise<void> {
+  const fields = ['name', 'avatar', 'prompt', 'model', 'memory_ref', 'enabled'];
+  const ys: number[] = [];
+  for (const field of fields) {
+    const rect = await page.locator(`[data-agent-config-field="${field}"]`).first().evaluate(
+      (el) => el.getBoundingClientRect(),
+    );
+    ys.push(rect.y);
+    expect(rect.x, `${field} x=${rect.x} 应 ≥ 0 (不左溢)`).toBeGreaterThanOrEqual(0);
+    expect(rect.x + rect.width, `${field} 右边界 ${rect.x + rect.width} 应 ≤ ${viewportWidth} (不右溢)`).toBeLessThanOrEqual(viewportWidth);
+  }
+  for (let i = 1; i < ys.length; i++) {
+    expect(
+      ys[i]! - ys[i - 1]!,
+      `field ${fields[i]} y=${ys[i]} 跟 ${fields[i - 1]} y=${ys[i - 1]} 间距 < 8px (回归 inline 流水重叠?)`,
+    ).toBeGreaterThanOrEqual(8);
+  }
+}
+
+test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
+  test('1280 viewport: stacked fields, inline display locks, and anchors', async ({ page, baseURL }) => {
+    await setupAgentConfigPanel(page, baseURL!);
+
     await page.setViewportSize({ width: 1280, height: 800 });
     await openAgentConfigPanel(page);
+    await assertStackedFields(page, 1280);
 
-    // Six labels occupy separate rows. Use data-agent-config-field to anchor each
-    // input, then measure boundingRect: the six inputs should have six distinct y values.
-    const fields = ['name', 'avatar', 'prompt', 'model', 'memory_ref', 'enabled'];
-    const ys: number[] = [];
-    for (const field of fields) {
-      const rect = await page.locator(`[data-agent-config-field="${field}"]`).first().evaluate(
-        (el) => el.getBoundingClientRect(),
-      );
-      ys.push(rect.y);
-    }
-    // Adjacent fields need at least 8px y spacing (marginTop), guarding against inline-flow overlap.
-    for (let i = 1; i < ys.length; i++) {
-      expect(
-        ys[i]! - ys[i - 1]!,
-        `field ${fields[i]} y=${ys[i]} 跟 ${fields[i - 1]} y=${ys[i - 1]} 间距 < 8px (回归 inline 流水重叠?)`,
-      ).toBeGreaterThanOrEqual(8);
-    }
-  });
-
-  test('立场 ② 5 个 text/textarea label display: block (yema 拍 a)', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await openAgentConfigPanel(page);
-
-    // QA review #1 negative assertion: adding a text field must include the style.
     const textFields = ['name', 'avatar', 'prompt', 'model', 'memory_ref'];
     for (const field of textFields) {
       const display = await page.locator(`[data-agent-config-field="${field}"]`).first()
@@ -204,71 +202,37 @@ test.describe('gh#698 AgentConfigPanel form 排版重叠修', () => {
         });
       expect(display, `${field} label 应有 inline style display: block`).toBe('block');
     }
-  });
 
-  test('立场 ③ checkbox label display: flex inline (yema 拍 b)', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await openAgentConfigPanel(page);
-
-    // Checkbox exception: same inline pattern as CreateAgentModal Permissions.
     const display = await page.locator('[data-agent-config-field="enabled"]').first()
       .evaluate((el) => {
         const label = el.closest('label');
         return label ? (label as HTMLElement).style.display : '';
       });
     expect(display, 'enabled label 应有 inline style display: flex (yema 拍 b inline)').toBe('flex');
-  });
-
-  test('立场 ① 480 mobile viewport: 6 个 field 仍各占独立行不溢出', async ({ page }) => {
-    await page.setViewportSize({ width: 480, height: 800 });
-    await openAgentConfigPanel(page);
-
-    const fields = ['name', 'avatar', 'prompt', 'model', 'memory_ref', 'enabled'];
-    const ys: number[] = [];
-    for (const field of fields) {
-      const rect = await page.locator(`[data-agent-config-field="${field}"]`).first().evaluate(
-        (el) => el.getBoundingClientRect(),
-      );
-      ys.push(rect.y);
-      // Overflow check: each field should stay inside the viewport.
-      expect(rect.x, `${field} x=${rect.x} 应 ≥ 0 (不左溢)`).toBeGreaterThanOrEqual(0);
-      expect(rect.x + rect.width, `${field} 右边界 ${rect.x + rect.width} 应 ≤ 480 (不右溢)`).toBeLessThanOrEqual(480);
-    }
-    for (let i = 1; i < ys.length; i++) {
-      expect(ys[i]! - ys[i - 1]!).toBeGreaterThanOrEqual(8);
-    }
-  });
-
-  test('立场 ① 1024 viewport: 中等屏 6 个 field stack 不溢出 (liema #3)', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await openAgentConfigPanel(page);
-
-    const fields = ['name', 'avatar', 'prompt', 'model', 'memory_ref', 'enabled'];
-    const ys: number[] = [];
-    for (const field of fields) {
-      const rect = await page.locator(`[data-agent-config-field="${field}"]`).first().evaluate(
-        (el) => el.getBoundingClientRect(),
-      );
-      ys.push(rect.y);
-    }
-    for (let i = 1; i < ys.length; i++) {
-      expect(ys[i]! - ys[i - 1]!).toBeGreaterThanOrEqual(8);
-    }
-  });
-
-  test('立场 ④ 6 个 data-agent-config-field byte-identical 不动 (REG-AL2A-* 锚保)', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await openAgentConfigPanel(page);
 
     const expectedFields = ['name', 'avatar', 'prompt', 'model', 'memory_ref', 'enabled'];
     for (const field of expectedFields) {
       await expect(page.locator(`[data-agent-config-field="${field}"]`)).toHaveCount(1);
     }
-    // Header / version / save anchors are also locked.
     await expect(page.locator('[data-agent-config="root"]')).toBeVisible();
     await expect(page.locator('[data-agent-config-version]')).toBeVisible();
     await expect(page.locator('[data-agent-config-action="save"]')).toBeVisible();
-    // Title literal remains byte-identical with "Agent 配置" as locked by al-2a-content-lock.test.ts.
     await expect(page.locator('[data-agent-config="root"] h3')).toHaveText('Agent 配置');
+  });
+
+  test('480 mobile viewport: 6 个 field 仍各占独立行不溢出', async ({ page, baseURL }) => {
+    await setupAgentConfigPanel(page, baseURL!);
+
+    await page.setViewportSize({ width: 480, height: 800 });
+    await openAgentConfigPanel(page);
+    await assertStackedFields(page, 480);
+  });
+
+  test('1024 viewport: 中等屏 6 个 field stack 不溢出 (liema #3)', async ({ page, baseURL }) => {
+    await setupAgentConfigPanel(page, baseURL!);
+
+    await page.setViewportSize({ width: 1024, height: 800 });
+    await openAgentConfigPanel(page);
+    await assertStackedFields(page, 1024);
   });
 });

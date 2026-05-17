@@ -1,4 +1,4 @@
-// tests/admin-privacy-promise-banner.spec.ts — admin 隐私承诺横幅 + 八行表格 + G4.1 demo 截屏.
+// tests/admin-privacy-promise-banner.spec.ts — admin 隐私承诺横幅 + 八行表格.
 //
 // 测试范围:
 //   - 三条隐私承诺文案在用户设置页字面相等渲染
@@ -23,14 +23,9 @@ import {
   type Page,
   type BrowserContext,
 } from '@playwright/test';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.resolve(__dirname, '../../../docs/qa/screenshots');
 
 // ADM-1 privacy promise text must match admin-model.md §4.1 + spec §2.
 // When changing it, update admin-model.md §4.1, PRIVACY_PROMISES, and this E2E.
@@ -124,8 +119,8 @@ async function gotoSettings(page: Page): Promise<void> {
   await expect(page.locator('[data-page="settings"]')).toBeVisible();
 }
 
-test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () => {
-  test('§1+§2 — privacy promises, eight-row table, row classes, and G4.1 screenshot', async ({
+test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3', () => {
+  test('§1+§2 — privacy promises, eight-row table, and row classes', async ({
     browser,
   }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
@@ -154,12 +149,6 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
       await expect(promiseList).toContainText(fragment);
     }
 
-    // G4.1 demo 截屏 #1 — 首屏渲染 (含 3 承诺 + 表格头).
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g4.1-adm1-privacy-promise.png'),
-      fullPage: false,
-    });
-
     // §2 eight table category labels must match and keep their order.
     const rows = page.locator('.privacy-promise-table tbody tr');
     await expect(rows).toHaveCount(8);
@@ -181,12 +170,7 @@ test.describe('ADM-1 PrivacyPromise — acceptance §1+§2+§3 + G4.1 demo', () 
     await expect(rows.nth(3).locator('td').nth(1)).toHaveText('❌');
     await expect(rows.nth(7).locator('td').nth(1)).toHaveText('✅ (临时)');
 
-    // G4.1 demo 截屏 #2 — 八行表格 (滚动到表格视野).
     await page.locator('.privacy-promise-table').scrollIntoViewIfNeeded();
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g4.1-adm1-privacy-table.png'),
-      fullPage: false,
-    });
   });
 
   test('§2 privacy section is expanded by default and not wrapped in details', async ({

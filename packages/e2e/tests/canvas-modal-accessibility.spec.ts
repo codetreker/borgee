@@ -109,7 +109,7 @@ async function gotoCanvasTab(page: Page, channelName: string) {
 }
 
 test.describe('gh#691 Canvas modal a11y + IME + mobile + 失败处理', () => {
-  test('立场 ② autoFocus 安全默认: CreateArtifactModal → input', async ({ browser }) => {
+  test('立场 ②+④ CreateArtifactModal autofocus + aria anchors', async ({ browser }) => {
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
     const inviteCode = await mintInvite(adminCtx, 'gh691-autofocus-create');
@@ -134,38 +134,16 @@ test.describe('gh#691 Canvas modal a11y + IME + mobile + 失败处理', () => {
     });
     expect(focusedTag).toBe('artifact-create-modal-input');
 
-    await ctx.close();
-  });
-
-  test('立场 ④ aria-modal + aria-labelledby 双 modal 各自独立 id', async ({ browser }) => {
-    const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
-    const adminCtx = await adminLogin(serverURL);
-    const inviteCode = await mintInvite(adminCtx, 'gh691-aria');
-    const owner = await registerUser(serverURL, inviteCode, 'aria');
-
-    const stamp = Date.now();
-    const channelName = `gh691-aria-${stamp}`;
-    await createChannel(owner, channelName);
-
-    const ctx = await browser.newContext();
-    await attachToken(ctx, owner.token);
-    const page = await ctx.newPage();
-    await gotoCanvasTab(page, channelName);
-
-    await page.locator('.artifact-empty button.btn-primary').click();
-    const createModal = page.locator('[data-testid="artifact-create-modal"]');
-    await expect(createModal).toBeVisible();
-
     // data-testid 已经放在 .modal-content 元素上 (ArtifactPanel.tsx
     // L772-777 同一元素), 不再 .locator('.modal-content') 在自身找.
-    const role = await createModal.getAttribute('role');
+    const role = await modal.getAttribute('role');
     expect(role).toBe('dialog');
-    const ariaModal = await createModal.getAttribute('aria-modal');
+    const ariaModal = await modal.getAttribute('aria-modal');
     expect(ariaModal).toBe('true');
-    const ariaLabelledBy = await createModal.getAttribute('aria-labelledby');
+    const ariaLabelledBy = await modal.getAttribute('aria-labelledby');
     expect(ariaLabelledBy).toBe('artifact-create-modal-title');
     // h3 同 id.
-    await expect(createModal.locator('#artifact-create-modal-title')).toHaveText('新建 Markdown artifact');
+    await expect(modal.locator('#artifact-create-modal-title')).toHaveText('新建 Markdown artifact');
 
     await ctx.close();
   });

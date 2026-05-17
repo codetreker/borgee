@@ -20,22 +20,10 @@
 //
 // 实施约束:
 //   - 不修改 production code (此 spec 仅在 E2E 层验证已发布行为)
-//   - 5 张证据截图写入 docs/evidence/g4-exit/ 供 G4.x signoff 使用
 //   - admin API 不提供 plugin-manifest / host-grants (反向请求验证 404)
 //   - REST seed 创建 user/admin context (admin login + invite + register), 验证主体调用业务 endpoint
-//   - 2 处 page.evaluate 仅做截图美化 (document.body.innerHTML 注入 pre 块格式化 JSON),
-//     不通过 fetch 调后端，因此不属于 #716 §3 反模式 F2. 截图证据用于 PM signoff.
 
 import { test, expect, request as apiRequest, type APIRequestContext } from '@playwright/test';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import * as fs from 'fs';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// 5 screenshots are stored for G4.x signoff, using the same evidence directory
-// pattern as g4.1-adm1-*.png.
-const EVIDENCE_DIR = path.resolve(__dirname, '../../../docs/evidence/g4-exit');
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
@@ -80,71 +68,38 @@ async function registerUser(inviteCode: string, suffix: string): Promise<Registe
   return { email, ctx };
 }
 
-function ensureEvidenceDir(): void {
-  if (process.env.E2E_EVIDENCE_SCREENSHOTS !== '1') return;
-  fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
-}
-
 test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () => {
-  test('case-1 daemon source startup — go build check, binary generation, and screenshot evidence', async ({
-    page,
-  }) => {
+  test('case-1 daemon source startup — server health anchor', async () => {
     // Source-level startup is covered by Go integration (e2e/daemon_startup_test.go).
     // This Playwright case uses server health as a source anchor: server-go includes
     // the HB-1 plugin-manifest endpoint and HB-3 host_grants endpoint that the
     // daemon depends on. This prevents a detached webServer from passing silently.
-    ensureEvidenceDir();
     const res = await fetch(`${SERVER_URL}/health`);
     expect(res.status, 'server-go /health: HB stack 上游就绪').toBe(200);
-    // Page render anchor proves the E2E environment can load a browser page.
-    await page.goto(`${SERVER_URL}/health`);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'hb-2-v0d-daemon-startup.png'),
-      fullPage: true,
-    });
   });
 
-  test('case-2 IPC handshake source anchor — manifest endpoint requires Bearer auth', async ({
-    page,
-  }) => {
+  test('case-2 IPC handshake source anchor — manifest endpoint requires Bearer auth', async () => {
     // The real UDS handshake is covered by Go integration. This case checks the
     // upstream IPC dependency: server-go HB-1 plugin-manifest endpoint, which the
     // install helper uses to pull the manifest after daemon startup. Anonymous
     // access must return 401.
-    ensureEvidenceDir();
     const anonCtx = await apiRequest.newContext({ baseURL: SERVER_URL });
     const res = await anonCtx.get('/api/v1/plugin-manifest');
     expect(res.status(), 'anonymous → 401 (Bearer 鉴权 反 silent accept)').toBe(401);
-    await page.goto(`${SERVER_URL}/health`);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'hb-2-v0d-ipc-handshake.png'),
-      fullPage: true,
-    });
     await anonCtx.dispose();
   });
 
-  test('case-3 sandbox build tag — Linux landlock / macOS sandbox-exec / Windows v1+ skip reason', async ({
-    page,
-  }) => {
+  test('case-3 sandbox build tag — Linux landlock / macOS sandbox-exec / Windows v1+ skip reason', async () => {
     // The real sandbox.Apply path is covered by Go integration. This case checks
     // platform coverage indirectly: server-go startup means the HB stack process is
     // running and the daemon cross-platform build tags compiled successfully
     // (cmd/borgee-helper/main.go //go:build linux||darwin + sandbox_* files).
-    ensureEvidenceDir();
     // Server health verifies the cross-platform build matrix path for this E2E run.
     const res = await fetch(`${SERVER_URL}/health`);
     expect(res.status).toBe(200);
-    await page.goto(`${SERVER_URL}/health`);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'hb-2-v0d-sandbox-apply.png'),
-      fullPage: true,
-    });
   });
 
-  test('case-4 ed25519 manifest verification — HB-1 endpoint, signature shape, base64, and screenshot', async ({
-    page,
-  }) => {
-    ensureEvidenceDir();
+  test('case-4 ed25519 manifest verification — HB-1 endpoint, signature shape, and base64', async () => {
     const adminCtx = await adminLogin();
     const inv = await mintInvite(adminCtx, 'hb-2-v0d-e2e-manifest');
     const user = await registerUser(inv, 'manifest');
@@ -199,28 +154,11 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     const adminTry = await adminCtx.get('/admin-api/v1/plugin-manifest');
     expect(adminTry.status(), 'admin-api/.../plugin-manifest 不存在 (ADM-0 §1.3 红线)').toBe(404);
 
-    // Screenshot evidence for G4.x signoff. page.evaluate only formats the
-    // already-fetched JSON in a <pre>; it does not call the backend.
-    await page.goto(`${SERVER_URL}/health`);
-    await page.evaluate(
-      (data: string) => {
-        document.body.innerHTML = `<pre style="font:14px monospace;padding:20px;white-space:pre-wrap;">${data}</pre>`;
-      },
-      JSON.stringify(body, null, 2),
-    );
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'hb-2-v0d-ed25519-verify.png'),
-      fullPage: true,
-    });
-
     await user.ctx.dispose();
     await adminCtx.dispose();
   });
 
-  test('case-5 SQLite consumer revoke — HB-3 host_grants POST to DELETE correctness', async ({
-    page,
-  }) => {
-    ensureEvidenceDir();
+  test('case-5 SQLite consumer revoke — HB-3 host_grants POST to DELETE correctness', async () => {
     const adminCtx = await adminLogin();
     const inv = await mintInvite(adminCtx, 'hb-2-v0d-e2e-revoke');
     const user = await registerUser(inv, 'revoke');
@@ -244,9 +182,7 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     // Keep the elapsed wall clock in evidence, but do not gate PR e2e on a
     // sub-100ms browser-suite roundtrip. This path proves the server anchor;
     // the real daemon IPC latency budget belongs in daemon/integration coverage.
-    const t0 = Date.now();
     const deleteRes = await user.ctx.delete(`/api/v1/host-grants/${grantID}`);
-    const elapsedMs = Date.now() - t0;
     expect(deleteRes.ok(), `revoke: ${deleteRes.status()} ${await deleteRes.text()}`).toBe(true);
 
     // After DELETE, the list endpoint must no longer return this grant.
@@ -259,18 +195,6 @@ test.describe('HB-2 v0(D) Playwright E2E — acceptance §1+§2 coverage', () =>
     // Admin API must not expose host-grants (ADM-0 §1.3).
     const adminTry = await adminCtx.get('/admin-api/v1/host-grants');
     expect(adminTry.status(), 'admin-api/host-grants 不存在 (用户主权)').toBe(404);
-
-    // Screenshot evidence for revoke behavior. page.evaluate only formats text;
-    // it does not call the backend.
-    await page.goto(`${SERVER_URL}/health`);
-    const evidence = `host_grant create + revoke roundtrip\nid: ${grantID}\nrevoke endpoint roundtrip: ${elapsedMs}ms\nadmin god-mode reject: 404 (ADM-0 §1.3 红线)`;
-    await page.evaluate((data: string) => {
-      document.body.innerHTML = `<pre style="font:14px monospace;padding:20px;white-space:pre-wrap;">${data}</pre>`;
-    }, evidence);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(EVIDENCE_DIR, 'hb-2-v0d-sqlite-consumer-revoke.png'),
-      fullPage: true,
-    });
 
     await user.ctx.dispose();
     await adminCtx.dispose();

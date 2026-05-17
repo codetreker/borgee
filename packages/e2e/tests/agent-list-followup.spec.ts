@@ -7,7 +7,6 @@
 //     negative check: synonyms busy/idle/starting/stopping/restarting 0 hit
 //   - reason 标签 6 项跟 lib/agent-state.ts REASON_LABELS 文案一致
 //   - Agents 页面在 1280 viewport 下默认占满 800px max-width (gh#683 回归)
-//   - G2.7 demo 全景截屏归档
 //
 // 待办 (本 spec 不覆盖, 走 server unit):
 //   - admin `GET /admin-api/v1/runtimes` 元数据白名单 (REG-AL4-009)
@@ -30,14 +29,9 @@ import {
   type Page,
   type BrowserContext,
 } from '@playwright/test';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SCREENSHOT_DIR = path.resolve(HERE, '../../../docs/qa/screenshots');
 
 interface RegisteredUser {
   email: string;
@@ -107,7 +101,7 @@ async function createAgent(serverURL: string, ownerToken: string, displayName: s
   return (await r.json()) as { id: string; api_key?: string };
 }
 
-test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
+test.describe('AL-4 acceptance §3 client SPA', () => {
   test('agent without runtime does not render RuntimeCard (graceful omit)', async ({ page, baseURL }) => {
     const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
     const adminCtx = await adminLogin(serverURL);
@@ -210,28 +204,5 @@ test.describe('AL-4 acceptance §3 client SPA + G2.7 demo screenshot', () => {
     // 会立刻失败.
     expect(widthEmpty, `gh#683 回归: .agent-page 默认宽度应接近 800px, 实际 ${widthEmpty}px (修复前 334px)`).toBeGreaterThanOrEqual(700);
     expect(widthEmpty, `.agent-page max-width 仍应是 800px 上限`).toBeLessThanOrEqual(820);
-  });
-
-  test('G2.7 demo screenshot — AL-4 admin runtime list 主路径 (agent settings page 全景)', async ({ page, baseURL }) => {
-    const serverURL = `http://127.0.0.1:${process.env.E2E_SERVER_PORT ?? '4901'}`;
-    const adminCtx = await adminLogin(serverURL);
-    const inviteCode = await mintInvite(adminCtx, 'al-4.3-demo');
-    const owner = await registerUser(serverURL, inviteCode, 'demo');
-    await createAgent(serverURL, owner.token, `agent-demo-${Date.now().toString(36)}`);
-    await attachToken(page.context(), baseURL!, owner.token);
-
-    await page.goto('/');
-    await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
-    await page.locator('[data-testid="sidebar-nav-agents"]').click();
-    await expect(page.locator('.agent-page')).toBeVisible({ timeout: 10_000 });
-
-    // Capture the agent settings view: agent card + runtime-card placeholder,
-    // future running/error states, permissions, and API key. This uses the same
-    // screenshot set as G2.7; start/stop/error coverage stays in follow-up work
-    // once the real runtime path is available.
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g2.7-runtime-agent-settings.png'),
-      fullPage: false,
-    });
   });
 });
