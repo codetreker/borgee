@@ -88,6 +88,47 @@ func assertNoSensitiveHelperFields(t *testing.T, m map[string]any) {
 	}
 }
 
+// TestHelperEnrollmentStatus_HeartbeatUpdatesLastSeen is the server-side end
+// of the #968 reconnect chain: when the daemon's Heartbeater (see
+// packages/borgee-helper/internal/outbound/heartbeat.go) posts the exact
+// shape — POST /api/v1/helper/enrollments/{id}/status with Bearer credential
+// + {helper_device_id, state:"connected"} — the server records LastSeenAt
+// and the serializer flips status to `connected` with last_seen_at recent.
+// This proves the wire contract end-to-end so the daemon-side and server-side
+// of the heartbeat are locked together.
+func TestHelperEnrollmentStatus_HeartbeatUpdatesLastSeen(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, credential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-hb")
+
+	before := time.Now().UnixMilli()
+	resp, body := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/status", credential, map[string]any{
+		"helper_device_id": "device-hb",
+		"state":            "connected",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("daemon heartbeat must return 200, got %d body %v", resp.StatusCode, body)
+	}
+	got := body["enrollment"].(map[string]any)
+	if got["status"] != "connected" {
+		t.Fatalf("post-heartbeat status=%v, want connected", got["status"])
+	}
+	if got["fresh"] != true {
+		t.Fatalf("post-heartbeat fresh=%v, want true", got["fresh"])
+	}
+	lastSeen, ok := got["last_seen_at"].(float64)
+	if !ok {
+		t.Fatalf("post-heartbeat last_seen_at missing/wrong type: %v", got["last_seen_at"])
+	}
+	if int64(lastSeen) < before {
+		t.Fatalf("last_seen_at=%d should be >= before=%d", int64(lastSeen), before)
+	}
+}
+
 func TestHelperEnrollmentsUserRailCRUDRedactionAndCategoryValidation(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)

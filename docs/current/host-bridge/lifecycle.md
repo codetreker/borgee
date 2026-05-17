@@ -40,51 +40,55 @@ mechanism without spinning up a real host.
    enters `ln.Accept()` for IPC. At this point the daemon is alive and
    accepts local IPC, but it does **not** by itself dial the API server.
 
-### Reconnect chain — what's actually wired vs deliberately deferred
+### Reconnect chain — what is wired
 
-What the daemon does on every (re)start today (v0(D)):
+Daemon v0(D+heartbeat) on start:
 
-- Reads CLI flags, runs `outbound.ValidateAndPrepare` (origin / allowlist
-  / state-dir validation only — does **not** open a connection).
-- Opens grants DB read-only and applies the sandbox profile.
-- Opens the UDS socket and enters the `Accept()` loop.
+1. Asset chain brings process up (systemd unit on Linux, launchd plist on
+   macOS — see assets above).
+2. `outbound.ValidateAndPrepare` validates `--outbound-server-origin`
+   against the `--outbound-allowed-origins` allowlist and sets up state
+   dirs.
+3. `outbound.Heartbeater` is spawned in a background goroutine sharing the
+   daemon's SIGTERM-aware context. It POSTs
+   `/api/v1/helper/enrollments/{id}/status` immediately on startup
+   (within ~100ms — no initial sleep), then every 60s
+   (`outbound.HeartbeatInterval`). Heartbeat failures apply exponential
+   backoff (5s base, doubling, 60s cap) and reset to base on success. The
+   heartbeater never panics on network errors and never aborts the daemon
+   on 401/403/410 — those just log and continue retrying, because an
+   admin may have revoked the enrollment and a re-claim must still be
+   possible without bouncing the process.
+4. The UDS Accept loop runs for local IPC.
+5. The server records `LastSeenAt` on each successful heartbeat;
+   `serializeWithConfigure`
+   ([helper_enrollments.go](../../../packages/server-go/internal/api/helper_enrollments.go))
+   flips `status` to `connected` when `LastSeenAt` is within the
+   5-minute freshness window.
 
-What the daemon does **not** do today: outbound heartbeat. There is no
-production caller of `outbound.Client.Poll` and no daemon-side
-`POST /api/v1/helper/enrollments/{id}/status`. The server endpoint
-(`packages/server-go/internal/api/helper_enrollments.go::handleStatus`)
-exists and accepts heartbeats; the server's `serializeWithConfigure`
-derives `connected` / `offline` from `LastSeenAt` against a 5-minute
-freshness window. Today only an external orchestrator (the OpenClaw
-configure flow / web-side enrollment manager) writes `LastSeenAt`; the
-helper daemon itself does not.
+End-to-end reboot path now closes: machine reboots → systemd / launchd
+starts the daemon as a system service with no user login → daemon
+validates config + applies sandbox → heartbeater fires within ~100ms →
+server updates `LastSeenAt` → web UI shows `connected` again.
 
-This is intentional for #968's scope: the issue covers the boot/crash
-*autostart* half (systemd unit + launchd plist + install plan) and is
-tested at byte level by G1/G2/G3
-(`outbound_prereq_assets_test.go::TestLinux/MacOSServiceBootCrashRestartIsBounded`,
-`deploy_test.go::TestHB1B_*Plan_*`). What G1/G2/G3 prove: a rebooted or
-crashed machine brings the daemon back up under the system service
-manager, with no user login, and the UDS endpoint becomes available.
-What they do **not** prove: that the daemon then re-establishes an
-outbound session with the API server — because the daemon itself does
-not do that yet.
+The heartbeater is opt-in by config: if `--enrollment-id`,
+`--helper-device-id`, or `--helper-credential-file` are missing (the
+fresh-install pre-claim case), the daemon logs "no enrollment
+configured, skipping heartbeat" and continues serving local IPC. The
+boot-survival contract therefore does not depend on a claim already
+having happened — a pre-claim daemon still boots cleanly across reboot
+and crash.
 
-G5 (`helper_enrollments_lifecycle_test.go::TestHelperEnrollmentStatus_*`)
-locks the server-side derivation as a **forward contract**: the moment
-a daemon revision starts writing `LastSeenAt` (whether by directly
-calling `outbound.Client.Poll` or by some future heartbeat goroutine),
-the server's `status` field flips to `connected` automatically with no
-additional server-side change. The boundary, fresh-after-stale, and
-revoked/uninstalled-precedence cases are all locked. Until that daemon
-work lands, the displayed status will reflect whichever component last
-wrote `LastSeenAt` — typically only the configure flow at claim time.
-
-TODO / follow-up: wire a daemon-side heartbeat loop that calls
-`outbound.Client.Poll` (or a thinner `POST /status`) at the freshness
-cadence. That work is out of scope for #968 (boot/crash survival) and
-should be filed as a separate issue so it does not silently expand this
-PR.
+G5
+([`helper_enrollments_lifecycle_test.go`](../../../packages/server-go/internal/api/helper_enrollments_lifecycle_test.go))
+still locks the server-side derivation (boundary, fresh-after-stale,
+revoked/uninstalled precedence). The end-to-end wire shape
+(`POST .../status` with `state=connected`, Bearer credential) is
+additionally locked by `TestHelperEnrollmentStatus_HeartbeatUpdatesLastSeen`
+in
+[`helper_enrollments_test.go`](../../../packages/server-go/internal/api/helper_enrollments_test.go),
+which posts the exact daemon payload shape and asserts the serializer
+flips to `connected`.
 
 ## Linux crash chain
 
@@ -98,10 +102,10 @@ PR.
    `systemctl is-failed`) must intervene. This is intentional — an
    un-bounded restart loop would mask a real bug.
 4. Each restart re-enters the boot chain from step 5 above, so the
-   post-restart wiring (grants DB reopen, sandbox apply, UDS Accept loop)
-   is identical to the reboot path. Whether the daemon then needs to
-   re-establish any outbound session depends on the outbound poller
-   feature — see the "Reconnect chain" subsection above.
+   post-restart wiring (grants DB reopen, sandbox apply, heartbeater
+   spawn, UDS Accept loop) is identical to the reboot path. The
+   heartbeater fires within ~100ms of every restart and the server
+   flips `status` back to `connected` as soon as the first POST lands.
 
 ## macOS equivalents
 

@@ -32,11 +32,14 @@ func main() {
 	auditLog := flag.String("audit-log", "/var/log/borgee-helper/audit.log.jsonl", "audit JSON-line path")
 	grantsDSN := flag.String("grants-db", "", "sqlite DSN for HB-3 host_grants table (read-only) — REQUIRED for production")
 	readPathsFlag := flag.String("read-paths", "", "comma-separated absolute paths landlock allows (v0(D) static; v1+ pulls live from host_grants)")
-	outboundServerOrigin := flag.String("outbound-server-origin", "", "Borgee API server origin for future Helper outbound polling prerequisites")
-	outboundAllowedOrigins := flag.String("outbound-allowed-origins", "", "comma-separated exact Borgee API origins allowed for future Helper outbound polling prerequisites")
-	queueStateDir := flag.String("queue-state-dir", "", "Helper-owned queue cursor state directory for future outbound polling prerequisites")
-	statusStateDir := flag.String("status-state-dir", "", "Helper-owned bounded status state directory for future outbound polling prerequisites")
-	auditHandoffDir := flag.String("audit-handoff-dir", "", "Helper-owned local audit handoff directory for future outbound polling prerequisites")
+	outboundServerOrigin := flag.String("outbound-server-origin", "", "Borgee API server origin for Helper outbound calls")
+	outboundAllowedOrigins := flag.String("outbound-allowed-origins", "", "comma-separated exact Borgee API origins allowed for Helper outbound calls")
+	queueStateDir := flag.String("queue-state-dir", "", "Helper-owned queue cursor state directory")
+	statusStateDir := flag.String("status-state-dir", "", "Helper-owned bounded status state directory")
+	auditHandoffDir := flag.String("audit-handoff-dir", "", "Helper-owned local audit handoff directory")
+	enrollmentID := flag.String("enrollment-id", "", "Helper enrollment id; when set with --helper-credential-file enables heartbeat (#968 reboot/crash reconnect)")
+	helperDeviceID := flag.String("helper-device-id", "", "Helper device id bound at claim time (#968 heartbeat)")
+	helperCredentialFile := flag.String("helper-credential-file", "", "Path to file containing the helper credential (Bearer token) issued at claim; readable only by helper user (#968 heartbeat)")
 	flag.Parse()
 
 	outboundPrereq := outbound.PrereqConfig{
@@ -46,12 +49,12 @@ func main() {
 		StatusStateDir:  *statusStateDir,
 		AuditHandoffDir: *auditHandoffDir,
 	}
-	if err := run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq); err != nil {
+	if err := run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq, *enrollmentID, *helperDeviceID, *helperCredentialFile); err != nil {
 		log.Fatalf("borgee-helper: %v", err)
 	}
 }
 
-func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig) error {
+func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig, enrollmentID, helperDeviceID, helperCredentialFile string) error {
 	// Audit log writer (forward-only, JSON-line).
 	logFile, err := os.OpenFile(auditLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -115,6 +118,23 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 		_ = ln.Close()
 	}()
 
+	// #968 heartbeat producer: spawn before entering the UDS Accept loop so a
+	// rebooted/crashed host re-asserts `connected` within ~100ms of daemon
+	// start. Shares ctx with the Accept loop for clean SIGTERM teardown.
+	// Skips silently if enrollment isn't configured yet (fresh install
+	// pre-claim) — failing to start the daemon over a missing credential
+	// would defeat the boot-survival contract.
+	if hb, ok := buildHeartbeater(preparedOutbound, enrollmentID, helperDeviceID, helperCredentialFile); ok {
+		log.Printf("borgee-helper: heartbeat enabled enrollment_id=%s interval=%s", enrollmentID, outbound.HeartbeatInterval)
+		go func() {
+			if err := hb.Run(ctx); err != nil {
+				log.Printf("borgee-helper: heartbeater exited: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("borgee-helper: no enrollment configured, skipping heartbeat")
+	}
+
 	h := ipc.New(gate, auditLogger)
 	for {
 		conn, err := ln.Accept()
@@ -164,6 +184,35 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
+}
+
+// buildHeartbeater returns a configured Heartbeater + true when the daemon
+// has everything it needs to post status, or (nil,false) otherwise. Returning
+// false is the explicit "skip heartbeat" path: pre-claim hosts must still
+// boot the daemon so the local UDS contract is honored.
+func buildHeartbeater(prep outbound.PreparedConfig, enrollmentID, helperDeviceID, credentialFile string) (*outbound.Heartbeater, bool) {
+	if !prep.Enabled {
+		return nil, false
+	}
+	if trim(enrollmentID) == "" || trim(helperDeviceID) == "" || trim(credentialFile) == "" {
+		return nil, false
+	}
+	raw, err := os.ReadFile(credentialFile)
+	if err != nil {
+		log.Printf("borgee-helper: cannot read --helper-credential-file %q (%v); skipping heartbeat", credentialFile, err)
+		return nil, false
+	}
+	credential := trim(string(raw))
+	if credential == "" {
+		log.Printf("borgee-helper: --helper-credential-file %q is empty; skipping heartbeat", credentialFile)
+		return nil, false
+	}
+	return &outbound.Heartbeater{
+		ServerOrigin:   prep.ServerOrigin,
+		EnrollmentID:   enrollmentID,
+		HelperDeviceID: helperDeviceID,
+		Credential:     credential,
+	}, true
 }
 
 func trim(s string) string {
