@@ -38,6 +38,7 @@ const SERVER_COMMAND =
   process.env.E2E_SERVER_COMMAND ?? 'go run -tags sqlite_fts5 ./cmd/collab';
 const TRACE_MODE = (process.env.E2E_TRACE_MODE ?? (process.env.CI ? 'retain-on-failure' : 'on-first-retry')) as TraceMode;
 const VIDEO_MODE = (process.env.E2E_VIDEO_MODE ?? 'retain-on-failure') as VideoMode;
+const WEB_SERVER_LOG_MODE = process.env.CI && process.env.E2E_WEB_SERVER_LOGS !== '1' ? 'ignore' : 'pipe';
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`;
 const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
 
@@ -122,8 +123,8 @@ export default defineConfig({
         BORGEE_ADMIN_PASSWORD_HASH:
           '$2a$10$4Qtu/ZynUPfAMPXPCtPa2uY7B04RVGK6V1gQfyihHgnW4LYvcY01i',
       },
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: WEB_SERVER_LOG_MODE,
+      stderr: WEB_SERVER_LOG_MODE,
     },
     {
       // vite dev server with overridden proxy target. We can't edit
@@ -138,8 +139,8 @@ export default defineConfig({
       env: {
         VITE_E2E_API_TARGET: SERVER_URL,
       },
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: WEB_SERVER_LOG_MODE,
+      stderr: WEB_SERVER_LOG_MODE,
     },
   ],
 });
