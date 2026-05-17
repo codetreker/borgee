@@ -63,7 +63,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? CI_WORKERS : undefined,
   reporter: process.env.CI
-    ? [['github'], ['html', { open: 'never' }]]
+    ? [['github']]
     : [['list'], ['html', { open: 'never' }]],
 
   use: {
