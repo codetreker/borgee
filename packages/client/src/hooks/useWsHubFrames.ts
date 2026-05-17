@@ -185,7 +185,7 @@ export function useAnchorCommentAdded(
 // listens via useIterationStateChanged(handler) — handler decides whether
 // to refetch the iteration via GET /api/v1/artifacts/:id/iterations/:iid
 // or splice locally on state change. envelope is signal-only — frame
-// carries no intent_text (privacy constraint ADM-0 §1.3; intent_text is
+// carries no intent_text (server data-trim constraint; intent_text is
 // fetched via GET, push only carries the state signal).
 
 export function dispatchIterationStateChanged(

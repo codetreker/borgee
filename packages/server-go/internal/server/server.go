@@ -425,11 +425,11 @@ func (s *Server) SetupRoutes() {
 	// rail isolation + 立场 ⑦ same source).
 	adminRuntimeHandler := &api.AdminRuntimeHandler{Store: s.store, Logger: s.logger}
 	adminRuntimeHandler.RegisterRoutes(s.mux, adminMw)
-	// ADM-2.2 audit log + impersonate grant — wires user-rail (走 authMw,
-	// /api/v1/me/admin-actions + /api/v1/me/impersonation-grant CRUD) +
-	// admin-rail (/admin-api/v1/audit-log) endpoints. 立场 ③+④+⑦.
+	// ADM-2.2 admin-rail audit-log (/admin-api/v1/audit-log). User-rail
+	// (/api/v1/me/admin-actions + /api/v1/me/impersonation-grant CRUD) was
+	// removed in #975 with the user-facing privacy UI; admin SPA consumes
+	// /admin-api/v1/audit-log directly.
 	adm2Handler := &api.AdminEndpointsHandler{Store: s.store, Logger: s.logger}
-	adm2Handler.RegisterUserRoutes(s.mux, authMw)
 	adm2Handler.RegisterAdminRoutes(s.mux, adminMw)
 	// ADM-3 multi-source audit 合并查询 (admin-rail only, ADM-0 §1.3 红线).
 	// 4 source UNION ALL: server (audit_events) / plugin (audit_events kind=plugin.*) /

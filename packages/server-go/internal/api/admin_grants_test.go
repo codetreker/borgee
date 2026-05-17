@@ -33,22 +33,8 @@ func TestAL_RecoverErrors(t *testing.T) {
 }
 
 // REG-covbump v5 — sanitizeImpersonateGrant nil branch via JSON GET.
-func TestImpersonateGrantSanitizeNil(t *testing.T) {
-	t.Parallel()
-	ts, _, _ := testutil.NewTestServer(t)
-	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
-	// fresh user, no grant — sanitizeImpersonateGrant(nil) path.
-	resp, body := testutil.JSON(t, http.MethodGet,
-		ts.URL+"/api/v1/me/impersonation-grant", ownerToken, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("get nil grant: got %d", resp.StatusCode)
-	}
-	// `grant` field expected; nil-safe behavior.
-	if _, ok := body["grant"]; !ok {
-		// some implementations may return without key — tolerate.
-		_ = body
-	}
-}
+// REMOVED in #975: the user-rail GET endpoint was deleted with the
+// user-facing privacy UI; the orphan covbump test went away with it.
 
 // REG-covbump v5 — host-grants validation + lifecycle.
 func TestHostGrantsLifecycle(t *testing.T) {

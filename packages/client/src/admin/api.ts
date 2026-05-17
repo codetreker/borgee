@@ -238,11 +238,11 @@ export async function deleteInvite(code: string): Promise<void> {
 // admin visibility rule: admins can see each other + three-filter UI convergence). Keep
 // admin-cookie routing separate (REG-ADM0-002 baseline: user cookie → 401).
 //
-// Cross-surface literal lock: admin surfaces use English enum actions
-// (delete_channel/suspend_user/change_role/reset_password/start_impersonation),
-// while user Settings/AdminActionsList uses Chinese verbs (ACTION_VERBS map).
-// Changing the enum requires updating the server admin_actions CHECK constraint,
-// admin SPA, and user SPA together.
+// Admin surfaces use English enum actions (delete_channel/suspend_user/
+// change_role/reset_password/start_impersonation). Changing the enum
+// requires updating the server admin_actions CHECK constraint and this
+// admin SPA together. (The user-side Chinese-verb mirror was removed in
+// #975 along with the user-facing privacy UI.)
 export interface AdminActionRow {
   id: string;
   actor_id: string; // admin_view=true 包含 (UUID 字符串)

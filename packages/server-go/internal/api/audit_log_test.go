@@ -71,49 +71,8 @@ func TestAuditLogFilters(t *testing.T) {
 	}
 }
 
-// REG-covbump v3 — impersonation-grant lifecycle (create/get/revoke).
-func TestImpersonateGrantLifecycle(t *testing.T) {
-	t.Parallel()
-	ts, _, _ := testutil.NewTestServer(t)
-	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
-
-	// GET when no grant — 200 with null body or absent.
-	resp, _ := testutil.JSON(t, http.MethodGet,
-		ts.URL+"/api/v1/me/impersonation-grant", ownerToken, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("get null grant: got %d", resp.StatusCode)
-	}
-	// POST create.
-	resp, _ = testutil.JSON(t, http.MethodPost,
-		ts.URL+"/api/v1/me/impersonation-grant", ownerToken, map[string]any{})
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		t.Skipf("create grant not 200/201: %d", resp.StatusCode)
-	}
-	// GET after create — 200.
-	resp, _ = testutil.JSON(t, http.MethodGet,
-		ts.URL+"/api/v1/me/impersonation-grant", ownerToken, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("get grant: got %d", resp.StatusCode)
-	}
-	// DELETE revoke.
-	resp, _ = testutil.JSON(t, http.MethodDelete,
-		ts.URL+"/api/v1/me/impersonation-grant", ownerToken, nil)
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		t.Errorf("revoke grant: got %d", resp.StatusCode)
-	}
-	// 401 on revoke without token.
-	resp, _ = testutil.JSON(t, http.MethodDelete,
-		ts.URL+"/api/v1/me/impersonation-grant", "", nil)
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("revoke 401: got %d", resp.StatusCode)
-	}
-	// 401 on get without token.
-	resp, _ = testutil.JSON(t, http.MethodGet,
-		ts.URL+"/api/v1/me/impersonation-grant", "", nil)
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("get 401: got %d", resp.StatusCode)
-	}
-}
+// REG-covbump v3 — impersonation-grant lifecycle test REMOVED in #975 with
+// the user-rail GET/POST/DELETE routes that it exercised.
 
 // REG-covbump v3 — AL-7 audit-retention/override branches.
 func TestAL_AuditRetentionOverride(t *testing.T) {

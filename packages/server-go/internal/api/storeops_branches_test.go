@@ -142,30 +142,16 @@ func TestStoreChannelGroupOps(t *testing.T) {
 	}
 }
 
-// REG-WORKTREE-cov-v6 — me/admin-actions branches + audit-log filters
-// targeting unexercised paths in handleListMyAdminActions + handleAdminAuditLog.
+// REG-WORKTREE-cov-v6 — audit-log filter branches in handleAdminAuditLog.
+// (User-rail /api/v1/me/admin-actions branches were removed in #975 with
+// the routes.)
 func TestAdminActionsExtra(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
-	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
 	adminToken := testutil.LoginAsAdmin(t, ts.URL)
 
-	// 401 user-rail no token.
-	resp, _ := testutil.JSON(t, http.MethodGet,
-		ts.URL+"/api/v1/me/admin-actions", "", nil)
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("no auth: got %d", resp.StatusCode)
-	}
-	// limit caps (200 / abc / negative).
-	for _, v := range []string{"-1", "abc", "500"} {
-		resp, _ := testutil.JSON(t, http.MethodGet,
-			ts.URL+"/api/v1/me/admin-actions?limit="+v, ownerToken, nil)
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("limit=%s: got %d", v, resp.StatusCode)
-		}
-	}
 	// audit-log: actor_id + target_user_id + action filters all together.
-	resp, _ = testutil.JSON(t, http.MethodGet,
+	resp, _ := testutil.JSON(t, http.MethodGet,
 		ts.URL+"/admin-api/v1/audit-log?actor_id=admin&target_user_id=usr&action=disable",
 		adminToken, nil)
 	if resp.StatusCode != http.StatusOK {

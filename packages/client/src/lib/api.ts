@@ -1535,12 +1535,6 @@ export async function putMyLayout(layout: LayoutRow[]): Promise<{ ok: boolean }>
   });
 }
 
-// ─── ADM-2.2 user-side admin actions + impersonate grant — DELETED (#975)
-//
-// Per parent #654 stance + #975, the user-facing privacy/compliance UI was
-// removed. The corresponding user-side helpers and types were deleted; admin
-// SPA still has its own equivalents in packages/client/src/admin/api.ts.
-
 /**
  * BPP-3.2.2 — POST /api/v1/me/grants
  *

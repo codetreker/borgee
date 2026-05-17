@@ -185,21 +185,20 @@ func RenderAdminActionDMBody(actorLogin, action string, ts time.Time, ctx AdminA
 	tsStr := ts.Format("2006-01-02 15:04")
 	switch action {
 	case "delete_channel":
-		// "你的 channel #{channel_name} 被 admin {admin_username} 于 {ts} 删除。详情见设置页"隐私 → 影响记录"。"
-		return fmt.Sprintf("你的 channel %s 被 admin %s 于 %s 删除。详情见设置页\"隐私 → 影响记录\"。", ctx.ChannelName, actorLogin, tsStr)
+		return fmt.Sprintf("你的 channel %s 被 admin %s 于 %s 删除。", ctx.ChannelName, actorLogin, tsStr)
 	case "suspend_user":
 		reason := ctx.Reason
 		if reason == "" {
 			reason = "(未提供原因)"
 		}
-		return fmt.Sprintf("你的账号被 admin %s 于 %s 暂停: %s。详情见设置页\"隐私 → 影响记录\"。", actorLogin, tsStr, reason)
+		return fmt.Sprintf("你的账号被 admin %s 于 %s 暂停: %s。", actorLogin, tsStr, reason)
 	case "change_role":
-		return fmt.Sprintf("你的账号角色被 admin %s 于 %s 从 %s 调整为 %s。详情见设置页\"隐私 → 影响记录\"。", actorLogin, tsStr, ctx.OldRole, ctx.NewRole)
+		return fmt.Sprintf("你的账号角色被 admin %s 于 %s 从 %s 调整为 %s。", actorLogin, tsStr, ctx.OldRole, ctx.NewRole)
 	case "reset_password":
-		return fmt.Sprintf("你的登录密码被 admin %s 于 %s 重置, 请重新生成。详情见设置页\"隐私 → 影响记录\"。", actorLogin, tsStr)
+		return fmt.Sprintf("你的登录密码被 admin %s 于 %s 重置, 请重新生成。", actorLogin, tsStr)
 	case "start_impersonation":
 		expStr := time.UnixMilli(ctx.ExpiresAt).Format("2006-01-02 15:04")
-		return fmt.Sprintf("admin %s 已对你的账号开启 24h impersonate, 起于 %s, 至 %s。可在设置页随时撤销。", actorLogin, tsStr, expStr)
+		return fmt.Sprintf("admin %s 已对你的账号开启 24h impersonate, 起于 %s, 至 %s。", actorLogin, tsStr, expStr)
 	default:
 		return ""
 	}
