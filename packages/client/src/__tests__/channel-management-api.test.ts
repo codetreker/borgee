@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Channel } from '../types';
 import { fetchChannels, sendMessage, setChannelMemberRequireMentionPolicy } from '../lib/api';
-import { buildChannelAllowedActionRules, buildChannelManagementSections } from '../lib/channelManagement';
+import { buildChannelManagementSections, canDeleteChannel, canLeaveChannel } from '../lib/channelManagement';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -119,89 +119,25 @@ describe('channel management API/client surface', () => {
     await sendMessage('ch-1', 'hello <@agent-1>', 'text', ['agent-1']);
   });
 
-  it('does not allow self-created channels to expose leave as an available action', () => {
-    const rules = buildChannelAllowedActionRules(
-      channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true }),
-      'user-1',
-      { canDelete: true, canArchive: true },
-    );
-
-    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
-      allowed: false,
-      reason: '创建者不能退出自己创建的频道',
-    });
-    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({ allowed: true });
-    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({ allowed: true });
-    expect(rules.find(rule => rule.id === 'owner-transfer')).toMatchObject({
-      allowed: false,
-      reason: '本轮不支持所有权转让',
-    });
+  it('only allows delete when caller created the channel + server delete permission is on + non-general non-dm', () => {
+    const owned = channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true });
+    expect(canDeleteChannel(owned, 'user-1', true)).toBe(true);
+    // server permission off → no
+    expect(canDeleteChannel(owned, 'user-1', false)).toBe(false);
+    // non-owner → no
+    expect(canDeleteChannel(channel({ id: 'j', name: 'j', created_by: 'user-2' }), 'user-1', true)).toBe(false);
+    // unknown user → no
+    expect(canDeleteChannel(owned, null, true)).toBe(false);
+    // general → no
+    expect(canDeleteChannel(channel({ id: 'g', name: 'general', created_by: 'user-1' }), 'user-1', true)).toBe(false);
+    // dm → no
+    expect(canDeleteChannel(channel({ id: 'd', name: 'd', type: 'dm', created_by: 'user-1' }), 'user-1', true)).toBe(false);
   });
 
-  it('requires server authority before exposing ownership actions as available', () => {
-    const rules = buildChannelAllowedActionRules(
-      channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true }),
-      'user-1',
-      { canDelete: false, canArchive: false },
-    );
-
-    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({
-      allowed: false,
-      reason: '服务器权限不允许删除频道',
-    });
-    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({
-      allowed: false,
-      reason: '服务器权限不允许归档频道',
-    });
-  });
-
-  it('allows joined-only members to leave but not delete, archive, or transfer ownership', () => {
-    const rules = buildChannelAllowedActionRules(
-      channel({ id: 'joined-1', name: 'joined', created_by: 'user-2', is_member: true }),
-      'user-1',
-    );
-
-    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({ allowed: true });
-    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({
-      allowed: false,
-      reason: '仅创建者可删除频道',
-    });
-    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({
-      allowed: false,
-      reason: '仅创建者可归档频道',
-    });
-    expect(rules.find(rule => rule.id === 'owner-transfer')).toMatchObject({ allowed: false });
-  });
-
-  it('does not show leave as available before current user identity is known', () => {
-    const rules = buildChannelAllowedActionRules(
-      channel({ id: 'joined-unknown-user', name: 'joined', created_by: 'user-2', is_member: true }),
-      null,
-    );
-
-    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
-      allowed: false,
-      reason: '当前用户未知，不能退出频道',
-    });
-  });
-
-  it('keeps the default general channel out of leave and destructive actions', () => {
-    const rules = buildChannelAllowedActionRules(
-      channel({ id: 'general', name: 'general', created_by: 'user-1', is_member: true }),
-      'user-1',
-    );
-
-    expect(rules.find(rule => rule.id === 'leave')).toMatchObject({
-      allowed: false,
-      reason: '默认频道不能退出',
-    });
-    expect(rules.find(rule => rule.id === 'delete')).toMatchObject({
-      allowed: false,
-      reason: '默认频道不能删除',
-    });
-    expect(rules.find(rule => rule.id === 'archive')).toMatchObject({
-      allowed: false,
-      reason: '默认频道不能归档',
-    });
+  it('canLeaveChannel still gates ChannelView leave entry (used outside the settings surface)', () => {
+    expect(canLeaveChannel(channel({ id: 'j', name: 'j', created_by: 'user-2', is_member: true }), 'user-1')).toBe(true);
+    expect(canLeaveChannel(channel({ id: 'o', name: 'o', created_by: 'user-1', is_member: true }), 'user-1')).toBe(false);
+    expect(canLeaveChannel(channel({ id: 'g', name: 'general', created_by: 'user-2', is_member: true }), 'user-1')).toBe(false);
+    expect(canLeaveChannel(channel({ id: 'p', name: 'p', created_by: 'user-2', is_member: false }), 'user-1')).toBe(false);
   });
 });

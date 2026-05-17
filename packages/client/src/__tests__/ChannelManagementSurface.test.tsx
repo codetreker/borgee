@@ -6,17 +6,25 @@ import type { Channel, User } from '../types';
 
 const mockContext = vi.hoisted(() => ({
   value: null as unknown,
+  dispatch: vi.fn(),
   fetchChannelMembers: vi.fn(),
   setChannelMemberRequireMentionPolicy: vi.fn(),
+  deleteChannel: vi.fn(),
+  showToast: vi.fn(),
 }));
 
 vi.mock('../context/AppContext', () => ({
   useAppContext: () => mockContext.value,
 }));
 
+vi.mock('../components/Toast', () => ({
+  useToast: () => ({ showToast: mockContext.showToast }),
+}));
+
 vi.mock('../lib/api', () => ({
   fetchChannelMembers: mockContext.fetchChannelMembers,
   setChannelMemberRequireMentionPolicy: mockContext.setChannelMemberRequireMentionPolicy,
+  deleteChannel: mockContext.deleteChannel,
 }));
 
 import ChannelManagementSurface from '../components/Settings/ChannelManagementSurface';
@@ -49,17 +57,23 @@ function channel(overrides: Partial<Channel> & { id: string; name: string }): Ch
   };
 }
 
+function setContext(overrides: { channels: Channel[]; permissions?: any[]; currentChannelId?: string | null }) {
+  mockContext.value = {
+    state: {
+      currentUser,
+      channels: overrides.channels,
+      permissions: overrides.permissions ?? [],
+      currentChannelId: overrides.currentChannelId ?? null,
+    },
+    dispatch: mockContext.dispatch,
+  };
+}
+
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  mockContext.value = {
-    state: {
-      currentUser,
-      channels: [],
-      permissions: [],
-    },
-  };
+  setContext({ channels: [] });
   mockContext.fetchChannelMembers.mockResolvedValue([]);
   mockContext.setChannelMemberRequireMentionPolicy.mockResolvedValue({
     channel_id: 'created-1',
@@ -67,6 +81,7 @@ beforeEach(() => {
     require_mention_policy: 'inherit',
     effective_require_mention: true,
   });
+  mockContext.deleteChannel.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -84,61 +99,179 @@ function render(node: React.ReactElement) {
 }
 
 describe('ChannelManagementSurface', () => {
-  it('renders created and joined-only sections with explicit allowed action rules', () => {
-    mockContext.value = {
-      state: {
-        currentUser,
-        permissions: [
-          { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
-          { id: 2, permission: 'channel.manage_visibility', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
-        ],
-        channels: [
-          channel({ id: 'created-1', name: 'created', topic: 'Owned by me', created_by: 'user-1', is_member: true }),
-          channel({ id: 'joined-1', name: 'joined', topic: 'Joined by me', created_by: 'user-2', is_member: true }),
-        ],
-      },
-    };
+  it('shows delete only on channels the user created with server delete permission', () => {
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [
+        channel({ id: 'created-1', name: 'created', topic: 'Owned by me', created_by: 'user-1', is_member: true }),
+        channel({ id: 'joined-1', name: 'joined', topic: 'Joined by me', created_by: 'user-2', is_member: true }),
+      ],
+    });
 
     render(<ChannelManagementSurface />);
 
     const surface = container.querySelector('[data-testid="channel-management-surface"]');
     expect(surface).toBeTruthy();
-    expect(surface?.querySelector('[data-section="created"]')?.textContent).toContain('created');
-    expect(surface?.querySelector('[data-section="joined"]')?.textContent).toContain('joined');
-    expect(surface?.querySelector('[data-section="joined"]')?.textContent).not.toContain('created');
+    expect(surface?.querySelector('[data-section="created"] [data-channel-id="created-1"]')).toBeTruthy();
+    expect(surface?.querySelector('[data-section="joined"] [data-channel-id="joined-1"]')).toBeTruthy();
 
-    const createdRow = surface?.querySelector('[data-channel-id="created-1"]');
-    const joinedRow = surface?.querySelector('[data-channel-id="joined-1"]');
-    expect(createdRow?.querySelector('[data-action="leave"]')?.getAttribute('data-allowed')).toBe('false');
-    expect(createdRow?.querySelector('[data-action="leave"]')?.textContent).toContain('创建者不能退出自己创建的频道');
-    expect(createdRow?.querySelector('[data-action="delete"]')?.getAttribute('data-allowed')).toBe('true');
-    expect(createdRow?.querySelector('[data-action="archive"]')?.getAttribute('data-allowed')).toBe('true');
-    expect(createdRow?.querySelector('[data-action="owner-transfer"]')?.getAttribute('data-allowed')).toBe('false');
+    expect(container.querySelector('[data-action="delete"][data-channel-id="created-1"]')).toBeTruthy();
+    expect(container.querySelector('[data-action="delete"][data-channel-id="joined-1"]')).toBeNull();
 
-    expect(joinedRow?.querySelector('[data-action="leave"]')?.getAttribute('data-allowed')).toBe('true');
-    expect(joinedRow?.querySelector('[data-action="delete"]')?.getAttribute('data-allowed')).toBe('false');
-    expect(joinedRow?.querySelector('[data-action="archive"]')?.getAttribute('data-allowed')).toBe('false');
-    expect(joinedRow?.querySelector('[data-action="owner-transfer"]')?.getAttribute('data-allowed')).toBe('false');
-
-    expect(surface?.querySelector('button[data-action]')).toBeNull();
+    // 旧的 4-action 矩阵彻底没了
+    expect(container.querySelector('.channel-management-actions')).toBeNull();
+    expect(container.querySelector('[data-action="leave"]')).toBeNull();
+    expect(container.querySelector('[data-action="archive"]')).toBeNull();
+    expect(container.querySelector('[data-action="owner-transfer"]')).toBeNull();
   });
 
-  it('keeps ownership actions unavailable when server permissions are absent', () => {
-    mockContext.value = {
-      state: {
-        currentUser,
-        permissions: [],
-        channels: [channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true })],
-      },
-    };
+  it('hides delete on owned channel when server permission is absent', () => {
+    setContext({
+      channels: [channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true })],
+    });
 
     render(<ChannelManagementSurface />);
 
-    const row = container.querySelector('[data-channel-id="created-1"]');
-    expect(row?.querySelector('[data-action="delete"]')?.getAttribute('data-allowed')).toBe('false');
-    expect(row?.querySelector('[data-action="delete"]')?.textContent).toContain('服务器权限不允许删除频道');
-    expect(row?.querySelector('[data-action="archive"]')?.getAttribute('data-allowed')).toBe('false');
-    expect(row?.querySelector('[data-action="archive"]')?.textContent).toContain('服务器权限不允许归档频道');
+    expect(container.querySelector('[data-action="delete"]')).toBeNull();
+  });
+
+  it('hides delete on #general even when delete permission is granted', () => {
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:general-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [channel({ id: 'general-1', name: 'general', created_by: 'user-1', is_member: true })],
+    });
+
+    render(<ChannelManagementSurface />);
+
+    expect(container.querySelector('[data-action="delete"]')).toBeNull();
+  });
+
+  it('confirms then calls deleteChannel API + dispatches REMOVE_CHANNEL on confirm', async () => {
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true })],
+    });
+
+    render(<ChannelManagementSurface />);
+
+    const btn = container.querySelector('[data-action="delete"][data-channel-id="created-1"]') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+
+    act(() => {
+      btn.click();
+    });
+
+    const modal = document.querySelector('.confirm-delete-modal');
+    expect(modal).toBeTruthy();
+    expect(modal?.textContent).toContain('created');
+
+    const confirm = modal?.querySelector('.btn-danger') as HTMLButtonElement;
+    await act(async () => {
+      confirm.click();
+    });
+
+    expect(mockContext.deleteChannel).toHaveBeenCalledWith('created-1');
+    expect(mockContext.dispatch).toHaveBeenCalledWith({ type: 'REMOVE_CHANNEL', channelId: 'created-1' });
+    expect(mockContext.showToast).toHaveBeenCalledWith('#created 已删除');
+  });
+
+  it('falls back to #general when deleting the currently-open channel', async () => {
+    setContext({
+      currentChannelId: 'created-1',
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [
+        channel({ id: 'general-1', name: 'general', created_by: 'user-0', is_member: true }),
+        channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true }),
+      ],
+    });
+
+    render(<ChannelManagementSurface />);
+
+    const btn = container.querySelector('[data-action="delete"][data-channel-id="created-1"]') as HTMLButtonElement;
+    act(() => {
+      btn.click();
+    });
+    const confirm = document.querySelector('.confirm-delete-modal .btn-danger') as HTMLButtonElement;
+    await act(async () => {
+      confirm.click();
+    });
+
+    expect(mockContext.dispatch).toHaveBeenCalledWith({ type: 'REMOVE_CHANNEL', channelId: 'created-1' });
+    expect(mockContext.dispatch).toHaveBeenCalledWith({ type: 'SET_CURRENT_CHANNEL', channelId: 'general-1' });
+  });
+
+  it('surfaces API failure as a toast and keeps the modal closeable', async () => {
+    mockContext.deleteChannel.mockRejectedValueOnce(new Error('server boom'));
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true })],
+    });
+
+    render(<ChannelManagementSurface />);
+
+    const btn = container.querySelector('[data-action="delete"][data-channel-id="created-1"]') as HTMLButtonElement;
+    act(() => {
+      btn.click();
+    });
+    const confirm = document.querySelector('.confirm-delete-modal .btn-danger') as HTMLButtonElement;
+    await act(async () => {
+      confirm.click();
+    });
+
+    expect(mockContext.showToast).toHaveBeenCalledWith('server boom');
+    expect(mockContext.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('auto-closes the confirm modal if the channel disappears from state mid-flight (WS race)', async () => {
+    const owned = channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true });
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [owned],
+    });
+
+    render(<ChannelManagementSurface />);
+    const btn = container.querySelector('[data-action="delete"][data-channel-id="created-1"]') as HTMLButtonElement;
+    act(() => {
+      btn.click();
+    });
+    expect(document.querySelector('.confirm-delete-modal')).toBeTruthy();
+
+    // Simulate WS event removing channel from state via parent re-render
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [],
+    });
+    render(<ChannelManagementSurface />);
+
+    expect(document.querySelector('.confirm-delete-modal')).toBeNull();
+  });
+
+  it('decorates the per-row delete button with channel-specific aria-label', () => {
+    setContext({
+      permissions: [
+        { id: 1, permission: 'channel.delete', scope: 'channel:created-1', granted_by: null, granted_at: 1 },
+      ],
+      channels: [channel({ id: 'created-1', name: 'created', created_by: 'user-1', is_member: true })],
+    });
+
+    render(<ChannelManagementSurface />);
+
+    const btn = container.querySelector('[data-action="delete"][data-channel-id="created-1"]') as HTMLButtonElement;
+    expect(btn.getAttribute('aria-label')).toBe('删除频道 #created');
   });
 
   it('exposes server-owned mention delivery controls for channel agents', async () => {
@@ -167,13 +300,10 @@ describe('ChannelManagementSurface', () => {
       require_mention_policy: 'on',
       effective_require_mention: true,
     });
-    mockContext.value = {
-      state: {
-        currentUser,
-        permissions: [{ id: 1, permission: 'channel.manage_members', scope: 'channel:created-1', granted_by: null, granted_at: 1 }],
-        channels: [channel({ id: 'created-1', name: 'created', topic: '', created_by: 'user-1', is_member: true })],
-      },
-    };
+    setContext({
+      permissions: [{ id: 1, permission: 'channel.manage_members', scope: 'channel:created-1', granted_by: null, granted_at: 1 }],
+      channels: [channel({ id: 'created-1', name: 'created', topic: '', created_by: 'user-1', is_member: true })],
+    });
 
     render(<ChannelManagementSurface />);
 
