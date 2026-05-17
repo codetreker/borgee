@@ -27,6 +27,11 @@ func TestLinuxServiceOutboundPrereqShape(t *testing.T) {
 		"--queue-state-dir=/var/lib/borgee-helper/queue",
 		"--status-state-dir=/var/lib/borgee-helper/status",
 		"--audit-handoff-dir=/var/lib/borgee-helper/audit-handoff",
+		// #968 R4 — heartbeat producer config files. File-based (not raw
+		// strings) so secrets never appear in /proc/PID/cmdline.
+		"--enrollment-id-file=/var/lib/borgee-helper/enrollment-id",
+		"--helper-device-id-file=/var/lib/borgee-helper/device-id",
+		"--helper-credential-file=/var/lib/borgee-helper/credential",
 		"StateDirectory=borgee-helper",
 		"ReadWritePaths=/var/log/borgee-helper /run/borgee-helper /var/lib/borgee-helper/queue /var/lib/borgee-helper/status /var/lib/borgee-helper/audit-handoff",
 		"ReadOnlyPaths=/var/lib/borgee",
@@ -107,6 +112,12 @@ func TestMacOSPlistAndSandboxOutboundPrereqShape(t *testing.T) {
 		"--queue-state-dir=/Library/Application Support/Borgee/Helper/QueueState",
 		"--status-state-dir=/Library/Application Support/Borgee/Helper/StatusState",
 		"--audit-handoff-dir=/Library/Application Support/Borgee/Helper/AuditHandoff",
+		// #968 R4 — heartbeat producer config files. macOS plist has no
+		// drop-in mechanism, so flags live inline. Sandbox profile already
+		// allows the Helper StateDir subpath read-write.
+		"--enrollment-id-file=/Library/Application Support/Borgee/Helper/enrollment-id",
+		"--helper-device-id-file=/Library/Application Support/Borgee/Helper/device-id",
+		"--helper-credential-file=/Library/Application Support/Borgee/Helper/credential",
 		"<key>UserName</key>\n    <string>_borgee-helper</string>",
 		"<key>GroupName</key>\n    <string>_borgee-helper</string>",
 	} {

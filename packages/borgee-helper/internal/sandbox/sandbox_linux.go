@@ -46,14 +46,24 @@ const (
 // Apply applies Profile through Landlock LSM path restrictions.
 //
 // Flow (kernel landlock man page):
-//  1. landlock_create_ruleset(attr, sizeof(attr), 0) → ruleset_fd
-//  2. for each path: open(path, O_PATH) → fd; landlock_add_rule(ruleset_fd, ...)
-//  3. landlock_restrict_self(ruleset_fd, 0)
-//  4. close(ruleset_fd)
+//  1. prctl(PR_SET_NO_NEW_PRIVS, 1) — required for landlock_restrict_self
+//     when the daemon is not CAP_SYS_ADMIN. In production systemd's
+//     `NoNewPrivileges=yes` already sets this; calling it again here is
+//     idempotent and unblocks integration tests that run as a regular user.
+//  2. landlock_create_ruleset(attr, sizeof(attr), 0) → ruleset_fd
+//  3. for each path: open(path, O_PATH) → fd; landlock_add_rule(ruleset_fd, ...)
+//  4. landlock_restrict_self(ruleset_fd, 0)
+//  5. close(ruleset_fd)
 //
 // Error handling: ENOSYS (kernel <5.13) returns nil for the documented fallback;
 // other errno values return errors.
 func Apply(p Profile) error {
+	// prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0). Idempotent. EINVAL on ancient
+	// kernels (<3.5) is the only failure mode — and on those kernels
+	// landlock is also absent, so we ignore the prctl error and let the
+	// landlock_create_ruleset path take its own ENOSYS fallback.
+	_ = unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+
 	if len(p.ReadPaths) == 0 {
 		// No grants means deny-by-default.
 		return restrictEmptyRuleset()

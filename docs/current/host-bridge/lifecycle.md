@@ -15,6 +15,42 @@ crash, with no local user re-login". Parent #659 only covered the boot-time
 autostart half. This doc walks the full chain so reviewers can verify each
 mechanism without spinning up a real host.
 
+## Operator-side claim (one-time, post-install)
+
+1. Operator generates an enrollment in the web UI. The server returns an
+   `enrollment_id` plus a one-time `enrollment_secret` (15-minute TTL — see
+   [`helper_enrollment_queries.go`](../../../packages/server-go/internal/store/helper_enrollment_queries.go)).
+2. Operator runs the claim CLI on the target machine, typically as root via
+   `sudo`:
+
+   ```
+   sudo borgee-helper-claim \
+       --enrollment-id <id> \
+       --enrollment-secret <secret> \
+       --server-origin https://app.borgee.io
+   ```
+
+   The CLI derives a stable `helper_device_id` (Linux `/etc/machine-id`,
+   macOS `IOPlatformUUID`, falling back to a persisted UUIDv4), POSTs
+   `/api/v1/helper/enrollments/{id}/claim` with body
+   `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
+   three files the daemon reads on next start:
+
+   - `--credential-file` (default `/var/lib/borgee-helper/credential` Linux,
+     `/Library/Application Support/Borgee/Helper/credential` macOS;
+     mode 0600, owned by helper user)
+   - `--enrollment-id-file` (default `enrollment-id` in the same dir)
+   - `--device-id-file` (default `device-id` in the same dir)
+
+3. Operator runs `sudo systemctl restart borgee-helper` (Linux) or
+   `sudo launchctl kickstart -k system/cloud.borgee.host-bridge` (macOS)
+   so the daemon picks up the new files immediately, or simply lets the
+   next reboot pick them up.
+
+The CLI is intentionally local-only: `enrollment_secret` is short-lived
+and never leaves the operator's session. The .deb / .pkg installer does
+not bundle a claim; the operator runs the CLI once after install.
+
 ## Linux reboot chain
 
 1. PID 1 systemd reaches `multi-user.target` (the standard non-graphical
@@ -34,11 +70,14 @@ mechanism without spinning up a real host.
    by system root/`borgee-helper`; no user session is involved.
 6. `cmd/borgee-helper/main.go::run` continues with:
    `outbound.ValidateAndPrepare(...)` (validates `--outbound-server-origin`
-   against the `--outbound-allowed-origins` allowlist and sets up TLS /
-   dialer state for a *future* outbound poller — see negative scope
-   below), then `sandbox.Apply(...)`, then opens the UDS socket and
-   enters `ln.Accept()` for IPC. At this point the daemon is alive and
-   accepts local IPC, but it does **not** by itself dial the API server.
+   against the `--outbound-allowed-origins` allowlist and sets up state
+   dirs), then `sandbox.Apply(...)`, then opens the UDS socket and reads
+   `--enrollment-id-file`, `--helper-device-id-file`,
+   `--helper-credential-file`. If all three are populated, a heartbeat
+   goroutine is spawned. If any are missing or empty, the daemon logs
+   `no enrollment configured, skipping heartbeat` and continues serving
+   UDS — the boot-survival contract therefore does not depend on a claim
+   having already happened.
 
 ### Reconnect chain — what is wired
 
@@ -68,16 +107,42 @@ Daemon v0(D+heartbeat) on start:
 
 End-to-end reboot path now closes: machine reboots → systemd / launchd
 starts the daemon as a system service with no user login → daemon
-validates config + applies sandbox → heartbeater fires within ~100ms →
-server updates `LastSeenAt` → web UI shows `connected` again.
+validates config + applies sandbox → reads enrollment/device-id/credential
+files → heartbeater fires within ~100ms → server updates `LastSeenAt` →
+web UI shows `connected` again.
 
-The heartbeater is opt-in by config: if `--enrollment-id`,
-`--helper-device-id`, or `--helper-credential-file` are missing (the
-fresh-install pre-claim case), the daemon logs "no enrollment
-configured, skipping heartbeat" and continues serving local IPC. The
-boot-survival contract therefore does not depend on a claim already
-having happened — a pre-claim daemon still boots cleanly across reboot
-and crash.
+## Why config is file-based, not on the cmdline
+
+Earlier drafts passed `enrollment_id` / `helper_device_id` as cmdline
+flags. That leaked `enrollment_id` to anyone with `ps` access via
+`/proc/PID/cmdline`. The current contract:
+
+- The systemd unit and launchd plist pass only *file paths* on the
+  cmdline (which are operationally safe to disclose).
+- The actual values live in `StateDirectory=borgee-helper` (Linux) or
+  the Helper Application Support dir (macOS), with 0644 perms for
+  enrollment/device id and 0600 for the credential.
+- The daemon reads each file at startup; an empty or missing file
+  collapses to `(nil, false)` and skips the heartbeat without
+  preventing the daemon from booting.
+
+## End-to-end verification
+
+[`packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go`](../../../packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go)
+spawns the real `borgee-helper-claim` and `borgee-helper` binaries
+against an `httptest.Server` that mirrors the production /claim and
+/status routes. It asserts:
+
+- Claim posts the two-field JSON body and writes credential (0600),
+  enrollment-id, device-id to disk.
+- Daemon reads the three files and produces a real heartbeat to
+  `/api/v1/helper/enrollments/{id}/status` within ~5s of startup, with
+  `Authorization: Bearer <credential>` and body
+  `{"helper_device_id":..., "state":"connected"}`.
+- The server-side freshness rule (replicated from `serializeWithConfigure`)
+  flips status to `connected` on the recorded `LastSeenAt`.
+
+This proves the full producer chain in CI, not just one side.
 
 G5
 ([`helper_enrollments_lifecycle_test.go`](../../../packages/server-go/internal/api/helper_enrollments_lifecycle_test.go))
@@ -86,9 +151,7 @@ revoked/uninstalled precedence). The end-to-end wire shape
 (`POST .../status` with `state=connected`, Bearer credential) is
 additionally locked by `TestHelperEnrollmentStatus_HeartbeatUpdatesLastSeen`
 in
-[`helper_enrollments_test.go`](../../../packages/server-go/internal/api/helper_enrollments_test.go),
-which posts the exact daemon payload shape and asserts the serializer
-flips to `connected`.
+[`helper_enrollments_test.go`](../../../packages/server-go/internal/api/helper_enrollments_test.go).
 
 ## Linux crash chain
 
@@ -182,6 +245,9 @@ in v1 — there is no install path to break.
 | Installer wires `systemctl enable` in order| `packages/borgee-installer/internal/deploy/deploy_test.go`                         | `TestHB1B_LinuxPlan_HasSudoAndSystemd`          |
 | Installer wires `launchctl load` to system | `packages/borgee-installer/internal/deploy/deploy_test.go`                         | `TestHB1B_DarwinPlan_HasSudoAndLaunchd`         |
 | Server flips `connected`/`offline` by freshness | `packages/server-go/internal/api/helper_enrollments_lifecycle_test.go`        | `TestHelperEnrollmentStatus_*`                  |
+| Claim CLI persists credential + ids        | `packages/borgee-helper/cmd/borgee-helper-claim/main_test.go`                      | `TestClaim_HappyPath`                           |
+| Claim CLI rejects non-https origin         | `packages/borgee-helper/cmd/borgee-helper-claim/main_test.go`                      | `TestClaim_HTTPSRequired`                       |
+| End-to-end claim → daemon → heartbeat      | `packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go`                           | `TestClaimHeartbeatE2E` (`-tags=integration`)   |
 
 The byte-level asset assertions plus the installer-plan ordering plus the
 server-side freshness derivation together stand in for a real reboot/crash

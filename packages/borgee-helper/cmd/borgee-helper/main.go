@@ -37,9 +37,15 @@ func main() {
 	queueStateDir := flag.String("queue-state-dir", "", "Helper-owned queue cursor state directory")
 	statusStateDir := flag.String("status-state-dir", "", "Helper-owned bounded status state directory")
 	auditHandoffDir := flag.String("audit-handoff-dir", "", "Helper-owned local audit handoff directory")
-	enrollmentID := flag.String("enrollment-id", "", "Helper enrollment id; when set with --helper-credential-file enables heartbeat (#968 reboot/crash reconnect)")
-	helperDeviceID := flag.String("helper-device-id", "", "Helper device id bound at claim time (#968 heartbeat)")
+	// All three are file-based so secrets never appear on /proc/PID/cmdline
+	// (the systemd drop-in passes paths only; the claim CLI populates the
+	// files at install/claim time). Missing/empty files → heartbeat is
+	// silently skipped so the daemon still boots before claim happens.
+	enrollmentIDFile := flag.String("enrollment-id-file", "", "Path to file containing the helper enrollment id (#968 heartbeat producer config)")
+	helperDeviceIDFile := flag.String("helper-device-id-file", "", "Path to file containing the helper device id bound at claim (#968 heartbeat)")
 	helperCredentialFile := flag.String("helper-credential-file", "", "Path to file containing the helper credential (Bearer token) issued at claim; readable only by helper user (#968 heartbeat)")
+	allowLoopbackOutbound := flag.Bool("allow-loopback-outbound", false, "Permit http:// loopback as --outbound-server-origin (e2e tests only; production daemon always uses https)")
+	allowedStateRoots := flag.String("allowed-state-roots", "", "Comma-separated list of allowed parent directories for queue/status/audit-handoff state dirs; empty defaults to platform helper state root (production default; e2e tests override)")
 	flag.Parse()
 
 	outboundPrereq := outbound.PrereqConfig{
@@ -49,12 +55,12 @@ func main() {
 		StatusStateDir:  *statusStateDir,
 		AuditHandoffDir: *auditHandoffDir,
 	}
-	if err := run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq, *enrollmentID, *helperDeviceID, *helperCredentialFile); err != nil {
+	if err := run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq, *enrollmentIDFile, *helperDeviceIDFile, *helperCredentialFile, *allowLoopbackOutbound, *allowedStateRoots); err != nil {
 		log.Fatalf("borgee-helper: %v", err)
 	}
 }
 
-func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig, enrollmentID, helperDeviceID, helperCredentialFile string) error {
+func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile string, allowLoopbackOutbound bool, allowedStateRoots string) error {
 	// Audit log writer (forward-only, JSON-line).
 	logFile, err := os.OpenFile(auditLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -77,7 +83,10 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 	var gc grants.Consumer = sc
 	log.Printf("borgee-helper: SQLite consumer connected dsn=%s", grantsDSN)
 
-	preparedOutbound, err := outbound.ValidateAndPrepare(outboundPrereq, outbound.ValidationOptions{})
+	preparedOutbound, err := outbound.ValidateAndPrepare(outboundPrereq, outbound.ValidationOptions{
+		AllowLoopbackHTTP: allowLoopbackOutbound,
+		AllowedStateRoots: splitCSV(allowedStateRoots),
+	})
 	if err != nil {
 		return err
 	}
@@ -124,8 +133,8 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 	// Skips silently if enrollment isn't configured yet (fresh install
 	// pre-claim) — failing to start the daemon over a missing credential
 	// would defeat the boot-survival contract.
-	if hb, ok := buildHeartbeater(preparedOutbound, enrollmentID, helperDeviceID, helperCredentialFile); ok {
-		log.Printf("borgee-helper: heartbeat enabled enrollment_id=%s interval=%s", enrollmentID, outbound.HeartbeatInterval)
+	if hb, ok := buildHeartbeater(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
+		log.Printf("borgee-helper: heartbeat enabled enrollment_id=%s interval=%s", hb.EnrollmentID, outbound.HeartbeatInterval)
 		go func() {
 			if err := hb.Run(ctx); err != nil {
 				log.Printf("borgee-helper: heartbeater exited: %v", err)
@@ -190,21 +199,28 @@ func splitCSV(s string) []string {
 // has everything it needs to post status, or (nil,false) otherwise. Returning
 // false is the explicit "skip heartbeat" path: pre-claim hosts must still
 // boot the daemon so the local UDS contract is honored.
-func buildHeartbeater(prep outbound.PreparedConfig, enrollmentID, helperDeviceID, credentialFile string) (*outbound.Heartbeater, bool) {
+//
+// All three inputs are *file paths* (not raw values): keeping secrets out of
+// the cmdline avoids /proc/PID/cmdline leakage. Missing file, empty file, and
+// unreadable file all collapse to (nil,false) so a partially-populated state
+// directory never trips the daemon.
+func buildHeartbeater(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string) (*outbound.Heartbeater, bool) {
 	if !prep.Enabled {
 		return nil, false
 	}
-	if trim(enrollmentID) == "" || trim(helperDeviceID) == "" || trim(credentialFile) == "" {
+	if trim(enrollmentIDFile) == "" || trim(helperDeviceIDFile) == "" || trim(credentialFile) == "" {
 		return nil, false
 	}
-	raw, err := os.ReadFile(credentialFile)
-	if err != nil {
-		log.Printf("borgee-helper: cannot read --helper-credential-file %q (%v); skipping heartbeat", credentialFile, err)
+	enrollmentID, ok := readTrimmedFile("--enrollment-id-file", enrollmentIDFile)
+	if !ok {
 		return nil, false
 	}
-	credential := trim(string(raw))
-	if credential == "" {
-		log.Printf("borgee-helper: --helper-credential-file %q is empty; skipping heartbeat", credentialFile)
+	helperDeviceID, ok := readTrimmedFile("--helper-device-id-file", helperDeviceIDFile)
+	if !ok {
+		return nil, false
+	}
+	credential, ok := readTrimmedFile("--helper-credential-file", credentialFile)
+	if !ok {
 		return nil, false
 	}
 	return &outbound.Heartbeater{
@@ -213,6 +229,23 @@ func buildHeartbeater(prep outbound.PreparedConfig, enrollmentID, helperDeviceID
 		HelperDeviceID: helperDeviceID,
 		Credential:     credential,
 	}, true
+}
+
+// readTrimmedFile reads `path` and returns its whitespace-trimmed content. It
+// returns ("", false) and logs the reason on any of: missing path, read
+// failure, empty file. The label is the flag name for operator-friendly logs.
+func readTrimmedFile(label, path string) (string, bool) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		log.Printf("borgee-helper: cannot read %s %q (%v); skipping heartbeat", label, path, err)
+		return "", false
+	}
+	value := trim(string(raw))
+	if value == "" {
+		log.Printf("borgee-helper: %s %q is empty; skipping heartbeat", label, path)
+		return "", false
+	}
+	return value, true
 }
 
 func trim(s string) string {
