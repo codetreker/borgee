@@ -284,6 +284,17 @@ export function useWebSocket() {
         } else {
           dispatch({ type: 'USER_OFFLINE', userId });
         }
+        // Server emits the 'presence' frame for every WS user (humans + agents
+        // share /ws). The agent presence cache read by usePresence() only fills
+        // from 'presence.changed' frames, and the server currently does not emit
+        // those, so without this mirror agents show "已离线" even while their
+        // runtime is connected. Humans never have usePresence(humanId) consumers
+        // (see presence-reverse-grep §3.2 allowlist), so writing humans into the
+        // cache is a harmless no-op. Only online/offline come through this path;
+        // error / busy / idle remain on the 'presence.changed' frame.
+        if (status === 'online' || status === 'offline') {
+          markPresence(userId, status, undefined);
+        }
         break;
       }
       // AL-3.3 (#R3 Phase 2) — agent runtime presence frame.
@@ -291,6 +302,9 @@ export function useWebSocket() {
       // accept IP / last_heartbeat_at / connection_count; the server strips
       // them. 5s throttling is enforced on server egress and again at the
       // client markPresence entry point.
+      // NB: busy/idle is NOT part of this frame; AL-1b ships those on the
+      // separate 'agent_task_state_changed' frame (see server
+      // packages/server-go/internal/ws/agent_task_state_changed_frame.go).
       case 'presence.changed': {
         const agentID = data.agent_id as string | undefined;
         const status = data.status as AgentRuntimeState | undefined;
