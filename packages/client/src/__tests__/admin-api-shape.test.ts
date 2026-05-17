@@ -87,4 +87,19 @@ describe('ADMIN-SPA-SHAPE-FIX — D1..D5 client shape lock', () => {
     expect(src).toMatch(/>\s*Login\s*</);
     expect(src).not.toMatch(/>\s*Username\s*</);
   });
+
+  // RM-5 (#975) — AdminAuditLogPage import-source lock. The admin SPA must
+  // import `fetchAdminAuditLog` from the admin-rail `../api` (admin/api.ts),
+  // NOT from the user-rail `../../lib/api`. A "re-consolidation accident"
+  // that points the admin page back at lib/api would re-couple the two
+  // rails the #975 cleanup separated.
+  test('REG-ASF-RM5 — AdminAuditLogPage imports fetchAdminAuditLog from admin/api (#975)', () => {
+    const src = read('pages/AdminAuditLogPage.tsx');
+    // Positive: import from '../api'.
+    expect(src).toMatch(/import\s*\{[^}]*\bfetchAdminAuditLog\b[^}]*\}\s*from\s*['"]\.\.\/api['"]/);
+    // Negative: no import from the user-rail lib/api.
+    expect(src).not.toMatch(/from\s*['"]\.\.\/\.\.\/lib\/api['"]/);
+    expect(src).not.toMatch(/from\s*['"]src\/lib\/api['"]/);
+    expect(src).not.toContain('lib/api');
+  });
 });

@@ -130,4 +130,22 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
     expect(channelsTab).toBeTruthy();
     expect(channelsTab.textContent).toBe('频道');
   });
+
+  // RM-2 page-level scope widening (#975 skeptic-owner WARN-3): the prior
+  // assertion scoped to `.settings-tabs` would miss a stray '隐私' in the
+  // page header, breadcrumb, aria-label, or side content. Walk the whole
+  // `[data-page="settings"]` root and assert none of the deleted Chinese
+  // labels appear anywhere. Labels harvested from the deleted components:
+  //   - PrivacyPromise.tsx: <h2>"隐私承诺"</h2>
+  //   - AdminActionsList.tsx: <h3>"admin 对你的影响记录"</h3>
+  //     + "(最近 50 条)" / "从未被 admin 影响过 — 你的隐私边界完整。"
+  it('no deleted privacy/admin-actions labels appear anywhere on SettingsPage (#975 page-level)', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
+    const pageRoot = container!.querySelector('[data-page="settings"]');
+    expect(pageRoot).toBeTruthy();
+    const pageText = pageRoot!.textContent ?? '';
+    for (const label of ['隐私', '隐私承诺', '影响记录', '你的影响记录']) {
+      expect(pageText).not.toContain(label);
+    }
+  });
 });
