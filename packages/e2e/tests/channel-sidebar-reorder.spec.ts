@@ -255,7 +255,7 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
 
     // Capture the sidebar with the ⋮⋮ handle and the DM row no-handle state.
     const sidebar = page.locator('.sidebar');
-    await sidebar.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await sidebar.screenshot({
       path: path.join(HERE, '../../../docs/qa/screenshots/g3.x-chn3-sidebar-reorder.png'),
     });
   });

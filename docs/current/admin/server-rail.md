@@ -30,6 +30,8 @@ admin request -> session lookup -> admin context -> handler
 logout -> session delete -> cookie cleared
 ```
 
+The production login path verifies the configured admin bcrypt hash and requires a stored hash with cost at least 10 during bootstrap. The only exception is the explicit `BORGEE_TEST_FAST_ADMIN_PASSWORD` test hook used by the Playwright server process; it short-circuits repeated e2e admin login checks against the configured plaintext while leaving bootstrap hash validation and the default production path unchanged.
+
 **Invariants**
 
 - Admin identity is stored outside the user table.

@@ -15,7 +15,6 @@ import {
   expect,
   request as apiRequest,
   type APIRequestContext,
-  type Browser,
   type BrowserContext,
   type Page,
 } from '@playwright/test';
@@ -267,8 +266,47 @@ test.describe('M3 Task4 production surface reverse proof', () => {
     const adminCtx = await adminLogin();
     const invite = await mintInvite(adminCtx, 'm3t4-settings');
     const owner = await registerUser(invite, 'm3t4-settings-owner');
+    const ctx = await browser.newContext();
+    await attachToken(ctx, owner.token);
+    const page = await ctx.newPage();
+    let requestCount = 0;
+    let permissionState: {
+      status: number;
+      body: unknown;
+    } | undefined;
 
-    await expectSettingsState(browser, owner.token, {
+    await page.route('**/api/v1/me/permissions', async (route) => {
+      requestCount += 1;
+      expect(permissionState, 'permission mock state must be set before settings load').toBeTruthy();
+      await route.fulfill({
+        status: permissionState!.status,
+        contentType: 'application/json',
+        body: JSON.stringify(permissionState!.body),
+      });
+    });
+
+    const expectSettingsState = async (opts: {
+      status: number;
+      body: unknown;
+      selector: string;
+      text: string;
+      forbiddenText?: string;
+    }) => {
+      permissionState = { status: opts.status, body: opts.body };
+      requestCount = 0;
+      await page.goto(clientURL());
+      await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
+      await page.locator('[data-action="open-settings"]').click();
+      await expect(page.locator('[data-page="settings"]')).toBeVisible();
+      await expect(page.locator('[data-settings-permissions-surface]')).toBeVisible();
+      await expect(page.locator(opts.selector)).toHaveText(opts.text);
+      expect(requestCount, 'Settings path should call /api/v1/me/permissions').toBeGreaterThanOrEqual(1);
+      if (opts.forbiddenText) {
+        await expect(page.locator('[data-settings-permissions-surface]')).not.toContainText(opts.forbiddenText);
+      }
+    };
+
+    await expectSettingsState({
       status: 200,
       body: {
         user_id: owner.userId,
@@ -281,7 +319,7 @@ test.describe('M3 Task4 production surface reverse proof', () => {
       text: '暂无授权',
     });
 
-    await expectSettingsState(browser, owner.token, {
+    await expectSettingsState({
       status: 403,
       body: { error: 'private permission payload channel.manage_members should not render' },
       selector: '[data-ap2-forbidden]',
@@ -289,7 +327,7 @@ test.describe('M3 Task4 production surface reverse proof', () => {
       forbiddenText: 'channel.manage_members',
     });
 
-    await expectSettingsState(browser, owner.token, {
+    await expectSettingsState({
       status: 500,
       body: { error: 'database secret token should not render' },
       selector: '[data-ap2-error]',
@@ -297,45 +335,8 @@ test.describe('M3 Task4 production surface reverse proof', () => {
       forbiddenText: 'database secret token',
     });
 
+    await ctx.close();
     await adminCtx.dispose();
     await owner.ctx.dispose();
   });
 });
-
-async function expectSettingsState(
-  browser: Browser,
-  token: string,
-  opts: {
-    status: number;
-    body: unknown;
-    selector: string;
-    text: string;
-    forbiddenText?: string;
-  },
-): Promise<void> {
-  const ctx = await browser.newContext();
-  await attachToken(ctx, token);
-  const page = await ctx.newPage();
-  let requestCount = 0;
-  await page.route('**/api/v1/me/permissions', async (route) => {
-    requestCount += 1;
-    await route.fulfill({
-      status: opts.status,
-      contentType: 'application/json',
-      body: JSON.stringify(opts.body),
-    });
-  });
-
-  await page.goto(clientURL());
-  await expect(page.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
-  await page.locator('[data-action="open-settings"]').click();
-  await expect(page.locator('[data-page="settings"]')).toBeVisible();
-  await expect(page.locator('[data-settings-permissions-surface]')).toBeVisible();
-  await expect(page.locator(opts.selector)).toHaveText(opts.text);
-  expect(requestCount, 'Settings path should call /api/v1/me/permissions').toBeGreaterThanOrEqual(1);
-  if (opts.forbiddenText) {
-    await expect(page.locator('[data-settings-permissions-surface]')).not.toContainText(opts.forbiddenText);
-  }
-
-  await ctx.close();
-}

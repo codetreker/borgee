@@ -222,7 +222,7 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
 
     // chat screenshot: verify the "聊天" tab is active.
     await expect(page.locator('button[data-tab="chat"]')).toHaveClass(/active/);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-chat.png'),
       fullPage: false,
     });
@@ -230,7 +230,7 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
     // workspace screenshot: verify the "工作区" tab is active.
     await page.locator('button[data-tab="workspace"]').click();
     await expect(page.locator('button[data-tab="workspace"]')).toHaveClass(/active/);
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-workspace.png'),
       fullPage: false,
     });

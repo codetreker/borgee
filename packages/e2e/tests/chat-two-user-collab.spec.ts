@@ -185,7 +185,7 @@ test.describe('CM-5.3 client SPA — agent↔agent 协作场景', () => {
     // (not API), so this captures the channel state for documentation.
     // Path 锁 byte-identical 跟 cm-5-content-lock.test.ts case ② 同源.
     const screenshotPath = nodePath.join(SCREENSHOT_DIR, 'cm-5-x2-conflict.png');
-    await ownerPage.screenshot({ path: screenshotPath, fullPage: false }).catch((err) => {
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await ownerPage.screenshot({ path: screenshotPath, fullPage: false }).catch((err) => {
       console.log(`[CM-5.3] screenshot capture: ${err.message ?? err}`);
     });
 

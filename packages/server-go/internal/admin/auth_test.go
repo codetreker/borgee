@@ -100,3 +100,14 @@ func TestLogin_1D_NonAdminRejected(t *testing.T) {
 		t.Fatalf("wrong password: status = %d, want 401", resp2.StatusCode)
 	}
 }
+
+func TestVerifyPassword_E2EFastAdminPassword(t *testing.T) {
+	t.Setenv(admin.EnvTestFastAdminPassword, "e2e-admin-pass")
+
+	if !admin.VerifyPassword("not-a-bcrypt-hash", "e2e-admin-pass") {
+		t.Fatal("test fast admin password should accept the configured plaintext")
+	}
+	if admin.VerifyPassword("not-a-bcrypt-hash", "wrong") {
+		t.Fatal("test fast admin password should still reject the wrong plaintext")
+	}
+}

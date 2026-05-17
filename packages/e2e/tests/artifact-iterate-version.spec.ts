@@ -212,7 +212,7 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
 
     // §4 G3.4 demo screenshot: iterate-pending baseline. After server #409
     // merges, this can switch to the real pending state.
-    await page.screenshot({
+    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-pending.png'),
       fullPage: false,
     });

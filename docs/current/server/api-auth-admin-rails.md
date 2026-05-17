@@ -46,7 +46,7 @@ The user auth subsystem resolves user identity from session cookies, bearer API 
 
 The capability subsystem reads permission rows and resolves resource scopes. It is the shared policy layer for capability-shaped decisions, while some resources also require owner or membership checks inside their domain handlers.
 
-The admin subsystem owns admin login, session creation, session resolution, logout, and admin context. It deliberately avoids depending on the user auth subsystem for admin identity.
+The admin subsystem owns admin login, session creation, session resolution, logout, and admin context. It deliberately avoids depending on the user auth subsystem for admin identity. Admin bootstrap still requires a bcrypt hash with cost at least 10; the only fast path is the explicit Playwright-only `BORGEE_TEST_FAST_ADMIN_PASSWORD` hook, which bypasses repeated e2e compare cost without changing production/default login behavior.
 
 The REST application layer is the consumer of rail identity. Handlers decide whether an operation is user-owned, member-scoped, permission-scoped, admin-scoped, Helper-credential-scoped, or read-only metadata.
 
