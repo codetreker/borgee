@@ -182,13 +182,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: packages/server-go/bin/collab-e2e
-          key: server-go-e2e-bin-${{ runner.os }}-${{ runner.arch }}-go1.25-${{ hashFiles('packages/server-go/go.mod', 'packages/server-go/go.sum', 'packages/server-go/**/*.go') }}
+          key: server-go-e2e-bin-${{ runner.os }}-${{ runner.arch }}-go1.25-libsqlite3-${{ hashFiles('packages/server-go/go.mod', 'packages/server-go/go.sum', 'packages/server-go/**/*.go') }}
+      - name: Install libsqlite3 headers
+        if: steps.server-e2e-bin-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev
       - name: Pre-fetch server-go modules
         if: steps.server-e2e-bin-cache.outputs.cache-hit != 'true'
         run: cd packages/server-go && go mod download
       - name: Build server-go e2e binary
         if: steps.server-e2e-bin-cache.outputs.cache-hit != 'true'
-        run: cd packages/server-go && go build -tags sqlite_fts5 -o bin/collab-e2e ./cmd/collab
+        run: cd packages/server-go && go build -tags 'sqlite_fts5 libsqlite3' -o bin/collab-e2e ./cmd/collab
       - name: Ensure server-go e2e binary is executable
         run: chmod +x packages/server-go/bin/collab-e2e
       - name: Run E2E
