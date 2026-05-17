@@ -135,9 +135,9 @@ test.describe('RT-1.2 client backfill on reconnect', () => {
 
     await page.goto('/');
     await expect(page.locator('.sidebar-title')).toBeVisible();
-    // Idle window long enough for the WS open to settle but short
-    // enough to keep CI fast.
-    await page.waitForTimeout(1500);
+    // The forbidden cold-start backfill would be scheduled immediately
+    // after the first socket opens, so keep the observation window short.
+    await page.waitForTimeout(500);
 
     expect(backfillCalls, 'cold start MUST NOT call /api/v1/events').toHaveLength(0);
   });

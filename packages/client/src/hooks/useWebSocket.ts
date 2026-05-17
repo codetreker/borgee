@@ -26,7 +26,16 @@ import { markPresence } from './usePresence';
 import type { AgentRuntimeReason, AgentRuntimeState } from '../lib/api';
 
 const PING_INTERVAL = 25_000;
-const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
+const DEFAULT_RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
+const E2E_RECONNECT_DELAY_RAW = import.meta.env.VITE_E2E_WS_RECONNECT_DELAY_MS;
+const E2E_RECONNECT_DELAY = Number(E2E_RECONNECT_DELAY_RAW);
+const RECONNECT_DELAYS = import.meta.env.DEV
+  && E2E_RECONNECT_DELAY_RAW !== undefined
+  && E2E_RECONNECT_DELAY_RAW !== ''
+  && Number.isFinite(E2E_RECONNECT_DELAY)
+  && E2E_RECONNECT_DELAY >= 0
+  ? [E2E_RECONNECT_DELAY]
+  : DEFAULT_RECONNECT_DELAYS;
 const AUTH_FAILURE_CODES = new Set([4001, 4003]);
 
 /**

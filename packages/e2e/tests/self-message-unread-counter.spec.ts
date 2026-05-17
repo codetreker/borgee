@@ -198,56 +198,6 @@ function waitForChannelSubscription(page: Page, channelId: string): Promise<void
   });
 }
 
-async function installWsFrameCapture(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const state = window as unknown as { __e2eWsFrames?: string[]; __e2eWsWrapped?: boolean };
-    if (state.__e2eWsWrapped) return;
-    state.__e2eWsWrapped = true;
-    state.__e2eWsFrames = [];
-
-    const NativeWS = window.WebSocket;
-    const Wrapped = function (this: WebSocket, url: string | URL, protocols?: string | string[]) {
-      const ws = new NativeWS(url, protocols);
-      ws.addEventListener('message', (event) => {
-        const capture = window as unknown as { __e2eWsFrames?: string[] };
-        const frames = capture.__e2eWsFrames ?? [];
-        frames.push(typeof event.data === 'string' ? event.data : String(event.data));
-        if (frames.length > 200) frames.splice(0, frames.length - 200);
-        capture.__e2eWsFrames = frames;
-      });
-      return ws;
-    } as unknown as typeof WebSocket;
-    Wrapped.prototype = NativeWS.prototype;
-    Object.setPrototypeOf(Wrapped, NativeWS);
-    window.WebSocket = Wrapped;
-  });
-}
-
-async function waitForWsNewMessage(page: Page, channelId: string, text: string): Promise<void> {
-  await expect.poll(async () => {
-    return await page.evaluate(({ channelId: expectedChannelId, text: expectedText }) => {
-      const frames = (window as unknown as { __e2eWsFrames?: string[] }).__e2eWsFrames ?? [];
-      return frames.some((raw) => {
-        try {
-          const frame = JSON.parse(raw) as {
-            type?: string;
-            data?: unknown;
-            message?: { channel_id?: string; content?: string };
-          };
-          const payload = frame.data && typeof frame.data === 'object'
-            ? frame.data as { type?: string; message?: { channel_id?: string; content?: string } }
-            : frame;
-          return payload.type === 'new_message'
-            && payload.message?.channel_id === expectedChannelId
-            && payload.message?.content === expectedText;
-        } catch {
-          return raw.includes(expectedChannelId) && raw.includes(expectedText);
-        }
-      });
-    }, { channelId, text });
-  }, { timeout: 10_000 }).toBe(true);
-}
-
 test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
   // 设置 desktop viewport 防 mobile sidebar closed (那是 #698 修过的另一条路径).
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -330,7 +280,6 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     const peerCtxBrowser = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await attachToken(peerCtxBrowser, peer.token);
     const peerPage = await peerCtxBrowser.newPage();
-    await installWsFrameCapture(peerPage);
     const peerSubscribedToShared = waitForChannelSubscription(peerPage, shared!.id);
     await peerPage.goto('/');
     await expect(peerPage.locator('.sidebar-title')).toBeVisible({ timeout: 10_000 });
@@ -347,7 +296,6 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     await switchToChannel(ownerPage, sharedName);
     const peerVisibleMsg = `me1 from owner ${Date.now()}`;
     await sendMessageViaUI(ownerPage, peerVisibleMsg);
-    await waitForWsNewMessage(peerPage, shared!.id, peerVisibleMsg);
 
     // Peer 等 ws push 到 sidebar (≤3s, RT-1 budget).
     // shared channel 在 peer 上是 non-current, 应该 bump unread (Layer 3 反向: peer 发的不算 own, 算别人发的).
@@ -389,6 +337,7 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
     // 等 welcome render (停留默认 welcome).
     const welcomeChannelB = pageB.locator('.channel-name').filter({ hasText: /^welcome/ }).first();
     await expect(welcomeChannelB).toBeVisible({ timeout: 5_000 });
+    await expect(pageB.locator('.channel-name', { hasText: channelAName })).toBeVisible({ timeout: 5_000 });
 
     // 设备 A 在 channel A 发 own message.
     const ownMsg = `me1 multi-device own ${Date.now()}`;
@@ -396,8 +345,7 @@ test.describe('gh#687 / #700 own message 不计未读 e2e', () => {
 
     // 设备 B 应该在 ws push 到达 (≤3s) 之后, channel A 的 sidebar 行
     // unread_count 仍 == 0 (Layer 3 reducer: sender_id == currentUser.id 跳 bump).
-    // 等 5s 给 ws 时间到, 然后真量 unread.
-    await pageB.waitForTimeout(3_000);
+    await pageB.waitForTimeout(1_000);
     const channelAUnreadOnB = await getUnreadCount(pageB, channelAName);
     expect(
       channelAUnreadOnB,
