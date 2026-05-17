@@ -35,6 +35,18 @@ func init() {
 	os.Setenv("BORGEE_ADMIN_PASSWORD_HASH", "$2a$10$1TyjYX4YfwjnX5EpcGsH2uY5IUVuZZm4HFZBtMz1m5yBO4qM9Ulr6")
 }
 
+// testRateLimitCfg 给 rate-limit unit test 用的最小 cfg, 不走 Load().
+func testRateLimitCfg() *config.Config {
+	return &config.Config{
+		RateLimitAuthPerSec: 5,
+		RateLimitAuthBurst:  15,
+		RateLimitUserPerSec: 20,
+		RateLimitUserBurst:  60,
+		RateLimitAnonPerSec: 100,
+		RateLimitAnonBurst:  300,
+	}
+}
+
 func testServer(t *testing.T) (*Server, *store.Store) {
 	t.Helper()
 	s := store.MigratedStoreFromTemplate(t)
@@ -48,6 +60,13 @@ func testServer(t *testing.T) (*Server, *store.Store) {
 		WorkspaceDir:  t.TempDir(),
 		ClientDist:    t.TempDir(),
 		CORSOrigin:    "*",
+
+		RateLimitAuthPerSec: 5,
+		RateLimitAuthBurst:  15,
+		RateLimitUserPerSec: 20,
+		RateLimitUserBurst:  60,
+		RateLimitAnonPerSec: 100,
+		RateLimitAnonBurst:  300,
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -313,11 +332,11 @@ func TestStatusRecorderFlush(t *testing.T) {
 
 func TestRateLimiter(t *testing.T) {
 	t.Parallel()
-	rl := newRateLimiter(t.Context())
+	rl := newRateLimiter(t.Context(), testRateLimitCfg())
 	ip := "127.0.0.1"
 
 	for i := 0; i < 10; i++ {
-		if !rl.allow(ip, false) {
+		if !rl.allow("anon:"+ip, rl.anonRate, rl.anonMax) {
 			t.Fatal("should allow within rate limit")
 		}
 	}
@@ -325,28 +344,30 @@ func TestRateLimiter(t *testing.T) {
 
 func TestRateLimiterUsesAuthBucket(t *testing.T) {
 	t.Parallel()
-	rl := newRateLimiter(t.Context())
+	rl := newRateLimiter(t.Context(), testRateLimitCfg())
 	rl.authRate = 0
 	rl.authMax = 1
-	rl.apiMax = 0
+	rl.anonMax = 0
 	ip := "198.51.100.12"
 
-	if !rl.allow(ip, true) {
+	if !rl.allow("auth:"+ip, rl.authRate, rl.authMax) {
 		t.Fatal("expected first auth request to be allowed")
 	}
-	if rl.allow(ip, true) {
+	if rl.allow("auth:"+ip, rl.authRate, rl.authMax) {
 		t.Fatal("expected exhausted auth bucket to reject request")
 	}
 }
 
 func TestRateLimitMiddlewareRejectsExhaustedClient(t *testing.T) {
 	t.Parallel()
-	rl := newRateLimiter(t.Context())
-	rl.apiRate = 0
-	rl.apiMax = 1
+	srv, _ := testServer(t)
+	rl := newRateLimiter(t.Context(), srv.cfg)
+	rl.anonRate = 0
+	rl.anonMax = 1
 
 	nextCalls := 0
-	handler := rateLimitMiddleware(rl, false, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cfg := &config.Config{NodeEnv: ""} // not dev → no bypass
+	handler := rateLimitMiddleware(rl, srv.store, cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nextCalls++
 		w.WriteHeader(http.StatusAccepted)
 	}))
@@ -401,11 +422,16 @@ func TestRateLimitBypass_RequiresBothHeaderAndDevMode(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rl := newRateLimiter(t.Context())
-			rl.apiRate = 0
-			rl.apiMax = 1
+			srv, _ := testServer(t)
+			rl := newRateLimiter(t.Context(), srv.cfg)
+			rl.anonRate = 0
+			rl.anonMax = 1
 
-			handler := rateLimitMiddleware(rl, tc.isDevelopment, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cfg := &config.Config{}
+			if tc.isDevelopment {
+				cfg.NodeEnv = "development"
+			}
+			handler := rateLimitMiddleware(rl, srv.store, cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusAccepted)
 			}))
 
@@ -438,6 +464,166 @@ func TestRateLimitBypass_RequiresBothHeaderAndDevMode(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestRateLimitThreeTier_BucketSelection 覆盖三档桶切换:
+//
+//	(a) auth path → auth 桶 (per-IP)
+//	(b) 登录用户访问非 auth path → user 桶 (per-user_id)
+//	(c) 登录用户访问 auth path 仍走 auth 桶 (防爆破)
+//	(d) 匿名 → anon 桶 (per-IP)
+//	(e) 同 user 不同 IP 共享 user 桶
+//	(f) 不同 user 互不影响
+func TestRateLimitThreeTier_BucketSelection(t *testing.T) {
+	t.Parallel()
+	_, s := testServer(t)
+
+	// 两个真用户, 各自配 API key.
+	emailA := "alice@test.com"
+	keyA := "rl-test-key-alice-aaaaaaaaaaaaaaaa"
+	userA := &store.User{DisplayName: "alice", Role: "member", Email: &emailA, PasswordHash: "h", APIKey: &keyA}
+	if err := s.CreateUser(userA); err != nil {
+		t.Fatal(err)
+	}
+	emailB := "bob@test.com"
+	keyB := "rl-test-key-bob-bbbbbbbbbbbbbbbbb"
+	userB := &store.User{DisplayName: "bob", Role: "member", Email: &emailB, PasswordHash: "h", APIKey: &keyB}
+	if err := s.CreateUser(userB); err != nil {
+		t.Fatal(err)
+	}
+
+	// cfg: 关 dev 防 X-E2E-Test bypass 走偏; 桶很小好观测.
+	cfg := &config.Config{
+		JWTSecret:           "test-secret",
+		NodeEnv:             "", // not dev
+		RateLimitAuthPerSec: 0,
+		RateLimitAuthBurst:  1,
+		RateLimitUserPerSec: 0,
+		RateLimitUserBurst:  2,
+		RateLimitAnonPerSec: 0,
+		RateLimitAnonBurst:  3,
+	}
+	rl := newRateLimiter(t.Context(), cfg)
+
+	handler := rateLimitMiddleware(rl, s, cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	mk := func(path, ip, apiKey string) *http.Request {
+		req := httptest.NewRequest("GET", path, nil)
+		req.RemoteAddr = ip + ":12345"
+		if apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		return req
+	}
+	do := func(req *http.Request) int {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// (a) auth path anon — burst=1, 第二请求 429
+	if c := do(mk("/api/v1/auth/login", "203.0.113.1", "")); c != http.StatusAccepted {
+		t.Fatalf("auth #1 expected 202, got %d", c)
+	}
+	if c := do(mk("/api/v1/auth/login", "203.0.113.1", "")); c != http.StatusTooManyRequests {
+		t.Fatalf("auth #2 expected 429, got %d", c)
+	}
+	// /admin-api/auth/ 同样走 auth 桶, 同 IP 仍然 429 (桶 key 是 auth:<ip>)
+	if c := do(mk("/admin-api/auth/login", "203.0.113.1", "")); c != http.StatusTooManyRequests {
+		t.Fatalf("admin-api/auth same-IP expected 429, got %d", c)
+	}
+
+	// (b) 登录用户访问非 auth path → user 桶 (burst=2)
+	if c := do(mk("/api/v1/channels", "10.0.0.1", keyA)); c != http.StatusAccepted {
+		t.Fatalf("userA #1 expected 202, got %d", c)
+	}
+	if c := do(mk("/api/v1/channels", "10.0.0.1", keyA)); c != http.StatusAccepted {
+		t.Fatalf("userA #2 expected 202, got %d", c)
+	}
+	// (e) 同 user 换 IP — 应共享 user 桶, 已被 a 耗光 → 429
+	if c := do(mk("/api/v1/channels", "10.0.0.99", keyA)); c != http.StatusTooManyRequests {
+		t.Fatalf("userA different IP should share user bucket → 429, got %d", c)
+	}
+
+	// (f) 不同 user 互不影响 — userB 还有满 burst=2
+	if c := do(mk("/api/v1/channels", "10.0.0.1", keyB)); c != http.StatusAccepted {
+		t.Fatalf("userB #1 (separate bucket) expected 202, got %d", c)
+	}
+	if c := do(mk("/api/v1/channels", "10.0.0.1", keyB)); c != http.StatusAccepted {
+		t.Fatalf("userB #2 expected 202, got %d", c)
+	}
+	if c := do(mk("/api/v1/channels", "10.0.0.1", keyB)); c != http.StatusTooManyRequests {
+		t.Fatalf("userB #3 expected 429, got %d", c)
+	}
+
+	// (c) 登录用户访问 auth path — 仍走 auth 桶 (按 IP)
+	// 用一个全新 IP 防跟 (a) 的 auth:<ip> 撞.
+	if c := do(mk("/api/v1/auth/logout", "198.18.0.1", keyA)); c != http.StatusAccepted {
+		t.Fatalf("authed user on auth path #1 expected 202, got %d", c)
+	}
+	if c := do(mk("/api/v1/auth/logout", "198.18.0.1", keyA)); c != http.StatusTooManyRequests {
+		t.Fatalf("authed user on auth path #2 expected 429 (auth bucket per-IP), got %d", c)
+	}
+
+	// (d) 匿名非 auth path → anon 桶 (burst=3)
+	for i := 0; i < 3; i++ {
+		if c := do(mk("/api/v1/channels", "172.16.0.1", "")); c != http.StatusAccepted {
+			t.Fatalf("anon #%d expected 202, got %d", i+1, c)
+		}
+	}
+	if c := do(mk("/api/v1/channels", "172.16.0.1", "")); c != http.StatusTooManyRequests {
+		t.Fatalf("anon #4 expected 429, got %d", c)
+	}
+	// 不同 IP 的 anon 桶独立
+	if c := do(mk("/api/v1/channels", "172.16.0.2", "")); c != http.StatusAccepted {
+		t.Fatalf("anon different IP separate bucket expected 202, got %d", c)
+	}
+}
+
+// TestRateLimitThreeTier_InvalidTokenFallsBackToAnon 探测 token 无效时
+// fall back IP 桶, 不 panic.
+func TestRateLimitThreeTier_InvalidTokenFallsBackToAnon(t *testing.T) {
+	t.Parallel()
+	_, s := testServer(t)
+
+	cfg := &config.Config{
+		JWTSecret:           "test-secret",
+		NodeEnv:             "",
+		RateLimitAuthPerSec: 0,
+		RateLimitAuthBurst:  1,
+		RateLimitUserPerSec: 0,
+		RateLimitUserBurst:  1,
+		RateLimitAnonPerSec: 0,
+		RateLimitAnonBurst:  2,
+	}
+	rl := newRateLimiter(t.Context(), cfg)
+	handler := rateLimitMiddleware(rl, s, cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	mk := func() *http.Request {
+		req := httptest.NewRequest("GET", "/api/v1/channels", nil)
+		req.RemoteAddr = "192.0.2.50:1234"
+		req.Header.Set("Authorization", "Bearer not-a-real-key-XXXXXXXXXXXXXXXXXX")
+		return req
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, mk())
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("anon #1 (bad token) expected 202, got %d", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, mk())
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("anon #2 expected 202, got %d", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, mk())
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("anon #3 expected 429 (fell back to anon bucket burst=2), got %d", rec.Code)
 	}
 }
 
@@ -487,23 +673,23 @@ func TestClientIPSources(t *testing.T) {
 
 func TestRateLimiterRefills(t *testing.T) {
 	t.Parallel()
-	rl := newRateLimiter(t.Context())
-	rl.apiRate = 10
-	rl.apiMax = 2
+	rl := newRateLimiter(t.Context(), testRateLimitCfg())
+	rl.anonRate = 10
+	rl.anonMax = 2
 	ip := "198.51.100.11"
+	key := "anon:" + ip
 
-	if !rl.allow(ip, false) || !rl.allow(ip, false) {
+	if !rl.allow(key, rl.anonRate, rl.anonMax) || !rl.allow(key, rl.anonRate, rl.anonMax) {
 		t.Fatal("expected initial tokens to allow requests")
 	}
-	if rl.allow(ip, false) {
+	if rl.allow(key, rl.anonRate, rl.anonMax) {
 		t.Fatal("expected exhausted bucket to reject request")
 	}
 
-	key := ip + ":false"
 	rl.mu.Lock()
 	rl.clients[key].lastTime = time.Now().Add(-time.Second)
 	rl.mu.Unlock()
-	if !rl.allow(ip, false) {
+	if !rl.allow(key, rl.anonRate, rl.anonMax) {
 		t.Fatal("expected elapsed time to refill bucket")
 	}
 }
@@ -708,7 +894,7 @@ func TestRespondNotImplemented(t *testing.T) {
 func TestRateLimiterCleanup_CtxCancelExits(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
-	rl := newRateLimiter(ctx)
+	rl := newRateLimiter(ctx, testRateLimitCfg())
 	// Seed an old client so the cleanup loop's delete branch can fire.
 	rl.mu.Lock()
 	rl.clients["1.2.3.4"] = &clientBucket{lastTime: time.Now().Add(-20 * time.Minute)}
@@ -728,8 +914,10 @@ func TestRateLimiterCleanup_TickFiresDelete(t *testing.T) {
 		clients:  make(map[string]*clientBucket),
 		authRate: 1,
 		authMax:  1,
-		apiRate:  1,
-		apiMax:   1,
+		userRate: 1,
+		userMax:  1,
+		anonRate: 1,
+		anonMax:  1,
 	}
 	// Seed old + fresh entries; cleanup should drop only old.
 	rl.clients["old"] = &clientBucket{lastTime: time.Now().Add(-20 * time.Minute)}

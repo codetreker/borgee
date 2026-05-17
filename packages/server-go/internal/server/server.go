@@ -649,10 +649,10 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Handler() http.Handler {
-	rl := newRateLimiter(s.ctx)
+	rl := newRateLimiter(s.ctx, s.cfg)
 
 	var handler http.Handler = s.mux
-	handler = rateLimitMiddleware(rl, s.cfg.IsDevelopment(), handler)
+	handler = rateLimitMiddleware(rl, s.store, s.cfg, handler)
 	handler = securityHeadersMiddleware(handler)
 	handler = corsMiddleware(s.cfg.IsDevelopment(), s.cfg.CORSOrigin, handler)
 	handler = loggerMiddleware(s.logger, handler)

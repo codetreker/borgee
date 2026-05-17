@@ -52,6 +52,14 @@ type Claims struct {
 func AuthMiddleware(s *store.Store, cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// 0. 上游 (rate-limit 中间件) 已鉴权过的话 user 在 ctx 里,
+			// 短路掉, 省一次 GetUserByID DB lookup. user 不在 ctx 才走下面
+			// 真鉴权流程 (鉴权失败原样 401, 不改语义).
+			if existing := UserFromContext(r.Context()); existing != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// 1. Check cookie
 			if cookie, err := r.Cookie(CookieName); err == nil {
 				if user := ValidateJWT(s, cfg.JWTSecret, cookie.Value); user != nil {

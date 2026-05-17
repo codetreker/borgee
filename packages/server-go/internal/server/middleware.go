@@ -10,6 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"borgee-server/internal/auth"
+	"borgee-server/internal/config"
+	"borgee-server/internal/store"
+
 	"github.com/google/uuid"
 )
 
@@ -127,8 +131,10 @@ type rateLimiter struct {
 	clients  map[string]*clientBucket
 	authRate float64
 	authMax  float64
-	apiRate  float64
-	apiMax   float64
+	userRate float64
+	userMax  float64
+	anonRate float64
+	anonMax  float64
 }
 
 type clientBucket struct {
@@ -138,13 +144,15 @@ type clientBucket struct {
 	lastTime time.Time
 }
 
-func newRateLimiter(ctx context.Context) *rateLimiter {
+func newRateLimiter(ctx context.Context, cfg *config.Config) *rateLimiter {
 	rl := &rateLimiter{
 		clients:  make(map[string]*clientBucket),
-		authRate: 10.0 / 60.0, // 10 per minute
-		authMax:  10,
-		apiRate:  100.0 / 60.0, // 100 per minute
-		apiMax:   100,
+		authRate: float64(cfg.RateLimitAuthPerSec),
+		authMax:  float64(cfg.RateLimitAuthBurst),
+		userRate: float64(cfg.RateLimitUserPerSec),
+		userMax:  float64(cfg.RateLimitUserBurst),
+		anonRate: float64(cfg.RateLimitAnonPerSec),
+		anonMax:  float64(cfg.RateLimitAnonBurst),
 	}
 	go rl.cleanup(ctx)
 	return rl
@@ -179,22 +187,20 @@ func (rl *rateLimiter) evictStale(now time.Time) {
 	}
 }
 
-func (rl *rateLimiter) allow(ip string, isAuth bool) bool {
+// allow 实际 token-bucket 取一个 token. rate / max 由外面按桶选好传进来.
+// key 在外面构造前缀 (auth:<ip> / user:<userID> / anon:<ip>) 防字面值撞.
+func (rl *rateLimiter) allow(key string, rate, max float64) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	rate := rl.apiRate
-	max := rl.apiMax
-	if isAuth {
-		rate = rl.authRate
-		max = rl.authMax
-	}
-
-	key := fmt.Sprintf("%s:%v", ip, isAuth)
 	b, ok := rl.clients[key]
 	if !ok {
 		b = &clientBucket{tokens: max, max: max, rate: rate, lastTime: time.Now()}
 		rl.clients[key] = b
+	} else {
+		// 桶参数变了 (热配置 / 测试覆盖) 顺手刷新
+		b.rate = rate
+		b.max = max
 	}
 
 	now := time.Now()
@@ -212,26 +218,27 @@ func (rl *rateLimiter) allow(ip string, isAuth bool) bool {
 	return true
 }
 
-// rateLimitMiddleware enforces token-bucket throttling per (IP, isAuth) bucket.
+// isAuthPath 判 path 是否走 auth 桶 (防爆破): /api/v1/auth/* + /admin-api/auth/*.
+func isAuthPath(p string) bool {
+	return strings.HasPrefix(p, "/api/v1/auth/") || strings.HasPrefix(p, "/admin-api/auth/")
+}
+
+// rateLimitMiddleware enforces three-tier token-bucket throttling.
 //
-// E2E bypass (two gates, environment-gated, production-safe):
+// 桶选择 (优先级 auth > user > anon):
+//   - auth: path 前缀 /api/v1/auth/ 或 /admin-api/auth/, key=auth:<ip>, 即便登录用户也走这桶 (防爆破)
+//   - user: 通过 AuthenticateFlexible 拿到 user, key=user:<userID>
+//   - anon: 其它, key=anon:<ip>
 //
-//	The Playwright e2e suite runs all 5 specs serially from 127.0.0.1 and
-//	shares a single global API bucket (100/min). Frontend boot per spec
-//	(GET /api/v1/users/me, /channels, /me/permissions, /agent_invitations,
-//	/ws reconnect, ...) drains the bucket before the suite finishes,
-//	manifesting as 429 on `POST /admin-api/auth/login` partway through.
+// 中间件链上 rate limit 套在 mux 外, auth 中间件在 mux 内 per-route,
+// 所以 UserFromContext 在这里拿不到. 此处自己 AuthenticateFlexible 一次轻量
+// 探测 — token 无效就 fall back IP 桶, 不 panic.
 //
-//	When the request carries `X-E2E-Test: 1` AND the server is running
-//	with `NODE_ENV=development`, we skip rate limiting. Both gates are
-//	required: the header alone is forgeable from outside, and NODE_ENV alone
-//	would weaken local development hygiene. In production (NODE_ENV != "development"),
-//	the header is ignored entirely; the limiter is unmodified.
-//
-//	playwright.config.ts already injects `X-E2E-Test: 1` into every
-//	request (extraHTTPHeaders, see :65) and sets NODE_ENV=development on
-//	the e2e server (:88), so no spec changes are needed.
-func rateLimitMiddleware(rl *rateLimiter, isDevelopment bool, next http.Handler) http.Handler {
+// E2E bypass (两道门, environment-gated): isDevelopment=true AND
+// X-E2E-Test:1 时跳过限速. 单门不算 (header 在 prod 可伪造, dev mode 单门
+// 会让本地浏览器流量静默 bypass 掩盖真客户端 bug).
+func rateLimitMiddleware(rl *rateLimiter, s *store.Store, cfg *config.Config, next http.Handler) http.Handler {
+	isDevelopment := cfg.IsDevelopment()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isDevelopment && r.Header.Get("X-E2E-Test") == "1" {
 			next.ServeHTTP(w, r)
@@ -239,9 +246,27 @@ func rateLimitMiddleware(rl *rateLimiter, isDevelopment bool, next http.Handler)
 		}
 
 		ip := clientIP(r)
-		isAuth := strings.HasPrefix(r.URL.Path, "/api/v1/auth/register")
 
-		if !rl.allow(ip, isAuth) {
+		var key string
+		var rate, max float64
+		switch {
+		case isAuthPath(r.URL.Path):
+			key = "auth:" + ip
+			rate, max = rl.authRate, rl.authMax
+		default:
+			if u := auth.AuthenticateFlexible(s, cfg, r); u != nil {
+				key = "user:" + u.ID
+				rate, max = rl.userRate, rl.userMax
+				// 把已鉴权 user 塞 ctx, 让 mux 内的 auth.AuthMiddleware 短路,
+				// 省一次 GetUserByID DB lookup per 登录请求.
+				r = r.WithContext(auth.ContextWithUser(r.Context(), u))
+			} else {
+				key = "anon:" + ip
+				rate, max = rl.anonRate, rl.anonMax
+			}
+		}
+
+		if !rl.allow(key, rate, max) {
 			writeErrorResponse(w, http.StatusTooManyRequests, "Rate limit exceeded")
 			return
 		}
