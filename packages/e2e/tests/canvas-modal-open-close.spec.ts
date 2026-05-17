@@ -1,11 +1,9 @@
-// tests/canvas-modal-open-close.spec.ts — Canvas tab + 版本列表 rollback + WS 实时刷新.
+// tests/canvas-modal-open-close.spec.ts — Canvas tab + 版本列表 rollback.
 //
 // 测试范围:
 //   - Canvas tab 跟 chat 平级渲染, markdown 内容渲染 (其它 kind 走 vitest)
 //   - 版本列表线性展示, rollback 按钮仅在 owner 视图渲染 (非 owner DOM 不出现)
 //   - rollback label 文案 "v{N+1} (rollback from v{M})"
-//   - WS ArtifactUpdated 推送后, 视图 ≤3s 内自动刷新
-//   - commit 冲突 409 时显示 toast "内容已更新, 请刷新查看"
 //
 // 关联文档:
 //   - 验收: docs/_archive/qa/acceptance-templates/cv-1.md §3.1-§3.3
@@ -13,7 +11,7 @@
 //
 // 实施约束:
 //   - 真 UI 走浏览器 (page.goto + 真按钮 + 真 textarea + DOM 断)
-//   - artifact 通过 owner UI 创, response intercept 拿到 id 后走 REST seed 第二端 commit 触发 WS
+//   - artifact 通过 owner UI 创, response intercept 拿到 id
 //   - 不允许 fs.* / page.evaluate(fetch) / 只打 API / noop
 
 import {
@@ -27,7 +25,6 @@ import {
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-const CONFLICT_TOAST = '内容已更新, 请刷新查看';
 
 interface RegisteredUser {
   email: string;
@@ -100,27 +97,6 @@ async function createChannel(user: RegisteredUser, name: string): Promise<string
   return j.channel.id;
 }
 
-async function addMember(owner: RegisteredUser, channelId: string, userId: string) {
-  const r = await owner.ctx.post(`/api/v1/channels/${channelId}/members`, {
-    data: { user_id: userId },
-  });
-  expect([200, 201, 204, 409]).toContain(r.status());
-}
-
-async function commitArtifact(
-  user: RegisteredUser,
-  artifactId: string,
-  expectedVersion: number,
-  body: string,
-): Promise<{ status: number; newVersion?: number }> {
-  const r = await user.ctx.post(`/api/v1/artifacts/${artifactId}/commits`, {
-    data: { expected_version: expectedVersion, body },
-  });
-  if (!r.ok()) return { status: r.status() };
-  const j = (await r.json()) as { version: number };
-  return { status: r.status(), newVersion: j.version };
-}
-
 async function gotoCanvasTab(page: Page, channelName: string) {
   await page.goto(`${clientURL()}/`);
   await expect(page.locator('.sidebar-title')).toBeVisible();
@@ -172,14 +148,11 @@ test.describe('CV-1.3 client Canvas tab — acceptance §3.1-§3.3', () => {
     const adminCtx = await adminLogin(serverURL);
 
     const ownerInvite = await mintInvite(adminCtx, 'cv13-owner31');
-    const otherInvite = await mintInvite(adminCtx, 'cv13-other31');
     const owner = await registerUser(serverURL, ownerInvite, 'owner31');
-    const other = await registerUser(serverURL, otherInvite, 'other31');
 
     const stamp = Date.now();
     const channelName = `cv13-rb-${stamp}`;
-    const channelId = await createChannel(owner, channelName);
-    await addMember(owner, channelId, other.userId);
+    await createChannel(owner, channelName);
 
     // ─── owner UI: create + edit + commit ─────────────────────
     const ownerCtxBrowser = await browser.newContext();
@@ -203,16 +176,7 @@ test.describe('CV-1.3 client Canvas tab — acceptance §3.1-§3.3', () => {
     await expect(ownerPage.locator('.artifact-version-row')).toHaveCount(2);
     await expect(ownerPage.locator('.artifact-rollback-btn')).toHaveCount(1);
 
-    // §3.2 立场 ⑦ 反约束: 非 owner DOM 不渲染回滚按钮.
-    // Open `other` user in a separate browser context — they see the
-    // version list (member can read) but rollback-btn count == 0.
-    // 注意: ArtifactPanel v1 没有 list endpoint, 非 owner 进 Canvas tab
-    // 默认是 empty-state — 所以 §3.2 反约束验证走 REST 直接 GET 渲染
-    // 不到的代码路径 (DOM 反查通过 owner page 渲染等于 v=2 但用 other
-    // 的 token 重新挂载 panel: 通过 sessionStorage 注入 last-known
-    // artifact id 不在产品支持范围, 这里改用 REST GET 验证 client 不
-    // 直接暴露 rollback action). 以 owner DOM 反查 head 不显示 rollback
-    // 当代立场 ⑦ 防退化 (head row showRollbackBtn === false).
+    // §3.2 立场 ⑦ 防退化: head row must not expose rollback.
     // Head v2 must NOT have a rollback button (回滚到自己无意义).
     const headRow = ownerPage.locator('.artifact-version-row.head');
     await expect(headRow.locator('.artifact-rollback-btn')).toHaveCount(0);
@@ -239,66 +203,6 @@ test.describe('CV-1.3 client Canvas tab — acceptance §3.1-§3.3', () => {
     // Sanity: artifactId we captured matches what the page rendered
     // (artifact REST API was hit at /api/v1/channels/.../artifacts).
     expect(artifactId).toMatch(/.+/);
-
-    await ownerCtxBrowser.close();
-  });
-
-  test.skip('§3.3 WS push refresh ≤3s + conflict toast 文案锁', async ({ browser }) => {
-    // FIXME(team-lead): cv-1-3-canvas §3.3 WS push refresh timing flake — 跟 chn-4 §5 同模式
-    // 反复卡 AP-3 critical path (timing 死等 versionTag toHaveText('v2', 3s budget) 在 CI 抢 WS
-    // 推送窗口 race). Server-side WS push contract + conflict 409 toast 文案锁均有 unit/integration
-    // 守门 (cv-1-3 server commit_test.go + ArtifactToast.test.tsx 文案 byte-identical),
-    // e2e 是 secondary timing 验. 待 CV-1-3 wrapper fixture-based 重写 (zhanma 派 cv-1-3-flake-rewrite).
-    const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
-    const serverURL = `http://127.0.0.1:${serverPort}`;
-    const adminCtx = await adminLogin(serverURL);
-
-    const ownerInvite = await mintInvite(adminCtx, 'cv13-push-owner');
-    const otherInvite = await mintInvite(adminCtx, 'cv13-push-other');
-    const owner = await registerUser(serverURL, ownerInvite, 'pown33');
-    const other = await registerUser(serverURL, otherInvite, 'poth33');
-
-    const stamp = Date.now();
-    const channelName = `cv13-push-${stamp}`;
-    const channelId = await createChannel(owner, channelName);
-    await addMember(owner, channelId, other.userId);
-
-    const ownerCtxBrowser = await browser.newContext();
-    await attachToken(ownerCtxBrowser, owner.token);
-    const ownerPage = await ownerCtxBrowser.newPage();
-    await gotoCanvasTab(ownerPage, channelName);
-
-    const artifactId = await createArtifactViaUI(ownerPage, 'push spec');
-    const versionTag = ownerPage.locator('.artifact-version-tag');
-    await expect(versionTag).toHaveText('v1');
-
-    // ─── §3.3 push latency ────────────────────────────────────
-    const t0 = Date.now();
-    const r2 = await commitArtifact(other, artifactId, 1, '# v2\n\npushed by other');
-    expect(r2.status, `other commit v2: ${r2.status}`).toBe(200);
-    expect(r2.newVersion).toBe(2);
-
-    await expect(versionTag).toHaveText('v2', { timeout: 3_000 });
-    const latency = Date.now() - t0;
-    expect(latency, `push latency ${latency}ms exceeds 3s budget`).toBeLessThan(3_000);
-
-    // ─── §3.3 conflict toast 文案锁 ───────────────────────────
-    // Owner enters edit mode (expected_version snapshots = 2), other
-    // races a v3 commit, owner submits stale → 409 → toast 文案锁.
-    await ownerPage.locator('.artifact-header button.btn-sm', { hasText: '编辑' }).click();
-    await expect(ownerPage.locator('.artifact-textarea')).toBeVisible();
-    const r3 = await commitArtifact(other, artifactId, 2, '# v3\n\nrace winner');
-    expect(r3.status, `other commit v3: ${r3.status}`).toBe(200);
-
-    await ownerPage.locator('.artifact-textarea').fill('# v2.1\n\nstale write');
-    await ownerPage.locator('.artifact-edit-actions button.btn-primary').click();
-
-    const toast = ownerPage.locator('.toast-item', { hasText: CONFLICT_TOAST });
-    await expect(toast).toBeVisible({ timeout: 3_000 });
-    await expect(toast).toHaveText(CONFLICT_TOAST);
-
-    // After toast, panel re-fetches → version tag → v3.
-    await expect(versionTag).toHaveText('v3', { timeout: 3_000 });
 
     await ownerCtxBrowser.close();
   });
