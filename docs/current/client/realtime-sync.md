@@ -85,6 +85,8 @@ The client persists a high-water cursor when frames include one. After a dropped
 
 Cursor backfill is not a cold-start history mechanism. If no cursor exists, normal bootstrap and per-surface loads provide state. In addition, subscribed channels reconcile missed messages by pulling messages after the last observed timestamp.
 
+The production reconnect schedule starts at a 1s retry and backs off from there. The Vite dev server may set `VITE_E2E_WS_RECONNECT_DELAY_MS` for Playwright so forced-disconnect tests exercise the same reconnect and backfill code without spending the production first-retry delay on every e2e run. Without that env var, local development and production builds use the default schedule.
+
 ## Interfaces To Other Modules
 
 | Interface | Contract |
