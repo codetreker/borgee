@@ -1,20 +1,13 @@
-// SettingsPage.test.tsx — ADM-1 acceptance §2 SettingsPage DOM 锁.
+// SettingsPage.test.tsx — user 设置页 DOM 锁 (post-#975 privacy UI removal).
 //
-// ADM-2 mock: SettingsPage 现在嵌入 ImpersonateGrantSection +
-// AdminActionsList, 它们 mount 时调 lib/api fetch helpers; jsdom 没真
-// fetch endpoint, 这里 mock 整个 module 防止 ERR_INVALID_URL unhandled
-// rejection (CI client-vitest 看作 failure).
+// 反约束:
+//   - privacy tab 已删, 不应再出现 (#975).
+//   - 默认 tab = runtime (用户进 Settings 最常见动机是看运行时状态).
+//   - 仍保留 runtime + channels 两个 tab, 切换 UI 不变.
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-
-vi.mock('../lib/api', () => ({
-  getMyAdminActions: () => Promise.resolve({ actions: [] }),
-  getMyImpersonateGrant: () => Promise.resolve({ grant: null }),
-  createMyImpersonateGrant: () => Promise.resolve({ grant: null }),
-  revokeMyImpersonateGrant: () => Promise.resolve(),
-}));
 
 import SettingsPage from '../components/Settings/SettingsPage';
 
@@ -53,22 +46,29 @@ async function render(node: React.ReactElement) {
   });
 }
 
-describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.1)', () => {
-  it('renders settings page with privacy tab active by default', async () => {
+describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () => {
+  it('renders settings page with runtime tab active by default', async () => {
     await render(<SettingsPage onBack={() => {}} />);
     expect(container!.querySelector('[data-page="settings"]')).toBeTruthy();
-    const privacyTab = container!.querySelector('[data-tab="privacy"]');
-    expect(privacyTab).toBeTruthy();
-    expect(privacyTab!.className).toContain('active');
-    expect(privacyTab!.getAttribute('aria-current')).toBe('page');
+    const runtimeTab = container!.querySelector('[data-tab="runtime"]');
+    expect(runtimeTab).toBeTruthy();
+    expect(runtimeTab!.className).toContain('active');
+    expect(runtimeTab!.getAttribute('aria-current')).toBe('page');
   });
 
-  it('PrivacyPromise section is always visible (反 <details> 包裹)', async () => {
+  it('privacy tab is not rendered (#975)', async () => {
     await render(<SettingsPage onBack={() => {}} />);
-    const promise = container!.querySelector('.privacy-promise');
-    expect(promise).toBeTruthy();
-    // No <details> wrapper anywhere in settings page (野马 R3 反约束).
-    expect(container!.querySelectorAll('details')).toHaveLength(0);
+    expect(container!.querySelector('[data-tab="privacy"]')).toBeNull();
+    // 反向 grep — 中文标签也不应出现.
+    const tabsText = container!.querySelector('.settings-tabs')?.textContent ?? '';
+    expect(tabsText).not.toContain('隐私');
+  });
+
+  it('does not embed the privacy/compliance UI markers (#975)', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
+    expect(container!.querySelector('.privacy-promise')).toBeNull();
+    expect(container!.querySelector('[data-section="impersonate-grant"]')).toBeNull();
+    expect(container!.querySelector('[data-section="admin-actions-history"]')).toBeNull();
   });
 
   it('back button calls onBack handler', async () => {
@@ -82,13 +82,7 @@ describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('tab label "隐私" byte-identical (中文文案锁)', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
-    const tab = container!.querySelector('[data-tab="privacy"]');
-    expect(tab!.textContent).toBe('隐私');
-  });
-
-  it('renders standalone PermissionsView empty state from user Settings', async () => {
+  it('runtime tab renders PermissionsView empty state', async () => {
     await render(<SettingsPage onBack={() => {}} />);
     await act(async () => {
       await Promise.resolve();
@@ -109,10 +103,6 @@ describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.
       />,
     );
 
-    await act(async () => {
-      (container!.querySelector('[data-tab="runtime"]') as HTMLButtonElement).click();
-    });
-
     const runtime = container!.querySelector('[data-settings-runtime-surface="true"]')!;
     const remoteEntry = runtime.querySelector('[data-runtime-entry="remote-nodes"]') as HTMLButtonElement;
     const helperEntry = runtime.querySelector('[data-runtime-entry="helper-status"]') as HTMLButtonElement;
@@ -132,5 +122,30 @@ describe('SettingsPage — privacy tab 默认展开不可折叠 (acceptance §2.
 
     expect(onRemoteNodesOpen).toHaveBeenCalledTimes(1);
     expect(onHelperStatusOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('channels tab is still reachable next to runtime', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
+    const channelsTab = container!.querySelector('[data-tab="channels"]') as HTMLButtonElement;
+    expect(channelsTab).toBeTruthy();
+    expect(channelsTab.textContent).toBe('频道');
+  });
+
+  // RM-2 page-level scope widening (#975 skeptic-owner WARN-3): the prior
+  // assertion scoped to `.settings-tabs` would miss a stray '隐私' in the
+  // page header, breadcrumb, aria-label, or side content. Walk the whole
+  // `[data-page="settings"]` root and assert none of the deleted Chinese
+  // labels appear anywhere. Labels harvested from the deleted components:
+  //   - PrivacyPromise.tsx: <h2>"隐私承诺"</h2>
+  //   - AdminActionsList.tsx: <h3>"admin 对你的影响记录"</h3>
+  //     + "(最近 50 条)" / "从未被 admin 影响过 — 你的隐私边界完整。"
+  it('no deleted privacy/admin-actions labels appear anywhere on SettingsPage (#975 page-level)', async () => {
+    await render(<SettingsPage onBack={() => {}} />);
+    const pageRoot = container!.querySelector('[data-page="settings"]');
+    expect(pageRoot).toBeTruthy();
+    const pageText = pageRoot!.textContent ?? '';
+    for (const label of ['隐私', '隐私承诺', '影响记录', '你的影响记录']) {
+      expect(pageText).not.toContain(label);
+    }
   });
 });

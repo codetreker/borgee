@@ -12,7 +12,7 @@
 //     the WS frame; when it matches the current artifact, listArtifactComments
 //     fetches the latest state, matching AnchorThreadPanel. Do not render
 //     comment text from frame.body_preview because the server caps it at 80 runes
-//     for privacy §13.
+//     for server data-trim.
 //   - ③ agent thinking subject is rejected by the server. The client only shows
 //     the error code, visible to both human reviewers and agents, without split rendering.
 //

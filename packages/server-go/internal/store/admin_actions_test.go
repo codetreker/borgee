@@ -152,22 +152,22 @@ func TestRenderAdminActionDMBody_ByteIdentical(t *testing.T) {
 		{
 			"delete_channel",
 			AdminActionDMContext{ChannelName: "#demo"},
-			`你的 channel #demo 被 admin alice 于 2026-04-29 14:32 删除。详情见设置页"隐私 → 影响记录"。`,
+			`你的 channel #demo 被 admin alice 于 2026-04-29 14:32 删除。`,
 		},
 		{
 			"suspend_user",
 			AdminActionDMContext{Reason: "违反社区规范"},
-			`你的账号被 admin alice 于 2026-04-29 14:32 暂停: 违反社区规范。详情见设置页"隐私 → 影响记录"。`,
+			`你的账号被 admin alice 于 2026-04-29 14:32 暂停: 违反社区规范。`,
 		},
 		{
 			"change_role",
 			AdminActionDMContext{OldRole: "member", NewRole: "agent"},
-			`你的账号角色被 admin alice 于 2026-04-29 14:32 从 member 调整为 agent。详情见设置页"隐私 → 影响记录"。`,
+			`你的账号角色被 admin alice 于 2026-04-29 14:32 从 member 调整为 agent。`,
 		},
 		{
 			"reset_password",
 			AdminActionDMContext{},
-			`你的登录密码被 admin alice 于 2026-04-29 14:32 重置, 请重新生成。详情见设置页"隐私 → 影响记录"。`,
+			`你的登录密码被 admin alice 于 2026-04-29 14:32 重置, 请重新生成。`,
 		},
 	}
 	for _, c := range cases {
@@ -179,9 +179,54 @@ func TestRenderAdminActionDMBody_ByteIdentical(t *testing.T) {
 	// start_impersonation has variable expires_at — assert structure only.
 	imp := RenderAdminActionDMBody("alice", "start_impersonation", ts,
 		AdminActionDMContext{ExpiresAt: ts.Add(24 * time.Hour).UnixMilli()})
-	if !strings.Contains(imp, "admin alice 已对你的账号开启 24h impersonate") ||
-		!strings.Contains(imp, "可在设置页随时撤销") {
+	if !strings.Contains(imp, "admin alice 已对你的账号开启 24h impersonate") {
 		t.Errorf("start_impersonation body missing literal anchor: %q", imp)
+	}
+}
+
+// TestRenderAdminActionDMBody_NoDeletedUIReferences pins #975 RM-4 intent
+// lock — the DM body must not point at any UI surface deleted in #975. This
+// is the negative complement to the byte-identical positive lock above.
+// Byte-identical catches prose regression today; this catches "future
+// refactor changes phrasing but re-introduces a pointer at the deleted UI."
+func TestRenderAdminActionDMBody_NoDeletedUIReferences(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2026, 4, 29, 14, 32, 0, 0, time.Local)
+	ctx := AdminActionDMContext{
+		ChannelName: "#x",
+		Reason:      "violation",
+		OldRole:     "member",
+		NewRole:     "agent",
+		ExpiresAt:   ts.Add(24 * time.Hour).UnixMilli(),
+	}
+	// Substrings that pointed at the deleted user-facing settings UI
+	// (PrivacyPromise / AdminActionsList / ImpersonateGrantSection). The DM
+	// body must not promise any of these surfaces.
+	banned := []string{
+		"设置页",       // "go to Settings" preamble
+		"影响记录",     // points at deleted AdminActionsList
+		"可在设置页", // "you can in Settings ..." ramp
+		"随时撤销",   // "revoke any time" — pointed at deleted ImpersonateGrantSection control
+		"隐私 →",      // "Privacy →" navigation breadcrumb to deleted tab
+	}
+	actions := []string{
+		"delete_channel",
+		"suspend_user",
+		"change_role",
+		"reset_password",
+		"start_impersonation",
+	}
+	for _, action := range actions {
+		body := RenderAdminActionDMBody("alice", action, ts, ctx)
+		for _, neg := range banned {
+			if strings.Contains(body, neg) {
+				t.Errorf(
+					"#975 RM-4 intent lock: action=%s body contains %q "+
+						"(points at deleted UI). Full body: %q",
+					action, neg, body,
+				)
+			}
+		}
 	}
 }
 

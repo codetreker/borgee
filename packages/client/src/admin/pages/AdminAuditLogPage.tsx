@@ -13,24 +13,20 @@
 // DOM 锚: `[data-page="admin-audit-log"]` + 每行 `[data-action-row]` + 每
 // filter input `[data-filter="{actor|action|target}"]`.
 //
-// Cross-surface literal lock (constraint summary):
+// Admin-side display lock (constraint summary):
 //   - This page uses English enum action literals (delete_channel/suspend_user/...).
-//   - 用户端 Settings/AdminActionsList 走中文动词字面 (ACTION_VERBS map
-//     in the user SPA; admin SPA must not import it. See
-//     adm-2-admin-spa-cross-end.test.ts for the reverse check.
-//   - 改 enum = 改 server CHECK constraint + 此 admin SPA + 用户端 SPA 三处.
-//   - Constraint: admin must not render Chinese verbs; admin SPA displays the
-//     English enum directly, while Chinese verbs are user-facing.
-//   - Constraint: admin SPA renders actor_id (admins can see each other);
-//     the user side does not render raw actor_id and uses admin
-//     lookup to show admin_username instead.
+//   - 改 enum = 改 server CHECK constraint + 此 admin SPA 两处. The user-side
+//     Chinese-verb surface (AdminActionsList) was removed in #975, so the
+//     prior cross-end literal lock collapses to "admin SPA is authoritative".
+//   - Constraint: admin SPA renders actor_id (admins can see each other).
 
 import React, { useEffect, useState } from 'react';
 import { fetchAdminAuditLog, type AdminActionRow, type AuditLogFilters } from '../api';
 
 // ACTION_ENUM — English enum literals match the server CHECK constraint
 // (admin_actions 表 CHECK (action IN ('delete_channel', 'suspend_user', ...))).
-// 改这里 = 改 server migration v=22 + user SPA AdminActionsList ACTION_VERBS.
+// 改这里 = 改 server migration v=22 + admin SPA. (User-side AdminActionsList
+// + ACTION_VERBS map were removed in #975.)
 const ACTION_ENUM = [
   'delete_channel',
   'suspend_user',

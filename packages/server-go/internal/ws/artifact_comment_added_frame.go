@@ -14,14 +14,14 @@
 //      sequence (RT-3 #488 cursor shared-sequence anchor).
 //   2. Field order lock: type/cursor/comment_id/artifact_id/channel_id/
 //      sender_id/sender_role/body_preview/created_at (9 fields; body_preview is
-//      truncated to 80 runes, same cap as DM-2.2 privacy §13).
+//      truncated to 80 runes, same cap as DM-2.2 server data-trim).
 //   3. JSON tags must exactly match client ws-frames.ts field names.
 //
 // Negative constraints (cv-5-spec.md §0 principle ②):
 //   - frame fan-out goes only to artifact namespace channel members
 //     (BroadcastToChannel). There is no admin copy path (ADM-0 §1.3
 //     prohibition).
-//   - body_preview is truncated to 80 runes (privacy §13).
+//   - body_preview is truncated to 80 runes (server data-trim).
 package ws
 
 // FrameTypeArtifactCommentAdded is the `type` discriminator emitted on
@@ -30,7 +30,7 @@ package ws
 const FrameTypeArtifactCommentAdded = "artifact_comment_added"
 
 // ArtifactCommentBodyPreviewMaxRunes is the rune-count cap (跟 DM-2.2
-// MentionPushed 80 same cap, privacy §13).
+// MentionPushed 80 same cap, server data-trim).
 const ArtifactCommentBodyPreviewMaxRunes = 80
 
 // ArtifactCommentAddedFrame — server → client push fired after a comment lands

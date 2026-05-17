@@ -15,10 +15,6 @@ vi.mock('../context/AppContext', () => ({
 }));
 
 vi.mock('../lib/api', () => ({
-  getMyAdminActions: () => Promise.resolve({ actions: [] }),
-  getMyImpersonateGrant: () => Promise.resolve({ grant: null }),
-  createMyImpersonateGrant: () => Promise.resolve({ grant: null }),
-  revokeMyImpersonateGrant: () => Promise.resolve(),
   fetchChannelMembers: mockContext.fetchChannelMembers,
   setChannelMemberRequireMentionPolicy: mockContext.setChannelMemberRequireMentionPolicy,
 }));
@@ -202,10 +198,10 @@ describe('ChannelManagementSurface', () => {
     expect(mockContext.setChannelMemberRequireMentionPolicy).toHaveBeenCalledWith('created-1', 'agent-1', 'on');
   });
 
-  it('is reachable from Settings without replacing the privacy entry', () => {
+  it('is reachable from Settings as a sibling tab next to runtime', () => {
     render(<SettingsPage onBack={() => {}} />);
 
-    expect(container.querySelector('[data-tab="privacy"]')?.textContent).toBe('隐私');
+    expect(container.querySelector('[data-tab="privacy"]')).toBeNull();
     const channelsTab = container.querySelector('[data-tab="channels"]') as HTMLButtonElement;
     expect(channelsTab?.textContent).toBe('频道');
 

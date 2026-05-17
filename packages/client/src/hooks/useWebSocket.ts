@@ -515,7 +515,7 @@ export function useWebSocket() {
         // been @-mentioned in a message. Envelope is signal-only (rule ②);
         // MessageList listens via useMentionPushed and refreshes the
         // channel via actions.loadMessages. body_preview is server-truncated
-        // to 80 runes; the client must not re-parse it (privacy §13 constraint,
+        // to 80 runes; the client must not re-parse it (server data-trim constraint,
         // full body arrives via the existing message backfill path).
         // Schema lock: docs/implementation/modules/dm-2.3-spec.md §0 rule
         // ② + mention_pushed_frame.go::MentionPushedFrame (BPP-1 #304
