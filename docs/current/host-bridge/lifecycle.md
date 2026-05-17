@@ -32,9 +32,59 @@ mechanism without spinning up a real host.
 5. The daemon then opens `/var/lib/borgee/server.db` (read-only, via
    `ReadOnlyPaths=/var/lib/borgee`) for `host_grants`. That DB is owned
    by system root/`borgee-helper`; no user session is involved.
-6. The daemon dials the configured `--outbound-server-origin` and registers
-   the heartbeat. Server-side, `serializeEnrollment` flips the enrollment
-   to `connected` once `last_seen_at` is within the freshness window.
+6. `cmd/borgee-helper/main.go::run` continues with:
+   `outbound.ValidateAndPrepare(...)` (validates `--outbound-server-origin`
+   against the `--outbound-allowed-origins` allowlist and sets up TLS /
+   dialer state for a *future* outbound poller — see negative scope
+   below), then `sandbox.Apply(...)`, then opens the UDS socket and
+   enters `ln.Accept()` for IPC. At this point the daemon is alive and
+   accepts local IPC, but it does **not** by itself dial the API server.
+
+### Reconnect chain — what's actually wired vs deliberately deferred
+
+What the daemon does on every (re)start today (v0(D)):
+
+- Reads CLI flags, runs `outbound.ValidateAndPrepare` (origin / allowlist
+  / state-dir validation only — does **not** open a connection).
+- Opens grants DB read-only and applies the sandbox profile.
+- Opens the UDS socket and enters the `Accept()` loop.
+
+What the daemon does **not** do today: outbound heartbeat. There is no
+production caller of `outbound.Client.Poll` and no daemon-side
+`POST /api/v1/helper/enrollments/{id}/status`. The server endpoint
+(`packages/server-go/internal/api/helper_enrollments.go::handleStatus`)
+exists and accepts heartbeats; the server's `serializeWithConfigure`
+derives `connected` / `offline` from `LastSeenAt` against a 5-minute
+freshness window. Today only an external orchestrator (the OpenClaw
+configure flow / web-side enrollment manager) writes `LastSeenAt`; the
+helper daemon itself does not.
+
+This is intentional for #968's scope: the issue covers the boot/crash
+*autostart* half (systemd unit + launchd plist + install plan) and is
+tested at byte level by G1/G2/G3
+(`outbound_prereq_assets_test.go::TestLinux/MacOSServiceBootCrashRestartIsBounded`,
+`deploy_test.go::TestHB1B_*Plan_*`). What G1/G2/G3 prove: a rebooted or
+crashed machine brings the daemon back up under the system service
+manager, with no user login, and the UDS endpoint becomes available.
+What they do **not** prove: that the daemon then re-establishes an
+outbound session with the API server — because the daemon itself does
+not do that yet.
+
+G5 (`helper_enrollments_lifecycle_test.go::TestHelperEnrollmentStatus_*`)
+locks the server-side derivation as a **forward contract**: the moment
+a daemon revision starts writing `LastSeenAt` (whether by directly
+calling `outbound.Client.Poll` or by some future heartbeat goroutine),
+the server's `status` field flips to `connected` automatically with no
+additional server-side change. The boundary, fresh-after-stale, and
+revoked/uninstalled-precedence cases are all locked. Until that daemon
+work lands, the displayed status will reflect whichever component last
+wrote `LastSeenAt` — typically only the configure flow at claim time.
+
+TODO / follow-up: wire a daemon-side heartbeat loop that calls
+`outbound.Client.Poll` (or a thinner `POST /status`) at the freshness
+cadence. That work is out of scope for #968 (boot/crash survival) and
+should be filed as a separate issue so it does not silently expand this
+PR.
 
 ## Linux crash chain
 
@@ -48,7 +98,10 @@ mechanism without spinning up a real host.
    `systemctl is-failed`) must intervene. This is intentional — an
    un-bounded restart loop would mask a real bug.
 4. Each restart re-enters the boot chain from step 5 above, so the
-   reconnect path is identical to the reboot path.
+   post-restart wiring (grants DB reopen, sandbox apply, UDS Accept loop)
+   is identical to the reboot path. Whether the daemon then needs to
+   re-establish any outbound session depends on the outbound poller
+   feature — see the "Reconnect chain" subsection above.
 
 ## macOS equivalents
 
@@ -68,6 +121,16 @@ deploy plan test guards against an accidental switch).
   the way systemd does, but the throttle prevents a spin loop.
 - Run user: `UserName=_borgee-helper` (system-only `_` prefix), again
   ensuring no user session is required.
+
+Install form: the installer's `DarwinPlan` invokes
+`sudo launchctl load /Library/LaunchDaemons/cloud.borgee.host-bridge.plist`
+to register the LaunchDaemon. `launchctl load` is the form currently
+used (see `deploy.go::DarwinPlan` and `deploy_test.go::TestHB1B_DarwinPlan_HasSudoAndLaunchd`).
+The modern alternative is `launchctl bootstrap system /Library/LaunchDaemons/cloud.borgee.host-bridge.plist`
+(supported since 10.10, deprecated `load` in favor of the domain-aware
+form). Switching to `bootstrap system` is a follow-up — it would tighten
+error reporting on macOS 11+ but does not affect the reboot/crash
+survival contract this doc is locking, so it is intentionally deferred.
 
 ## Persisted vs ephemeral state
 

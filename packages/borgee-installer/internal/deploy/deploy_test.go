@@ -25,18 +25,20 @@ func TestHB1B_LinuxPlan_HasSudoAndSystemd(t *testing.T) {
 			t.Errorf("LinuxPlan missing %q; got:\n%s", want, joined)
 		}
 	}
-	// Ordering contract: daemon-reload must come before enable (otherwise
-	// systemd has not loaded the freshly installed unit), and enable must
-	// come before start (so the unit is wired into the multi-user.target
-	// install set before the first run, surviving the next reboot).
+	// Ordering contract: `apt install` must come first (the .service file
+	// only exists on disk after the deb is unpacked), then daemon-reload
+	// (so systemd picks up the freshly installed unit), then enable (so
+	// the unit is wired into the multi-user.target install set), then
+	// start. Full chain: apt install < daemon-reload < enable < start.
+	aptIdx := strings.Index(joined, "sudo apt install")
 	reloadIdx := strings.Index(joined, "systemctl daemon-reload")
 	enableIdx := strings.Index(joined, "systemctl enable borgee-helper.service")
 	startIdx := strings.Index(joined, "systemctl start borgee-helper.service")
-	if reloadIdx < 0 || enableIdx < 0 || startIdx < 0 {
-		t.Fatalf("LinuxPlan missing one of daemon-reload/enable/start; got:\n%s", joined)
+	if aptIdx < 0 || reloadIdx < 0 || enableIdx < 0 || startIdx < 0 {
+		t.Fatalf("LinuxPlan missing one of apt-install/daemon-reload/enable/start; got:\n%s", joined)
 	}
-	if !(reloadIdx < enableIdx && enableIdx < startIdx) {
-		t.Errorf("LinuxPlan order must be daemon-reload < enable < start; got reload=%d enable=%d start=%d:\n%s", reloadIdx, enableIdx, startIdx, joined)
+	if !(aptIdx < reloadIdx && reloadIdx < enableIdx && enableIdx < startIdx) {
+		t.Errorf("LinuxPlan order must be apt-install < daemon-reload < enable < start; got apt=%d reload=%d enable=%d start=%d:\n%s", aptIdx, reloadIdx, enableIdx, startIdx, joined)
 	}
 }
 

@@ -172,3 +172,81 @@ func TestHelperEnrollmentStatus_UninstalledTakesPrecedence(t *testing.T) {
 		t.Fatalf("uninstalled enrollment must stay uninstalled even with fresh last_seen, got %v", out["status"])
 	}
 }
+
+// TestHelperEnrollmentStatus_NeverClaimed locks the serializer behavior for a
+// row that has never been claimed (ClaimedAt=nil, LastSeenAt=nil, Status held
+// at its pre-claim value, e.g. "pending"). The derivation rule only rewrites
+// Status when row.Status is "connected" or "offline" — anything else (here
+// "pending") must pass through unchanged. If a refactor ever folds pending
+// rows into the freshness branch the test will fail and force a discussion.
+func TestHelperEnrollmentStatus_NeverClaimed(t *testing.T) {
+	t.Parallel()
+	const nowMs = int64(1_800_000_000_000)
+	h := fixedNowHandler(nowMs)
+
+	row := &datalayer.HelperEnrollment{
+		ID:         "enr-never-claimed",
+		HostLabel:  "Never Claimed Box",
+		Status:     "pending",
+		ClaimedAt:  nil,
+		LastSeenAt: nil,
+		CreatedAt:  nowMs - 60*1000,
+	}
+	out := h.serialize(row)
+	// Current behavior: pending passes through (status="pending", fresh=false),
+	// and the optional `claimed_at` / `last_seen_at` / `helper_device_id`
+	// fields are omitted from the JSON map. Locking this so a future refactor
+	// that, say, defaulted nil ClaimedAt to "offline" would trip the test.
+	if got := out["status"]; got != "pending" {
+		t.Fatalf("never-claimed status=%v, want pending (pre-claim rows must pass through)", got)
+	}
+	if got := out["fresh"]; got != false {
+		t.Fatalf("never-claimed fresh=%v, want false", got)
+	}
+	if _, ok := out["claimed_at"]; ok {
+		t.Fatalf("never-claimed must omit claimed_at, got %v", out["claimed_at"])
+	}
+	if _, ok := out["last_seen_at"]; ok {
+		t.Fatalf("never-claimed must omit last_seen_at, got %v", out["last_seen_at"])
+	}
+}
+
+// TestHelperEnrollmentStatus_NeverHeartbeated locks the serializer behavior
+// for a row that was claimed (ClaimedAt != nil) but has never posted a
+// heartbeat (LastSeenAt == nil) while Status is "connected". The freshness
+// branch fails (no last_seen) but the `else if row.ClaimedAt != nil` branch
+// fires, so the derived status is "offline" — which is the right answer:
+// a connected-but-never-heartbeated row is effectively offline from the
+// server's point of view. Lock this so a future refactor that flipped the
+// fallback (e.g. returned "connected" for never-heartbeated) would fail
+// loudly and force the caller to think about it.
+func TestHelperEnrollmentStatus_NeverHeartbeated(t *testing.T) {
+	t.Parallel()
+	const nowMs = int64(1_800_000_000_000)
+	h := fixedNowHandler(nowMs)
+
+	row := &datalayer.HelperEnrollment{
+		ID:             "enr-never-heartbeated",
+		HostLabel:      "Never Heartbeated Box",
+		HelperDeviceID: ptrStr("dev-nhb"),
+		Status:         "connected",
+		ClaimedAt:      ptrInt64(nowMs - 60*1000), // claimed 1 minute ago
+		LastSeenAt:     nil,                       // but never heartbeated
+		CreatedAt:      nowMs - 120*1000,
+	}
+	out := h.serialize(row)
+	// Current behavior: `connected` + nil LastSeenAt + non-nil ClaimedAt
+	// falls into the `else if row.ClaimedAt != nil` branch and is reported
+	// as "offline", fresh=false. This is the intended derivation per the
+	// 5min freshness window — but the LastSeenAt=nil sub-branch is easy
+	// to miss in a refactor, so lock it explicitly.
+	if got := out["status"]; got != "offline" {
+		t.Fatalf("never-heartbeated status=%v, want offline (no LastSeenAt means stale by definition)", got)
+	}
+	if got := out["fresh"]; got != false {
+		t.Fatalf("never-heartbeated fresh=%v, want false", got)
+	}
+	if _, ok := out["last_seen_at"]; ok {
+		t.Fatalf("never-heartbeated must omit last_seen_at, got %v", out["last_seen_at"])
+	}
+}

@@ -83,6 +83,12 @@ func TestLinuxServiceBootCrashRestartIsBounded(t *testing.T) {
 		// WantedBy there would defeat #968 "controllable without local
 		// user re-login" by gating helper start on a logged-in session.
 		"WantedBy=default.target",
+		// graphical.target is the GUI-session aggregate target (pulls in
+		// multi-user.target + display-manager.service); same headless
+		// failure mode as default.target — a server with no display
+		// manager would never reach the target and the helper would
+		// never autostart after reboot.
+		"WantedBy=graphical.target",
 	} {
 		if strings.Contains(service, forbidden) {
 			t.Fatalf("linux service contains unbounded lifecycle setting %q", forbidden)
