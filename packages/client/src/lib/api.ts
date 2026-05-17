@@ -1535,54 +1535,11 @@ export async function putMyLayout(layout: LayoutRow[]): Promise<{ ok: boolean }>
   });
 }
 
-// ─── ADM-2.2 admin actions audit + impersonate grant ──────────
+// ─── ADM-2.2 user-side admin actions + impersonate grant — DELETED (#975)
 //
-// Spec: docs/implementation/modules/adm-2-spec.md §2.
-// Content lock: docs/qa/adm-2-content-lock.md §1+§2+§3+§4.
-// Stance: docs/qa/adm-2-stance-checklist.md (设计 ④ user 只见自己 + ⑦
-// impersonate 显眼). Server: api/adm_2_2_endpoints.go.
-
-export interface AdminActionRow {
-  id: string;
-  target_user_id: string;
-  action: string; // 5-字面 enum (delete_channel/suspend_user/change_role/reset_password/start_impersonation)
-  metadata: string; // JSON string
-  created_at: number;
-}
-
-export interface ImpersonateGrantRow {
-  id: string;
-  user_id: string;
-  granted_at: number;
-  expires_at: number;
-  revoked_at: number | null;
-  admin_username?: string;
-}
-
-/** GET /api/v1/me/admin-actions — user 只见自己 (设计 ④, ?target_user_id 服务端忽略). */
-export async function getMyAdminActions(): Promise<{ actions: AdminActionRow[] }> {
-  return request<{ actions: AdminActionRow[] }>(`/api/v1/me/admin-actions`);
-}
-
-/** GET /api/v1/me/impersonation-grant — 业主端 BannerImpersonate 查询. */
-export async function getMyImpersonateGrant(): Promise<{ grant: ImpersonateGrantRow | null }> {
-  return request<{ grant: ImpersonateGrantRow | null }>(`/api/v1/me/impersonation-grant`);
-}
-
-/** POST /api/v1/me/impersonation-grant — 业主授权 24h (设计 ⑦, 重复 → 409). */
-export async function createMyImpersonateGrant(): Promise<{ grant: ImpersonateGrantRow }> {
-  return request<{ grant: ImpersonateGrantRow }>(`/api/v1/me/impersonation-grant`, {
-    method: 'POST',
-  });
-}
-
-/** DELETE /api/v1/me/impersonation-grant — 业主主动撤销 (204 No Content). */
-export async function revokeMyImpersonateGrant(): Promise<void> {
-  await fetch(`${BASE}/api/v1/me/impersonation-grant`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-}
+// Per parent #654 stance + #975, the user-facing privacy/compliance UI was
+// removed. The corresponding user-side helpers and types were deleted; admin
+// SPA still has its own equivalents in packages/client/src/admin/api.ts.
 
 /**
  * BPP-3.2.2 — POST /api/v1/me/grants

@@ -12,8 +12,6 @@ import WorkspaceManager from './components/WorkspaceManager';
 import NodeManager from './components/NodeManager';
 import HelperStatusPanel from './components/HelperStatusPanel';
 import SettingsPage from './components/Settings/SettingsPage';
-import BannerImpersonate from './components/Settings/BannerImpersonate';
-import { getMyImpersonateGrant, revokeMyImpersonateGrant } from './lib/api';
 import { useWebSocket } from './hooks/useWebSocket';
 import { fetchMe, ApiError } from './lib/api';
 import { runUnsavedGuards } from './hooks/useUnsavedChangesGuard';
@@ -202,12 +200,6 @@ function AppInner() {
 
   return (
     <div className="app">
-      {/* ADM-2.2 红横幅 (蓝图 §1.4 红线 2 + ADM-1 §4.1 R3 第 2 条 兑现) —
-          顶部常驻显示 active impersonate grant; 立场 ⑦ + content-lock §2. */}
-      <BannerImpersonate
-        fetchGrant={() => getMyImpersonateGrant().then((r) => r.grant)}
-        revokeGrant={() => revokeMyImpersonateGrant()}
-      />
       {isMobile && (
         <button className="hamburger-btn" onClick={toggleSidebar}>
           ☰

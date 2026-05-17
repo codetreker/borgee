@@ -128,7 +128,7 @@ export function useArtifactUpdated(
 // useMentionPushed(handler) — handler decides whether to refetch
 // channel messages (cheap + authoritative). Rule ② envelope is
 // signal-only — client MUST NOT use body_preview as message body
-// (server has truncated to 80 runes for privacy §13; full body
+// (server has truncated to 80 runes for server data-trim; full body
 // arrives via the existing message backfill path).
 
 export function dispatchMentionPushed(frame: MentionPushedFrame): void {

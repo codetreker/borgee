@@ -104,7 +104,7 @@ export type ArtifactUpdatedEvent = CustomEvent<ArtifactUpdatedFrame>;
 //    mention_target_id, body_preview, created_at}
 // body_preview is rune-truncated to 80 chars server-side
 // (TruncateBodyPreview); client must NOT re-parse it (display exactly as
-// provided, privacy §13 constraint).
+// provided, server data-trim constraint).
 
 /**
  * `mention_pushed` — server → client push fired when a message body
@@ -226,7 +226,7 @@ export type IterationStateChangedEvent = CustomEvent<IterationStateChangedFrame>
 // channel_id 是虚拟 `artifact:<artifact_id>` namespace channel id (跟 DM-2
 // `dm:` pattern — rule ① comments use messages as the single table source).
 //
-// body_preview 80 rune cap (privacy §13). full body is fetched via GET /artifacts/:id/comments
+// body_preview 80 rune cap (server data-trim). full body is fetched via GET /artifacts/:id/comments
 // (channel-member ACL).
 
 /**
