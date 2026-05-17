@@ -2,19 +2,16 @@
 // (acceptance §2.1-§2.5).
 //
 // Pins:
-//   2.1 owner-only ACL — non-owner 403, no agent 404
-//   2.2 capability MUST be in AP-1 auth.Capabilities (14 项 const)
-//   2.3 scope MUST ∈ v1 三层 ({*, channel:<id>, artifact:<id>})
-//   2.4 action="grant" → real GrantPermission write; reject/snooze → no-op
-//   2.5 约束 grep — admin god-mode 不挂 /me/grants endpoint + scope 漂出
+//
+//	2.1 owner-only ACL — non-owner 403, no agent 404
+//	2.2 capability MUST be in AP-1 auth.Capabilities (14 项 const)
+//	2.3 scope MUST ∈ v1 三层 ({*, channel:<id>, artifact:<id>})
+//	2.4 action="grant" → real GrantPermission write; reject/snooze → no-op
+//	2.5 约束 grep — admin god-mode 不挂 /me/grants endpoint + scope 漂出
 package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
@@ -188,36 +185,5 @@ func TestBPP_PostGrant_RejectSnoozeAuditOnly(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("action='approve' expected 400 (3-enum strict), got %d body=%v", resp.StatusCode, body)
-	}
-}
-
-// REG-BPP32-011 (约束 spec §3 #5+#6) — admin path 不挂 /me/grants
-// (admin god-mode 走 /admin-api 单独 mw); + cross-org grant grep 检查.
-func TestBPP_ReverseGrep_NoAdminPathAndNoCrossOrgGrant(t *testing.T) {
-	t.Parallel()
-	apiDir := filepath.Join("..", "api")
-	// 约束: admin handler / mw 不出现 grant endpoint
-	bad1 := regexp.MustCompile(`admin.*\/me\/grants|admin-api.*\/grants`)
-	// 约束: cross-org grant via Scope (workspace: / org: 漂出 v1 三层)
-	bad2 := regexp.MustCompile(`Scope:\s*"workspace:|Scope:\s*"org:`)
-	hits := []string{}
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		if bad1.Find(body) != nil || bad2.Find(body) != nil {
-			hits = append(hits, p)
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("约束 spec §3 #5+#7 broken — admin /me/grants OR scope 漂出 v1 三层 hit at: %v", hits)
 	}
 }

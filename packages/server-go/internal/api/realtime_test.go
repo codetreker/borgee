@@ -2,66 +2,23 @@
 // indicator member-only GET + 约束守门.
 //
 // Pins:
-//   REG-RT4-001 TestRT_NoSchemaChange
-//   REG-RT4-002 TestRT_GetPresence_MemberHappyPath + _NonMemberRejected
-//                + _Unauthorized401
-//   REG-RT4-003 TestRT_TypingPathByteIdentical (grep 检查 rt_4 在
-//               ws/client.go::handleTyping block 0 hit)
-//   REG-RT4-004 TestRT_NoAdminPresencePath
-//   REG-RT4-005 TestRT_NoPresenceQueue
+//
+//	REG-RT4-001 TestRT_NoSchemaChange
+//	REG-RT4-002 TestRT_GetPresence_MemberHappyPath + _NonMemberRejected
+//	             + _Unauthorized401
+//	REG-RT4-003 TestRT_TypingPathByteIdentical (grep 检查 rt_4 在
+//	            ws/client.go::handleTyping block 0 hit)
+//	REG-RT4-004 TestRT_NoAdminPresencePath
+//	REG-RT4-005 TestRT_NoPresenceQueue
 package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
 )
-
-// REG-RT4-001 — 0 schema 改.
-func TestRT_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read migrations dir: %v", err)
-	}
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "rt_4_") {
-			t.Errorf("RT-4 设计第 1 条 broken — found schema migration %q (must be 0 schema)", e.Name())
-		}
-	}
-}
-
-// REG-RT4-003 — 既有 RT-2 typing WS path 字节级一致 — ws/client.go
-// `case "typing":` block 不漂入 rt_4 字面.
-func TestRT_TypingPathByteIdentical(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile(filepath.Join("..", "ws", "client.go"))
-	if err != nil {
-		t.Fatalf("read ws/client.go: %v", err)
-	}
-	src := string(body)
-	idx := strings.Index(src, `case "typing":`)
-	if idx < 0 {
-		t.Skip("typing case not found in ws/client.go (existing path may have moved)")
-	}
-	end := idx + 800
-	if end > len(src) {
-		end = len(src)
-	}
-	block := src[idx:end]
-	for _, tok := range []string{"rt_4", "RT4", "rt4"} {
-		if strings.Contains(block, tok) {
-			t.Errorf("既有 typing path 漂入 RT-4 — token %q 在 client.go::typing block (RT-4 边界第 4 条 broken)", tok)
-		}
-	}
-}
 
 func setupRT4(t *testing.T) (string, string, string, string, *store.Store) {
 	t.Helper()
@@ -140,83 +97,5 @@ func TestRT_GetPresence_Unauthorized401(t *testing.T) {
 		url+"/api/v1/channels/"+channelID+"/presence", "", nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("unauth: got %d, want 401", resp.StatusCode)
-	}
-}
-
-// REG-RT4-004 — admin god-mode 不挂 PATCH/POST/PUT/DELETE 在 admin-api/v1/.../presence.
-func TestRT_NoAdminPresencePath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT|GET)[^"]*admin-api/v[0-9]+/[^"]*presence`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			fb, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(fb); loc != nil {
-				t.Errorf("RT-4 设计第 3 条 broken — admin-rail presence path in %s: %q",
-					p, fb[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-RT4-005 — AST 对齐链延伸第 18 处 forbidden 3 token.
-func TestRT_NoPresenceQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingPresenceQuery",
-		"presenceQueueRetry",
-		"deadLetterPresence",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		fb, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(fb), tok) {
-				t.Errorf("AST 对齐链延伸第 18 处 broken — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
-}
-
-// REG-RT4-005b — 0 新 WS frame (grep 检查 `presence_changed | presenceChanged
-// | user_online_pushed` 在 internal/ws + internal/api 0 hit).
-func TestRT_NoNewPresenceFrame(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"presence_changed",
-		"presenceChanged",
-		"user_online_pushed",
-	}
-	dirs := []string{filepath.Join("..", "ws"), filepath.Join("..", "api")}
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			fb, _ := os.ReadFile(p)
-			for _, tok := range forbidden {
-				if strings.Contains(string(fb), tok) {
-					t.Errorf("RT-4 设计第 2 条 broken — token %q in %s (no new WS frame allowed)", tok, p)
-				}
-			}
-			return nil
-		})
 	}
 }

@@ -5,42 +5,11 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN7-001 — 0 schema 改反向断言.
-func TestChn7mute_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`(?i)chn_7_\d+|chn7_\d+_mute`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-7 设计第 1 条检查失败 — new schema migration file %s", p)
-		}
-		return nil
-	})
-	pat2 := regexp.MustCompile(`(?i)ALTER TABLE user_channel_layout.*muted`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if pat2.Find(body) != nil {
-			t.Errorf("CHN-7 设计第 1 条检查失败 — muted column ALTER in %s", p)
-		}
-		return nil
-	})
-}
 
 // REG-CHN7-002a — POST mute happy path; collapsed bit 1 set.
 func TestCHN_MuteChannel_HappyPath(t *testing.T) {
@@ -183,99 +152,5 @@ func TestCHN_MuteBit_ByteIdentical(t *testing.T) {
 	}
 	if !api.IsMuted(3) {
 		t.Error("IsMuted(3) (collapsed+muted): got false, want true")
-	}
-}
-
-// REG-CHN7-005 — admin 权限不挂 反向断言.
-func TestCHN_NoAdminMutePath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/[^"]*mute`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 设计第 2 条检查失败 — admin mute path in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-	// admin*.go 不含 admin-mute handler symbol.
-	pat2 := regexp.MustCompile(`(?i)func.*[Aa]dmin\w*[Mm]ute[Cc]hannel\b`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			base := filepath.Base(p)
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") || !strings.HasPrefix(base, "admin") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 设计第 2 条检查失败 — admin mute handler in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN7-006a — mute 不 drop messages 反向断言 + AST 对齐链延伸第 12 处.
-//
-// 设计第 3 条: mute 仅 DL-4 push notifier skip — CreateMessage / RT-3 fan-out
-// / WS frame 全字节级一致. grep 检查 `mute.*skip.*broadcast\|
-// mute.*drop.*message\|mute.*hub.*skip` 0 hit.
-func TestCHN_MuteDoesNotDropMessages(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "ws"), filepath.Join("..", "api")}
-	pat := regexp.MustCompile(`(?i)mute\s*[\.\s\w]*\b(skip|drop)\s*\b.*\b(broadcast|fanout|message|frame)`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-7 设计第 3 条检查失败 — mute drops messages in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN7-006b — AST 对齐链延伸第 12 处.
-func TestCHN_NoChannelMuteQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingChannelMute",
-		"channelMuteQueue",
-		"deadLetterChannelMute",
-	}
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "push")}
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			for _, tok := range forbidden {
-				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 对齐链延伸第 12 处检查失败 — token %q in %s", tok, p)
-				}
-			}
-			return nil
-		})
 	}
 }

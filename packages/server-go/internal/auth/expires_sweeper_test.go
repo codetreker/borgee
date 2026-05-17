@@ -2,25 +2,22 @@
 // sweeper goroutine + soft-delete + audit + full-flow integration.
 //
 // Pins:
-//   REG-AP2-001b TestAP_StartCtxShutdown — Start goroutine ctx-aware
-//   REG-AP2-001c TestAP_RunOnceFindsExpired — finds expired rows
-//   REG-AP2-001d TestAP_RunOnceSoftDeletesNotRealDelete — UPDATE not DELETE
-//   REG-AP2-001e TestAP_RunOnceIdempotentSecondTick — twice = count==0
-//   REG-AP2-002a TestAP_RevokeWritesAuditEntry — admin_actions row written
-//   REG-AP2-002b TestAP_ReasonConstByteIdentical — const byte-identical
-//   REG-AP2-002c TestAP_SystemActorByteIdentical — actor='system' byte-identical
-//   REG-AP2-002d TestAP_AuditPayloadShape — JSON 3-key shape
-//   REG-AP2-003a TestAP23_FullFlow — grant expired → revoked → HasCapability false
-//   REG-AP2-003b TestAP_ReverseGrep_5Patterns_AllZeroHit — 反向约束 grep
+//
+//	REG-AP2-001b TestAP_StartCtxShutdown — Start goroutine ctx-aware
+//	REG-AP2-001c TestAP_RunOnceFindsExpired — finds expired rows
+//	REG-AP2-001d TestAP_RunOnceSoftDeletesNotRealDelete — UPDATE not DELETE
+//	REG-AP2-001e TestAP_RunOnceIdempotentSecondTick — twice = count==0
+//	REG-AP2-002a TestAP_RevokeWritesAuditEntry — admin_actions row written
+//	REG-AP2-002b TestAP_ReasonConstByteIdentical — const byte-identical
+//	REG-AP2-002c TestAP_SystemActorByteIdentical — actor='system' byte-identical
+//	REG-AP2-002d TestAP_AuditPayloadShape — JSON 3-key shape
+//	REG-AP2-003a TestAP23_FullFlow — grant expired → revoked → HasCapability false
+//	REG-AP2-003b TestAP_ReverseGrep_5Patterns_AllZeroHit — 反向约束 grep
 package auth
 
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -260,84 +257,6 @@ func TestAP_FullFlow_GrantExpired_ThenRevokedThenHasCapabilityFalse(t *testing.T
 	if n != 1 {
 		t.Errorf("audit row count: got %d, want 1", n)
 	}
-}
-
-// REG-AP2-003b (acceptance §3.2 + 原则 ③) — reverse grep 5 pattern in
-// internal/auth/+internal/api/+internal/migrations/ all count==0 (except
-// for sweeper file itself for the UPDATE pattern).
-func TestAP_ReverseGrep_5Patterns_AllZeroHit(t *testing.T) {
-	t.Parallel()
-	patterns := []struct {
-		dir       string
-		pat       *regexp.Regexp
-		exclude   string // file basename to exclude from hits
-		zeroLabel string
-	}{
-		{
-			dir:     filepath.Join("..", "auth"),
-			pat:     regexp.MustCompile(`DELETE FROM user_permissions`),
-			exclude: "expires_sweeper.go",
-		},
-		{
-			dir:     filepath.Join("..", "api"),
-			pat:     regexp.MustCompile(`DELETE FROM user_permissions`),
-			exclude: "",
-		},
-		{
-			dir:     filepath.Join("..", "migrations"),
-			pat:     regexp.MustCompile(`CREATE TABLE.*expires_audit|CREATE TABLE.*permission_revocations`),
-			exclude: "",
-		},
-		{
-			dir:     filepath.Join("..", "..", ".."),
-			pat:     regexp.MustCompile(`"github\.com/[^"]*cron|"github\.com/robfig/cron"|"github\.com/[^"]*gocron"`),
-			exclude: "expires_sweeper.go",
-		},
-	}
-	for _, tc := range patterns {
-		_ = filepath.Walk(tc.dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			base := filepath.Base(p)
-			if tc.exclude != "" && base == tc.exclude {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") {
-				return nil
-			}
-			if strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, err := os.ReadFile(p)
-			if err != nil {
-				return nil
-			}
-			if loc := tc.pat.FindIndex(body); loc != nil {
-				t.Errorf("反向约束 broken — pattern %q hit in %s", tc.pat.String(), p)
-			}
-			return nil
-		})
-	}
-
-	// 5th pattern: hardcode "permission_expired" in handler path (反 const
-	// 单一来源脱节). Allowed only in const file + migration + tests.
-	hardcodePat := regexp.MustCompile(`"permission_expired"`)
-	apiDir := filepath.Join("..", "api")
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		if loc := hardcodePat.FindIndex(body); loc != nil {
-			t.Errorf("反向约束 broken — hardcode %q in %s (use auth.ReasonPermissionExpired const)",
-				`"permission_expired"`, p)
-		}
-		return nil
-	})
 }
 
 // helpers

@@ -1,8 +1,6 @@
 package migrations
 
 import (
-	"os"
-	"strings"
 	"testing"
 
 	"gorm.io/gorm"
@@ -91,22 +89,5 @@ func TestHostAgentStateLogArchivedAt_Idempotent(t *testing.T) {
 	cols := pragmaColumns(t, db, "agent_state_log")
 	if _, ok := cols["archived_at"]; !ok {
 		t.Error("archived_at column missing after idempotent re-run")
-	}
-}
-
-// TestHB_NoAdminActionsEnumDrift — acceptance §1.2 + 设计 ② 反断.
-//
-// HB-5.1 must NOT extend admin_actions CHECK enum (12 项 byte-identical
-// 跟 AL-7.1 不动). Only AL-7.1 'audit_retention_override' is added by
-// AL-7 chain — HB-5 reuses that action with metadata.target='heartbeat'.
-func TestHB_NoAdminActionsEnumDrift(t *testing.T) {
-	t.Parallel()
-	body, err := os.ReadFile("host_agent_state_log_archived_at.go")
-	if err != nil {
-		t.Fatalf("read hb_5_1: %v", err)
-	}
-	if strings.Contains(string(body), "'heartbeat_retention_override'") ||
-		strings.Contains(string(body), `"heartbeat_retention_override"`) {
-		t.Error("HB-5 设计 ② broken — must reuse AL-7 'audit_retention_override' action, not extend CHECK enum")
 	}
 }

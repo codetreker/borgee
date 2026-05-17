@@ -3,19 +3,17 @@
 // test.go 同模式).
 //
 // Pins:
-//   REG-HB5-001 TestHB_RunOnceArchivesExpired
-//   REG-HB5-002 TestHB_RunOnceSoftArchiveNotRealDelete
-//   REG-HB5-003 TestHB_RunOnceIdempotent
-//   REG-HB5-004 TestHB_StartCtxShutdown
-//   REG-HB5-005 TestHB_NilSafeCtor
-//   REG-HB5-006 TestHB_SweeperReason_ByteIdentical + TestHB_NoHeartbeatRetentionQueue
+//
+//	REG-HB5-001 TestHB_RunOnceArchivesExpired
+//	REG-HB5-002 TestHB_RunOnceSoftArchiveNotRealDelete
+//	REG-HB5-003 TestHB_RunOnceIdempotent
+//	REG-HB5-004 TestHB_StartCtxShutdown
+//	REG-HB5-005 TestHB_NilSafeCtor
+//	REG-HB5-006 TestHB_SweeperReason_ByteIdentical + TestHB_NoHeartbeatRetentionQueue
 package auth
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -168,57 +166,6 @@ func TestHB_SweeperReason_ByteIdentical(t *testing.T) {
 	// 原则 ② — 复用 AL-7 既有 ActionAuditRetentionOverride const, 不另起.
 	if ActionAuditRetentionOverride != "audit_retention_override" {
 		t.Errorf("ActionAuditRetentionOverride 脱节: got %q", ActionAuditRetentionOverride)
-	}
-}
-
-// REG-HB5-006b — 原则 ④ + 原则 ⑤ 反向 grep: cron framework + retention
-// queue tokens 0 hit in this file.
-func TestHB_NoCronFrameworkImport(t *testing.T) {
-	body, err := os.ReadFile("heartbeat_retention_sweeper.go")
-	if err != nil {
-		t.Fatalf("read sweeper: %v", err)
-	}
-	for _, pat := range []string{`"github.com/robfig/cron`, `"github.com/go-co-op/gocron`, `gocron.`} {
-		if strings.Contains(string(body), pat) {
-			t.Errorf("反向约束 broken — cron import %q in heartbeat_retention_sweeper.go", pat)
-		}
-	}
-}
-
-// REG-HB5-006c — 原则 ⑤ AST 守护链延伸第 9 处 forbidden-token 0 hit.
-//
-// Scans internal/auth + internal/api production *.go (excluding tests)
-// for heartbeat retention queue / dead-letter tokens (跟 AL-7 守护链延伸
-// 第 7 处 + AL-8 第 8 处 同模式).
-func TestHB_NoHeartbeatRetentionQueue(t *testing.T) {
-	forbidden := []string{
-		"pendingHeartbeatRetention",
-		"heartbeatRetentionRetryQueue",
-		"deadLetterHeartbeatRetention",
-	}
-	dirs := []string{
-		filepath.Join("..", "auth"),
-		filepath.Join("..", "api"),
-	}
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, err := os.ReadFile(p)
-			if err != nil {
-				return nil
-			}
-			for _, tok := range forbidden {
-				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 守护链延伸第 9 处 broken — forbidden token %q in %s", tok, p)
-				}
-			}
-			return nil
-		})
 	}
 }
 

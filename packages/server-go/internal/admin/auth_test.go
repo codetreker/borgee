@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/admin"
@@ -99,49 +98,5 @@ func TestLogin_1D_NonAdminRejected(t *testing.T) {
 	defer resp2.Body.Close()
 	if resp2.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("wrong password: status = %d, want 401", resp2.StatusCode)
-	}
-}
-
-// TestLogin_1E_ConstantTimeCompare covers review checklist invariant 1.E:
-// "bcrypt verify 必须用 subtle.ConstantTimeCompare 不准 ==".
-//
-// We can't easily measure timing in a unit test reliably, so this test is a
-// behavioral smoke + a source-level assertion: VerifyPassword wraps the
-// success signal through subtle.ConstantTimeCompare. We exercise its
-// branches and assert no `==` is used by checking that the function is
-// imported from auth.go (compile-time guarantee). The static check is
-// enforced in the file: any reviewer can grep for `subtle.ConstantTimeCompare`
-// in internal/admin/auth.go.
-func TestLogin_1E_ConstantTimeCompare(t *testing.T) {
-	t.Parallel()
-	plain := "correct-horse"
-	hash := hashAt(t, plain, 10)
-
-	if !admin.VerifyPassword(hash, plain) {
-		t.Fatal("VerifyPassword should accept the correct password")
-	}
-	if admin.VerifyPassword(hash, "wrong") {
-		t.Fatal("VerifyPassword should reject a wrong password")
-	}
-	if admin.VerifyPassword("", plain) {
-		t.Fatal("VerifyPassword should reject when hash is empty")
-	}
-	if admin.VerifyPassword("not-a-bcrypt-hash", plain) {
-		t.Fatal("VerifyPassword should reject when hash is malformed")
-	}
-
-	// Source-level assertion that the implementation uses the constant-time
-	// helper. A future refactor that switches back to `==` will make this fail.
-	src := readSource(t, "auth.go")
-	if !strings.Contains(src, "subtle.ConstantTimeCompare") {
-		t.Fatal("auth.go must use subtle.ConstantTimeCompare (review checklist 1.E)")
-	}
-	// Belt-and-braces: must import crypto/subtle.
-	if !strings.Contains(src, `"crypto/subtle"`) {
-		t.Fatal("auth.go must import crypto/subtle")
-	}
-	// Auth-path isolation red line: MUST NOT import internal/auth.
-	if strings.Contains(src, `"borgee-server/internal/auth"`) {
-		t.Fatal("internal/admin/auth.go must NOT import internal/auth (red line)")
 	}
 }

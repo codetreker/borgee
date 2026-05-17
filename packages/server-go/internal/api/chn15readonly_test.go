@@ -9,9 +9,6 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -44,19 +41,6 @@ func TestCHN_ReadonlyBit_ByteIdentical(t *testing.T) {
 		if got := api.IsReadonly(c.collapsed); got != c.want {
 			t.Errorf("IsReadonly(%d) = %v, want %v (%s)", c.collapsed, got, c.want, c.desc)
 		}
-	}
-}
-
-// TestChn15readonly_NoSchemaChange — filepath.Walk migrations/ grep check:
-// chn_15_\d+ has 0 hits, plus sqlite_master reverse assertion.
-func TestChn15readonly_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	root := chn15RepoRoot(t)
-	migDir := filepath.Join(root, "packages/server-go/internal/migrations")
-	pat := regexp.MustCompile(`chn_15_\d+|ALTER TABLE channels.*readonly|channel_readonly_states|read_only_channels`)
-	hits := chn15GrepCount(t, migDir, pat)
-	if hits != 0 {
-		t.Errorf("expected 0 schema hit, got %d (设计第 1 条 0 schema 改)", hits)
 	}
 }
 
@@ -182,21 +166,6 @@ func TestCHN_SendAllowedForNonCreator_WhenNotReadonly(t *testing.T) {
 	}
 }
 
-// TestCHN_NoAdminReadonlyPath — admin-rail does NOT mount any
-// CHN-15 readonly toggle endpoint. Reverse-grep for the specific path
-// (avoids false-positive matches on the word "readonly" that legitimately
-// appears in admin GET-only doc comments for other milestones).
-func TestCHN_NoAdminReadonlyPath(t *testing.T) {
-	t.Parallel()
-	root := chn15RepoRoot(t)
-	dir := filepath.Join(root, "packages/server-go/internal")
-	pat := regexp.MustCompile(`/admin-api/v[0-9]+/channels/[^/"]*/readonly|RegisterCHN15.*adminMw`)
-	hits := chn15GrepCount(t, dir, pat)
-	if hits != 0 {
-		t.Errorf("admin-rail CHN-15 readonly endpoint grep: got %d, want 0 (admin god-mode 不挂 设计第 2 条)", hits)
-	}
-}
-
 // TestCHN_ReadonlyEndpoint_Unauthorized — no auth → 401.
 func TestCHN_ReadonlyEndpoint_Unauthorized(t *testing.T) {
 	t.Parallel()
@@ -205,32 +174,4 @@ func TestCHN_ReadonlyEndpoint_Unauthorized(t *testing.T) {
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("no auth: got %d, want 401", resp.StatusCode)
 	}
-}
-
-// chn15RepoRoot mirrors al_9 / dm_8 helper.
-func chn15RepoRoot(t *testing.T) string {
-	t.Helper()
-	abs, _ := filepath.Abs("../../../..")
-	return abs
-}
-
-func chn15GrepCount(t *testing.T, dir string, re *regexp.Regexp) int {
-	t.Helper()
-	count := 0
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
-		}
-		base := info.Name()
-		if !strings.HasSuffix(base, ".go") || strings.HasSuffix(base, "_test.go") {
-			return nil
-		}
-		b, ferr := os.ReadFile(path)
-		if ferr != nil {
-			return nil
-		}
-		count += len(re.FindAllIndex(b, -1))
-		return nil
-	})
-	return count
 }

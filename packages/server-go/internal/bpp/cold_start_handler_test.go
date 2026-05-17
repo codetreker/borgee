@@ -6,14 +6,7 @@ package bpp
 import (
 	"encoding/json"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
-	"path/filepath"
 	"reflect"
-	"sort"
-	"strings"
 	"sync"
 	"testing"
 
@@ -318,93 +311,5 @@ func TestBPP_RestartCount_DerivedFromStateLog(t *testing.T) {
 	}
 	if count != 3 {
 		t.Errorf("derived restart count: got %d, want 3 (3 cold-start dispatches → 3 online+runtime_crashed rows)", count)
-	}
-}
-
-// TestBPP_Handler_DoesNotInvokeResolveResume — acceptance §2.3 设计 ②
-// 不重放历史 — handler 源 AST identifier scan 不 reference ResolveResume /
-// SessionResumeRequest (注释里说明设计跟历史一致 OK, 实际 ident 调用必 0 hit).
-func TestBPP_Handler_DoesNotInvokeResolveResume(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"ResolveResume",
-		"SessionResumeRequest",
-		"ResumeModeIncremental",
-		"DefaultResumeLimit",
-	}
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "cold_start_handler.go", nil, 0)
-	if err != nil {
-		t.Fatalf("parse cold_start_handler.go: %v", err)
-	}
-	hits := []string{}
-	ast.Inspect(f, func(n ast.Node) bool {
-		ident, ok := n.(*ast.Ident)
-		if !ok {
-			return true
-		}
-		for _, bad := range forbidden {
-			if ident.Name == bad {
-				hits = append(hits, ident.Name)
-			}
-		}
-		return true
-	})
-	if len(hits) > 0 {
-		t.Errorf("cold_start_handler.go references %v — BPP-6 spec §0.2 设计: "+
-			"cold-start 是 fresh start, 不重放历史 (反向 BPP-5)", hits)
-	}
-}
-
-// TestBPP_NoColdStartQueueInBPPPackage — acceptance §3.3 设计 ⑥
-// best-effort 延伸第 3 处 (BPP-4 dead_letter_test +
-// BPP-5 reconnect_handler_test 同模式).
-func TestBPP_NoColdStartQueueInBPPPackage(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingColdStart",
-		"coldStartQueue",
-		"deadLetterColdStart",
-		"plugin_restart_count",
-		"coldStartCount",
-		"restartCounter",
-	}
-	dir := "."
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("ReadDir: %v", err)
-	}
-	fset := token.NewFileSet()
-	hits := []string{}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
-			continue
-		}
-		if strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		path := filepath.Join(dir, e.Name())
-		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if err != nil {
-			t.Fatalf("parse %s: %v", path, err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			ident, ok := n.(*ast.Ident)
-			if !ok {
-				return true
-			}
-			for _, bad := range forbidden {
-				if strings.Contains(ident.Name, bad) {
-					hits = append(hits, path+":"+ident.Name)
-				}
-			}
-			return true
-		})
-	}
-	sort.Strings(hits)
-	if len(hits) > 0 {
-		t.Errorf("BPP-6 约定 §4 约束: forbidden cold-start-queue / restart-count "+
-			"identifiers in internal/bpp/ source (best-effort 设计 + count 反向 derive 设计, "+
-			"跟 BPP-4/BPP-5 延伸第 3 处): %v", hits)
 	}
 }

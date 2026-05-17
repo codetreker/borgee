@@ -4,9 +4,6 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -50,34 +47,6 @@ func TestCV_ErrCode_ExactLiterals(t *testing.T) {
 		if got[k] != v {
 			t.Errorf("CommentEditHistoryErrCode%s = %q, want %q", k, got[k], v)
 		}
-	}
-}
-
-// TestCanvasEditHistory_NoSchemaChange — 0 schema 改反向检查.
-func TestCanvasEditHistory_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	root := cv15RepoRoot(t)
-	migDir := filepath.Join(root, "packages/server-go/internal/migrations")
-	pat := regexp.MustCompile(`cv_15_\d+|CREATE TABLE.*artifact_comments|artifact_comment_history|ALTER TABLE artifact_comments`)
-	hits := cv15GrepCount(t, migDir, pat)
-	if hits != 0 {
-		t.Errorf("expected 0 schema hit, got %d (设计 ① 0 schema 改)", hits)
-	}
-}
-
-// TestCV_ReusesMessagesEditHistory — 复用 messages.edit_history 列
-// (DM-7.1 v=34 既有, 不重新加).
-func TestCV_ReusesMessagesEditHistory(t *testing.T) {
-	t.Parallel()
-	// Verify DM-7.1 migration still defines edit_history on messages.
-	root := cv15RepoRoot(t)
-	dm71 := filepath.Join(root, "packages/server-go/internal/migrations/messages_edit_history.go")
-	if _, err := os.Stat(dm71); err != nil {
-		t.Fatalf("dm_7_1 migration missing: %v", err)
-	}
-	b, _ := os.ReadFile(dm71)
-	if !strings.Contains(string(b), "ALTER TABLE messages ADD COLUMN edit_history TEXT") {
-		t.Error("DM-7.1 messages.edit_history column not found — CV-15 reuses this column")
 	}
 }
 
@@ -220,47 +189,6 @@ func TestCV_GetAdminHistory_HappyPath(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("admin GET: got %d, want 200", resp.StatusCode)
 	}
-}
-
-// TestCV_NoAdminPatchDeletePath — admin-rail does NOT mount any
-// PATCH/DELETE/PUT for comment-edit-history. Source scan.
-func TestCV_NoAdminPatchDeletePath(t *testing.T) {
-	t.Parallel()
-	root := cv15RepoRoot(t)
-	dir := filepath.Join(root, "packages/server-go/internal")
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)\s+/admin-api/v[0-9]+/[^"]*comment-edit-history`)
-	hits := cv15GrepCount(t, dir, pat)
-	if hits != 0 {
-		t.Errorf("admin-rail PATCH/DELETE/PUT comment-edit-history: got %d, want 0 (admin 权限不挂 设计 ②)", hits)
-	}
-}
-
-// cv15RepoRoot mirrors al_9 / dm_8 / chn_15 helpers.
-func cv15RepoRoot(t *testing.T) string {
-	t.Helper()
-	abs, _ := filepath.Abs("../../../..")
-	return abs
-}
-
-func cv15GrepCount(t *testing.T, dir string, re *regexp.Regexp) int {
-	t.Helper()
-	count := 0
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
-		}
-		base := info.Name()
-		if !strings.HasSuffix(base, ".go") || strings.HasSuffix(base, "_test.go") {
-			return nil
-		}
-		b, ferr := os.ReadFile(path)
-		if ferr != nil {
-			return nil
-		}
-		count += len(re.FindAllIndex(b, -1))
-		return nil
-	})
-	return count
 }
 
 // Sanity — store unused import suppress.

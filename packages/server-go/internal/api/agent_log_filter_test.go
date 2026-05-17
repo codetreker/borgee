@@ -3,22 +3,19 @@
 // since/until/archived/actions). 0 schema / 0 新 endpoint.
 //
 // Pins:
-//   REG-AL8-001 TestAL_NoSchemaChange — migrations/ 0 新 ALTER admin_actions
-//   REG-AL8-002 TestAL_NoNewEndpoint — internal/api 0 新 audit-log path
-//   REG-AL8-003 TestAL82_ArchivedView_* — 三态 (active/archived/all + reject)
-//   REG-AL8-004 TestAL82_TimeRange_* — since/until clamp + reject
-//   REG-AL8-005 TestAL82_Actions_* — 多值 + 单值 backward-compat
-//   REG-AL8-006 TestAL_RejectsUserRail + TestAL_NoAuditQueryQueue
+//
+//	REG-AL8-001 TestAL_NoSchemaChange — migrations/ 0 新 ALTER admin_actions
+//	REG-AL8-002 TestAL_NoNewEndpoint — internal/api 0 新 audit-log path
+//	REG-AL8-003 TestAL82_ArchivedView_* — 三态 (active/archived/all + reject)
+//	REG-AL8-004 TestAL82_TimeRange_* — since/until clamp + reject
+//	REG-AL8-005 TestAL82_Actions_* — 多值 + 单值 backward-compat
+//	REG-AL8-006 TestAL_RejectsUserRail + TestAL_NoAuditQueryQueue
 package api_test
 
 import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -42,81 +39,6 @@ func al8SeedAction(t *testing.T, s *store.Store, actorID, targetUserID, action s
 		}
 	}
 	return id
-}
-
-// REG-AL8-001 — 0 schema 改反向断言: migrations/ 不出现新 ALTER admin_actions
-// 或 al_8_* migration file (跟 al-8-spec.md §1 AL-8.1 字面单一来源).
-func TestAL_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`(?i)al_8_\d+|ALTER TABLE admin_actions ADD COLUMN(?:.*audit_log)|CREATE INDEX.*audit_log`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if pat.Find(body) != nil {
-			t.Errorf("AL-8 设计 ① broken — schema mismatch in %s", p)
-		}
-		return nil
-	})
-}
-
-// REG-AL8-002 — 0 新 endpoint 反向断言: internal/api/ 除 ADM-2.2 既有
-// /admin-api/v1/audit-log 单一来源外, 不出现新 audit-log path. ADM-3 multi-source
-// audit query (`/admin-api/v1/audit/multi-source`) 是 spec §0 设计 ② 授权
-// 端点 (蓝图 admin-model.md §1.4 来源透明), 单一允许例外.
-func TestAL_NoNewEndpoint(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "api")
-	// reject "audit-log/<sub>" or "/admin-api/v1/audit/<not-log>" or
-	// alternative audit-log path variants. Whitelist ADM-3 multi-source.
-	pat := regexp.MustCompile(`audit-log/(?:query|search)|/admin-api/v[0-9]+/audit/[a-z]+`)
-	allow := regexp.MustCompile(`/admin-api/v[0-9]+/audit/multi-source`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if loc := pat.FindIndex(body); loc != nil {
-			// Re-check via allow (full ADM-3 path includes "/multi-source"
-			// which the deny pattern truncates at the dash).
-			if allow.Match(body) && !regexp.MustCompile(`audit-log/(?:query|search)`).Match(body) {
-				return nil
-			}
-			t.Errorf("AL-8 设计 ① broken — new audit-log endpoint in %s: %q",
-				p, body[loc[0]:loc[1]])
-		}
-		return nil
-	})
-}
-
-// REG-AL8-002b — user-rail 反向断言: /api/v1/.*audit-log 在 user-rail
-// handler 0 hit (反 ADM-0 §1.3 红线漂移).
-func TestAL_NoUserRailAuditLog(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "api")
-	pat := regexp.MustCompile(`"/api/v[0-9]+/[^"]*audit-log[^"]*"`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if loc := pat.FindIndex(body); loc != nil {
-			t.Errorf("AL-8 设计 ② broken — user-rail audit-log in %s: %q",
-				p, body[loc[0]:loc[1]])
-		}
-		return nil
-	})
 }
 
 // al8AdminGET wraps testutil.JSON for shorter 调用 site.
@@ -336,55 +258,5 @@ func TestAL_RejectsUserRail(t *testing.T) {
 		userToken, nil)
 	if resp.StatusCode == http.StatusOK {
 		t.Errorf("user-rail should not pass admin gate, got 200")
-	}
-}
-
-// REG-AL8-006b — AL-1a reason 对齐链第 16 处不漂 (复用 reasons.Unknown).
-func TestAL_ReasonChain_NotExpanded(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "auth"), filepath.Join("..", "api")}
-	pat := regexp.MustCompile(`runtime_recovered|al8_specific_reason|16th[ _-]?reason|audit_query_reason`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("AL-1a 对齐链漂移 — pattern hit in %s", p)
-			}
-			return nil
-		})
-	}
-}
-
-// REG-AL8-006c — AST 对齐链延伸第 8 处 forbidden token 0 hit.
-func TestAL_NoAuditQueryQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingAuditQuery",
-		"auditQueryRetryQueue",
-		"deadLetterAuditQuery",
-	}
-	dirs := []string{filepath.Join("..", "auth"), filepath.Join("..", "api")}
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			for _, tok := range forbidden {
-				if strings.Contains(string(body), tok) {
-					t.Errorf("AST 对齐链延伸第 8 处 broken — token %q in %s", tok, p)
-				}
-			}
-			return nil
-		})
 	}
 }

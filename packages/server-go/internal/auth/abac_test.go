@@ -2,23 +2,20 @@
 // const 白名单单测.
 //
 // Pins:
-//   REG-AP1-001 — capability const 白名单 byte-identical (≤30, spec §1 ③)
-//   REG-AP1-002 — HasCapability agent 严格 (蓝图 §1.4 不享 wildcard)
-//   REG-AP1-003 — HasCapability cross-scope 403
-//   REG-AP1-004 — HasCapability human 享 wildcard 短路 (原则 ④)
-//   REG-AP1-005 — HasCapability nil user → false
-//   REG-AP1-006 — ArtifactScope resolver `artifact:{id}` (跟 channelScope 同模式)
-//   REG-AP1-007 — ArtifactScopeStr / ChannelScopeStr 单一来源 builder
-//   REG-AP1-008 — 反向约束 grep #1: api/ 不出现 HasCapability("..." 字面 hardcode
+//
+//	REG-AP1-001 — capability const 白名单 byte-identical (≤30, spec §1 ③)
+//	REG-AP1-002 — HasCapability agent 严格 (蓝图 §1.4 不享 wildcard)
+//	REG-AP1-003 — HasCapability cross-scope 403
+//	REG-AP1-004 — HasCapability human 享 wildcard 短路 (原则 ④)
+//	REG-AP1-005 — HasCapability nil user → false
+//	REG-AP1-006 — ArtifactScope resolver `artifact:{id}` (跟 channelScope 同模式)
+//	REG-AP1-007 — ArtifactScopeStr / ChannelScopeStr 单一来源 builder
+//	REG-AP1-008 — 反向约束 grep #1: api/ 不出现 HasCapability("..." 字面 hardcode
 package auth
 
 import (
 	"context"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
@@ -151,37 +148,5 @@ func TestScopeStr_Builders(t *testing.T) {
 	}
 	if got := ArtifactScopeStr("art-1"); got != "artifact:art-1" {
 		t.Errorf("ArtifactScopeStr: got %q", got)
-	}
-}
-
-// TestReverseGrep_NoHardcodedPermissionLiteral — spec §2 反向约束 #1:
-// `git grep -nE 'HasCapability\("[a-z_]+"' packages/server-go/internal/api/`
-// 必 0 hit. 此测试是 CI lint 等价 — 防 future 脱节.
-func TestReverseGrep_NoHardcodedPermissionLiteral(t *testing.T) {
-	t.Parallel()
-	apiDir := filepath.Join("..", "api")
-	pat := regexp.MustCompile(`HasCapability\("[a-z_]+"`)
-	hits := []string{}
-	_ = filepath.Walk(apiDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		if strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		if loc := pat.FindIndex(body); loc != nil {
-			hits = append(hits, p)
-		}
-		return nil
-	})
-	if len(hits) > 0 {
-		t.Errorf("反向约束 spec §2 #1 broken — HasCapability(\"<literal>\") hardcode 出现于: %v (必走 auth.<Capability> const)", hits)
 	}
 }

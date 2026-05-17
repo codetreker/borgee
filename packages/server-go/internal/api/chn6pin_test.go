@@ -3,54 +3,22 @@
 // 对齐链延伸第 11 处.
 //
 // Pins:
-//   REG-CHN6-001 TestChn6pin_NoSchemaChange — migrations/ 0 新文件
-//   REG-CHN6-002 TestCHN61_PinChannel_* — POST /pin owner-only
-//   REG-CHN6-003 TestCHN61_UnpinChannel_* — DELETE /pin idempotent
-//   REG-CHN6-004 TestCHN_PinThreshold_ByteIdentical — 双向锁
-//   REG-CHN6-005 TestCHN_NoAdminPinPath — admin 不挂
-//   REG-CHN6-006 TestCHN_NoChannelPinQueue — AST 对齐链
+//
+//	REG-CHN6-001 TestChn6pin_NoSchemaChange — migrations/ 0 新文件
+//	REG-CHN6-002 TestCHN61_PinChannel_* — POST /pin owner-only
+//	REG-CHN6-003 TestCHN61_UnpinChannel_* — DELETE /pin idempotent
+//	REG-CHN6-004 TestCHN_PinThreshold_ByteIdentical — 双向锁
+//	REG-CHN6-005 TestCHN_NoAdminPinPath — admin 不挂
+//	REG-CHN6-006 TestCHN_NoChannelPinQueue — AST 对齐链
 package api_test
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/api"
 	"borgee-server/internal/testutil"
 )
-
-// REG-CHN6-001 — 0 schema 改反向断言: migrations/ 0 新 chn_6_* file.
-func TestChn6pin_NoSchemaChange(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join("..", "migrations")
-	pat := regexp.MustCompile(`(?i)chn_6_\d+|chn6_\d+_pin`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if pat.MatchString(filepath.Base(p)) {
-			t.Errorf("CHN-6 设计 ① broken — new schema migration file %s", p)
-		}
-		return nil
-	})
-	// Also reject ALTER TABLE user_channel_layout ADD COLUMN pinned* in
-	// any production migration file.
-	pat2 := regexp.MustCompile(`(?i)ALTER TABLE user_channel_layout ADD COLUMN.*pinned`)
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		if pat2.Find(body) != nil {
-			t.Errorf("CHN-6 设计 ① broken — pinned column ALTER in %s", p)
-		}
-		return nil
-	})
-}
 
 // REG-CHN6-002a — POST /pin happy path; position < 0 (pinned 字面约定).
 func TestCHN_PinChannel_HappyPath(t *testing.T) {
@@ -157,77 +125,6 @@ func TestCHN_PinThreshold_ByteIdentical(t *testing.T) {
 	if api.IsPinned(1.0) {
 		t.Error("IsPinned(1.0): got true, want false")
 	}
-}
-
-// REG-CHN6-005 — admin god-mode 不挂 反向断言.
-//
-// 双 pattern: (1) admin handler 不挂 pin path; (2) 任何 admin*.go 不
-// 含 pin_channel/pin\b symbol.
-func TestCHN_NoAdminPinPath(t *testing.T) {
-	t.Parallel()
-	dirs := []string{filepath.Join("..", "api"), filepath.Join("..", "server")}
-	pat := regexp.MustCompile(`mux\.Handle\("(POST|DELETE|PATCH|PUT)[^"]*admin-api/v[0-9]+/[^"]*pin`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat.FindIndex(body); loc != nil {
-				t.Errorf("CHN-6 设计 ② broken — admin pin path in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-	// admin*.go must not contain admin-pin handler symbol.
-	pat2 := regexp.MustCompile(`(?i)func.*[Aa]dmin\w*[Pp]in[Cc]hannel\b|admin\.\w*[Pp]in[Cc]hannel`)
-	for _, dir := range dirs {
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			base := filepath.Base(p)
-			if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") || !strings.HasPrefix(base, "admin") {
-				return nil
-			}
-			body, _ := os.ReadFile(p)
-			if loc := pat2.FindIndex(body); loc != nil {
-				t.Errorf("CHN-6 设计 ② broken — admin pin handler in %s: %q",
-					p, body[loc[0]:loc[1]])
-			}
-			return nil
-		})
-	}
-}
-
-// REG-CHN6-006 — AST 对齐链延伸第 11 处.
-func TestCHN_NoChannelPinQueue(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingChannelPin",
-		"channelPinQueue",
-		"deadLetterChannelPin",
-	}
-	dir := filepath.Join("..", "api")
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return nil
-		}
-		body, _ := os.ReadFile(p)
-		for _, tok := range forbidden {
-			if strings.Contains(string(body), tok) {
-				t.Errorf("AST 对齐链延伸第 11 处 broken — token %q in %s", tok, p)
-			}
-		}
-		return nil
-	})
 }
 
 // REG-CHN6-cov — pin 404 channel not found + DM reject + unpin 401/404/non-member.

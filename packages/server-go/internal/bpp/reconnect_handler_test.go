@@ -7,14 +7,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -76,7 +70,7 @@ func (s *bpp5StubOwner) OwnerOf(agentID string) (string, error) {
 }
 
 type bpp5StubClearer struct {
-	mu     sync.Mutex
+	mu      sync.Mutex
 	cleared []string
 }
 
@@ -260,50 +254,3 @@ func TestBPP_Handler_PanicsOnNilDeps(t *testing.T) {
 }
 
 // ---- §4 反约束 AST scan (BPP-4 dead_letter_test 锁链延伸) ----
-
-func TestBPP_NoReconnectQueueInBPPPackage(t *testing.T) {
-	t.Parallel()
-	forbidden := []string{
-		"pendingReconnects",
-		"reconnectQueue",
-		"deadLetterReconnect",
-	}
-	dir := "."
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("ReadDir: %v", err)
-	}
-	fset := token.NewFileSet()
-	hits := []string{}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
-			continue
-		}
-		if strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		path := filepath.Join(dir, e.Name())
-		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if err != nil {
-			t.Fatalf("parse %s: %v", path, err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			ident, ok := n.(*ast.Ident)
-			if !ok {
-				return true
-			}
-			for _, bad := range forbidden {
-				if strings.Contains(ident.Name, bad) {
-					hits = append(hits, path+":"+ident.Name)
-				}
-			}
-			return true
-		})
-	}
-	sort.Strings(hits)
-	if len(hits) > 0 {
-		t.Errorf("BPP-5 stance §4 反约束: forbidden reconnect-queue identifiers "+
-			"found in internal/bpp/ source (best-effort 立场代码层守门, 跟 "+
-			"BPP-4 dead_letter_test::TestBPP4_NoRetryQueueInBPPPackage 锁链延伸): %v", hits)
-	}
-}

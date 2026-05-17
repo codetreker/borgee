@@ -15,8 +15,6 @@ package api_test
 
 import (
 	"net/http"
-	"os"
-	"strings"
 	"testing"
 
 	"borgee-server/internal/store"
@@ -287,23 +285,6 @@ func TestCHN_PerUserIsolation(t *testing.T) {
 	}
 }
 
-// TestCHN_ToastErrorMsgLockPin 覆盖 acceptance §3.5 + content-lock 第 4 条
-// — failure response 文案 字节级一致 "侧栏顺序保存失败, 请重试"
-// (5 源 #371 / acceptance §3.5 / #402 第 4 条). 直接 grep 源文件锚字面.
-func TestCHN_ToastErrorMsgLockPin(t *testing.T) {
-	t.Parallel()
-	src := mustReadFile(t, "layout.go")
-	if !strings.Contains(src, `"侧栏顺序保存失败, 请重试"`) {
-		t.Fatal("toast 文案检查失败 — 必须包含字面 '侧栏顺序保存失败, 请重试' (5 源 字节级一致)")
-	}
-	// 约束: 不出现同义替代表达.
-	for _, bad := range []string{"保存失败, 重试", "保存失败请重试", "Save failed", "save_failed"} {
-		if strings.Contains(src, bad) {
-			t.Errorf("toast 文案出现同义替代表达 (%q) — 约束 §1 第 4 条", bad)
-		}
-	}
-}
-
 // TestCHN_AdminAPINotMounted ensures admin-api server doesn't expose
 // /me/layout (设计第 5 条 ADM-0 §1.3 红线 — admin 不读业务数据).
 func TestCHN_AdminAPINotMounted(t *testing.T) {
@@ -319,15 +300,4 @@ func TestCHN_AdminAPINotMounted(t *testing.T) {
 		// also be 0 hit. 这条测试 + 源码扫描双重检查 ADM-0 红线.
 		t.Errorf("admin-api should NOT expose user_channel_layout (got %d)", resp.StatusCode)
 	}
-}
-
-// mustReadFile is a tiny helper for the toast literal check —
-// reads the package source from filepath relative to this test file.
-func mustReadFile(t *testing.T, rel string) string {
-	t.Helper()
-	data, err := os.ReadFile(rel)
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(data)
 }

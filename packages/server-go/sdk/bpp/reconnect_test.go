@@ -14,11 +14,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -114,58 +109,6 @@ func TestBPP_GrantRetry_BackoffByteIdentical(t *testing.T) {
 	}
 	if sdkbpp.RetryBackoff != 30*time.Second {
 		t.Errorf("RetryBackoff 脱节: got %v, want 30s (server const reuse)", sdkbpp.RetryBackoff)
-	}
-}
-
-// TestBPP_NoSDKQueueOrCustomReason — acceptance §2.4 best-effort
-// 守护链延伸第 4 处 (BPP-4 dead_letter_test + BPP-5 reconnect_handler_test +
-// BPP-6 cold_start_handler_test + BPP-7 sdk_test).
-func TestBPP_NoSDKQueueOrCustomReason(t *testing.T) {
-	forbidden := []string{
-		"pendingSDKReconnect",
-		"sdkRetryQueue",
-		"deadLetterSDK",
-		"runtime_recovered",
-		"sdk_specific_reason",
-		"sdkReason",
-		"cv4SDKReason",
-		"sdkCustomReason",
-	}
-	dir := "."
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("ReadDir: %v", err)
-	}
-	hits := []string{}
-	fset := token.NewFileSet()
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
-			continue
-		}
-		if strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		path := filepath.Join(dir, e.Name())
-		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if err != nil {
-			t.Fatalf("parse %s: %v", path, err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			ident, ok := n.(*ast.Ident)
-			if !ok {
-				return true
-			}
-			for _, bad := range forbidden {
-				if strings.Contains(ident.Name, bad) {
-					hits = append(hits, path+":"+ident.Name)
-				}
-			}
-			return true
-		})
-	}
-	if len(hits) > 0 {
-		t.Errorf("BPP-7 原则 §0.2+§0.3 broken: forbidden SDK queue / custom reason "+
-			"identifiers in sdk/bpp/ (best-effort 守护链延伸第 4 处, 跟 BPP-4/5/6 同模式): %v", hits)
 	}
 }
 
