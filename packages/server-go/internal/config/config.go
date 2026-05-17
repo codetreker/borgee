@@ -25,6 +25,17 @@ type Config struct {
 	DevAuthBypass            bool
 	AdminUser                string
 	AdminPassword            string
+
+	// Rate limit token-bucket params. 单位 req/s (秒).
+	// auth: path 前缀 /api/v1/auth/ 或 /admin-api/auth/, per-IP, 防爆破
+	// user: 登录态 (UserFromContext 拿到 user), per-user_id
+	// anon: 其它 (未登录非 auth 端点), per-IP
+	RateLimitAuthPerSec int
+	RateLimitAuthBurst  int
+	RateLimitUserPerSec int
+	RateLimitUserBurst  int
+	RateLimitAnonPerSec int
+	RateLimitAnonBurst  int
 }
 
 func Load() (*Config, error) {
@@ -44,6 +55,13 @@ func Load() (*Config, error) {
 		DevAuthBypass:      envBool("DEV_AUTH_BYPASS", false),
 		AdminUser:          envStr("ADMIN_USER", ""),
 		AdminPassword:      envStr("ADMIN_PASSWORD", ""),
+
+		RateLimitAuthPerSec: envInt("RATE_LIMIT_AUTH_PER_SEC", 5),
+		RateLimitAuthBurst:  envInt("RATE_LIMIT_AUTH_BURST", 15),
+		RateLimitUserPerSec: envInt("RATE_LIMIT_USER_PER_SEC", 20),
+		RateLimitUserBurst:  envInt("RATE_LIMIT_USER_BURST", 60),
+		RateLimitAnonPerSec: envInt("RATE_LIMIT_ANON_PER_SEC", 100),
+		RateLimitAnonBurst:  envInt("RATE_LIMIT_ANON_BURST", 300),
 	}
 
 	if cfg.JWTSecret == "" && cfg.IsDevelopment() {

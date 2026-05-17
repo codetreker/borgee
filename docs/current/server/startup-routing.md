@@ -55,6 +55,8 @@ The HTTP surface is a single mux with rail-specific protection. Public health/au
 
 Middleware is a shell around the whole mux. Recovery sits outermost, request ID and logging wrap the request, CORS and security headers apply before route logic, and the rate limiter guards the final route execution. This keeps cross-cutting behavior uniform without embedding it into individual handlers.
 
+The rate limiter selects one of three token buckets per request: an `auth` bucket keyed by client IP for paths under `/api/v1/auth/` and `/admin-api/auth/` to defend against credential brute force, a `user` bucket keyed by user id for authenticated requests on other paths, and an `anon` bucket keyed by client IP for unauthenticated requests. Bucket sizes and refill rates are configured per tier in units of requests per second. To avoid a duplicate user lookup on authenticated requests, the rate limiter injects the resolved user into the request context so the downstream user-auth middleware short-circuits instead of re-parsing the session and re-reading the user record.
+
 Static hosting is part of routing but not a substitute for API errors. API-like and WebSocket-like paths must return API-shaped misses; browser routes can fall back to the SPA entrypoint.
 
 ## Key Flows

@@ -75,6 +75,15 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 		WorkspaceDir:             t.TempDir(),
 		ClientDist:               t.TempDir(),
 		CORSOrigin:               "*",
+
+		// Rate limit 默认 (跟 config.Load() 默认一致), 否则 zero-value 桶
+		// 把基础 auth/api 调用全 429 — 现有 isolation 测试假设宽松限速.
+		RateLimitAuthPerSec: 5,
+		RateLimitAuthBurst:  15,
+		RateLimitUserPerSec: 20,
+		RateLimitUserBurst:  60,
+		RateLimitAnonPerSec: 100,
+		RateLimitAnonBurst:  300,
 	}
 
 	// ADM-0.3 (v=10): users.role enum collapsed to {'member', 'agent'}; admin
