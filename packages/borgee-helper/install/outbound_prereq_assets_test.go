@@ -61,6 +61,15 @@ func TestLinuxServiceBootCrashRestartIsBounded(t *testing.T) {
 		"RestartSec=10s",
 		"StartLimitIntervalSec=5min",
 		"StartLimitBurst=5",
+		// #968 — boot path: PID 1 systemd starts the unit before any user
+		// session, so the install target and network ordering must be locked.
+		"WantedBy=multi-user.target",
+		"After=network-online.target",
+		"Wants=network-online.target",
+		// Type=simple is what `systemctl enable` activation relies on; if a
+		// future PR flips this (e.g. to forking/notify) the install plan
+		// silently breaks.
+		"Type=simple",
 	} {
 		if !strings.Contains(service, want) {
 			t.Fatalf("linux service missing bounded lifecycle setting %q", want)
@@ -70,6 +79,10 @@ func TestLinuxServiceBootCrashRestartIsBounded(t *testing.T) {
 		"Restart=always",
 		"StartLimitBurst=0",
 		"StartLimitIntervalSec=0",
+		// default.target is the user-session graphical target; routing
+		// WantedBy there would defeat #968 "controllable without local
+		// user re-login" by gating helper start on a logged-in session.
+		"WantedBy=default.target",
 	} {
 		if strings.Contains(service, forbidden) {
 			t.Fatalf("linux service contains unbounded lifecycle setting %q", forbidden)
