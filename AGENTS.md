@@ -18,3 +18,26 @@
 - Main/parent Teamlead context is orchestration only: advance workflow, decide gates, dispatch workers, synthesize results, and preserve context.
 - Main/parent Teamlead context must not run `git` or `gh`. Delegate all git/GitHub work asynchronously to workers, including status, diff, commits, pushes, PR creation/checks/merge, branch/worktree cleanup, and CI gate polling.
 - Main context should avoid leaf implementation and detailed verification; delegate those to workers and synthesize outcomes.
+
+## Worktree Rule — 任何修改必须走 worktree, 无例外
+
+任何代码 / 配置 / 文档修改, **必须**先在 `.worktrees/<task-or-fix-slug>` 起独立 worktree 再动手, 不准在主工作树 (`/workspace/borgee` 当前 checkout) 直接改. 包括看起来"很小"的 bug fix, 单文件改动, 临时实验 — 一律 worktree.
+
+理由: 主工作树要长期保持 clean 才能随时切分支 / 拉 main; 主树直接改会污染 in-flight 状态, agent 之间也会撞车. 一 task = 一 worktree = 一 branch = 一 PR (跟上面 Blueprintflow Planning Rules 第 13 条同源).
+
+操作:
+```bash
+# 起 worktree (跟 task slug 同名分支)
+cd /workspace/borgee && git worktree add .worktrees/<slug> -b fix/<slug>
+cd .worktrees/<slug>
+# 在这里改, commit, push, 开 PR
+```
+
+PR 合并后清理三件套:
+```bash
+git -C /workspace/borgee worktree remove .worktrees/<slug>
+git -C /workspace/borgee branch -D fix/<slug>
+```
+
+如发现已经在主树动了手, 立刻 `git stash` → 起 worktree → `git stash pop`, 再继续.
+
