@@ -20,6 +20,9 @@
       <string>--queue-state-dir=/Library/Application Support/Borgee/Helper/QueueState</string>
       <string>--status-state-dir=/Library/Application Support/Borgee/Helper/StatusState</string>
       <string>--audit-handoff-dir=/Library/Application Support/Borgee/Helper/AuditHandoff</string>
+      <string>--enrollment-id-file=/Library/Application Support/Borgee/Helper/enrollment-id</string>
+      <string>--helper-device-id-file=/Library/Application Support/Borgee/Helper/device-id</string>
+      <string>--helper-credential-file=/Library/Application Support/Borgee/Helper/credential</string>
     </array>
 
     <key>RunAtLoad</key>

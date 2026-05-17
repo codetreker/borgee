@@ -27,6 +27,11 @@ func TestLinuxServiceOutboundPrereqShape(t *testing.T) {
 		"--queue-state-dir=/var/lib/borgee-helper/queue",
 		"--status-state-dir=/var/lib/borgee-helper/status",
 		"--audit-handoff-dir=/var/lib/borgee-helper/audit-handoff",
+		// #968 R4 — heartbeat producer config files. File-based (not raw
+		// strings) so secrets never appear in /proc/PID/cmdline.
+		"--enrollment-id-file=/var/lib/borgee-helper/enrollment-id",
+		"--helper-device-id-file=/var/lib/borgee-helper/device-id",
+		"--helper-credential-file=/var/lib/borgee-helper/credential",
 		"StateDirectory=borgee-helper",
 		"ReadWritePaths=/var/log/borgee-helper /run/borgee-helper /var/lib/borgee-helper/queue /var/lib/borgee-helper/status /var/lib/borgee-helper/audit-handoff",
 		"ReadOnlyPaths=/var/lib/borgee",
@@ -61,6 +66,15 @@ func TestLinuxServiceBootCrashRestartIsBounded(t *testing.T) {
 		"RestartSec=10s",
 		"StartLimitIntervalSec=5min",
 		"StartLimitBurst=5",
+		// #968 — boot path: PID 1 systemd starts the unit before any user
+		// session, so the install target and network ordering must be locked.
+		"WantedBy=multi-user.target",
+		"After=network-online.target",
+		"Wants=network-online.target",
+		// Type=simple is what `systemctl enable` activation relies on; if a
+		// future PR flips this (e.g. to forking/notify) the install plan
+		// silently breaks.
+		"Type=simple",
 	} {
 		if !strings.Contains(service, want) {
 			t.Fatalf("linux service missing bounded lifecycle setting %q", want)
@@ -70,6 +84,16 @@ func TestLinuxServiceBootCrashRestartIsBounded(t *testing.T) {
 		"Restart=always",
 		"StartLimitBurst=0",
 		"StartLimitIntervalSec=0",
+		// default.target is the user-session graphical target; routing
+		// WantedBy there would defeat #968 "controllable without local
+		// user re-login" by gating helper start on a logged-in session.
+		"WantedBy=default.target",
+		// graphical.target is the GUI-session aggregate target (pulls in
+		// multi-user.target + display-manager.service); same headless
+		// failure mode as default.target — a server with no display
+		// manager would never reach the target and the helper would
+		// never autostart after reboot.
+		"WantedBy=graphical.target",
 	} {
 		if strings.Contains(service, forbidden) {
 			t.Fatalf("linux service contains unbounded lifecycle setting %q", forbidden)
@@ -88,6 +112,12 @@ func TestMacOSPlistAndSandboxOutboundPrereqShape(t *testing.T) {
 		"--queue-state-dir=/Library/Application Support/Borgee/Helper/QueueState",
 		"--status-state-dir=/Library/Application Support/Borgee/Helper/StatusState",
 		"--audit-handoff-dir=/Library/Application Support/Borgee/Helper/AuditHandoff",
+		// #968 R4 — heartbeat producer config files. macOS plist has no
+		// drop-in mechanism, so flags live inline. Sandbox profile already
+		// allows the Helper StateDir subpath read-write.
+		"--enrollment-id-file=/Library/Application Support/Borgee/Helper/enrollment-id",
+		"--helper-device-id-file=/Library/Application Support/Borgee/Helper/device-id",
+		"--helper-credential-file=/Library/Application Support/Borgee/Helper/credential",
 		"<key>UserName</key>\n    <string>_borgee-helper</string>",
 		"<key>GroupName</key>\n    <string>_borgee-helper</string>",
 	} {

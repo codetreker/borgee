@@ -18,7 +18,10 @@ ExecStart=/usr/local/bin/borgee-helper \
     --outbound-allowed-origins=https://app.borgee.io \
     --queue-state-dir=/var/lib/borgee-helper/queue \
     --status-state-dir=/var/lib/borgee-helper/status \
-    --audit-handoff-dir=/var/lib/borgee-helper/audit-handoff
+    --audit-handoff-dir=/var/lib/borgee-helper/audit-handoff \
+    --enrollment-id-file=/var/lib/borgee-helper/enrollment-id \
+    --helper-device-id-file=/var/lib/borgee-helper/device-id \
+    --helper-credential-file=/var/lib/borgee-helper/credential
 
 # v0(D) sandbox layers (defense in depth — landlock 在 daemon 内 + systemd OS-level):
 ProtectSystem=strict
