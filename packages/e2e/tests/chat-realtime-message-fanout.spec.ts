@@ -4,7 +4,6 @@
 //   - requester POST /api/v1/agent_invitations 创建邀请
 //   - owner 浏览器 sidebar More badge 从 0 个变为可见 (websocket 推 agent_invitation_pending 帧 → dispatchInvitationPending → Sidebar listener)
 //   - latency 实测 ≤ 3s (硬性指标, 60s 轮询不算)
-//   - 截图证据存 docs/qa/screenshots/g2.4-realtime-latency.png 供 PM 出口闸用
 //
 // 关联文档:
 //   - 蓝图: docs/blueprint/current/realtime.md (websocket push 走 agent_invitation_pending 帧)
@@ -20,11 +19,6 @@
 
 import { test, expect, request as apiRequest } from '@playwright/test';
 import { stopwatch } from '../fixtures/stopwatch';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
@@ -118,13 +112,6 @@ test.describe('RT-0 invitation push latency (≤ 3s)', () => {
     sw.stop();
 
     await sw.attach(testInfo, '邀请→通知 latency');
-
-    // G2.4 evidence screenshot — pinned path consumed by 烈马
-    // regression registry (REG-RT0-008 / G2.4 latency proof).
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await ownerPage.screenshot({
-      path: path.join(__dirname, '../../../docs/qa/screenshots/g2.4-realtime-latency.png'),
-      fullPage: false,
-    });
 
     expect(sw.ms, `latency ${sw.ms}ms exceeds 3s hardline`).toBeLessThanOrEqual(3000);
   });

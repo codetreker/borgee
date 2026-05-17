@@ -3,7 +3,6 @@
 // 测试范围 (1 case 综合):
 //   - owner 真 UI 打开 channel 进入 members modal, 验证 agent 行带 data-cm5-collab-link hover anchor (透明协作可见)
 //   - X2 commit 冲突: owner POST artifact → 第一次 commit OK → 第二次 stale commit (expected_version=1, head=2) → 409 (CV-1.2 single-doc lock + version mismatch 双 gate)
-//   - 截图 docs/qa/screenshots/cm-5-x2-conflict.png 给 PM 出口闸用
 //
 // 关联文档:
 //   - 蓝图: docs/blueprint/current/concept-model.md §1.3 (透明协作 + agent↔agent 走人路径)
@@ -12,7 +11,7 @@
 //   - 客户端单测: vitest cm-5-content-lock.test.ts (DOM 文案锁 + 反 BPP frame 订阅)
 //
 // 实施约束:
-//   - 真 UI: owner page.goto + page.click sidebar channel + page.click members modal button + screenshot (production UI 路径有)
+//   - 真 UI: owner page.goto + page.click sidebar channel + page.click members modal button
 //   - REST seed: admin login + invite + register + agent + channel + members + artifact + commit (X2 stale commit 没真 UI 触发, REST 直调合规作 stale 模拟)
 //   - §3.4 agent_config_update BPP frame must not be subscribed here; vitest content-lock covers that, so e2e 不深扫 ws stream
 
@@ -21,19 +20,7 @@ import {
   expect,
   request as apiRequest,
   type APIRequestContext,
-  type Page,
 } from '@playwright/test';
-// @ts-expect-error — node:fs/path 没 @types/node, e2e node ctx 可达.
-import { createRequire } from 'module';
-
-const nodeRequire = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const nodePath: any = nodeRequire('path');
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const url: any = nodeRequire('url');
-
-const HERE = nodePath.dirname(url.fileURLToPath(import.meta.url));
-const SCREENSHOT_DIR = nodePath.join(HERE, '../../../docs/qa/screenshots');
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
@@ -105,7 +92,7 @@ async function addMember(ownerCtx: APIRequestContext, channelId: string, userId:
 }
 
 test.describe('CM-5.3 client SPA — agent↔agent 协作场景', () => {
-  test('§3.1 + §3.3 channel agent hover collab link + X2 conflict screenshot', async ({ page, browser }) => {
+  test('§3.1 + §3.3 channel agent hover collab link + X2 conflict', async ({ browser }) => {
     const adminCtx = await adminLogin();
     const inv1 = await mintInvite(adminCtx);
     const owner = await registerOwner(inv1);
@@ -179,15 +166,6 @@ test.describe('CM-5.3 client SPA — agent↔agent 协作场景', () => {
       data: { expected_version: 1, body: 'v2 stale (X2 race)' },
     });
     expect(c2.status(), `X2 stale commit: expected 409 (CV-1.2 lock + version mismatch path)`).toBe(409);
-
-    // §3.3 screenshot — capture channel view at the point of the X2
-    // conflict toast trigger. Real toast firing requires UI commit path
-    // (not API), so this captures the channel state for documentation.
-    // Path 锁 byte-identical 跟 cm-5-content-lock.test.ts case ② 同源.
-    const screenshotPath = nodePath.join(SCREENSHOT_DIR, 'cm-5-x2-conflict.png');
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await ownerPage.screenshot({ path: screenshotPath, fullPage: false }).catch((err) => {
-      console.log(`[CM-5.3] screenshot capture: ${err.message ?? err}`);
-    });
 
     // §3.4: this path must not subscribe to BPP frame `agent_config_update`.
     // The reverse-grep guard lives in vitest content-lock; this e2e does not

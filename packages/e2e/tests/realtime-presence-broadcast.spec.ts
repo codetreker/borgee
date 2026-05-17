@@ -6,7 +6,7 @@
 // (reverse grep for `<RT3PresenceDot\b` in production code returns 0 hits; only `__tests__/RT3PresenceDot.test.tsx` renders it).
 // The older AL-1b PresenceDot has a production mount, but its three-state enum conflicts with the RT-3 spec
 // (RT-3 §1.1 4 states: online / offline / recently-active / busy-idle).
-// The current spec only uses REST + page.screenshot, so it does not exercise the real UI input/click path required by F3.
+// The old spec used REST plus visual evidence, so it did not exercise the real UI input/click path required by F3.
 // After v2 RT3PresenceDot has a production mount, unskip and use the browser UI path (multi-tab rendered presence dot DOM data-attr 4-state switching).
 //
 // 5 cases to verify after v2 unskip:

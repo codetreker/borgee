@@ -1,4 +1,4 @@
-// tests/direct-message-flow.spec.ts — DM 创建 + 双人锁 + DM 视图反向断言 + G3.x 截屏.
+// tests/direct-message-flow.spec.ts — DM 创建 + 双人锁 + DM 视图反向断言.
 //
 // 测试范围:
 //   - 双窗口创 DM, POST /channels/:id/members 加第三人返回 403 (DM 永远 2 人)

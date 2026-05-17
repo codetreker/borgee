@@ -27,14 +27,9 @@ import {
   type Page,
   type BrowserContext,
 } from '@playwright/test';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.resolve(__dirname, '../../../docs/qa/screenshots');
 
 interface RegisteredUser {
   email: string;
@@ -141,8 +136,8 @@ async function createArtifactViaUI(page: Page, title: string): Promise<string> {
   return j.id;
 }
 
-test.describe('CV-4.3 follow-up — unfixme 评估 + 真态 screenshot 替换', () => {
-  test('替换 g3.4-cv4-iterate-pending — pre-trigger 富状态 (intent 填好 + form 完整渲染)', async ({ browser }) => {
+test.describe('CV-4.3 follow-up — unfixme 评估 + 真态 DOM 检查', () => {
+  test('pre-trigger 富状态: intent 填好 + form 完整渲染', async ({ browser }) => {
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
     const adminCtx = await adminLogin(serverURL);
@@ -165,21 +160,16 @@ test.describe('CV-4.3 follow-up — unfixme 评估 + 真态 screenshot 替换', 
     // 真实 demo intent 文本展示协作语境).
     const intent = page.locator('.iterate-intent');
     await intent.fill('请帮我把 v1 的标题改成更精炼的版本, 保持核心立场不变.');
+    await expect(intent).toHaveValue('请帮我把 v1 的标题改成更精炼的版本, 保持核心立场不变.');
 
     // Picker 候选目前空 (此 channel 无 agent member — 加 agent 走 CM-4
     // invitation 流, 跨 PR 不动). picker disabled, 但 form 渲染完整, 比
     // 之前的空 form baseline 信息量更大.
     await expect(page.locator('.iterate-agent-label')).toBeVisible();
 
-    // 截屏 — 替换 #416 留账的 pending baseline 为 pre-trigger 富状态.
-    // 路径锁 byte-identical 跟 #416 commit 同源.
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-pending.png'),
-      fullPage: false,
-    });
   });
 
-  test('新增 g3.4-cv4-iterate-error — post-trigger 错误态 (CV-4 runtime stub: server 真返 404)', async ({ browser }) => {
+  test('post-trigger 错误态 (CV-4 runtime stub: server 真返 404)', async ({ browser }) => {
     // CV-4 runtime stub: direct owner commit (not server mock) — server-go
     // 真起, /iterate endpoint 真不存在 (CV-4.2 #409 待 merge), client 走
     // 真错误处理路径 (createIteration → ApiError 404 → setErrMsg 渲染).
@@ -212,13 +202,8 @@ test.describe('CV-4.3 follow-up — unfixme 评估 + 真态 screenshot 替换', 
       probeRes.status(),
     );
 
-    // 截屏 — error baseline (form filled, 即使 trigger 不可点 — picker 空).
-    // server #409 merge 后此截屏切真 failed state inline DOM (data-iteration-state="failed").
     await page.locator('.iterate-intent').fill('展示 failed reason 文案锁: REASON_LABELS 三处单测锁同源');
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-error-baseline.png'),
-      fullPage: false,
-    });
+    await expect(page.locator('.iterate-intent')).toHaveValue('展示 failed reason 文案锁: REASON_LABELS 三处单测锁同源');
   });
 
   test('反约束 §5 — iterate 进度仅 panel inline, messages 流不污染 (反 messages.iterate_progress)', async ({ browser }) => {

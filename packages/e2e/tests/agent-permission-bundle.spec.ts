@@ -4,8 +4,8 @@
 //
 // Skip reason: BundleSelector / PermissionsView components currently have no production
 // mount in the client SPA (reverse grep for `<BundleSelector\b` / `<PermissionsView\b` in production code
-// returns 0 hits; only `__tests__/` renders them in unit tests). The real UI path is unreachable. This spec currently uses direct REST
-// + page.screenshot anchor only (F3 pure REST anti-pattern), not a real UI input/click path.
+// returns 0 hits; only `__tests__/` renders them in unit tests). The real UI path is unreachable. The old spec used direct REST
+// plus visual evidence (F3 pure REST anti-pattern), not a real UI input/click path.
 // After v2 BundleSelector / PermissionsView mount lands, unskip and convert to real UI: user clicks
 // bundle -> capability checkbox expands -> confirm -> server receives N PUT calls -> DOM assertions.
 //

@@ -1,4 +1,4 @@
-// tests/cv-4-iterate.spec.ts — CV-4.3 client iterate UI + G3.4 demo 4 截屏.
+// tests/cv-4-iterate.spec.ts — CV-4.3 client iterate UI.
 //
 // Covers cv-4.md acceptance §3 (client) + §4 (E2E):
 //   §3.1 iterate 按钮 owner-only DOM omit (same pattern as #347 line 254)
@@ -6,7 +6,6 @@
 //   §3.3 state 4 态 inline (data-iteration-state exact value)
 //   §3.4 iteration completed 自动 navigate 到新版本 + kindBadge 🤖
 //   §3.5 diff view "对比" + jsdiff 蓝绿 + ARIA + deep-link `?diff=v3..v2`
-//   §4 G3.4 demo 4 截屏归档 (iterate-pending / running / completed / failed)
 //
 // Related constraints (cv-4-stance-checklist.md):
 //   ② CV-1 commit 单源 (commit?iteration_id=) — runtime stub via direct
@@ -17,12 +16,8 @@
 //
 // Implementation note: server CV-4.2 #409 is pending. When the endpoint is
 // missing, this E2E verifies graceful behavior: UI does not throw,
-// listIterations 404 is quiet, and the panel still renders the form. G3.4 demo
-// screenshots use mock state injected by page.evaluate after the iterate panel renders.
+// listIterations 404 is quiet, and the panel still renders the form.
 //
-// Note: active state injection for the 4 screenshots depends on server GET
-// /iterations. Before server #409 merges, those screenshots use a graceful skip
-// path; the test passes, but screenshots may show the empty-form state.
 import {
   test,
   expect,
@@ -31,14 +26,9 @@ import {
   type Page,
   type BrowserContext,
 } from '@playwright/test';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.resolve(__dirname, '../../../docs/qa/screenshots');
 
 interface RegisteredUser {
   email: string;
@@ -210,12 +200,6 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
     await expect(trigger).toHaveAttribute('aria-label', '请求 agent 迭代');
     await expect(trigger).toHaveText('🔄');
 
-    // §4 G3.4 demo screenshot: iterate-pending baseline. After server #409
-    // merges, this can switch to the real pending state.
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.4-cv4-iterate-pending.png'),
-      fullPage: false,
-    });
   });
 
   // §3.3 state 4 inline DOM coverage was intentionally removed in
@@ -308,11 +292,7 @@ test.describe('CV-4.3 client iterate UI — acceptance §3 §4', () => {
     await expect(page).not.toHaveURL(/[?&]diff=/);
   });
 
-  // §4 G3.4 demo screenshots (iterate-pending/running/completed/failed) were
-  // intentionally reduced in DEFERRED-UNWIND. The pending baseline screenshot
-  // is captured near §3.1 in this spec. The other real paths require BPP-3
-  // plugin host_grants delivery of IteratePushFrame plus state-machine timer
-  // transitions, which would add heavy fixture infrastructure for little value.
-  // running/completed are covered by IteratePanel.test.tsx::stateLabel, and
-  // failed is covered by the REASON_LABELS 6-reason checks.
+  // Iterate pending/running/completed/failed visual screenshot baselines were
+  // removed from E2E. The DOM labels are covered by IteratePanel.test.tsx::stateLabel,
+  // and failed reasons are covered by the REASON_LABELS checks.
 });

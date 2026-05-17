@@ -7,7 +7,6 @@
 //   - 保存失败 toast 文案: "侧栏顺序保存失败, 请重试"
 //   - DM 行不显示拖拽 handle，也不显示右键 pin 菜单 (DM 使用独立 MergedDmList 路径)
 //   - SPA reload 后 GET /me/layout 拉取并恢复拖拽顺序 + 折叠状态 (不依赖 push frame)
-//   - G3.x demo 截屏归档 g3.x-chn3-sidebar-reorder.png
 //
 // 关联文档:
 //   - 验收: docs/_archive/qa/acceptance-templates/chn-3.md §3 (CHN-3.3 client)
@@ -25,11 +24,6 @@ import {
   type APIRequestContext,
   type Page,
 } from '@playwright/test';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
 
@@ -229,39 +223,5 @@ test.describe('CHN-3.3 sidebar reorder + pin + folding e2e', () => {
       const menu = page.locator('menu[data-context="channel-pin"]');
       expect(await menu.count(), 'DM row right-click MUST NOT open pin menu').toBe(0);
     }
-  });
-
-  test('G3.x demo screenshot — sidebar reorder + folding + DM constraints', async ({
-    page,
-    baseURL,
-  }) => {
-    test.skip(
-      process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
-      'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
-    );
-
-    // Screenshot path matches #391 §1 + chn-3-content-lock §3.
-    const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
-    const serverURL = `http://127.0.0.1:${serverPort}`;
-    const adminCtx = await adminLogin(serverURL);
-    const inviteCode = await mintInvite(adminCtx, 'chn-3.3-demo');
-    const owner = await registerUser(serverURL, inviteCode, 'demo');
-    // Multiple channels so the demo shows reorder potential.
-    for (let i = 0; i < 3; i++) {
-      await createChannel(serverURL, owner.token, `chn33-demo-${i}-${Date.now().toString(36)}`);
-    }
-    await attachToken(page, baseURL!, owner.token);
-
-    await page.goto('/');
-    await expect(page.locator('.sidebar-title')).toBeVisible();
-    await expect(page.locator('.channel-list [data-sortable-handle]').first()).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Capture the sidebar with the ⋮⋮ handle and the DM row no-handle state.
-    const sidebar = page.locator('.sidebar');
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await sidebar.screenshot({
-      path: path.join(HERE, '../../../docs/qa/screenshots/g3.x-chn3-sidebar-reorder.png'),
-    });
   });
 });

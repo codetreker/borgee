@@ -1,15 +1,14 @@
-// tests/channel-collab-tabs.spec.ts — channel collaboration tabs + URL deep-link + G3.4 screenshots.
+// tests/channel-collab-tabs.spec.ts — channel collaboration tabs + URL deep-link.
 //
 // 测试范围:
 //   - 双 tab DOM data-tab="chat" / data-tab="workspace", with exact Chinese labels "聊天" / "工作区"
 //   - URL ?tab= 参数生效, 无参数时落 server default_tab="chat"
 //   - DM view negative check: workspace tab is never present (same UI boundary as chn-2)
 //   - 双 tab 不交叉: chat tab 不渲染 artifact body
-//   - G3.4 required screenshots archived as g3.4-chn4-chat.png + g3.4-chn4-workspace.png
 //
 // 关联文档:
 //   - 验收: docs/_archive/qa/acceptance-templates/chn-4.md §1-§6
-//   - 上游: PR #411 (CHN-4.1+4.3 client wiring + 双 tab 截屏)
+//   - 上游: PR #411 (CHN-4.1+4.3 client wiring)
 //
 // 实施约束:
 //   - Browser-driven UI path (tab switching + URL validation + DOM assertions)
@@ -24,14 +23,9 @@ import {
   type Page,
   type BrowserContext,
 } from '@playwright/test';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.resolve(__dirname, '../../../docs/qa/screenshots');
 
 interface RegisteredUser {
   email: string;
@@ -202,42 +196,5 @@ test.describe('CHN-4 协作场骨架 — acceptance §1 §4 §5 §6', () => {
       page.locator('button[data-tab="canvas"]'),
       'DM 视图无 canvas tab',
     ).toHaveCount(0);
-  });
-
-  test('§6 G3.4 退出闸双截屏归档 — chat + workspace 各 1', async ({ browser }) => {
-    test.skip(
-      process.env.E2E_EVIDENCE_SCREENSHOTS !== '1',
-      'signoff screenshot archive runs only when E2E_EVIDENCE_SCREENSHOTS=1',
-    );
-
-    const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
-    const serverURL = `http://127.0.0.1:${serverPort}`;
-    const adminCtx = await adminLogin(serverURL);
-    const inv = await mintInvite(adminCtx, 'chn4-shot');
-    const owner = await registerUser(serverURL, inv, 'shot');
-
-    const stamp = Date.now();
-    const chName = `chn4-shot-${stamp}`;
-    await createChannel(owner, chName);
-
-    const ctx = await browser.newContext();
-    await attachToken(ctx, owner.token);
-    const page = await ctx.newPage();
-    await gotoChannel(page, chName);
-
-    // chat screenshot: verify the "聊天" tab is active.
-    await expect(page.locator('button[data-tab="chat"]')).toHaveClass(/active/);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-chat.png'),
-      fullPage: false,
-    });
-
-    // workspace screenshot: verify the "工作区" tab is active.
-    await page.locator('button[data-tab="workspace"]').click();
-    await expect(page.locator('button[data-tab="workspace"]')).toHaveClass(/active/);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.4-chn4-workspace.png'),
-      fullPage: false,
-    });
   });
 });

@@ -26,14 +26,9 @@ import {
   type Page,
   type BrowserContext,
 } from '@playwright/test';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 const ADMIN_LOGIN = 'e2e-admin';
 const ADMIN_PASSWORD = 'e2e-admin-pass-12345';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.resolve(__dirname, '../../../docs/qa/screenshots');
 
 interface RegisteredUser {
   email: string;
@@ -141,11 +136,6 @@ test.describe('CHN-4 follow-up — constraints + cross-org isolation', () => {
       .count();
     expect(dmRowsWithHandle, 'DM 行 sidebar 不挂 drag handle ⋮⋮').toBe(0);
 
-    // Edge-case screenshot: DM sidebar without a drag handle.
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.x-chn4-followup-dm-no-handle.png'),
-      fullPage: false,
-    });
   });
 
   test('§4.5 + edge case: cross-org channel isolation hides userA private channel from userB', async ({
@@ -179,7 +169,6 @@ test.describe('CHN-4 follow-up — constraints + cross-org isolation', () => {
     const directRes = await userB.ctx.get(`/api/v1/channels/${chId}`);
     expect([403, 404], `直 GET 应 reject; got ${directRes.status()}`).toContain(directRes.status());
 
-    // Edge-case screenshot: userB sidebar does not show userA's private channel.
     const ctx = await browser.newContext();
     await attachToken(ctx, userB.token);
     const page = await ctx.newPage();
@@ -191,10 +180,6 @@ test.describe('CHN-4 follow-up — constraints + cross-org isolation', () => {
       page.locator('.channel-name', { hasText: chName }),
       `userB sidebar 不应见 ${chName}`,
     ).toHaveCount(0);
-    if (process.env.E2E_EVIDENCE_SCREENSHOTS === '1') await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, 'g3.x-chn4-followup-cross-org-isolation.png'),
-      fullPage: false,
-    });
   });
 
   test('§4.7 + §4.8: uses real server and does not add a new WebSocket frame', async () => {
