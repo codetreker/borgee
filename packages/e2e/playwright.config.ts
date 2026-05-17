@@ -122,6 +122,7 @@ export default defineConfig({
         BORGEE_ADMIN_LOGIN: 'e2e-admin',
         BORGEE_ADMIN_PASSWORD_HASH:
           '$2a$10$4Qtu/ZynUPfAMPXPCtPa2uY7B04RVGK6V1gQfyihHgnW4LYvcY01i',
+        BORGEE_TEST_FAST_BCRYPT: '1',
       },
       stdout: WEB_SERVER_LOG_MODE,
       stderr: WEB_SERVER_LOG_MODE,
@@ -138,6 +139,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       env: {
         VITE_E2E_API_TARGET: SERVER_URL,
+        VITE_E2E_WS_RECONNECT_DELAY_MS: '50',
       },
       stdout: WEB_SERVER_LOG_MODE,
       stderr: WEB_SERVER_LOG_MODE,
