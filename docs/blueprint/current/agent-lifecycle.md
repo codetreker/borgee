@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Agent Lifecycle — 接入、状态、退役
 
 > 一个 agent 从被创建到被废弃的完整旅程。
-> 状态：三方评审对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)。
+> 状态：v1.1 promotion (2026-05-18，本轮 v1.1 未触达 agent-lifecycle 形状)。前置阅读：[`concept-model.md`](concept-model.md)。
 
 ## 0. 一句话定义
 

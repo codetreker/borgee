@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Channel Model — channel / DM / workspace
 
 > Borgee 的 channel 不是单纯聊天容器，是"协作场"。本文是对 channel/DM/workspace 三件套的形状层规范。
-> 状态：评审对齐完成（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)。
+> 状态：v1.1 promotion (2026-05-18，新增 §5 MR-1 + §6 CH-1)。前置阅读：[`concept-model.md`](concept-model.md)。
 
 ## 1. 目标态（Should-be）— 四条约定
 
@@ -92,3 +98,41 @@
 - 画布、协作文档、agent 直接编辑 workspace 的具体 API → 第 3 轮"画布/文档协作愿景"
 - agent 加入 channel 的具体邀请审批状态机 → [`concept-model.md` §4.2](concept-model.md)（已落定）
 - DM 与 mention 路由 → [`concept-model.md` §4.1](concept-model.md)（已落定）
+
+---
+
+## 5. v1.1 MR-1：Mention 路由与 `@Everyone` 广播
+
+### 5.1 Per-channel `requireMention`（tri-state）
+
+- 每个 channel 对 agent 接收消息有三态：`inherit` / `on` / `off`。
+- `inherit` 跟随 channel 默认；`on` 要求显式 mention 才打扰 agent；`off` 由 channel 内全部消息推给 agent。
+- **关键边界（PS-1 / [`concept-model.md` §1.3](concept-model.md) "扩权不行" 推论）**：channel owner 通过 `requireMention` **只能** 减少 / 改变 agent 注意力分发，**不能** 把 agent 拉到 owner 没有授权的范围。Agent owner 才能 opt-in 更广 delivery；channel owner 只能 reduce / mute / remove。
+- Setting 变更不回溯历史消息。
+
+### 5.2 `@Everyone` 服务器权威广播
+
+- `@Everyone` 是 server-authoritative 广播：client 只能发 token，server 按 channel membership + ACL 计算实际收件人。
+- Server 不接受 client-supplied recipient IDs；任何 fanout 都重新校验 channel membership / access。
+- 必须有 rate limit + loop prevention；agent 不能递归触发广播。
+- Cross-channel / cross-org 越权 fanout 是 security 边界破口，直接禁。
+
+---
+
+## 6. v1.1 CH-1：Channel 管理与 owner-safe 操作
+
+### 6.1 Owner-safe leave 语义
+
+- 自己创建 / 拥有的 channel **不暴露 leave** 操作；owner 走 channel management 删除。
+- v1 不做 owner transfer，也不默认承诺 hard delete / archive；删除可走 soft delete。
+
+### 6.2 Channel management surface
+
+- 用户侧 channel 管理页（"我加入 / 我创建 / 我能退出什么"）集中可见。
+- 管理面 v1 focus：membership / ownership / allowed actions；通知策略 / 折叠 / 排序的重写**不在本轮**，除非 task 显式 scope 进来。
+- Settings 内可以暴露受限的 `delete` 触发按钮，但其他 mutation（leave / archive / owner-transfer）继续锁住。
+
+### 6.3 私有 channel 视觉真值
+
+- 私有 channel 锁标识不能压住 unread / fault / presence / selection / hover 等其他状态指示。
+- 私密性是状态层并存，不是独占 badge。

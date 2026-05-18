@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Auth & Permissions — 权限模型
 
 > 权限是 Borgee 把 "agent = 同事" 落到操作层面的载体。本文规范权限的目标态。
-> 状态：目标态已对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`agent-lifecycle.md`](agent-lifecycle.md)、[`plugin-protocol.md`](plugin-protocol.md)。
+> 状态：v1.1 promotion (2026-05-18，本轮 MR-1 + CH-1 channel 权限约束统一落到 [`channel-model.md` §5-§6](channel-model.md))。前置阅读：[`concept-model.md`](concept-model.md)、[`agent-lifecycle.md`](agent-lifecycle.md)、[`plugin-protocol.md`](plugin-protocol.md)。
 
 ## 0. 一句话定义
 

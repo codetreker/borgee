@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Realtime — 推送、状态、回放
 
 > Borgee 的 realtime 不只是"消息及时到"，还要让用户清楚感到 AI 团队正在工作。
-> 状态：三方评审对齐（2026-04-27）。前置阅读：[`channel-model.md`](channel-model.md)、[`plugin-protocol.md`](plugin-protocol.md)、[`agent-lifecycle.md`](agent-lifecycle.md)。
+> 状态：v1.1 promotion (2026-05-18，本轮 v1.1 未推翻 realtime 形状)。前置阅读：[`channel-model.md`](channel-model.md)、[`plugin-protocol.md`](plugin-protocol.md)、[`agent-lifecycle.md`](agent-lifecycle.md)。
 
 ## 0. 一句话定义
 
