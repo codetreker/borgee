@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Admin Model — 管理面与隐私契约
 
 > Admin 是 Borgee 在产品模型外的运维身份。本文规范 admin 的目标态——尤其是它**能看什么不能看什么**这条隐私契约。
-> 状态：目标态已对齐（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`auth-permissions.md`](auth-permissions.md)。
+> 状态：v1.1 promotion (2026-05-18，PS-1 scope guard 保留)。前置阅读：[`concept-model.md`](concept-model.md)、[`auth-permissions.md`](auth-permissions.md)。
 
 ## 0. 一句话定义
 

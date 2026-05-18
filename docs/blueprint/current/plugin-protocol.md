@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Plugin Protocol — BPP (Borgee Plugin Protocol)
 
 > Plugin 是 agent 接入 Borgee 的**唯一**通道。本文规范 BPP 协议的目标态——v1 由 OpenClaw plugin 作 reference implementation，v2+ 接其它 runtime 不必重写。
-> 状态：三方评审对齐（2026-04-27）。前置阅读：[`agent-lifecycle.md`](agent-lifecycle.md)。
+> 状态：v1.1 promotion (2026-05-18，本轮 v1.1 未触达 BPP 形状；Borgee plugin connection / channel binding 走 [`host-bridge.md` §3.2](host-bridge.md) 的 `borgee_plugin.configure_connection` typed job)。前置阅读：[`agent-lifecycle.md`](agent-lifecycle.md)。
 
 ## 0. 一句话定义
 

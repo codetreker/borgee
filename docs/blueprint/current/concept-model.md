@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Concept Model — 组织、人、agent
 
 > Borgee 的核心建模单位是**组织**，不是单个 user。本文是对系统的概念层定义，是其它设计文档的前置阅读。
-> 状态：目标态已对齐（2026-04-27）。
+> 状态：v1.1 promotion (2026-05-18，本轮未推翻 §1-§7 的概念立场；MR-1 路由细节落到 [`channel-model.md` §5](channel-model.md))。
 
 ## 0. 一句话定义
 

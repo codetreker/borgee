@@ -1,7 +1,13 @@
+---
+version: v1.1
+accepted: 2026-05-18
+prev: v1.0
+---
+
 # Canvas Vision — Workspace + Artifact 协作
 
 > Borgee 的"对着文档讨论"愿景：在每个 channel 里，AI 团队（PM、Dev、QA、Designer 等）和人一起围绕产物（artifact）协作。
-> 状态：评审对齐完成（2026-04-27）。前置阅读：[`concept-model.md`](concept-model.md)、[`channel-model.md`](channel-model.md)。
+> 状态：v1.1 promotion (2026-05-18，CT-1 promotion 增 §6 ArtifactComments 生产可达性硬约束)。前置阅读：[`concept-model.md`](concept-model.md)、[`channel-model.md`](channel-model.md)。
 
 ## 0. 一句话定义
 
@@ -108,3 +114,9 @@
 - 权限的具体 scope 设计 → 第 8 轮"Auth & 权限"
 - artifact 的 SQLite schema 与事件流 → 第 10 轮"数据层"
 - artifact 编辑器的 UI 形态 → 第 11 轮"Client (web SPA)"
+
+## 6. v1.1 CT-1：ArtifactComments 生产可达性硬约束
+
+- 任何蓝图层面声称存在的 artifact 协作子面（ArtifactComments / ArtifactPanel 等）**必须**在生产 UI 实际可达；不允许"代码里有、生产没挂"。
+- 触发不到的 surface 等于产品立场撒谎，违反 [`client-shape.md` §1.3](client-shape.md) "沉默胜于假 loading" 同源原则。
+- 这一条不是 quality-platform / e2e 平台扩张，仅锁定已宣称存在的 surface 的可达性与反向 e2e 证据。

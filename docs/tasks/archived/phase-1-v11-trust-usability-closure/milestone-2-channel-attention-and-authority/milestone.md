@@ -39,7 +39,7 @@ Rejected by this milestone:
 | Private indicator state inventory | ACCEPTED | `task-7-private-indicator-state-inventory` | Explicit parallel UI slot; merged PR #945 | no |
 | Private indicator visual treatment | ACCEPTED | `task-8-private-indicator-visual-treatment` | PR #952 (`965fcd7`) | complete |
 | Sidebar state collision regression | ACCEPTED | `task-9-sidebar-state-collision-regression` | PR #961 (`1e6d54c`) | complete |
-| Settings channel delete button | IN PROGRESS | `task-10-settings-channel-delete-button` | PR #986 | re-opens task-5/task-6 read-only lock for `delete` only |
+| Settings channel delete button | ACCEPTED | `task-10-settings-channel-delete-button` | PR #986 (`68d2471`) | re-opens task-5/task-6 read-only lock for `delete` only |
 
 Milestone 2 is accepted. This Task12 closure PR only records the state sync; it does not reopen channel attention or authority scope. Task-10 narrows the task-5 / task-6 reverse-locks (Settings read-only) to allow a `delete` mutation button; `leave` / `archive` / `owner-transfer` remain locked out.
 
@@ -49,3 +49,33 @@ Milestone 2 is accepted. This Task12 closure PR only records the state sync; it 
 - Channel owners cannot broaden external-agent attention or capability beyond agent-owner authorization.
 - Self-created or owned channels do not expose confusing leave actions.
 - Private indicators do not hide unread, fault, presence, selection, or hover states.
+
+## Closure Summary
+
+State: CLOSED
+Closed on: 2026-05-17
+
+Completed tasks:
+- See Task Index above (10 ACCEPTED rows, PR + commit anchor per row). Per-task acceptance evidence lives in each `task-*/progress.md`.
+
+Deferred tasks:
+- None.
+
+Blocked tasks:
+- None.
+
+Gate evidence:
+| Gate | Evidence | Result |
+|---|---|---|
+| `@Everyone` server-authoritative fanout | task-2 PR review (PR #951) | SIGNED |
+| Channel owner cannot broaden external-agent attention | task-1/task-3/task-6 PR review (PR #949, #955, #959) | SIGNED |
+| No confusing leave actions on owned channels | task-4/task-10 PR review (PR #948, #986) | SIGNED |
+| Private indicators do not hide other states | task-7/task-8/task-9 PR review (PR #945, #952, #961) | SIGNED |
+
+Current promotion readiness:
+- Required task PRs merged: yes
+- Acceptance evidence complete: yes
+- Milestone/wave gates recorded: yes
+- Phase gate recorded: no (Phase exit gate runs in `bf-phase-exit-gate` after this closure)
+- docs/current sync checked: yes
+- Next ledger Work can be COMPLETED: no — wait for Phase exit gate + promote to `current/`

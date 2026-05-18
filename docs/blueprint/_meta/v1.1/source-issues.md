@@ -1,44 +1,25 @@
-# Source Issues For Blueprint v1.1 Candidate
+# Source Issues — Blueprint v1.1
 
-Picked backlog inputs grouped by next-blueprint anchor. This file is traceability only; selected issues are not current behavior and do not replace the status ledger in `docs/blueprint/next/README.md`.
+Picked backlog inputs grouped by next-blueprint anchor, with the GitHub issue/PR evidence that delivered each anchor's accepted scope. This file is traceability only; selected issues are not current behavior and do not replace the status ledger in `docs/blueprint/next/README.md`.
 
-## `HB-RA-1A` Helper Bounded Actuator Product Guardrails
+## Per-anchor traceability
 
-- gh#681 — Expand Helper host-management onboarding so Web-side Configure OpenClaw can install the plugin, create or update agent config, and bind channels through a bounded Helper remote-actuator path, without reusing Remote Agent file-proxy credentials or authority.
-- gh#659 — Ensure the long-lived helper / agent service path needed for Configure OpenClaw survives OS reboot and crash restart without turning the installer into a persistent privileged daemon.
+| Anchor | Source issue(s) | Delivered by PR(s) | Promoted into |
+|---|---|---|---|
+| `HB-RA-1A` | gh#681, gh#659 | #934, #936, #937, #938, #939, #942, #943 (M1 t1-t7) | `current/host-bridge.md` §1.2 / §2 / §3 |
+| `HB-RA-1B` | gh#681, gh#659 | #954, #956, #958, #963, #964 (M1 t8-t12) | `current/host-bridge.md` §1.6 / §3.1-§3.3 |
+| `MR-1` | gh#674, gh#693 | #949 (M2 t1), #951 (M2 t2), #955 (M2 t3) | `current/channel-model.md` §5 |
+| `CH-1` | gh#685, gh#688, gh#690 | #948 (M2 t4), #953 (M2 t5), #959 (M2 t6), #945 (M2 t7), #952 (M2 t8), #961 (M2 t9), #986 (M2 t10) | `current/channel-model.md` §6 |
+| `CT-1` | gh#724 | #946 (M3 t1), #957 (M3 t2), #944 (M3 t3), #960 (M3 t4) | `current/client-shape.md` §5 + `canvas-vision.md` §6 |
+| `PS-1` | gh#654 | preserved across all v1.1 PRs (no new user-facing privacy/compliance surface) | `current/host-bridge.md` §1.2/§2 (rail separation), `client-shape.md` §5.3, `admin-model.md` (no expansion) |
+| `IA-1` | gh#669, gh#670 | #947 (M3 t5), #950 (M3 t6), #962 (M3 t7) | `current/client-shape.md` §6 |
 
-## `HB-RA-1B` Helper Actuator Execution Contract Planning Scope
+## Conditional inputs not picked
 
-- gh#681 — Carry manifest/artifact signing, helper credential model, sandbox/Linux outbound poll, revoke race, and exact queue/lease/result contract into Phase 1 milestone breakdown and task-level Dev design.
-- gh#659 — Carry service permission and long-lived service restart boundaries into Phase 1 milestone breakdown and task-level Dev design.
-
-## `MR-1` Mention Routing
-
-- gh#674 — Add per-channel `requireMention` control without letting channel owners broaden external-agent attention or capability beyond owner authorization.
-- gh#693 — Add `@Everyone` broadcast semantics with server-authoritative fanout, ACL filtering, rate limits, and loop prevention.
-
-## `CH-1` Channel Authority
-
-- gh#685 — Add a user-side Channel management surface for ownership, membership, and allowed channel actions.
-- gh#688 — Clarify that owners do not leave self-owned channels; management or deletion is the appropriate path.
-- gh#690 — Reduce private-channel lock visual weight and prevent conflicts with unread, fault, or presence indicators.
-
-## `CT-1` Client Truthfulness
-
-- gh#724 — Make already-built client surfaces actually reachable in production, especially ArtifactComments mount, ACL forbidden UX, and security/permission bundle UI.
-
-## `PS-1` Privacy Scope Guard
-
-- gh#654 — Avoid expanding user-facing privacy/compliance product scope while preserving existing admin, privacy, security, impersonation, audit/enforcement, data minimization, capability, and rail-separation controls.
-
-## `IA-1` Sidebar And Account IA
-
-- gh#669 — Reduce sidebar footer clutter to a small set of primary entries.
-- gh#670 — Make the lower-left avatar the account entry and move logout into the account panel.
-
-## Conditional Inputs Not Picked
-
-- gh#702 — Bring in only if agent config / onboarding copy is reopened.
-- gh#707 and gh#697 — Keep quality gate / a11y follow-up in backlog unless explicitly pulled into `CT-1`.
-- gh#607 — Keep file naming maintenance in backlog.
-- gh#675 — Keep visual redesign out unless the user opens a separate visual redesign discussion.
+| Issue | Reason held in backlog |
+|---|---|
+| gh#702 | Bring in only if agent config / onboarding copy is reopened. |
+| gh#707 | Quality gate / a11y follow-up; backlog unless explicitly pulled into `CT-1`. |
+| gh#697 | Same as gh#707. |
+| gh#607 | File naming maintenance; backlog. |
+| gh#675 | Visual redesign; backlog unless separately opened. |
