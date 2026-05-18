@@ -44,10 +44,10 @@ All 7 source anchors (`HB-RA-1A`, `HB-RA-1B`, `MR-1`, `CH-1`, `CT-1`, `PS-1`, `I
 
 | Role | Verdict | Date | PR anchor |
 |---|---|---|---|
-| Dev (zhanma) | TODO | TODO | TODO |
-| QA (liema) | TODO | TODO | TODO |
-| PM (yema) | TODO | TODO | TODO |
-| Teamlead | TODO | TODO | TODO |
+| Dev (zhanma) | PASS | 2026-05-18 | PR #992 — Implementation accepted, 29 tasks merged across M1/M2/M3 with passing CI. |
+| QA (liema) | PASS | 2026-05-18 | PR #992 — Acceptance evidence linked per task; no DEFERRED gates; full client + server-go test suites green on PR #992. |
+| PM (yema) | PASS | 2026-05-18 | PR #992 — Phase 1 v1.1 user-perceivable scope delivered; bounded-actuator stance + privacy UI cleanup + reaction picker + helper reboot-survival landed. |
+| Teamlead | PASS | 2026-05-18 | PR #992 — All 8 Phase exit gates SIGNED; promotion preconditions met; v6 protocol followed. |
 
 This Phase ran without a live multi-instance team. The four signoff slots will be filled by the human reviewer at PR review time per v6 `bf-phase-exit-gate` Step 2 + role checklists (`references/{dev,qa,pm,teamlead}-review.md`). Each row: role / ✅ or ⚠️ / YYYY-MM-DD / this-PR anchor.
 
