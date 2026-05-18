@@ -8,7 +8,7 @@
 
 This one-phase index supersedes the earlier v1.1 `3 phases / 8 milestones` shape. A new Phase must now require a real prerequisite boundary, integration boundary, or downstream coordination reason. The prior channel-control and client-truth slices were execution slots, not dependency or integration boundaries; the prior Helper/OpenClaw milestones were one prerequisite chain toward the same user-facing Helper/OpenClaw loop. Coarser Phase/Milestone structure is authoritative for new execution.
 
-The legacy `681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work. Accepted Helper/OpenClaw task docs and the remaining unexecuted Helper/OpenClaw skeletons now live under the canonical Milestone 1 directory in `phase-1-v11-trust-usability-closure/`. The unexecuted channel-control and client-truth task skeletons also live only under the canonical milestones in `phase-1-v11-trust-usability-closure/`; their former phase folders were removed to avoid presenting multiple active phases.
+The legacy `archived/681-remote-agent-openclaw/` folder remains intake history and is not the execution path for the Helper actuator work. Accepted Helper/OpenClaw task docs and the remaining unexecuted Helper/OpenClaw skeletons now live under the canonical Milestone 1 directory in `phase-1-v11-trust-usability-closure/`. The unexecuted channel-control and client-truth task skeletons also live only under the canonical milestones in `phase-1-v11-trust-usability-closure/`; their former phase folders were removed to avoid presenting multiple active phases.
 
 Current execution resume state:
 
@@ -22,14 +22,8 @@ Current execution resume state:
 
 | Scope | Execution | Next task(s) | Owner | Worktree/branch | PR | Blocker | Progress |
 |---|---|---|---|---|---|---|---|
-| `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator` | ACCEPTING | `task-8-bounded-status-logs-and-revoke-settlement` | M1 Task8 owner worker | `.worktrees/task-8-bounded-status-logs-and-revoke-settlement` / `feat/task-8-bounded-status-logs-and-revoke-settlement` | #954 | none | `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-8-bounded-status-logs-and-revoke-settlement/progress.md` |
-| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | ACCEPTING | `task-3-security-permission-surface-reachability` | owner worker | `.worktrees/m3-task3-settings-permissionsview-reachability` / `feat/m3-task3-settings-permissionsview-reachability` | #944 | none | `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation/task-3-security-permission-surface-reachability/progress.md` |
-| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-7-private-indicator-state-inventory` | Blueprintflow owner worker under Teamlead | `.worktrees/task-7-private-indicator-state-inventory` / `feat/task-7-private-indicator-state-inventory` | #945 | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-7-private-indicator-state-inventory/progress.md` |
-| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-4-channel-management-surface` | M2 Task4 owner worker | `.worktrees/m2-task4-channel-management-surface` / `feat/m2-task4-channel-management-surface` | #948 | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-4-channel-management-surface/progress.md` |
-| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-2-everyone-fanout-acl-rate-loop` | M2 Task2 owner worker | `.worktrees/m2-task2-everyone-fanout-acl-rate-loop` / `feat/m2-task2-everyone-fanout-acl-rate-loop` | #951 | CI re-run after current-main rebase | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-2-everyone-fanout-acl-rate-loop/progress.md` |
-| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-8-private-indicator-visual-treatment` | Blueprintflow owner worker under Teamlead | `.worktrees/task-8-private-indicator-visual-treatment` / `feat/task-8-private-indicator-visual-treatment` | #952 | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-8-private-indicator-visual-treatment/progress.md` |
-| `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation` | ACCEPTING | `task-1-artifactcomments-production-mount` | Blueprintflow M3 task owner worker | `.worktrees/task-1-artifactcomments-production-mount` / `feat/task-1-artifactcomments-production-mount` | #946 | none | ArtifactComments production mount in PR; no Settings/sidebar overlap |
-| `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority` | ACCEPTING | `task-5-channel-allowed-action-rules` | M2 Task5 owner worker | `.worktrees/m2-task5-channel-allowed-action-rules` / `feat/m2-task5-channel-allowed-action-rules` | #953 | none | `phase-1-v11-trust-usability-closure/milestone-2-channel-attention-and-authority/task-5-channel-allowed-action-rules/progress.md` |
+
+(All Phase 1 v1.1 tasks accepted — pending Phase exit gate)
 
 ## Canonical v1.1 Milestone Mapping
 
@@ -63,7 +57,7 @@ Milestone breakdown 只创建 `task.md` skeleton。下面这些文件在具体 t
 
 - gh#718 — 全 repo 黑话整治仍按既有后台队列跟进，不属于本 v1.1 Phase/Milestone plan。
 - gh#724 — 已纳入 v1.1 canonical `phase-1-v11-trust-usability-closure/milestone-3-client-truth-and-navigation`，不再标为 v2 brainstorm 输入。
-- [681-remote-agent-openclaw](681-remote-agent-openclaw/) — legacy intake history only. Its Helper/OpenClaw scope is superseded by `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator`; do not resume this folder as the execution path.
+- [archived/681-remote-agent-openclaw](archived/681-remote-agent-openclaw/) — legacy intake history only. Its Helper/OpenClaw scope is superseded by `phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator`; do not resume this folder as the execution path.
 
 ## 已闭环
 

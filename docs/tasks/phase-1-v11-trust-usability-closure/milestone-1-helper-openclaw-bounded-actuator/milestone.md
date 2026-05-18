@@ -48,3 +48,33 @@ Milestone 1 is accepted. `task-8-bounded-status-logs-and-revoke-settlement` is a
 - Helper pull/lease/result and local policy both reject stale credentials, revoked enrollment, unknown job types, extra fields, and out-of-allowlist paths/domains/service IDs.
 - Status, logs, and revoke/uninstall race settlement cannot make failed, denied, or revoked work look successful.
 - Long-lived Helper/OpenClaw services stay non-sudo; any privileged installer remains short-lived and visible.
+
+## Closure Summary
+
+State: CLOSED
+Closed on: 2026-05-17
+
+Completed tasks:
+- See Task Index above (12 ACCEPTED rows, PR + commit anchor per row). Per-task acceptance evidence lives in each `task-*/progress.md`.
+
+Deferred tasks:
+- None.
+
+Blocked tasks:
+- None.
+
+Gate evidence:
+| Gate | Evidence | Result |
+|---|---|---|
+| Schema-bound typed jobs only | task-4/task-9/task-12 PR review + server enqueue tests (PR #938, #956, #964) | SIGNED |
+| Helper pull/lease/result + local policy rejection | task-6/task-7 PR review (PR #943, #942) | SIGNED |
+| Status/logs/revoke settlement truthfulness | task-8 PR review (PR #954) | SIGNED |
+| Non-sudo long-lived services | task-5/task-11 PR review (PR #939, #963) | SIGNED |
+
+Current promotion readiness:
+- Required task PRs merged: yes
+- Acceptance evidence complete: yes
+- Milestone/wave gates recorded: yes
+- Phase gate recorded: no (Phase exit gate runs in `bf-phase-exit-gate` after this closure)
+- docs/current sync checked: yes
+- Next ledger Work can be COMPLETED: no — wait for Phase exit gate + promote to `current/`

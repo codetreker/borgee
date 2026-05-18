@@ -46,3 +46,33 @@ Milestone 3 is accepted. This Task12 closure PR only records the state sync; it 
 - Forbidden states do not leak private channel, artifact, message, file, or body content before authorization succeeds.
 - Sidebar/account IA movement does not merge Helper and Remote Agent credentials, grants, or enforcement rails.
 - No new user-facing privacy/compliance product surface is introduced through gh#654.
+
+## Closure Summary
+
+State: CLOSED
+Closed on: 2026-05-17
+
+Completed tasks:
+- See Task Index above (7 ACCEPTED rows, PR + commit anchor per row). Per-task acceptance evidence lives in each `task-*/progress.md`.
+
+Deferred tasks:
+- None.
+
+Blocked tasks:
+- None.
+
+Gate evidence:
+| Gate | Evidence | Result |
+|---|---|---|
+| ArtifactComments + Settings PermissionsView reachable | task-1/task-3 PR review (PR #946, #944) | SIGNED |
+| Forbidden states non-leaky | task-2/task-4 PR review (PR #957, #960) | SIGNED |
+| Sidebar/account IA without rail merge | task-5/task-6/task-7 PR review (PR #947, #950, #962) | SIGNED |
+| No new privacy/compliance product surface (PS-1) | scope guard preserved across all M3 PRs | SIGNED |
+
+Current promotion readiness:
+- Required task PRs merged: yes
+- Acceptance evidence complete: yes
+- Milestone/wave gates recorded: yes
+- Phase gate recorded: no (Phase exit gate runs in `bf-phase-exit-gate` after this closure)
+- docs/current sync checked: yes
+- Next ledger Work can be COMPLETED: no — wait for Phase exit gate + promote to `current/`

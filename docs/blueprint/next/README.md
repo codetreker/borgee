@@ -1,8 +1,8 @@
 # Blueprint Next State
 
 Target version: v1.1 candidate
-Last updated: 2026-05-15
-Resume from: finish PR verification for task 6 Helper pull/lease/result under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/` after task 7 local policy acceptance.
+Last updated: 2026-05-17
+Resume from: Phase exit gate (`bf-phase-exit-gate`) + promote accepted v1.1 scope into `docs/blueprint/current/`. All Phase 1 v1.1 milestones (M1/M2/M3) closed; see each `milestone.md` Closure Summary.
 
 This directory tracks planned or in-discussion blueprint work that is not yet accepted into `docs/blueprint/current/`. `current/` remains the implemented-and-accepted product truth. `docs/tasks/` is used only after a next anchor is locked for execution.
 
@@ -69,7 +69,7 @@ Locked planning scope carried into milestone breakdown and task-level Dev design
 - Service permissions: allowed service manager operations, long-lived service privilege level, restart/crash-recovery boundaries, and install-time privilege handoff.
 - Exact queue/lease/result contract: job states, lease duration and renewal, idempotency keys, result schema, retry rules, terminal failure shape, and server/helper clock authority.
 
-`docs/tasks/681-remote-agent-openclaw/` is a legacy intake folder. The v1.1 canonical execution grouping is now the coarse Phase 1 plan under `docs/tasks/phase-1-v11-trust-usability-closure/`. Accepted Helper/OpenClaw task artifacts and the remaining Helper/OpenClaw skeletons now live under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
+`docs/tasks/archived/681-remote-agent-openclaw/` is a legacy intake folder. The v1.1 canonical execution grouping is now the coarse Phase 1 plan under `docs/tasks/phase-1-v11-trust-usability-closure/`. Accepted Helper/OpenClaw task artifacts and the remaining Helper/OpenClaw skeletons now live under `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/`.
 
 ### §2.3 `MR-1` Mention routing
 
@@ -147,4 +147,4 @@ Selected issue traceability lives in `docs/blueprint/_meta/v1.1/source-issues.md
 
 ## §5 Next Workflow Step
 
-Continue the canonical Phase 1 Milestone 1 Helper/OpenClaw loop from task 6 PR #943 verification after PR #942. Accepted history remains: PR #934 (`547f869`), PR #936 (`1ca5f95`), PR #937 (`2872905`), PR #938 (`64d56f1`), PR #939 (`96dc0dc`), and PR #942 (`642fb57`). `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-6-helper-pull-lease-result/` is implemented and in PR CI/review. `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-helper-openclaw-bounded-actuator/task-7-local-policy-manifest-and-sandbox-profile/` is accepted through PR #942. Task 8 remains blocked until task 6 is accepted.
+Run `bf-phase-exit-gate` for Phase 1 v1.1 Trust And Usability Closure. All three milestones (M1 Helper/OpenClaw bounded actuator, M2 Channel attention and authority, M3 Client truth and navigation) are CLOSED with per-milestone Closure Summaries recorded. After exit-gate sign-off, promote the accepted v1.1 scope into `docs/blueprint/current/` and flip the §0 ledger `Work` to `COMPLETED`.
