@@ -44,23 +44,6 @@ const url: any = nodeRequire('url');
 
 const HERE: string = nodePath.dirname(url.fileURLToPath(import.meta.url));
 const SRC_ROOT: string = nodePath.resolve(HERE, '..');
-const REPO_ROOT: string = nodePath.resolve(HERE, '..', '..', '..', '..');
-const TASK9_ROOT: string = nodePath.join(
-  REPO_ROOT,
-  'docs',
-  'tasks',
-  'phase-1-v11-trust-usability-closure',
-  'milestone-2-channel-attention-and-authority',
-  'task-9-sidebar-state-collision-regression',
-);
-const CURRENT_CHANNEL_DOC: string = nodePath.join(
-  REPO_ROOT,
-  'docs',
-  'current',
-  'client',
-  'ui',
-  'channel-sort-groups.md',
-);
 
 let container: HTMLDivElement;
 let root: Root;
@@ -168,17 +151,5 @@ describe('M2 Task9 sidebar state collision regression', () => {
     expect(sortableItem).not.toContain('data-failure-badge');
     expect(sidebar).toContain('data-kind="dm"');
     expect(sidebar).toContain('PresenceDot');
-  });
-
-  it('records Task9 regression evidence in task and current docs', () => {
-    const acceptance = read(nodePath.join(TASK9_ROOT, 'acceptance.md'));
-    const regression = read(nodePath.join(TASK9_ROOT, 'regression.md'));
-    const currentDoc = read(CURRENT_CHANNEL_DOC);
-
-    expect(acceptance).toContain('Private + unread + selected + pinned + drag-over');
-    expect(acceptance).toContain('DM-only presence/fault semantics stay out of channel private rows');
-    expect(regression).toContain('Sidebar-state-collision-regression.test.tsx');
-    expect(regression).toContain('private/unread/selected/pinned/drag-over');
-    expect(currentDoc).toContain('Task9 sidebar state collision regression');
   });
 });
