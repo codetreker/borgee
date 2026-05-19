@@ -21,8 +21,10 @@ import (
 
 	"borgee-helper/internal/acl"
 	"borgee-helper/internal/audit"
+	"borgee-helper/internal/dispatch"
 	"borgee-helper/internal/grants"
 	"borgee-helper/internal/ipc"
+	"borgee-helper/internal/jobpolicy"
 	"borgee-helper/internal/outbound"
 	"borgee-helper/internal/sandbox"
 )
@@ -144,6 +146,25 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 		log.Printf("borgee-helper: no enrollment configured, skipping heartbeat")
 	}
 
+	// #1001 + #1002 dispatcher: poll the server for leased jobs, run each
+	// through jobpolicy.Evaluate (helper-side double-validate), then through
+	// a per-job executor if one is registered. The Executors map is empty
+	// today — typed executors land in follow-up PRs (#998 helper.uninstall,
+	// etc.); a leased job whose type has no registered executor is reported
+	// back as terminal `failed`/`not_implemented` so the server never sees a
+	// silently swallowed lease. Pre-claim daemons skip dispatch the same way
+	// they skip heartbeat above.
+	if dp, ok := buildDispatcher(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
+		log.Printf("borgee-helper: dispatcher enabled enrollment_id=%s", dp.EnrollmentID)
+		go func() {
+			if err := dp.Run(ctx); err != nil {
+				log.Printf("borgee-helper: dispatcher exited: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("borgee-helper: no enrollment configured, skipping job dispatcher")
+	}
+
 	h := ipc.New(gate, auditLogger)
 	for {
 		conn, err := ln.Accept()
@@ -229,6 +250,79 @@ func buildHeartbeater(prep outbound.PreparedConfig, enrollmentIDFile, helperDevi
 		HelperDeviceID: helperDeviceID,
 		Credential:     credential,
 	}, true
+}
+
+// buildDispatcher mirrors buildHeartbeater's skip semantics: missing /
+// unreadable / empty files collapse to (nil,false) so a pre-claim daemon
+// boots without dispatch wiring. When all three values are present, we
+// construct an outbound.Client and a default-deny PolicyEvaluator that
+// delegates to jobpolicy.Evaluate. The Executors map is intentionally empty
+// in this PR — typed executors register themselves in follow-up PRs (#998
+// etc) and the dispatcher reports `not_implemented` for any job_type that
+// isn't yet wired.
+func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string) (*dispatch.Dispatcher, bool) {
+	if !prep.Enabled {
+		return nil, false
+	}
+	if trim(enrollmentIDFile) == "" || trim(helperDeviceIDFile) == "" || trim(credentialFile) == "" {
+		return nil, false
+	}
+	enrollmentID, ok := readTrimmedFile("--enrollment-id-file", enrollmentIDFile)
+	if !ok {
+		return nil, false
+	}
+	helperDeviceID, ok := readTrimmedFile("--helper-device-id-file", helperDeviceIDFile)
+	if !ok {
+		return nil, false
+	}
+	credential, ok := readTrimmedFile("--helper-credential-file", credentialFile)
+	if !ok {
+		return nil, false
+	}
+	client, err := outbound.NewClient(
+		prep,
+		outbound.StaticCredentialSource{Credential: credential, HelperDeviceID: helperDeviceID},
+	)
+	if err != nil {
+		log.Printf("borgee-helper: cannot construct outbound client for dispatcher: %v", err)
+		return nil, false
+	}
+	return &dispatch.Dispatcher{
+		Client:          client,
+		EnrollmentID:    enrollmentID,
+		PolicyEvaluator: defaultPolicyEvaluator(),
+		Executors:       map[string]dispatch.Executor{
+			// Empty — typed-job executors land in #998 + follow-ups. Any
+			// leased job whose type is not in this map is reported as
+			// terminal `failed`/`not_implemented`.
+		},
+	}, true
+}
+
+// defaultPolicyEvaluator wraps jobpolicy.Evaluate. Today the helper does not
+// own the enrollment/sandbox state that Evaluate needs for full envelope
+// checks (those live in the install/configure flow and will be wired through
+// in #998+ alongside the executors); a job that lacks the required envelope
+// fields therefore falls into Evaluate's schema-invalid / manifest-invalid
+// branches and the dispatcher reports the deterministic reason. The point of
+// wiring it here is to close the #1002 "0 production callers" gap so the
+// double-validate contract becomes real the moment any executor lands.
+func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
+	return func(_ context.Context, job *outbound.LeasedJob) jobpolicy.Decision {
+		if job == nil {
+			return jobpolicy.Decision{Allow: false, Reason: jobpolicy.ReasonSchemaInvalid}
+		}
+		return jobpolicy.Evaluate(jobpolicy.EvaluationInput{
+			Job: jobpolicy.Job{
+				JobID:          job.JobID,
+				EnrollmentID:   job.EnrollmentID,
+				JobType:        job.JobType,
+				SchemaVersion:  job.SchemaVersion,
+				PayloadJSON:    job.Payload,
+				ManifestDigest: job.ManifestDigest,
+			},
+		})
+	}
 }
 
 // readTrimmedFile reads `path` and returns its whitespace-trimmed content. It
