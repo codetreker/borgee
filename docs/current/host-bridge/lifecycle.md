@@ -81,7 +81,7 @@ not bundle a claim; the operator runs the CLI once after install.
 
 ### Reconnect chain — what is wired
 
-Daemon v0(D+heartbeat) on start:
+Daemon v0(D+heartbeat+dispatch) on start:
 
 1. Asset chain brings process up (systemd unit on Linux, launchd plist on
    macOS — see assets above).
@@ -98,8 +98,26 @@ Daemon v0(D+heartbeat) on start:
    on 401/403/410 — those just log and continue retrying, because an
    admin may have revoked the enrollment and a re-claim must still be
    possible without bouncing the process.
-4. The UDS Accept loop runs for local IPC.
-5. The server records `LastSeenAt` on each successful heartbeat;
+4. `dispatch.Dispatcher` is spawned alongside the heartbeater (#1001 +
+   #1002). It long-polls
+   `/api/v1/helper/enrollments/{id}/jobs/poll`; each leased job runs
+   through `jobpolicy.Evaluate` (the helper-side half of the
+   double-validate gate the blueprint locks in §1.2); allowed jobs are
+   handed to a per-`job_type` executor when one is registered; rejected
+   jobs are reported back via `/result` with the deterministic reason.
+   The executor map is intentionally empty in #1001 — typed-job
+   executors land in #998 + later PRs, so any leased job today is
+   reported as terminal `failed`/`not_implemented` rather than silently
+   dropped. While an executor runs the dispatcher Acks on a fixed
+   cadence to extend the server-side lease, then tears the ack loop
+   down deterministically before posting the final terminal Result.
+   Poll transport failures fall back to the same 5s→60s backoff curve as
+   the heartbeater. A pre-claim daemon skips dispatcher startup the
+   same way it skips heartbeat (missing enrollment / device id /
+   credential file collapses to "no enrollment configured, skipping job
+   dispatcher").
+5. The UDS Accept loop runs for local IPC.
+6. The server records `LastSeenAt` on each successful heartbeat;
    `serializeWithConfigure`
    ([helper_enrollments.go](../../../packages/server-go/internal/api/helper_enrollments.go))
    flips `status` to `connected` when `LastSeenAt` is within the
