@@ -23,7 +23,7 @@ Phase-plan §Exit Gates → status. Per-gate evidence already lives in each mile
 | G1.3 Channel attention / management server-authoritative | SIGNED | M2 Closure Summary (`@Everyone` + owner-broaden rows) |
 | G1.4 Forbidden states do not leak protected content | SIGNED | M3 Closure Summary (non-leaky row) |
 | G1.5 `PS-1` no new privacy/compliance product surface | SIGNED | M3 Closure Summary (PS-1 row) |
-| G1.6 Users can configure OpenClaw through bounded jobs | SIGNED | M1 task-12 (PR #964 `3450d8c`) |
+| G1.6 Users can configure OpenClaw through bounded jobs | SIGNED | M1 task-12 (PR #964 `3450d8c`); post-promote 端到端闭环 PR #997 (`c66b469`) + #996 (`6ccb990`) + #1001+#1002 (`8deb10c`) + #1003 (`004a20f`) — 见 `announcement.md` §6 footnote + §10 retro |
 | G1.7 Users understand channel mention/authority/private state | SIGNED | M2 task-1/3/4/6/8/9/10 |
 | G1.8 Production surfaces reachable + truthful + IA cleanup | SIGNED | M3 task-1/2/3/4/5/6/7 |
 
@@ -35,12 +35,13 @@ None. Each milestone Closure Summary lists `Deferred tasks: None`.
 
 Items intentionally left out of this Phase scope (recorded in announcement §4 for context only, not deferred Phase gates):
 
-- Helper `.deb` / `.pkg` delivery chain (`HB-RA-1B` execution detail; `install-butler` short-lived installer privilege handoff). Per `next/README.md` §2.2, manifest signing / install-time privilege handoff remain LOCKED planning scope but no v1.1 task was scheduled. Promote with v1.1 then schedule in the next Phase if reopened.
+- Helper `.deb` / `.pkg` delivery chain (`HB-RA-1B` execution detail). **CLEARED** by PR #1003 (`004a20f`) post-promote: `.deb`/`.pkg` builder + `release-helper.yml` pipeline shipped. 真 release artifact 待第一个 `borgee-helper-v0.1.0` tag 触发.
+- `install-butler` short-lived installer privilege handoff. **CLEARED** by PR #996 (`6ccb990`) post-promote: `install-butler` binary shipped, signed-manifest installer 走真路径.
 - Remote Agent npm bundle / install-butler split (out of `HB-RA-1A` scope, rail-separation guardrail intact).
-- Signed-manifest production data round-trip (`HB-RA-1B` planning scope; v1.1 acceptance covered schema-bound enqueue + local policy, not production signing authority rotation).
+- Signed-manifest production data round-trip (`HB-RA-1B` planning scope). 签名链 **CLEARED** by PR #997 (`c66b469`) post-promote (ed25519 + config-driven entries); key rotation cadence / deploy 时 key 注入流程仍 **OPERATIONAL-FOLLOWUP** — 走 `docs/current/host-bridge/manifest-signing.md` 文档 + deploy env, 非代码事.
 - Broad visual redesign, mobile e2e expansion, modal a11y sweep (`next/README.md` §4 backlog rules).
 
-These are not DEFERRED Phase gates; they were never in v1.1 boundary (see `phase-plan.md` Out of scope).
+These are not DEFERRED Phase gates; they were never in v1.1 boundary (see `phase-plan.md` Out of scope). Post-promote 闭环 PR 见 `announcement.md` §6.
 
 ## Risks / Blockers Cleared
 
