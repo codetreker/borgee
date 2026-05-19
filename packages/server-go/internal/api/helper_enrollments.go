@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,10 @@ type HelperEnrollmentHandler struct {
 	Repo    datalayer.HelperEnrollmentRepository
 	JobRepo datalayer.HelperJobRepository
 	Now     func() time.Time
+	// Logger is used by handlers that emit structured logs (e.g. update-
+	// detection manifest load fallback warnings). Nil safe — passed through
+	// to LoadManifestEntries which itself nil-checks.
+	Logger *slog.Logger
 }
 
 func (h *HelperEnrollmentHandler) now() time.Time {
@@ -32,6 +37,14 @@ func (h *HelperEnrollmentHandler) RegisterRoutes(mux *http.ServeMux, authMw func
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/rotate-credential", h.handleRotateCredential)
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/status", h.handleStatus)
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/uninstall", h.handleUninstall)
+	// #999 update detection. The helper POSTs a snapshot of locally-
+	// installed plugin versions; the server compares vs the current signed
+	// manifest, computes drift (with class normalization), persists the
+	// drift snapshot, and returns it so the helper can log a per-class
+	// prompt event (security = prominent, feature = settings-panel only).
+	// Apply is a separate user-confirmed path (out of scope for this PR;
+	// blueprint §1.3 explicitly bans auto-apply).
+	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/installed-versions", h.handleInstalledVersions)
 }
 
 func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +232,100 @@ func (h *HelperEnrollmentHandler) handleUninstall(w http.ResponseWriter, r *http
 	writeJSONResponse(w, http.StatusOK, map[string]any{"enrollment": h.serialize(row)})
 }
 
+// installedVersionsRequest is the helper-posted snapshot of locally installed
+// plugin versions. Helper sends every plugin it has on disk (per
+// install-butler's installed-versions.json) regardless of drift state — the
+// server computes drift authoritatively against the signed manifest.
+type installedVersionsRequest struct {
+	HelperDeviceID string                     `json:"helper_device_id"`
+	Installed      []installedVersionsEntry   `json:"installed"`
+}
+
+type installedVersionsEntry struct {
+	ID      string `json:"id"`
+	Version string `json:"version"`
+}
+
+// handleInstalledVersions — #999. Helper POSTs installed snapshot; server:
+//   1. authenticates via helper Bearer credential + device id match
+//   2. loads the live manifest (LoadManifestEntries, three-tier ops fallback)
+//   3. computes drift: for each manifest entry, if its Version != installed
+//      version, record a drift entry with normalized class
+//   4. persists snapshot via RecordUpdatesAvailable
+//   5. returns the drift list so helper can log per-class prompt events
+//
+// Idempotent (latest-wins). Empty installed list is valid (fresh helper that
+// hasn't installed anything yet) — drift list is then "every manifest entry
+// reported as new install opportunity" with current_version="" + class as
+// configured. The helper-side logger uses class to decide prompt visibility.
+func (h *HelperEnrollmentHandler) handleInstalledVersions(w http.ResponseWriter, r *http.Request) {
+	credential, ok := helperCredentialFromRequest(r)
+	if !ok {
+		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req installedVersionsRequest
+	if err := readJSON(r, &req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if strings.TrimSpace(req.HelperDeviceID) == "" {
+		writeJSONError(w, http.StatusBadRequest, "helper_device_id is required")
+		return
+	}
+
+	installedByID := make(map[string]string, len(req.Installed))
+	for _, e := range req.Installed {
+		id := strings.TrimSpace(e.ID)
+		if id == "" {
+			continue
+		}
+		installedByID[id] = strings.TrimSpace(e.Version)
+	}
+
+	manifestEntries := LoadManifestEntries(h.Logger)
+	drift := make([]datalayer.HelperEnrollmentUpdateAvailable, 0, len(manifestEntries))
+	for _, m := range manifestEntries {
+		installed, present := installedByID[m.ID]
+		// Drift conditions: not installed yet (treat as available update
+		// opportunity) OR installed version differs from manifest version.
+		// Equal versions are NOT drift (and not reported back).
+		if present && installed == m.Version {
+			continue
+		}
+		drift = append(drift, datalayer.HelperEnrollmentUpdateAvailable{
+			PluginID:        m.ID,
+			CurrentVersion:  installed, // empty when not installed
+			ManifestVersion: m.Version,
+			Class:           NormalizeUpdateClass(m.Class),
+		})
+	}
+
+	row, err := h.Repo.RecordUpdatesAvailable(r.Context(), r.PathValue("enrollmentId"), credential, req.HelperDeviceID, drift, h.now())
+	if err != nil {
+		h.writeHelperError(w, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{
+		"enrollment":           h.serialize(row),
+		"updates_available":    serializeUpdatesAvailable(drift),
+		"last_update_check_at": h.now().UnixMilli(),
+	})
+}
+
+func serializeUpdatesAvailable(items []datalayer.HelperEnrollmentUpdateAvailable) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, map[string]any{
+			"plugin_id":        it.PluginID,
+			"current_version":  it.CurrentVersion,
+			"manifest_version": it.ManifestVersion,
+			"class":            it.Class,
+		})
+	}
+	return out
+}
+
 func (h *HelperEnrollmentHandler) serialize(row *datalayer.HelperEnrollment) map[string]any {
 	return h.serializeWithConfigure(row, nil)
 }
@@ -263,6 +370,14 @@ func (h *HelperEnrollmentHandler) serializeWithConfigure(row *datalayer.HelperEn
 	}
 	if configure != nil {
 		out["configure_openclaw"] = serializeConfigureOpenClaw(configure)
+	}
+	// #999 update-detection projection. Always present in the output (empty
+	// slice when no drift / no check yet) so UI consumers don't need to
+	// distinguish "missing key" from "no updates"; last_update_check_at is
+	// nullable so UI can show "never checked" when helper hasn't reported.
+	out["updates_available"] = serializeUpdatesAvailable(row.UpdatesAvailable)
+	if row.LastUpdateCheckAt != nil {
+		out["last_update_check_at"] = *row.LastUpdateCheckAt
 	}
 	return out
 }

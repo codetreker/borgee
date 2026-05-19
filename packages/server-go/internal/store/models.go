@@ -223,6 +223,13 @@ type HelperEnrollment struct {
 	CredentialCreatedAt        *int64  `gorm:"column:credential_created_at" json:"-"`
 	CredentialRotatedAt        *int64  `gorm:"column:credential_rotated_at" json:"-"`
 	CredentialGeneration       int     `gorm:"not null;default:1;column:credential_generation" json:"-"`
+	// #999 update detection — last drift snapshot received from the helper
+	// + when it was received. UpdatesAvailableJSON is a JSON-serialized
+	// []HelperEnrollmentUpdateAvailable (in datalayer). Empty/nil means no
+	// drift reported yet. The helper POSTs every check tick; latest write
+	// wins (idempotent snapshot, not append-only history).
+	UpdatesAvailableJSON *string `gorm:"column:updates_available_json" json:"-"`
+	LastUpdateCheckAt    *int64  `gorm:"column:last_update_check_at" json:"-"`
 }
 
 func (HelperEnrollment) TableName() string { return "helper_enrollments" }

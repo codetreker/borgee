@@ -2,6 +2,7 @@ package datalayer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -61,11 +62,25 @@ func (r *sqliteHelperEnrollmentRepo) MarkUninstalled(_ context.Context, id, cred
 	return helperEnrollmentFromStore(row), mapHelperEnrollmentErr(err)
 }
 
+func (r *sqliteHelperEnrollmentRepo) RecordUpdatesAvailable(_ context.Context, id, credential, helperDeviceID string, updates []HelperEnrollmentUpdateAvailable, now time.Time) (*HelperEnrollment, error) {
+	// Normalize nil → empty slice so "no drift" snapshots persist as "[]"
+	// (distinguishable from "never checked"=NULL in the column).
+	if updates == nil {
+		updates = []HelperEnrollmentUpdateAvailable{}
+	}
+	raw, err := json.Marshal(updates)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.s.RecordHelperEnrollmentUpdatesAvailable(id, credential, helperDeviceID, string(raw), now)
+	return helperEnrollmentFromStore(row), mapHelperEnrollmentErr(err)
+}
+
 func helperEnrollmentFromStore(row *store.HelperEnrollment) *HelperEnrollment {
 	if row == nil {
 		return nil
 	}
-	return &HelperEnrollment{
+	out := &HelperEnrollment{
 		ID:                        row.ID,
 		HostLabel:                 row.HostLabel,
 		HelperDeviceID:            row.HelperDeviceID,
@@ -80,7 +95,15 @@ func helperEnrollmentFromStore(row *store.HelperEnrollment) *HelperEnrollment {
 		CredentialCreatedAt:       row.CredentialCreatedAt,
 		CredentialRotatedAt:       row.CredentialRotatedAt,
 		CredentialGeneration:      row.CredentialGeneration,
+		LastUpdateCheckAt:         row.LastUpdateCheckAt,
 	}
+	if row.UpdatesAvailableJSON != nil && *row.UpdatesAvailableJSON != "" {
+		var updates []HelperEnrollmentUpdateAvailable
+		if err := json.Unmarshal([]byte(*row.UpdatesAvailableJSON), &updates); err == nil {
+			out.UpdatesAvailable = updates
+		}
+	}
+	return out
 }
 
 func mapHelperEnrollmentErr(err error) error {

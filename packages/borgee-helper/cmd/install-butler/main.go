@@ -120,6 +120,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	helperGroup := fs.String("helper-group", "", "OS group to chown the target to (defaults to --helper-user)")
 	allowInsecureManifest := fs.Bool("allow-insecure-manifest-url", false, "Allow http:// manifest-url (test only; production must be https://)")
 	allowInsecureBinary := fs.Bool("allow-insecure-binary-url", false, "Allow http:// binary-url (test only; production must be https://)")
+	installedVersionsPath := fs.String("installed-versions-path", "/var/lib/borgee-helper/installed-versions.json", "Path to the installed-versions snapshot file install-butler updates after successful install (#999 update detection). Set to empty to disable.")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -271,6 +272,19 @@ func run(args []string, stdout, stderr io.Writer) error {
 	// no long-lived process here. main() returns → kernel reaps.
 	fmt.Fprintf(stdout, "installed plugin %s version %s to %s (sha256=%s)\n",
 		entry.ID, entry.Version, *target, wantSHA)
+
+	// 11. #999 update-detection bookkeeping. Record what was just installed
+	// so the helper daemon's update-checker can compare manifest_version vs
+	// the recorded current_version on its next tick. Best-effort — a write
+	// failure logs a warning but does NOT fail the install (the binary is
+	// already in place; update detection just won't see it until the next
+	// successful install or a manual fix-up). Atomic write (tempfile +
+	// rename) so a partial write never corrupts the file.
+	if strings.TrimSpace(*installedVersionsPath) != "" {
+		if err := recordInstalledVersion(*installedVersionsPath, entry.ID, entry.Version, wantSHA, time.Now().UnixMilli()); err != nil {
+			fmt.Fprintf(stderr, "install-butler: warn: record installed-version %q failed: %v\n", *installedVersionsPath, err)
+		}
+	}
 	return nil
 }
 
@@ -397,4 +411,75 @@ func chownTarget(path, username, groupname string) error {
 		}
 	}
 	return os.Chown(path, uid, gid)
+}
+
+// installedVersionsFile is the on-disk shape of the installed-versions
+// snapshot (#999). Single-file JSON object keyed by plugin id so a follow-
+// up install of plugin X overwrites only X's entry, never racing other
+// plugins. Helper daemon reads this exact shape via the updatecheck package.
+type installedVersionsFile struct {
+	Plugins map[string]installedVersionRecord `json:"plugins"`
+}
+
+type installedVersionRecord struct {
+	Version     string `json:"version"`
+	InstalledAt int64  `json:"installed_at"`
+	SHA256      string `json:"sha256"`
+}
+
+// recordInstalledVersion reads the snapshot file (treat missing/empty as
+// fresh state), merges/overrides the given plugin, and atomically writes
+// back. File mode 0644 so helper daemon (running as borgee-helper user)
+// can read while only root / install-butler invocations can write.
+func recordInstalledVersion(path, pluginID, version, sha256 string, installedAt int64) error {
+	if pluginID == "" {
+		return fmt.Errorf("plugin id must not be empty")
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir %q: %w", dir, err)
+	}
+	current := installedVersionsFile{Plugins: map[string]installedVersionRecord{}}
+	if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
+		// Tolerate corrupt file by starting fresh — install-butler is the
+		// only writer, and a partial file from a prior crash is recoverable
+		// by overwriting. Log via stderr would require the caller; just
+		// drop the malformed content silently.
+		var parsed installedVersionsFile
+		if err := json.Unmarshal(data, &parsed); err == nil && parsed.Plugins != nil {
+			current = parsed
+		}
+	}
+	current.Plugins[pluginID] = installedVersionRecord{
+		Version:     version,
+		InstalledAt: installedAt,
+		SHA256:      sha256,
+	}
+	out, err := json.MarshalIndent(current, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".installed-versions-*.partial")
+	if err != nil {
+		return fmt.Errorf("create tempfile in %q: %w", dir, err)
+	}
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(out); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("write tempfile: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("close tempfile: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("chmod tempfile: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("rename %q -> %q: %w", tmpPath, path, err)
+	}
+	return nil
 }

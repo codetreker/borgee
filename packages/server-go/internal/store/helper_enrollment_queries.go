@@ -350,6 +350,40 @@ func (e *HelperEnrollment) AllowedCategoryList() []string {
 	return out
 }
 
+// RecordHelperEnrollmentUpdatesAvailable writes the latest update-drift
+// snapshot the helper reports (#999). updatesJSON is the canonical
+// serialized payload — the API layer marshals []UpdateAvailable in datalayer
+// and this method persists it verbatim. Empty/empty-array snapshots are
+// allowed (and stored) so a "drift cleared" state is observable. The write
+// is credential-guarded the same way UpdateLastSeen/MarkUninstalled are:
+// callers MUST pass a verified helper credential + device id.
+func (s *Store) RecordHelperEnrollmentUpdatesAvailable(id, credential, helperDeviceID, updatesJSON string, now time.Time) (*HelperEnrollment, error) {
+	row, err := s.loadActiveHelperEnrollmentForCredential(id, credential, helperDeviceID)
+	if err != nil {
+		return nil, err
+	}
+	if helperEnrollmentCredentialRaceHook != nil {
+		if err := helperEnrollmentCredentialRaceHook(s, row); err != nil {
+			return nil, err
+		}
+	}
+	ts := now.UnixMilli()
+	res := s.db.Model(&HelperEnrollment{}).
+		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL AND persistent_credential_digest = ? AND helper_device_id = ?", id, *row.PersistentCredentialDigest, helperDeviceID).
+		Updates(map[string]any{
+			"updates_available_json": updatesJSON,
+			"last_update_check_at":   ts,
+			"updated_at":             ts,
+		})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected != 1 {
+		return nil, s.helperEnrollmentConditionalWriteError(id, *row.PersistentCredentialDigest, helperDeviceID)
+	}
+	return s.GetHelperEnrollment(id)
+}
+
 func (s *Store) loadActiveHelperEnrollmentForCredential(id, credential, helperDeviceID string) (*HelperEnrollment, error) {
 	row, err := s.GetHelperEnrollment(id)
 	if err != nil {

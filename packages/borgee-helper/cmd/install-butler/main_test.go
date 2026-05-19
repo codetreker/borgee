@@ -519,3 +519,117 @@ func TestEntryCanonicalBytes_ByteIdentical(t *testing.T) {
 // Unused import insurance — make sure io stays in use even after future
 // editing trims happen.
 var _ = io.Discard
+
+// TB-8 WritesInstalledVersions — after a successful install, the
+// installed-versions snapshot file (#999 update detection) contains the
+// expected entry shape so the helper daemon's updatecheck loop can read it.
+func TestInstallButler_TB8_WritesInstalledVersions(t *testing.T) {
+	t.Parallel()
+	pub, priv := genKey(t)
+	binary := []byte("hello-openclaw-binary-bytes-tb8")
+	binaryURL := startBinaryServer(t, binary)
+	fixture := buildFixture(t, priv, binaryURL, binary)
+	manifestURL := startManifestServer(t, fixture.payload)
+
+	targetDir := t.TempDir()
+	target := filepath.Join(targetDir, "openclaw")
+	installedPath := filepath.Join(targetDir, "state", "installed-versions.json")
+
+	stdout, stderr, code := runCLI(t,
+		"--manifest-url", manifestURL,
+		"--pubkey-base64", base64.StdEncoding.EncodeToString(pub),
+		"--plugin-id", "openclaw",
+		"--target", target,
+		"--installed-versions-path", installedPath,
+		"--allow-insecure-manifest-url",
+		"--allow-insecure-binary-url",
+	)
+	if code != 0 {
+		t.Fatalf("exit=%d stderr=%q stdout=%q", code, stderr, stdout)
+	}
+	raw, err := os.ReadFile(installedPath)
+	if err != nil {
+		t.Fatalf("read installed-versions: %v", err)
+	}
+	var parsed struct {
+		Plugins map[string]struct {
+			Version     string `json:"version"`
+			InstalledAt int64  `json:"installed_at"`
+			SHA256      string `json:"sha256"`
+		} `json:"plugins"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("decode installed-versions: %v raw=%s", err, string(raw))
+	}
+	rec, ok := parsed.Plugins["openclaw"]
+	if !ok {
+		t.Fatalf("missing openclaw entry: %s", string(raw))
+	}
+	if rec.Version != "1.2.3" {
+		t.Fatalf("version: got %q want %q", rec.Version, "1.2.3")
+	}
+	wantSHA := fmt.Sprintf("%x", sha256.Sum256(binary))
+	if rec.SHA256 != wantSHA {
+		t.Fatalf("sha256: got %q want %q", rec.SHA256, wantSHA)
+	}
+	if rec.InstalledAt == 0 {
+		t.Fatalf("installed_at must be non-zero")
+	}
+
+	// Second install of a different plugin merges (does NOT clobber)
+	// the existing entry — install-butler is the only writer so the
+	// merge semantics must be preserved across consecutive runs.
+	binary2 := []byte("second-plugin-bytes")
+	binary2URL := startBinaryServer(t, binary2)
+	fixture2 := buildSecondFixture(t, priv, binary2URL, binary2)
+	manifestURL2 := startManifestServer(t, fixture2.payload)
+	target2 := filepath.Join(targetDir, "second")
+	_, stderr2, code2 := runCLI(t,
+		"--manifest-url", manifestURL2,
+		"--pubkey-base64", base64.StdEncoding.EncodeToString(pub),
+		"--plugin-id", "second",
+		"--target", target2,
+		"--installed-versions-path", installedPath,
+		"--allow-insecure-manifest-url",
+		"--allow-insecure-binary-url",
+	)
+	if code2 != 0 {
+		t.Fatalf("second install exit=%d stderr=%q", code2, stderr2)
+	}
+	raw2, _ := os.ReadFile(installedPath)
+	if err := json.Unmarshal(raw2, &parsed); err != nil {
+		t.Fatalf("decode merged file: %v raw=%s", err, string(raw2))
+	}
+	if _, ok := parsed.Plugins["openclaw"]; !ok {
+		t.Fatalf("merge clobbered prior openclaw entry: %s", string(raw2))
+	}
+	if _, ok := parsed.Plugins["second"]; !ok {
+		t.Fatalf("merge missing second entry: %s", string(raw2))
+	}
+}
+
+// buildSecondFixture builds a manifest with a single "second" plugin id —
+// used by TB-8 to verify the merge semantics of installed-versions.json.
+func buildSecondFixture(t *testing.T, key ed25519.PrivateKey, binaryURL string, binary []byte) signedManifestFixture {
+	t.Helper()
+	sum := sha256.Sum256(binary)
+	entry := pluginManifestEntry{
+		ID:        "second",
+		Version:   "0.1.0",
+		BinaryURL: binaryURL,
+		SHA256:    hex.EncodeToString(sum[:]),
+		Platforms: []string{"linux-x64"},
+	}
+	sig := ed25519.Sign(key, entryCanonicalBytes(entry))
+	entry.Signature = base64.StdEncoding.EncodeToString(sig)
+	return signedManifestFixture{
+		payload: pluginManifestPayload{
+			ManifestVersion: 1,
+			IssuedAt:        time.Now().UnixMilli(),
+			ExpiresAt:       time.Now().Add(24 * time.Hour).UnixMilli(),
+			Plugins:         []pluginManifestEntry{entry},
+		},
+		entry:  entry,
+		binary: binary,
+	}
+}

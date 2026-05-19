@@ -186,6 +186,20 @@ untouched so an operator can retry. The dedicated
 (helper-credential rail, predates #998) remains the manual escape hatch
 for cases where the helper is offline or the executor cannot finish.
 
+## Update detection chain (#999)
+
+A third daemon goroutine — `updatecheck.Checker` — runs alongside the
+heartbeater + dispatcher. Every ~15 minutes it reads
+`/var/lib/borgee-helper/installed-versions.json` (written by
+`install-butler`) and POSTs the snapshot to
+`POST /api/v1/helper/enrollments/{id}/installed-versions`. The server
+computes drift against the current signed manifest and returns a
+classified list (`security` vs `feature` per blueprint §1.3). The helper
+logs each drift entry tagged by class. Application is NOT triggered
+automatically — auto-update is an explicit anti-pattern. Full details +
+the (deferred) apply executor design live in
+[`update-flow.md`](update-flow.md).
+
 ## Why config is file-based, not on the cmdline
 
 Earlier drafts passed `enrollment_id` / `helper_device_id` as cmdline
