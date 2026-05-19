@@ -35,6 +35,12 @@ func TestLinuxServiceOutboundPrereqShape(t *testing.T) {
 		"StateDirectory=borgee-helper",
 		"ReadWritePaths=/var/log/borgee-helper /run/borgee-helper /var/lib/borgee-helper/queue /var/lib/borgee-helper/status /var/lib/borgee-helper/audit-handoff",
 		"ReadOnlyPaths=/var/lib/borgee",
+		// #1000 — cgroups resource caps (蓝图 host-bridge.md:57
+		// "systemd + cgroups 限制"). Locks 3 numeric directives
+		// at byte level so a future PR can't silently drop them.
+		"MemoryMax=256M",
+		"CPUQuota=50%",
+		"TasksMax=256",
 	} {
 		if !strings.Contains(service, want) {
 			t.Fatalf("linux service missing %q", want)
@@ -52,6 +58,12 @@ func TestLinuxServiceOutboundPrereqShape(t *testing.T) {
 		"--lease",
 		"--result",
 		"--restart-service",
+		// #1000 — reverse-guard: an "infinity"/"0%" override would
+		// re-introduce the unbounded daemon condition the cgroups
+		// caps exist to prevent.
+		"MemoryMax=infinity",
+		"CPUQuota=0%",
+		"TasksMax=infinity",
 	} {
 		if strings.Contains(service, forbidden) {
 			t.Fatalf("linux service contains forbidden %q", forbidden)
