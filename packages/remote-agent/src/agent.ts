@@ -8,17 +8,46 @@ interface WsMessage {
   error?: string;
 }
 
+export interface RemoteAgentOptions {
+  /**
+   * Called once after the very first successful handshake of this process.
+   * Used to persist the in-memory token to disk so subsequent restarts can
+   * read it back without `--token` (#1004).
+   *
+   * The callback runs synchronously inside the `open` handler; errors are
+   * logged but do not abort the agent — failing to persist is recoverable
+   * (operator can re-pass --token), losing the connection is not.
+   */
+  onFirstHandshake?: (token: string) => void;
+
+  /**
+   * Called when the server closes the WS with a code that indicates the
+   * token was rejected (4001 / 4003 / generic 1008 policy violation). The
+   * agent stops the reconnect loop and the caller (index.ts) typically
+   * exits non-zero so the operator notices.
+   */
+  onAuthRejected?: (code: number, reason: string) => void;
+}
+
+// WS close codes that the server uses to signal "your token is bad — do not
+// retry". We treat any 4xxx close code with an auth-shaped reason as fatal;
+// generic 1008 (policy violation) is also included since some server stacks
+// fall back to it when the upgrade is rejected.
+const AUTH_REJECTED_CODES = new Set<number>([4001, 4003, 1008]);
+
 export class RemoteAgent {
   private ws: WebSocket | null = null;
   private reconnectDelay = 1000;
   private maxReconnectDelay = 30000;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private closed = false;
+  private firstHandshakeDone = false;
 
   constructor(
     private serverUrl: string,
     private token: string,
     private allowedDirs: string[],
+    private options: RemoteAgentOptions = {},
   ) {}
 
   connect(): void {
@@ -32,6 +61,16 @@ export class RemoteAgent {
       console.log('[remote-agent] Connected');
       this.reconnectDelay = 1000;
       this.startHeartbeat();
+      if (!this.firstHandshakeDone) {
+        this.firstHandshakeDone = true;
+        if (this.options.onFirstHandshake) {
+          try {
+            this.options.onFirstHandshake(this.token);
+          } catch (err) {
+            console.error(`[remote-agent] Failed to persist token: ${(err as Error).message}`);
+          }
+        }
+      }
     });
 
     this.ws.on('message', (raw: Buffer) => {
@@ -45,9 +84,26 @@ export class RemoteAgent {
     });
 
     this.ws.on('close', (code, reason) => {
-      console.log(`[remote-agent] Disconnected: ${code} ${reason.toString()}`);
+      const reasonStr = reason.toString();
+      console.log(`[remote-agent] Disconnected: ${code} ${reasonStr}`);
       this.stopHeartbeat();
-      if (!this.closed) this.scheduleReconnect();
+      if (this.closed) return;
+      if (this.isAuthRejected(code, reasonStr)) {
+        console.error(
+          `[remote-agent] Auth rejected by server (code ${code}); refusing to reconnect. ` +
+          `The persisted token may have been revoked — re-run with --token <new token>.`,
+        );
+        this.closed = true;
+        if (this.options.onAuthRejected) {
+          try {
+            this.options.onAuthRejected(code, reasonStr);
+          } catch (err) {
+            console.error(`[remote-agent] onAuthRejected callback failed: ${(err as Error).message}`);
+          }
+        }
+        return;
+      }
+      this.scheduleReconnect();
     });
 
     this.ws.on('error', (err) => {
@@ -59,6 +115,14 @@ export class RemoteAgent {
     this.closed = true;
     this.stopHeartbeat();
     this.ws?.close(1000, 'Agent shutting down');
+  }
+
+  private isAuthRejected(code: number, reason: string): boolean {
+    if (AUTH_REJECTED_CODES.has(code)) return true;
+    // Some WS servers emit a vanilla 1006/1011 with a reason string mentioning
+    // "unauthorized" / "invalid token" — match conservatively.
+    const lower = reason.toLowerCase();
+    return lower.includes('unauthorized') || lower.includes('invalid token') || lower.includes('token revoked');
   }
 
   private handleMessage(msg: WsMessage): void {
