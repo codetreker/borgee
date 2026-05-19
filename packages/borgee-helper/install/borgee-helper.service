@@ -36,6 +36,16 @@ RestrictRealtime=yes
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 
+# #1000 — cgroups resource caps (蓝图 host-bridge.md:57 "systemd + cgroups 限制").
+# Conservative defaults: daemon's nominal load (heartbeat + UDS accept + poll/ack
+# /result traffic) stays well under these caps. A daemon bug OOM-kills the unit,
+# not the host. Future job-executor scope-up gets its own PR.
+MemoryMax=256M
+MemoryHigh=192M
+CPUQuota=50%
+TasksMax=256
+IOWeight=100
+
 # Writable paths (audit log, IPC socket dir, and Helper-owned outbound prerequisite state).
 StateDirectory=borgee-helper
 ReadWritePaths=/var/log/borgee-helper /run/borgee-helper /var/lib/borgee-helper/queue /var/lib/borgee-helper/status /var/lib/borgee-helper/audit-handoff
