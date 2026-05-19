@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 
 import HelperStatusPanel from '../components/HelperStatusPanel';
+import { NavigationProvider } from '../components/Navigation/NavigationContext';
 import type { HelperEnrollmentStatusView } from '../lib/api';
 
 let container: HTMLDivElement | null = null;
@@ -28,7 +29,7 @@ afterEach(() => {
 
 async function render(node: React.ReactElement) {
   await act(async () => {
-    root!.render(node);
+    root!.render(<NavigationProvider initial="helper-status">{node}</NavigationProvider>);
   });
   await act(async () => {
     await Promise.resolve();
@@ -87,7 +88,7 @@ const rows: HelperEnrollmentStatusView[] = [
 describe('HelperStatusPanel', () => {
   it('renders connected, offline, revoked, uninstalled, and pending as distinct Helper states', async () => {
     await render(
-      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />,
+      <HelperStatusPanel fetchEnrollments={() => Promise.resolve(rows)} />,
     );
 
     expect(container!.querySelector('[data-helper-status="connected"]')?.textContent).toContain(
@@ -115,7 +116,7 @@ describe('HelperStatusPanel', () => {
 
   it('shows last seen safely and never claims Configure OpenClaw success', async () => {
     await render(
-      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />,
+      <HelperStatusPanel fetchEnrollments={() => Promise.resolve(rows)} />,
     );
 
     const text = container!.textContent ?? '';
@@ -129,7 +130,7 @@ describe('HelperStatusPanel', () => {
 
   it('renders allowed categories as non-actionable categories, including unknown values', async () => {
     await render(
-      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={() => Promise.resolve(rows)} />,
+      <HelperStatusPanel fetchEnrollments={() => Promise.resolve(rows)} />,
     );
 
     expect(
@@ -148,7 +149,7 @@ describe('HelperStatusPanel', () => {
     const fetchEnrollments = vi.fn(() => Promise.resolve(rows));
 
     await render(
-      <HelperStatusPanel onBack={() => undefined} fetchEnrollments={fetchEnrollments} />,
+      <HelperStatusPanel fetchEnrollments={fetchEnrollments} />,
     );
 
     expect(fetchEnrollments).toHaveBeenCalledTimes(1);
@@ -207,7 +208,7 @@ describe('HelperStatusPanel', () => {
 
     await render(
       <HelperStatusPanel
-        onBack={() => undefined}
+        
         fetchEnrollments={() => Promise.resolve(terminalRows)}
       />,
     );

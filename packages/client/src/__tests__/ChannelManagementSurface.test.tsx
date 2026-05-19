@@ -29,6 +29,7 @@ vi.mock('../lib/api', () => ({
 
 import ChannelManagementSurface from '../components/Settings/ChannelManagementSurface';
 import SettingsPage from '../components/Settings/SettingsPage';
+import { NavigationProvider } from '../components/Navigation/NavigationContext';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -329,7 +330,7 @@ describe('ChannelManagementSurface', () => {
   });
 
   it('is reachable from Settings as a sibling tab next to runtime', () => {
-    render(<SettingsPage onBack={() => {}} />);
+    render(<NavigationProvider initial="settings"><SettingsPage /></NavigationProvider>);
 
     expect(container.querySelector('[data-tab="privacy"]')).toBeNull();
     const channelsTab = container.querySelector('[data-tab="channels"]') as HTMLButtonElement;

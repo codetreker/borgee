@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { fetchHelperEnrollments, type HelperEnrollmentStatusView } from '../lib/api';
+import PageHeader from './common/PageHeader';
 
 interface Props {
-  onBack: () => void;
   fetchEnrollments?: () => Promise<HelperEnrollmentStatusView[]>;
 }
 
@@ -68,7 +68,6 @@ function configureStepLabel(jobType: string): string {
 }
 
 export default function HelperStatusPanel({
-  onBack,
   fetchEnrollments = fetchHelperEnrollments,
 }: Props): React.ReactElement {
   const [rows, setRows] = useState<HelperEnrollmentStatusView[]>([]);
@@ -101,15 +100,14 @@ export default function HelperStatusPanel({
 
   return (
     <div className="helper-status-panel" data-page="helper-status">
-      <header className="helper-status-header">
-        <button className="helper-status-back-btn" onClick={onBack} aria-label="Back to workspace">
-          ←
-        </button>
-        <h2 className="helper-status-title">Helper Status</h2>
-        <button className="btn btn-sm" onClick={() => void load()} disabled={loading}>
-          Refresh
-        </button>
-      </header>
+      <PageHeader
+        title="Helper Status"
+        actions={
+          <button className="btn btn-sm" onClick={() => void load()} disabled={loading}>
+            Refresh
+          </button>
+        }
+      />
 
       {loading && rows.length === 0 ? (
         <div className="helper-status-empty">Loading Helper status...</div>

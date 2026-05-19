@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './components/Toast';
+import { NavigationProvider, useNavigation } from './components/Navigation/NavigationContext';
 import Sidebar from './components/Sidebar';
 import ChannelView from './components/ChannelView';
 import LoginPage from './components/LoginPage';
@@ -16,7 +17,6 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { fetchMe, ApiError } from './lib/api';
 import { runUnsavedGuards } from './hooks/useUnsavedChangesGuard';
 import type { MainView } from './lib/mainView';
-import { MAIN_VIEW_DEFAULT } from './lib/mainView';
 import './index.css';
 import 'highlight.js/styles/github.css';
 
@@ -41,15 +41,13 @@ async function waitForAuthReady(): Promise<void> {
 function AppInner() {
   const { state, actions, dispatch, setSendWsMessage, setRegisterAckTimer } = useAppContext();
   const { subscribe, sendWsMessage, registerAckTimer } = useWebSocket();
+  const nav = useNavigation();
+  const mainView = nav.current;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  // #682 修: 5 个独立 boolean (showAgents/showInvitations/showWorkspaces/
-  // showRemoteNodes/showSettings) 合并成 1 个 mainView 字符串. 只有一个视
-  // 图能 active, 切换 = 替换值, 自动关掉前一个. 反堆栈 bug.
-  const [mainView, setMainView] = useState<MainView>(MAIN_VIEW_DEFAULT);
 
   // Wire sendWsMessage into context
   useEffect(() => {
@@ -127,12 +125,12 @@ function AppInner() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ action?: string }>).detail;
       if (detail?.action === 'open_agent_manager') {
-        setMainView('agents');
+        nav.push('agents');
       }
     };
     window.addEventListener('borgee:quick-action', handler);
     return () => window.removeEventListener('borgee:quick-action', handler);
-  }, []);
+  }, [nav]);
 
   // Auto-subscribe to all joined channels via WebSocket
   useEffect(() => {
@@ -153,16 +151,16 @@ function AppInner() {
   }, []);
 
   const closeAllViews = useCallback(() => {
-    setMainView('channel');
-  }, []);
+    nav.close();
+  }, [nav]);
 
   // #682 修: requestMainView 是 sidebar 按钮唯一调用的入口. 切换前跑一遍未
   // 保存改动守卫 (useUnsavedChangesGuard 注册的), 用户取消就不切, 不丢改动.
   const requestMainView = useCallback((target: MainView) => {
     if (target === mainView) return;
     if (!runUnsavedGuards()) return;
-    setMainView(target);
-  }, [mainView]);
+    nav.push(target);
+  }, [mainView, nav]);
 
   const handleLogin = useCallback(async () => {
     await waitForAuthReady();
@@ -215,27 +213,23 @@ function AppInner() {
 
       <div className="main-content">
         {mainView === 'agents' ? (
-          <AgentManager onBack={() => setMainView('channel')} />
+          <AgentManager onBack={() => nav.back()} />
         ) : mainView === 'invitations' ? (
           <InvitationsInbox
-            onBack={() => setMainView('channel')}
+            onBack={() => nav.back()}
             onJumpToChannel={(channelId) => {
               actions.selectChannel(channelId);
-              setMainView('channel');
+              nav.close();
             }}
           />
         ) : mainView === 'workspaces' ? (
-          <WorkspaceManager onBack={() => setMainView('channel')} />
+          <WorkspaceManager onBack={() => nav.back()} />
         ) : mainView === 'remote-nodes' ? (
-          <NodeManager onBack={() => setMainView('channel')} />
+          <NodeManager />
         ) : mainView === 'helper-status' ? (
-          <HelperStatusPanel onBack={() => setMainView('channel')} />
+          <HelperStatusPanel />
         ) : mainView === 'settings' ? (
-          <SettingsPage
-            onBack={() => setMainView('channel')}
-            onRemoteNodesOpen={() => requestMainView('remote-nodes')}
-            onHelperStatusOpen={() => requestMainView('helper-status')}
-          />
+          <SettingsPage />
         ) : state.currentChannelId ? (
           <ChannelView channelId={state.currentChannelId} />
         ) : (
@@ -264,7 +258,9 @@ export default function App() {
     <ThemeProvider>
       <AppProvider>
         <ToastProvider>
-          <AppInner />
+          <NavigationProvider>
+            <AppInner />
+          </NavigationProvider>
         </ToastProvider>
       </AppProvider>
     </ThemeProvider>
