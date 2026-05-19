@@ -89,13 +89,21 @@ type PluginManifestPayload struct {
 	Plugins         []PluginManifestEntry `json:"plugins"`
 }
 
-// PluginManifestEntries — HB-1 v0 hardcoded plugin manifest (设计 ②).
+// PluginManifestEntries — built-in default entry list (设计 ②).
+//
 // 0 schema 模式跟 RT-4 / DM-9 同精神. v3 升级走 admin DB 表留位; grep 检查
 // `migrations/hb_1_\d+|ALTER.*plugin` 0 hit 守门.
 //
-// v0 单 plugin (openclaw 占位): SHA256 / Signature 真值待 binary 上 CDN
-// + signing pipeline 上线时填. 当前 Signature="" 是合法占位 (HB-1b Rust
-// client 验 binary 时若空则走 BinaryGPGInvalid reason).
+// 这个 slice 是 dev / 单测 / 缺 env 时的 fallback. 生产 entry list 真值由
+// ops 走 BORGEE_MANIFEST_ENTRIES_JSON / BORGEE_MANIFEST_ENTRIES_FILE 注入
+// (LoadManifestEntries 三档 fallback, manifest_signing.go).
+//
+// SHA256 占位 (32 个 "0") + BinaryURL 还指 cdn.borgee.io — 真值待 #1003
+// release-helper.yml 第一个 borgee-helper-v* tag 跑完, deploy 改 env JSON
+// 指 github release artifact URL + 真 SHA256. 这个 PR 把签名链路接通, 真值
+// 填属 deploy ops, 不在代码里硬编码.
+//
+// 单 entry (openclaw) 保留 — 跟 issue #997 "v1 still openclaw-only" 立场一致.
 var PluginManifestEntries = []PluginManifestEntry{
 	{
 		ID:        "openclaw",
@@ -150,11 +158,31 @@ func (h *PluginManifestHandler) handleGet(w http.ResponseWriter, r *http.Request
 	}
 	expires := now + h.expiresInMs()
 
+	// Load entries fresh per-request — three-tier ops fallback
+	// (env JSON > env file > built-in default) lives in
+	// manifest_signing.go::LoadManifestEntries. Per-request load keeps
+	// the operational rotation cycle simple: change env / file content
+	// + next fetch picks it up without server restart for entry data.
+	// (Signing key rotation still requires restart by design — keys live
+	// in env, read once at startup via server.go.)
+	entries := LoadManifestEntries(h.Logger)
+
+	// Per-entry signing — each entry independently signed over canonical
+	// bytes (ID|Version|BinaryURL|SHA256). Rotating a single entry does
+	// NOT invalidate other entries' signatures. 跟 manifest_signing.go
+	// EntryCanonicalBytes 一处真值. install-butler (HB-1b Rust client,
+	// #996 范围) verify path 必复算同 canonical form.
+	signed := make([]PluginManifestEntry, len(entries))
+	for i, e := range entries {
+		e.Signature = SignEntry(h.SigningKey, e)
+		signed[i] = e
+	}
+
 	payload := PluginManifestPayload{
 		ManifestVersion: 1,
 		IssuedAt:        now,
 		ExpiresAt:       expires,
-		Plugins:         PluginManifestEntries,
+		Plugins:         signed,
 	}
 
 	// Sign canonical JSON (设计 ④ ed25519). Signing covers the payload

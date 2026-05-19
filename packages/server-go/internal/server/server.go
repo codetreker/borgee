@@ -334,11 +334,20 @@ func (s *Server) SetupRoutes() {
 
 	// HB-1 install-butler server-side `GET /api/v1/plugin-manifest` (v0 [A]
 	// scope). Bearer api-key auth is enforced by authMw; no admin override route.
-	// manifest data 走 const slice (PluginManifestEntries 0 schema 立场 ②);
-	// ed25519 detached signature non-empty (立场 ④, sequoia/openpgp 双签
-	// 留 HB-1b Rust client). SigningKey 留 nil 走 test placeholder, production
-	// 接 env 私钥 inject (留 HB-1b 接).
-	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger}
+	// manifest data 走 LoadManifestEntries 三档 fallback (env JSON > env file
+	// > 内置默认), 立场 ② 0 schema 不变.
+	// 私钥 BORGEE_MANIFEST_SIGNING_KEY (base64 ed25519 seed, 32 字节解码后)
+	// 启动时一次性读取; 缺省 fall-soft (per-entry Signature 留空 + 顶层
+	// signature 走 test placeholder), 日志 warn 一行. 生产由监控抓 warn
+	// 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
+	hb1SigningKey, hb1KeyErr := api.LoadSigningKey(s.logger)
+	if hb1KeyErr != nil && s.logger != nil {
+		s.logger.Error("hb1.signing_key_invalid",
+			"env", api.EnvManifestSigningKey,
+			"error", hb1KeyErr.Error(),
+			"effect", "manifest entries served unsigned; install-butler will reject in production")
+	}
+	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey}
 	hb1ManifestHandler.RegisterRoutes(s.mux, authMw)
 
 	// (DL-4.3 push gateway init moved earlier — line ~85 — to feed
