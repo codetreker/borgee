@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
+import PageHeader from './common/PageHeader';
 import {
   fetchRemoteNodes,
   createRemoteNode,
@@ -13,11 +14,7 @@ import {
   type RemoteBinding,
 } from '../lib/api';
 
-interface Props {
-  onBack: () => void;
-}
-
-export default function NodeManager({ onBack }: Props) {
+export default function NodeManager() {
   const { state } = useAppContext();
   const [nodes, setNodes] = useState<RemoteNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,10 +62,7 @@ export default function NodeManager({ onBack }: Props) {
   if (loading) {
     return (
       <div className="node-manager">
-        <div className="node-manager-header">
-          <button className="btn btn-sm" onClick={onBack}>← 返回</button>
-          <h2>Remote Nodes</h2>
-        </div>
+        <PageHeader title="Remote Nodes" />
         <div className="remote-empty">加载中...</div>
       </div>
     );
@@ -78,11 +72,12 @@ export default function NodeManager({ onBack }: Props) {
 
   return (
     <div className="node-manager">
-      <div className="node-manager-header">
-        <button className="btn btn-sm" onClick={onBack}>← 返回</button>
-        <h2>Remote Nodes</h2>
-        <button className="btn btn-sm btn-primary" onClick={() => setShowCreate(true)}>+ 添加 Node</button>
-      </div>
+      <PageHeader
+        title="Remote Nodes"
+        actions={
+          <button className="btn btn-sm btn-primary" onClick={() => setShowCreate(true)}>+ 添加 Node</button>
+        }
+      />
 
       {showCreate && <CreateNodeForm onSubmit={handleCreate} onCancel={() => setShowCreate(false)} />}
 

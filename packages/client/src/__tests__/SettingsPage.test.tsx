@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 
 import SettingsPage from '../components/Settings/SettingsPage';
+import { NavigationProvider, useNavigation } from '../components/Navigation/NavigationContext';
 
 let container: HTMLDivElement | null = null;
 
@@ -42,13 +43,19 @@ afterEach(() => {
 async function render(node: React.ReactElement) {
   const root = createRoot(container!);
   await act(async () => {
-    root.render(node);
+    root.render(<NavigationProvider initial="settings">{node}</NavigationProvider>);
   });
+}
+
+// 用 ref probe 直接拿到栈内 nav 实例, 验证 push 后栈顶动.
+function NavProbe({ navRef }: { navRef: { current: ReturnType<typeof useNavigation> | null } }) {
+  navRef.current = useNavigation();
+  return null;
 }
 
 describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () => {
   it('renders settings page with runtime tab active by default', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
+    await render(<SettingsPage />);
     expect(container!.querySelector('[data-page="settings"]')).toBeTruthy();
     const runtimeTab = container!.querySelector('[data-tab="runtime"]');
     expect(runtimeTab).toBeTruthy();
@@ -57,7 +64,7 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
   });
 
   it('privacy tab is not rendered (#975)', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
+    await render(<SettingsPage />);
     expect(container!.querySelector('[data-tab="privacy"]')).toBeNull();
     // 反向 grep — 中文标签也不应出现.
     const tabsText = container!.querySelector('.settings-tabs')?.textContent ?? '';
@@ -65,25 +72,37 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
   });
 
   it('does not embed the privacy/compliance UI markers (#975)', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
+    await render(<SettingsPage />);
     expect(container!.querySelector('.privacy-promise')).toBeNull();
     expect(container!.querySelector('[data-section="impersonate-grant"]')).toBeNull();
     expect(container!.querySelector('[data-section="admin-actions-history"]')).toBeNull();
   });
 
-  it('back button calls onBack handler', async () => {
-    const onBack = vi.fn();
-    await render(<SettingsPage onBack={onBack} />);
-    const btn = container!.querySelector('.settings-back-btn') as HTMLButtonElement;
+  it('back button calls nav.back', async () => {
+    const navRef: { current: ReturnType<typeof useNavigation> | null } = { current: null };
+    const root = createRoot(container!);
+    await act(async () => {
+      root.render(
+        <NavigationProvider initial="channel">
+          <NavProbe navRef={navRef} />
+          <PushAndRender />
+        </NavigationProvider>,
+      );
+    });
+    // PushAndRender 已 push 'settings' 进栈, 现在栈 = [channel, settings], canGoBack = true
+    expect(navRef.current!.current).toBe('settings');
+    expect(navRef.current!.canGoBack).toBe(true);
+
+    const btn = container!.querySelector('.page-header-back') as HTMLButtonElement;
     expect(btn).toBeTruthy();
-    act(() => {
+    await act(async () => {
       btn.click();
     });
-    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(navRef.current!.current).toBe('channel');
   });
 
   it('runtime tab renders PermissionsView empty state', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
+    await render(<SettingsPage />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -93,15 +112,16 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
   });
 
   it('places Remote Nodes and Helper Status as separate runtime Settings entries', async () => {
-    const onRemoteNodesOpen = vi.fn();
-    const onHelperStatusOpen = vi.fn();
-    await render(
-      <SettingsPage
-        onBack={() => {}}
-        onRemoteNodesOpen={onRemoteNodesOpen}
-        onHelperStatusOpen={onHelperStatusOpen}
-      />,
-    );
+    const navRef: { current: ReturnType<typeof useNavigation> | null } = { current: null };
+    const root = createRoot(container!);
+    await act(async () => {
+      root.render(
+        <NavigationProvider initial="settings">
+          <NavProbe navRef={navRef} />
+          <SettingsPage />
+        </NavigationProvider>,
+      );
+    });
 
     const runtime = container!.querySelector('[data-settings-runtime-surface="true"]')!;
     const remoteEntry = runtime.querySelector('[data-runtime-entry="remote-nodes"]') as HTMLButtonElement;
@@ -117,15 +137,23 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
 
     await act(async () => {
       remoteEntry.click();
-      helperEntry.click();
     });
+    expect(navRef.current!.current).toBe('remote-nodes');
 
-    expect(onRemoteNodesOpen).toHaveBeenCalledTimes(1);
-    expect(onHelperStatusOpen).toHaveBeenCalledTimes(1);
+    // 回到 settings, 再点 helper-status
+    await act(async () => {
+      navRef.current!.back();
+    });
+    expect(navRef.current!.current).toBe('settings');
+    const helperEntry2 = container!.querySelector('[data-runtime-entry="helper-status"]') as HTMLButtonElement;
+    await act(async () => {
+      helperEntry2.click();
+    });
+    expect(navRef.current!.current).toBe('helper-status');
   });
 
   it('channels tab is still reachable next to runtime', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
+    await render(<SettingsPage />);
     const channelsTab = container!.querySelector('[data-tab="channels"]') as HTMLButtonElement;
     expect(channelsTab).toBeTruthy();
     expect(channelsTab.textContent).toBe('频道');
@@ -140,7 +168,7 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
   //   - AdminActionsList.tsx: <h3>"admin 对你的影响记录"</h3>
   //     + "(最近 50 条)" / "从未被 admin 影响过 — 你的隐私边界完整。"
   it('no deleted privacy/admin-actions labels appear anywhere on SettingsPage (#975 page-level)', async () => {
-    await render(<SettingsPage onBack={() => {}} />);
+    await render(<SettingsPage />);
     const pageRoot = container!.querySelector('[data-page="settings"]');
     expect(pageRoot).toBeTruthy();
     const pageText = pageRoot!.textContent ?? '';
@@ -149,3 +177,14 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
     }
   });
 });
+
+// Helper component — useEffect 触发 push('settings') 让栈 = [channel, settings].
+function PushAndRender() {
+  const nav = useNavigation();
+  React.useEffect(() => {
+    nav.push('settings');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (nav.current !== 'settings') return null;
+  return <SettingsPage />;
+}

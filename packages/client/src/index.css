@@ -4307,6 +4307,27 @@ body {
   cursor: pointer;
   padding: 4px 8px;
 }
+.page-header-spacer {
+  flex: 1;
+}
+.page-header-back,
+.page-header-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary, #333);
+  border-radius: 4px;
+}
+.page-header-back:hover,
+.page-header-close:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
 .settings-page-title {
   font-size: 18px;
   margin: 0;

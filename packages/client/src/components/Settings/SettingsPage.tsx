@@ -6,35 +6,23 @@
 // 反约束:
 //   - 跟 admin SPA SettingsPage (packages/client/src/admin/pages/) 路径分叉
 //     (ADM-0 constraint: admin/user 路径不混用).
-//   - 不引入 react-router (跟 App.tsx mainView 同模式 — App-level state 切视图).
+//   - 不引入 react-router (跟 App.tsx nav-history 同模式 — useNavigation
+//     维护 App-level view 栈).
+import { useState } from 'react';
+import PageHeader from '../common/PageHeader';
+import { useNavigation } from '../Navigation/NavigationContext';
 import { PermissionsView } from '../PermissionsView';
 import ChannelManagementSurface from './ChannelManagementSurface';
-import { useState } from 'react';
-
-interface Props {
-  onBack: () => void;
-  onRemoteNodesOpen?: () => void;
-  onHelperStatusOpen?: () => void;
-}
 
 export type SettingsTab = 'runtime' | 'channels';
 
-export default function SettingsPage({ onBack, onRemoteNodesOpen, onHelperStatusOpen }: Props) {
+export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('runtime');
+  const nav = useNavigation();
 
   return (
     <div className="settings-page" data-page="settings">
-      <header className="settings-page-header">
-        <button
-          type="button"
-          className="settings-back-btn"
-          onClick={onBack}
-          aria-label="返回"
-        >
-          ←
-        </button>
-        <h1 className="settings-page-title">设置</h1>
-      </header>
+      <PageHeader title="设置" />
 
       <nav className="settings-tabs" aria-label="设置分类">
         <button
@@ -74,8 +62,7 @@ export default function SettingsPage({ onBack, onRemoteNodesOpen, onHelperStatus
                   className="settings-runtime-entry"
                   data-runtime-entry="remote-nodes"
                   data-authority-rail="remote-agent"
-                  onClick={onRemoteNodesOpen}
-                  disabled={!onRemoteNodesOpen}
+                  onClick={() => nav.push('remote-nodes')}
                 >
                   <span className="settings-runtime-entry-title">Remote Nodes</span>
                   <span className="settings-runtime-entry-meta">Remote Agent file proxy</span>
@@ -85,8 +72,7 @@ export default function SettingsPage({ onBack, onRemoteNodesOpen, onHelperStatus
                   className="settings-runtime-entry"
                   data-runtime-entry="helper-status"
                   data-authority-rail="helper-actuator"
-                  onClick={onHelperStatusOpen}
-                  disabled={!onHelperStatusOpen}
+                  onClick={() => nav.push('helper-status')}
                 >
                   <span className="settings-runtime-entry-title">Helper Status</span>
                   <span className="settings-runtime-entry-meta">Helper actuator enrollment</span>
