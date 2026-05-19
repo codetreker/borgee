@@ -49,6 +49,7 @@ const (
 	HelperJobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
 	HelperJobTypePluginConfigureConnection   = "borgee_plugin.configure_connection"
 	HelperJobTypeServiceLifecycle            = "service.lifecycle"
+	HelperJobTypeHelperUninstall             = "helper.uninstall"
 	HelperJobStatusQueued                    = "queued"
 	HelperJobStatusLeased                    = "leased"
 	HelperJobStatusRunning                   = "running"
@@ -74,6 +75,16 @@ const (
 	helperJobOpenClawPluginOrigin      = "https://cdn.borgee.io"
 	helperJobOpenClawPluginInstallPlan = "openclaw-plugin-v1"
 	helperJobOpenClawRuntimeIdentifier = "openclaw"
+
+	// helper.uninstall manifest binding ids — the helper's own state dirs +
+	// system service unit. Server publishes these so the helper-side jobpolicy
+	// authority checks (validateManifestRequirements / validatePaths /
+	// validateServices) accept the leased uninstall job. The actual filesystem
+	// paths live on the helper side (executors/uninstall) — these IDs are
+	// purely the manifest authority handle.
+	helperJobHelperUninstallStatePathID   = "helper_state"
+	helperJobHelperUninstallRuntimePathID = "helper_runtime"
+	helperJobHelperUninstallServiceID     = "borgee-helper-service"
 )
 
 type PollHelperJobInput struct {
@@ -142,7 +153,7 @@ var helperJobTaxonomy = map[string]helperJobSpec{
 	"state.write":                        {Category: "openclaw_config"},
 	"status.collect":                     {Category: "status_collect"},
 	"delegation.revoke":                  {Category: "helper_lifecycle"},
-	"helper.uninstall":                   {Category: "helper_lifecycle"},
+	"helper.uninstall":                   {Category: "helper_lifecycle", Enabled: true, Manifest: true},
 }
 
 type openClawConfigurePayload struct {
@@ -183,6 +194,16 @@ type borgeePluginEffectivePayload struct {
 
 type serviceLifecycleEffectivePayload struct {
 	Operation string `json:"operation"`
+}
+
+type helperUninstallPayload struct {
+	Scope         string `json:"scope"`
+	PreserveState bool   `json:"preserve_state,omitempty"`
+}
+
+type helperUninstallEffectivePayload struct {
+	Scope         string `json:"scope"`
+	PreserveState bool   `json:"preserve_state,omitempty"`
 }
 
 type helperJobManifestBinding struct {
@@ -608,6 +629,18 @@ func (s *Store) CompleteHelperJobForHelper(input CompleteHelperJobInput, now tim
 		if err := tx.Where("id = ?", row.ID).First(&out).Error; err != nil {
 			return err
 		}
+		// #998 — On terminal succeeded for `helper.uninstall`, flip the
+		// enrollment status to `uninstalled` in the same transaction so the
+		// server-recorded enrollment state matches the helper's local
+		// teardown. Operator does not need to also call the dedicated
+		// /uninstall endpoint — the executor reaching terminal success IS the
+		// server-side signal. Non-succeeded terminals (failed / cancelled /
+		// expired) leave the enrollment alone so an operator can retry.
+		if row.JobType == HelperJobTypeHelperUninstall && input.Status == HelperJobStatusSucceeded {
+			if err := markHelperEnrollmentUninstalledInTx(tx, row.EnrollmentID, now); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -773,6 +806,21 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 			return nil, "", "", nil, err
 		}
 		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypeHelperUninstall:
+		payload, err := decodeHelperUninstallPayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		effective := helperUninstallEffectivePayload{Scope: payload.Scope, PreserveState: payload.PreserveState}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
 	default:
 		return nil, "", "", nil, ErrHelperJobUnknownType
 	}
@@ -797,6 +845,15 @@ func openClawManifestBindingForJob(jobType string) (string, *string, error) {
 		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
 	case HelperJobTypeServiceLifecycle:
 		binding.ServiceIDs = []string{helperJobOpenClawServiceID}
+	case HelperJobTypeHelperUninstall:
+		// helper.uninstall manifest authority: bind the helper's own state /
+		// runtime paths + service unit so the helper-side jobpolicy gate
+		// (validateManifestRequirements + validatePaths/validateServices)
+		// accepts the leased uninstall job. No artifacts (the executor only
+		// removes files), no domains (no network call), no path mode beyond
+		// "write" (executor wipes — pathModeAllowsWrite covers that).
+		binding.PathIDs = []string{helperJobHelperUninstallStatePathID, helperJobHelperUninstallRuntimePathID}
+		binding.ServiceIDs = []string{helperJobHelperUninstallServiceID}
 	default:
 		return "", nil, ErrHelperJobUnknownType
 	}
@@ -899,6 +956,37 @@ func decodeServiceLifecyclePayload(raw string) (serviceLifecyclePayload, error) 
 	payload.Operation = strings.TrimSpace(payload.Operation)
 	if payload.Target != helperJobOpenClawRuntimeIdentifier || payload.Operation != "restart" {
 		return serviceLifecyclePayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
+// decodeHelperUninstallPayload validates the operator-supplied uninstall
+// payload. Required fields: `scope: "helper"` (today the only supported
+// scope — narrows future-proofing; an `agent` / `runtime` scope can be added
+// without changing the wire shape). Optional: `preserve_state: bool` —
+// when true, the helper-side executor skips wiping
+// /var/lib/borgee-helper/{queue,status,audit-handoff} for forensic /
+// post-mortem use. Unknown fields and the standard forbidden-field set
+// (shell/url/credential/etc.) are rejected before reaching the helper.
+func decodeHelperUninstallPayload(raw string) (helperUninstallPayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return helperUninstallPayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return helperUninstallPayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload helperUninstallPayload
+	if err := dec.Decode(&payload); err != nil {
+		return helperUninstallPayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.Scope = strings.TrimSpace(payload.Scope)
+	if payload.Scope != "helper" {
+		return helperUninstallPayload{}, ErrHelperJobSchemaInvalid
 	}
 	return payload, nil
 }
@@ -1067,6 +1155,24 @@ func settleHelperJob(tx *gorm.DB, jobID string, now time.Time, status, failureCo
 		updates["failure_message"] = failureMessage
 	}
 	return tx.Model(&HelperJob{}).Where("id = ?", jobID).Updates(updates).Error
+}
+
+// markHelperEnrollmentUninstalledInTx flips a helper enrollment to
+// `uninstalled` from inside an existing transaction (used by
+// CompleteHelperJobForHelper when a `helper.uninstall` job terminates
+// `succeeded`). The credential / device-id authority check has already
+// happened upstream via validateHelperJobRouteAuthority, so we do not
+// re-validate them here — gating the UPDATE on `revoked_at IS NULL AND
+// uninstalled_at IS NULL` is sufficient idempotency / race protection.
+// Already-uninstalled rows are a no-op (returns nil); the helper.uninstall
+// terminal-conflict path also lets the second uninstall resolve gracefully
+// instead of looping.
+func markHelperEnrollmentUninstalledInTx(tx *gorm.DB, enrollmentID string, now time.Time) error {
+	ts := now.UnixMilli()
+	res := tx.Model(&HelperEnrollment{}).
+		Where("id = ? AND revoked_at IS NULL AND uninstalled_at IS NULL", enrollmentID).
+		Updates(map[string]any{"status": "uninstalled", "uninstalled_at": ts, "updated_at": ts})
+	return res.Error
 }
 
 func validateHelperJobTerminalInput(input CompleteHelperJobInput) (string, string, error) {

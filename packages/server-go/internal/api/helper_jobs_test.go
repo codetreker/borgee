@@ -572,7 +572,7 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 		{"recognized state write type", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized status collect type", map[string]any{"job_type": "status.collect", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
 		{"recognized delegation revoke type", map[string]any{"job_type": "delegation.revoke", "schema_version": 1, "payload": map[string]any{"delegation_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
-		{"recognized helper uninstall type", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"helper uninstall rejects wrong scope", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "agent"}}, http.StatusForbidden, "delegation_denied"},
 		{"extra top field owner", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}, "owner_user_id": "client"}, http.StatusBadRequest, "extra_field"},
 		{"client ttl", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}, "ttl": 999999}, http.StatusBadRequest, "ttl_invalid"},
 		{"payload expires_at", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID, "expires_at": 999999}}, http.StatusBadRequest, "ttl_invalid"},
@@ -831,4 +831,225 @@ func countAPIHelperJobs(t *testing.T, s *store.Store) int64 {
 		t.Fatalf("count helper_jobs: %v", err)
 	}
 	return count
+}
+
+// TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding —
+// THUJ-1 (#998): with the `helper.uninstall` taxonomy row flipped to
+// Enabled=true, an owner-rail enqueue against a `helper_lifecycle`-allowed
+// enrollment with a well-formed `{"scope":"helper"}` payload must be
+// accepted, persist as `queued` with category `helper_lifecycle`, and the
+// helper-side lease must include a manifest binding declaring the helper's
+// own state-path / runtime-path / service-id ids so the helper's
+// jobpolicy.Evaluate gate accepts the leased uninstall job.
+func TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	resp, created := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         "Uninstall fixture host",
+		"allowed_categories": []string{"helper_lifecycle"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create lifecycle enrollment: status %d body %v", resp.StatusCode, created)
+	}
+	enrollment := created["enrollment"].(map[string]any)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	secret := created["enrollment_secret"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-uninstall-1")
+
+	// THUJ-1a: well-formed payload accepted, persisted queued + helper_lifecycle.
+	resp, accepted := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "helper.uninstall",
+		"schema_version": 1,
+		"payload":        map[string]any{"scope": "helper"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("accepted uninstall enqueue: status %d body %v", resp.StatusCode, accepted)
+	}
+	job := accepted["job"].(map[string]any)
+	if job["job_type"] != "helper.uninstall" || job["category"] != "helper_lifecycle" || job["status"] != "queued" {
+		t.Fatalf("unexpected accepted uninstall job: %v", job)
+	}
+
+	// THUJ-1b: helper lease carries manifest binding with path + service ids.
+	resp, leased := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
+		"helper_device_id": "device-uninstall-1",
+		"wait_ms":          0,
+	})
+	if resp.StatusCode != http.StatusOK || leased["status"] != "leased" {
+		t.Fatalf("helper poll lease: status %d body %v", resp.StatusCode, leased)
+	}
+	leasedJob := leased["job"].(map[string]any)
+	binding, ok := leasedJob["manifest_binding"].(map[string]any)
+	if !ok {
+		t.Fatalf("uninstall lease missing manifest_binding: %v", leasedJob)
+	}
+	if digest, _ := binding["manifest_digest"].(string); digest == "" {
+		t.Fatalf("uninstall lease manifest_binding missing digest: %v", binding)
+	}
+	assertAnyStringSet(t, "path_ids", binding["path_ids"], []string{"helper_state", "helper_runtime"})
+	assertAnyStringSet(t, "service_ids", binding["service_ids"], []string{"borgee-helper-service"})
+	payload := leasedJob["payload"].(map[string]any)
+	if payload["scope"] != "helper" {
+		t.Fatalf("uninstall lease payload missing scope=helper: %v", payload)
+	}
+	if count := countAPIHelperJobs(t, s); count != 1 {
+		t.Fatalf("expected 1 enqueued uninstall job, got %d", count)
+	}
+}
+
+// TestHelperJobsEnqueueHelperUninstallRejectsInvalidPayload — THUJ-2 (#998):
+// payload schema check must reject malformed uninstall requests with
+// schema_invalid (wrong scope, extra unknown field) or forbidden_field
+// (e.g. operator tries to pass a `path` override). Reject-path must NOT
+// persist any rows.
+func TestHelperJobsEnqueueHelperUninstallRejectsInvalidPayload(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	resp, created := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         "Uninstall reject fixture",
+		"allowed_categories": []string{"helper_lifecycle"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create lifecycle enrollment: status %d body %v", resp.StatusCode, created)
+	}
+	enrollment := created["enrollment"].(map[string]any)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	secret := created["enrollment_secret"].(string)
+	claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-uninstall-reject")
+
+	cases := []struct {
+		name string
+		body map[string]any
+		want int
+		code string
+	}{
+		{"missing scope", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{}}, http.StatusBadRequest, "schema_invalid"},
+		{"wrong scope", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "runtime"}}, http.StatusBadRequest, "schema_invalid"},
+		{"unknown payload field", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "helper", "extra": true}}, http.StatusBadRequest, "schema_invalid"},
+		{"forbidden path override", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "helper", "path": "/etc/passwd"}}, http.StatusBadRequest, "forbidden_field"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, data := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, tc.body)
+			if resp.StatusCode != tc.want || data["code"] != tc.code {
+				t.Fatalf("status/body = %d %v, want %d code %s", resp.StatusCode, data, tc.want, tc.code)
+			}
+		})
+	}
+	if count := countAPIHelperJobs(t, s); count != 0 {
+		t.Fatalf("rejected uninstall enqueue persisted %d rows, want 0", count)
+	}
+}
+
+// TestHelperJobsHelperUninstallTerminalSucceededMarksEnrollmentUninstalled —
+// THUJ-3 (#998): when the helper posts terminal `succeeded` for a
+// `helper.uninstall` job, the same transaction flips the enrollment status
+// to `uninstalled` so subsequent enqueues / polls / status reads see the
+// correct server-recorded lifecycle state. Non-succeeded terminals (failed)
+// must NOT flip the enrollment so an operator can retry.
+func TestHelperJobsHelperUninstallTerminalSucceededMarksEnrollmentUninstalled(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	// Failure-first fixture: failed terminal must leave enrollment alone.
+	failEnrollment, failSecret := uninstallFixtureEnrollment(t, ts.URL, ownerToken, "Failure host")
+	failEnrollmentID := failEnrollment["enrollment_id"].(string)
+	_, failCredential := claimHelperEnrollmentViaAPI(t, ts.URL, failEnrollmentID, failSecret, "device-fail")
+	_, failLeaseToken, failJobID := enqueueAndLeaseUninstall(t, ts.URL, ownerToken, failCredential, failEnrollmentID, "device-fail")
+	failResp, failBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+failEnrollmentID+"/jobs/"+failJobID+"/result", failCredential, map[string]any{
+		"helper_device_id": "device-fail",
+		"lease_token":      failLeaseToken,
+		"status":           "failed",
+		"failure_code":     "execution_failed",
+		"failure_message":  "simulated executor crash",
+	})
+	if failResp.StatusCode != http.StatusOK {
+		t.Fatalf("failed terminal post: status %d body %v", failResp.StatusCode, failBody)
+	}
+	if got := loadEnrollmentStatus(t, s, failEnrollmentID); got == "uninstalled" {
+		t.Fatalf("failed terminal must NOT mark enrollment uninstalled, got status=%s", got)
+	}
+
+	// Success path: terminal succeeded flips enrollment.uninstalled +
+	// subsequent enqueue is rejected with uninstalled.
+	okEnrollment, okSecret := uninstallFixtureEnrollment(t, ts.URL, ownerToken, "Success host")
+	okEnrollmentID := okEnrollment["enrollment_id"].(string)
+	_, okCredential := claimHelperEnrollmentViaAPI(t, ts.URL, okEnrollmentID, okSecret, "device-ok")
+	_, okLeaseToken, okJobID := enqueueAndLeaseUninstall(t, ts.URL, ownerToken, okCredential, okEnrollmentID, "device-ok")
+	okResp, okBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+okEnrollmentID+"/jobs/"+okJobID+"/result", okCredential, map[string]any{
+		"helper_device_id": "device-ok",
+		"lease_token":      okLeaseToken,
+		"status":           "succeeded",
+	})
+	if okResp.StatusCode != http.StatusOK {
+		t.Fatalf("succeeded terminal post: status %d body %v", okResp.StatusCode, okBody)
+	}
+	if got := loadEnrollmentStatus(t, s, okEnrollmentID); got != "uninstalled" {
+		t.Fatalf("succeeded uninstall must mark enrollment uninstalled, got status=%s", got)
+	}
+	// Re-enqueue against an uninstalled enrollment is rejected.
+	resp, body := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+okEnrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "helper.uninstall",
+		"schema_version": 1,
+		"payload":        map[string]any{"scope": "helper"},
+	})
+	if resp.StatusCode != http.StatusForbidden || body["code"] != "uninstalled" {
+		t.Fatalf("post-uninstall enqueue must be rejected with uninstalled: status %d body %v", resp.StatusCode, body)
+	}
+}
+
+func uninstallFixtureEnrollment(t *testing.T, baseURL, ownerToken, label string) (map[string]any, string) {
+	t.Helper()
+	resp, body := testutil.JSON(t, http.MethodPost, baseURL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         label,
+		"allowed_categories": []string{"helper_lifecycle"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create uninstall fixture %q: status %d body %v", label, resp.StatusCode, body)
+	}
+	return body["enrollment"].(map[string]any), body["enrollment_secret"].(string)
+}
+
+func enqueueAndLeaseUninstall(t *testing.T, baseURL, ownerToken, helperCredential, enrollmentID, deviceID string) (map[string]any, string, string) {
+	t.Helper()
+	resp, accepted := testutil.JSON(t, http.MethodPost, baseURL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "helper.uninstall",
+		"schema_version": 1,
+		"payload":        map[string]any{"scope": "helper"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("enqueue uninstall: status %d body %v", resp.StatusCode, accepted)
+	}
+	resp, leased := testutil.JSON(t, http.MethodPost, baseURL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
+		"helper_device_id": deviceID,
+		"wait_ms":          0,
+	})
+	if resp.StatusCode != http.StatusOK || leased["status"] != "leased" {
+		t.Fatalf("poll uninstall: status %d body %v", resp.StatusCode, leased)
+	}
+	job := leased["job"].(map[string]any)
+	leaseToken := job["lease_token"].(string)
+	jobID := job["job_id"].(string)
+	// Ack so the job transitions leased -> running before /result.
+	resp, ackBody := testutil.JSON(t, http.MethodPost, baseURL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+jobID+"/ack", helperCredential, map[string]any{
+		"helper_device_id": deviceID,
+		"lease_token":      leaseToken,
+		"ack_status":       "received",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ack uninstall: status %d body %v", resp.StatusCode, ackBody)
+	}
+	return job, leaseToken, jobID
+}
+
+func loadEnrollmentStatus(t *testing.T, s *store.Store, enrollmentID string) string {
+	t.Helper()
+	var row store.HelperEnrollment
+	if err := s.DB().Where("id = ?", enrollmentID).First(&row).Error; err != nil {
+		t.Fatalf("load enrollment %s: %v", enrollmentID, err)
+	}
+	return row.Status
 }

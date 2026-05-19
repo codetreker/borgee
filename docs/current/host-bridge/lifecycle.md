@@ -141,6 +141,51 @@ validates config + applies sandbox → reads enrollment/device-id/credential
 files → heartbeater fires within ~100ms → server updates `LastSeenAt` →
 web UI shows `connected` again.
 
+## Uninstall chain (#998)
+
+Blueprint promise: 装得上卸得掉. One server-enqueued job tears down the
+local helper footprint AND flips the server-recorded enrollment status
+to `uninstalled`. End-to-end:
+
+1. Operator (owner-rail user) enqueues a `helper.uninstall` job:
+   `POST /api/v1/helper/enrollments/{id}/jobs` with body
+   `{ "job_type": "helper.uninstall", "schema_version": 1,
+   "payload": { "scope": "helper" } }`. The enrollment must include
+   `helper_lifecycle` in its `allowed_categories`.
+2. Server taxonomy row (`helper_job_queries.go` `helper.uninstall`)
+   accepts the request (`Enabled: true`, manifest binding declares the
+   helper's own state-path / runtime-path / service-id IDs).
+3. The helper-side dispatcher polls and leases the job (#1001 + #1002).
+4. `jobpolicy.Evaluate` (helper-side double-validate gate) accepts the
+   payload (`scope: "helper"`).
+5. The `internal/executors/uninstall` executor runs the cleanup
+   sequence — service disable, unit/plist removal, runtime + helper
+   binary wipe, state-dir wipe (skipped when
+   `payload.preserve_state == true`), OS user/group delete — and returns
+   terminal `succeeded`. The executor never sends a stop signal to its
+   own daemon process (would SIGTERM mid-cleanup before /result lands).
+   See [`internal/executors/uninstall/README.md`](../../../packages/borgee-helper/internal/executors/uninstall/README.md)
+   for the bucket-by-bucket contract and the privilege caveat.
+6. The dispatcher posts `/result` with the terminal status. The server
+   handler (`store.CompleteHelperJobForHelper`) sees
+   `JobType=helper.uninstall && Status=succeeded` and, in the same
+   transaction, flips the enrollment to
+   `status='uninstalled', uninstalled_at=now`.
+7. Subsequent enqueues / polls against the same enrollment return
+   `uninstalled` (server already had this code path — `MarkHelperEnrollmentUninstalled`
+   plus the `serializeEnrollment` precedence rule). The web UI shows
+   `uninstalled` distinctly from `offline` (matches blueprint §1.2 last
+   bullet).
+8. The daemon process then exits naturally on its next poll iteration
+   (or systemd shutdown reaps it). The server-recorded terminal status
+   is the source of truth that uninstall completed.
+
+A failed terminal (executor returns `failed`) leaves the enrollment
+untouched so an operator can retry. The dedicated
+`POST /api/v1/helper/enrollments/{id}/uninstall` endpoint
+(helper-credential rail, predates #998) remains the manual escape hatch
+for cases where the helper is offline or the executor cannot finish.
+
 ## Why config is file-based, not on the cmdline
 
 Earlier drafts passed `enrollment_id` / `helper_device_id` as cmdline
@@ -278,6 +323,10 @@ in v1 — there is no install path to break.
 | Claim CLI persists credential + ids        | `packages/borgee-helper/cmd/borgee-helper-claim/main_test.go`                      | `TestClaim_HappyPath`                           |
 | Claim CLI rejects non-https origin         | `packages/borgee-helper/cmd/borgee-helper-claim/main_test.go`                      | `TestClaim_HTTPSRequired`                       |
 | End-to-end claim → daemon → heartbeat      | `packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go`                           | `TestClaimHeartbeatE2E` (`-tags=integration`)   |
+| helper.uninstall executor cleanup buckets  | `packages/borgee-helper/internal/executors/uninstall/executor_test.go`             | `TestExecutor_*`                                |
+| Server flips enrollment on uninstall success | `packages/server-go/internal/api/helper_jobs_test.go`                            | `TestHelperJobsHelperUninstallTerminalSucceededMarksEnrollmentUninstalled` |
+| Server taxonomy accepts well-formed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                   | `TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding` |
+| Server taxonomy rejects malformed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                     | `TestHelperJobsEnqueueHelperUninstallRejectsInvalidPayload` |
 
 The byte-level asset assertions plus the installer-plan ordering plus the
 server-side freshness derivation together stand in for a real reboot/crash

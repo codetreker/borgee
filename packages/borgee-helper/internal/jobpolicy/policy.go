@@ -295,7 +295,8 @@ func validatePayload(job Job) Reason {
 		}
 	case JobTypeHelperUninstall:
 		var payload struct {
-			Scope string `json:"scope"`
+			Scope         string `json:"scope"`
+			PreserveState bool   `json:"preserve_state,omitempty"`
 		}
 		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || payload.Scope != "helper" {
 			return ReasonSchemaInvalid

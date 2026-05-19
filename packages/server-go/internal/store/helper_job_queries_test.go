@@ -278,7 +278,7 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 		{"recognized state write type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "state.write"; return in }, ErrHelperJobTypeNotEnabled},
 		{"recognized status collect type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "status.collect"; return in }, ErrHelperJobTypeNotEnabled},
 		{"recognized delegation revoke type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "delegation.revoke"; return in }, ErrHelperJobTypeNotEnabled},
-		{"recognized helper uninstall type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "helper.uninstall"; return in }, ErrHelperJobTypeNotEnabled},
+		{"recognized helper uninstall type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "helper.uninstall"; return in }, ErrHelperJobDelegationDenied},
 		{"schema version", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.SchemaVersion = 2; return in }, ErrHelperJobSchemaInvalid},
 		{"cross-owner agent", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
 			in.PayloadJSON = `{"agent_id":"` + otherAgent.ID + `"}`
@@ -856,6 +856,128 @@ func TestSettleHelperJobWritesFailureMessage(t *testing.T) {
 	}
 	if settled.Status != HelperJobStatusFailed || settled.FailureCode == nil || *settled.FailureCode != "execution_failed" || settled.FailureMessage == nil || *settled.FailureMessage != "short failure" || settled.ActiveIdempotencyScope != nil {
 		t.Fatalf("settleHelperJob did not persist terminal metadata: %+v", settled)
+	}
+}
+
+// TestHelperJobCompleteHelperUninstallSucceededFlipsEnrollment (#998) — when
+// CompleteHelperJobForHelper records terminal `succeeded` for a
+// `helper.uninstall` job, the same transaction flips the enrollment to
+// `uninstalled`. Sibling check: terminal `failed` for the same job type
+// leaves the enrollment alone so an operator can retry.
+func TestHelperJobCompleteHelperUninstallSucceededFlipsEnrollment(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-uninstall-complete")
+	now := time.UnixMilli(1778840000000)
+
+	// Happy path: succeeded → enrollment uninstalled.
+	enrollment, credential := claimedFreshHelperEnrollmentWithCredential(t, s, owner, []string{"helper_lifecycle"}, now)
+	job, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+		OwnerUserID:   owner.ID,
+		OrgID:         owner.OrgID,
+		EnrollmentID:  enrollment.ID,
+		JobType:       HelperJobTypeHelperUninstall,
+		SchemaVersion: 1,
+		PayloadJSON:   `{"scope":"helper"}`,
+	}, now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("EnqueueHelperJobForUser uninstall: %v", err)
+	}
+	lease, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{
+		EnrollmentID:      enrollment.ID,
+		HelperCredential:  credential,
+		HelperDeviceID:    *enrollment.HelperDeviceID,
+		LeaseDuration:     time.Minute,
+		RetryAfterNoWork:  5 * time.Second,
+		MaxActiveLeases:   1,
+		AllowedCategories: []string{"helper_lifecycle"},
+	}, now.Add(2*time.Minute))
+	if err != nil || lease == nil || lease.Job == nil {
+		t.Fatalf("PollAndLeaseHelperJobForHelper: lease=%+v err=%v", lease, err)
+	}
+	if _, err := s.AckHelperJobForHelper(AckHelperJobInput{
+		EnrollmentID:     enrollment.ID,
+		JobID:            job.ID,
+		HelperCredential: credential,
+		HelperDeviceID:   *enrollment.HelperDeviceID,
+		LeaseToken:       lease.LeaseToken,
+		AckStatus:        "received",
+	}, now.Add(2*time.Minute+time.Second)); err != nil {
+		t.Fatalf("AckHelperJobForHelper: %v", err)
+	}
+	completed, err := s.CompleteHelperJobForHelper(CompleteHelperJobInput{
+		EnrollmentID:     enrollment.ID,
+		JobID:            job.ID,
+		HelperCredential: credential,
+		HelperDeviceID:   *enrollment.HelperDeviceID,
+		LeaseToken:       lease.LeaseToken,
+		Status:           HelperJobStatusSucceeded,
+	}, now.Add(2*time.Minute+2*time.Second))
+	if err != nil || completed == nil || completed.Status != HelperJobStatusSucceeded {
+		t.Fatalf("CompleteHelperJobForHelper succeeded: completed=%+v err=%v", completed, err)
+	}
+	got, err := s.GetHelperEnrollment(enrollment.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment post-success: %v", err)
+	}
+	if got.Status != "uninstalled" || got.UninstalledAt == nil {
+		t.Fatalf("succeeded terminal must flip enrollment to uninstalled, got status=%s uninstalled_at=%v", got.Status, got.UninstalledAt)
+	}
+
+	// Failure path: failed terminal must leave enrollment untouched.
+	enrollment2, credential2 := claimedFreshHelperEnrollmentWithCredential(t, s, owner, []string{"helper_lifecycle"}, now)
+	job2, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+		OwnerUserID:   owner.ID,
+		OrgID:         owner.OrgID,
+		EnrollmentID:  enrollment2.ID,
+		JobType:       HelperJobTypeHelperUninstall,
+		SchemaVersion: 1,
+		PayloadJSON:   `{"scope":"helper"}`,
+	}, now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("EnqueueHelperJobForUser uninstall failure fixture: %v", err)
+	}
+	lease2, err := s.PollAndLeaseHelperJobForHelper(PollHelperJobInput{
+		EnrollmentID:      enrollment2.ID,
+		HelperCredential:  credential2,
+		HelperDeviceID:    *enrollment2.HelperDeviceID,
+		LeaseDuration:     time.Minute,
+		RetryAfterNoWork:  5 * time.Second,
+		MaxActiveLeases:   1,
+		AllowedCategories: []string{"helper_lifecycle"},
+	}, now.Add(2*time.Minute))
+	if err != nil || lease2 == nil || lease2.Job == nil {
+		t.Fatalf("PollAndLeaseHelperJobForHelper failure fixture: %v", err)
+	}
+	if _, err := s.AckHelperJobForHelper(AckHelperJobInput{
+		EnrollmentID:     enrollment2.ID,
+		JobID:            job2.ID,
+		HelperCredential: credential2,
+		HelperDeviceID:   *enrollment2.HelperDeviceID,
+		LeaseToken:       lease2.LeaseToken,
+		AckStatus:        "received",
+	}, now.Add(2*time.Minute+time.Second)); err != nil {
+		t.Fatalf("Ack failure fixture: %v", err)
+	}
+	failed, err := s.CompleteHelperJobForHelper(CompleteHelperJobInput{
+		EnrollmentID:     enrollment2.ID,
+		JobID:            job2.ID,
+		HelperCredential: credential2,
+		HelperDeviceID:   *enrollment2.HelperDeviceID,
+		LeaseToken:       lease2.LeaseToken,
+		Status:           HelperJobStatusFailed,
+		FailureCode:      "execution_failed",
+		FailureMessage:   "simulated",
+	}, now.Add(2*time.Minute+2*time.Second))
+	if err != nil || failed == nil || failed.Status != HelperJobStatusFailed {
+		t.Fatalf("CompleteHelperJobForHelper failed: completed=%+v err=%v", failed, err)
+	}
+	got2, err := s.GetHelperEnrollment(enrollment2.ID)
+	if err != nil {
+		t.Fatalf("GetHelperEnrollment post-failure: %v", err)
+	}
+	if got2.Status == "uninstalled" || got2.UninstalledAt != nil {
+		t.Fatalf("failed terminal must NOT flip enrollment, got status=%s uninstalled_at=%v", got2.Status, got2.UninstalledAt)
 	}
 }
 
