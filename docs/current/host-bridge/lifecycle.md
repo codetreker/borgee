@@ -17,6 +17,18 @@ mechanism without spinning up a real host.
 
 ## Operator-side claim (one-time, post-install)
 
+The host-bridge stack ships two short-lived CLIs that the operator (or the
+`.deb` / `.pkg` postinstall script) invokes once. They both exit before the
+long-lived `borgee-helper` daemon ever runs, so neither lingers as root.
+
+- `install-butler` ([`packages/borgee-helper/cmd/install-butler`](../../../packages/borgee-helper/cmd/install-butler/README.md))
+  — one-shot signed-manifest installer. Downloads a verified runtime
+  binary (manifest fetch → ed25519 verify → SHA256 verify → atomic rename
+  → chmod → optional chown → exit). Run via `sudo`; drops privilege by
+  exiting. See its README for flags + failure modes.
+- `borgee-helper-claim` — pairs the host with a Borgee server enrollment
+  (chain below).
+
 1. Operator generates an enrollment in the web UI. The server returns an
    `enrollment_id` plus a one-time `enrollment_secret` (15-minute TTL — see
    [`helper_enrollment_queries.go`](../../../packages/server-go/internal/store/helper_enrollment_queries.go)).

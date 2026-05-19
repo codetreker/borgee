@@ -75,7 +75,7 @@ Entry list (URLs, SHA256, versions):
 
 ## Client verification
 
-install-butler (Rust, `packages/borgee-helper/install-butler`, #996) must implement the same canonical form byte-for-byte. The Go reference is `EntryCanonicalBytes` (5 lines). Mismatch on either side = silent verify failure.
+install-butler (Go, [`packages/borgee-helper/cmd/install-butler`](../../../packages/borgee-helper/cmd/install-butler/README.md), #996) implements the same canonical form byte-for-byte. The Go reference is `EntryCanonicalBytes` (5 lines), mirrored in the client as `entryCanonicalBytes` with a "MUST stay byte-identical" comment. Mismatch on either side = silent verify failure.
 
 ## SHA256 real values
 
