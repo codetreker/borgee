@@ -18,7 +18,7 @@ All 7 source anchors (`HB-RA-1A`, `HB-RA-1B`, `MR-1`, `CH-1`, `CT-1`, `PS-1`, `I
 |---|---|---|
 | G1.1 Helper vs Remote Agent rail separation | PR #939 (`96dc0dc`), #942 (`642fb57`), #962 (`2e58127`) | SIGNED |
 | G1.2 Server enqueue auth + Helper local policy double-validate | PR #938 (`64d56f1`), #942 (`642fb57`), #943 (`c2c61e6`) | SIGNED |
-| G1.6 Users configure OpenClaw via bounded jobs | PR #956 (`5575b53`), #958 (`ad50575`), #963 (`d8d179e`), #964 (`3450d8c`) | SIGNED |
+| G1.6 Users configure OpenClaw via bounded jobs | PR #956 (`5575b53`), #958 (`ad50575`), #963 (`d8d179e`), #964 (`3450d8c`); post-promote 闭环 PR #997 (`c66b469`) + #996 (`6ccb990`) + #1001+#1002 (`8deb10c`) + #1003 (`004a20f`) | SIGNED (见 §6 footnote) |
 
 ## §3 Milestone 2 Gates — Channel Attention And Authority
 
@@ -39,6 +39,19 @@ All 7 source anchors (`HB-RA-1A`, `HB-RA-1B`, `MR-1`, `CH-1`, `CT-1`, `PS-1`, `I
 | Gate | PR / SHA | Result |
 |---|---|---|
 | G1.5 `PS-1` no new privacy/compliance product surface | scope guard upheld across every M1/M2/M3 PR; M3 task-3 PR #944 (`0877a9b`) is the explicit reverse-proof anchor | SIGNED |
+
+## §6 G1.6 端到端闭环 Footnote
+
+G1.6 在 phase exit (2026-05-18, PR #992 promote) 时签 SIGNED, 但当时 user-reachable 端到端未真闭 — 见 §10 Retro. post-cutover 5 PR chain 真实闭环:
+
+| PR | Merge SHA | What it shipped |
+|---|---|---|
+| #997 | `c66b469` | ed25519 真签名链 + config-driven manifest entries |
+| #996 | `6ccb990` | `install-butler` binary (signed-manifest installer) |
+| #1001 + #1002 | `8deb10c` | helper dispatch loop (poll + policy evaluate + lease + result) |
+| #1003 | `004a20f` | `.deb` / `.pkg` builder + `release-helper.yml` pipeline |
+
+Caveat: manifest 真 SHA256 / Signature 数据待第一个 `borgee-helper-v0.1.0` tag 触发 #1003 release pipeline 后由 deploy env 注入. 在此之前 manifest 走 placeholder; 代码路径 + 签名验证 + dispatch loop 已 wired, 等真 release artifact 即生效.
 
 ## §7 Four-Role Signoffs
 
@@ -72,3 +85,20 @@ Phase 1 v1.1 closes with all 3 milestones CLOSED, all 8 exit gates SIGNED, no DE
 - `docs/tasks/phase-1-v11-trust-usability-closure/milestone-1-*/accepted-history.md`
 - `docs/blueprint/next/README.md` (`§0` ledger + `§5` next workflow step)
 - `readiness-review.md` (this folder)
+
+## §10 Retro — G1.6 为何被错签 SIGNED
+
+记录此次 phase exit 流程 slip 原因, 给未来 phase exit + `bf-phase-exit-gate` skill 用. 不追责, 协议层修补.
+
+**什么 slipped**: G1.6 "Users configure OpenClaw via bounded jobs" 在 2026-05-18 phase exit 时签 SIGNED, 但 user-reachable 端到端未真: 无 `install-butler` binary (#996 后才有), manifest 走 placeholder (#997 才真签名), helper dispatch loop 未 wire (#1001+#1002 才接通), 无 `.deb`/`.pkg` release pipeline (#1003 才有). "代码 scaffolding 存在" 被等同了 "user outcome 可达".
+
+**为何 slipped**:
+- 4-role signoff 基于用户信任 + `readiness-review.md` 自己的 Carry-overs 段披露. 但 Carry-overs 措辞让 reviewer 把代码级缺口当 "deferred" 而非 "blocks G1.6 SIGNED claim".
+- `bf-phase-exit-gate` skill 当前 signoff 格式没区分 "code-shipped + outcome-reachable" 跟 "stance-locked + execution-deferred". 同一格子两种状态都填 SIGNED.
+
+**改什么 (协议, 非追责)**:
+- 未来 phase exit announcement: 每条 gate row REQUIRES "User outcome path" 列, 追 user action → observable outcome 链. 链上任一环是 "pending PR X" 或 "awaits future work", gate 不能 SIGNED, 必须 PARTIAL 或 DEFERRED.
+- Carry-overs 段每条加 label: `BLOCKS-GATE: G1.x` (真挡 gate) vs `OPERATIONAL-FOLLOWUP` (真 deploy-time only).
+- `bf-phase-exit-gate` skill v6.x 可加 built-in "user-outcome trace" verifier 作机械 lint. 此条作为 blueprintflow v6.x 输入, 不在此 PR scope (此 PR 在 borgee 仓库).
+
+非追责: signoff 当时 good faith; 协议允许此 drift. 协议微调是 fix, 不是人.
