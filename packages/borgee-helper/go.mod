@@ -3,7 +3,8 @@
 //
 // Contains:
 //   - cmd/borgee-helper — HB-2 host-bridge daemon (常驻无 sudo, IPC server)
-//   - (future) cmd/install-butler — HB-1 install daemon (短命)
+//   - cmd/borgee-helper-claim — one-time claim CLI (#968)
+//   - cmd/install-butler — HB-1 short-lived signed-manifest installer (#996)
 module borgee-helper
 
 go 1.25.0
