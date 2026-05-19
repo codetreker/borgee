@@ -101,6 +101,7 @@ Startup/routing does not define business authorization rules, migration contents
 - `packages/server-go/internal/ws/remote.go`
 - `packages/server-go/internal/bpp/plugin_frame_dispatcher.go`
 - `packages/server-go/internal/bpp/heartbeat_watchdog.go`
+- `packages/server-go/internal/api/manifest_signing.go` — install-butler manifest ed25519 signing key + entry list loaders (see `docs/current/host-bridge/manifest-signing.md`)
 - `packages/server-go/internal/datalayer/events_retention.go`
 - `packages/server-go/internal/datalayer/events_threshold.go`
 - `packages/server-go/internal/datalayer/events_archive_offloader.go`
