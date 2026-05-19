@@ -286,7 +286,7 @@ func (s *Server) SetupRoutes() {
 
 	// Helper enrollment/status foundation. User management routes use authMw;
 	// claim/status/uninstall use the distinct Helper credential rail.
-	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Repo: s.dl.HelperEnrollmentRepo, JobRepo: s.dl.HelperJobRepo}
+	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Repo: s.dl.HelperEnrollmentRepo, JobRepo: s.dl.HelperJobRepo, Logger: s.logger}
 	helperEnrollmentHandler.RegisterRoutes(s.mux, authMw)
 	helperJobsHandler := &api.HelperJobsHandler{Repo: s.dl.HelperJobRepo}
 	helperJobsHandler.RegisterRoutes(s.mux, authMw)

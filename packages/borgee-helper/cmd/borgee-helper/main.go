@@ -28,6 +28,7 @@ import (
 	"borgee-helper/internal/jobpolicy"
 	"borgee-helper/internal/outbound"
 	"borgee-helper/internal/sandbox"
+	"borgee-helper/internal/updatecheck"
 )
 
 func main() {
@@ -166,6 +167,22 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 		log.Printf("borgee-helper: no enrollment configured, skipping job dispatcher")
 	}
 
+	// #999 update-detection: piggy-back the same enrollment + credential
+	// state the heartbeat / dispatcher already require. Same skip-on-
+	// pre-claim semantics so a fresh install boots without the loop;
+	// the install-butler / claim sequence will populate the files and
+	// next daemon restart picks them up.
+	if uc, ok := buildUpdateChecker(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
+		log.Printf("borgee-helper: update-checker enabled enrollment_id=%s interval=%s", uc.EnrollmentID, updatecheck.DefaultInterval)
+		go func() {
+			if err := uc.Run(ctx); err != nil {
+				log.Printf("borgee-helper: update-checker exited: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("borgee-helper: no enrollment configured, skipping update-checker")
+	}
+
 	h := ipc.New(gate, auditLogger)
 	for {
 		conn, err := ln.Accept()
@@ -300,6 +317,39 @@ func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDevic
 				Logger: log.Printf,
 			},
 		},
+	}, true
+}
+
+// buildUpdateChecker mirrors the buildHeartbeater / buildDispatcher
+// pre-claim skip semantics. #999 update detection — the loop POSTs the
+// installed-versions snapshot every updatecheck.DefaultInterval; server
+// computes drift authoritatively against the signed manifest and returns
+// the per-class list. Helper logs each drift entry with class-driven
+// severity. Apply is NOT wired here per blueprint §1.3 (auto-apply banned).
+func buildUpdateChecker(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string) (*updatecheck.Checker, bool) {
+	if !prep.Enabled {
+		return nil, false
+	}
+	if trim(enrollmentIDFile) == "" || trim(helperDeviceIDFile) == "" || trim(credentialFile) == "" {
+		return nil, false
+	}
+	enrollmentID, ok := readTrimmedFile("--enrollment-id-file", enrollmentIDFile)
+	if !ok {
+		return nil, false
+	}
+	helperDeviceID, ok := readTrimmedFile("--helper-device-id-file", helperDeviceIDFile)
+	if !ok {
+		return nil, false
+	}
+	credential, ok := readTrimmedFile("--helper-credential-file", credentialFile)
+	if !ok {
+		return nil, false
+	}
+	return &updatecheck.Checker{
+		ServerOrigin:   prep.ServerOrigin,
+		EnrollmentID:   enrollmentID,
+		HelperDeviceID: helperDeviceID,
+		Credential:     credential,
 	}, true
 }
 

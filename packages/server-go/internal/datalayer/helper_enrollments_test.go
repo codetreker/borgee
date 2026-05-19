@@ -131,6 +131,87 @@ func TestHelperEnrollmentRepositoryLifecycle(t *testing.T) {
 	}
 }
 
+// TestHelperEnrollmentRepositoryRecordUpdatesAvailable covers the #999
+// datalayer RecordUpdatesAvailable wrapper + the store-level
+// RecordHelperEnrollmentUpdatesAvailable query end-to-end against a
+// freshly migrated SQLite store. Lifecycle: create → claim → record
+// snapshot (security + feature mixed) → reload via GetForUser and
+// assert the JSON round-trips through the typed projection.
+func TestHelperEnrollmentRepositoryRecordUpdatesAvailable(t *testing.T) {
+	t.Parallel()
+	dl, owner := newHelperEnrollmentRepoFixture(t, "helper-dl-updates")
+	repo := dl.HelperEnrollmentRepo
+	ctx := context.Background()
+	now := time.UnixMilli(1778840000000)
+
+	pending, secret, err := repo.Create(ctx, owner.ID, "Linux Studio", []string{"openclaw_config"}, now)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	_, credential, err := repo.Claim(ctx, pending.ID, secret, "device-upd", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+
+	checkAt := now.Add(5 * time.Minute)
+	updates := []HelperEnrollmentUpdateAvailable{
+		{PluginID: "openclaw", CurrentVersion: "1.0.0", ManifestVersion: "1.1.0", Class: "security"},
+		{PluginID: "plug-b", CurrentVersion: "", ManifestVersion: "0.1.0", Class: "feature"},
+	}
+	row, err := repo.RecordUpdatesAvailable(ctx, pending.ID, credential, "device-upd", updates, checkAt)
+	if err != nil {
+		t.Fatalf("RecordUpdatesAvailable: %v", err)
+	}
+	if row.LastUpdateCheckAt == nil || *row.LastUpdateCheckAt != checkAt.UnixMilli() {
+		t.Fatalf("LastUpdateCheckAt = %v, want %d", row.LastUpdateCheckAt, checkAt.UnixMilli())
+	}
+	if len(row.UpdatesAvailable) != 2 {
+		t.Fatalf("UpdatesAvailable len=%d, want 2: %+v", len(row.UpdatesAvailable), row.UpdatesAvailable)
+	}
+	if row.UpdatesAvailable[0].PluginID != "openclaw" || row.UpdatesAvailable[0].Class != "security" {
+		t.Fatalf("first update entry shape wrong: %+v", row.UpdatesAvailable[0])
+	}
+	if row.UpdatesAvailable[1].CurrentVersion != "" || row.UpdatesAvailable[1].Class != "feature" {
+		t.Fatalf("second update entry shape wrong: %+v", row.UpdatesAvailable[1])
+	}
+
+	// Reload to prove the snapshot persists across a fresh read (the
+	// JSON column round-trips via helperEnrollmentFromStore).
+	reloaded, err := repo.GetForUser(ctx, pending.ID, owner.ID, owner.OrgID)
+	if err != nil {
+		t.Fatalf("GetForUser after record: %v", err)
+	}
+	if len(reloaded.UpdatesAvailable) != 2 {
+		t.Fatalf("reloaded UpdatesAvailable len=%d, want 2", len(reloaded.UpdatesAvailable))
+	}
+	if reloaded.LastUpdateCheckAt == nil || *reloaded.LastUpdateCheckAt != checkAt.UnixMilli() {
+		t.Fatalf("reloaded LastUpdateCheckAt = %v, want %d", reloaded.LastUpdateCheckAt, checkAt.UnixMilli())
+	}
+
+	// Empty snapshot (drift cleared) is a valid latest-wins write —
+	// proves the nil-vs-empty normalization in the wrapper.
+	clearedAt := now.Add(10 * time.Minute)
+	cleared, err := repo.RecordUpdatesAvailable(ctx, pending.ID, credential, "device-upd", nil, clearedAt)
+	if err != nil {
+		t.Fatalf("RecordUpdatesAvailable cleared: %v", err)
+	}
+	if len(cleared.UpdatesAvailable) != 0 {
+		t.Fatalf("cleared UpdatesAvailable len=%d, want 0 (snapshot cleared)", len(cleared.UpdatesAvailable))
+	}
+	if cleared.LastUpdateCheckAt == nil || *cleared.LastUpdateCheckAt != clearedAt.UnixMilli() {
+		t.Fatalf("cleared LastUpdateCheckAt = %v, want %d", cleared.LastUpdateCheckAt, clearedAt.UnixMilli())
+	}
+
+	// Wrong device id closes — credential rail guard still applies.
+	if _, err := repo.RecordUpdatesAvailable(ctx, pending.ID, credential, "device-other", nil, now.Add(11*time.Minute)); !errors.Is(err, ErrHelperEnrollmentDeviceMismatch) {
+		t.Fatalf("device mismatch error=%v, want ErrHelperEnrollmentDeviceMismatch", err)
+	}
+	// Bad credential closes too.
+	if _, err := repo.RecordUpdatesAvailable(ctx, pending.ID, "bad-credential", "device-upd", nil, now.Add(12*time.Minute)); !errors.Is(err, ErrHelperEnrollmentUnauthorized) {
+		t.Fatalf("bad credential error=%v, want ErrHelperEnrollmentUnauthorized", err)
+	}
+}
+
 func TestHelperEnrollmentRepositoryErrors(t *testing.T) {
 	t.Parallel()
 	dl, owner := newHelperEnrollmentRepoFixture(t, "helper-dl-errors")

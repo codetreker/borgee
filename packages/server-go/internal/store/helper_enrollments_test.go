@@ -570,3 +570,67 @@ func TestHelperEnrollmentRevokeDoesNotOverwriteUninstallRace(t *testing.T) {
 		t.Fatalf("persisted revoke race row=%+v, want uninstalled without revoked_at", reloaded)
 	}
 }
+
+// TestRecordHelperEnrollmentUpdatesAvailable covers the #999 update-
+// detection store query: lifecycle = create → claim → record snapshot →
+// reload + assert column round-trip; also exercises wrong-credential
+// (Unauthorized) and wrong-device (DeviceMismatch) guards so the
+// credential rail stays closed on the new endpoint.
+func TestRecordHelperEnrollmentUpdatesAvailable(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-updates-store")
+	now := time.UnixMilli(1778840000000)
+
+	enrollment, secret, err := s.CreateHelperEnrollment(owner.ID, "Update Host", []string{"openclaw_config"}, now)
+	if err != nil {
+		t.Fatalf("CreateHelperEnrollment: %v", err)
+	}
+	_, credential, err := s.ClaimHelperEnrollment(enrollment.ID, secret, "device-u", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("ClaimHelperEnrollment: %v", err)
+	}
+
+	checkAt := now.Add(5 * time.Minute)
+	snapshot := `[{"plugin_id":"openclaw","current_version":"1.0.0","manifest_version":"1.1.0","class":"security"}]`
+	row, err := s.RecordHelperEnrollmentUpdatesAvailable(enrollment.ID, credential, "device-u", snapshot, checkAt)
+	if err != nil {
+		t.Fatalf("RecordHelperEnrollmentUpdatesAvailable: %v", err)
+	}
+	if row.LastUpdateCheckAt == nil || *row.LastUpdateCheckAt != checkAt.UnixMilli() {
+		t.Fatalf("LastUpdateCheckAt = %v, want %d", row.LastUpdateCheckAt, checkAt.UnixMilli())
+	}
+	if row.UpdatesAvailableJSON == nil || *row.UpdatesAvailableJSON != snapshot {
+		t.Fatalf("UpdatesAvailableJSON = %v, want %q", row.UpdatesAvailableJSON, snapshot)
+	}
+
+	// Latest-wins: a second write overwrites (empty snapshot = drift
+	// cleared, with last_update_check_at advanced).
+	clearedAt := now.Add(10 * time.Minute)
+	cleared, err := s.RecordHelperEnrollmentUpdatesAvailable(enrollment.ID, credential, "device-u", "[]", clearedAt)
+	if err != nil {
+		t.Fatalf("clear RecordHelperEnrollmentUpdatesAvailable: %v", err)
+	}
+	if cleared.UpdatesAvailableJSON == nil || *cleared.UpdatesAvailableJSON != "[]" {
+		t.Fatalf("cleared UpdatesAvailableJSON = %v, want []", cleared.UpdatesAvailableJSON)
+	}
+	if cleared.LastUpdateCheckAt == nil || *cleared.LastUpdateCheckAt != clearedAt.UnixMilli() {
+		t.Fatalf("cleared LastUpdateCheckAt = %v, want %d", cleared.LastUpdateCheckAt, clearedAt.UnixMilli())
+	}
+
+	// Auth rail guards stay closed.
+	if _, err := s.RecordHelperEnrollmentUpdatesAvailable(enrollment.ID, "bad-credential", "device-u", "[]", now.Add(11*time.Minute)); !errors.Is(err, ErrHelperEnrollmentUnauthorized) {
+		t.Fatalf("bad credential error=%v, want ErrHelperEnrollmentUnauthorized", err)
+	}
+	if _, err := s.RecordHelperEnrollmentUpdatesAvailable(enrollment.ID, credential, "device-other", "[]", now.Add(12*time.Minute)); !errors.Is(err, ErrHelperEnrollmentDeviceMismatch) {
+		t.Fatalf("device mismatch error=%v, want ErrHelperEnrollmentDeviceMismatch", err)
+	}
+
+	// Revoked + uninstalled paths fail closed too.
+	if _, err := s.MarkHelperEnrollmentUninstalled(enrollment.ID, credential, "device-u", now.Add(13*time.Minute)); err != nil {
+		t.Fatalf("MarkHelperEnrollmentUninstalled: %v", err)
+	}
+	if _, err := s.RecordHelperEnrollmentUpdatesAvailable(enrollment.ID, credential, "device-u", "[]", now.Add(14*time.Minute)); !errors.Is(err, ErrHelperEnrollmentInactive) {
+		t.Fatalf("after uninstall error=%v, want ErrHelperEnrollmentInactive", err)
+	}
+}

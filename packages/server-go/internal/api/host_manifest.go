@@ -71,6 +71,14 @@ var HB1AllReasons = []string{
 
 // PluginManifestEntry mirrors content-lock §1 per-plugin entry shape.
 // 字段名 byte-identical 跟 spec §3.1 content-lock §1.
+//
+// Class — #999 update classification. "security" = startup prominent prompt
+// + one-click confirm. "feature" (or empty default) = settings panel only.
+// Blueprint锚: docs/blueprint/current/host-bridge.md §1.3 "更新策略: 分类,
+// 不自动" — 自动更新仍是反模式. Class is metadata for the update-flow only;
+// install-butler does NOT consume it (canonical signing bytes intentionally
+// exclude Class — same as Platforms — so adding the field never changes any
+// already-signed manifest entry).
 type PluginManifestEntry struct {
 	ID        string   `json:"id"`
 	Version   string   `json:"version"`
@@ -78,6 +86,25 @@ type PluginManifestEntry struct {
 	SHA256    string   `json:"sha256"`
 	Signature string   `json:"signature"`
 	Platforms []string `json:"platforms"`
+	Class     string   `json:"class,omitempty"`
+}
+
+// UpdateClass* — #999 manifest entry classification literals. Used by the
+// helper-side update-checker (drift POST) + server-side serializer
+// (updates_available). Empty / unknown class normalizes to feature.
+const (
+	UpdateClassSecurity = "security"
+	UpdateClassFeature  = "feature"
+)
+
+// NormalizeUpdateClass folds empty / unknown values to "feature" — the
+// default per blueprint §1.3 ("功能更新只在设置面板提示" is the conservative
+// classification; security must be explicitly opted into).
+func NormalizeUpdateClass(c string) string {
+	if c == UpdateClassSecurity {
+		return UpdateClassSecurity
+	}
+	return UpdateClassFeature
 }
 
 // PluginManifestPayload mirrors content-lock §1 top-level shape.

@@ -534,3 +534,170 @@ func TestHelperEnrollmentRejectsRemoteHostGrantAndUserPermissionAuthority(t *tes
 		t.Fatalf("actual helper credential should still authenticate after rejected rails, got %d", resp.StatusCode)
 	}
 }
+
+// TS-1 — UpdateAvailableEndpointAccepts: well-formed helper POST of installed
+// versions returns 200, server-computed drift, and a last_update_check_at
+// timestamp. Drift is computed against the env-injected manifest entries.
+func TestHelperEnrollmentInstalledVersions_TS1_AcceptsAndComputesDrift(t *testing.T) {
+	// t.Parallel() skipped: uses t.Setenv
+	// Override manifest to a security-classified single entry at v2.0.0.
+	manifestJSON := `[{"id":"openclaw","version":"2.0.0","binary_url":"https://example/x","sha256":"0000000000000000000000000000000000000000000000000000000000000000","platforms":["linux-x64"],"class":"security"}]`
+	t.Setenv("BORGEE_MANIFEST_ENTRIES_JSON", manifestJSON)
+
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollmentID, credential := createClaimedHelperEnrollmentWithCategories(t, ts.URL, ownerToken, []string{"openclaw_config", "openclaw_lifecycle"})
+
+	before := time.Now().UnixMilli()
+	resp, body := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/installed-versions", credential, map[string]any{
+		"helper_device_id": "device-" + enrollmentID,
+		"installed": []map[string]any{
+			{"id": "openclaw", "version": "1.0.0"},
+		},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("installed-versions POST status %d body %v", resp.StatusCode, body)
+	}
+	drift, ok := body["updates_available"].([]any)
+	if !ok || len(drift) != 1 {
+		t.Fatalf("expected 1 drift entry, got %v", body["updates_available"])
+	}
+	got := drift[0].(map[string]any)
+	if got["plugin_id"] != "openclaw" {
+		t.Fatalf("plugin_id=%v want openclaw", got["plugin_id"])
+	}
+	if got["current_version"] != "1.0.0" {
+		t.Fatalf("current_version=%v want 1.0.0", got["current_version"])
+	}
+	if got["manifest_version"] != "2.0.0" {
+		t.Fatalf("manifest_version=%v want 2.0.0", got["manifest_version"])
+	}
+	if got["class"] != "security" {
+		t.Fatalf("class=%v want security", got["class"])
+	}
+	ts1Ts, ok := body["last_update_check_at"].(float64)
+	if !ok || int64(ts1Ts) < before {
+		t.Fatalf("last_update_check_at missing/stale: %v (before=%d)", body["last_update_check_at"], before)
+	}
+}
+
+// TS-2 — UpdateAvailableShowsInEnrollment: after POSTing drift, GET enrollment
+// includes updates_available + last_update_check_at in the projection.
+func TestHelperEnrollmentInstalledVersions_TS2_ShowsInEnrollment(t *testing.T) {
+	// t.Parallel() skipped: uses t.Setenv
+	manifestJSON := `[{"id":"openclaw","version":"3.0.0","binary_url":"https://example/x","sha256":"0000000000000000000000000000000000000000000000000000000000000000","platforms":["linux-x64"],"class":"feature"}]`
+	t.Setenv("BORGEE_MANIFEST_ENTRIES_JSON", manifestJSON)
+
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollmentID, credential := createClaimedHelperEnrollmentWithCategories(t, ts.URL, ownerToken, []string{"openclaw_config", "openclaw_lifecycle"})
+
+	resp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/installed-versions", credential, map[string]any{
+		"helper_device_id": "device-" + enrollmentID,
+		"installed": []map[string]any{
+			{"id": "openclaw", "version": "2.5.0"},
+		},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST status=%d", resp.StatusCode)
+	}
+
+	resp, body := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID, ownerToken, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET enrollment status=%d body=%v", resp.StatusCode, body)
+	}
+	row := body["enrollment"].(map[string]any)
+	updates, ok := row["updates_available"].([]any)
+	if !ok || len(updates) != 1 {
+		t.Fatalf("expected 1 entry in serializer updates_available, got %v", row["updates_available"])
+	}
+	first := updates[0].(map[string]any)
+	if first["plugin_id"] != "openclaw" || first["manifest_version"] != "3.0.0" || first["class"] != "feature" {
+		t.Fatalf("entry shape wrong: %v", first)
+	}
+	if _, ok := row["last_update_check_at"].(float64); !ok {
+		t.Fatalf("last_update_check_at missing in enrollment GET: %v", row)
+	}
+}
+
+// TS-3 — ClassDefaultsToFeature: manifest entry without an explicit class
+// field normalizes to "feature" per blueprint §1.3 (security must be
+// explicitly opted into).
+func TestHelperEnrollmentInstalledVersions_TS3_ClassDefaultsToFeature(t *testing.T) {
+	// t.Parallel() skipped: uses t.Setenv
+	// No class field — server must default to feature.
+	manifestJSON := `[{"id":"openclaw","version":"9.9.9","binary_url":"https://example/x","sha256":"0000000000000000000000000000000000000000000000000000000000000000","platforms":["linux-x64"]}]`
+	t.Setenv("BORGEE_MANIFEST_ENTRIES_JSON", manifestJSON)
+
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollmentID, credential := createClaimedHelperEnrollmentWithCategories(t, ts.URL, ownerToken, []string{"openclaw_config", "openclaw_lifecycle"})
+
+	resp, body := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/installed-versions", credential, map[string]any{
+		"helper_device_id": "device-" + enrollmentID,
+		"installed":        []map[string]any{{"id": "openclaw", "version": "1.0.0"}},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d body=%v", resp.StatusCode, body)
+	}
+	drift := body["updates_available"].([]any)
+	if len(drift) != 1 {
+		t.Fatalf("expected 1 drift, got %v", drift)
+	}
+	if drift[0].(map[string]any)["class"] != "feature" {
+		t.Fatalf("missing-class manifest must default to feature, got %v", drift[0])
+	}
+}
+
+// TS-4 — NoDriftWhenVersionsMatch: helper reports installed == manifest, no
+// drift returned and server stores empty array.
+func TestHelperEnrollmentInstalledVersions_TS4_NoDriftWhenVersionsMatch(t *testing.T) {
+	// t.Parallel() skipped: uses t.Setenv
+	manifestJSON := `[{"id":"openclaw","version":"1.0.0","binary_url":"https://example/x","sha256":"0000000000000000000000000000000000000000000000000000000000000000","platforms":["linux-x64"],"class":"security"}]`
+	t.Setenv("BORGEE_MANIFEST_ENTRIES_JSON", manifestJSON)
+
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollmentID, credential := createClaimedHelperEnrollmentWithCategories(t, ts.URL, ownerToken, []string{"openclaw_config", "openclaw_lifecycle"})
+
+	resp, body := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/installed-versions", credential, map[string]any{
+		"helper_device_id": "device-" + enrollmentID,
+		"installed":        []map[string]any{{"id": "openclaw", "version": "1.0.0"}},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d body=%v", resp.StatusCode, body)
+	}
+	drift, ok := body["updates_available"].([]any)
+	if !ok {
+		t.Fatalf("updates_available missing in response: %v", body)
+	}
+	if len(drift) != 0 {
+		t.Fatalf("expected empty drift when versions match, got %v", drift)
+	}
+}
+
+// TS-5 — RejectsBadAuth: user token / wrong device id is rejected.
+func TestHelperEnrollmentInstalledVersions_TS5_RejectsBadAuth(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollmentID, credential := createClaimedHelperEnrollmentWithCategories(t, ts.URL, ownerToken, []string{"openclaw_config", "openclaw_lifecycle"})
+
+	// User token (not helper credential) -> 401.
+	resp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/installed-versions", ownerToken, map[string]any{
+		"helper_device_id": "device-" + enrollmentID,
+		"installed":        []map[string]any{},
+	})
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("user token must not authenticate update endpoint, got %d", resp.StatusCode)
+	}
+
+	// Wrong device id -> 403.
+	resp, _ = testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/installed-versions", credential, map[string]any{
+		"helper_device_id": "device-other",
+		"installed":        []map[string]any{},
+	})
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("device-id mismatch should be 403, got %d", resp.StatusCode)
+	}
+}
