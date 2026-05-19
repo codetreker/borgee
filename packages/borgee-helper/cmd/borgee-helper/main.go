@@ -22,6 +22,7 @@ import (
 	"borgee-helper/internal/acl"
 	"borgee-helper/internal/audit"
 	"borgee-helper/internal/dispatch"
+	"borgee-helper/internal/executors/uninstall"
 	"borgee-helper/internal/grants"
 	"borgee-helper/internal/ipc"
 	"borgee-helper/internal/jobpolicy"
@@ -291,10 +292,13 @@ func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDevic
 		Client:          client,
 		EnrollmentID:    enrollmentID,
 		PolicyEvaluator: defaultPolicyEvaluator(),
-		Executors:       map[string]dispatch.Executor{
-			// Empty — typed-job executors land in #998 + follow-ups. Any
-			// leased job whose type is not in this map is reported as
-			// terminal `failed`/`not_implemented`.
+		Executors: map[string]dispatch.Executor{
+			// #998 helper.uninstall — one-key self-teardown. See
+			// internal/executors/uninstall for the cleanup sequence and the
+			// "no self-stop signal" safety note.
+			jobpolicy.JobTypeHelperUninstall: &uninstall.Executor{
+				Logger: log.Printf,
+			},
 		},
 	}, true
 }
