@@ -358,6 +358,25 @@ func TestDefaultLayout_LinuxPostRename(t *testing.T) {
 	if l.ServiceUnitPath != "/etc/systemd/system/borgee.service" {
 		t.Fatalf("linux unit path = %q", l.ServiceUnitPath)
 	}
+	// rootd-skeleton: DefaultLayout must include the rootd companion
+	// unit + service name so uninstall takes both down.
+	if l.RootdServiceName != "borgee-rootd.service" {
+		t.Fatalf("linux rootd service name = %q, want borgee-rootd.service", l.RootdServiceName)
+	}
+	if l.RootdServiceUnitPath != "/etc/systemd/system/borgee-rootd.service" {
+		t.Fatalf("linux rootd unit path = %q", l.RootdServiceUnitPath)
+	}
+	// rootd UDS socket file is listed as AuxFiles so a stale socket
+	// from a prior boot does not trip the new rootd's bind.
+	foundRootdSock := false
+	for _, a := range l.AuxFiles {
+		if a == "/run/borgee/borgee-rootd.sock" {
+			foundRootdSock = true
+		}
+	}
+	if !foundRootdSock {
+		t.Fatalf("linux DefaultLayout missing rootd socket in AuxFiles, got %v", l.AuxFiles)
+	}
 	wantStateDirs := map[string]bool{
 		"/var/lib/borgee/queue":         true,
 		"/var/lib/borgee/status":        true,
@@ -398,16 +417,32 @@ func TestDefaultLayout_DarwinPostRename(t *testing.T) {
 	if l.RuntimeDir != "/usr/local/libexec/borgee" {
 		t.Fatalf("darwin runtime dir = %q", l.RuntimeDir)
 	}
+	// rootd-skeleton: DefaultLayout must include the rootd companion
+	// plist + label so uninstall takes both down.
+	if l.RootdServiceName != "cloud.borgee.host-bridge.rootd" {
+		t.Fatalf("darwin rootd service name = %q, want cloud.borgee.host-bridge.rootd", l.RootdServiceName)
+	}
+	if l.RootdServiceUnitPath != "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.plist" {
+		t.Fatalf("darwin rootd plist path = %q", l.RootdServiceUnitPath)
+	}
 	// AuxFiles must include the sandbox profile path so an uninstall
-	// removes it (anomaly #5 from the prior audit).
+	// removes it (anomaly #5 from the prior audit), AND the rootd UDS
+	// socket file (rootd-skeleton).
 	foundSandbox := false
+	foundRootdSock := false
 	for _, a := range l.AuxFiles {
 		if a == "/Library/Application Support/Borgee/borgee-helper.sb" {
 			foundSandbox = true
 		}
+		if a == "/Users/Shared/Borgee/borgee-rootd.sock" {
+			foundRootdSock = true
+		}
 	}
 	if !foundSandbox {
 		t.Fatalf("darwin DefaultLayout AuxFiles missing sandbox profile, got %v", l.AuxFiles)
+	}
+	if !foundRootdSock {
+		t.Fatalf("darwin DefaultLayout AuxFiles missing rootd socket, got %v", l.AuxFiles)
 	}
 	// Reverse-grep: state dirs must not contain pre-rename helper user
 	// suffix. Sandbox profile filename is intentionally kept as
@@ -439,5 +474,52 @@ func TestExecutor_AuxFilesRemoved(t *testing.T) {
 	}
 	if _, err := os.Stat(aux); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("aux file %s should be removed (err=%v)", aux, err)
+	}
+}
+
+// TU-10 RootdCompanionDisabledAndRemoved — when Layout.RootdServiceName +
+// RootdServiceUnitPath are populated (the post-rootd-skeleton DefaultLayout
+// shape), the executor must disable + remove both the main service and
+// the rootd companion. Guards against a regression that forgot to take
+// rootd down, which would leave a stale UDS-bound process after uninstall.
+func TestExecutor_RootdCompanionDisabledAndRemoved(t *testing.T) {
+	t.Parallel()
+	layout, root := fixtureLayout(t)
+	// Add the rootd companion unit + service name to the fixture layout.
+	rootdUnit := filepath.Join(root, "unit", "borgee-rootd.service")
+	if err := os.WriteFile(rootdUnit, []byte("[Unit]"), 0o644); err != nil {
+		t.Fatalf("write rootd unit: %v", err)
+	}
+	layout.RootdServiceName = "borgee-rootd.service"
+	layout.RootdServiceUnitPath = rootdUnit
+	cmd := &recordingCmd{}
+	exec := &Executor{Layout: layout, Cmd: cmd, GOOS: "linux"}
+
+	if _, err := exec.Execute(context.Background(), newJob(t, map[string]any{"scope": "helper"})); err != nil {
+		t.Fatalf("Execute err: %v", err)
+	}
+
+	// rootd unit file must be gone.
+	if _, err := os.Stat(rootdUnit); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("rootd unit file should be removed (err=%v)", err)
+	}
+	// Both `systemctl disable borgee-helper.service` AND
+	// `systemctl disable borgee-rootd.service` must have been attempted.
+	calls := cmd.callNames()
+	wantSubstrs := []string{
+		"systemctl disable borgee-helper.service",
+		"systemctl disable borgee-rootd.service",
+	}
+	for _, want := range wantSubstrs {
+		found := false
+		for _, got := range calls {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("missing recorded cmd %q (calls=%v)", want, calls)
+		}
 	}
 }

@@ -55,6 +55,13 @@ const (
 	linuxServiceDst = "/etc/systemd/system/borgee.service"
 	linuxServerDSN  = "file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000"
 
+	// rootd companion daemon (User=root). Same binary, different
+	// subcommand; the unit file is separate so each service can be
+	// enabled/disabled/restarted independently and so the systemd-level
+	// hardening differs (rootd locks down AF_UNIX-only, etc.).
+	linuxRootdServiceDst = "/etc/systemd/system/borgee-rootd.service"
+	linuxRootdSocket     = "/run/borgee/borgee-rootd.sock"
+
 	darwinUser            = "_borgee"
 	darwinStateRoot       = "/Library/Application Support/Borgee/Helper"
 	darwinAppSupport      = "/Library/Application Support/Borgee"
@@ -72,6 +79,11 @@ const (
 	darwinQueueStateDir   = "/Library/Application Support/Borgee/Helper/QueueState"
 	darwinStatusStateDir  = "/Library/Application Support/Borgee/Helper/StatusState"
 	darwinAuditHandoffDir = "/Library/Application Support/Borgee/Helper/AuditHandoff"
+
+	// rootd companion launchd plist + UDS on macOS.
+	darwinRootdPlistDst   = "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.plist"
+	darwinRootdPlistLabel = "cloud.borgee.host-bridge.rootd"
+	darwinRootdSocket     = "/Users/Shared/Borgee/borgee-rootd.sock"
 )
 
 // LinuxBinaryPath / DarwinBinaryPath / LinuxRuntimeDir / DarwinRuntimeDir
@@ -88,6 +100,15 @@ const (
 	DarwinPlistLabel = darwinPlistLabel
 	LinuxUser        = linuxUser
 	DarwinUser       = darwinUser
+
+	// rootd companion daemon (PR-1 skeleton). Exported so install /
+	// uninstall flows can manage the second unit alongside borgee.service.
+	LinuxRootdServiceDst   = linuxRootdServiceDst
+	LinuxRootdServiceName  = "borgee-rootd.service"
+	LinuxRootdSocket       = linuxRootdSocket
+	DarwinRootdPlistDst    = darwinRootdPlistDst
+	DarwinRootdPlistLabel  = darwinRootdPlistLabel
+	DarwinRootdSocket      = darwinRootdSocket
 )
 
 // Run is the entry for `borgee setup`. Dispatcher in cmd/borgee passes the
@@ -189,6 +210,21 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 		}
 	}
 
+	// 3b. Write the rootd companion unit. Same binary, different
+	//     subcommand (`borgee rootd`), runs as User=root, listens on a
+	//     local UDS, accepts only a hardcoded command whitelist. The
+	//     unit is written even when PR-1's whitelist is just `ping`
+	//     because the systemd-level hardening (AF_UNIX-only, no network,
+	//     tight memory/cpu caps) is independent of which commands the
+	//     whitelist contains.
+	rootdUnit := renderLinuxRootdUnit()
+	logStep("write " + linuxRootdServiceDst)
+	if !dryRun {
+		if err := os.WriteFile(linuxRootdServiceDst, []byte(rootdUnit), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", linuxRootdServiceDst, err)
+		}
+	}
+
 	// 4. systemctl daemon-reload (best-effort; absent on minimal containers).
 	if _, err := exec.LookPath("systemctl"); err == nil {
 		logStep("systemctl daemon-reload")
@@ -271,6 +307,18 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 		}
 	}
 
+	// 3b. Write the rootd companion plist. Same binary, `borgee rootd`
+	//     subcommand, runs as root, listens on a local UDS, accepts only
+	//     a hardcoded command whitelist. Independent of the main plist
+	//     so each launchd unit can be loaded/unloaded separately.
+	rootdPlist := renderDarwinRootdPlist()
+	logStep("write " + darwinRootdPlistDst)
+	if !dryRun {
+		if err := os.WriteFile(darwinRootdPlistDst, []byte(rootdPlist), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", darwinRootdPlistDst, err)
+		}
+	}
+
 	// 4. Next-step banner — DO NOT auto-load. Operator must claim first.
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "borgee setup: macOS scaffold ready. Next steps:")
@@ -342,6 +390,57 @@ WantedBy=multi-user.target
 `
 }
 
+// renderLinuxRootdUnit builds the systemd unit for the rootd companion
+// daemon. Same binary as borgee.service, different subcommand (`borgee
+// rootd`), runs as root, locked down with a tight defense-in-depth
+// hardening profile because rootd does not need network access at all.
+//
+// ReadWritePaths covers what PR-4 root commands will need to write to
+// (install_plugin → /usr/local/lib/borgee, service_lifecycle → systemd
+// units, delegation_revoke → /var/lib/borgee). We set this now so PR-4
+// can extend the whitelist without needing to change the unit; the
+// systemd-level hardening is independent of which commands are exposed.
+func renderLinuxRootdUnit() string {
+	return `[Unit]
+Description=Borgee root-privileged companion daemon
+Documentation=https://github.com/codetreker/borgee
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=` + linuxBinaryPath + ` rootd \
+    --socket=` + linuxRootdSocket + `
+
+# Defense-in-depth: rootd has no network access at all. The only inbound
+# path is the local UDS at --socket; the only outbound is to whatever
+# system tooling the whitelisted commands invoke (systemctl, etc.).
+RestrictAddressFamilies=AF_UNIX
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictNamespaces=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+LockPersonality=yes
+
+MemoryMax=64M
+CPUQuota=10%
+TasksMax=32
+
+# PR-4 commands write to these paths. Setting them now so PR-4 does not
+# need to ship a unit change alongside the executor code.
+ReadWritePaths=` + linuxRunDir + ` ` + linuxRuntimeDir + ` ` + linuxStateRoot + ` /etc/systemd/system
+
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+`
+}
+
 func renderDarwinPlist(serverOrigin string) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -394,6 +493,56 @@ func renderDarwinPlist(serverOrigin string) string {
 
     <key>StandardErrorPath</key>
     <string>` + darwinLogDir + `/stderr.log</string>
+  </dict>
+</plist>
+`
+}
+
+// renderDarwinRootdPlist builds the launchd plist for the rootd companion.
+// Same binary, `borgee rootd` subcommand, runs as root with GroupName
+// `wheel`, no sandbox-exec wrapper (rootd is intentionally root, so the
+// helper-daemon sandbox profile would be inappropriate). The plist
+// path is kept distinct from the main plist so `launchctl bootstrap` /
+// `launchctl bootout` can manage each unit independently.
+func renderDarwinRootdPlist() string {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>` + darwinRootdPlistLabel + `</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>` + darwinBinaryPath + `</string>
+      <string>rootd</string>
+      <string>--socket=` + darwinRootdSocket + `</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+      <key>SuccessfulExit</key>
+      <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>UserName</key>
+    <string>root</string>
+
+    <key>GroupName</key>
+    <string>wheel</string>
+
+    <key>StandardOutPath</key>
+    <string>` + darwinLogDir + `/rootd-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>` + darwinLogDir + `/rootd-stderr.log</string>
   </dict>
 </plist>
 `

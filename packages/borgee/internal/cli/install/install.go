@@ -378,6 +378,18 @@ func startService(cfg *config, stdout, stderr io.Writer) error {
 		if err := r.Run(ctx, "systemctl", "daemon-reload"); err != nil {
 			fmt.Fprintf(stderr, "borgee install: warn: systemctl daemon-reload: %v\n", err)
 		}
+		// Enable + start both units: the main daemon (User=borgee) AND
+		// the rootd companion (User=root). rootd is the privilege-
+		// separated IPC target for root-requiring jobs; it must be up
+		// before the main daemon forwards anything to it. We enable
+		// rootd first so the systemd ordering matches the eventual
+		// runtime call pattern (main daemon → rootd over UDS).
+		if err := r.Run(ctx, "systemctl", "enable", setup.LinuxRootdServiceName); err != nil {
+			return fmt.Errorf("systemctl enable rootd: %w", err)
+		}
+		if err := r.Run(ctx, "systemctl", "start", setup.LinuxRootdServiceName); err != nil {
+			return fmt.Errorf("systemctl start rootd: %w", err)
+		}
 		if err := r.Run(ctx, "systemctl", "enable", setup.LinuxServiceName); err != nil {
 			return fmt.Errorf("systemctl enable: %w", err)
 		}
@@ -388,7 +400,10 @@ func startService(cfg *config, stdout, stderr io.Writer) error {
 		// `bootstrap system <plist>` is the modern launchd domain-aware
 		// form (10.10+). Prior `launchctl load` is deprecated but still
 		// functional; we use bootstrap so error reporting is honest on
-		// 11+.
+		// 11+. Bootstrap both plists (main daemon + rootd companion).
+		if err := r.Run(ctx, "launchctl", "bootstrap", "system", setup.DarwinRootdPlistDst); err != nil {
+			return fmt.Errorf("launchctl bootstrap rootd: %w", err)
+		}
 		if err := r.Run(ctx, "launchctl", "bootstrap", "system", setup.DarwinPlistDst); err != nil {
 			return fmt.Errorf("launchctl bootstrap: %w", err)
 		}
