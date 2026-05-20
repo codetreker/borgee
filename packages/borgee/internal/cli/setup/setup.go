@@ -384,6 +384,16 @@ TasksMax=256
 IOWeight=100
 
 StateDirectory=borgee
+# ReadWritePaths is intentionally NARROW: only the daemon's own state
+# (queue / status / audit-handoff / credential) + log + run dirs. The
+# four no-root executors (status.collect, state.write,
+# openclaw.configure_agent, borgee_plugin.configure_connection) resolve
+# their write targets from the signed manifest carried in each leased
+# job; whatever roots the manifest declares MUST also be granted here
+# (or fall under the existing entries) for those writes to succeed.
+# Misalignment fails loud at write — the executor does not invent
+# fallback paths. The rootd companion (separate unit) covers any path
+# requiring root + a different ReadWritePaths set.
 ReadWritePaths=` + linuxLogDir + ` ` + linuxRunDir + ` ` + linuxStateRoot + `/queue ` + linuxStateRoot + `/status ` + linuxStateRoot + `/audit-handoff ` + linuxStateRoot + `/credential
 ReadOnlyPaths=` + linuxStateRoot + `
 

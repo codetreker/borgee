@@ -417,6 +417,14 @@ func serializeHelperJobLease(lease *datalayer.HelperJobLease) map[string]any {
 	if binding := decodeHelperJobManifestBinding(job.ManifestBindingJSON); binding != nil {
 		out["manifest_binding"] = binding
 	}
+	// PR-3 #1041: emit the binding as a raw JSON string too so the daemon's
+	// no-root executors can pass byte-stable bytes into manifestpath.Resolve
+	// + jobpolicy.Evaluate without re-marshalling. The structured
+	// `manifest_binding` field above is kept for human-readable HTTP debug;
+	// `manifest_binding_json` is the authoritative copy for executors.
+	if job.ManifestBindingJSON != nil && strings.TrimSpace(*job.ManifestBindingJSON) != "" {
+		out["manifest_binding_json"] = json.RawMessage(*job.ManifestBindingJSON)
+	}
 	return out
 }
 

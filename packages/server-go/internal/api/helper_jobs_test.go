@@ -784,7 +784,12 @@ func assertNoHelperJobSensitiveFields(t *testing.T, job map[string]any) {
 func assertNoHelperLeaseSensitiveFields(t *testing.T, job map[string]any) {
 	t.Helper()
 	for _, key := range []string{
-		"owner_user_id", "org_id", "helper_device_id", "payload_json", "manifest_binding_json",
+		"owner_user_id", "org_id", "helper_device_id", "payload_json",
+		// manifest_binding_json (raw) is intentionally emitted on the lease
+		// per PR-3 #1041 so the daemon's no-root executors get byte-stable
+		// bytes for manifestpath.Resolve. The binding has no secrets — same
+		// PathIDs/ArtifactIDs/Domains/ServiceIDs as the structured
+		// `manifest_binding` field already exposed.
 		"credential", "credentials", "credential_digest", "persistent_credential_digest", "token",
 		"result_summary_json", "payload_hash", "idempotency_key",
 	} {
