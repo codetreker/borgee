@@ -279,6 +279,14 @@ export interface ChannelMember {
   silent?: boolean;
   require_mention_policy?: RequireMentionPolicy;
   effective_require_mention?: boolean;
+  // AL-3.3 agent member presence fold — server attaches the live runtime
+  // state for `role=='agent'` rows so MemberPresence has a REST fallback
+  // when the WS presence cache is cold (just-opened modal, before any WS
+  // frame mirror). Mirrors DmPeer.state — same fold path on the server.
+  // Undefined / absent on human rows.
+  state?: AgentRuntimeState;
+  reason?: AgentRuntimeReason;
+  state_updated_at?: number;
 }
 
 export interface ChannelMemberRequireMentionState {
