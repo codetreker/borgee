@@ -172,9 +172,19 @@ type LeasedJob struct {
 	SchemaVersion  int             `json:"schema_version"`
 	Payload        json.RawMessage `json:"payload"`
 	ManifestDigest string          `json:"manifest_digest"`
-	LeaseToken     string          `json:"lease_token"`
-	LeaseExpiresAt int64           `json:"lease_expires_at"`
-	Attempt        int             `json:"attempt"`
+	// ManifestJSON / ManifestBindingJSON carry the signed policy manifest
+	// (per jobpolicy.PolicyManifest / ManifestBinding). The dispatcher's
+	// jobpolicy.Evaluate verifies signature + binding ⊆ manifest paths
+	// before the executor runs; the no-root executors then call
+	// manifestpath.Resolve on these same bytes to translate a PathID
+	// (e.g. openclaw_agent_config) into the real filesystem root they
+	// must write under. Empty bytes → executor fails loud with
+	// manifest_invalid; the daemon does not synthesize fallback paths.
+	ManifestJSON        json.RawMessage `json:"manifest_json,omitempty"`
+	ManifestBindingJSON json.RawMessage `json:"manifest_binding_json,omitempty"`
+	LeaseToken          string          `json:"lease_token"`
+	LeaseExpiresAt      int64           `json:"lease_expires_at"`
+	Attempt             int             `json:"attempt"`
 }
 
 type JobState struct {

@@ -146,6 +146,18 @@ Helper audit is local JSONL for the current IPC path. It records the actor, acti
 
 The helper does not create grants, write files, expose Remote Agent directories, install itself, provide an admin API, execute OpenClaw actions, write Borgee plugin config, upload bounded logs, or restart services. The local job-policy evaluator is present as a pure pre-action decision package; the outbound client is transport only and is not a host action loop.
 
+## Executors (no-root, in-daemon)
+
+The dispatcher registers per-`JobType` executors. All entries below run inside the `borgee daemon` process (`User=borgee`) and only touch borgee-owned paths or read-only system state. The 3 root-requiring job types (`openclaw.install_from_manifest`, `service.lifecycle`, `delegation.revoke`) are reserved for the rootd companion (PR-4) and are not listed here.
+
+The 4 no-root executors below (`status.collect`, `state.write`, `openclaw.configure_agent`, `borgee_plugin.configure_connection`) resolve their target paths from the signed manifest carried in each leased job, NOT from any daemon-startup flag. The manifest is signed by Borgee server's ed25519 trust root; daemon-side `jobpolicy.Evaluate` validates the signature plus the binding's PathIDs are subset of manifest's allowed paths. The executor then re-parses the same manifest+binding via `internal/executors/manifestpath.Resolve(<PathID>)` to look up the concrete absolute root and writes there. No daemon-startup flag controls remote-write paths. The systemd unit's `ReadWritePaths` must align with the manifest-declared roots; misalignment fails loud at write time (the executor does NOT invent fallback paths).
+
+- `helper.uninstall` — one-key self-teardown of the helper footprint. See `packages/borgee/internal/executors/uninstall/README.md`.
+- `status.collect` — gather machine + helper + plugin status and return the snapshot in the terminal result summary (no filesystem write). See `packages/borgee/internal/executors/statuscollect/README.md`.
+- `state.write` — write an attested state record under the manifest-declared `borgee_state_config` path. See `packages/borgee/internal/executors/statewrite/README.md`.
+- `openclaw.configure_agent` — record the server-attested per-agent config metadata under the manifest-declared `openclaw_agent_config` path. See `packages/borgee/internal/executors/openclawconfigure/README.md`.
+- `borgee_plugin.configure_connection` — record the server-attested plugin connection metadata under the manifest-declared `borgee_plugin_config` path. See `packages/borgee/internal/executors/pluginconfigure/README.md`.
+
 ## Known Gaps
 
 - Sandbox read paths are fixed at daemon start; dynamic grants can change ACL outcomes without changing the already-applied platform sandbox.

@@ -24,6 +24,10 @@ import (
 	"borgee/internal/acl"
 	"borgee/internal/audit"
 	"borgee/internal/dispatch"
+	"borgee/internal/executors/openclawconfigure"
+	"borgee/internal/executors/pluginconfigure"
+	"borgee/internal/executors/statuscollect"
+	"borgee/internal/executors/statewrite"
 	"borgee/internal/executors/uninstall"
 	"borgee/internal/grants"
 	"borgee/internal/ipc"
@@ -276,6 +280,24 @@ func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDevic
 			jobpolicy.JobTypeHelperUninstall: &uninstall.Executor{
 				Logger: log.Printf,
 			},
+			// PR-3 #1041 — the four no-root executors. Paths come from
+			// the signed manifest binding carried in each leased job
+			// (manifestpath.Resolve), NOT from any daemon-startup flag.
+			// The systemd unit's ReadWritePaths must align with the
+			// manifest-declared roots; misalignment fails loud at write.
+			jobpolicy.JobTypeStatusCollect: &statuscollect.Executor{
+				InstalledVersionsPath: updatecheck.DefaultInstalledVersionsPath,
+				Logger:                log.Printf,
+			},
+			jobpolicy.JobTypeStateWrite: &statewrite.Executor{
+				Logger: log.Printf,
+			},
+			jobpolicy.JobTypeOpenClawConfigureAgent: &openclawconfigure.Executor{
+				Logger: log.Printf,
+			},
+			jobpolicy.JobTypePluginConfigureConnection: &pluginconfigure.Executor{
+				Logger: log.Printf,
+			},
 		},
 	}, true
 }
@@ -328,12 +350,14 @@ func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
 		}
 		return jobpolicy.Evaluate(jobpolicy.EvaluationInput{
 			Job: jobpolicy.Job{
-				JobID:          job.JobID,
-				EnrollmentID:   job.EnrollmentID,
-				JobType:        job.JobType,
-				SchemaVersion:  job.SchemaVersion,
-				PayloadJSON:    job.Payload,
-				ManifestDigest: job.ManifestDigest,
+				JobID:               job.JobID,
+				EnrollmentID:        job.EnrollmentID,
+				JobType:             job.JobType,
+				SchemaVersion:       job.SchemaVersion,
+				PayloadJSON:         job.Payload,
+				ManifestDigest:      job.ManifestDigest,
+				ManifestJSON:        job.ManifestJSON,
+				ManifestBindingJSON: job.ManifestBindingJSON,
 			},
 		})
 	}

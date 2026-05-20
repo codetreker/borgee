@@ -54,6 +54,11 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 		"--reverse-ws",
 		"--poll-loop",
 		"--restart-service",
+		// PR-3 #1041: paths come from signed manifest binding now,
+		// no daemon-startup root flags.
+		"--state-root",
+		"--openclaw-config-root",
+		"--plugin-config-root",
 		"MemoryMax=infinity",
 		"CPUQuota=0%",
 		"TasksMax=infinity",
@@ -103,6 +108,10 @@ func TestRenderDarwinPlist_Shape(t *testing.T) {
 		"<integer>0</integer>",
 		"--remote-agent",
 		"sudo",
+		// PR-3 #1041: no daemon-startup root flags on macOS plist either.
+		"--state-root",
+		"--openclaw-config-root",
+		"--plugin-config-root",
 	}
 	for _, bad := range forbidden {
 		if strings.Contains(plist, bad) {
