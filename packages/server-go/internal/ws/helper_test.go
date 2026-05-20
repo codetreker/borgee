@@ -574,3 +574,10 @@ func TestHelperSession_CloseIdempotent(t *testing.T) {
 	// Second close should not panic on the closed done channel.
 	sess.Close(websocket.StatusNormalClosure, "test")
 }
+
+func TestHelperSession_EnrollmentID(t *testing.T) {
+	sess := &HelperSession{enrollmentID: "enroll-X"}
+	if sess.EnrollmentID() != "enroll-X" {
+		t.Fatalf("EnrollmentID=%q", sess.EnrollmentID())
+	}
+}

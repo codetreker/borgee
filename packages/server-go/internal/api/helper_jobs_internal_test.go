@@ -17,6 +17,11 @@ type fakeHelperJobRepo struct {
 	pollLease *datalayer.HelperJobLease
 	ackJob    *datalayer.HelperJob
 	resultJob *datalayer.HelperJob
+
+	// PR-2 #1038 — captured inputs for the WS-rail Process* shared
+	// mutations so tests can assert the threaded args.
+	lastAckInput    datalayer.HelperJobAckInput
+	lastResultInput datalayer.HelperJobResultInput
 }
 
 func (r *fakeHelperJobRepo) EnqueueForUser(context.Context, datalayer.EnqueueHelperJobInput, time.Time) (*datalayer.HelperJob, bool, error) {
@@ -31,6 +36,7 @@ func (r *fakeHelperJobRepo) PollAndLeaseForHelper(_ context.Context, input datal
 }
 
 func (r *fakeHelperJobRepo) AckForHelper(_ context.Context, input datalayer.HelperJobAckInput, _ time.Time) (*datalayer.HelperJob, error) {
+	r.lastAckInput = input
 	if input.EnrollmentID == "" || input.JobID == "" || input.HelperCredential == "" || input.HelperDeviceID == "" || input.LeaseToken == "" || input.AckStatus != "received" {
 		return nil, datalayer.ErrHelperJobInvalidInput
 	}
@@ -38,6 +44,7 @@ func (r *fakeHelperJobRepo) AckForHelper(_ context.Context, input datalayer.Help
 }
 
 func (r *fakeHelperJobRepo) CompleteForHelper(_ context.Context, input datalayer.HelperJobResultInput, _ time.Time) (*datalayer.HelperJob, error) {
+	r.lastResultInput = input
 	if input.EnrollmentID == "" || input.JobID == "" || input.HelperCredential == "" || input.HelperDeviceID == "" || input.LeaseToken == "" || input.Status == "" {
 		return nil, datalayer.ErrHelperJobInvalidInput
 	}
@@ -285,5 +292,44 @@ func TestHelperJobsSerializeLeaseAndJobOptionalFields(t *testing.T) {
 	}
 	if payload := serializedLease["payload"].(map[string]any); payload["agent_id"] != "agent-1" {
 		t.Fatalf("lease payload not decoded: %v", payload)
+	}
+}
+
+// PR-2 #1038 — ProcessHelperAck / ProcessHelperResult are the shared
+// mutations the WS read loop (internal/ws/helper.go) calls in place of
+// the REST handlers. Pinning their direct call paths here so cov
+// doesn't see them as 0%.
+func TestProcessHelperAck_Direct(t *testing.T) {
+	now := time.UnixMilli(1778840000000)
+	running := &datalayer.HelperJob{ID: "job-1", Status: "running"}
+	repo := &fakeHelperJobRepo{ackJob: running}
+	h := &HelperJobsHandler{Repo: repo, Now: func() time.Time { return now }}
+	if err := h.ProcessHelperAck(context.Background(), "enroll-1", "job-1", "lease-1", "tok", "device-1"); err != nil {
+		t.Fatalf("ProcessHelperAck: %v", err)
+	}
+	// Repository receives the call with the threaded args.
+	if repo.lastAckInput.JobID != "job-1" || repo.lastAckInput.LeaseToken != "lease-1" || repo.lastAckInput.AckStatus != "received" {
+		t.Fatalf("repo input=%+v", repo.lastAckInput)
+	}
+}
+
+func TestProcessHelperResult_Direct(t *testing.T) {
+	now := time.UnixMilli(1778840000000)
+	completed := &datalayer.HelperJob{ID: "job-1", Status: "failed"}
+	repo := &fakeHelperJobRepo{resultJob: completed}
+	h := &HelperJobsHandler{Repo: repo, Now: func() time.Time { return now }}
+	summary := json.RawMessage(`{"audit_refs":["a-1"]}`)
+	if err := h.ProcessHelperResult(context.Background(), "enroll-1", "job-1", "lease-1", "tok", "device-1", "failed", "policy_denied", "denied", summary); err != nil {
+		t.Fatalf("ProcessHelperResult: %v", err)
+	}
+	if repo.lastResultInput.Status != "failed" || repo.lastResultInput.FailureCode != "policy_denied" || repo.lastResultInput.ResultSummary == "" {
+		t.Fatalf("repo input=%+v", repo.lastResultInput)
+	}
+	// Null summary should not flow through to the repo as the string "null".
+	if err := h.ProcessHelperResult(context.Background(), "enroll-1", "job-2", "lease-2", "tok", "device-1", "succeeded", "", "", json.RawMessage("null")); err != nil {
+		t.Fatalf("ProcessHelperResult null: %v", err)
+	}
+	if repo.lastResultInput.ResultSummary != "" {
+		t.Fatalf("null summary leaked: %q", repo.lastResultInput.ResultSummary)
 	}
 }
