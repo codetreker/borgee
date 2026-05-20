@@ -10,8 +10,8 @@ import "testing"
 func TestIPCEndpointDefault_AllBranches(t *testing.T) {
 	t.Parallel()
 	cases := map[IPCPlatform]string{
-		IPCPlatformLinux:   "/run/borgee-helper/borgee-helper.sock",
-		IPCPlatformDarwin:  "$HOME/Library/Application Support/Borgee/borgee-helper.sock",
+		IPCPlatformLinux:   "/run/borgee/borgee.sock",
+		IPCPlatformDarwin:  "$HOME/Library/Application Support/Borgee/borgee.sock",
 		IPCPlatformWindows: `\\.\pipe\borgee-helper`,
 	}
 	for plat, want := range cases {

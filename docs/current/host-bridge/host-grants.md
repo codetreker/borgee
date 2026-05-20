@@ -65,6 +65,6 @@ Host grants do not authorize Remote Agent, do not replace user API capabilities,
 
 - `packages/server-go/internal/api/host_grants.go` (`HostGrantsHandler`)
 - `packages/server-go/internal/migrations/host_grants.go` (`hostGrants` migration)
-- `packages/borgee-helper/internal/acl` (`Gate.Decide`)
-- `packages/borgee-helper/internal/grants` (`SQLiteConsumer.LookupRaw`)
+- `packages/borgee/internal/acl` (`Gate.Decide`)
+- `packages/borgee/internal/grants` (`SQLiteConsumer.LookupRaw`)
 - `packages/server-go/internal/auth/middleware.go` (`AuthMiddleware`)

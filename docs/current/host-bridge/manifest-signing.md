@@ -1,8 +1,8 @@
 # Manifest signing — operational contract
 
-`GET /api/v1/plugin-manifest` (HB-1) ships an ed25519-signed plugin manifest. This doc is the operator-facing contract: where the signing key lives, what gets signed, how to rotate, how install-butler verifies, what happens when config is missing.
+`GET /api/v1/plugin-manifest` (HB-1) ships an ed25519-signed plugin manifest. This doc is the operator-facing contract: where the signing key lives, what gets signed, how to rotate, how `borgee install` verifies, what happens when config is missing.
 
-Single source of truth for the canonical signing bytes is `packages/server-go/internal/api/manifest_signing.go::EntryCanonicalBytes`. Changing the format here without changing client (`install-butler`, #996) means breaking verification. Do both together.
+Single source of truth for the canonical signing bytes is `packages/server-go/internal/api/manifest_signing.go::EntryCanonicalBytes`. Changing the format here without changing client (`borgee install`, folded from install-butler in #996) means breaking verification. Do both together.
 
 ## Env vars
 
@@ -21,7 +21,7 @@ import ("crypto/ed25519"; "crypto/rand"; "encoding/base64"; "fmt")
 func main() {
     pub, priv, _ := ed25519.GenerateKey(rand.Reader)
     fmt.Println("BORGEE_MANIFEST_SIGNING_KEY=" + base64.StdEncoding.EncodeToString(priv.Seed()))
-    fmt.Println("# public (publish for install-butler): " + base64.StdEncoding.EncodeToString(pub))
+    fmt.Println("# public (publish for `borgee install`): " + base64.StdEncoding.EncodeToString(pub))
 }
 GO
 ```
@@ -36,7 +36,7 @@ ID + "|" + Version + "|" + BinaryURL + "|" + SHA256
 
 Separator is single ASCII `|` (0x7C). The four fields above are concatenated byte-for-byte, no JSON encoding, no whitespace, no trailing newline. The `Platforms` field is intentionally excluded — platforms is client-side metadata not security-relevant; tampering with platforms cannot trick the client into installing a different binary because BinaryURL + SHA256 still verify.
 
-The base64-encoded signature is stored in `Signature` on each entry. install-butler verifies:
+The base64-encoded signature is stored in `Signature` on each entry. `borgee install` verifies:
 
 1. recompute canonical bytes from the entry it just received
 2. base64-decode `Signature`
@@ -53,9 +53,26 @@ Per-entry signing means rotating one entry (e.g. bumping openclaw version) does 
 
 Malformed env / unreadable file falls back to the default with a logged error. Endpoint never returns 500 due to entry config typo.
 
+### BinaryURL pattern after the npm bundle rework
+
+After chore/npm-bundle-rework (#993 #994 #995) the helper binary itself ships through npm rather than `.deb` / `.pkg`. Concrete entry shape after first release:
+
+```json
+{
+  "id": "borgee-helper",
+  "version": "0.1.0",
+  "binary_url": "https://registry.npmjs.org/@codetreker/borgee-remote-agent-linux-x64/-/borgee-remote-agent-linux-x64-0.1.0.tgz",
+  "sha256": "<sha256 of the .tgz>",
+  "signature": "<base64 ed25519>",
+  "platforms": ["linux-x64"]
+}
+```
+
+The `borgee install` client code itself is unchanged: it still does the same fetch + ed25519 verify + sha256 verify + atomic write loop. Only the operational `BORGEE_MANIFEST_ENTRIES_JSON` content shifts to point at npm registry URLs instead of GitHub Release download URLs. Per-target rows are duplicated for runtime plugins (`openclaw` etc.) that continue to be served from their own per-plugin download channels.
+
 ## Failure modes
 
-- **Key env unset** — `LoadSigningKey` returns nil + logs `manifest_signing.key_unset` warn. Server keeps running. Per-entry `Signature=""`. install-butler in production must reject empty signatures. Dev environments can ignore (warn is the operator's signal).
+- **Key env unset** — `LoadSigningKey` returns nil + logs `manifest_signing.key_unset` warn. Server keeps running. Per-entry `Signature=""`. `borgee install` in production must reject empty signatures. Dev environments can ignore (warn is the operator's signal).
 - **Key env malformed** — logs `hb1.signing_key_invalid` error at startup. Same effect as unset.
 - **Entry env malformed** — falls back to built-in default + logs `manifest_signing.entries_*_invalid`.
 
@@ -64,7 +81,7 @@ Malformed env / unreadable file falls back to the default with a logged error. E
 Signing key:
 
 1. generate new key (see above) and store both private + public
-2. publish new public key for install-butler (mechanism out of scope — likely versioned pubkey list shipped with helper)
+2. publish new public key for `borgee install` (mechanism out of scope — likely versioned pubkey list shipped with helper)
 3. update `BORGEE_MANIFEST_SIGNING_KEY` env in deploy
 4. restart server — handler reads key at handler-construction time
 
@@ -75,8 +92,8 @@ Entry list (URLs, SHA256, versions):
 
 ## Client verification
 
-install-butler (Go, [`packages/borgee-helper/cmd/install-butler`](../../../packages/borgee-helper/cmd/install-butler/README.md), #996) implements the same canonical form byte-for-byte. The Go reference is `EntryCanonicalBytes` (5 lines), mirrored in the client as `entryCanonicalBytes` with a "MUST stay byte-identical" comment. Mismatch on either side = silent verify failure.
+`borgee install` (Go, [`packages/borgee/internal/cli/installbutler/`](../../../packages/borgee/internal/cli/installbutler/README.md), #996) implements the same canonical form byte-for-byte. The Go reference is `EntryCanonicalBytes` (5 lines), mirrored in the client as `entryCanonicalBytes` with a "MUST stay byte-identical" comment. Mismatch on either side = silent verify failure.
 
 ## SHA256 real values
 
-This PR plumbs the signing chain but leaves `SHA256` zeros in the built-in default. Real values come from `#1003`'s `release-helper.yml` `SHA256SUMS` artifact once the first `borgee-helper-v*` tag ships. Deploy step then writes the right env JSON pointing at the GitHub Release download URLs with matching SHAs.
+This PR plumbs the signing chain but leaves `SHA256` zeros in the built-in default. Real values come from the first published `borgee-v*` tag — `release-borgee.yml` builds the 4 platform binaries, ships them in their respective npm platform subpackages, and the operator records the registry .tgz URLs + sha256 sums in `BORGEE_MANIFEST_ENTRIES_JSON` after the publish lands.

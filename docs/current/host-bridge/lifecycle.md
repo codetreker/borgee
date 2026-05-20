@@ -2,11 +2,11 @@
 
 Scope: this doc explains *why* the host-bridge helper daemon survives both
 a clean reboot and a process crash without anyone logging into the host.
-For the asset contents themselves see
-[`packages/borgee-helper/install/borgee-helper.service`](../../../packages/borgee-helper/install/borgee-helper.service)
-(Linux), [`packages/borgee-helper/install/cloud.borgee.host-bridge.plist`](../../../packages/borgee-helper/install/cloud.borgee.host-bridge.plist)
-(macOS), and [`helper-daemon.md`](./helper-daemon.md) for the steady-state
-daemon contract.
+The systemd unit (Linux) and launchd plist (macOS) are written by
+`borgee setup` from the templates inside
+[`packages/borgee/internal/cli/setup/setup.go`](../../../packages/borgee/internal/cli/setup/setup.go);
+the steady-state daemon contract is in
+[`helper-daemon.md`](./helper-daemon.md).
 
 ## Why this matters
 
@@ -15,61 +15,59 @@ crash, with no local user re-login". Parent #659 only covered the boot-time
 autostart half. This doc walks the full chain so reviewers can verify each
 mechanism without spinning up a real host.
 
-## Operator-side claim (one-time, post-install)
+## Distribution + setup (one-time, post-install)
 
-The host-bridge stack ships two short-lived CLIs that the operator (or the
-`.deb` / `.pkg` postinstall script) invokes once. They both exit before the
-long-lived `borgee-helper` daemon ever runs, so neither lingers as root.
+The host-bridge stack ships as a single `borgee` Go binary distributed
+through the `@codetreker/borgee-remote-agent` npm package (chore/npm-bundle-rework,
+#993 #994 #995). Operator one-time path on a fresh host:
 
-- `install-butler` ([`packages/borgee-helper/cmd/install-butler`](../../../packages/borgee-helper/cmd/install-butler/README.md))
-  — one-shot signed-manifest installer. Downloads a verified runtime
-  binary (manifest fetch → ed25519 verify → SHA256 verify → atomic rename
-  → chmod → optional chown → exit). Run via `sudo`; drops privilege by
-  exiting. See its README for flags + failure modes.
-- `borgee-helper-claim` — pairs the host with a Borgee server enrollment
-  (chain below).
+```
+sudo npm i -g @codetreker/borgee-remote-agent
+sudo borgee setup                                       # systemd unit + state dirs
+sudo borgee claim --enrollment-id=<id> \
+                  --enrollment-secret=<secret> \
+                  --server-origin=https://app.borgee.io
+sudo systemctl enable --now borgee.service              # macOS: sudo launchctl load -w /Library/LaunchDaemons/cloud.borgee.host-bridge.plist
+```
 
-1. Operator generates an enrollment in the web UI. The server returns an
-   `enrollment_id` plus a one-time `enrollment_secret` (15-minute TTL — see
-   [`helper_enrollment_queries.go`](../../../packages/server-go/internal/store/helper_enrollment_queries.go)).
-2. Operator runs the claim CLI on the target machine, typically as root via
-   `sudo`:
+The `borgee` binary is one binary with four subcommands:
 
-   ```
-   sudo borgee-helper-claim \
-       --enrollment-id <id> \
-       --enrollment-secret <secret> \
-       --server-origin https://app.borgee.io
-   ```
+- `borgee daemon` — long-lived host-bridge daemon (started by systemd / launchd).
+- `borgee setup` — writes the systemd unit / launchd plist + sandbox profile,
+  creates the system user (`borgee` Linux, `_borgee` macOS), and creates the
+  Helper-owned state directories (`/var/lib/borgee/{queue,status,audit-handoff,credential}`
+  Linux, `/Library/Application Support/Borgee/Helper/...` macOS). Does NOT
+  auto-start the service — the operator must `borgee claim` first.
+- `borgee claim` — one-time enrollment claim. Derives a stable
+  `helper_device_id` (Linux `/etc/machine-id`, macOS `IOPlatformUUID`,
+  falling back to a persisted UUIDv4), POSTs
+  `/api/v1/helper/enrollments/{id}/claim` with body
+  `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
+  three files the daemon reads on next start (`credential` mode 0600,
+  `enrollment-id`, `device-id`) under `/var/lib/borgee/credential/` (Linux)
+  or `/Library/Application Support/Borgee/Helper/credential/` (macOS).
+- `borgee install` — signed-manifest binary installer (HB-1). One-shot
+  CLI that fetches a manifest, ed25519-verifies an entry, fetches the
+  referenced binary, sha256-verifies the bytes, atomically renames into
+  place, and exits. Used to deliver runtime plugins (e.g. openclaw)
+  separately from the helper itself; the helper itself ships as the npm
+  bundle above. Source:
+  [`packages/borgee/internal/cli/installbutler/`](../../../packages/borgee/internal/cli/installbutler/README.md).
 
-   The CLI derives a stable `helper_device_id` (Linux `/etc/machine-id`,
-   macOS `IOPlatformUUID`, falling back to a persisted UUIDv4), POSTs
-   `/api/v1/helper/enrollments/{id}/claim` with body
-   `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
-   three files the daemon reads on next start:
-
-   - `--credential-file` (default `/var/lib/borgee-helper/credential` Linux,
-     `/Library/Application Support/Borgee/Helper/credential` macOS;
-     mode 0600, owned by helper user)
-   - `--enrollment-id-file` (default `enrollment-id` in the same dir)
-   - `--device-id-file` (default `device-id` in the same dir)
-
-3. Operator runs `sudo systemctl restart borgee-helper` (Linux) or
-   `sudo launchctl kickstart -k system/cloud.borgee.host-bridge` (macOS)
-   so the daemon picks up the new files immediately, or simply lets the
-   next reboot pick them up.
-
-The CLI is intentionally local-only: `enrollment_secret` is short-lived
-and never leaves the operator's session. The .deb / .pkg installer does
-not bundle a claim; the operator runs the CLI once after install.
+After `borgee claim` the daemon either picks up the new files on next
+start (Linux `sudo systemctl restart borgee` / macOS
+`sudo launchctl kickstart -k system/cloud.borgee.host-bridge`) or at next
+reboot. `enrollment_secret` is short-lived (15-minute TTL — see
+[`helper_enrollment_queries.go`](../../../packages/server-go/internal/store/helper_enrollment_queries.go))
+and never leaves the operator's session.
 
 ## Linux reboot chain
 
 1. PID 1 systemd reaches `multi-user.target` (the standard non-graphical
    boot target — graphical `default.target` is *not* a prerequisite).
-2. `borgee-helper.service` declares `WantedBy=multi-user.target` and was
+2. `borgee.service` declares `WantedBy=multi-user.target` and was
    linked into that target's `.wants` set when the installer ran
-   `systemctl enable borgee-helper.service`. systemd therefore starts the
+   `systemctl enable borgee.service`. systemd therefore starts the
    unit as part of the target.
 3. Ordering directives `After=network-online.target` +
    `Wants=network-online.target` keep the start from racing the network
@@ -79,8 +77,8 @@ not bundle a claim; the operator runs the CLI once after install.
    as soon as `ExecStart=` exec's, with no daemonisation handshake.
 5. The daemon then opens `/var/lib/borgee/server.db` (read-only, via
    `ReadOnlyPaths=/var/lib/borgee`) for `host_grants`. That DB is owned
-   by system root/`borgee-helper`; no user session is involved.
-6. `cmd/borgee-helper/main.go::run` continues with:
+   by system root/`borgee`; no user session is involved.
+6. `cmd/borgee/main.go::run` continues with:
    `outbound.ValidateAndPrepare(...)` (validates `--outbound-server-origin`
    against the `--outbound-allowed-origins` allowlist and sets up state
    dirs), then `sandbox.Apply(...)`, then opens the UDS socket and reads
@@ -164,7 +162,7 @@ to `uninstalled`. End-to-end:
    `payload.preserve_state == true`), OS user/group delete — and returns
    terminal `succeeded`. The executor never sends a stop signal to its
    own daemon process (would SIGTERM mid-cleanup before /result lands).
-   See [`internal/executors/uninstall/README.md`](../../../packages/borgee-helper/internal/executors/uninstall/README.md)
+   See [`internal/executors/uninstall/README.md`](../../../packages/borgee/internal/executors/uninstall/README.md)
    for the bucket-by-bucket contract and the privilege caveat.
 6. The dispatcher posts `/result` with the terminal status. The server
    handler (`store.CompleteHelperJobForHelper`) sees
@@ -190,8 +188,8 @@ for cases where the helper is offline or the executor cannot finish.
 
 A third daemon goroutine — `updatecheck.Checker` — runs alongside the
 heartbeater + dispatcher. Every ~15 minutes it reads
-`/var/lib/borgee-helper/installed-versions.json` (written by
-`install-butler`) and POSTs the snapshot to
+`/var/lib/borgee/installed-versions.json` (written by
+`borgee install`) and POSTs the snapshot to
 `POST /api/v1/helper/enrollments/{id}/installed-versions`. The server
 computes drift against the current signed manifest and returns a
 classified list (`security` vs `feature` per blueprint §1.3). The helper
@@ -208,7 +206,7 @@ flags. That leaked `enrollment_id` to anyone with `ps` access via
 
 - The systemd unit and launchd plist pass only *file paths* on the
   cmdline (which are operationally safe to disclose).
-- The actual values live in `StateDirectory=borgee-helper` (Linux) or
+- The actual values live in `StateDirectory=borgee` (Linux) or
   the Helper Application Support dir (macOS), with 0644 perms for
   enrollment/device id and 0600 for the credential.
 - The daemon reads each file at startup; an empty or missing file
@@ -217,8 +215,8 @@ flags. That leaked `enrollment_id` to anyone with `ps` access via
 
 ## End-to-end verification
 
-[`packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go`](../../../packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go)
-spawns the real `borgee-helper-claim` and `borgee-helper` binaries
+[`packages/borgee/e2e/claim_heartbeat_e2e_test.go`](../../../packages/borgee/e2e/claim_heartbeat_e2e_test.go)
+spawns the real `borgee claim` and `borgee` binaries
 against an `httptest.Server` that mirrors the production /claim and
 /status routes. It asserts:
 
@@ -275,7 +273,7 @@ deploy plan test guards against an accidental switch).
 - `ThrottleInterval=10` — equivalent to `RestartSec=10s`; launchd waits
   at least 10s between respawns. macOS does not expose a direct burst cap
   the way systemd does, but the throttle prevents a spin loop.
-- Run user: `UserName=_borgee-helper` (system-only `_` prefix), again
+- Run user: `UserName=_borgee` (system-only `_` prefix), again
   ensuring no user session is required.
 
 Install form: the installer's `DarwinPlan` invokes
@@ -297,7 +295,7 @@ Survives reboot and crash:
   the helper, owned by the system, populated by the installer / OpenClaw
   configure flow.
 - Queue, status, and audit-handoff state directories
-  (`/var/lib/borgee-helper/{queue,status,audit-handoff}` Linux,
+  (`/var/lib/borgee/{queue,status,audit-handoff}` Linux,
   `/Library/Application Support/Borgee/Helper/{QueueState,StatusState,AuditHandoff}`
   macOS) — Helper-owned, append/replay safe.
 
@@ -308,40 +306,40 @@ Does *not* survive (intentionally ephemeral):
 
 ## Why no user login is required
 
-- Linux: `User=borgee-helper` / `Group=borgee-helper` is a *system* user
+- Linux: `User=borgee` / `Group=borgee` is a *system* user
   (created by the `.deb` postinst, UID < 1000). `loginctl enable-linger`
   is **not** needed because systemd PID 1 starts system units directly
   via `multi-user.target`; `enable-linger` is only relevant to user-mode
   systemd instances under `--user`.
-- macOS: `_borgee-helper` is a system role account (`_` prefix); launchd
+- macOS: `_borgee` is a system role account (`_` prefix); launchd
   starts the LaunchDaemon in the system domain at boot. No Aqua / Finder
   session, no console login, no SSH session is required.
 
 ## Windows
 
-Out of scope for v1. `packages/borgee-installer/internal/deploy/deploy.go::PlanForCurrentOS`
-fails fast with `Windows support planned for v2` so an operator cannot
-silently get a half-installed Windows host. The user outcome ("remains
-controllable across reboot/crash") therefore does not apply on Windows
-in v1 — there is no install path to break.
+Out of scope for v1. The npm bundle's platform subpackages only ship for
+linux-x64, linux-arm64, darwin-x64, and darwin-arm64; an `npm i -g
+@codetreker/borgee-remote-agent` on Windows leaves the `borgee` Go binary
+unresolved (the shim prints a structured error pointing at issue #659).
+The user outcome ("remains controllable across reboot/crash") therefore
+does not apply on Windows in v1 — there is no install path to break.
 
 ## Test coverage map
 
 | Mechanism                                  | Test file                                                                          | Test name                                       |
 |--------------------------------------------|------------------------------------------------------------------------------------|-------------------------------------------------|
-| systemd unit boot/crash directives present | `packages/borgee-helper/install/outbound_prereq_assets_test.go`                    | `TestLinuxServiceBootCrashRestartIsBounded`     |
-| launchd plist boot/crash directives present| `packages/borgee-helper/install/outbound_prereq_assets_test.go`                    | `TestMacOSServiceBootCrashRestartIsBounded`     |
-| Installer wires `systemctl enable` in order| `packages/borgee-installer/internal/deploy/deploy_test.go`                         | `TestHB1B_LinuxPlan_HasSudoAndSystemd`          |
-| Installer wires `launchctl load` to system | `packages/borgee-installer/internal/deploy/deploy_test.go`                         | `TestHB1B_DarwinPlan_HasSudoAndLaunchd`         |
+| systemd unit boot/crash directives present | `packages/borgee/internal/cli/setup/setup_test.go`                                 | `TestRenderLinuxUnit_Shape`                     |
+| launchd plist boot/crash directives present| `packages/borgee/internal/cli/setup/setup_test.go`                                 | `TestRenderDarwinPlist_Shape`                   |
 | Server flips `connected`/`offline` by freshness | `packages/server-go/internal/api/helper_enrollments_lifecycle_test.go`        | `TestHelperEnrollmentStatus_*`                  |
-| Claim CLI persists credential + ids        | `packages/borgee-helper/cmd/borgee-helper-claim/main_test.go`                      | `TestClaim_HappyPath`                           |
-| Claim CLI rejects non-https origin         | `packages/borgee-helper/cmd/borgee-helper-claim/main_test.go`                      | `TestClaim_HTTPSRequired`                       |
-| End-to-end claim → daemon → heartbeat      | `packages/borgee-helper/e2e/claim_heartbeat_e2e_test.go`                           | `TestClaimHeartbeatE2E` (`-tags=integration`)   |
-| helper.uninstall executor cleanup buckets  | `packages/borgee-helper/internal/executors/uninstall/executor_test.go`             | `TestExecutor_*`                                |
+| Claim CLI persists credential + ids        | `packages/borgee/internal/cli/claim/claim_test.go`                                 | `TestClaim_HappyPath`                           |
+| Claim CLI rejects non-https origin         | `packages/borgee/internal/cli/claim/claim_test.go`                                 | `TestClaim_HTTPSRequired`                       |
+| End-to-end claim → daemon → heartbeat      | `packages/borgee/e2e/claim_heartbeat_e2e_test.go`                                  | `TestClaimHeartbeatE2E` (`-tags=integration`)   |
+| helper.uninstall executor cleanup buckets  | `packages/borgee/internal/executors/uninstall/executor_test.go`                    | `TestExecutor_*`                                |
 | Server flips enrollment on uninstall success | `packages/server-go/internal/api/helper_jobs_test.go`                            | `TestHelperJobsHelperUninstallTerminalSucceededMarksEnrollmentUninstalled` |
 | Server taxonomy accepts well-formed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                   | `TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding` |
 | Server taxonomy rejects malformed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                     | `TestHelperJobsEnqueueHelperUninstallRejectsInvalidPayload` |
+| npm shim platform → subpackage mapping     | `packages/remote-agent/src/__tests__/borgeeShim.test.ts`                           | `borgee shim platform matrix`                   |
 
-The byte-level asset assertions plus the installer-plan ordering plus the
-server-side freshness derivation together stand in for a real reboot/crash
-e2e (which a CI sandbox cannot perform).
+The rendered systemd / launchd assertion plus the server-side freshness
+derivation together stand in for a real reboot/crash e2e (which a CI
+sandbox cannot perform).

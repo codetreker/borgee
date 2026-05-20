@@ -1,9 +1,9 @@
 {
   "name": "@codetreker/borgee-remote-agent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
-  "files": ["dist"],
+  "files": ["dist", "bin"],
   "repository": {
     "type": "git",
     "url": "https://github.com/codetreker/borgee.git",
@@ -14,7 +14,8 @@
     "access": "public"
   },
   "bin": {
-    "borgee-remote-agent": "dist/index.js"
+    "borgee-remote-agent": "dist/index.js",
+    "borgee": "bin/borgee.js"
   },
   "scripts": {
     "build": "tsc",
@@ -26,6 +27,7 @@
     "commander": "^13.0.0",
     "ws": "^8.20.0"
   },
+  "_optionalDependenciesNote": "Platform subpackage optionalDependencies are injected by .github/workflows/release-borgee.yml at publish time. They are not present in the committed package.json so the dev workspace can install with --frozen-lockfile before the platform subpackages are first published.",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",

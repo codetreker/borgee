@@ -102,3 +102,7 @@ Phase 1 v1.1 closes with all 3 milestones CLOSED, all 8 exit gates SIGNED, no DE
 - `bf-phase-exit-gate` skill v6.x 可加 built-in "user-outcome trace" verifier 作机械 lint. 此条作为 blueprintflow v6.x 输入, 不在此 PR scope (此 PR 在 borgee 仓库).
 
 非追责: signoff 当时 good faith; 协议允许此 drift. 协议微调是 fix, 不是人.
+
+**2nd slip (2026-05-20 chore/npm-bundle-rework)**: G1.6 闭环 PR chain 起手用 `.deb` + `.pkg` 分发 (#1003 / #1008) + 3 个独立 Go binary (`borgee-helper` / `borgee-helper-claim` / `install-butler`, #996 / #1011), 后来用户直接拍校正方向: 应当走现有 `@codetreker/borgee-remote-agent` npm 包 + 单 `borgee` Go binary + 子命令. chore/npm-bundle-rework 一次校正 — 删 `release-helper.yml` + `nfpm.yaml` + `packages/borgee-installer/`, 折 3 binary 成 `cmd/borgee`, 加 4 个平台 npm 子包, 加 `release-borgee.yml`.
+
+根因跟 G1.6 同源: dispatch loops 派活时没回去查用户最早讨论, 看到"helper 要发布"就按 OS 包装常识 (`.deb` / `.pkg`) 走. 协议补丁: 派分发类活前必先 grep + 读用户讨论 source-of-truth, 不靠角色 memory 推断分发渠道.

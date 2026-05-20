@@ -12,7 +12,7 @@ import "testing"
 func TestHB_IPC_UDSConnect_macOS(t *testing.T) {
 	t.Parallel()
 	got := IPCEndpointDefault(IPCPlatformDarwin)
-	want := "$HOME/Library/Application Support/Borgee/borgee-helper.sock"
+	want := "$HOME/Library/Application Support/Borgee/borgee.sock"
 	if got != want {
 		t.Errorf("macOS UDS endpoint default drift: got %q want %q", got, want)
 	}

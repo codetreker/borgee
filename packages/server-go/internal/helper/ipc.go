@@ -51,20 +51,20 @@ const (
 // Defaults follow the same platform-directory intent as the HB-1
 // install-butler audit log path: XDG/macOS standards and Windows
 // %LOCALAPPDATA%.
-//   - Linux:   $XDG_RUNTIME_DIR/borgee-helper.sock OR /run/borgee-helper/borgee-helper.sock
-//   - macOS:   ~/Library/Application Support/Borgee/borgee-helper.sock
+//   - Linux:   $XDG_RUNTIME_DIR/borgee-helper.sock OR /run/borgee/borgee.sock
+//   - macOS:   ~/Library/Application Support/Borgee/borgee.sock
 //   - Windows: \\.\pipe\borgee-helper
 //
 // Implementation gate: actual path resolution lives in HB-2 v0(C) Go
-// daemon binary (packages/borgee-helper/cmd/borgee-helper/). This
+// daemon binary (packages/borgee/cmd/borgee/). This
 // package only exposes the const labels for CI matrix unit smoke
 // (build-tag-per-platform).
 func IPCEndpointDefault(p IPCPlatform) string {
 	switch p {
 	case IPCPlatformLinux:
-		return "/run/borgee-helper/borgee-helper.sock"
+		return "/run/borgee/borgee.sock"
 	case IPCPlatformDarwin:
-		return "$HOME/Library/Application Support/Borgee/borgee-helper.sock"
+		return "$HOME/Library/Application Support/Borgee/borgee.sock"
 	case IPCPlatformWindows:
 		return `\\.\pipe\borgee-helper`
 	}

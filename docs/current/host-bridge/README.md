@@ -118,13 +118,13 @@ Host Bridge does not provide Remote Agent browsing, plugin WebSocket API tunneli
 - `packages/server-go/internal/migrations/helper_jobs.go` (`helper_jobs` schema)
 - `packages/server-go/internal/store/helper_enrollment_queries.go`
 - `packages/server-go/internal/store/helper_job_queries.go`
-- `packages/borgee-helper/cmd/borgee-helper/main.go`
-- `packages/borgee-helper/internal/ipc` (`Request`, `Response`, `Handler`)
-- `packages/borgee-helper/internal/acl` (`Gate`, `Decision`)
-- `packages/borgee-helper/internal/grants` (`SQLiteConsumer`)
-- `packages/borgee-helper/internal/fileio`
-- `packages/borgee-helper/internal/audit`
-- `packages/borgee-helper/internal/sandbox`
-- `packages/borgee-helper/internal/jobpolicy`
-- `packages/borgee-installer/cmd`
-- `packages/borgee-installer/internal`
+- `packages/borgee/cmd/borgee/main.go`
+- `packages/borgee/internal/ipc` (`Request`, `Response`, `Handler`)
+- `packages/borgee/internal/acl` (`Gate`, `Decision`)
+- `packages/borgee/internal/grants` (`SQLiteConsumer`)
+- `packages/borgee/internal/fileio`
+- `packages/borgee/internal/audit`
+- `packages/borgee/internal/sandbox`
+- `packages/borgee/internal/jobpolicy`
+- `packages/borgee/internal/cli/setup/cmd`
+- `packages/borgee/internal/cli/setup/internal`

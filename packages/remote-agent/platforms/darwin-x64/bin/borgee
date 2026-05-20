@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "borgee placeholder binary (darwin-x64) - replace at release time" >&2
+exit 127
