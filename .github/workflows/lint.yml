@@ -102,3 +102,10 @@ jobs:
         run: bash scripts/check-openclaw-plugin-version-bump.sh
       - name: OpenClaw plugin version bump self-test
         run: bash scripts/check-openclaw-plugin-version-bump.test.sh
+      - name: Remote agent version bump
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/check-remote-agent-version-bump.sh
+      - name: Remote agent version bump self-test
+        run: bash scripts/check-remote-agent-version-bump.test.sh
