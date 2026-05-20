@@ -196,3 +196,69 @@ func TestRun_HappyPathSystemctlChain(t *testing.T) {
 		t.Fatalf("expected systemctl or launchctl call, got %v", got)
 	}
 }
+
+// TI-6 BothServicesStarted — privilege separation guard: install MUST
+// enable + start both the main daemon (borgee.service) AND the rootd
+// companion (borgee-rootd.service) on Linux, or bootstrap both plists on
+// macOS. A regression that forgot rootd would leave the main daemon
+// pointing at a non-existent IPC peer once PR-4 routes root jobs through
+// rootdclient.
+func TestRun_StartsBothServices(t *testing.T) {
+	runner := &recordingRunner{}
+	var out, errBuf bytes.Buffer
+	cfg := &config{
+		server:              "https://example.test",
+		token:               "enr-both.secret-z",
+		skipBinaryCopy:      true,
+		skipSetup:           true,
+		skipClaim:           true,
+		skipRootCheck:       true,
+		systemctl:           runner,
+		heartbeatTimeout:    50 * time.Millisecond,
+		allowInsecureServer: true,
+	}
+	if err := run(cfg, &out, &errBuf); err != nil {
+		t.Fatalf("run: %v stderr=%s", err, errBuf.String())
+	}
+	got := runner.joined()
+	switch runtimeGOOS() {
+	case "linux":
+		// Expect enable+start for both borgee.service AND borgee-rootd.service.
+		wantPairs := []string{
+			"systemctl enable borgee-rootd.service",
+			"systemctl start borgee-rootd.service",
+			"systemctl enable borgee.service",
+			"systemctl start borgee.service",
+		}
+		for _, want := range wantPairs {
+			found := false
+			for _, c := range got {
+				if c == want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("missing required systemctl call %q (got: %v)", want, got)
+			}
+		}
+	case "darwin":
+		// Expect bootstrap for both plists.
+		wantPaths := []string{
+			"/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.plist",
+			"/Library/LaunchDaemons/cloud.borgee.host-bridge.plist",
+		}
+		for _, p := range wantPaths {
+			found := false
+			for _, c := range got {
+				if strings.Contains(c, "launchctl bootstrap system") && strings.Contains(c, p) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("missing required launchctl bootstrap for %q (got: %v)", p, got)
+			}
+		}
+	}
+}

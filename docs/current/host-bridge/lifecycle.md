@@ -48,6 +48,15 @@ The `borgee` binary's subcommands:
 - `borgee install` — one-shot operator bootstrap (the wrapper above).
 - `borgee uninstall-host` — operator-driven local cleanup mirror.
 - `borgee daemon` — long-lived host-bridge daemon (started by systemd / launchd).
+- `borgee rootd` — long-lived root-privileged companion daemon (started by
+  systemd / launchd as a separate unit, `User=root`). Listens on a local
+  UDS, accepts only a hardcoded command whitelist, executed via IPC by
+  `borgee daemon`. Defense-in-depth: the WS-facing main daemon does not
+  hold root; rootd's command set is narrow + audited. See
+  [`docs/blueprint/current/host-bridge.md`](../../blueprint/current/host-bridge.md)
+  §1.1 (two-process privilege separation) and
+  [`helper-daemon.md`](helper-daemon.md) (Privilege Separation section)
+  for the rationale + wire protocol.
 - `borgee setup` — writes the systemd unit / launchd plist + sandbox profile,
   creates the system user (`borgee` Linux, `_borgee` macOS), creates the
   Helper-owned state directories (`/var/lib/borgee/{queue,status,audit-handoff,credential}`

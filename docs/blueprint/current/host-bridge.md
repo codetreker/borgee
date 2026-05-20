@@ -35,7 +35,8 @@ prev: v1.0
 > 一次本地 enrollment 之后，Web 端 Configure OpenClaw 可以**通过预授权的 typed jobs** 让 Helper 执行 install plugin / create or update agent config / configure Borgee plugin connection / channel binding / start-stop-restart 已声明的 enrolled 服务。不要求用户再 SSH 一次。
 
 - Enrollment-time delegation **不是 blanket preauthorization**；只覆盖 closed v1 typed-job taxonomy（OpenClaw / Helper lifecycle + config）。其余 file / network / resource 仍走 owner-controlled allowlists + revocation。
-- Helper 走 **outbound poll / long-poll**；server 永远不向 host 主动 dial。
+- Helper 走 **outbound WebSocket 持久连接** (`wss://`); server 在已建立的 WS 上 push job 给 helper, 永远不向 host 主动 dial 新连. 连接 idle 时走 ping/pong 探活 (替代 5min POST /status freshness 模型).
+- Helper 是**两进程 privilege separation**: 主 daemon (`borgee daemon`) 跑 `borgee` 系统用户, 持有 WS 长连 + 跑无 root 的 executor; root daemon (`borgee rootd`) 跑 root, 只监听本地 UDS, 接受预定义窄命令白名单 (install_plugin / service_lifecycle / delegation_revoke), 主 daemon 通过 IPC 转发 root 请求. 攻陷主 daemon 不直接得 root.
 - Server 入队鉴权 + Helper 本地策略**双侧都要**校验 owner / org / enrollment / delegation / job type / manifest 或 artifact / paths-domains / 已声明 service IDs / revocation。
 - Web 端只发 schema-bound typed jobs；**不接受** arbitrary shell / argv / executable path / script / 任意 service unit。
 - 长生命周期 Helper / OpenClaw 服务**保持非 sudo**；`install-butler` 只在需要时短期出现，绝不缓存 sudo。
@@ -55,7 +56,7 @@ prev: v1.0
 
 - `host-bridge` 跑在独立 OS user/group（首次安装时创建）。
 - Linux：systemd unit + cgroups 限制；macOS：launchd unit + `sandbox-exec` profile；Windows：v2 才支持。
-- v1.1 沙箱**必须**允许已声明的 typed jobs（声明过的 paths / domains / service IDs / outbound poll），不允许任意 host 控制。`HB-RA-1B` 的 sandbox profile 细节由实施层 task design 决定。
+- v1.1 沙箱**必须**允许已声明的 typed jobs（声明过的 paths / domains / service IDs / outbound WS 长连），不允许任意 host 控制。`HB-RA-1B` 的 sandbox profile 细节由实施层 task design 决定。
 
 #### 3. 更新策略：分类、不自动
 
@@ -137,7 +138,7 @@ Rejected by design：unknown job types、extra fields、arbitrary argv、arbitra
 - Queued jobs：server 标 denied / cancelled，helper 不执行。
 - Leased-before-action：helper 在 local action 前重新校验 revocation，按 cancelled / revoked 结算。
 - Running：helper 在每个 bounded action boundary 重新校验；revoke 命中就停在下一个安全边界，记 deterministic terminal status。
-- Helper auth：persistent helper credential 立即失效；stale-credential poll 回 revoked / stale。
+- Helper auth：persistent helper credential 立即失效；下一次 WS 重连或 in-flight job 命中失效凭证, server 返回 revoked / stale。
 - UI：显示 revoked / uninstalled，不能只显示 offline。
 
 ---

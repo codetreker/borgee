@@ -139,15 +139,20 @@ func stopService(cfg *config, stdout, stderr io.Writer) error {
 	ctx := context.Background()
 	switch runtime.GOOS {
 	case "linux":
-		fmt.Fprintln(stdout, "borgee uninstall-host: systemctl stop + disable")
+		fmt.Fprintln(stdout, "borgee uninstall-host: systemctl stop + disable (main + rootd companion)")
 		// stop + disable are intentionally best-effort — a fresh host
 		// where the service was never enabled returns non-zero but
-		// the file-level cleanup should still proceed.
+		// the file-level cleanup should still proceed. Stop the main
+		// daemon first so it stops forwarding to rootd, then stop
+		// rootd. Disable in the same order.
 		_ = r.Run(ctx, "systemctl", "stop", setup.LinuxServiceName)
+		_ = r.Run(ctx, "systemctl", "stop", setup.LinuxRootdServiceName)
 		_ = r.Run(ctx, "systemctl", "disable", setup.LinuxServiceName)
+		_ = r.Run(ctx, "systemctl", "disable", setup.LinuxRootdServiceName)
 	case "darwin":
-		fmt.Fprintln(stdout, "borgee uninstall-host: launchctl bootout")
+		fmt.Fprintln(stdout, "borgee uninstall-host: launchctl bootout (main + rootd companion)")
 		_ = r.Run(ctx, "launchctl", "bootout", "system/"+setup.DarwinPlistLabel)
+		_ = r.Run(ctx, "launchctl", "bootout", "system/"+setup.DarwinRootdPlistLabel)
 	}
 	return nil
 }

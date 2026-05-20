@@ -1,10 +1,11 @@
 // Package main — borgee single-binary entry point.
 //
-// Dispatches to one of six subcommands:
+// Dispatches to one of seven subcommands:
 //
 //	borgee install ...          # operator one-shot bootstrap: setup → claim → start → wait heartbeat
 //	borgee uninstall-host ...   # operator-driven local cleanup (mirror of `install`)
-//	borgee daemon ...           # long-lived host-bridge daemon
+//	borgee daemon ...           # long-lived host-bridge daemon (User=borgee)
+//	borgee rootd ...            # long-lived root-privileged companion daemon (User=root, narrow IPC whitelist)
 //	borgee claim ...            # one-time enrollment claim (advanced/recovery)
 //	borgee setup ...            # systemd/launchd unit + state-dir bootstrap (advanced/recovery)
 //	borgee install-plugin ...   # signed-manifest plugin binary installer (was: borgee install)
@@ -19,6 +20,13 @@
 // `borgee install-plugin`. The new `borgee install` is the operator-facing
 // one-shot bootstrap that wraps setup + claim + start. The web-UI / install-
 // butler workflow continues to invoke `install-plugin` for runtime plugins.
+//
+// Privilege-separation note (rootd-skeleton): `borgee daemon` runs as the
+// `borgee` system user (no root); `borgee rootd` is the new companion that
+// runs as root, listens on a local UDS, and accepts only a hardcoded
+// command whitelist. The main daemon forwards root-requiring jobs over
+// this IPC. PR-1 ships only the rootd skeleton with a `ping` whitelist
+// entry; the three real root commands land in PR-4.
 package main
 
 import (
@@ -30,6 +38,7 @@ import (
 	"borgee/internal/cli/daemon"
 	"borgee/internal/cli/install"
 	"borgee/internal/cli/installbutler"
+	"borgee/internal/cli/rootd"
 	"borgee/internal/cli/setup"
 	"borgee/internal/cli/uninstallhost"
 )
@@ -57,6 +66,8 @@ func dispatch(sub string, args []string, stdout, stderr io.Writer) error {
 	switch sub {
 	case "daemon":
 		return daemon.Run(args, stdout, stderr)
+	case "rootd":
+		return rootd.Run(args, stdout, stderr)
 	case "claim":
 		return claim.Run(args, stdout, stderr)
 	case "install":
@@ -96,7 +107,8 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "Subcommands:")
 	fmt.Fprintln(w, "  install          One-shot operator bootstrap: setup + claim + start + wait heartbeat.")
 	fmt.Fprintln(w, "  uninstall-host   Operator-driven local cleanup (mirror of `install`).")
-	fmt.Fprintln(w, "  daemon           Long-lived host-bridge daemon (started by systemd / launchd).")
+	fmt.Fprintln(w, "  daemon           Long-lived host-bridge daemon (started by systemd / launchd, User=borgee).")
+	fmt.Fprintln(w, "  rootd            Long-lived root companion daemon — narrow IPC whitelist (User=root).")
 	fmt.Fprintln(w, "  claim            One-time enrollment claim (advanced; `install` invokes this).")
 	fmt.Fprintln(w, "  setup            Install systemd unit / launchd plist + state dirs (advanced; `install` invokes this).")
 	fmt.Fprintln(w, "  install-plugin   Signed-manifest plugin binary installer (HB-1; was: install).")

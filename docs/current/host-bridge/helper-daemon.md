@@ -2,6 +2,17 @@
 
 The helper daemon is the local enforcement component of Host Bridge. It receives local IPC requests, checks identity and grants, records audit events, and performs the narrow host operation set that is currently allowed.
 
+## Privilege Separation (two-process model)
+
+The helper now splits into two long-lived processes from the same `borgee` binary:
+
+- `borgee daemon` (User=`borgee`, the process this doc otherwise describes) — holds the outbound WebSocket to the server, parses untrusted server payloads, and runs no-root executors. This is the high-attack-surface side; it intentionally does not hold root.
+- `borgee rootd` (User=`root`, NEW) — listens on a local Unix-domain socket (`/run/borgee/borgee-rootd.sock` on Linux, `/Users/Shared/Borgee/borgee-rootd.sock` on macOS), accepts only a hardcoded command whitelist, and executes. The main daemon forwards root-requiring jobs to rootd via this IPC. Peer-cred checks (SO_PEERCRED on Linux, getpeereid on macOS) gate the socket to members of the `borgee` group.
+
+See [`docs/blueprint/current/host-bridge.md`](../../blueprint/current/host-bridge.md) §1.1 for the rationale: an attacker who compromises the WS-facing main daemon gets the `borgee` user (constrained by systemd hardening), not root. Root operations are gated by rootd's narrow whitelist plus the IPC peer-cred check.
+
+Skeleton PR-1 ships only the rootd binary, systemd unit, and a placeholder `ping` whitelist entry to validate the IPC + auth + audit pattern. PR-4 adds the three real root commands (`install_plugin`, `service_lifecycle`, `delegation_revoke`).
+
 ## Overview
 
 **Role**

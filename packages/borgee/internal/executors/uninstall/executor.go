@@ -75,12 +75,19 @@ type Layout struct {
 	HelperBinaries []string
 	// AuxFiles — additional file paths (NOT directories) to remove. Used
 	// for the macOS sandbox profile that lives outside the state and
-	// runtime trees.
+	// runtime trees, and for the rootd UDS socket file + companion unit
+	// file (rootd-skeleton).
 	AuxFiles []string
 	// Service unit / plist file path.
 	ServiceUnitPath string
 	// systemd service name (Linux) or launchd label (macOS).
 	ServiceName string
+	// Rootd companion service unit / plist file path + service name.
+	// Disabled + removed alongside the main service so a fresh install
+	// re-deploys both cleanly (rootd-skeleton). Empty means "no rootd
+	// companion" — older Layouts without this field skip the bucket.
+	RootdServiceUnitPath string
+	RootdServiceName     string
 	// OS user + group to delete at the end.
 	UserName  string
 	GroupName string
@@ -110,12 +117,21 @@ func DefaultLayout(goos string) Layout {
 				"/var/lib/borgee/audit-handoff",
 				"/var/lib/borgee/credential",
 			},
-			RuntimeDir:      "/usr/local/lib/borgee",
-			HelperBinaries:  nil,
-			ServiceUnitPath: "/etc/systemd/system/borgee.service",
-			ServiceName:     "borgee.service",
-			UserName:        "borgee",
-			GroupName:       "borgee",
+			RuntimeDir:           "/usr/local/lib/borgee",
+			HelperBinaries:       nil,
+			ServiceUnitPath:      "/etc/systemd/system/borgee.service",
+			ServiceName:          "borgee.service",
+			RootdServiceUnitPath: "/etc/systemd/system/borgee-rootd.service",
+			RootdServiceName:     "borgee-rootd.service",
+			// rootd UDS socket file lives under /run/borgee. tmpfs wipes
+			// it on reboot anyway, but list it explicitly so an
+			// uninstall-then-reinstall on the same boot leaves no stale
+			// socket for the new rootd to trip over.
+			AuxFiles: []string{
+				"/run/borgee/borgee-rootd.sock",
+			},
+			UserName:  "borgee",
+			GroupName: "borgee",
 		}
 	case "darwin":
 		return Layout{
@@ -129,14 +145,19 @@ func DefaultLayout(goos string) Layout {
 			HelperBinaries: nil,
 			// Sandbox profile path (written by `borgee setup`) lives outside
 			// the runtime dir wipe; remove it explicitly so a fresh install
-			// re-deploys a clean profile.
+			// re-deploys a clean profile. rootd UDS socket file is also
+			// listed so an uninstall-then-reinstall does not leave a stale
+			// socket.
 			AuxFiles: []string{
 				"/Library/Application Support/Borgee/borgee-helper.sb",
+				"/Users/Shared/Borgee/borgee-rootd.sock",
 			},
-			ServiceUnitPath: "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist",
-			ServiceName:     "cloud.borgee.host-bridge",
-			UserName:        "_borgee",
-			GroupName:       "_borgee",
+			ServiceUnitPath:      "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist",
+			ServiceName:          "cloud.borgee.host-bridge",
+			RootdServiceUnitPath: "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.plist",
+			RootdServiceName:     "cloud.borgee.host-bridge.rootd",
+			UserName:             "_borgee",
+			GroupName:            "_borgee",
 		}
 	default:
 		return Layout{}
@@ -289,9 +310,22 @@ func (e *Executor) Execute(ctx context.Context, job *outbound.LeasedJob) (dispat
 	// SIGTERM us mid-cleanup and the dispatcher would never post Result.
 	summary.Buckets = append(summary.Buckets, e.disableService(ctx, layout))
 
+	// Bucket A2: disable the rootd companion service (if Layout has one).
+	// rootd-skeleton: PR-1 ships borgee-rootd.service alongside the main
+	// daemon; an uninstall must take both down or the next install would
+	// trip on an already-bound UDS owned by the prior rootd process.
+	if layout.RootdServiceName != "" {
+		summary.Buckets = append(summary.Buckets, e.disableRootdService(ctx, layout))
+	}
+
 	// Bucket B: remove the service unit / plist file so a fresh install
 	// re-deploys cleanly.
 	summary.Buckets = append(summary.Buckets, e.removePath(layout.ServiceUnitPath, "service_unit"))
+
+	// Bucket B2: remove the rootd companion unit / plist file.
+	if layout.RootdServiceUnitPath != "" {
+		summary.Buckets = append(summary.Buckets, e.removePath(layout.RootdServiceUnitPath, "rootd_service_unit"))
+	}
 
 	// Bucket C: remove the runtime binaries install-butler dropped under
 	// /usr/local/lib/borgee/. Whole-tree wipe — operator opted into uninstall.
@@ -363,26 +397,38 @@ func bucketCounts(buckets []bucketResult) (ok, fail int) {
 // not present, etc.) are logged + recorded as "failed" but do NOT abort
 // the rest of the cleanup.
 func (e *Executor) disableService(ctx context.Context, layout Layout) bucketResult {
-	if layout.ServiceName == "" {
-		return bucketResult{Name: "service_disable", Status: "skipped", Detail: "no service name configured"}
+	return e.disableServiceNamed(ctx, layout.ServiceName, "service_disable")
+}
+
+// disableRootdService is the same as disableService but for the rootd
+// companion. Reports under a distinct bucket name ("rootd_service_disable")
+// so an operator reading the summary can tell which service the per-step
+// status belongs to.
+func (e *Executor) disableRootdService(ctx context.Context, layout Layout) bucketResult {
+	return e.disableServiceNamed(ctx, layout.RootdServiceName, "rootd_service_disable")
+}
+
+func (e *Executor) disableServiceNamed(ctx context.Context, serviceName, bucketName string) bucketResult {
+	if serviceName == "" {
+		return bucketResult{Name: bucketName, Status: "skipped", Detail: "no service name configured"}
 	}
 	var args []string
 	var name string
 	switch e.goos() {
 	case "linux":
 		name = "systemctl"
-		args = []string{"disable", layout.ServiceName}
+		args = []string{"disable", serviceName}
 	case "darwin":
 		name = "launchctl"
-		args = []string{"disable", "system/" + layout.ServiceName}
+		args = []string{"disable", "system/" + serviceName}
 	default:
-		return bucketResult{Name: "service_disable", Status: "skipped", Detail: "unsupported platform " + e.goos()}
+		return bucketResult{Name: bucketName, Status: "skipped", Detail: "unsupported platform " + e.goos()}
 	}
 	if err := e.cmd().Run(ctx, name, args...); err != nil {
 		e.logf("borgee: uninstall: %s %s failed: %v", name, strings.Join(args, " "), err)
-		return bucketResult{Name: "service_disable", Path: layout.ServiceName, Status: "failed", Detail: err.Error()}
+		return bucketResult{Name: bucketName, Path: serviceName, Status: "failed", Detail: err.Error()}
 	}
-	return bucketResult{Name: "service_disable", Path: layout.ServiceName, Status: "disabled"}
+	return bucketResult{Name: bucketName, Path: serviceName, Status: "disabled"}
 }
 
 // removePath removes a single file. ENOENT is recorded as "absent", not
