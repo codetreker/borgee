@@ -27,12 +27,7 @@
     "commander": "^13.0.0",
     "ws": "^8.20.0"
   },
-  "optionalDependencies": {
-    "@codetreker/borgee-remote-agent-linux-x64": "0.1.2",
-    "@codetreker/borgee-remote-agent-linux-arm64": "0.1.2",
-    "@codetreker/borgee-remote-agent-darwin-x64": "0.1.2",
-    "@codetreker/borgee-remote-agent-darwin-arm64": "0.1.2"
-  },
+  "_optionalDependenciesNote": "Platform subpackage optionalDependencies are injected by .github/workflows/release-borgee.yml at publish time. They are not present in the committed package.json so the dev workspace can install with --frozen-lockfile before the platform subpackages are first published.",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",

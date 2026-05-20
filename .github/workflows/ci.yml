@@ -218,7 +218,7 @@ jobs:
     # HB-2.0 prerequisite — IPC primitive smoke per OS (Linux UDS / macOS UDS
     # / Windows Named Pipe). Build-tag-per-platform; matrix runs each smoke
     # test on its native runner. Gates HB-2 v0(C) host-bridge daemon
-    # by running the real packages/borgee-helper/ Go command as an IPC server,
+    # by running the real packages/borgee/ Go command as an IPC server,
     # which verifies the build tags stay aligned with host-bridge behavior.
     strategy:
       fail-fast: false
