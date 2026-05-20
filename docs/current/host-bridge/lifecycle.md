@@ -336,10 +336,10 @@ Does *not* survive (intentionally ephemeral):
 
 ## Windows
 
-Out of scope for v1. The npm bundle's platform subpackages only ship for
+Out of scope for v1. The npm tarball ships platform binaries only for
 linux-x64, linux-arm64, darwin-x64, and darwin-arm64; an `npm i -g
 @codetreker/borgee-remote-agent` on Windows leaves the `borgee` Go binary
-unresolved (the shim prints a structured error pointing at issue #659).
+unresolved (the shim exits 2 with a structured error pointing at issue #659).
 The user outcome ("remains controllable across reboot/crash") therefore
 does not apply on Windows in v1 — there is no install path to break.
 
@@ -357,7 +357,7 @@ does not apply on Windows in v1 — there is no install path to break.
 | Server flips enrollment on uninstall success | `packages/server-go/internal/api/helper_jobs_test.go`                            | `TestHelperJobsHelperUninstallTerminalSucceededMarksEnrollmentUninstalled` |
 | Server taxonomy accepts well-formed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                   | `TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding` |
 | Server taxonomy rejects malformed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                     | `TestHelperJobsEnqueueHelperUninstallRejectsInvalidPayload` |
-| npm shim platform → subpackage mapping     | `packages/remote-agent/src/__tests__/borgeeShim.test.ts`                           | `borgee shim platform matrix`                   |
+| npm shim platform → binary path mapping     | `packages/remote-agent/src/__tests__/borgeeShim.test.ts`                           | `borgee shim platform matrix`                   |
 
 The rendered systemd / launchd assertion plus the server-side freshness
 derivation together stand in for a real reboot/crash e2e (which a CI

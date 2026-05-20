@@ -1,3 +1,0 @@
-#!/bin/sh
-echo "borgee placeholder binary (linux-x64) - replace at release time" >&2
-exit 127

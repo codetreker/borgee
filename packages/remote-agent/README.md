@@ -2,11 +2,11 @@
 
 The `@codetreker/borgee-remote-agent` package ships two CLIs:
 
-1. **`borgee`** — the Borgee host-bridge daemon (Go binary, delivered through
-   per-platform `optionalDependencies` subpackages). One-shot operator
-   bootstrap (`install`), local cleanup (`uninstall-host`), and the
-   long-lived `daemon` + advanced `setup` / `claim` / `install-plugin`
-   subcommands.
+1. **`borgee`** — the Borgee host-bridge daemon (Go binary, delivered inside
+   this same npm tarball under `bin/platforms/<plat>-<arch>/borgee`; the
+   Node shim picks the right one at runtime). One-shot operator bootstrap
+   (`install`), local cleanup (`uninstall-host`), and the long-lived
+   `daemon` + advanced `setup` / `claim` / `install-plugin` subcommands.
 2. **`borgee-remote-agent`** — the Node-based remote file-system bridge
    (TypeScript CLI that connects local directories to a Borgee channel via
    WebSocket). Unchanged from the prior 0.1.x release.
@@ -155,14 +155,25 @@ re-enroll.
 The agent connects via WebSocket and exposes local directories for browsing
 and file access within Borgee channels.
 
-## Platform subpackages
+## Platform binaries
 
-The 4 `optionalDependencies` packages
-(`@codetreker/borgee-remote-agent-linux-x64`, `-linux-arm64`,
-`-darwin-x64`, `-darwin-arm64`) each ship ONE file at `bin/borgee` — the
-platform-specific Go build of the host-bridge daemon. They have no Node
-code and never run anything at install time. Installation is gated by the
-standard npm `os` / `cpu` machinery, so only one is materialized into
-`node_modules/` per host. The release workflow
-(`.github/workflows/release-borgee.yml`) builds and publishes all four on
-each `borgee-v*` tag.
+This package ships ONE tarball carrying all 4 platform Go binaries:
+
+- `bin/platforms/linux-x64/borgee`
+- `bin/platforms/linux-arm64/borgee`
+- `bin/platforms/darwin-x64/borgee`
+- `bin/platforms/darwin-arm64/borgee`
+
+`bin/borgee.js` is a tiny Node shim that picks the right binary for the
+current `process.platform` + `process.arch` and `spawn`s it with all argv
+passed through. Tarball size is ~15-20 MB gzipped (same ballpark as
+`typescript`); Borgee is a one-shot install per host, so the trade is to
+keep the install path single-package rather than split across four
+`optionalDependencies` subpackages.
+
+Windows is intentionally out of scope (track issue #659); the shim exits 2
+with a structured error if invoked on an unsupported `platform-arch`.
+
+The release workflow (`.github/workflows/publish-remote-agent.yml`) builds
+all 4 binaries from native runners and publishes a single
+`@codetreker/borgee-remote-agent` tarball on every `borgee-v*` tag.
