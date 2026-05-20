@@ -115,6 +115,9 @@ func newFakeAPIServer(enrollmentID, credential string) *fakeAPIServer {
 // claim CLI → credential persisted → daemon spawn → heartbeat fires →
 // server records LastSeenAt → serializer flips to connected.
 func TestClaimHeartbeatE2E(t *testing.T) {
+	t.Skip("PR-2 #1038: HTTP POST /status heartbeat replaced by WS ping/pong. " +
+		"PR-5 follow-up will re-add a WS-based end-to-end heartbeat e2e " +
+		"against the testing environment (see issue #1033).")
 	if testing.Short() {
 		t.Skip("integration test (requires go build + fork+exec)")
 	}

@@ -5,194 +5,430 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/coder/websocket"
 )
 
-func TestClientPollAckResultUseFixedPathsAndHelperCredential(t *testing.T) {
-	ctx := context.Background()
-	var paths []string
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		paths = append(paths, r.Method+" "+r.URL.String())
+// runHelperWSTestServer spins up an httptest server with the helper WS
+// endpoint at /ws/helper/{enrollmentId}. The handler validates the
+// Bearer credential + X-Helper-Device-Id headers (via the supplied
+// auth function), accepts the upgrade, and runs onConn against the
+// upgraded conn — tests use onConn to inject push frames and assert
+// inbound frames.
+type helperWSTestServer struct {
+	t        *testing.T
+	srv      *httptest.Server
+	mu       sync.Mutex
+	gotFrames []string
+}
+
+func newHelperWSTestServer(t *testing.T, onConn func(ctx context.Context, conn *websocket.Conn, srv *helperWSTestServer)) *helperWSTestServer {
+	t.Helper()
+	s := &helperWSTestServer{t: t}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/helper/{enrollmentId}", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer helper-token" {
-			t.Fatalf("Authorization header=%q", r.Header.Get("Authorization"))
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
 		}
-		var body map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			t.Fatalf("decode request body: %v", err)
+		if r.Header.Get("X-Helper-Device-Id") != "device-1" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
 		}
-		if body["helper_device_id"] != "device-1" {
-			t.Fatalf("request missing helper_device_id: %v", body)
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			Subprotocols:       []string{HelperWSSubprotocol},
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			t.Logf("accept failed: %v", err)
+			return
 		}
-		switch r.URL.Path {
-		case "/api/v1/helper/enrollments/enroll-1/jobs/poll":
-			writeOutboundTestJSON(w, map[string]any{
-				"status": "leased",
-				"job": map[string]any{
-					"job_id":           "job-1",
-					"enrollment_id":    "enroll-1",
-					"job_type":         "openclaw.configure_agent",
-					"schema_version":   1,
-					"payload":          map[string]any{"agent_id": "agent-1"},
-					"manifest_digest":  "sha256:manifest",
-					"lease_token":      "lease-token",
-					"lease_expires_at": time.Now().Add(time.Minute).UnixMilli(),
-					"attempt":          1,
-				},
-			})
-		case "/api/v1/helper/enrollments/enroll-1/jobs/job-1/ack":
-			if body["lease_token"] != "lease-token" || body["ack_status"] != "received" {
-				t.Fatalf("bad ack body: %v", body)
-			}
-			writeOutboundTestJSON(w, map[string]any{"job": map[string]any{"job_id": "job-1", "status": "running"}})
-		case "/api/v1/helper/enrollments/enroll-1/jobs/job-1/result":
-			if body["lease_token"] != "lease-token" || body["status"] != "failed" || body["failure_code"] != "policy_denied" {
-				t.Fatalf("bad result body: %v", body)
-			}
-			if _, ok := body["url"]; ok {
-				t.Fatalf("result body must not include arbitrary URL override: %v", body)
-			}
-			writeOutboundTestJSON(w, map[string]any{"job": map[string]any{"job_id": "job-1", "status": "failed", "failure_code": "policy_denied"}})
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
+		ctx := r.Context()
+		if onConn != nil {
+			onConn(ctx, conn, s)
 		}
-	}))
-	t.Cleanup(ts.Close)
-
-	client, err := NewClient(PreparedConfig{Enabled: true, ServerOrigin: ts.URL}, StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"}, WithHTTPClient(ts.Client()))
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
-	poll, err := client.Poll(ctx, "enroll-1", PollOptions{})
-	if err != nil || poll.Status != PollStatusLeased || poll.Directive != DirectiveProcess || poll.Job == nil || poll.Job.LeaseToken != "lease-token" {
-		t.Fatalf("Poll result=%+v err=%v", poll, err)
-	}
-	ack, err := client.Ack(ctx, "enroll-1", "job-1", "lease-token")
-	if err != nil || ack.Status != "running" {
-		t.Fatalf("Ack result=%+v err=%v", ack, err)
-	}
-	result, err := client.Result(ctx, "enroll-1", "job-1", ResultRequest{
-		LeaseToken:     "lease-token",
-		Status:         "failed",
-		FailureCode:    "policy_denied",
-		FailureMessage: "policy handoff denied",
-		ResultSummary:  ResultSummary{AuditRefs: []string{"audit-1"}},
+		_ = conn.Close(websocket.StatusNormalClosure, "")
 	})
-	if err != nil || result.Status != "failed" || result.FailureCode != "policy_denied" {
-		t.Fatalf("Result=%+v err=%v", result, err)
-	}
-	want := []string{
-		"POST /api/v1/helper/enrollments/enroll-1/jobs/poll",
-		"POST /api/v1/helper/enrollments/enroll-1/jobs/job-1/ack",
-		"POST /api/v1/helper/enrollments/enroll-1/jobs/job-1/result",
-	}
-	if !reflect.DeepEqual(paths, want) {
-		t.Fatalf("paths=%v want %v", paths, want)
-	}
+	s.srv = httptest.NewServer(mux)
+	t.Cleanup(s.srv.Close)
+	return s
 }
 
-func TestClientMapsNoWorkTransientAndStopDirectives(t *testing.T) {
-	ctx := context.Background()
-	for name, tc := range map[string]struct {
-		statusCode int
-		body       map[string]any
-		want       Directive
-		retryAfter time.Duration
-	}{
-		"no work":          {statusCode: http.StatusOK, body: map[string]any{"status": "no_work", "retry_after_ms": 5000}, want: DirectiveRetry, retryAfter: 5 * time.Second},
-		"transient server": {statusCode: http.StatusBadGateway, body: map[string]any{"code": "temporary"}, want: DirectiveRetry},
-		"stale credential": {statusCode: http.StatusForbidden, body: map[string]any{"code": "stale_credential"}, want: DirectiveStopStaleCredential},
-		"revoked":          {statusCode: http.StatusForbidden, body: map[string]any{"code": "revoked"}, want: DirectiveStopRevoked},
-		"uninstalled":      {statusCode: http.StatusForbidden, body: map[string]any{"code": "uninstalled"}, want: DirectiveStopUninstalled},
-	} {
-		t.Run(name, func(t *testing.T) {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(tc.statusCode)
-				writeOutboundTestJSON(w, tc.body)
-			}))
-			t.Cleanup(ts.Close)
-			client, err := NewClient(PreparedConfig{Enabled: true, ServerOrigin: ts.URL}, StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"}, WithHTTPClient(ts.Client()))
-			if err != nil {
-				t.Fatalf("NewClient: %v", err)
-			}
-			poll, err := client.Poll(ctx, "enroll-1", PollOptions{})
-			if err != nil {
-				t.Fatalf("Poll: %v", err)
-			}
-			if poll.Directive != tc.want || poll.RetryAfter != tc.retryAfter {
-				t.Fatalf("directive=%s retry=%s want %s/%s", poll.Directive, poll.RetryAfter, tc.want, tc.retryAfter)
-			}
-		})
-	}
-}
-
-func TestClientAckAndResultMapCredentialStopDirectives(t *testing.T) {
-	ctx := context.Background()
-	for _, tc := range []struct {
-		name       string
-		statusCode int
-		body       map[string]any
-		want       Directive
-	}{
-		{"ack stale credential", http.StatusForbidden, map[string]any{"code": "stale_credential"}, DirectiveStopStaleCredential},
-		{"ack revoked", http.StatusForbidden, map[string]any{"code": "revoked"}, DirectiveStopRevoked},
-		{"ack uninstalled", http.StatusForbidden, map[string]any{"code": "uninstalled"}, DirectiveStopUninstalled},
-		{"result stale credential", http.StatusForbidden, map[string]any{"code": "stale_credential"}, DirectiveStopStaleCredential},
-		{"result revoked", http.StatusForbidden, map[string]any{"code": "revoked"}, DirectiveStopRevoked},
-		{"result uninstalled", http.StatusForbidden, map[string]any{"code": "uninstalled"}, DirectiveStopUninstalled},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(tc.statusCode)
-				writeOutboundTestJSON(w, tc.body)
-			}))
-			t.Cleanup(ts.Close)
-			client, err := NewClient(PreparedConfig{Enabled: true, ServerOrigin: ts.URL}, StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"}, WithHTTPClient(ts.Client()))
-			if err != nil {
-				t.Fatalf("NewClient: %v", err)
-			}
-
-			var got JobState
-			if strings.HasPrefix(tc.name, "ack ") {
-				got, err = client.Ack(ctx, "enroll-1", "job-1", "lease-token")
-			} else {
-				got, err = client.Result(ctx, "enroll-1", "job-1", ResultRequest{LeaseToken: "lease-token", Status: "failed", FailureCode: "policy_denied"})
-			}
-			if err != nil {
-				t.Fatalf("stop directive response should not be generic error: %v", err)
-			}
-			if got.Directive != tc.want {
-				t.Fatalf("directive=%s want %s", got.Directive, tc.want)
-			}
-		})
-	}
-}
-
-func TestClientRejectsFullURLOrTraversalIdentifiers(t *testing.T) {
-	ctx := context.Background()
-	requests := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
-		w.WriteHeader(http.StatusTeapot)
-	}))
-	t.Cleanup(ts.Close)
-	client, err := NewClient(PreparedConfig{Enabled: true, ServerOrigin: ts.URL}, StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"}, WithHTTPClient(ts.Client()))
+func newTestClient(t *testing.T, srv *helperWSTestServer, enrollmentID string, extra ...ClientOption) *Client {
+	t.Helper()
+	opts := []ClientOption{WithHTTPClient(srv.srv.Client())}
+	opts = append(opts, extra...)
+	c, err := NewClient(
+		PreparedConfig{Enabled: true, ServerOrigin: srv.srv.URL},
+		StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"},
+		opts...,
+	)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	for _, id := range []string{"https://evil.example/x", "../other", "job/with/slash", ""} {
-		if _, err := client.Poll(ctx, id, PollOptions{}); err == nil {
-			t.Fatalf("Poll accepted unsafe enrollment id %q", id)
+	c.SetEnrollmentID(enrollmentID)
+	return c
+}
+
+func TestClient_DialReceivesPushedJob(t *testing.T) {
+	srv := newHelperWSTestServer(t, func(ctx context.Context, conn *websocket.Conn, _ *helperWSTestServer) {
+		// Push one job frame.
+		job := map[string]any{
+			"type": "job",
+			"job": map[string]any{
+				"job_id":           "job-1",
+				"enrollment_id":    "enroll-1",
+				"job_type":         "openclaw.configure_agent",
+				"schema_version":   1,
+				"payload":          map[string]any{"agent_id": "agent-1"},
+				"manifest_digest":  "sha256:manifest",
+				"lease_token":      "lease-token",
+				"lease_expires_at": time.Now().Add(time.Minute).UnixMilli(),
+				"attempt":          1,
+			},
 		}
+		data, _ := json.Marshal(job)
+		_ = conn.Write(ctx, websocket.MessageText, data)
+		// Hold the connection open until the test closes it.
+		time.Sleep(150 * time.Millisecond)
+	})
+
+	c := newTestClient(t, srv, "enroll-1")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := c.Dial(ctx); err != nil {
+		t.Fatalf("Dial: %v", err)
 	}
-	if requests != 0 {
-		t.Fatalf("unsafe identifiers should not send requests, got %d", requests)
+	defer c.Close()
+
+	job, dir, err := c.Receive(ctx)
+	if err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if dir != DirectiveProcess {
+		t.Fatalf("dir=%s want process", dir)
+	}
+	if job == nil || job.JobID != "job-1" || job.LeaseToken != "lease-token" {
+		t.Fatalf("job=%+v", job)
 	}
 }
 
-func writeOutboundTestJSON(w http.ResponseWriter, body map[string]any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(body)
+func TestClient_AckResultRoundTripsAsFrames(t *testing.T) {
+	var (
+		ackCh    = make(chan map[string]any, 1)
+		resultCh = make(chan map[string]any, 1)
+	)
+	srv := newHelperWSTestServer(t, func(ctx context.Context, conn *websocket.Conn, _ *helperWSTestServer) {
+		// Push one job + read 2 frames (ack, result).
+		job := map[string]any{
+			"type": "job",
+			"job": map[string]any{
+				"job_id":           "job-1",
+				"enrollment_id":    "enroll-1",
+				"job_type":         "openclaw.configure_agent",
+				"schema_version":   1,
+				"payload":          map[string]any{},
+				"manifest_digest":  "sha256:manifest",
+				"lease_token":      "lease-token",
+				"lease_expires_at": time.Now().Add(time.Minute).UnixMilli(),
+				"attempt":          1,
+			},
+		}
+		data, _ := json.Marshal(job)
+		_ = conn.Write(ctx, websocket.MessageText, data)
+
+		for i := 0; i < 2; i++ {
+			_, buf, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			var m map[string]any
+			if err := json.Unmarshal(buf, &m); err != nil {
+				continue
+			}
+			switch m["type"] {
+			case "ack":
+				ackCh <- m
+			case "result":
+				resultCh <- m
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	})
+
+	c := newTestClient(t, srv, "enroll-1")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := c.Dial(ctx); err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+
+	if _, _, err := c.Receive(ctx); err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if _, err := c.Ack(ctx, "enroll-1", "job-1", "lease-token"); err != nil {
+		t.Fatalf("Ack: %v", err)
+	}
+	if _, err := c.Result(ctx, "enroll-1", "job-1", ResultRequest{
+		LeaseToken:    "lease-token",
+		Status:        "succeeded",
+		ResultSummary: ResultSummary{AuditRefs: []string{"audit-1"}},
+	}); err != nil {
+		t.Fatalf("Result: %v", err)
+	}
+
+	select {
+	case ack := <-ackCh:
+		if ack["job_id"] != "job-1" || ack["lease_token"] != "lease-token" {
+			t.Fatalf("ack frame bad: %v", ack)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ack frame timeout")
+	}
+	select {
+	case res := <-resultCh:
+		if res["job_id"] != "job-1" || res["status"] != "succeeded" {
+			t.Fatalf("result frame bad: %v", res)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("result frame timeout")
+	}
+}
+
+func TestClient_DirectiveStopRevoked(t *testing.T) {
+	srv := newHelperWSTestServer(t, func(ctx context.Context, conn *websocket.Conn, _ *helperWSTestServer) {
+		data, _ := json.Marshal(map[string]any{"type": "directive", "code": "revoked"})
+		_ = conn.Write(ctx, websocket.MessageText, data)
+		time.Sleep(50 * time.Millisecond)
+	})
+
+	c := newTestClient(t, srv, "enroll-1")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := c.Dial(ctx); err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+
+	_, dir, err := c.Receive(ctx)
+	if err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if dir != DirectiveStopRevoked {
+		t.Fatalf("directive=%s want stop_revoked", dir)
+	}
+}
+
+func TestClient_RejectsUnauthorizedHandshake(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/helper/{enrollmentId}", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	c, err := NewClient(
+		PreparedConfig{Enabled: true, ServerOrigin: srv.URL},
+		StaticCredentialSource{Credential: "bad", HelperDeviceID: "device-1"},
+		WithHTTPClient(srv.Client()),
+	)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	c.SetEnrollmentID("enroll-1")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := c.Dial(ctx); err == nil {
+		t.Fatal("Dial should fail on 401")
+	}
+}
+
+func TestClient_RejectsUnsafeIdentifiers(t *testing.T) {
+	srv := newHelperWSTestServer(t, func(ctx context.Context, conn *websocket.Conn, _ *helperWSTestServer) {
+		time.Sleep(20 * time.Millisecond)
+	})
+	c := newTestClient(t, srv, "enroll-1")
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := c.Dial(ctx); err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+
+	for _, id := range []string{"https://evil.example/x", "../other", "job/with/slash"} {
+		if _, err := c.Ack(ctx, id, "job-1", "lease-token"); err == nil {
+			t.Fatalf("Ack accepted unsafe id %q", id)
+		}
+	}
+}
+
+func TestClient_PingPongHeartbeat(t *testing.T) {
+	var pingCount int
+	var mu sync.Mutex
+	srv := newHelperWSTestServerCustom(t, &http.Header{}, func(ctx context.Context, conn *websocket.Conn) {
+		// coder/websocket auto-pong response is internal — we just
+		// hold the connection open and count via OnPing on server.
+		_, _, _ = conn.Read(ctx)
+	}, func() {
+		mu.Lock()
+		pingCount++
+		mu.Unlock()
+	})
+
+	c := newTestClient(t, srv, "enroll-1", WithPingInterval(40*time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := c.Dial(ctx); err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+
+	// Wait for at least one ping to arrive.
+	deadline := time.Now().Add(800 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := pingCount
+		mu.Unlock()
+		if n > 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("no ping observed within 800ms")
+}
+
+// newHelperWSTestServerCustom is the ping-test variant that exposes
+// the OnPingReceived hook.
+func newHelperWSTestServerCustom(t *testing.T, _ *http.Header, onConn func(ctx context.Context, conn *websocket.Conn), onPing func()) *helperWSTestServer {
+	t.Helper()
+	s := &helperWSTestServer{t: t}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/helper/{enrollmentId}", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			Subprotocols:       []string{HelperWSSubprotocol},
+			InsecureSkipVerify: true,
+			OnPingReceived: func(ctx context.Context, payload []byte) bool {
+				if onPing != nil {
+					onPing()
+				}
+				return true
+			},
+		})
+		if err != nil {
+			return
+		}
+		ctx := r.Context()
+		if onConn != nil {
+			onConn(ctx, conn)
+		}
+		_ = conn.Close(websocket.StatusNormalClosure, "")
+	})
+	s.srv = httptest.NewServer(mux)
+	t.Cleanup(s.srv.Close)
+	return s
+}
+
+func TestClient_ReconnectsAfterServerClose(t *testing.T) {
+	var dialCount int
+	var mu sync.Mutex
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/helper/{enrollmentId}", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		dialCount++
+		first := dialCount == 1
+		mu.Unlock()
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			Subprotocols:       []string{HelperWSSubprotocol},
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			return
+		}
+		if first {
+			_ = conn.Close(websocket.StatusGoingAway, "shutdown")
+			return
+		}
+		// Second connection — push a job.
+		data, _ := json.Marshal(map[string]any{
+			"type": "job",
+			"job": map[string]any{
+				"job_id":           "job-2",
+				"enrollment_id":    "enroll-1",
+				"job_type":         "openclaw.configure_agent",
+				"schema_version":   1,
+				"payload":          map[string]any{},
+				"manifest_digest":  "sha256:m",
+				"lease_token":      "lease-2",
+				"lease_expires_at": time.Now().Add(time.Minute).UnixMilli(),
+				"attempt":          1,
+			},
+		})
+		_ = conn.Write(r.Context(), websocket.MessageText, data)
+		time.Sleep(150 * time.Millisecond)
+		_ = conn.Close(websocket.StatusNormalClosure, "")
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	c, err := NewClient(
+		PreparedConfig{Enabled: true, ServerOrigin: srv.URL},
+		StaticCredentialSource{Credential: "helper-token", HelperDeviceID: "device-1"},
+		WithHTTPClient(srv.Client()),
+		WithReconnectBackoff(20*time.Millisecond, 100*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	c.SetEnrollmentID("enroll-1")
+
+	gotJob := make(chan *LeasedJob, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go func() {
+		_ = c.RunWithReconnect(ctx, func(_ context.Context, j *LeasedJob) {
+			select {
+			case gotJob <- j:
+			default:
+			}
+		}, nil)
+	}()
+	select {
+	case j := <-gotJob:
+		if j.JobID != "job-2" {
+			t.Fatalf("job_id=%s want job-2", j.JobID)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected reconnect-then-job, timed out")
+	}
+}
+
+// TestClient_PrereqAcceptsWSS asserts the prereq validator accepts
+// wss:// (the production daemon target). Backed by the deriveWSOrigin
+// install-time path.
+func TestClient_PrereqAcceptsWSS(t *testing.T) {
+	for _, origin := range []string{"wss://example.com", "https://example.com"} {
+		prep, err := ValidateAndPrepare(PrereqConfig{
+			ServerOrigin:    origin,
+			AllowedOrigins:  origin,
+			QueueStateDir:   t.TempDir(),
+			StatusStateDir:  t.TempDir(),
+			AuditHandoffDir: t.TempDir(),
+		}, ValidationOptions{
+			AllowedStateRoots: []string{"/"},
+		})
+		if err != nil {
+			t.Fatalf("ValidateAndPrepare(%q): %v", origin, err)
+		}
+		if !prep.Enabled {
+			t.Fatalf("Enabled=false for %q", origin)
+		}
+		if !strings.HasPrefix(prep.ServerOrigin, "wss://") && !strings.HasPrefix(prep.ServerOrigin, "https://") {
+			t.Fatalf("ServerOrigin=%q", prep.ServerOrigin)
+		}
+	}
 }

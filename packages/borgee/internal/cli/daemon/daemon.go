@@ -138,33 +138,21 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 		_ = ln.Close()
 	}()
 
-	// #968 heartbeat producer: spawn before entering the UDS Accept loop so a
-	// rebooted/crashed host re-asserts `connected` within ~100ms of daemon
-	// start. Shares ctx with the Accept loop for clean SIGTERM teardown.
-	// Skips silently if enrollment isn't configured yet (fresh install
-	// pre-claim) — failing to start the daemon over a missing credential
-	// would defeat the boot-survival contract.
-	if hb, ok := buildHeartbeater(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
-		log.Printf("borgee-helper: heartbeat enabled enrollment_id=%s interval=%s", hb.EnrollmentID, outbound.HeartbeatInterval)
-		go func() {
-			if err := hb.Run(ctx); err != nil {
-				log.Printf("borgee-helper: heartbeater exited: %v", err)
-			}
-		}()
-	} else {
-		log.Printf("borgee-helper: no enrollment configured, skipping heartbeat")
-	}
+	// PR-2 #1038: heartbeat is now WS ping/pong (built into the
+	// outbound.Client.pingLoop spawned by Client.Dial). The legacy
+	// standalone POST /status producer was replaced by the persistent
+	// WS transport's pong-side last_seen_at update on the server. The
+	// dispatcher's outbound client is therefore the single producer
+	// of the freshness signal — no separate Heartbeater wiring.
 
-	// #1001 + #1002 dispatcher: poll the server for leased jobs, run each
-	// through jobpolicy.Evaluate (helper-side double-validate), then through
-	// a per-job executor if one is registered. The Executors map is empty
-	// today — typed executors land in follow-up PRs (#998 helper.uninstall,
-	// etc.); a leased job whose type has no registered executor is reported
-	// back as terminal `failed`/`not_implemented` so the server never sees a
-	// silently swallowed lease. Pre-claim daemons skip dispatch the same way
-	// they skip heartbeat above.
+	// #1001 + #1002 dispatcher: WS-pushed leased jobs → policy gate →
+	// per-job executor → Ack/Result frames. Reconnect with exponential
+	// backoff (1s base, 30s cap, ±20% jitter) is handled inside
+	// outbound.Client. Pre-claim daemons skip dispatch — the persistent
+	// WS dial requires credential + device id + enrollment id, which
+	// the operator populates via `borgee claim`.
 	if dp, ok := buildDispatcher(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
-		log.Printf("borgee-helper: dispatcher enabled enrollment_id=%s", dp.EnrollmentID)
+		log.Printf("borgee-helper: dispatcher enabled enrollment_id=%s (WS transport)", dp.EnrollmentID)
 		go func() {
 			if err := dp.Run(ctx); err != nil {
 				log.Printf("borgee-helper: dispatcher exited: %v", err)
@@ -241,50 +229,15 @@ func splitCSV(s string) []string {
 	return out
 }
 
-// buildHeartbeater returns a configured Heartbeater + true when the daemon
-// has everything it needs to post status, or (nil,false) otherwise. Returning
-// false is the explicit "skip heartbeat" path: pre-claim hosts must still
-// boot the daemon so the local UDS contract is honored.
+// buildDispatcher (PR-2 #1038) constructs the persistent WS-transport
+// dispatcher when the daemon has everything it needs (enrollment id +
+// device id + credential present + outbound prereqs validated). When
+// any input is missing/unreadable, returns (nil,false) so the daemon
+// still boots and serves the local UDS contract — claim populates the
+// state directory after first start.
 //
-// All three inputs are *file paths* (not raw values): keeping secrets out of
-// the cmdline avoids /proc/PID/cmdline leakage. Missing file, empty file, and
-// unreadable file all collapse to (nil,false) so a partially-populated state
-// directory never trips the daemon.
-func buildHeartbeater(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string) (*outbound.Heartbeater, bool) {
-	if !prep.Enabled {
-		return nil, false
-	}
-	if trim(enrollmentIDFile) == "" || trim(helperDeviceIDFile) == "" || trim(credentialFile) == "" {
-		return nil, false
-	}
-	enrollmentID, ok := readTrimmedFile("--enrollment-id-file", enrollmentIDFile)
-	if !ok {
-		return nil, false
-	}
-	helperDeviceID, ok := readTrimmedFile("--helper-device-id-file", helperDeviceIDFile)
-	if !ok {
-		return nil, false
-	}
-	credential, ok := readTrimmedFile("--helper-credential-file", credentialFile)
-	if !ok {
-		return nil, false
-	}
-	return &outbound.Heartbeater{
-		ServerOrigin:   prep.ServerOrigin,
-		EnrollmentID:   enrollmentID,
-		HelperDeviceID: helperDeviceID,
-		Credential:     credential,
-	}, true
-}
-
-// buildDispatcher mirrors buildHeartbeater's skip semantics: missing /
-// unreadable / empty files collapse to (nil,false) so a pre-claim daemon
-// boots without dispatch wiring. When all three values are present, we
-// construct an outbound.Client and a default-deny PolicyEvaluator that
-// delegates to jobpolicy.Evaluate. The Executors map is intentionally empty
-// in this PR — typed executors register themselves in follow-up PRs (#998
-// etc) and the dispatcher reports `not_implemented` for any job_type that
-// isn't yet wired.
+// All three inputs are *file paths* (not raw values): keeping secrets
+// out of the cmdline avoids /proc/PID/cmdline leakage.
 func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string) (*dispatch.Dispatcher, bool) {
 	if !prep.Enabled {
 		return nil, false

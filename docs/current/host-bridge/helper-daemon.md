@@ -98,6 +98,46 @@ Every request sends `Authorization: Bearer <helper credential>` and `helper_devi
 
 This is transport and settlement plumbing. It does not implement local policy, manifest/artifact verification, sandbox allowlist decisions, OpenClaw execution, service-manager calls, raw log upload, or Configure OpenClaw success. Result summaries are references only; raw tokens, credentials, private file/message content, full environment dumps, command text, scripts, arbitrary paths, URLs, and service unit names are not accepted as result metadata.
 
+## Transport (PR-2 #1038, WebSocket)
+
+The daemon's outbound transport is a persistent WebSocket connection to
+`wss://<server>/ws/helper/<enrollmentId>`. The blueprint at
+[`docs/blueprint/current/host-bridge.md`](../../blueprint/current/host-bridge.md)
+locks the high-level architecture; this section is the operational
+reference for the wire protocol.
+
+**Upgrade authentication.** The daemon sends `Authorization: Bearer
+<helper_credential>` and `X-Helper-Device-Id: <device_id>` headers on
+the upgrade request. The server validates the credential digest +
+device id (same `HelperEnrollmentRepository.UpdateLastSeen` call the
+prior REST `/status` route used) and bumps `last_seen_at` in one DB
+write. On failure the server returns 401/403/404 and the daemon's
+reconnect backoff applies. The daemon does not send an Origin header
+(it is not a browser); the server rejects any upgrade with a non-empty
+Origin as a defense against confused-deputy attacks.
+
+**One session per enrollment.** A second WS connect for the same
+enrollment displaces the older session with close code 4001
+("displaced"). The daemon's outbound client treats a 4001 close as a
+normal reconnect signal — the operator may have re-claimed on another
+device, in which case the older daemon should yield.
+
+**Frame protocol** (text frames, JSON):
+
+- Server → daemon: `{"type":"job","job":{...}}` — push a leased job.
+  The `job` object matches the prior REST `/jobs/poll` lease shape.
+- Server → daemon: `{"type":"directive","code":"revoked"|"stale_credential"|"uninstalled"|"unauthorized"|"displaced"}` — tell the daemon to stop. Stop codes cause the daemon to exit; systemd `Restart=on-failure` rebounds under StartLimit.
+- Daemon → server: `{"type":"ack","job_id":"...","lease_token":"..."}` — server marks the lease delivered + extends TTL. Equivalent to the prior REST `POST /jobs/<id>/ack`.
+- Daemon → server: `{"type":"result","job_id":"...","lease_token":"...","status":"succeeded"|"failed","failure_code":"...","failure_message":"...","summary":{...}}` — terminal job result. Equivalent to `POST /jobs/<id>/result`.
+
+**Heartbeat.** WS `Ping`/`Pong` control frames every 30s. The server's
+pong handler updates `last_seen_at`; the freshness window stays 5
+minutes. Three consecutive ping failures tear the connection down and
+the outbound client redials with exponential backoff (1s base, 30s
+cap, ±20% jitter). The previous POST `/status` producer is removed.
+
+**Backward compatibility.** The REST endpoints `POST /api/v1/helper/enrollments/{id}/jobs/poll`, `/jobs/{id}/ack`, `/jobs/{id}/result`, and `/status` stay mounted but are marked Deprecated. The shared `ProcessHelperAck` / `ProcessHelperResult` mutations are reused by both the WS read loop and the legacy REST handlers so there is one source of truth for the store mutation.
+
 ## Audit Model
 
 Helper audit is local JSONL for the current IPC path. It records the actor, action, target, timestamp, and matched scope for both allowed and rejected requests. Audit write failure is not allowed to block the IPC path, so helper audit is evidence-oriented rather than a transactional commit log. Helper job policy decisions, including Borgee plugin connection/channel binding decisions, are shaped for future daemon-loop action wiring and bounded status handoff, but the current daemon does not upload or settle local policy decisions.

@@ -56,6 +56,7 @@ Remote Agent does not provide host-wide privileges, OS sandboxing, package insta
 - The current filesystem proxy is an intended capability with protocol caveats; [protocol.md](protocol.md) owns the connection setup and request-contract details.
 - Treat Remote Agent's boundary as node ownership plus local allowlist intent until those protocol caveats are resolved.
 - Remote Agent tokens do not authenticate Helper enrollment claim, heartbeat, credential rotation, or helper-originated uninstall. Helper enrollment rows and credentials live in the server Helper enrollment rail.
+- PR-2 #1038 bundled the host-bridge daemon's WebSocket transport into the `@codetreker/borgee-remote-agent` npm package as part of the single-binary distribution chain. The daemon now connects to the server via `wss://<server>/ws/helper/<enrollmentId>` instead of the prior HTTP long-poll. This does not affect the Remote Agent reverse WebSocket data plane; the bumped tarball version (0.2.0) reflects the new bundled binary capability set.
 
 ## Implementation Anchors
 

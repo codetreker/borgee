@@ -13,13 +13,16 @@
 package server
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"borgee-server/internal/agent"
 	"borgee-server/internal/config"
+	"borgee-server/internal/datalayer"
 	"borgee-server/internal/store"
 	"borgee-server/internal/ws"
 )
@@ -142,4 +145,59 @@ func TestPluginFrameRouterAdapter_Route_NilPayload(t *testing.T) {
 	_ = httptest.NewRecorder() // keep net/http/httptest referenced in this pattern
 	// This path is already covered by bpp_3_router_adapter_test.go; keep this
 	// skeleton available for reuse without duplicating the run.
+}
+
+// PR-2 #1038 — helperEnrollmentAuthAdapter forwards the upgrade
+// authentication call from internal/ws.HandleHelper to the SQLite-
+// backed HelperEnrollmentRepository.UpdateLastSeen. Pin it with a
+// fake repo so cov gate sees the path.
+type fakeHelperEnrollmentRepo struct {
+	lastID, lastCredential, lastDevice string
+	out                                *datalayer.HelperEnrollment
+	err                                error
+}
+
+func (r *fakeHelperEnrollmentRepo) Create(context.Context, string, string, []string, time.Time) (*datalayer.HelperEnrollment, string, error) {
+	return nil, "", nil
+}
+func (r *fakeHelperEnrollmentRepo) ListForUser(context.Context, string, string) ([]datalayer.HelperEnrollment, error) {
+	return nil, nil
+}
+func (r *fakeHelperEnrollmentRepo) GetForUser(context.Context, string, string, string) (*datalayer.HelperEnrollment, error) {
+	return nil, nil
+}
+func (r *fakeHelperEnrollmentRepo) RevokeForUser(context.Context, string, string, string, time.Time) (*datalayer.HelperEnrollment, error) {
+	return nil, nil
+}
+func (r *fakeHelperEnrollmentRepo) Claim(context.Context, string, string, string, time.Time) (*datalayer.HelperEnrollment, string, error) {
+	return nil, "", nil
+}
+func (r *fakeHelperEnrollmentRepo) RotateCredential(context.Context, string, string, string, time.Time) (*datalayer.HelperEnrollment, string, error) {
+	return nil, "", nil
+}
+func (r *fakeHelperEnrollmentRepo) UpdateLastSeen(_ context.Context, id, credential, deviceID string, _ time.Time) (*datalayer.HelperEnrollment, error) {
+	r.lastID, r.lastCredential, r.lastDevice = id, credential, deviceID
+	return r.out, r.err
+}
+func (r *fakeHelperEnrollmentRepo) MarkUninstalled(context.Context, string, string, string, time.Time) (*datalayer.HelperEnrollment, error) {
+	return nil, nil
+}
+func (r *fakeHelperEnrollmentRepo) RecordUpdatesAvailable(context.Context, string, string, string, []datalayer.HelperEnrollmentUpdateAvailable, time.Time) (*datalayer.HelperEnrollment, error) {
+	return nil, nil
+}
+
+func TestHelperEnrollmentAuthAdapter_UpdateLastSeen(t *testing.T) {
+	t.Parallel()
+	repo := &fakeHelperEnrollmentRepo{out: &datalayer.HelperEnrollment{ID: "enroll-X"}}
+	a := &helperEnrollmentAuthAdapter{repo: repo}
+	got, err := a.UpdateLastSeen(context.Background(), "enroll-X", "tok", "device-1", time.Now())
+	if err != nil {
+		t.Fatalf("UpdateLastSeen: %v", err)
+	}
+	if got == nil || got.ID != "enroll-X" {
+		t.Fatalf("got=%+v", got)
+	}
+	if repo.lastID != "enroll-X" || repo.lastCredential != "tok" || repo.lastDevice != "device-1" {
+		t.Fatalf("repo captured args=%v %v %v", repo.lastID, repo.lastCredential, repo.lastDevice)
+	}
 }

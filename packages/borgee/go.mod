@@ -16,3 +16,5 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	golang.org/x/sys v0.43.0
 )
+
+require github.com/coder/websocket v1.8.14 // indirect

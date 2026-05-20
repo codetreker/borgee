@@ -117,13 +117,18 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("borgee setup", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	dryRun := fs.Bool("dry-run", false, "Print what would be done without touching the system")
-	serverOrigin := fs.String("server-origin", "https://app.borgee.io", "Borgee API server origin to bake into the systemd/launchd unit")
-	allowInsecureOrigin := fs.Bool("allow-insecure-server-origin", false, "Allow http:// server-origin (test environments only)")
+	serverOrigin := fs.String("server-origin", "wss://app.borgee.io", "Borgee server WS origin to bake into the systemd/launchd unit (wss:// for the daemon's persistent transport, PR-2 #1038)")
+	allowInsecureOrigin := fs.Bool("allow-insecure-server-origin", false, "Allow http:// / ws:// server-origin (test environments only)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if !*allowInsecureOrigin && !strings.HasPrefix(strings.ToLower(*serverOrigin), "https://") {
-		fmt.Fprintln(stderr, "borgee setup: --server-origin must be https:// (use --allow-insecure-server-origin only for local testing)")
+	originLower := strings.ToLower(*serverOrigin)
+	// PR-2 #1038: the daemon's persistent transport is WebSocket. Accept
+	// wss:// (production) + https:// (backward compat with deployments
+	// still on the prior HTTP long-poll path; outbound.Client.Dial
+	// transparently rewrites https:// → wss:// for the actual WS dial).
+	if !*allowInsecureOrigin && !(strings.HasPrefix(originLower, "wss://") || strings.HasPrefix(originLower, "https://")) {
+		fmt.Fprintln(stderr, "borgee setup: --server-origin must be wss:// or https:// (use --allow-insecure-server-origin only for local testing)")
 		return errors.New("insecure server origin")
 	}
 

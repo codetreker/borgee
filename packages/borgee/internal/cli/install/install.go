@@ -148,7 +148,7 @@ func tokenParts(raw string) (id, secret string, err error) {
 }
 
 // deriveHTTPOrigin converts the operator-supplied --server URL into the
-// https origin used for API calls. Accepted schemes:
+// https origin used for one-shot REST calls (claim). Accepted schemes:
 //   - wss://host[:port][/...]   → https://host[:port]
 //   - https://host[:port][/...] → https://host[:port]
 //   - http:// / ws://           → only when allowInsecure (test envs)
@@ -156,6 +156,12 @@ func tokenParts(raw string) (id, secret string, err error) {
 // Path / query / fragment are stripped because the helper hits well-known
 // API routes under /api/v1/...; including a UI path in --server is a
 // common operator paste error we'd rather absorb than reject.
+//
+// PR-2 #1038: deriveWSOrigin is the daemon-target counterpart — it
+// preserves wss:// (or downgrades https:// to wss://) instead of the
+// prior silent wss→https collapse. The daemon's persistent transport
+// is now WebSocket; the silent wss→https collapse was the implicit
+// step the prior HTTP long-poll path needed and is no longer correct.
 func deriveHTTPOrigin(raw string, allowInsecure bool) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -184,6 +190,38 @@ func deriveHTTPOrigin(raw string, allowInsecure bool) (string, error) {
 	return u.Scheme + "://" + u.Host, nil
 }
 
+// deriveWSOrigin produces the wss://host[:port] (or ws://host[:port]
+// in --allow-insecure-server mode) used for the daemon's persistent
+// WS transport. The systemd unit's --outbound-server-origin flag now
+// takes this WSS origin so the daemon's outbound client can dial
+// /ws/helper/<enrollmentId> without the prior wss→https silent
+// downgrade. Path/query/fragment are stripped same as deriveHTTPOrigin.
+func deriveWSOrigin(raw string, allowInsecure bool) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", errors.New("empty server")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("parse %q: %w", raw, err)
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "wss", "https":
+		u.Scheme = "wss"
+	case "ws", "http":
+		if !allowInsecure {
+			return "", fmt.Errorf("scheme %q rejected (use wss:// or https://; pass --allow-insecure-server for local testing)", u.Scheme)
+		}
+		u.Scheme = "ws"
+	default:
+		return "", fmt.Errorf("unsupported scheme %q in --server", u.Scheme)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("--server missing host: %q", raw)
+	}
+	return u.Scheme + "://" + u.Host, nil
+}
+
 // run is the testable entry. Returns nil on success, non-nil on any
 // pre-flight or step failure. Each step writes a structured banner so
 // the operator sees what landed.
@@ -201,13 +239,21 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("--server: %w", err)
 	}
+	// PR-2 #1038: daemon's persistent transport is WebSocket. The
+	// systemd unit's --outbound-server-origin now passes the wss://
+	// origin so outbound.Client.Dial can hit /ws/helper/<id> directly.
+	// Claim still uses HTTPS (one-shot POST, no benefit from WS).
+	wsOrigin, err := deriveWSOrigin(cfg.server, cfg.allowInsecureServer)
+	if err != nil {
+		return fmt.Errorf("--server (ws derive): %w", err)
+	}
 
 	enrollmentID, enrollmentSecret, err := tokenParts(cfg.token)
 	if err != nil {
 		return fmt.Errorf("--token: %w", err)
 	}
 
-	fmt.Fprintf(stdout, "borgee install: bootstrap starting (server=%s enrollment=%s)\n", httpOrigin, enrollmentID)
+	fmt.Fprintf(stdout, "borgee install: bootstrap starting (server=%s wss=%s enrollment=%s)\n", httpOrigin, wsOrigin, enrollmentID)
 
 	// 2. Copy the running binary to the persistent path so systemd /
 	//    launchd's ExecStart sees a stable file even after npx cache
@@ -222,7 +268,7 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 	// 3. setup: systemd unit / launchd plist + state dirs + system user.
 	if !cfg.skipSetup {
 		fmt.Fprintln(stdout, "borgee install: step 1/4 setup (systemd/launchd unit + state dirs)")
-		setupArgs := []string{"--server-origin=" + httpOrigin}
+		setupArgs := []string{"--server-origin=" + wsOrigin}
 		if cfg.allowInsecureServer {
 			setupArgs = append(setupArgs, "--allow-insecure-server-origin")
 		}
