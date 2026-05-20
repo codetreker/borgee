@@ -55,16 +55,16 @@ Malformed env / unreadable file falls back to the default with a logged error. E
 
 ### BinaryURL pattern after the npm bundle rework
 
-After chore/npm-bundle-rework (#993 #994 #995) the helper binary itself ships through npm rather than `.deb` / `.pkg`. Concrete entry shape after first release:
+After chore/npm-bundle-rework (#993 #994 #995) the helper binary itself ships through npm rather than `.deb` / `.pkg`. After chore/collapse-npm (2026-05-20) the 4 platform binaries collapsed into the single `@codetreker/borgee-remote-agent` tarball. Concrete entry shape after first release:
 
 ```json
 {
   "id": "borgee-helper",
   "version": "0.1.0",
-  "binary_url": "https://registry.npmjs.org/@codetreker/borgee-remote-agent-linux-x64/-/borgee-remote-agent-linux-x64-0.1.0.tgz",
+  "binary_url": "https://registry.npmjs.org/@codetreker/borgee-remote-agent/-/borgee-remote-agent-0.1.0.tgz",
   "sha256": "<sha256 of the .tgz>",
   "signature": "<base64 ed25519>",
-  "platforms": ["linux-x64"]
+  "platforms": ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"]
 }
 ```
 
@@ -96,4 +96,4 @@ Entry list (URLs, SHA256, versions):
 
 ## SHA256 real values
 
-This PR plumbs the signing chain but leaves `SHA256` zeros in the built-in default. Real values come from the first published `borgee-v*` tag — `release-borgee.yml` builds the 4 platform binaries, ships them in their respective npm platform subpackages, and the operator records the registry .tgz URLs + sha256 sums in `BORGEE_MANIFEST_ENTRIES_JSON` after the publish lands.
+This PR plumbs the signing chain but leaves `SHA256` zeros in the built-in default. Real values come from the first published `borgee-v*` tag — `publish-remote-agent.yml` builds the 4 platform binaries from native runners, stages them inside the single `@codetreker/borgee-remote-agent` tarball, and the operator records the registry .tgz URL + sha256 sum in `BORGEE_MANIFEST_ENTRIES_JSON` after the publish lands.

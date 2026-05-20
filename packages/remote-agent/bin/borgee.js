@@ -1,66 +1,57 @@
 #!/usr/bin/env node
-// bin/borgee.js — npm bundle shim for the `borgee` Go binary (#993 #994 #995
-// rework: distribution went through `@codetreker/borgee-remote-agent` npm
-// package + 4 platform subpackages instead of nfpm .deb/.pkg).
+// bin/borgee.js — npm bundle shim for the `borgee` Go binary.
 //
-// At install time, npm's optionalDependencies machinery picks exactly one of
-// the four platform subpackages and skips the other three, so node_modules
-// ends up with `@codetreker/borgee-remote-agent-<plat>/bin/borgee` for the
-// current host. This shim resolves that subpackage and exec's the binary
-// with all argv passed through.
+// The 4 platform binaries (linux-x64, linux-arm64, darwin-x64, darwin-arm64)
+// ship inside this SAME npm tarball at `bin/platforms/<plat>-<arch>/borgee`.
+// At runtime the shim picks the right one for the current host and spawns it,
+// passing through every argv. Bundle size is ~15-20 MB gzipped tarball — same
+// ballpark as `typescript`, well below the cost of per-platform subpackages.
 //
-// Why not exec the binary directly via npm's `bin` field on each subpackage?
-// npm CLI registers binaries from every package that declares `bin`, so the
-// host would end up with four `borgee` symlinks (one per subpackage) all
-// pointing at different copies. Routing through a Node shim in the main
-// package gives operators ONE PATH entry that always finds the right binary.
+// History: #993 #994 #995 split the binary into 4 platform subpackages routed
+// via `optionalDependencies`. That layout was reverted in chore/collapse-npm
+// (2026-05-20): single npm package, single publish workflow, lower complexity.
 //
 // Boundary: this shim must NOT do anything beyond resolve + spawn — any
 // install-time logic (system user, systemd unit, state dirs) lives in
 // `borgee setup`, which is invoked AFTER `npm i -g @codetreker/borgee-remote-agent`.
 
-'use strict';
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const { spawn } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const SUPPORTED = {
-  'linux-x64': '@codetreker/borgee-remote-agent-linux-x64',
-  'linux-arm64': '@codetreker/borgee-remote-agent-linux-arm64',
-  'darwin-x64': '@codetreker/borgee-remote-agent-darwin-x64',
-  'darwin-arm64': '@codetreker/borgee-remote-agent-darwin-arm64',
-};
+export const SUPPORTED = new Set([
+  'linux-x64',
+  'linux-arm64',
+  'darwin-x64',
+  'darwin-arm64',
+]);
 
-function resolveBinary() {
-  const key = `${process.platform}-${process.arch}`;
-  const subpkg = SUPPORTED[key];
-  if (!subpkg) {
-    const supported = Object.keys(SUPPORTED).join(', ');
+export function resolveBinary(env) {
+  env = env || {};
+  const platform = env.platform || process.platform;
+  const arch = env.arch || process.arch;
+  const dir = env.dir || __dirname;
+  const exists = env.exists || fs.existsSync;
+
+  const key = `${platform}-${arch}`;
+  if (!SUPPORTED.has(key)) {
+    const supported = Array.from(SUPPORTED).join(', ');
     throw new Error(
       `borgee: unsupported platform/arch ${key}. Supported: ${supported}. ` +
         `Windows is intentionally out of scope; track issue #659 for status.`,
     );
   }
-  // require.resolve walks the node_modules tree starting from this shim, so
-  // it finds the platform subpackage regardless of whether the main package
-  // is installed globally or locally.
-  let pkgJsonPath;
-  try {
-    pkgJsonPath = require.resolve(`${subpkg}/package.json`);
-  } catch (err) {
+  const binaryName = platform === 'win32' ? 'borgee.exe' : 'borgee';
+  const binaryPath = path.join(dir, 'platforms', key, binaryName);
+  if (!exists(binaryPath)) {
     throw new Error(
-      `borgee: platform subpackage ${subpkg} is not installed. ` +
-        `This usually means optionalDependencies were skipped at install time. ` +
-        `Try \`npm i -g --include=optional @codetreker/borgee-remote-agent\` to repair. ` +
-        `Underlying error: ${err.message}`,
-    );
-  }
-  const binaryPath = path.join(path.dirname(pkgJsonPath), 'bin', 'borgee');
-  if (!fs.existsSync(binaryPath)) {
-    throw new Error(
-      `borgee: subpackage ${subpkg} is installed but bin/borgee is missing at ${binaryPath}. ` +
-        `Try reinstalling the main package.`,
+      `borgee: binary not found at ${binaryPath}. ` +
+        `This usually means the npm install was incomplete — ` +
+        `try \`npm i -g @codetreker/borgee-remote-agent\` to repair.`,
     );
   }
   return binaryPath;
@@ -72,7 +63,7 @@ function main() {
     binary = resolveBinary();
   } catch (err) {
     console.error(err.message);
-    process.exit(1);
+    process.exit(2);
     return;
   }
   const child = spawn(binary, process.argv.slice(2), { stdio: 'inherit' });
@@ -87,13 +78,11 @@ function main() {
   });
   child.on('error', (err) => {
     console.error(`borgee: failed to spawn ${binary}: ${err.message}`);
-    process.exit(1);
+    process.exit(2);
   });
 }
 
-// Allow unit tests to import resolveBinary without spawning the child.
-if (require.main === module) {
+// Run as CLI only when invoked directly (not when imported by tests).
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
-} else {
-  module.exports = { resolveBinary, SUPPORTED };
 }

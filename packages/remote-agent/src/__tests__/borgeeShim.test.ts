@@ -1,55 +1,89 @@
-// bin/borgee shim — smoke tests. Verify the platform → subpackage mapping
-// matrix matches the npm bundle ship plan (#993 #994 #995 rework). We don't
-// spawn the real binary here — that is exercised by `borgee daemon --help`
-// in CI's real install gate. This file only locks the dispatch table.
+// bin/borgee shim — unit tests for the platform binary resolver.
 //
-// node:test runs files under `src/__tests__/*.test.ts` per the package
-// script. We require() the shim from the build root so the test exercises
-// the published artifact, not a TS-transpiled copy.
+// chore/collapse-npm (2026-05-20): 4 platform binaries now live inside the
+// SAME npm tarball at `bin/platforms/<plat>-<arch>/borgee`. This test locks
+// the resolver's dispatch table: it must pick the right path per platform/arch,
+// reject unsupported targets, surface a helpful error when the binary file is
+// missing, and never bake Windows into the supported set.
 
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { resolveBinary, SUPPORTED } from '../../bin/borgee.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const require = createRequire(import.meta.url);
-const shim = require(path.resolve(__dirname, '../../bin/borgee.js')) as {
-  resolveBinary: () => string;
-  SUPPORTED: Record<string, string>;
-};
+void __dirname; // reserved for future fixture paths
 
 describe('borgee shim platform matrix', () => {
-  it('maps each supported platform/arch to a single subpackage', () => {
-    const want = {
-      'linux-x64': '@codetreker/borgee-remote-agent-linux-x64',
-      'linux-arm64': '@codetreker/borgee-remote-agent-linux-arm64',
-      'darwin-x64': '@codetreker/borgee-remote-agent-darwin-x64',
-      'darwin-arm64': '@codetreker/borgee-remote-agent-darwin-arm64',
-    };
-    assert.deepStrictEqual(shim.SUPPORTED, want);
-  });
-
-  it('does not advertise Windows as a target', () => {
-    const keys = Object.keys(shim.SUPPORTED);
-    for (const k of keys) {
-      assert.ok(!k.startsWith('win'), `Windows must remain out-of-scope; got ${k}`);
+  it('TS-1 SupportedPlatform: resolves bin/platforms/<plat>-<arch>/borgee for each supported target', () => {
+    const stubDir = '/tmp/stub-shim-dir';
+    const supported = ['linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64'];
+    for (const key of supported) {
+      const [platform, arch] = key.split('-');
+      const got = resolveBinary({
+        platform,
+        arch,
+        dir: stubDir,
+        exists: () => true,
+      });
+      const want = path.join(stubDir, 'platforms', key, 'borgee');
+      assert.equal(got, want, `expected resolver to pick ${want} for ${key}`);
     }
   });
 
-  it('throws a helpful error when the platform subpackage is missing', () => {
-    // Without optionalDependencies actually installed in CI's dev install,
-    // resolveBinary on linux-x64 will fail with a structured error. We assert
-    // the operator-facing message contains the repair hint so it stays
-    // grep-able from support tickets.
+  it('TS-2 UnsupportedPlatform: win32 raises with structured message', () => {
     assert.throws(
-      () => shim.resolveBinary(),
+      () =>
+        resolveBinary({
+          platform: 'win32',
+          arch: 'x64',
+          dir: '/tmp/unused',
+          exists: () => true,
+        }),
       (err: unknown) => {
         if (!(err instanceof Error)) return false;
-        return /unsupported platform\/arch|is not installed|is missing/.test(err.message);
+        return /unsupported platform\/arch win32-x64/.test(err.message) &&
+          /Windows is intentionally out of scope/.test(err.message);
       },
     );
+  });
+
+  it('TS-2b UnsupportedArch: linux-mips raises with structured message', () => {
+    assert.throws(
+      () =>
+        resolveBinary({
+          platform: 'linux',
+          arch: 'mips',
+          dir: '/tmp/unused',
+          exists: () => true,
+        }),
+      (err: unknown) => err instanceof Error && /unsupported platform\/arch linux-mips/.test(err.message),
+    );
+  });
+
+  it('TS-3 BinaryMissing: surfaces repair hint when the embedded binary is absent', () => {
+    assert.throws(
+      () =>
+        resolveBinary({
+          platform: 'linux',
+          arch: 'x64',
+          dir: '/tmp/stub-shim-dir',
+          exists: () => false,
+        }),
+      (err: unknown) => {
+        if (!(err instanceof Error)) return false;
+        return /binary not found at/.test(err.message) &&
+          /npm i -g @codetreker\/borgee-remote-agent/.test(err.message);
+      },
+    );
+  });
+
+  it('TS-4 SupportSet: does not advertise Windows as a target', () => {
+    for (const key of SUPPORTED) {
+      assert.ok(!key.startsWith('win'), `Windows must remain out-of-scope; got ${key}`);
+    }
+    assert.equal(SUPPORTED.size, 4, 'exactly 4 platform targets');
   });
 });
