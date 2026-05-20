@@ -74,18 +74,30 @@ func TestPluginPresence_UpdateLastSeenAndBroadcast(t *testing.T) {
 		t.Fatalf("dial plugin ws: %v", err)
 	}
 
-	// Wait for HandlePlugin to register so any sync side-effects (UpdateLastSeen,
-	// BroadcastToAll) have run.
-	regDeadline := time.Now().Add(2 * time.Second)
-	for srv.Hub().GetPlugin(agent.ID) == nil {
-		if time.Now().After(regDeadline) {
-			pluginConn.Close()
-			t.Fatal("plugin registration timed out")
-		}
-		time.Sleep(5 * time.Millisecond)
+	// §2 — wait for the human observer to receive the agent's
+	// presence-online broadcast FIRST. The plugin path runs (synchronously
+	// on the WS goroutine):
+	//   RegisterPlugin  → UpdateLastSeen  → BroadcastToAll(presence)
+	// so once the broadcast lands on the observer's read loop, both
+	// UpdateLastSeen and RegisterPlugin must have completed — which is
+	// the sync point we need before reading GetOnlineUsers. Polling on
+	// hub.GetPlugin alone races with UpdateLastSeen under -race (the
+	// observer could miss the in-between-lock window otherwise).
+	if err := humanConn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatalf("set human read deadline (online): %v", err)
+	}
+	frame, err := readPresenceFrame(humanConn, agent.ID)
+	if err != nil {
+		pluginConn.Close()
+		t.Fatalf("read agent presence online frame: %v", err)
+	}
+	if frame.Status != "online" {
+		t.Fatalf("expected status=online, got %q", frame.Status)
 	}
 
-	// §1 — REST /api/v1/online surface: agent must show as online.
+	// §1 — REST /api/v1/online surface: agent must show as online (now
+	// that the broadcast has been observed, UpdateLastSeen is guaranteed
+	// to have completed).
 	online, err := s.GetOnlineUsers()
 	if err != nil {
 		t.Fatalf("GetOnlineUsers: %v", err)
@@ -99,19 +111,6 @@ func TestPluginPresence_UpdateLastSeenAndBroadcast(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("agent %s missing from GetOnlineUsers — UpdateLastSeen not called on plugin connect", agent.ID)
-	}
-
-	// §2 — human observer receives presence online frame for the agent.
-	if err := humanConn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("set human read deadline (online): %v", err)
-	}
-	frame, err := readPresenceFrame(humanConn, agent.ID)
-	if err != nil {
-		pluginConn.Close()
-		t.Fatalf("read agent presence online frame: %v", err)
-	}
-	if frame.Status != "online" {
-		t.Fatalf("expected status=online, got %q", frame.Status)
 	}
 
 	// §3 — close plugin, observer must receive presence offline frame.
