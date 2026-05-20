@@ -15,25 +15,44 @@ interface Props {
   pinned?: boolean;
 }
 
+/**
+ * Channel leading-slot marker.
+ *
+ * isArchived decides the base glyph (📦 vs #); isPrivate decides whether to
+ * overlay a small lock icon in the slot's top-right corner. The two
+ * conditions are independent — archived + private renders 📦 base with the
+ * lock badge superimposed (用户拍板归档私有也叠锁).
+ *
+ * The base glyph stays in `.channel-hash-base` so the lock badge can be
+ * absolutely positioned inside the same 18×18 bounding box (no extra
+ * horizontal slot, no character-replacement). DOM anchors data-private,
+ * data-private-indicator, aria-label="私有频道" are preserved for tests.
+ */
 function ChannelVisibilityMarker({ isArchived, isPrivate }: { isArchived: boolean; isPrivate: boolean }) {
-  if (isArchived) {
-    return <span className="channel-hash">📦</span>;
-  }
-
-  if (isPrivate) {
-    return (
-      <span
-        className="channel-hash channel-private-indicator"
-        data-private-indicator="true"
-        aria-label="私有频道"
-        title="私有频道"
-      >
-        锁
-      </span>
-    );
-  }
-
-  return <span className="channel-hash">#</span>;
+  const base = isArchived ? '📦' : '#';
+  const className = `channel-hash${isPrivate ? ' channel-private-indicator' : ''}`;
+  return (
+    <span
+      className={className}
+      data-private-indicator={isPrivate ? 'true' : undefined}
+      aria-label={isPrivate ? '私有频道' : undefined}
+      title={isPrivate ? '私有频道' : undefined}
+    >
+      <span className="channel-hash-base">{base}</span>
+      {isPrivate && (
+        <svg
+          className="channel-lock-badge"
+          data-private-lock="true"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          focusable="false"
+        >
+          <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 5a3 3 0 1 1 6 0v3H9V7z" />
+        </svg>
+      )}
+    </span>
+  );
 }
 
 export default function SortableChannelItem({ channel, active, isOwner, onClick, groupId, onContextMenu, pinned }: Props) {

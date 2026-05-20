@@ -116,7 +116,9 @@ describe('M2 Task9 sidebar state collision regression', () => {
     expect(row.getAttribute('data-private')).toBe('true');
     expect(row.getAttribute('data-pinned')).toBe('true');
     expect(row.classList.contains('channel-item-active')).toBe(true);
-    expect(privateMarker.textContent).toBe('锁');
+    expect(privateMarker.querySelector('.channel-hash-base')?.textContent).toBe('#');
+    expect(privateMarker.querySelector('svg.channel-lock-badge')).not.toBeNull();
+    expect(row.textContent).not.toContain('锁');
     expect(privateMarker.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(name.compareDocumentPosition(pinned) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(pinned.compareDocumentPosition(unread) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -124,19 +126,25 @@ describe('M2 Task9 sidebar state collision regression', () => {
     expect(dropIndicator).not.toBeNull();
   });
 
-  it('keeps archived and public preview rows out of private/unread collisions', () => {
+  it('archived rows show the 📦 base + lock overlay for private channels but never unread', () => {
     renderSortable(channel({ archived_at: 1700000001000, unread_count: 3 }));
 
     let row = container.querySelector('.channel-item') as HTMLButtonElement;
     expect(row.getAttribute('data-private')).toBeNull();
     expect(row.getAttribute('data-archived')).toBe('true');
-    expect(row.querySelector('[data-private-indicator="true"]')).toBeNull();
+    // Archived private channels keep the lock overlay (用户拍归档私有也叠锁).
+    const archivedPrivate = row.querySelector('[data-private-indicator="true"]') as HTMLElement;
+    expect(archivedPrivate).not.toBeNull();
+    expect(archivedPrivate.querySelector('.channel-hash-base')?.textContent).toBe('📦');
+    expect(archivedPrivate.querySelector('svg.channel-lock-badge')).not.toBeNull();
+    expect(row.textContent).not.toContain('锁');
     expect(row.querySelector('.unread-badge')).toBeNull();
     expect(row.querySelector('.archived-badge')?.textContent).toBe('已归档');
 
     renderStatic(channel({ visibility: 'public', is_member: false, unread_count: 7 }), { active: true });
     row = container.querySelector('.channel-item') as HTMLButtonElement;
     expect(row.getAttribute('data-private')).toBeNull();
+    expect(row.querySelector('[data-private-indicator="true"]')).toBeNull();
     expect(row.classList.contains('channel-item-preview')).toBe(true);
     expect(row.querySelector('.preview-badge')?.textContent).toBe('预览');
     expect(row.querySelector('.unread-badge')).toBeNull();
