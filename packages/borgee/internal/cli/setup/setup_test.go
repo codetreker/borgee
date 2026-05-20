@@ -27,7 +27,7 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 		"--helper-device-id-file=/var/lib/borgee/credential/device-id",
 		"--helper-credential-file=/var/lib/borgee/credential/credential",
 		"StateDirectory=borgee",
-		"ExecStart=/usr/local/bin/borgee daemon",
+		"ExecStart=/usr/local/lib/borgee/bin/borgee daemon",
 		"MemoryMax=256M",
 		"CPUQuota=50%",
 		"TasksMax=256",
@@ -73,7 +73,7 @@ func TestRenderDarwinPlist_Shape(t *testing.T) {
 	plist := renderDarwinPlist("https://app.borgee.io")
 	required := []string{
 		"/usr/bin/sandbox-exec",
-		"<string>/usr/local/bin/borgee</string>",
+		"<string>/usr/local/libexec/borgee/borgee</string>",
 		"<string>daemon</string>",
 		"--socket=/Users/Shared/Borgee/borgee.sock",
 		"--outbound-server-origin=https://app.borgee.io",

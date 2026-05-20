@@ -106,3 +106,7 @@ Phase 1 v1.1 closes with all 3 milestones CLOSED, all 8 exit gates SIGNED, no DE
 **2nd slip (2026-05-20 chore/npm-bundle-rework)**: G1.6 闭环 PR chain 起手用 `.deb` + `.pkg` 分发 (#1003 / #1008) + 3 个独立 Go binary (`borgee-helper` / `borgee-helper-claim` / `install-butler`, #996 / #1011), 后来用户直接拍校正方向: 应当走现有 `@codetreker/borgee-remote-agent` npm 包 + 单 `borgee` Go binary + 子命令. chore/npm-bundle-rework 一次校正 — 删 `release-helper.yml` + `nfpm.yaml` + `packages/borgee-installer/`, 折 3 binary 成 `cmd/borgee`, 加 4 个平台 npm 子包, 加 `release-borgee.yml`.
 
 根因跟 G1.6 同源: dispatch loops 派活时没回去查用户最早讨论, 看到"helper 要发布"就按 OS 包装常识 (`.deb` / `.pkg`) 走. 协议补丁: 派分发类活前必先 grep + 读用户讨论 source-of-truth, 不靠角色 memory 推断分发渠道.
+
+**3rd slip (2026-05-20 chore/install-onecmd)**: #1017 收完 npm 分发后, 操作员路径仍是 3 步 (`borgee setup` → `borgee claim ...` → `systemctl start`), 用户视角不友好. 用户原始讨论的 UX 是单条命令 `npx @codetreker/borgee-remote-agent install --server X --token Y` 一次到位. chore/install-onecmd 一次校正 — 加 `borgee install` 子命令做 setup+claim+start+wait-heartbeat sequence wrapper, 加 `borgee uninstall-host` 镜像, 顺手修 #1017 留的 3 个 bug (claim path 与 setup 不一致 / executor.go DefaultLayout 还指 pre-rename `borgee-helper` / npm symlink 与持久二进制路径耦合). 操作员现在见 1 个命令; `setup` / `claim` 作高级 / 恢复入口保留.
+
+根因跟 2nd slip 同源: 写到第 3 层抽象 (setup vs claim vs install-butler) 时, 主 context 没回头看用户最初讨论的 UX 形式 — "分发能跑"就被等同了"操作员体验干净". 协议补丁同 2nd slip: 涉及 UX 改动前必先回到用户原始讨论, 不靠工程惯例推断"3 步够了"为"用户能用".

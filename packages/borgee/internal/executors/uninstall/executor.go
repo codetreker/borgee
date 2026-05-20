@@ -9,9 +9,9 @@
 // server-recorded lifecycle state matches the helper's local teardown.
 //
 // Self-uninstall safety: the executor runs INSIDE the long-lived
-// borgee-helper daemon process. Removing the daemon's own binary while it
+// borgee daemon process. Removing the daemon's own binary while it
 // runs is safe on POSIX (open inode keeps the live process resident), but
-// `systemctl stop borgee-helper` from inside the daemon would SIGTERM us
+// `systemctl stop borgee` from inside the daemon would SIGTERM us
 // mid-cleanup and the dispatcher would never POST the final Result. The
 // executor therefore intentionally does NOT issue a stop signal to itself.
 // Cleanup order:
@@ -30,15 +30,15 @@
 // leaves the server with the source-of-truth terminal status.
 //
 // Privilege: most cleanup steps require root or CAP_DAC_OVERRIDE. The
-// production helper daemon runs as the system `borgee-helper` user, which
+// production helper daemon runs as the system `borgee` user, which
 // does NOT have those caps by default. Therefore the executor uses a
 // SystemCommand interface that defaults to `exec.Command` in production
 // and that tests stub out. When the executor lacks the OS privilege to run
 // `systemctl disable` / `userdel`, those individual steps log a warning and
 // the executor continues — the per-file cleanup it CAN do (state dirs
-// owned by borgee-helper) still happens, and the executor reports the
+// owned by borgee) still happens, and the executor reports the
 // per-bucket results in the terminal `result_summary`. Operators that need
-// a fully-clean uninstall can wrap borgee-helper with the documented
+// a fully-clean uninstall can wrap borgee with the documented
 // sudoers entry (see README.md).
 package uninstall
 
@@ -63,10 +63,20 @@ import (
 type Layout struct {
 	// Helper-owned state directories — wiped unless preserve_state=true.
 	StateDirs []string
-	// Runtime binaries installed by install-butler.
+	// Runtime binaries installed by install-butler. `borgee install`
+	// (operator-driven) also drops its persistent binary copy under
+	// RuntimeDir/bin/borgee, so wiping the tree takes that with it.
 	RuntimeDir string
-	// Helper-shipped binaries (the daemon, claim CLI, install-butler).
+	// Legacy field: extra absolute binary paths to remove. Post-#1017 the
+	// distribution is a single `borgee` binary; `/usr/local/bin/borgee` is
+	// an npm shim symlink owned by npm so the executor leaves it alone
+	// (operator removes it via `npm uninstall -g`). Kept here so tests can
+	// still inject paths and so a future bundled distro could re-populate.
 	HelperBinaries []string
+	// AuxFiles — additional file paths (NOT directories) to remove. Used
+	// for the macOS sandbox profile that lives outside the state and
+	// runtime trees.
+	AuxFiles []string
 	// Service unit / plist file path.
 	ServiceUnitPath string
 	// systemd service name (Linux) or launchd label (macOS).
@@ -79,28 +89,33 @@ type Layout struct {
 // DefaultLayout returns the production install layout for the given GOOS.
 // `goos` must be "linux" or "darwin"; any other value returns a zero
 // Layout (the executor will then no-op every bucket — safe but useless).
+//
+// #1017 bug 2 fix (chore/install-onecmd): the prior layout still referenced
+// the pre-rename `borgee-helper` paths / user / service. Post-#1017 the
+// distribution shipped as a single `borgee` binary + `borgee` system user
+// + `borgee.service` unit; align the executor with the actual on-disk
+// names. `HelperBinaries` is intentionally empty — `/usr/local/bin/borgee`
+// (if present) is an npm shim symlink owned by npm, not the executor.
+// `borgee uninstall-host` removes `/usr/local/lib/borgee/` whole, which is
+// where `borgee install` deposits the persistent binary at
+// `/usr/local/lib/borgee/bin/borgee` (see internal/cli/install). The
+// RuntimeDir wipe in this executor therefore takes that path with it.
 func DefaultLayout(goos string) Layout {
 	switch goos {
 	case "linux":
 		return Layout{
 			StateDirs: []string{
-				"/var/lib/borgee-helper/queue",
-				"/var/lib/borgee-helper/status",
-				"/var/lib/borgee-helper/audit-handoff",
-				"/var/lib/borgee-helper/credential",
-				"/var/lib/borgee-helper/enrollment-id",
-				"/var/lib/borgee-helper/device-id",
+				"/var/lib/borgee/queue",
+				"/var/lib/borgee/status",
+				"/var/lib/borgee/audit-handoff",
+				"/var/lib/borgee/credential",
 			},
-			RuntimeDir: "/usr/local/lib/borgee",
-			HelperBinaries: []string{
-				"/usr/local/bin/borgee-helper",
-				"/usr/local/bin/borgee-helper-claim",
-				"/usr/local/bin/install-butler",
-			},
-			ServiceUnitPath: "/etc/systemd/system/borgee-helper.service",
-			ServiceName:     "borgee-helper.service",
-			UserName:        "borgee-helper",
-			GroupName:       "borgee-helper",
+			RuntimeDir:      "/usr/local/lib/borgee",
+			HelperBinaries:  nil,
+			ServiceUnitPath: "/etc/systemd/system/borgee.service",
+			ServiceName:     "borgee.service",
+			UserName:        "borgee",
+			GroupName:       "borgee",
 		}
 	case "darwin":
 		return Layout{
@@ -109,19 +124,19 @@ func DefaultLayout(goos string) Layout {
 				"/Library/Application Support/Borgee/Helper/StatusState",
 				"/Library/Application Support/Borgee/Helper/AuditHandoff",
 				"/Library/Application Support/Borgee/Helper/credential",
-				"/Library/Application Support/Borgee/Helper/enrollment-id",
-				"/Library/Application Support/Borgee/Helper/device-id",
 			},
-			RuntimeDir: "/usr/local/lib/borgee",
-			HelperBinaries: []string{
-				"/usr/local/bin/borgee-helper",
-				"/usr/local/bin/borgee-helper-claim",
-				"/usr/local/bin/install-butler",
+			RuntimeDir:     "/usr/local/libexec/borgee",
+			HelperBinaries: nil,
+			// Sandbox profile path (written by `borgee setup`) lives outside
+			// the runtime dir wipe; remove it explicitly so a fresh install
+			// re-deploys a clean profile.
+			AuxFiles: []string{
+				"/Library/Application Support/Borgee/borgee-helper.sb",
 			},
 			ServiceUnitPath: "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist",
 			ServiceName:     "cloud.borgee.host-bridge",
-			UserName:        "_borgee-helper",
-			GroupName:       "_borgee-helper",
+			UserName:        "_borgee",
+			GroupName:       "_borgee",
 		}
 	default:
 		return Layout{}
@@ -284,11 +299,19 @@ func (e *Executor) Execute(ctx context.Context, job *outbound.LeasedJob) (dispat
 		summary.Buckets = append(summary.Buckets, e.removeTree(layout.RuntimeDir, "runtime_dir"))
 	}
 
-	// Bucket D: remove the helper-shipped binaries. We are CURRENTLY running
-	// from one of these; the kernel keeps the live inode resident even after
-	// unlink so this is safe on POSIX.
+	// Bucket D: remove the helper-shipped binaries. Post-#1017 this slice is
+	// nil in DefaultLayout — `/usr/local/bin/borgee` is an npm shim symlink
+	// not owned by the executor — but tests + future bundled distros may
+	// still inject paths.
 	for _, bin := range layout.HelperBinaries {
 		summary.Buckets = append(summary.Buckets, e.removePath(bin, "helper_binary"))
+	}
+
+	// Bucket D2: additional auxiliary files (e.g. macOS sandbox profile)
+	// that live outside the runtime / state trees and therefore need
+	// explicit removal.
+	for _, aux := range layout.AuxFiles {
+		summary.Buckets = append(summary.Buckets, e.removePath(aux, "aux_file"))
 	}
 
 	// Bucket E: state dirs. Skipped entirely on preserve_state=true so an
@@ -306,7 +329,7 @@ func (e *Executor) Execute(ctx context.Context, job *outbound.LeasedJob) (dispat
 	summary.Buckets = append(summary.Buckets, e.removeOSPrincipal(ctx, layout))
 
 	summaryJSON, _ := json.Marshal(summary)
-	e.logf("borgee-helper: uninstall summary: %s", string(summaryJSON))
+	e.logf("borgee: uninstall summary: %s", string(summaryJSON))
 	// result_summary is bounded to short audit / log refs (the server caps
 	// each ref ≤128 chars and forbids `/`, so the structured JSON cannot go
 	// here — it lives in the daemon's audit log + this executor's logger).
@@ -356,7 +379,7 @@ func (e *Executor) disableService(ctx context.Context, layout Layout) bucketResu
 		return bucketResult{Name: "service_disable", Status: "skipped", Detail: "unsupported platform " + e.goos()}
 	}
 	if err := e.cmd().Run(ctx, name, args...); err != nil {
-		e.logf("borgee-helper: uninstall: %s %s failed: %v", name, strings.Join(args, " "), err)
+		e.logf("borgee: uninstall: %s %s failed: %v", name, strings.Join(args, " "), err)
 		return bucketResult{Name: "service_disable", Path: layout.ServiceName, Status: "failed", Detail: err.Error()}
 	}
 	return bucketResult{Name: "service_disable", Path: layout.ServiceName, Status: "disabled"}
@@ -380,7 +403,7 @@ func (e *Executor) removePath(path, bucket string) bucketResult {
 		return bucketResult{Name: bucket, Path: path, Status: "absent"}
 	}
 	if err := e.fs().Remove(path); err != nil {
-		e.logf("borgee-helper: uninstall: remove %s failed: %v", path, err)
+		e.logf("borgee: uninstall: remove %s failed: %v", path, err)
 		return bucketResult{Name: bucket, Path: path, Status: "failed", Detail: err.Error()}
 	}
 	return bucketResult{Name: bucket, Path: path, Status: "removed"}
@@ -403,7 +426,7 @@ func (e *Executor) removeTree(path, bucket string) bucketResult {
 		return bucketResult{Name: bucket, Path: path, Status: "absent"}
 	}
 	if err := e.fs().RemoveAll(path); err != nil {
-		e.logf("borgee-helper: uninstall: removeAll %s failed: %v", path, err)
+		e.logf("borgee: uninstall: removeAll %s failed: %v", path, err)
 		return bucketResult{Name: bucket, Path: path, Status: "failed", Detail: err.Error()}
 	}
 	return bucketResult{Name: bucket, Path: path, Status: "removed"}
@@ -420,7 +443,7 @@ func (e *Executor) removeOSPrincipal(ctx context.Context, layout Layout) bucketR
 	switch e.goos() {
 	case "linux":
 		if err := e.cmd().Run(ctx, "userdel", layout.UserName); err != nil {
-			e.logf("borgee-helper: uninstall: userdel %s failed: %v", layout.UserName, err)
+			e.logf("borgee: uninstall: userdel %s failed: %v", layout.UserName, err)
 			return bucketResult{Name: "os_user", Path: layout.UserName, Status: "failed", Detail: err.Error()}
 		}
 		// groupdel is best-effort: most distros auto-delete the group with
@@ -432,7 +455,7 @@ func (e *Executor) removeOSPrincipal(ctx context.Context, layout Layout) bucketR
 		return bucketResult{Name: "os_user", Path: layout.UserName, Status: "removed"}
 	case "darwin":
 		if err := e.cmd().Run(ctx, "dscl", ".", "-delete", "/Users/"+layout.UserName); err != nil {
-			e.logf("borgee-helper: uninstall: dscl delete user %s failed: %v", layout.UserName, err)
+			e.logf("borgee: uninstall: dscl delete user %s failed: %v", layout.UserName, err)
 			return bucketResult{Name: "os_user", Path: layout.UserName, Status: "failed", Detail: err.Error()}
 		}
 		if layout.GroupName != "" {

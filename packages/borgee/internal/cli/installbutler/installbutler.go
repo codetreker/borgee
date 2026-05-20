@@ -1,7 +1,11 @@
 //go:build linux || darwin
 
-// Package installbutler — `borgee install` subcommand: HB-1 short-lived
-// signed-manifest binary installer (#996, folded from install-butler).
+// Package installbutler — `borgee install-plugin` subcommand: HB-1
+// short-lived signed-manifest plugin binary installer (#996, folded from
+// install-butler). Renamed from `borgee install` in chore/install-onecmd
+// so the top-level `borgee install` becomes the operator-facing one-shot
+// bootstrap wrapper; the signed-manifest binary installer kept its
+// logic / flags but moved subcommand keys.
 //
 // One-shot CLI. Lifecycle:
 //
@@ -109,7 +113,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 // install` should exit 1. Side-effects (writes / chown) only happen on the
 // success path or — for the tempfile — get cleaned up in failure paths.
 func run(args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("borgee install", flag.ContinueOnError)
+	fs := flag.NewFlagSet("borgee install-plugin", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	manifestURL := fs.String("manifest-url", "", "HTTPS URL of the plugin manifest endpoint (required)")
 	pubkeyB64 := fs.String("pubkey-base64", "", "Base64-encoded ed25519 public key (32 bytes after decode) matching BORGEE_MANIFEST_SIGNING_KEY on server (required)")
@@ -265,7 +269,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 			group = *helperUser
 		}
 		if cerr := chownTarget(*target, *helperUser, group); cerr != nil {
-			fmt.Fprintf(stderr, "borgee install: warn: chown %q to %s:%s failed: %v\n", *target, *helperUser, group, cerr)
+			fmt.Fprintf(stderr, "borgee install-plugin: warn: chown %q to %s:%s failed: %v\n", *target, *helperUser, group, cerr)
 		}
 	}
 
@@ -283,7 +287,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	// rename) so a partial write never corrupts the file.
 	if strings.TrimSpace(*installedVersionsPath) != "" {
 		if err := recordInstalledVersion(*installedVersionsPath, entry.ID, entry.Version, wantSHA, time.Now().UnixMilli()); err != nil {
-			fmt.Fprintf(stderr, "borgee install: warn: record installed-version %q failed: %v\n", *installedVersionsPath, err)
+			fmt.Fprintf(stderr, "borgee install-plugin: warn: record installed-version %q failed: %v\n", *installedVersionsPath, err)
 		}
 	}
 	return nil
@@ -307,18 +311,18 @@ func newReasonErr(reason, detail string) error {
 func writeReasonErr(stderr io.Writer, err error) error {
 	var re *reasonErr
 	if errors.As(err, &re) {
-		fmt.Fprintf(stderr, "borgee install: %s: %s\n", re.reason, re.detail)
+		fmt.Fprintf(stderr, "borgee install-plugin: %s: %s\n", re.reason, re.detail)
 		return err
 	}
 	// Generic write_failed bucket — shouldn't be reachable since run() funnels
 	// all errors through writeReason / writeReasonErr, but kept as safety net.
-	fmt.Fprintf(stderr, "borgee install: %s: %v\n", reasonWriteFailed, err)
+	fmt.Fprintf(stderr, "borgee install-plugin: %s: %v\n", reasonWriteFailed, err)
 	return err
 }
 
 func writeReason(stderr io.Writer, reason, detail string) error {
 	err := newReasonErr(reason, detail)
-	fmt.Fprintf(stderr, "borgee install: %s: %s\n", reason, detail)
+	fmt.Fprintf(stderr, "borgee install-plugin: %s: %s\n", reason, detail)
 	return err
 }
 

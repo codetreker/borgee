@@ -38,7 +38,15 @@ import (
 )
 
 const (
-	linuxBinaryPath = "/usr/local/bin/borgee"
+	// linuxBinaryPath — the persistent on-disk path the systemd unit's
+	// ExecStart refers to. `borgee install` copies the running borgee
+	// binary (typically from npx's cache) to this location so the daemon
+	// survives npx cache eviction. `/usr/local/bin/borgee` (if present
+	// from `npm i -g`) is an npm-owned symlink that the daemon does NOT
+	// depend on — keeping the persistent binary under `/usr/local/lib/`
+	// also sidesteps the #1017 bug 3 symlink-vs-real-binary confusion.
+	linuxBinaryPath = "/usr/local/lib/borgee/bin/borgee"
+	linuxRuntimeDir = "/usr/local/lib/borgee"
 	linuxStateRoot  = "/var/lib/borgee"
 	linuxLogDir     = "/var/log/borgee"
 	linuxRunDir     = "/run/borgee"
@@ -53,7 +61,10 @@ const (
 	darwinLogDir          = "/Library/Logs/Borgee"
 	darwinPlistDst        = "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist"
 	darwinSandboxDst      = "/Library/Application Support/Borgee/borgee-helper.sb"
-	darwinBinaryPath      = "/usr/local/bin/borgee"
+	// macOS persistent binary path. Mirror of linuxBinaryPath. Apple
+	// convention uses `libexec` for per-product helper binaries.
+	darwinBinaryPath      = "/usr/local/libexec/borgee/borgee"
+	darwinRuntimeDir      = "/usr/local/libexec/borgee"
 	darwinPlistLabel      = "cloud.borgee.host-bridge"
 	darwinUDS             = "/Users/Shared/Borgee/borgee.sock"
 	darwinAuditLog        = "/Library/Logs/Borgee/audit.log.jsonl"
@@ -61,6 +72,22 @@ const (
 	darwinQueueStateDir   = "/Library/Application Support/Borgee/Helper/QueueState"
 	darwinStatusStateDir  = "/Library/Application Support/Borgee/Helper/StatusState"
 	darwinAuditHandoffDir = "/Library/Application Support/Borgee/Helper/AuditHandoff"
+)
+
+// LinuxBinaryPath / DarwinBinaryPath / LinuxRuntimeDir / DarwinRuntimeDir
+// are exported so the `install` and `uninstall-host` subcommands can
+// reference the same persistent paths without duplicating the constants.
+const (
+	LinuxBinaryPath  = linuxBinaryPath
+	DarwinBinaryPath = darwinBinaryPath
+	LinuxRuntimeDir  = linuxRuntimeDir
+	DarwinRuntimeDir = darwinRuntimeDir
+	LinuxServiceDst  = linuxServiceDst
+	DarwinPlistDst   = darwinPlistDst
+	LinuxServiceName = "borgee.service"
+	DarwinPlistLabel = darwinPlistLabel
+	LinuxUser        = linuxUser
+	DarwinUser       = darwinUser
 )
 
 // Run is the entry for `borgee setup`. Dispatcher in cmd/borgee passes the
@@ -141,6 +168,18 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 		}
 	}
 
+	// Runtime dir: holds the persistent borgee binary copy that the
+	// `install` subcommand drops (`/usr/local/lib/borgee/bin/borgee`).
+	// Owned by root with mode 0755 so the helper user can exec it but
+	// only root can replace it.
+	runtimeBinDir := filepath.Join(linuxRuntimeDir, "bin")
+	logStep("mkdir " + runtimeBinDir)
+	if !dryRun {
+		if err := os.MkdirAll(runtimeBinDir, 0o755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", runtimeBinDir, err)
+		}
+	}
+
 	// 3. Write systemd unit.
 	unit := renderLinuxUnit(serverOrigin)
 	logStep("write " + linuxServiceDst)
@@ -201,6 +240,7 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 		darwinLogDir,
 		filepath.Dir(darwinUDS),
 		darwinAppSupport,
+		filepath.Join(darwinRuntimeDir, "bin"),
 	} {
 		logStep("mkdir " + p)
 		if !dryRun {

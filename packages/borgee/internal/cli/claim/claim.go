@@ -82,9 +82,18 @@ func runCLI(args []string, stdout, stderr io.Writer) error {
 		defaultStateDir = defaultMacStateDir
 		defaultHelperUser = defaultHelperUserMac
 	}
-	credentialFile := fs.String("credential-file", filepath.Join(defaultStateDir, "credential"), "Path to write helper credential (0600)")
-	enrollmentIDFile := fs.String("enrollment-id-file", filepath.Join(defaultStateDir, "enrollment-id"), "Path to write enrollment id")
-	deviceIDFile := fs.String("device-id-file", filepath.Join(defaultStateDir, "device-id"), "Path to read/write helper device id")
+	// #1017 bug 1 fix: setup.go creates `<state>/credential/` as a DIRECTORY
+	// and the systemd unit + launchd plist read
+	// `<state>/credential/{credential,enrollment-id,device-id}`. Earlier
+	// defaults wrote the three files directly under `<state>/`, which
+	// collided with the directory (claim refused to overwrite the dir as a
+	// file, or wrote next to it where the daemon never reads). Align the
+	// defaults with the daemon's actual file paths so `borgee install`
+	// (setup → claim → start) lands a working credential out of the box.
+	credentialSubdir := filepath.Join(defaultStateDir, "credential")
+	credentialFile := fs.String("credential-file", filepath.Join(credentialSubdir, "credential"), "Path to write helper credential (0600)")
+	enrollmentIDFile := fs.String("enrollment-id-file", filepath.Join(credentialSubdir, "enrollment-id"), "Path to write enrollment id")
+	deviceIDFile := fs.String("device-id-file", filepath.Join(credentialSubdir, "device-id"), "Path to read/write helper device id")
 	helperUser := fs.String("helper-user", defaultHelperUser, "OS user to chown credential file to (when running as root)")
 	helperGroup := fs.String("helper-group", "", "OS group to chown credential file to (defaults to helper-user)")
 	allowInsecure := fs.Bool("allow-insecure-server-origin", false, "Allow http:// or non-public server-origin (test only)")
@@ -108,10 +117,25 @@ func runCLI(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("resolve device id: %w", err)
 	}
 
-	// Ensure parent dirs exist (idempotent — installer typically pre-creates them).
+	// Ensure parent dirs exist (idempotent — setup typically pre-creates them).
+	// When running as root we also chown to the helper user so the daemon
+	// (running as `borgee`) can stat-and-read the files inside.
 	for _, p := range []string{*credentialFile, *enrollmentIDFile, *deviceIDFile} {
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		parent := filepath.Dir(p)
+		if err := os.MkdirAll(parent, 0o750); err != nil {
 			return fmt.Errorf("mkdir parent for %q: %w", p, err)
+		}
+		if os.Geteuid() == 0 {
+			group := *helperGroup
+			if group == "" {
+				group = *helperUser
+			}
+			if err := chownToUser(parent, *helperUser, group); err != nil {
+				// Non-fatal: parent may already exist from setup; chown best
+				// effort. Daemon-side read still works as long as perms
+				// allow.
+				_ = err
+			}
 		}
 	}
 

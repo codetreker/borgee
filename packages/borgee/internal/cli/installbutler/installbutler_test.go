@@ -144,7 +144,7 @@ func startManifestServer(t *testing.T, payload pluginManifestPayload) string {
 // failure.
 func runCLI(t *testing.T, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
-	all := append([]string{"install"}, args...)
+	all := append([]string{"install-plugin"}, args...)
 	cmd := exec.Command(borgeeBinary, all...)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf

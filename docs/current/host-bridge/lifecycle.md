@@ -19,39 +19,58 @@ mechanism without spinning up a real host.
 
 The host-bridge stack ships as a single `borgee` Go binary distributed
 through the `@codetreker/borgee-remote-agent` npm package (chore/npm-bundle-rework,
-#993 #994 #995). Operator one-time path on a fresh host:
+#993 #994 #995; one-shot install wrapper in chore/install-onecmd).
+Operator one-line path on a fresh host:
 
 ```
-sudo npm i -g @codetreker/borgee-remote-agent
-sudo borgee setup                                       # systemd unit + state dirs
-sudo borgee claim --enrollment-id=<id> \
-                  --enrollment-secret=<secret> \
-                  --server-origin=https://app.borgee.io
-sudo systemctl enable --now borgee.service              # macOS: sudo launchctl load -w /Library/LaunchDaemons/cloud.borgee.host-bridge.plist
+sudo npx @codetreker/borgee-remote-agent install \
+  --server wss://borgee.codetrek.cn \
+  --token <enrollment_id>.<enrollment_secret>
 ```
 
-The `borgee` binary is one binary with four subcommands:
+That single command does: sudo + platform pre-flight → copy the running
+`borgee` binary (from npx's cache) to `/usr/local/lib/borgee/bin/borgee`
+(Linux) or `/usr/local/libexec/borgee/borgee` (macOS) → `borgee setup`
+(systemd unit / launchd plist + system user + state dirs) → `borgee
+claim` (POST `/api/v1/helper/enrollments/{id}/claim` with the parsed
+enrollment_secret + a stable helper_device_id) → `systemctl enable
+--now borgee.service` (Linux) / `launchctl bootstrap system <plist>`
+(macOS) → wait up to `--heartbeat-timeout` (default 30s) for first
+heartbeat.
 
+`setup` / `claim` remain available as standalone subcommands (advanced
+flows — e.g. re-claim with a new token after rotation, or rewrite the
+systemd unit after a config change). `install` is the convenience
+wrapper that ties them together for the one-line operator path.
+
+The `borgee` binary's subcommands:
+
+- `borgee install` — one-shot operator bootstrap (the wrapper above).
+- `borgee uninstall-host` — operator-driven local cleanup mirror.
 - `borgee daemon` — long-lived host-bridge daemon (started by systemd / launchd).
 - `borgee setup` — writes the systemd unit / launchd plist + sandbox profile,
-  creates the system user (`borgee` Linux, `_borgee` macOS), and creates the
+  creates the system user (`borgee` Linux, `_borgee` macOS), creates the
   Helper-owned state directories (`/var/lib/borgee/{queue,status,audit-handoff,credential}`
-  Linux, `/Library/Application Support/Borgee/Helper/...` macOS). Does NOT
-  auto-start the service — the operator must `borgee claim` first.
+  Linux, `/Library/Application Support/Borgee/Helper/...` macOS), and
+  pre-creates the persistent binary dir (`/usr/local/lib/borgee/bin/`).
+  Does NOT auto-start; `install` issues the start after claim.
 - `borgee claim` — one-time enrollment claim. Derives a stable
   `helper_device_id` (Linux `/etc/machine-id`, macOS `IOPlatformUUID`,
   falling back to a persisted UUIDv4), POSTs
   `/api/v1/helper/enrollments/{id}/claim` with body
   `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
   three files the daemon reads on next start (`credential` mode 0600,
-  `enrollment-id`, `device-id`) under `/var/lib/borgee/credential/` (Linux)
-  or `/Library/Application Support/Borgee/Helper/credential/` (macOS).
-- `borgee install` — signed-manifest binary installer (HB-1). One-shot
-  CLI that fetches a manifest, ed25519-verifies an entry, fetches the
-  referenced binary, sha256-verifies the bytes, atomically renames into
-  place, and exits. Used to deliver runtime plugins (e.g. openclaw)
-  separately from the helper itself; the helper itself ships as the npm
-  bundle above. Source:
+  `enrollment-id`, `device-id`) under `/var/lib/borgee/credential/`
+  (Linux) or `/Library/Application Support/Borgee/Helper/credential/`
+  (macOS). Defaults updated in chore/install-onecmd (#1017 bug 1 fix)
+  to match the daemon's expected directory layout.
+- `borgee install-plugin` — signed-manifest binary installer (HB-1).
+  One-shot CLI that fetches a manifest, ed25519-verifies an entry,
+  fetches the referenced binary, sha256-verifies the bytes, atomically
+  renames into place, and exits. Used to deliver runtime plugins (e.g.
+  openclaw) separately from the helper itself; the helper itself ships
+  as the npm bundle above. Renamed from `borgee install` in
+  chore/install-onecmd. Source:
   [`packages/borgee/internal/cli/installbutler/`](../../../packages/borgee/internal/cli/installbutler/README.md).
 
 After `borgee claim` the daemon either picks up the new files on next
@@ -189,7 +208,7 @@ for cases where the helper is offline or the executor cannot finish.
 A third daemon goroutine — `updatecheck.Checker` — runs alongside the
 heartbeater + dispatcher. Every ~15 minutes it reads
 `/var/lib/borgee/installed-versions.json` (written by
-`borgee install`) and POSTs the snapshot to
+`borgee install-plugin`) and POSTs the snapshot to
 `POST /api/v1/helper/enrollments/{id}/installed-versions`. The server
 computes drift against the current signed manifest and returns a
 classified list (`security` vs `feature` per blueprint §1.3). The helper
