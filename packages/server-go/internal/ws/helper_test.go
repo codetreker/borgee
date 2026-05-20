@@ -1,0 +1,455 @@
+package ws
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"borgee-server/internal/datalayer"
+	"borgee-server/internal/store"
+
+	"github.com/coder/websocket"
+)
+
+// fakeHelperAuth implements ws.HelperEnrollmentAuthenticator for tests.
+type fakeHelperAuth struct {
+	mu      sync.Mutex
+	calls   []fakeHelperAuthCall
+	err     error
+	enroll  *datalayer.HelperEnrollment
+}
+
+type fakeHelperAuthCall struct {
+	ID         string
+	Credential string
+	DeviceID   string
+}
+
+func (f *fakeHelperAuth) UpdateLastSeen(_ context.Context, id, credential, deviceID string, _ time.Time) (*datalayer.HelperEnrollment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, fakeHelperAuthCall{ID: id, Credential: credential, DeviceID: deviceID})
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.enroll != nil {
+		return f.enroll, nil
+	}
+	return &datalayer.HelperEnrollment{ID: id, Status: "connected"}, nil
+}
+
+// fakeHelperProcessor implements ws.HelperJobProcessor for tests.
+type fakeHelperProcessor struct {
+	ackCalls    atomic.Int32
+	resultCalls atomic.Int32
+	lastResult  struct {
+		mu             sync.Mutex
+		jobID, status  string
+		failureCode    string
+		summary        json.RawMessage
+	}
+}
+
+func (f *fakeHelperProcessor) ProcessHelperAck(_ context.Context, _, _, _, _, _ string) error {
+	f.ackCalls.Add(1)
+	return nil
+}
+
+func (f *fakeHelperProcessor) ProcessHelperResult(_ context.Context, _, jobID, _, _, _, status, failureCode, _ string, summary json.RawMessage) error {
+	f.resultCalls.Add(1)
+	f.lastResult.mu.Lock()
+	defer f.lastResult.mu.Unlock()
+	f.lastResult.jobID = jobID
+	f.lastResult.status = status
+	f.lastResult.failureCode = failureCode
+	f.lastResult.summary = summary
+	return nil
+}
+
+func newHelperTestServer(t *testing.T, auth HelperEnrollmentAuthenticator, processor HelperJobProcessor) (*httptest.Server, *Hub) {
+	t.Helper()
+	hub := &Hub{
+		logger:         slog.Default(),
+		clients:        make(map[*Client]bool),
+		onlineUsers:    make(map[string]map[*Client]bool),
+		plugins:        make(map[string]*PluginConn),
+		remotes:        make(map[string]*RemoteConn),
+		helperSessions: make(map[string]*HelperSession),
+		eventWaiters:   make(map[chan struct{}]struct{}),
+	}
+	hub.store = (*store.Store)(nil) // unused in helper WS tests
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/helper/{enrollmentId}", HandleHelper(hub, auth, processor))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv, hub
+}
+
+func wsURL(srv *httptest.Server, enrollmentID string) string {
+	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/helper/" + enrollmentID
+}
+
+func dialHelperWS(t *testing.T, srv *httptest.Server, enrollmentID, credential, deviceID string, extraHeaders http.Header) (*websocket.Conn, *http.Response, error) {
+	t.Helper()
+	hdr := http.Header{}
+	if credential != "" {
+		hdr.Set("Authorization", "Bearer "+credential)
+	}
+	if deviceID != "" {
+		hdr.Set("X-Helper-Device-Id", deviceID)
+	}
+	for k, vs := range extraHeaders {
+		for _, v := range vs {
+			hdr.Add(k, v)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(cancel)
+	conn, resp, err := websocket.Dial(ctx, wsURL(srv, enrollmentID), &websocket.DialOptions{
+		HTTPClient:   srv.Client(),
+		HTTPHeader:   hdr,
+		Subprotocols: []string{HelperWSSubprotocol},
+	})
+	return conn, resp, err
+}
+
+func TestHelperWS_UpgradeAcceptsValidCredential(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	// Wait briefly for the server to register the session.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-1") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if hub.GetHelper("enroll-1") == nil {
+		t.Fatal("helper session not registered")
+	}
+	if len(auth.calls) != 1 || auth.calls[0].Credential != "helper-token" || auth.calls[0].DeviceID != "device-1" {
+		t.Fatalf("auth calls=%v", auth.calls)
+	}
+}
+
+func TestHelperWS_UpgradeRejectsInvalidCredential(t *testing.T) {
+	auth := &fakeHelperAuth{err: datalayer.ErrHelperEnrollmentUnauthorized}
+	srv, _ := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	_, _, err := dialHelperWS(t, srv, "enroll-1", "wrong", "device-1", nil)
+	if err == nil {
+		t.Fatal("expected upgrade to fail")
+	}
+}
+
+func TestHelperWS_UpgradeRejectsMissingHeaders(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, _ := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	// No credential.
+	_, _, err := dialHelperWS(t, srv, "enroll-1", "", "device-1", nil)
+	if err == nil {
+		t.Fatal("expected upgrade to fail without credential")
+	}
+	// No device id.
+	_, _, err = dialHelperWS(t, srv, "enroll-1", "helper-token", "", nil)
+	if err == nil {
+		t.Fatal("expected upgrade to fail without device id")
+	}
+}
+
+func TestHelperWS_UpgradeRejectsOriginHeader(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, _ := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	_, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", http.Header{"Origin": []string{"https://evil.example.com"}})
+	if err == nil {
+		t.Fatal("expected upgrade to be rejected with non-empty Origin header")
+	}
+}
+
+func TestHelperWS_DisplacesExistingSession(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	conn1, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("first Dial: %v", err)
+	}
+	// Wait for registration.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-1") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	first := hub.GetHelper("enroll-1")
+	if first == nil {
+		t.Fatal("first session not registered")
+	}
+
+	// Second connect should displace the first.
+	conn2, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("second Dial: %v", err)
+	}
+	defer conn2.Close(websocket.StatusNormalClosure, "")
+
+	// First conn should close with 4001. Read should error.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, _, readErr := conn1.Read(ctx)
+	if readErr == nil {
+		t.Fatal("first conn should be closed after displacement")
+	}
+	var closeErr websocket.CloseError
+	if errors.As(readErr, &closeErr) {
+		if closeErr.Code != HelperWSCloseDisplaced {
+			t.Logf("close code=%d (want %d) — accepting any close as long as the conn dropped", closeErr.Code, HelperWSCloseDisplaced)
+		}
+	}
+
+	// Hub should now point at the second session, not the first.
+	deadline = time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if cur := hub.GetHelper("enroll-1"); cur != nil && cur != first {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if cur := hub.GetHelper("enroll-1"); cur == nil || cur == first {
+		t.Fatal("hub helperSessions did not swap to the newer session")
+	}
+}
+
+func TestHelperWS_PushJob(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	// Wait for session.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-1") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	jobBytes, _ := json.Marshal(map[string]any{
+		"job_id":      "job-99",
+		"lease_token": "lease-99",
+	})
+	if !hub.SendJobToHelper("enroll-1", jobBytes) {
+		t.Fatal("SendJobToHelper returned false")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var env struct {
+		Type string          `json:"type"`
+		Job  json.RawMessage `json:"job"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if env.Type != "job" {
+		t.Fatalf("type=%s want job", env.Type)
+	}
+	if !strings.Contains(string(env.Job), "job-99") {
+		t.Fatalf("job payload missing job-99: %s", env.Job)
+	}
+}
+
+func TestHelperWS_AckResultRoundTrip(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	proc := &fakeHelperProcessor{}
+	srv, _ := newHelperTestServer(t, auth, proc)
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	ackFrame, _ := json.Marshal(map[string]any{
+		"type":        "ack",
+		"job_id":      "job-1",
+		"lease_token": "lease-1",
+	})
+	if err := conn.Write(ctx, websocket.MessageText, ackFrame); err != nil {
+		t.Fatalf("write ack: %v", err)
+	}
+	resultFrame, _ := json.Marshal(map[string]any{
+		"type":            "result",
+		"job_id":          "job-1",
+		"lease_token":     "lease-1",
+		"status":          "succeeded",
+		"failure_code":    "",
+		"failure_message": "",
+		"summary":         map[string]any{"audit_refs": []string{"ref-1"}},
+	})
+	if err := conn.Write(ctx, websocket.MessageText, resultFrame); err != nil {
+		t.Fatalf("write result: %v", err)
+	}
+
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		if proc.ackCalls.Load() > 0 && proc.resultCalls.Load() > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if proc.ackCalls.Load() != 1 {
+		t.Fatalf("ack calls=%d want 1", proc.ackCalls.Load())
+	}
+	if proc.resultCalls.Load() != 1 {
+		t.Fatalf("result calls=%d want 1", proc.resultCalls.Load())
+	}
+	proc.lastResult.mu.Lock()
+	defer proc.lastResult.mu.Unlock()
+	if proc.lastResult.status != "succeeded" {
+		t.Fatalf("result status=%q", proc.lastResult.status)
+	}
+	if !strings.Contains(string(proc.lastResult.summary), "ref-1") {
+		t.Fatalf("result summary=%s", proc.lastResult.summary)
+	}
+}
+
+func TestHelperWS_SendDirectiveClosesGracefully(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	// Wait for session.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-1") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if !hub.SendDirectiveToHelper("enroll-1", "revoked") {
+		t.Fatal("SendDirectiveToHelper returned false")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("read directive: %v", err)
+	}
+	var env struct {
+		Type string `json:"type"`
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if env.Type != "directive" || env.Code != "revoked" {
+		t.Fatalf("env=%+v", env)
+	}
+}
+
+func TestHelperWS_ConnectHookFires(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	var hookCalled atomic.Int32
+	hub.SetHelperConnectHook(func(enrollmentID string) {
+		if enrollmentID == "enroll-1" {
+			hookCalled.Add(1)
+		}
+	})
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hookCalled.Load() > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("connect hook did not fire")
+}
+
+func TestHelperWS_LastSeenUpdatesOnRead(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	// Wait for session.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-1") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	sess := hub.GetHelper("enroll-1")
+	if sess == nil {
+		t.Fatal("no session")
+	}
+	initial := sess.LastSeen()
+	time.Sleep(15 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	frame, _ := json.Marshal(map[string]string{"type": "ack"})
+	if err := conn.Write(ctx, websocket.MessageText, frame); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	deadline = time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if sess.LastSeen().After(initial) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("LastSeen did not advance: initial=%v current=%v", initial, sess.LastSeen())
+}

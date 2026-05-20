@@ -119,53 +119,66 @@ and never leaves the operator's session.
 
 ### Reconnect chain — what is wired
 
-Daemon v0(D+heartbeat+dispatch) on start:
+Daemon v0(D+WS+dispatch) on start (PR-2 #1038 swapped HTTP long-poll +
+POST `/status` heartbeat for a persistent WebSocket transport):
 
 1. Asset chain brings process up (systemd unit on Linux, launchd plist on
    macOS — see assets above).
 2. `outbound.ValidateAndPrepare` validates `--outbound-server-origin`
    against the `--outbound-allowed-origins` allowlist and sets up state
-   dirs.
-3. `outbound.Heartbeater` is spawned in a background goroutine sharing the
-   daemon's SIGTERM-aware context. It POSTs
-   `/api/v1/helper/enrollments/{id}/status` immediately on startup
-   (within ~100ms — no initial sleep), then every 60s
-   (`outbound.HeartbeatInterval`). Heartbeat failures apply exponential
-   backoff (5s base, doubling, 60s cap) and reset to base on success. The
-   heartbeater never panics on network errors and never aborts the daemon
-   on 401/403/410 — those just log and continue retrying, because an
-   admin may have revoked the enrollment and a re-claim must still be
-   possible without bouncing the process.
-4. `dispatch.Dispatcher` is spawned alongside the heartbeater (#1001 +
-   #1002). It long-polls
-   `/api/v1/helper/enrollments/{id}/jobs/poll`; each leased job runs
-   through `jobpolicy.Evaluate` (the helper-side half of the
-   double-validate gate the blueprint locks in §1.2); allowed jobs are
-   handed to a per-`job_type` executor when one is registered; rejected
-   jobs are reported back via `/result` with the deterministic reason.
-   The executor map is intentionally empty in #1001 — typed-job
-   executors land in #998 + later PRs, so any leased job today is
-   reported as terminal `failed`/`not_implemented` rather than silently
-   dropped. While an executor runs the dispatcher Acks on a fixed
-   cadence to extend the server-side lease, then tears the ack loop
-   down deterministically before posting the final terminal Result.
-   Poll transport failures fall back to the same 5s→60s backoff curve as
-   the heartbeater. A pre-claim daemon skips dispatcher startup the
-   same way it skips heartbeat (missing enrollment / device id /
-   credential file collapses to "no enrollment configured, skipping job
-   dispatcher").
-5. The UDS Accept loop runs for local IPC.
-6. The server records `LastSeenAt` on each successful heartbeat;
-   `serializeWithConfigure`
-   ([helper_enrollments.go](../../../packages/server-go/internal/api/helper_enrollments.go))
-   flips `status` to `connected` when `LastSeenAt` is within the
-   5-minute freshness window.
+   dirs. The validator now accepts `wss://` (production) and `https://`
+   (the WS client rewrites `https://` → `wss://` transparently for the
+   actual dial); `ws://` / `http://` loopback stays gated behind
+   `--allow-loopback-outbound` for e2e tests.
+3. `dispatch.Dispatcher` constructs an `outbound.Client` and calls
+   `RunWithReconnect`. The client dials
+   `wss://<server>/ws/helper/<enrollmentId>` with `Authorization: Bearer
+   <credential>` and `X-Helper-Device-Id: <id>` headers; the server's
+   `HandleHelper` upgrade path calls
+   `HelperEnrollmentRepository.UpdateLastSeen` (same call the legacy
+   POST `/status` used) to validate the credential digest + device id
+   and bump `last_seen_at` in one DB write.
+4. Once connected, the dispatcher blocks on `client.Receive` for the
+   next pushed `{"type":"job",...}` frame. Each leased job runs through
+   `jobpolicy.Evaluate` (helper-side half of the double-validate gate)
+   and then a per-`job_type` executor when one is registered. Ack and
+   Result are now `{"type":"ack",...}` / `{"type":"result",...}` text
+   frames over the same WS connection (no separate HTTP calls). The
+   per-job ack ticker still runs to extend the server-side lease while
+   an executor is in progress, and tears down deterministically before
+   the final Result so the server never sees an Ack after the terminal
+   state.
+5. Heartbeat is now WS ping/pong. The `outbound.Client.pingLoop`
+   goroutine sends a `Ping` frame every 30s; the server's pong handler
+   updates `last_seen_at`. Three consecutive ping failures
+   (`MissedPingsToReconnect`) tear the connection down and the
+   `RunWithReconnect` outer loop re-dials with exponential backoff (1s
+   base, 30s cap, ±20% jitter). Server's 5-minute freshness window
+   stays the same — the producer is just the pong now, not a POST
+   `/status`.
+6. Server-pushed directive frames (`{"type":"directive","code":"revoked"|
+   "stale_credential"|"uninstalled"|"unauthorized"}`) tell the daemon to
+   stop processing and exit. `systemd Restart=on-failure` brings the
+   process back; the credential is still bad so the next dial 401s and
+   StartLimit eventually parks the unit — same end state as the prior
+   REST 403 + dispatcher backoff path.
+7. The UDS Accept loop runs for local IPC, independent of the WS
+   transport state. A pre-claim daemon (missing enrollment / device-id
+   / credential file) skips WS startup entirely and only serves UDS,
+   the same way it used to skip heartbeat + dispatch.
 
 End-to-end reboot path now closes: machine reboots → systemd / launchd
 starts the daemon as a system service with no user login → daemon
 validates config + applies sandbox → reads enrollment/device-id/credential
-files → heartbeater fires within ~100ms → server updates `LastSeenAt` →
-web UI shows `connected` again.
+files → outbound.Client dials the persistent WS → server's
+`UpdateLastSeen` bumps `last_seen_at` on upgrade → web UI shows
+`connected` again. Sub-second push latency replaces the prior ~25s
+long-poll budget for queued jobs.
+
+The REST endpoints (`POST /api/v1/helper/enrollments/{id}/jobs/poll`,
+`/jobs/{job_id}/ack`, `/jobs/{job_id}/result`, `/status`) remain
+mounted for backward compatibility; new daemons use the WS path. They
+are marked Deprecated and will be removed in a future PR.
 
 ## Uninstall chain (#998)
 

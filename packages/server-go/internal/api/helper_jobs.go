@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -17,6 +18,46 @@ type HelperJobsHandler struct {
 	Now  func() time.Time
 }
 
+// ProcessHelperAck applies the helper job ack mutation. Extracted from
+// handleAck so the WS read loop (internal/ws.helper.go) can reuse the
+// SAME store mutation without duplicating it. PR-2 #1038.
+//
+// The shared signature matches ws.HelperJobProcessor — internal/server
+// instantiates one HelperJobsHandler and exposes the two Process*
+// methods to the hub via an adapter.
+func (h *HelperJobsHandler) ProcessHelperAck(ctx context.Context, enrollmentID, jobID, leaseToken, helperCredential, helperDeviceID string) error {
+	_, err := h.Repo.AckForHelper(ctx, datalayer.HelperJobAckInput{
+		EnrollmentID:     enrollmentID,
+		JobID:            jobID,
+		HelperCredential: helperCredential,
+		HelperDeviceID:   helperDeviceID,
+		LeaseToken:       leaseToken,
+		AckStatus:        "received",
+	}, h.now())
+	return err
+}
+
+// ProcessHelperResult applies the helper job terminal-result mutation.
+// Extracted from handleResult for ws.helper.go reuse.
+func (h *HelperJobsHandler) ProcessHelperResult(ctx context.Context, enrollmentID, jobID, leaseToken, helperCredential, helperDeviceID, status, failureCode, failureMessage string, summary json.RawMessage) error {
+	var summaryJSON string
+	if len(summary) > 0 && string(summary) != "null" {
+		summaryJSON = string(summary)
+	}
+	_, err := h.Repo.CompleteForHelper(ctx, datalayer.HelperJobResultInput{
+		EnrollmentID:     enrollmentID,
+		JobID:            jobID,
+		HelperCredential: helperCredential,
+		HelperDeviceID:   helperDeviceID,
+		LeaseToken:       leaseToken,
+		Status:           status,
+		FailureCode:      failureCode,
+		FailureMessage:   failureMessage,
+		ResultSummary:    summaryJSON,
+	}, h.now())
+	return err
+}
+
 func (h *HelperJobsHandler) now() time.Time {
 	if h.Now != nil {
 		return h.Now()
@@ -26,6 +67,12 @@ func (h *HelperJobsHandler) now() time.Time {
 
 func (h *HelperJobsHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/helper/enrollments/{enrollmentId}/jobs", authMw(http.HandlerFunc(h.handleEnqueue)))
+	// PR-2 #1038: poll/ack/result REST endpoints remain mounted for
+	// backward compatibility. Deprecated: new daemons use the WS
+	// transport at /ws/helper/<enrollmentId> and exchange ack/result
+	// frames inline. The store mutations (ProcessHelperAck /
+	// ProcessHelperResult) are shared between both paths so behavior
+	// stays identical across the cutover.
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/jobs/poll", h.handlePoll)
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/jobs/{jobId}/ack", h.handleAck)
 	mux.HandleFunc("POST /api/v1/helper/enrollments/{enrollmentId}/jobs/{jobId}/result", h.handleResult)

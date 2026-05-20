@@ -614,6 +614,14 @@ func (s *Server) SetupRoutes() {
 	s.mux.HandleFunc("/ws", ws.HandleClient(s.hub))
 	s.mux.HandleFunc("/ws/plugin", ws.HandlePlugin(s.hub))
 	s.mux.HandleFunc("/ws/remote", ws.HandleRemote(s.hub))
+	// PR-2 #1038 host-bridge helper WS transport. Authenticates via the
+	// same Bearer credential + X-Helper-Device-Id pair the REST helper
+	// rail uses (UpdateLastSeen does the digest + device check + last-
+	// seen-at update under one DB write). The processor adapter routes
+	// daemon-sent ack/result frames through the same store mutations
+	// helper_jobs.go's REST handlers call.
+	helperAuthAdapter := &helperEnrollmentAuthAdapter{repo: s.dl.HelperEnrollmentRepo}
+	s.mux.HandleFunc("/ws/helper/{enrollmentId}", ws.HandleHelper(s.hub, helperAuthAdapter, helperJobsHandler))
 
 	s.mux.HandleFunc("/api/v1/", respondNotImplemented)
 
@@ -817,6 +825,20 @@ func (a *hubIterationAdapter) PushIterationStateChanged(
 
 type hubPluginAdapter struct {
 	hub *ws.Hub
+}
+
+// helperEnrollmentAuthAdapter — PR-2 #1038 host-bridge WS adapter. The
+// hub's HandleHelper takes a narrow `HelperEnrollmentAuthenticator`
+// interface (not the full repo) so unit tests can substitute a fake;
+// in production, we route the call through the SQLite repo's
+// UpdateLastSeen — same call the prior REST POST /status used to
+// validate credential + device id and bump last_seen_at.
+type helperEnrollmentAuthAdapter struct {
+	repo datalayer.HelperEnrollmentRepository
+}
+
+func (a *helperEnrollmentAuthAdapter) UpdateLastSeen(ctx context.Context, id, credential, helperDeviceID string, now time.Time) (*datalayer.HelperEnrollment, error) {
+	return a.repo.UpdateLastSeen(ctx, id, credential, helperDeviceID, now)
 }
 
 func (a *hubPluginAdapter) ProxyPluginRequest(agentID string, method string, path string, body []byte) (int, []byte, error) {

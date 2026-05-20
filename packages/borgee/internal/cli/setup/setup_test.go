@@ -234,3 +234,26 @@ func TestRootdSeparateFromMainUnit(t *testing.T) {
 		t.Fatalf("rootd UDS must not collide with main daemon UDS")
 	}
 }
+
+// TestRenderLinuxUnit_WSSOrigin (PR-2 #1038) — the daemon's persistent
+// transport is WebSocket so the systemd unit's --outbound-server-origin
+// passes the wss:// URL through unchanged. Prior to PR-2 the install
+// flow silently downgraded wss:// → https://; that silent downgrade is
+// gone.
+func TestRenderLinuxUnit_WSSOrigin(t *testing.T) {
+	unit := renderLinuxUnit("wss://borgee.codetrek.cn")
+	if !strings.Contains(unit, "--outbound-server-origin=wss://borgee.codetrek.cn") {
+		t.Fatalf("rendered linux unit missing wss origin\n%s", unit)
+	}
+	if strings.Contains(unit, "https://borgee.codetrek.cn") {
+		t.Fatalf("rendered linux unit must not silently downgrade wss to https\n%s", unit)
+	}
+}
+
+// TestRenderDarwinPlist_WSSOrigin — same check for the launchd plist.
+func TestRenderDarwinPlist_WSSOrigin(t *testing.T) {
+	plist := renderDarwinPlist("wss://borgee.codetrek.cn")
+	if !strings.Contains(plist, "--outbound-server-origin=wss://borgee.codetrek.cn") {
+		t.Fatalf("rendered macOS plist missing wss origin")
+	}
+}

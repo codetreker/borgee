@@ -78,6 +78,41 @@ func TestDeriveHTTPOrigin_Schemes(t *testing.T) {
 	}
 }
 
+// PR-2 #1038: deriveWSOrigin replaces the prior silent wss://→https://
+// downgrade. The daemon's persistent transport is WebSocket so the
+// systemd unit needs the wss:// URL preserved.
+func TestDeriveWSOrigin_Schemes(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in            string
+		allowInsecure bool
+		wantOK        bool
+		wantOrigin    string
+	}{
+		{"wss://borgee.codetrek.cn", false, true, "wss://borgee.codetrek.cn"},
+		{"https://app.borgee.io", false, true, "wss://app.borgee.io"},
+		{"wss://host:9443/some/path", false, true, "wss://host:9443"},
+		{"http://localhost:8080", false, false, ""},
+		{"ws://localhost:8080", false, false, ""},
+		{"http://localhost:8080", true, true, "ws://localhost:8080"},
+		{"ws://localhost:8080", true, true, "ws://localhost:8080"},
+		{"ftp://x", false, false, ""},
+		{"", false, false, ""},
+	}
+	for _, tc := range cases {
+		got, err := deriveWSOrigin(tc.in, tc.allowInsecure)
+		if tc.wantOK && err != nil {
+			t.Fatalf("deriveWSOrigin(%q, %v): unexpected err %v", tc.in, tc.allowInsecure, err)
+		}
+		if !tc.wantOK && err == nil {
+			t.Fatalf("deriveWSOrigin(%q, %v): expected error, got %q", tc.in, tc.allowInsecure, got)
+		}
+		if tc.wantOK && got != tc.wantOrigin {
+			t.Fatalf("deriveWSOrigin(%q): got %q, want %q", tc.in, got, tc.wantOrigin)
+		}
+	}
+}
+
 // TI-1 NotSudo — non-root invocation fails with friendly msg.
 //
 // run() checks os.Geteuid() == 0 and exits early. We cannot test the

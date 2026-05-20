@@ -153,11 +153,21 @@ func normalizeOrigin(raw string, opts ValidationOptions) (string, error) {
 		return "", fmt.Errorf("path is not allowed")
 	}
 	scheme := strings.ToLower(u.Scheme)
-	if scheme != "https" {
-		if !(opts.AllowLoopbackHTTP && scheme == "http" && isLoopbackHost(u.Hostname())) {
-			return "", fmt.Errorf("https is required")
+	// PR-2 #1038: accept wss:// (the production WS transport) alongside
+	// the legacy https:// (retained for one-shot claim calls).
+	// AllowLoopbackHTTP keeps the ws:// + http:// loopback escape hatch
+	// for e2e tests.
+	switch scheme {
+	case "https", "wss":
+		// secure schemes: accept
+	case "http", "ws":
+		if !(opts.AllowLoopbackHTTP && isLoopbackHost(u.Hostname())) {
+			return "", fmt.Errorf("https/wss is required")
 		}
-	} else if isLocalOrPrivateHost(u.Hostname()) {
+	default:
+		return "", fmt.Errorf("scheme %q is not supported", u.Scheme)
+	}
+	if (scheme == "https" || scheme == "wss") && isLocalOrPrivateHost(u.Hostname()) {
 		return "", fmt.Errorf("local/private origins are not allowed")
 	}
 	u.Scheme = scheme
