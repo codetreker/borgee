@@ -453,3 +453,124 @@ func TestHelperWS_LastSeenUpdatesOnRead(t *testing.T) {
 	}
 	t.Fatalf("LastSeen did not advance: initial=%v current=%v", initial, sess.LastSeen())
 }
+
+func TestHelperSession_SendJSONSerializes(t *testing.T) {
+	sess := &HelperSession{send: make(chan []byte, 4), done: make(chan struct{})}
+	sess.SendJSON(map[string]string{"type": "directive", "code": "revoked"})
+	select {
+	case data := <-sess.send:
+		var m map[string]string
+		if err := json.Unmarshal(data, &m); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if m["type"] != "directive" || m["code"] != "revoked" {
+			t.Fatalf("unexpected: %v", m)
+		}
+	default:
+		t.Fatal("SendJSON did not enqueue")
+	}
+	// Unmarshallable values are dropped without panic.
+	sess.SendJSON(make(chan int))
+}
+
+func TestMapHelperAuthErrorToStatus(t *testing.T) {
+	cases := []struct {
+		err  error
+		want int
+	}{
+		{datalayer.ErrHelperEnrollmentUnauthorized, http.StatusUnauthorized},
+		{datalayer.ErrHelperEnrollmentInvalidInput, http.StatusUnauthorized},
+		{datalayer.ErrHelperEnrollmentDeviceMismatch, http.StatusForbidden},
+		{datalayer.ErrHelperEnrollmentInactive, http.StatusForbidden},
+		{datalayer.ErrHelperEnrollmentForbidden, http.StatusForbidden},
+		{datalayer.ErrHelperEnrollmentNotFound, http.StatusNotFound},
+		{errors.New("other"), http.StatusUnauthorized},
+	}
+	for _, tc := range cases {
+		if got := mapHelperAuthErrorToStatus(tc.err); got != tc.want {
+			t.Fatalf("err=%v got=%d want=%d", tc.err, got, tc.want)
+		}
+	}
+}
+
+func TestHub_SnapshotHelperLastSeen(t *testing.T) {
+	hub := &Hub{
+		logger:         slog.Default(),
+		helperSessions: make(map[string]*HelperSession),
+	}
+	// Empty.
+	if got := hub.SnapshotHelperLastSeen(); len(got) != 0 {
+		t.Fatalf("empty snapshot len=%d", len(got))
+	}
+	// Two registered.
+	s1 := &HelperSession{lastSeenAt: time.Now()}
+	s2 := &HelperSession{lastSeenAt: time.Now()}
+	hub.helperSessions["a"] = s1
+	hub.helperSessions["b"] = s2
+	snap := hub.SnapshotHelperLastSeen()
+	if len(snap) != 2 || snap["a"].IsZero() || snap["b"].IsZero() {
+		t.Fatalf("snapshot=%+v", snap)
+	}
+}
+
+func TestHub_SendJobToHelper_NoSession(t *testing.T) {
+	hub := &Hub{
+		logger:         slog.Default(),
+		helperSessions: make(map[string]*HelperSession),
+	}
+	if hub.SendJobToHelper("missing", json.RawMessage(`{"id":"x"}`)) {
+		t.Fatal("SendJobToHelper should return false when no session")
+	}
+	if hub.SendDirectiveToHelper("missing", "revoked") {
+		t.Fatal("SendDirectiveToHelper should return false when no session")
+	}
+}
+
+func TestHub_RegisterUnregisterHelper(t *testing.T) {
+	hub := &Hub{
+		logger:         slog.Default(),
+		helperSessions: make(map[string]*HelperSession),
+	}
+	s1 := &HelperSession{enrollmentID: "a", send: make(chan []byte, 1), done: make(chan struct{})}
+	if prev := hub.RegisterHelper("a", s1); prev != nil {
+		t.Fatal("first register should return nil prev")
+	}
+	if hub.GetHelper("a") != s1 {
+		t.Fatal("hub did not register s1")
+	}
+	// Displacement.
+	s2 := &HelperSession{enrollmentID: "a", send: make(chan []byte, 1), done: make(chan struct{})}
+	prev := hub.RegisterHelper("a", s2)
+	if prev != s1 {
+		t.Fatalf("displaced session = %v want s1", prev)
+	}
+	if hub.GetHelper("a") != s2 {
+		t.Fatal("hub did not swap to s2")
+	}
+	// UnregisterIfCurrent on the displaced (old) session is a no-op.
+	hub.UnregisterHelperIfCurrent("a", s1)
+	if hub.GetHelper("a") != s2 {
+		t.Fatal("UnregisterIfCurrent must not drop newer session")
+	}
+	// UnregisterIfCurrent on the active session drops it.
+	hub.UnregisterHelperIfCurrent("a", s2)
+	if hub.GetHelper("a") != nil {
+		t.Fatal("UnregisterIfCurrent did not drop active session")
+	}
+	// Edge: empty/nil arguments are no-ops.
+	hub.UnregisterHelperIfCurrent("", s1)
+	hub.UnregisterHelperIfCurrent("a", nil)
+	if hub.RegisterHelper("", s1) != nil {
+		t.Fatal("RegisterHelper with empty id must noop")
+	}
+	if hub.RegisterHelper("c", nil) != nil {
+		t.Fatal("RegisterHelper with nil session must noop")
+	}
+}
+
+func TestHelperSession_CloseIdempotent(t *testing.T) {
+	sess := &HelperSession{send: make(chan []byte, 1), done: make(chan struct{})}
+	sess.Close(websocket.StatusNormalClosure, "test")
+	// Second close should not panic on the closed done channel.
+	sess.Close(websocket.StatusNormalClosure, "test")
+}
