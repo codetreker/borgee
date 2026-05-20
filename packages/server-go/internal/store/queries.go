@@ -40,6 +40,15 @@ type ChannelMemberInfo struct {
 	Silent                  bool   `json:"silent"`
 	RequireMentionPolicy    string `json:"require_mention_policy"`
 	EffectiveRequireMention bool   `json:"effective_require_mention"`
+	// AL-3.3 agent presence fold — server attaches the live runtime state
+	// for `role=='agent'` rows so the client's MemberPresence has a
+	// fallback when WS presence cache is cold (e.g. just-opened modal,
+	// before any WS frame mirror happens). Mirrors DmHandler.withPeerState
+	// (api/dm.go) — same fold path. Empty for human rows so the JSON shape
+	// stays minimal.
+	State          string `json:"state,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	StateUpdatedAt int64  `json:"state_updated_at,omitempty"`
 }
 
 type PreviewMessage struct {

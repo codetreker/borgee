@@ -83,11 +83,31 @@ func HandlePlugin(hub *Hub) http.HandlerFunc {
 
 		hub.RegisterPlugin(user.ID, pc)
 
+		// agent 上线信号 — 跟 client.go::HandleClient 同款 (UpdateLastSeen +
+		// BroadcastToAll presence)。漏写一边 agent 通过 plugin WS 连入时:
+		//   - users.last_seen_at 不更, REST /api/v1/online 5min 窗口不含 agent
+		//     → AppContext.onlineUserIds 永远缺这个 ID → Sidebar 灰头像;
+		//   - presence 帧不广播, 别的客户端的 usePresence cache 拿不到 state
+		//     → ChannelMembersModal 的 PresenceDot fallback 到 offline (灰).
+		// 跟 client.go:208-214, 222-226 字面对齐 (帧 schema 一致, 复用
+		// useWebSocket.ts:295-297 现有 mirror, 别新创 `presence.changed`).
+		hub.store.UpdateLastSeen(user.ID)
+		hub.BroadcastToAll(map[string]any{
+			"type":    "presence",
+			"user_id": user.ID,
+			"status":  "online",
+		})
+
 		ctx := r.Context()
 		go pc.writePump(ctx)
 
 		defer func() {
 			hub.UnregisterPlugin(user.ID)
+			hub.BroadcastToAll(map[string]any{
+				"type":    "presence",
+				"user_id": user.ID,
+				"status":  "offline",
+			})
 			conn.Close(websocket.StatusNormalClosure, "")
 		}()
 

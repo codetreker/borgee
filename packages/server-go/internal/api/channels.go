@@ -36,6 +36,13 @@ type ChannelHandler struct {
 	Config *config.Config
 	Logger *slog.Logger
 	Hub    EventBroadcaster
+	// State — AL-3.3 agent member presence fold. handleListMembers fills
+	// `ChannelMemberInfo.State/Reason` for `role=='agent'` rows so the
+	// client's MemberPresence has a REST fallback when WS presence cache
+	// is cold (mirrors DmHandler.withPeerState). nil-safe — when nil the
+	// fold no-ops and agent rows ship without state (client falls back to
+	// 'offline' wording, preserving prior behavior).
+	State AgentRuntimeProvider
 }
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
@@ -720,6 +727,24 @@ func (h *ChannelHandler) handleListMembers(w http.ResponseWriter, r *http.Reques
 	}
 	if members == nil {
 		members = []store.ChannelMemberInfo{}
+	}
+
+	// AL-3.3 agent member presence fold — for role=='agent' rows attach
+	// the live runtime state so the client's MemberPresence has a REST
+	// fallback when the WS presence cache is cold. Mirrors
+	// DmHandler.withPeerState (api/dm.go). nil-safe.
+	if h.State != nil {
+		for i := range members {
+			if members[i].Role != "agent" {
+				continue
+			}
+			snap := h.State.ResolveAgentState(members[i].UserID)
+			members[i].State = string(snap.State)
+			members[i].StateUpdatedAt = snap.UpdatedAt
+			if string(snap.State) == "error" {
+				members[i].Reason = snap.Reason
+			}
+		}
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"members": members})

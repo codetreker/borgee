@@ -354,7 +354,14 @@ func (s *Server) SetupRoutes() {
 	// MentionDispatcher.PushNotifier.)
 
 	// Channels
-	channelHandler := &api.ChannelHandler{Store: s.store, Config: s.cfg, Logger: s.logger, Hub: broadcaster}
+	// AL-3.3 agent member presence fold — handleListMembers attaches the
+	// live runtime state on `role=='agent'` rows so the client's
+	// MemberPresence has a REST fallback when WS presence cache is cold.
+	// Mirrors DmHandler.withPeerState (api/dm.go) — same adapter, same
+	// resolver. Constructed inline here (deps are s.hub + s.agentTracker
+	// — both ready well before this boot point).
+	channelStateAdapter := &agentRuntimeAdapter{hub: s.hub, tracker: s.agentTracker}
+	channelHandler := &api.ChannelHandler{Store: s.store, Config: s.cfg, Logger: s.logger, Hub: broadcaster, State: channelStateAdapter}
 	channelHandler.RegisterRoutes(s.mux, authMw)
 	// CHN-5 archived channels — owner-only user-rail GET + admin-rail readonly
 	// GET (no PATCH/PUT/DELETE on admin path; admin god-mode ADM-0 §1.3 红线).

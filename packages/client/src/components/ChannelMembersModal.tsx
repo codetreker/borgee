@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useCan } from '../hooks/usePermissions';
 import { fetchChannelMembers, addChannelMember, removeChannelMember, updateChannel, deleteChannel, archiveChannel, fetchAgents } from '../lib/api';
-import type { ChannelMember, Agent } from '../lib/api';
+import type { ChannelMember, Agent, AgentRuntimeState, AgentRuntimeReason } from '../lib/api';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import { useToast } from './Toast';
 import PresenceDot from './PresenceDot';
@@ -10,9 +10,22 @@ import { usePresence } from '../hooks/usePresence';
 
 // AL-3.3 (#R3 Phase 2) — agent member presence row.
 // Constraint §3.2: 仅 role==='agent' 行带 dot, 人 (member/admin) 行无 [data-presence].
-function MemberPresence({ agentID }: { agentID: string }) {
+// fallbackState/Reason: 跟 Sidebar.tsx::DmPresence (gh#922) 同套路 — REST
+// /api/v1/channels/:id/members 现在 fold 了 server-side state, modal 一开
+// (WS presence cache 还冷的窗口) 也能即时显真 state, 不再永远灰头像.
+function MemberPresence({
+  agentID,
+  fallbackState,
+  fallbackReason,
+}: {
+  agentID: string;
+  fallbackState?: AgentRuntimeState;
+  fallbackReason?: AgentRuntimeReason;
+}) {
   const live = usePresence(agentID);
-  return <PresenceDot state={live?.state} reason={live?.reason} />;
+  const state = live?.state ?? fallbackState;
+  const reason = live?.reason ?? (state === 'error' ? fallbackReason : undefined);
+  return <PresenceDot state={state} reason={reason} />;
 }
 
 export default function ChannelMembersModal({ channelId, onClose }: { channelId: string; onClose: () => void }) {
@@ -237,7 +250,13 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
                     {m.display_name}
                   </span>
                   {m.role === 'agent' && <span className="user-badge">Bot</span>}
-                  {m.role === 'agent' && <MemberPresence agentID={m.user_id} />}
+                  {m.role === 'agent' && (
+                    <MemberPresence
+                      agentID={m.user_id}
+                      fallbackState={m.state}
+                      fallbackReason={m.reason}
+                    />
+                  )}
                   {m.role === 'agent' && m.silent && (
                     <span className="user-badge user-badge-silent" title="silent: 不计入 unread / mention 计数">🔕 silent</span>
                   )}
