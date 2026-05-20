@@ -340,3 +340,104 @@ func TestExecutor_NilJob(t *testing.T) {
 		t.Fatalf("terminal = %+v, want failed/schema_invalid", terminal)
 	}
 }
+
+// TU-8 DefaultLayoutPostRename — guards #1017 bug 2 fix: the post-#1017
+// distribution shipped as a single `borgee` binary + `borgee` system
+// user + `borgee.service` unit, but DefaultLayout still referenced the
+// pre-rename `borgee-helper` paths everywhere. Lock the new layout so
+// any future drift fails this assertion.
+func TestDefaultLayout_LinuxPostRename(t *testing.T) {
+	t.Parallel()
+	l := DefaultLayout("linux")
+	if l.UserName != "borgee" || l.GroupName != "borgee" {
+		t.Fatalf("linux user/group = %s/%s, want borgee/borgee", l.UserName, l.GroupName)
+	}
+	if l.ServiceName != "borgee.service" {
+		t.Fatalf("linux service name = %q, want borgee.service", l.ServiceName)
+	}
+	if l.ServiceUnitPath != "/etc/systemd/system/borgee.service" {
+		t.Fatalf("linux unit path = %q", l.ServiceUnitPath)
+	}
+	wantStateDirs := map[string]bool{
+		"/var/lib/borgee/queue":         true,
+		"/var/lib/borgee/status":        true,
+		"/var/lib/borgee/audit-handoff": true,
+		"/var/lib/borgee/credential":    true,
+	}
+	for _, d := range l.StateDirs {
+		if !wantStateDirs[d] {
+			t.Fatalf("unexpected state dir %q in DefaultLayout(linux)", d)
+		}
+	}
+	if l.RuntimeDir != "/usr/local/lib/borgee" {
+		t.Fatalf("runtime dir = %q", l.RuntimeDir)
+	}
+	// `HelperBinaries` must be empty — `/usr/local/bin/borgee` is an
+	// npm-owned symlink not for the executor to remove.
+	if len(l.HelperBinaries) != 0 {
+		t.Fatalf("HelperBinaries should be empty post-#1017, got %v", l.HelperBinaries)
+	}
+	// Bug 2 reverse-grep: every Layout string must NOT contain the
+	// pre-rename "borgee-helper" prefix.
+	for _, s := range append(append(l.StateDirs, l.ServiceUnitPath, l.ServiceName, l.RuntimeDir, l.UserName, l.GroupName), l.HelperBinaries...) {
+		if strings.Contains(s, "borgee-helper") {
+			t.Fatalf("post-#1017 DefaultLayout(linux) still contains pre-rename string %q", s)
+		}
+	}
+}
+
+func TestDefaultLayout_DarwinPostRename(t *testing.T) {
+	t.Parallel()
+	l := DefaultLayout("darwin")
+	if l.UserName != "_borgee" || l.GroupName != "_borgee" {
+		t.Fatalf("darwin user/group = %s/%s, want _borgee/_borgee", l.UserName, l.GroupName)
+	}
+	if l.ServiceName != "cloud.borgee.host-bridge" {
+		t.Fatalf("darwin service name = %q", l.ServiceName)
+	}
+	if l.RuntimeDir != "/usr/local/libexec/borgee" {
+		t.Fatalf("darwin runtime dir = %q", l.RuntimeDir)
+	}
+	// AuxFiles must include the sandbox profile path so an uninstall
+	// removes it (anomaly #5 from the prior audit).
+	foundSandbox := false
+	for _, a := range l.AuxFiles {
+		if a == "/Library/Application Support/Borgee/borgee-helper.sb" {
+			foundSandbox = true
+		}
+	}
+	if !foundSandbox {
+		t.Fatalf("darwin DefaultLayout AuxFiles missing sandbox profile, got %v", l.AuxFiles)
+	}
+	// Reverse-grep: state dirs must not contain pre-rename helper user
+	// suffix. Sandbox profile filename is intentionally kept as
+	// borgee-helper.sb (matches the file setup.go writes today; safe
+	// to keep across the rename).
+	for _, s := range append(l.StateDirs, l.RuntimeDir) {
+		if strings.Contains(s, "_borgee-helper") {
+			t.Fatalf("post-#1017 DefaultLayout(darwin) still contains pre-rename %q", s)
+		}
+	}
+}
+
+// TU-9 AuxFilesRemoved — when Layout.AuxFiles is non-empty, those paths
+// are removed (e.g. macOS sandbox profile).
+func TestExecutor_AuxFilesRemoved(t *testing.T) {
+	t.Parallel()
+	layout, _ := fixtureLayout(t)
+	// Add an aux file outside the runtime / state trees.
+	auxRoot := t.TempDir()
+	aux := auxRoot + "/borgee-helper.sb"
+	if err := os.WriteFile(aux, []byte("(version 1)"), 0o644); err != nil {
+		t.Fatalf("write aux: %v", err)
+	}
+	layout.AuxFiles = []string{aux}
+	cmd := &recordingCmd{}
+	exec := &Executor{Layout: layout, Cmd: cmd, GOOS: "linux"}
+	if _, err := exec.Execute(context.Background(), newJob(t, map[string]any{"scope": "helper"})); err != nil {
+		t.Fatalf("Execute err: %v", err)
+	}
+	if _, err := os.Stat(aux); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("aux file %s should be removed (err=%v)", aux, err)
+	}
+}

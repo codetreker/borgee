@@ -3,62 +3,107 @@
 The `@codetreker/borgee-remote-agent` package ships two CLIs:
 
 1. **`borgee`** — the Borgee host-bridge daemon (Go binary, delivered through
-   per-platform `optionalDependencies` subpackages). Provides the `daemon`,
-   `setup`, `claim`, and `install` subcommands used to install the helper as
-   a systemd unit (Linux) or launchd plist (macOS) and to claim an
-   enrollment.
+   per-platform `optionalDependencies` subpackages). One-shot operator
+   bootstrap (`install`), local cleanup (`uninstall-host`), and the
+   long-lived `daemon` + advanced `setup` / `claim` / `install-plugin`
+   subcommands.
 2. **`borgee-remote-agent`** — the Node-based remote file-system bridge
    (TypeScript CLI that connects local directories to a Borgee channel via
-   WebSocket). Unchanged from the prior 0.1.1 release.
+   WebSocket). Unchanged from the prior 0.1.x release.
 
-## Install (helper daemon path — `borgee`)
+## Install on a host
 
-The recommended install path on a fresh host (replaces the prior
-`.deb` / `.pkg` distribution that briefly shipped under
-`release-helper.yml`; see chore/npm-bundle-rework, #993 #994 #995):
+Get a server URL + one-shot token from the Borgee web UI, then run a
+single command on the target host:
 
 ```bash
-sudo npm i -g @codetreker/borgee-remote-agent
-sudo borgee setup                                       # systemd unit + state dirs + system user
-sudo borgee claim --enrollment-id=<id> \
-                  --enrollment-secret=<secret> \
-                  --server-origin=https://app.borgee.io
-sudo systemctl enable --now borgee.service              # macOS: sudo launchctl load -w /Library/LaunchDaemons/cloud.borgee.host-bridge.plist
+sudo npx @codetreker/borgee-remote-agent install \
+  --server wss://borgee.codetrek.cn \
+  --token <token-from-web-ui>
 ```
 
-npm picks one platform `optionalDependency`
-(`@codetreker/borgee-remote-agent-linux-x64`, `-linux-arm64`,
-`-darwin-x64`, or `-darwin-arm64`) and skips the other three; a Node shim
-(`bin/borgee.js`) resolves the chosen subpackage and exec's its
-`bin/borgee`. Windows is intentionally out of scope; track issue #659.
+That's it. The daemon is installed, claimed, started, and survives
+reboot via systemd (Linux) / launchd (macOS). The internal sequence —
+copy binary to a persistent path, write the systemd unit / launchd
+plist + system user + state dirs, POST `/claim` with the enrollment
+secret, `systemctl enable --now` / `launchctl bootstrap`, wait for the
+first heartbeat — happens behind one operator-visible command.
 
-Subcommands:
+The `--token` value is `<enrollment_id>.<enrollment_secret>` (a single
+opaque string the web UI concatenates for paste convenience). The CLI
+splits on the FIRST `.` so a dotted secret roundtrips intact.
+
+`wss://` and `https://` are both accepted as `--server`; the CLI
+derives the matching `https://` origin for API calls automatically.
+Plaintext `http://` / `ws://` are rejected unless
+`--allow-insecure-server` is passed (test environments only).
+
+## Uninstall
+
+```bash
+sudo npx @codetreker/borgee-remote-agent uninstall-host
+```
+
+Stops + disables the service, wipes state / runtime / unit-file / OS
+user, prints a pointer to `npm uninstall -g` if you installed globally.
+For server-driven uninstall (operator triggers via web UI), the
+`helper.uninstall` job runs the same cleanup buckets from inside the
+daemon (`internal/executors/uninstall`).
+
+## Advanced (re-claim, redo setup)
+
+Subcommands available under `borgee`:
 
 ```
-borgee daemon ...           # long-lived host-bridge daemon (started by systemd / launchd)
-borgee setup                # install systemd unit / launchd plist + system user + state dirs
-borgee claim ...            # one-time enrollment claim (writes credential + enrollment-id + device-id)
-borgee install ...          # signed-manifest binary installer (HB-1; for runtime plugins like openclaw)
-borgee uninstall            # pointer to the helper.uninstall job (run via Borgee web UI)
+borgee install          # one-shot operator bootstrap (the recommended path above)
+borgee uninstall-host   # operator-driven local cleanup
+borgee setup            # systemd unit / launchd plist + system user + state dirs (called by install)
+borgee claim ...        # one-time enrollment claim (called by install; re-runnable to re-claim)
+borgee daemon ...       # long-lived host-bridge daemon (started by systemd / launchd)
+borgee install-plugin   # signed-manifest plugin binary installer (HB-1; was: borgee install)
 borgee --version
 ```
 
-`borgee setup` is idempotent and writes:
+Re-claim with a new token:
 
-- Linux: `/etc/systemd/system/borgee.service`, system user `borgee`,
-  state dirs under `/var/lib/borgee/{queue,status,audit-handoff,credential}`,
-  log dir `/var/log/borgee`, run dir `/run/borgee`.
-- macOS: `/Library/LaunchDaemons/cloud.borgee.host-bridge.plist`, sandbox
-  profile at `/Library/Application Support/Borgee/borgee-helper.sb`, system
-  user `_borgee`, state dirs under
-  `/Library/Application Support/Borgee/Helper/...`.
+```bash
+sudo borgee claim --enrollment-id=<id> --enrollment-secret=<secret> \
+                  --server-origin=https://borgee.codetrek.cn
+```
 
-`borgee setup` does NOT auto-start the service — the operator must run
-`borgee claim` first so the daemon has a credential.
+Redo systemd unit only (e.g. after a config bump):
+
+```bash
+sudo borgee setup --server-origin=https://borgee.codetrek.cn
+sudo systemctl daemon-reload && sudo systemctl restart borgee
+```
+
+## What gets installed
+
+Linux:
+
+| Path | Purpose |
+|---|---|
+| `/usr/local/lib/borgee/bin/borgee` | Persistent helper binary (`install` copies it from npx cache) |
+| `/etc/systemd/system/borgee.service` | systemd unit (ExecStart points at above) |
+| `/var/lib/borgee/{queue,status,audit-handoff,credential}` | Helper-owned state dirs (mode 0750) |
+| `/var/log/borgee` | Audit log dir |
+| `/run/borgee` | UDS socket dir |
+| user `borgee`, group `borgee` | System service account (UID < 1000) |
+
+macOS:
+
+| Path | Purpose |
+|---|---|
+| `/usr/local/libexec/borgee/borgee` | Persistent helper binary |
+| `/Library/LaunchDaemons/cloud.borgee.host-bridge.plist` | launchd plist |
+| `/Library/Application Support/Borgee/borgee-helper.sb` | sandbox-exec profile |
+| `/Library/Application Support/Borgee/Helper/...` | Helper-owned state dirs |
+| user `_borgee`, group `_borgee` | System service account |
 
 ## Use (Node remote-agent path — `borgee-remote-agent`)
 
-This is the original Node WebSocket CLI; bin name unchanged.
+The original Node WebSocket CLI; bin name unchanged.
 
 ```bash
 npx @codetreker/borgee-remote-agent --server wss://borgee.codetrek.cn --token <connection_token> --dirs /path/to/dir

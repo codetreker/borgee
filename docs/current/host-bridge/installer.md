@@ -44,7 +44,7 @@ operator runs `sudo systemctl enable --now borgee.service`
 
 ## Current Trust Boundary
 
-`borgee install` (folded from install-butler in #996) is the signed-manifest path for *runtime plugin* binaries (openclaw etc.), still backed by the server-side ed25519 signing chain documented in [`manifest-signing.md`](./manifest-signing.md). The helper binary itself is delivered through npm (registry trust + the platform subpackage's own provenance), which is a separate trust boundary from the manifest-signing path.
+`borgee install-plugin` (folded from install-butler in #996) is the signed-manifest path for *runtime plugin* binaries (openclaw etc.), still backed by the server-side ed25519 signing chain documented in [`manifest-signing.md`](./manifest-signing.md). The helper binary itself is delivered through npm (registry trust + the platform subpackage's own provenance), which is a separate trust boundary from the manifest-signing path.
 
 ## Out Of Scope
 
@@ -54,7 +54,7 @@ operator runs `sudo systemctl enable --now borgee.service`
 
 - `packages/borgee/cmd/borgee/main.go` — subcommand dispatcher (single binary entry).
 - `packages/borgee/internal/cli/setup/setup.go` — `borgee setup` (renders systemd unit + launchd plist + creates user + state dirs).
-- `packages/borgee/internal/cli/installbutler/installbutler.go` — `borgee install` (signed-manifest installer).
+- `packages/borgee/internal/cli/installbutler/installbutler.go` — `borgee install-plugin` (signed-manifest installer).
 - `packages/borgee/internal/cli/claim/claim.go` — `borgee claim` (enrollment claim).
 - `packages/remote-agent/bin/borgee.js` — Node shim resolving the platform subpackage.
 - `packages/remote-agent/platforms/{linux-x64,linux-arm64,darwin-x64,darwin-arm64}/` — 4 platform subpackages (one binary each).
