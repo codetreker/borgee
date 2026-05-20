@@ -573,6 +573,10 @@ export interface Agent {
   created_at: number;
   api_key?: string;
   disabled?: number;
+  // Global "respond only on @mention" toggle. Default is true (mirrors
+  // server users.require_mention DEFAULT true) — agent stays quiet unless
+  // explicitly mentioned. Owner can flip this per-agent from My Agents.
+  require_mention?: boolean;
   state?: AgentRuntimeState;
   reason?: AgentRuntimeReason;
   state_updated_at?: number;
@@ -686,6 +690,27 @@ export async function rotateAgentApiKey(id: string): Promise<string> {
     method: 'POST',
   });
   return data.api_key;
+}
+
+// updateAgentRequireMention — owner-rail PATCH /api/v1/agents/{id}.
+//
+// Flips the global "respond only on @mention" toggle for an agent owned by
+// the caller. Server collapses authz failures (cross-owner / not-yours) into
+// 404 to avoid leaking existence of someone else's agent ids. Strict decode:
+// extra body fields → 400 (the endpoint deliberately accepts only this one
+// field; do not add to this body or the server will reject it).
+//
+// Returns the updated Agent so callers can re-render from authoritative
+// server state rather than the optimistic local guess.
+export async function updateAgentRequireMention(
+  id: string,
+  requireMention: boolean,
+): Promise<Agent> {
+  const data = await request<{ agent: Agent }>(`/api/v1/agents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ require_mention: requireMention }),
+  });
+  return data.agent;
 }
 
 export async function fetchAgentPermissions(

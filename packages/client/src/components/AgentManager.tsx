@@ -10,6 +10,7 @@ import {
   rotateAgentApiKey,
   fetchAgentPermissions,
   updateAgentPermissions,
+  updateAgentRequireMention,
   addAgentToChannel,
   fetchAgentRuntime,
   type Agent,
@@ -137,6 +138,14 @@ function AgentCard({
 }) {
   const [permissions, setPermissions] = useState<PermissionDetail[]>([]);
   const [loadingPerms, setLoadingPerms] = useState(false);
+  // require_mention 本地镜像 — 翻转时立即 setOptimistic, 服务器失败回滚原值.
+  // 默认 true 跟 server users.require_mention DEFAULT true 同源 (model.go:50);
+  // 老 agent / undefined 字段也按 true 渲染 — 跟 server 兜底一致.
+  const [requireMention, setRequireMention] = useState<boolean>(agent.require_mention ?? true);
+  const [savingRequireMention, setSavingRequireMention] = useState(false);
+  useEffect(() => {
+    setRequireMention(agent.require_mention ?? true);
+  }, [agent.require_mention]);
   // #684 — API key display policy. Constraint: the full plaintext key never
   // enters React state or refs. It is held only inside the fetch closure, sliced
   // with `key.slice(-4)`, then discarded.
@@ -314,6 +323,30 @@ function AgentCard({
     }
   };
 
+  // require_mention toggle handler — optimistic update + rollback on error.
+  // 不走 onRefresh re-fetch (整个 list 一次 GET 浪费), 直接用 PATCH 返
+  // updated agent 校准本地 state.
+  const handleToggleRequireMention = async () => {
+    if (savingRequireMention) return;
+    const prev = requireMention;
+    const next = !prev;
+    setRequireMention(next); // optimistic
+    setSavingRequireMention(true);
+    try {
+      const updated = await updateAgentRequireMention(agent.id, next);
+      // Server 返回 authoritative 值, 跟我们 optimistic 校准.
+      setRequireMention(updated.require_mention ?? next);
+      showToast(next ? '已开启: 仅 @mention 时响应' : '已关闭: 任何消息都响应');
+      // 通知 parent 同步 (list 重渲不丢字段).
+      onRefresh();
+    } catch (err) {
+      setRequireMention(prev); // 回滚
+      showToast(err instanceof Error ? err.message : '保存失败');
+    } finally {
+      setSavingRequireMention(false);
+    }
+  };
+
   const handleTogglePerm = async (perm: string) => {
     const has = permissions.some(p => p.permission === perm && p.scope === '*');
     let newPerms: { permission: string; scope?: string }[];
@@ -399,6 +432,41 @@ function AgentCard({
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn btn-sm" onClick={handleRotateKey}>Rotate API Key</button>
             </div>
+          </section>
+
+          {/* Mention 设置 — owner-rail PATCH /api/v1/agents/{id} 翻动
+              users.require_mention. true (默认) = 仅 mention 时响应,
+              false = 任何消息都响应. 不跟频道级 ChannelMentionControls 共
+              逻辑 (那是 per-channel override). */}
+          <section className="agent-detail-card agent-detail-card-mention">
+            <strong>Mention 设置</strong>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 8,
+                fontSize: 13,
+                cursor: savingRequireMention ? 'progress' : 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={requireMention}
+                disabled={savingRequireMention}
+                onChange={handleToggleRequireMention}
+                data-testid="agent-require-mention-toggle"
+              />
+              <span>仅 @mention 时响应</span>
+              {savingRequireMention && (
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>保存中…</span>
+              )}
+            </label>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+              {requireMention
+                ? '当前: 仅在被 @mention 时响应消息'
+                : '当前: 任何消息都会触发响应'}
+            </p>
           </section>
 
           {/* #684 — Runtime card. AL-4.3 (#379 §1 split): fetchAgentRuntime null

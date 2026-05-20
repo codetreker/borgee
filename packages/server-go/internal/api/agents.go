@@ -72,6 +72,7 @@ func (h *AgentHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handl
 	mux.Handle("POST /api/v1/agents", wrap(h.handleCreateAgent))
 	mux.Handle("GET /api/v1/agents", wrap(h.handleListAgents))
 	mux.Handle("GET /api/v1/agents/{id}", wrap(h.handleGetAgent))
+	mux.Handle("PATCH /api/v1/agents/{id}", wrap(h.handlePatchAgent))
 	mux.Handle("DELETE /api/v1/agents/{id}", wrap(h.handleDeleteAgent))
 	mux.Handle("POST /api/v1/agents/{id}/rotate-api-key", wrap(h.handleRotateAPIKey))
 	mux.Handle("GET /api/v1/agents/{id}/permissions", wrap(h.handleGetPermissions))
@@ -243,6 +244,85 @@ func (h *AgentHandler) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"agent": h.withState(sanitizeAgent(agent), agent.ID, agent.Disabled)})
+}
+
+// handlePatchAgent — owner-rail PATCH /api/v1/agents/{id}.
+//
+// Scope (anti scope-creep): currently only `require_mention` is mutable.
+// Other agent fields go through dedicated endpoints (display_name/avatar/
+// prompt/model/capabilities/enabled/memory_ref via agent_config PATCH;
+// permissions via PUT /permissions). 不顺手开 disabled/role 口子.
+//
+// Authz (anti-IDOR — pm_stance_must_include_anti_x):
+//   - Login required (auth middleware via mustUser).
+//   - target.OwnerID == current_user.ID — else 404 (not 403) so we do not
+//     leak existence of agents owned by other users. loadAgentByPath already
+//     returns 404 for missing rows, so the two paths fold into the same
+//     response shape.
+//   - body strict-decode (DisallowUnknownFields) — extra fields → 400 so a
+//     client can never silently widen the surface area.
+//   - require_mention must be bool; non-bool → 400 via JSON type error.
+//   - Empty body (no recognized fields) → 400 to avoid no-op writes that
+//     look like success.
+func (h *AgentHandler) handlePatchAgent(w http.ResponseWriter, r *http.Request) {
+	user, ok := mustUser(w, r)
+	if !ok {
+		return
+	}
+
+	agent, id, ok := loadAgentByPath(w, r, h.Store)
+	if !ok {
+		return
+	}
+
+	// Anti-IDOR: collapse "not yours" into the same 404 response as
+	// "doesn't exist" — do not leak that the id is real but you cannot
+	// touch it.
+	if agent.OwnerID == nil || *agent.OwnerID != user.ID {
+		writeJSONError(w, http.StatusNotFound, "Agent not found")
+		return
+	}
+
+	// Strict decode: explicit DisallowUnknownFields rejects extra keys so
+	// a future field cannot be smuggled in via this PATCH without an
+	// intentional API change. readJSON() is intentionally NOT used here
+	// because the shared helper is permissive (no DisallowUnknownFields).
+	const maxBytes = 1 << 16
+	r.Body = http.MaxBytesReader(nil, r.Body, maxBytes)
+	body := struct {
+		RequireMention *bool `json:"require_mention"`
+	}{}
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	// Disallow trailing tokens (a JSON stream with extra content).
+	if dec.More() {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON: unexpected trailing content")
+		return
+	}
+
+	updates := map[string]any{}
+	if body.RequireMention != nil {
+		updates["require_mention"] = *body.RequireMention
+	}
+	if len(updates) == 0 {
+		writeJSONError(w, http.StatusBadRequest, "no mutable fields supplied")
+		return
+	}
+
+	if err := h.Store.UpdateUser(id, updates); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Failed to update agent")
+		return
+	}
+
+	updated, err := h.Store.GetAgent(id)
+	if err != nil || updated == nil {
+		updated = agent
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"agent": h.withState(sanitizeAgent(updated), updated.ID, updated.Disabled)})
 }
 
 func (h *AgentHandler) handleDeleteAgent(w http.ResponseWriter, r *http.Request) {
