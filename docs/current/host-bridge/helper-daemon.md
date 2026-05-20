@@ -57,7 +57,7 @@ leased job -> ack receipt -> later policy/action handoff -> bounded terminal res
 
 Linux applies a Landlock read-only ruleset when supported by the kernel. The installed systemd service permits only `AF_UNIX`, `AF_INET`, and `AF_INET6` address families so later Helper polling can use outbound HTTPS while the daemon still exposes only the local UDS inbound path. The service restarts on failure with `RestartSec=10s`, `StartLimitIntervalSec=5min`, and `StartLimitBurst=5`, while continuing to run as the non-root Helper user. With no configured read paths, the intended shape is deny-by-default. If the kernel lacks Landlock support, the sandbox layer falls back without aborting startup, so ACL, systemd hardening, and OS permissions become the effective boundary.
 
-macOS uses a wrapper model. The helper process itself does not self-apply a sandbox; a generated profile is intended to be applied by `sandbox-exec` before the daemon starts. The installed launchd plist runs at load, restarts after unsuccessful exit through failure-only `KeepAlive`, and uses `ThrottleInterval=10` while continuing to run as `_borgee-helper`. The installed sandbox profile keeps local Unix socket bind/outbound permissions for UDS and permits remote TCP only as an outbound prerequisite; destination allowlisting is enforced by Helper startup config validation, not by `sandbox-exec`. The helper keeps the same internal ACL path on both platforms so platform sandboxing is defense in depth, not the only enforcement layer.
+macOS uses a wrapper model. The helper process itself does not self-apply a sandbox; a generated profile is intended to be applied by `sandbox-exec` before the daemon starts. The installed launchd plist runs at load, restarts after unsuccessful exit through failure-only `KeepAlive`, and uses `ThrottleInterval=10` while continuing to run as `_borgee`. The installed sandbox profile keeps local Unix socket bind/outbound permissions for UDS and permits remote TCP only as an outbound prerequisite; destination allowlisting is enforced by Helper startup config validation, not by `sandbox-exec`. The helper keeps the same internal ACL path on both platforms so platform sandboxing is defense in depth, not the only enforcement layer.
 
 ## Outbound Prerequisite Model
 
@@ -105,13 +105,13 @@ The helper does not create grants, write files, expose Remote Agent directories,
 
 ## Implementation Anchors
 
-- `packages/borgee-helper/cmd/borgee-helper/main.go`
-- `packages/borgee-helper/internal/ipc` (`Handler`, `Request`, `Response`)
-- `packages/borgee-helper/internal/acl` (`Gate`, `Action`, `Decision`)
-- `packages/borgee-helper/internal/grants` (`Consumer`, `SQLiteConsumer`)
-- `packages/borgee-helper/internal/fileio` (`ReadFile`, `ListFiles`)
-- `packages/borgee-helper/internal/audit` (`Logger`, `Event`)
-- `packages/borgee-helper/internal/sandbox` (`Profile`, platform `Apply`)
-- `packages/borgee-helper/internal/jobpolicy` (`Evaluate`, `Decision`, runtime policy manifest and binding types)
-- `packages/borgee-helper/internal/outbound` (`PrereqConfig`, `ValidateAndPrepare`, `Client`)
-- `packages/borgee-helper/install` (systemd, launchd, and macOS sandbox assets)
+- `packages/borgee/cmd/borgee/main.go`
+- `packages/borgee/internal/ipc` (`Handler`, `Request`, `Response`)
+- `packages/borgee/internal/acl` (`Gate`, `Action`, `Decision`)
+- `packages/borgee/internal/grants` (`Consumer`, `SQLiteConsumer`)
+- `packages/borgee/internal/fileio` (`ReadFile`, `ListFiles`)
+- `packages/borgee/internal/audit` (`Logger`, `Event`)
+- `packages/borgee/internal/sandbox` (`Profile`, platform `Apply`)
+- `packages/borgee/internal/jobpolicy` (`Evaluate`, `Decision`, runtime policy manifest and binding types)
+- `packages/borgee/internal/outbound` (`PrereqConfig`, `ValidateAndPrepare`, `Client`)
+- `packages/borgee/install` (systemd, launchd, and macOS sandbox assets)

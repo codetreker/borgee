@@ -1,64 +1,62 @@
-# Installer
+# Installer (now `borgee setup` + npm bundle)
 
-The Host Bridge installer is the deployment path for the helper daemon. It is intentionally separate from the helper enforcement path: the server manifest endpoint and installer verifier exist, but the end-to-end installer trust boundary is still partial wiring. The installer deploys a local artifact path, while the helper later enforces grants and IPC decisions.
+The Host Bridge installer path is the deployment route for the helper daemon. After chore/npm-bundle-rework (#993 #994 #995) the installer collapsed from a separate Go binary tree (the prior `packages/borgee-installer/` and `.deb` / `.pkg` artifact chain) into the `borgee setup` subcommand of the single `borgee` Go binary, which itself is delivered through the `@codetreker/borgee-remote-agent` npm package.
 
 ## Overview
 
 **Role**
-The installer turns a locally supplied helper package into a platform service after running the current manifest verifier path. It fetches release metadata, asks the local operator to confirm host capabilities, and invokes platform package/service commands against the artifact path passed on the command line.
+The installer turns a fresh host into a running helper service. The operator runs `sudo npm i -g @codetreker/borgee-remote-agent` (which carries the platform `borgee` binary as an `optionalDependencies` subpackage), then `sudo borgee setup` to write the systemd unit (Linux) or launchd plist (macOS), create the system user, and create the helper-owned state directories. `borgee setup` does NOT auto-start the service; the operator must run `sudo borgee claim ...` first so the daemon has a credential, then `sudo systemctl enable --now borgee.service` (or `sudo launchctl load -w /Library/LaunchDaemons/cloud.borgee.host-bridge.plist`).
 
 **Boundary**
-The installer boundary is partial wiring plus local operator consent. It does not yet establish an end-to-end trust boundary because the server/client envelope shape, signing-key injection, and local artifact binding are not aligned. It also does not decide whether a future agent request is authorized; that remains a helper/grant decision after installation.
+`borgee setup` writes platform service assets and creates the system user; it does not decide whether a future agent request is authorized (a helper/grant decision after installation), it does not fetch the helper binary (the npm package machinery already did that), and it does not embed an enrollment secret (delegated to `borgee claim`).
 
 **Collaborators**
-The installer collaborates with the manifest endpoint, a verification key path, local package artifacts, the operator prompt, and platform service managers. It does not collaborate with Remote Agent and does not create admin routes.
+`borgee setup` collaborates with `useradd` / `dscl` (system user creation), the platform service manager (`systemctl daemon-reload` / `launchctl`), and the file system (state dirs + unit / plist files). It does not collaborate with Remote Agent and does not create admin routes.
 
 **Internal Architecture**
 
-- Platform command: Linux and macOS have separate entrypoints and artifact flags.
-- Manifest client: fetches a bounded JSON envelope and runs the current verifier path before deployment.
-- Consent prompt: presents the host capability class before installation proceeds.
-- Deployment plan: returns inspectable platform command steps and executes them outside dry-run mode.
+- Subcommand dispatcher (`packages/borgee/cmd/borgee/main.go`) routes `borgee setup` to `internal/cli/setup/`.
+- The setup package embeds the systemd unit and launchd plist templates (`renderLinuxUnit` / `renderDarwinPlist`); regression test `setup_test.go` locks the rendered content against silent drift.
+- `--dry-run` prints what `borgee setup` would do without touching the system.
 
 **Key Flows**
 
 ```text
-operator runs installer with local artifact path -> fetch manifest -> run verifier path
--> confirm host capability prompt -> build platform deploy plan for that local artifact
--> dry-run prints steps OR sudo commands install and start helper service
+operator runs `sudo npm i -g @codetreker/borgee-remote-agent`
+  -> npm picks the right `@codetreker/borgee-remote-agent-<plat>-<arch>` optionalDependency
+  -> Node shim `bin/borgee.js` resolves the platform subpackage's `bin/borgee`
+operator runs `sudo borgee setup`
+  -> create system user (idempotent skip if present)
+  -> create /var/lib/borgee/{queue,status,audit-handoff,credential} (+ /var/log/borgee, /run/borgee)
+  -> write /etc/systemd/system/borgee.service (or /Library/LaunchDaemons/...plist)
+  -> systemctl daemon-reload (Linux) — DO NOT auto-start; wait for claim
+operator runs `sudo borgee claim --enrollment-id=X --enrollment-secret=Y --server-origin=Z`
+  -> POST /api/v1/helper/enrollments/{id}/claim
+  -> persist credential (0600) + enrollment-id + device-id
+operator runs `sudo systemctl enable --now borgee.service`
 ```
 
 **Invariants**
 
-- The manifest endpoint and installer verifier are present, but deployment trust remains partial because artifact integrity is not tied to a manifest entry.
-- The installer uses local platform package/service tools rather than a server-side admin deploy endpoint.
-- The installer installs the helper; it does not grant future host requests by itself.
-- Platform deployment is explicit and inspectable through dry-run.
+- npm bundle delivery means the operator NEVER hand-copies a `.deb` / `.pkg`; the platform subpackage carries exactly one file at `bin/borgee`.
+- `borgee setup` is idempotent on re-runs (state dirs preserved, user creation skipped if present, unit file overwritten).
+- `borgee setup` never reads or writes enrollment credentials — that path lives in `borgee claim`.
 
 ## Current Trust Boundary
 
-The installer has a verifier path for manifest data fetched from the server manifest endpoint. That path is not yet a dependable end-to-end trust boundary: the client and server envelope shapes are not aligned, production signing-key injection is not clearly wired, and the local `.deb` or `.pkg` path supplied to the installer is not verified against a manifest entry before package-manager execution.
-
-## Deployment Model
-
-Linux deployment is modeled as package installation plus systemd unit enable/start. macOS deployment is modeled as package installation plus launchd load. The installer surfaces these as ordered steps so tests and dry-run can inspect the plan without invoking privileged commands.
+`borgee install` (folded from install-butler in #996) is the signed-manifest path for *runtime plugin* binaries (openclaw etc.), still backed by the server-side ed25519 signing chain documented in [`manifest-signing.md`](./manifest-signing.md). The helper binary itself is delivered through npm (registry trust + the platform subpackage's own provenance), which is a separate trust boundary from the manifest-signing path.
 
 ## Out Of Scope
 
-The installer does not enforce runtime grants, mediate helper IPC, install Remote Agent, or expose admin management APIs.
-
-## Known Gaps
-
-- Client and server manifest envelope shapes are not aligned.
-- Artifact-to-manifest binding remains the installer trust gap described above.
-- Installer prompt vocabulary and server host-grant vocabulary are not aligned.
-- Production signing-key injection for the server manifest path is not clearly represented in the current wiring.
+`borgee setup` does not enforce runtime grants, mediate helper IPC, install Remote Agent, expose admin management APIs, or auto-claim enrollments.
 
 ## Implementation Anchors
 
-- `packages/borgee-installer/cmd/borgee-installer-linux/main.go`
-- `packages/borgee-installer/cmd/borgee-installer-darwin/main.go`
-- `packages/borgee-installer/internal/manifest` (`Envelope`, `Fetch`, `Verify`)
-- `packages/borgee-installer/internal/deploy` (`Plan`, `LinuxPlan`, `DarwinPlan`)
-- `packages/borgee-installer/internal/dialog` (`Confirm`, `GrantTypes`)
-- `packages/server-go/internal/api/host_manifest.go` (`PluginManifestHandler`)
+- `packages/borgee/cmd/borgee/main.go` — subcommand dispatcher (single binary entry).
+- `packages/borgee/internal/cli/setup/setup.go` — `borgee setup` (renders systemd unit + launchd plist + creates user + state dirs).
+- `packages/borgee/internal/cli/installbutler/installbutler.go` — `borgee install` (signed-manifest installer).
+- `packages/borgee/internal/cli/claim/claim.go` — `borgee claim` (enrollment claim).
+- `packages/remote-agent/bin/borgee.js` — Node shim resolving the platform subpackage.
+- `packages/remote-agent/platforms/{linux-x64,linux-arm64,darwin-x64,darwin-arm64}/` — 4 platform subpackages (one binary each).
+- `.github/workflows/release-borgee.yml` — release pipeline (tag `borgee-v*` → build 4 platforms → publish 4 platform npm subpackages → publish main package).
+- `packages/server-go/internal/api/host_manifest.go` (`PluginManifestHandler`) — server side of the signed manifest endpoint.
