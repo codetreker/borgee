@@ -288,7 +288,40 @@ func (s *Server) SetupRoutes() {
 	// claim/status/uninstall use the distinct Helper credential rail.
 	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Repo: s.dl.HelperEnrollmentRepo, JobRepo: s.dl.HelperJobRepo, Logger: s.logger}
 	helperEnrollmentHandler.RegisterRoutes(s.mux, authMw)
-	helperJobsHandler := &api.HelperJobsHandler{Repo: s.dl.HelperJobRepo}
+	// PR-4 amend (#1033) — load BORGEE_MANIFEST_SIGNING_KEY here (earlier
+	// than the HB-1 plugin manifest handler below) so the helper-jobs
+	// handler can hold a HelperManifestProvider on the same key. The
+	// plugin manifest handler also reuses hb1SigningKey at its
+	// registration point further down — single read, two consumers, one
+	// trust root on the daemon side (BORGEE_MANIFEST_SIGNING_PUBKEY).
+	hb1SigningKey, hb1KeyErr := api.LoadSigningKey(s.logger)
+	if hb1KeyErr != nil && s.logger != nil {
+		s.logger.Error("hb1.signing_key_invalid",
+			"env", api.EnvManifestSigningKey,
+			"error", hb1KeyErr.Error(),
+			"effect", "manifest entries served unsigned; install-butler will reject in production")
+	}
+	helperJobsHandler := &api.HelperJobsHandler{
+		Repo: s.dl.HelperJobRepo,
+		// PR-4 amend (#1033): server emits the signed canonical helper-
+		// policy manifest body in every leased-job payload so the daemon
+		// can run jobpolicy.Evaluate against an actual signed manifest
+		// (binding's PathIDs/ServiceIDs are resolved against the manifest's
+		// authoritative declarations).
+		ManifestProvider: api.NewHelperManifestProvider(hb1SigningKey),
+		Logger:           s.logger,
+	}
+	// PR-4 final amend: wire the WS push adapter so handleEnqueue can
+	// push immediately to a connected daemon (sub-second job latency
+	// instead of REST poll's ~5s retry-after window). The adapter
+	// closes over *ws.Hub; api package stays import-clean of internal/ws.
+	helperJobsHandler.SetPushAdapter(&helperJobsPushAdapter{hub: s.hub})
+	// PR-4 final amend: on every daemon WS reconnect, drain any jobs
+	// that queued while it was disconnected. The hook fires once per
+	// RegisterHelper from internal/ws.HandleHelper.
+	s.hub.SetHelperConnectHook(func(enrollmentID string) {
+		helperJobsHandler.PushQueuedToHelper(context.Background(), enrollmentID)
+	})
 	helperJobsHandler.RegisterRoutes(s.mux, authMw)
 
 	// AL-1.4 agent state log — owner-only GET /api/v1/agents/:id/state-log
@@ -337,16 +370,10 @@ func (s *Server) SetupRoutes() {
 	// manifest data 走 LoadManifestEntries 三档 fallback (env JSON > env file
 	// > 内置默认), 立场 ② 0 schema 不变.
 	// 私钥 BORGEE_MANIFEST_SIGNING_KEY (base64 ed25519 seed, 32 字节解码后)
-	// 启动时一次性读取; 缺省 fall-soft (per-entry Signature 留空 + 顶层
-	// signature 走 test placeholder), 日志 warn 一行. 生产由监控抓 warn
-	// 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
-	hb1SigningKey, hb1KeyErr := api.LoadSigningKey(s.logger)
-	if hb1KeyErr != nil && s.logger != nil {
-		s.logger.Error("hb1.signing_key_invalid",
-			"env", api.EnvManifestSigningKey,
-			"error", hb1KeyErr.Error(),
-			"effect", "manifest entries served unsigned; install-butler will reject in production")
-	}
+	// 启动时一次性读取 (above, at helperJobsHandler init — same key for
+	// both manifest endpoints); 缺省 fall-soft (per-entry Signature 留空 +
+	// 顶层 signature 走 test placeholder), 日志 warn 一行. 生产由监控抓
+	// warn 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
 	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey}
 	hb1ManifestHandler.RegisterRoutes(s.mux, authMw)
 
@@ -839,6 +866,33 @@ type helperEnrollmentAuthAdapter struct {
 
 func (a *helperEnrollmentAuthAdapter) UpdateLastSeen(ctx context.Context, id, credential, helperDeviceID string, now time.Time) (*datalayer.HelperEnrollment, error) {
 	return a.repo.UpdateLastSeen(ctx, id, credential, helperDeviceID, now)
+}
+
+// helperJobsPushAdapter — PR-4 final amend host-bridge WS push
+// adapter. Closes over *ws.Hub so the api.HelperJobsHandler can push
+// frames without importing internal/ws (api → ws would cycle on
+// ws.HelperJobProcessor). The hub exposes session lookup + send via
+// concrete methods; this adapter forwards both.
+type helperJobsPushAdapter struct {
+	hub *ws.Hub
+}
+
+func (a *helperJobsPushAdapter) GetHelperSessionPlatform(enrollmentID string) (string, string, string, bool) {
+	if a == nil || a.hub == nil {
+		return "", "", "", false
+	}
+	sess := a.hub.GetHelper(enrollmentID)
+	if sess == nil {
+		return "", "", "", false
+	}
+	return string(sess.Platform()), sess.DeviceID(), sess.Credential(), true
+}
+
+func (a *helperJobsPushAdapter) SendJobFrameToHelper(enrollmentID string, jobJSON json.RawMessage) bool {
+	if a == nil || a.hub == nil {
+		return false
+	}
+	return a.hub.SendJobToHelper(enrollmentID, jobJSON)
 }
 
 func (a *hubPluginAdapter) ProxyPluginRequest(agentID string, method string, path string, body []byte) (int, []byte, error) {

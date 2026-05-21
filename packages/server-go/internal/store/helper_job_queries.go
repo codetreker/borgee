@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"borgee-server/internal/helpermanifest"
 	"borgee-server/internal/idgen"
 	"gorm.io/gorm"
 )
@@ -49,6 +50,9 @@ const (
 	HelperJobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
 	HelperJobTypePluginConfigureConnection   = "borgee_plugin.configure_connection"
 	HelperJobTypeServiceLifecycle            = "service.lifecycle"
+	HelperJobTypeStateWrite                  = "state.write"
+	HelperJobTypeStatusCollect               = "status.collect"
+	HelperJobTypeDelegationRevoke            = "delegation.revoke"
 	HelperJobTypeHelperUninstall             = "helper.uninstall"
 	HelperJobStatusQueued                    = "queued"
 	HelperJobStatusLeased                    = "leased"
@@ -66,13 +70,13 @@ const (
 )
 
 const (
-	helperJobOpenClawManifestSeed      = "borgee-helper-openclaw-runtime-policy-manifest-v1"
-	helperJobOpenClawPluginArtifactID  = "openclaw-plugin"
-	helperJobOpenClawInstallPathID     = "openclaw_install"
-	helperJobOpenClawAgentConfigPathID = "openclaw_agent_config"
-	helperJobBorgeePluginConfigPathID  = "borgee_plugin_config"
-	helperJobOpenClawServiceID         = "openclaw-user"
-	helperJobOpenClawPluginOrigin      = "https://cdn.borgee.io"
+	helperJobOpenClawPluginArtifactID  = helpermanifest.ArtifactIDOpenClawPlugin
+	helperJobOpenClawInstallPathID     = helpermanifest.PathIDOpenClawInstall
+	helperJobOpenClawAgentConfigPathID = helpermanifest.PathIDOpenClawAgentConfig
+	helperJobBorgeePluginConfigPathID  = helpermanifest.PathIDBorgeePluginConfig
+	helperJobBorgeeStateConfigPathID   = helpermanifest.PathIDBorgeeStateConfig
+	helperJobOpenClawServiceID         = helpermanifest.ServiceIDOpenClawUser
+	helperJobOpenClawPluginOrigin      = helpermanifest.DomainCDN
 	helperJobOpenClawPluginInstallPlan = "openclaw-plugin-v1"
 	helperJobOpenClawRuntimeIdentifier = "openclaw"
 
@@ -82,9 +86,9 @@ const (
 	// validateServices) accept the leased uninstall job. The actual filesystem
 	// paths live on the helper side (executors/uninstall) — these IDs are
 	// purely the manifest authority handle.
-	helperJobHelperUninstallStatePathID   = "helper_state"
-	helperJobHelperUninstallRuntimePathID = "helper_runtime"
-	helperJobHelperUninstallServiceID     = "borgee-helper-service"
+	helperJobHelperUninstallStatePathID   = helpermanifest.PathIDHelperState
+	helperJobHelperUninstallRuntimePathID = helpermanifest.PathIDHelperRuntime
+	helperJobHelperUninstallServiceID     = helpermanifest.ServiceIDBorgeeHelper
 )
 
 type PollHelperJobInput struct {
@@ -150,10 +154,15 @@ var helperJobTaxonomy = map[string]helperJobSpec{
 	"openclaw.install_from_manifest":     {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
 	"borgee_plugin.configure_connection": {Category: "openclaw_config", Enabled: true, Manifest: true},
 	"service.lifecycle":                  {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
-	"state.write":                        {Category: "openclaw_config"},
-	"status.collect":                     {Category: "status_collect"},
-	"delegation.revoke":                  {Category: "helper_lifecycle"},
-	"helper.uninstall":                   {Category: "helper_lifecycle", Enabled: true, Manifest: true},
+	// PR-4 closes the enum gap for these three (#1033): state.write needs
+	// manifest binding (borgee_state_config PathID); status.collect +
+	// delegation.revoke don't need manifest authority (helper-side
+	// jobpolicy.requiresManifest is false for both), so their server-side
+	// rows carry an empty manifest_binding_json and a stable digest seed.
+	"state.write":       {Category: "openclaw_config", Enabled: true, Manifest: true},
+	"status.collect":    {Category: "status_collect", Enabled: true},
+	"delegation.revoke": {Category: "helper_lifecycle", Enabled: true},
+	"helper.uninstall":  {Category: "helper_lifecycle", Enabled: true, Manifest: true},
 }
 
 type openClawConfigurePayload struct {
@@ -175,6 +184,34 @@ type serviceLifecyclePayload struct {
 	Operation string `json:"operation"`
 }
 
+// stateWritePayload is the operator-supplied payload for state.write
+// (PR-4 #1033). `state_key` is the manifest-resolved relative key under
+// the borgee_state_config PathID; the executor safe-joins it on top of
+// the manifest-declared root, NOT a daemon flag. `value_sha256` is a
+// caller-asserted digest of the state value (the helper records it
+// verbatim — write semantics live in executors/statewrite).
+type stateWritePayload struct {
+	StateKey    string `json:"state_key"`
+	ValueSHA256 string `json:"value_sha256,omitempty"`
+}
+
+// statusCollectPayload — scope-only contract; no path / domain / service
+// authority. Scope strings mirror jobpolicy.allowedStatusScope.
+type statusCollectPayload struct {
+	Scope string `json:"scope"`
+}
+
+// delegationRevokePayload — target_category-only contract. The helper
+// executor drains the dispatcher + asks rootd to disable borgee.service
+// + wipe credential files; no manifest authority needed (the operation
+// is the removal of authority, not the use of it). Field name is
+// `target_category` (not `category`) because the server-authority field
+// `category` is reserved in the forbidden-payload set — they look the
+// same but mean different things; renaming avoids the collision.
+type delegationRevokePayload struct {
+	TargetCategory string `json:"target_category"`
+}
+
 type openClawEffectivePayload struct {
 	AgentID             string `json:"agent_id"`
 	ChannelID           string `json:"channel_id,omitempty"`
@@ -194,6 +231,19 @@ type borgeePluginEffectivePayload struct {
 
 type serviceLifecycleEffectivePayload struct {
 	Operation string `json:"operation"`
+}
+
+type stateWriteEffectivePayload struct {
+	StateKey    string `json:"state_key"`
+	ValueSHA256 string `json:"value_sha256,omitempty"`
+}
+
+type statusCollectEffectivePayload struct {
+	Scope string `json:"scope"`
+}
+
+type delegationRevokeEffectivePayload struct {
+	TargetCategory string `json:"target_category"`
 }
 
 type helperUninstallPayload struct {
@@ -806,6 +856,52 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 			return nil, "", "", nil, err
 		}
 		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypeStateWrite:
+		payload, err := decodeStateWritePayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		effective := stateWriteEffectivePayload{
+			StateKey:    payload.StateKey,
+			ValueSHA256: payload.ValueSHA256,
+		}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypeStatusCollect:
+		payload, err := decodeStatusCollectPayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		effective := statusCollectEffectivePayload{Scope: payload.Scope}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		// status.collect is not in helper-side jobpolicy.requiresManifest;
+		// no manifest authority is attached. The row's ManifestDigest
+		// column stays empty and ManifestBindingJSON stays nil.
+		return b, helperJobDigest(b), "", nil, nil
+	case HelperJobTypeDelegationRevoke:
+		payload, err := decodeDelegationRevokePayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		effective := delegationRevokeEffectivePayload{TargetCategory: payload.TargetCategory}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		// delegation.revoke is not in helper-side jobpolicy.requiresManifest;
+		// no manifest authority is attached (the operation is the
+		// removal of authority, not the use of it).
+		return b, helperJobDigest(b), "", nil, nil
 	case HelperJobTypeHelperUninstall:
 		payload, err := decodeHelperUninstallPayload(input.PayloadJSON)
 		if err != nil {
@@ -832,7 +928,15 @@ func serverOwnedBorgeePluginConnectionID(orgID, agentID, channelID string) strin
 }
 
 func openClawManifestBindingForJob(jobType string) (string, *string, error) {
-	manifestDigest := helperJobDigest([]byte(helperJobOpenClawManifestSeed))
+	// PR-4 amend (#1033): manifest_digest now equals the canonical
+	// digest of helpermanifest.BuildLinux() (= LinuxDigest). Previously
+	// it was sha256 of a literal seed string ("borgee-helper-openclaw-
+	// runtime-policy-manifest-v1") which the daemon could never verify
+	// against a manifest body because no body was emitted. Now that the
+	// server sends the signed canonical manifest in every leased-job
+	// frame (serializeHelperJobLease), the row's stored digest must
+	// match what the helper recomputes from the body it received.
+	manifestDigest := helpermanifest.LinuxDigest
 	binding := helperJobManifestBinding{ManifestDigest: manifestDigest}
 	switch jobType {
 	case HelperJobTypeOpenClawConfigureAgent:
@@ -843,6 +947,12 @@ func openClawManifestBindingForJob(jobType string) (string, *string, error) {
 		binding.Domains = []string{helperJobOpenClawPluginOrigin}
 	case HelperJobTypePluginConfigureConnection:
 		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
+	case HelperJobTypeStateWrite:
+		// PR-4: state.write binds the helper-owned borgee_state_config
+		// PathID. The actual filesystem root is declared by the signed
+		// runtime manifest the helper resolves at execute time via
+		// manifestpath.Resolve(borgee_state_config) — no daemon flag.
+		binding.PathIDs = []string{helperJobBorgeeStateConfigPathID}
 	case HelperJobTypeServiceLifecycle:
 		binding.ServiceIDs = []string{helperJobOpenClawServiceID}
 	case HelperJobTypeHelperUninstall:
@@ -954,8 +1064,126 @@ func decodeServiceLifecyclePayload(raw string) (serviceLifecyclePayload, error) 
 	}
 	payload.Target = strings.TrimSpace(payload.Target)
 	payload.Operation = strings.TrimSpace(payload.Operation)
-	if payload.Target != helperJobOpenClawRuntimeIdentifier || payload.Operation != "restart" {
+	if payload.Target != helperJobOpenClawRuntimeIdentifier || !allowedServerSideServiceOperation(payload.Operation) {
 		return serviceLifecyclePayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
+// allowedServerSideServiceOperation mirrors the helper-side
+// jobpolicy.allowedServiceOperation set: the canonical 6 operations a
+// signed manifest grant maps to. start/stop/restart/reload/enable/disable.
+// Anything else is rejected at the API boundary, before reaching the
+// helper.
+func allowedServerSideServiceOperation(op string) bool {
+	switch op {
+	case "start", "stop", "restart", "reload", "enable", "disable":
+		return true
+	default:
+		return false
+	}
+}
+
+// decodeStateWritePayload — operator-supplied state write contract.
+// `state_key` is REQUIRED; `value_sha256` is optional metadata. No
+// path / authority field allowed (the manifest binding declares the
+// root). Standard forbidden-field set applies.
+func decodeStateWritePayload(raw string) (stateWritePayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return stateWritePayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return stateWritePayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload stateWritePayload
+	if err := dec.Decode(&payload); err != nil {
+		return stateWritePayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.StateKey = strings.TrimSpace(payload.StateKey)
+	payload.ValueSHA256 = strings.TrimSpace(payload.ValueSHA256)
+	if payload.StateKey == "" || len(payload.StateKey) > 255 {
+		return stateWritePayload{}, ErrHelperJobSchemaInvalid
+	}
+	// state_key is a relative path under the manifest-declared root.
+	// Disallow path-escape segments at the API boundary so the helper
+	// executor's safe-join never has to reject after a round-trip.
+	if strings.ContainsAny(payload.StateKey, "\x00\n\r\t") {
+		return stateWritePayload{}, ErrHelperJobSchemaInvalid
+	}
+	for _, part := range strings.Split(payload.StateKey, "/") {
+		if part == ".." || part == "" || part == "." {
+			return stateWritePayload{}, ErrHelperJobSchemaInvalid
+		}
+	}
+	if strings.HasPrefix(payload.StateKey, "/") {
+		return stateWritePayload{}, ErrHelperJobSchemaInvalid
+	}
+	if payload.ValueSHA256 != "" && !strings.HasPrefix(payload.ValueSHA256, "sha256:") {
+		return stateWritePayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
+// decodeStatusCollectPayload — scope-only contract. Allowed scopes
+// mirror jobpolicy.allowedStatusScope (helper / openclaw / service).
+func decodeStatusCollectPayload(raw string) (statusCollectPayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return statusCollectPayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return statusCollectPayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload statusCollectPayload
+	if err := dec.Decode(&payload); err != nil {
+		return statusCollectPayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.Scope = strings.TrimSpace(payload.Scope)
+	switch payload.Scope {
+	case "helper", "openclaw", "service":
+	default:
+		return statusCollectPayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
+// decodeDelegationRevokePayload — target_category-only contract. The
+// names match the enrollment.allowed_categories vocabulary the operator
+// granted at claim time (openclaw_config / openclaw_lifecycle /
+// status_collect / helper_lifecycle). Uses `target_category` (not the
+// reserved `category` field) because `category` is in
+// helperJobForbiddenPayloadField — the server is the authority for a
+// job's own category.
+func decodeDelegationRevokePayload(raw string) (delegationRevokePayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return delegationRevokePayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		if helperJobForbiddenPayloadField(k) {
+			return delegationRevokePayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload delegationRevokePayload
+	if err := dec.Decode(&payload); err != nil {
+		return delegationRevokePayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.TargetCategory = strings.TrimSpace(payload.TargetCategory)
+	switch payload.TargetCategory {
+	case "openclaw_config", "openclaw_lifecycle", "status_collect", "helper_lifecycle":
+	default:
+		return delegationRevokePayload{}, ErrHelperJobSchemaInvalid
 	}
 	return payload, nil
 }

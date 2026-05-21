@@ -6,16 +6,55 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"borgee-server/internal/datalayer"
+	"borgee-server/internal/helpermanifest"
 )
 
 type HelperJobsHandler struct {
 	Repo datalayer.HelperJobRepository
 	Now  func() time.Time
+	// ManifestProvider supplies the signed canonical helper-policy
+	// manifest body injected into every leased-job payload (PR-4 amend
+	// #1033). Nil → manifest_json field is omitted; the daemon then
+	// rejects manifest-required jobs with ReasonManifestInvalid, which
+	// is the safe pre-wiring default and matches the dev-no-key path.
+	ManifestProvider *HelperManifestProvider
+
+	// PushAdapter is the WS push integration. Nil-safe: when nil, the
+	// enqueue handler skips the immediate push (job stays queued for
+	// the next poll / connect-hook drain). PR-4 final amend wires this
+	// in server.go via SetPushAdapter so internal/api stays free of
+	// internal/ws import (interface seam pattern).
+	PushAdapter HelperJobsPushAdapter
+
+	// Logger surfaces best-effort push warnings. Nil-safe; falls back
+	// to slog default.
+	Logger *slog.Logger
+}
+
+// HelperJobsPushAdapter is the narrow seam between the helper-jobs
+// REST/WS handler and internal/ws.Hub. Implementations:
+//
+//   - GetHelperSessionPlatform looks up the connected daemon's session
+//     and returns (platform, deviceID, credential, true) if connected,
+//     else "" / false. Returning the platform here avoids dragging the
+//     ws.HelperSession type into the api package.
+//
+//   - SendJobFrameToHelper queues a `{"type":"job","job":<json>}` frame
+//     to the helper session's write pump. Returns true iff a session
+//     was connected and the buffer accepted the queue.
+//
+// Production wire (server.go): a thin adapter that closes over *ws.Hub.
+// Unit tests substitute a fake to assert the push contract without a
+// real WS stack.
+type HelperJobsPushAdapter interface {
+	GetHelperSessionPlatform(enrollmentID string) (platform, deviceID, credential string, ok bool)
+	SendJobFrameToHelper(enrollmentID string, jobJSON json.RawMessage) bool
 }
 
 // ProcessHelperAck applies the helper job ack mutation. Extracted from
@@ -92,10 +131,11 @@ func (h *HelperJobsHandler) handleEnqueue(w http.ResponseWriter, r *http.Request
 		h.writeErrorCode(w, http.StatusBadRequest, code, err.Error())
 		return
 	}
+	enrollmentID := r.PathValue("enrollmentId")
 	job, created, err := h.Repo.EnqueueForUser(r.Context(), datalayer.EnqueueHelperJobInput{
 		OwnerUserID:    user.ID,
 		OrgID:          user.OrgID,
-		EnrollmentID:   r.PathValue("enrollmentId"),
+		EnrollmentID:   enrollmentID,
 		JobType:        req.JobType,
 		SchemaVersion:  req.SchemaVersion,
 		PayloadJSON:    string(req.Payload),
@@ -109,6 +149,14 @@ func (h *HelperJobsHandler) handleEnqueue(w http.ResponseWriter, r *http.Request
 	if !created {
 		status = http.StatusOK
 	}
+	// PR-4 final amend: best-effort immediate WS push. If the daemon
+	// is connected we lease + push the next queued job now so the
+	// helper sees sub-second latency. If push fails (no session,
+	// transient lease conflict, send-buffer full) the job stays
+	// queued and the daemon picks it up via REST poll fallback OR the
+	// next connect-hook drain. No error path to the API caller — the
+	// enqueue contract is "job persisted", push is an optimization.
+	h.tryPushAfterEnqueue(r.Context(), enrollmentID)
 	writeJSONResponse(w, status, map[string]any{"job": serializeHelperJob(job)})
 }
 
@@ -141,7 +189,8 @@ func (h *HelperJobsHandler) handlePoll(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, http.StatusOK, map[string]any{"status": "no_work", "retry_after_ms": retryAfter})
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, map[string]any{"status": "leased", "job": serializeHelperJobLease(lease)})
+	platform, _ := helpermanifest.ParsePlatform(req.HelperPlatform)
+	writeJSONResponse(w, http.StatusOK, map[string]any{"status": "leased", "job": h.serializeHelperJobLease(lease, platform)})
 }
 
 func (h *HelperJobsHandler) handleAck(w http.ResponseWriter, r *http.Request) {
@@ -208,6 +257,12 @@ type helperJobEnqueueRequest struct {
 
 type helperJobPollRequest struct {
 	HelperDeviceID string `json:"helper_device_id"`
+	// HelperPlatform: PR-4 final amend — REST poll backward-compat
+	// platform selector. The WS upgrade path reads runtime.GOOS from
+	// X-Helper-Platform; REST poll daemons (the deprecated rail) MUST
+	// send the same token in the body. Missing/invalid → 400
+	// helper_platform_required. v1 enum: {linux, darwin}.
+	HelperPlatform string `json:"helper_platform"`
 	WaitMS         int    `json:"wait_ms,omitempty"`
 }
 
@@ -229,12 +284,19 @@ type helperJobResultRequest struct {
 
 func decodeHelperJobPollRequest(r *http.Request) (helperJobPollRequest, string, error) {
 	var req helperJobPollRequest
-	if code, err := decodeStrictHelperJobRequest(r, &req, map[string]bool{"helper_device_id": true, "wait_ms": true}); err != nil {
+	if code, err := decodeStrictHelperJobRequest(r, &req, map[string]bool{"helper_device_id": true, "helper_platform": true, "wait_ms": true}); err != nil {
 		return req, code, err
 	}
 	req.HelperDeviceID = strings.TrimSpace(req.HelperDeviceID)
+	req.HelperPlatform = strings.TrimSpace(req.HelperPlatform)
 	if req.HelperDeviceID == "" || len(req.HelperDeviceID) > 255 || req.WaitMS < 0 || req.WaitMS > 30000 {
 		return req, "schema_invalid", errors.New("invalid helper poll request")
+	}
+	if req.HelperPlatform == "" {
+		return req, "helper_platform_required", errors.New("helper_platform required")
+	}
+	if _, ok := helpermanifest.ParsePlatform(req.HelperPlatform); !ok {
+		return req, "helper_platform_required", errors.New("helper_platform unknown")
 	}
 	return req, "", nil
 }
@@ -395,7 +457,7 @@ func decodeHelperJobResultSummary(raw *string) map[string]any {
 	return map[string]any{"audit_refs": summary.AuditRefs, "log_refs": summary.LogRefs}
 }
 
-func serializeHelperJobLease(lease *datalayer.HelperJobLease) map[string]any {
+func (h *HelperJobsHandler) serializeHelperJobLease(lease *datalayer.HelperJobLease, platform helpermanifest.Platform) map[string]any {
 	job := lease.Job
 	payload := map[string]any{}
 	if strings.TrimSpace(job.PayloadJSON) != "" {
@@ -424,6 +486,25 @@ func serializeHelperJobLease(lease *datalayer.HelperJobLease) map[string]any {
 	// `manifest_binding_json` is the authoritative copy for executors.
 	if job.ManifestBindingJSON != nil && strings.TrimSpace(*job.ManifestBindingJSON) != "" {
 		out["manifest_binding_json"] = json.RawMessage(*job.ManifestBindingJSON)
+	}
+	// PR-4 amend (#1033): inject the signed canonical helper-policy
+	// manifest body so daemon-side jobpolicy.verifyManifestAuthority can
+	// recompute canonical bytes, verify the signature against its trust
+	// root, and resolve binding PathIDs/ServiceIDs against the manifest's
+	// authoritative declarations. Without this field present, 5/8 job
+	// types (every manifest-required type) get rejected with
+	// ReasonManifestInvalid.
+	//
+	// PR-4 final amend: platform-aware. The daemon's WS upgrade header
+	// (X-Helper-Platform) flows down through the WS session into
+	// this call; REST poll callers pass req.HelperPlatform. Empty
+	// platform → linux (compat with the pre-amend default; production
+	// callers always supply a platform).
+	if h != nil && h.ManifestProvider != nil && strings.TrimSpace(job.ManifestDigest) != "" {
+		platformToken := string(platform)
+		if signed, _, err := h.ManifestProvider.SignedManifestForPlatform(platformToken); err == nil && len(signed) > 0 {
+			out["manifest_json"] = json.RawMessage(signed)
+		}
 	}
 	return out
 }
@@ -528,4 +609,131 @@ func (h *HelperJobsHandler) writeHelperRailRepoError(w http.ResponseWriter, err 
 
 func (h *HelperJobsHandler) writeErrorCode(w http.ResponseWriter, status int, code, msg string) {
 	writeJSONErrorCode(w, status, code, msg)
+}
+
+// SetPushAdapter wires the WS push integration after construction.
+// Safe to call once at server boot; nil-safe at call time. Server.go
+// constructs the helper-jobs handler before the hub is fully ready,
+// then injects the adapter so the import direction stays
+// api → (no ws) while the hub closes over both.
+func (h *HelperJobsHandler) SetPushAdapter(a HelperJobsPushAdapter) {
+	h.PushAdapter = a
+}
+
+// tryPushAfterEnqueue is the best-effort push triggered from
+// handleEnqueue. Resolves the connected daemon's platform + helper
+// device + credential via the adapter, leases the next queued job
+// using the same store mutation REST poll uses, serializes the lease
+// (platform-aware manifest), and queues the WS frame.
+//
+// All failure modes (no session, lease conflict, send-buffer full,
+// provider error) are soft: the job remains queued and will be
+// delivered either by the next REST poll or the connect-hook drain.
+// Caller (enqueue handler) is unaware.
+func (h *HelperJobsHandler) tryPushAfterEnqueue(ctx context.Context, enrollmentID string) {
+	if h == nil || h.PushAdapter == nil || enrollmentID == "" {
+		return
+	}
+	platformToken, deviceID, credential, ok := h.PushAdapter.GetHelperSessionPlatform(enrollmentID)
+	if !ok {
+		return
+	}
+	h.pushOneLeasedFrame(ctx, enrollmentID, platformToken, deviceID, credential)
+}
+
+// PushQueuedToHelper is the connect-hook drain: when a daemon WS
+// session registers (RegisterHelper), the hub's helperConnectHook
+// invokes this so any jobs that queued while the helper was
+// disconnected ship immediately. The store's lease semantics are
+// one-at-a-time per enrollment, so the first leased job is pushed;
+// subsequent jobs follow on each ack/result the daemon sends back.
+//
+// Returns the number of frames pushed. Soft on every error so a hub
+// connect callback never blocks the WS upgrade path.
+func (h *HelperJobsHandler) PushQueuedToHelper(ctx context.Context, enrollmentID string) int {
+	if h == nil || h.PushAdapter == nil || enrollmentID == "" {
+		return 0
+	}
+	platformToken, deviceID, credential, ok := h.PushAdapter.GetHelperSessionPlatform(enrollmentID)
+	if !ok {
+		return 0
+	}
+	if h.pushOneLeasedFrame(ctx, enrollmentID, platformToken, deviceID, credential) {
+		return 1
+	}
+	return 0
+}
+
+// pushOneLeasedFrame leases the next queued job for this enrollment
+// + pushes one `{"type":"job","job":...}` frame. Returns true iff a
+// frame was queued onto the session's send buffer.
+//
+// Lease idempotency: store.PollAndLeaseForHelper marks the row leased
+// + sets lease_token under one transaction; a concurrent REST poll
+// for the same enrollment will see "no work" until the lease expires
+// or the daemon completes. This is why double-push to the same
+// daemon does not duplicate execution.
+func (h *HelperJobsHandler) pushOneLeasedFrame(ctx context.Context, enrollmentID, platformToken, deviceID, credential string) bool {
+	if h.Repo == nil {
+		return false
+	}
+	platform, ok := helpermanifest.ParsePlatform(platformToken)
+	if !ok {
+		// WS upgrade gates on ParsePlatform too; if we hit this branch
+		// the session was somehow stored with a bad platform — log +
+		// drop the push (REST poll fallback still works).
+		h.logger().Warn("helper push skipped: unknown session platform",
+			"enrollment_id", enrollmentID, "platform", platformToken)
+		return false
+	}
+	lease, err := h.Repo.PollAndLeaseForHelper(ctx, datalayer.HelperJobPollInput{
+		EnrollmentID:     enrollmentID,
+		HelperCredential: credential,
+		HelperDeviceID:   deviceID,
+		WaitMS:           0,
+	}, h.now())
+	if err != nil {
+		// Non-fatal: REST poll will retry. Log at debug to avoid log
+		// spam when push-on-enqueue races a concurrent poll.
+		h.logger().Debug("helper push lease skipped",
+			"enrollment_id", enrollmentID, "err", err)
+		return false
+	}
+	if lease == nil || lease.Status == "no_work" || lease.Job == nil {
+		return false
+	}
+	frame, err := json.Marshal(h.serializeHelperJobLease(lease, platform))
+	if err != nil {
+		h.logger().Warn("helper push marshal failed",
+			"enrollment_id", enrollmentID, "err", err)
+		return false
+	}
+	pushed := h.PushAdapter.SendJobFrameToHelper(enrollmentID, json.RawMessage(frame))
+	if !pushed {
+		// PR-4 P0 review fix: the WS frame was dropped (no connected
+		// session OR session's send buffer full / writer wedged) AFTER
+		// store.PollAndLeaseForHelper already marked the row leased.
+		// We log a warning so operators can correlate stuck rows with
+		// helper-side slowness; we do NOT release the lease here. The
+		// row recovers via the lease-expiry timer (REST poll + next
+		// reconnect-hook drain still pick it up after expiry). A first-
+		// class store-side "release lease" would touch the repo + a
+		// fresh integration-test surface; for v1 we accept the lease-
+		// expiry recovery window. Follow-up issue tracks adding an
+		// explicit release path so the recovery is sub-second instead
+		// of bounded by the lease TTL.
+		h.logger().Warn("helper push dropped after lease",
+			"enrollment_id", enrollmentID,
+			"job_id", lease.Job.ID,
+			"lease_token", lease.LeaseToken,
+		)
+	}
+	return pushed
+}
+
+func (h *HelperJobsHandler) logger() *slog.Logger {
+	if h != nil && h.Logger != nil {
+		return h.Logger
+	}
+	return slog.Default()
 }

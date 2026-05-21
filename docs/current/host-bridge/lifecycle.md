@@ -225,6 +225,63 @@ untouched so an operator can retry. The dedicated
 (helper-credential rail, predates #998) remains the manual escape hatch
 for cases where the helper is offline or the executor cannot finish.
 
+## Revoke flow (PR-4 #1033)
+
+`delegation.revoke` is the lightweight cousin of `helper.uninstall`.
+The operator wants to stop the helper from accepting new jobs and drop
+the credential, but does NOT want to remove binaries / state dirs / the
+OS user — for example to rotate credentials, suspend the host without
+re-installing, or quarantine a misbehaving enrollment.
+
+End-to-end:
+
+1. Operator (owner-rail user) enqueues a `delegation.revoke` job:
+   `POST /api/v1/helper/enrollments/{id}/jobs` with body
+   `{ "job_type": "delegation.revoke", "schema_version": 1,
+   "payload": { "target_category": "<category-to-revoke>" } }`. The
+   enrollment must include `helper_lifecycle` in its
+   `allowed_categories`. The field is `target_category` (not
+   `category`) because `category` is in the server-authority
+   forbidden-payload set.
+2. Server taxonomy row (`helper_job_queries.go` `delegation.revoke`)
+   accepts the request (`Enabled: true`, no manifest binding — revoke
+   removes authority rather than uses it, so it's not in
+   `jobpolicy.requiresManifest`).
+3. The helper-side dispatcher polls + leases the job.
+4. `jobpolicy.Evaluate` accepts the payload (non-empty
+   `target_category`).
+5. The `internal/executors/delegationrevoke` executor runs:
+   - cooperatively drains the dispatcher (no-op today; richer drain
+     wires in a follow-up),
+   - calls `rootdclient.DelegationRevoke` with `(enrollment_id,
+     service_name, service_manager, credential_paths)`. rootd:
+       - disables `borgee.service` (Linux) or
+         `cloud.borgee.host-bridge` (macOS),
+       - removes the credential trio at the well-known daemon paths
+         (`/var/lib/borgee/credential/{credential,enrollment-id,
+         device-id}` on Linux).
+   - returns `dispatch.StatusSucceeded` so the dispatcher's WS Result
+     frame fires BEFORE the daemon process dies.
+6. The dispatcher posts `/result` with the terminal status. The daemon
+   process then exits naturally on its next reconnect attempt: rootd
+   has wiped the credential, so the WS dial returns 401, the
+   dispatcher logs + returns, the daemon's outer loop tears down. The
+   disable side-effect ensures systemd does not respawn.
+
+A re-enrollment on the same machine can fast-path: binaries and state
+dirs are still in place, so the operator only needs to run `borgee
+claim` (or `npx ... install` with a fresh token) — no `borgee setup`
+re-run, no system user re-creation.
+
+| | `delegation.revoke` | `helper.uninstall` |
+|---|---|---|
+| credential wipe | yes | yes |
+| state-dir wipe | NO (forensic preserve) | yes (unless `preserve_state`) |
+| binary wipe | NO | yes |
+| OS user delete | NO | yes |
+| service disable | yes | yes |
+| can re-enroll on same machine without reinstall | yes | NO |
+
 ## Update detection chain (#999)
 
 A third daemon goroutine — `updatecheck.Checker` — runs alongside the

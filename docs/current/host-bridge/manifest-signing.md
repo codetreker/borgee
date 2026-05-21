@@ -97,3 +97,50 @@ Entry list (URLs, SHA256, versions):
 ## SHA256 real values
 
 This PR plumbs the signing chain but leaves `SHA256` zeros in the built-in default. Real values come from the first published `borgee-v*` tag — `publish-remote-agent.yml` builds the 4 platform binaries from native runners, stages them inside the single `@codetreker/borgee-remote-agent` tarball, and the operator records the registry .tgz URL + sha256 sum in `BORGEE_MANIFEST_ENTRIES_JSON` after the publish lands.
+
+## Helper-policy manifest (PR-4 amend, #1033)
+
+`BORGEE_MANIFEST_SIGNING_KEY` doubles as the signing key for the **helper-policy manifest** — the second signed manifest body that scopes what helper jobs may touch on the helper host. Same private key on the server signs both; same `BORGEE_MANIFEST_SIGNING_PUBKEY` (base64 ed25519 public key) on the daemon trusts both.
+
+Where the canonical body lives: `packages/server-go/internal/helpermanifest/manifest.go`. PR-4 final amend split it into two builders — `BuildLinux` + `BuildDarwin` — and added `CanonicalManifest(platform)` / `CanonicalDigest(platform)` entry points. Both declare the same Path / Service / Artifact ID symbols (`PathIDHelperRuntime`, `ServiceIDOpenClawUser`, …) but with platform-specific filesystem roots + service Manager / Unit. Server-side enqueue stamps each helper_jobs row with the platform's canonical-bytes digest; the leased-job payload emitted by `serializeHelperJobLease(lease, platform)` carries the signed body in a `manifest_json` field next to `manifest_binding_json`.
+
+Daemon-side: `cli/daemon/daemon.go::loadHelperManifestTrustRoots` decodes `BORGEE_MANIFEST_SIGNING_PUBKEY` (comma-separated entries supported for rotation grace windows) and populates `jobpolicy.EvaluationInput.TrustRoots`. `jobpolicy.verifyManifestAuthority` then:
+
+1. recompute canonical bytes from the manifest_json it just received (signature stripped)
+2. base64-decode `Signature` from the body
+3. `ed25519.Verify(pubkey, canonical_bytes, sig)`
+4. if false → reject with `ReasonManifestInvalid`
+
+Without a configured trust root, every manifest-required job (state.write, openclaw.*, borgee_plugin.configure_connection, service.lifecycle) falls into `ReasonManifestInvalid`. That is the safe production default; operators must inject `BORGEE_MANIFEST_SIGNING_PUBKEY` to lift it.
+
+### Per-platform paths + services (PR-4 final amend)
+
+| PathID                       | Linux root                          | Darwin root                                          |
+|------------------------------|-------------------------------------|------------------------------------------------------|
+| `openclaw_install`           | `/usr/local/lib/borgee/openclaw`    | `/usr/local/libexec/borgee/openclaw`                 |
+| `openclaw_agent_config`      | `/var/lib/borgee/openclaw`          | `/Library/Application Support/Borgee/openclaw`       |
+| `borgee_plugin_config`       | `/var/lib/borgee/plugins`           | `/Library/Application Support/Borgee/plugins`        |
+| `borgee_state_config`        | `/var/lib/borgee/state`             | `/Library/Application Support/Borgee/state`          |
+| `helper_state`               | `/var/lib/borgee`                   | `/Library/Application Support/Borgee`                |
+| `helper_runtime`             | `/usr/local/lib/borgee`             | `/usr/local/libexec/borgee`                          |
+
+| ServiceID                    | Linux (systemd unit)                | Darwin (launchd label)                               |
+|------------------------------|-------------------------------------|------------------------------------------------------|
+| `openclaw-user`              | `openclaw.service`                  | `cloud.borgee.openclaw`                              |
+| `borgee-helper-service`      | `borgee.service`                    | `cloud.borgee.host-bridge`                           |
+
+Darwin path roots match `packages/borgee/internal/cli/setup/setup.go` Darwin constants. `helper_state` declares the parent of `darwinStateRoot = /Library/Application Support/Borgee/Helper`, so writes under the Helper subdir are descendants of an allowed root — same containment pattern `helper_runtime` uses for `openclaw_install`.
+
+### Platform selection
+
+The daemon's WS upgrade carries `X-Helper-Platform: <runtime.GOOS>` (`linux` or `darwin`). Server's WS upgrade handler (`internal/ws/helper.go`) gates on the header (HTTP 400 before `websocket.Accept` if missing or unknown), stores the parsed platform on the session, and the push path threads it into `serializeHelperJobLease`. The deprecated REST poll body carries the same selector as `helper_platform`.
+
+### Determinism
+
+`IssuedAt` is pinned to Unix epoch and `ExpiresAt` to 2099-01-01 so the canonical digest is byte-stable across server reboots — helper_jobs rows persisted before a restart stay dischargeable after. Rotation = new manifest version (bump both `BuildLinux` + `BuildDarwin` in lockstep), not new timestamps. Linux + Darwin digests differ (different paths + service Manager), so a daemon that somehow received the wrong platform's manifest gets `ReasonManifestInvalid` silently.
+
+### Follow-ups
+
+- **Trust-root distribution**: env-var only in v1. Production `-ldflags` injection or signed-pubkey-list endpoint is a follow-up. Rotation flow (key v2 with grace window via the comma-CSV env var) is implemented but undocumented at the deploy layer.
+- **Windows / freebsd**: not v1. The `ParsePlatform` enum + per-platform builders make adding a third token a single PR; no schema migration needed.
+

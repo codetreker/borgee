@@ -169,7 +169,14 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 	}
 
 	// 2. Create state dirs.
-	stateSubdirs := []string{"queue", "status", "audit-handoff", "credential"}
+	//
+	// PR-4 amend (#1033): include `openclaw` / `plugins` / `state` —
+	// the path roots declared by the signed helper-policy manifest
+	// (helpermanifest.BuildLinux) that the four no-root executors write
+	// under. systemd unit's ReadWritePaths must list these too (see
+	// renderLinuxUnit); chmod 0750 owned by the helper user matches the
+	// other state subdirs.
+	stateSubdirs := []string{"queue", "status", "audit-handoff", "credential", "openclaw", "plugins", "state"}
 	for _, sub := range stateSubdirs {
 		p := filepath.Join(linuxStateRoot, sub)
 		logStep("mkdir " + p)
@@ -281,7 +288,20 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 		darwinLogDir,
 		filepath.Dir(darwinUDS),
 		darwinAppSupport,
+		// PR-4 final amend: per-platform manifest subdirs that mirror
+		// the Linux setup additions (#1033 amend). Manifest-declared
+		// roots under /Library/Application Support/Borgee that the
+		// no-root executors write under. Without pre-creation, the
+		// first job hits a mkdir under a directory owned by another
+		// user (sandbox-exec writes go via darwinUser). Linux pre-
+		// creates the equivalent subdirs under /var/lib/borgee.
+		filepath.Join(darwinAppSupport, "openclaw"),
+		filepath.Join(darwinAppSupport, "plugins"),
+		filepath.Join(darwinAppSupport, "state"),
 		filepath.Join(darwinRuntimeDir, "bin"),
+		// openclaw_install root — under darwinRuntimeDir, parallel to
+		// the linux mkdir of /usr/local/lib/borgee/openclaw subdir.
+		filepath.Join(darwinRuntimeDir, "openclaw"),
 	} {
 		logStep("mkdir " + p)
 		if !dryRun {
@@ -384,17 +404,23 @@ TasksMax=256
 IOWeight=100
 
 StateDirectory=borgee
-# ReadWritePaths is intentionally NARROW: only the daemon's own state
-# (queue / status / audit-handoff / credential) + log + run dirs. The
-# four no-root executors (status.collect, state.write,
-# openclaw.configure_agent, borgee_plugin.configure_connection) resolve
-# their write targets from the signed manifest carried in each leased
-# job; whatever roots the manifest declares MUST also be granted here
-# (or fall under the existing entries) for those writes to succeed.
-# Misalignment fails loud at write — the executor does not invent
-# fallback paths. The rootd companion (separate unit) covers any path
-# requiring root + a different ReadWritePaths set.
-ReadWritePaths=` + linuxLogDir + ` ` + linuxRunDir + ` ` + linuxStateRoot + `/queue ` + linuxStateRoot + `/status ` + linuxStateRoot + `/audit-handoff ` + linuxStateRoot + `/credential
+# ReadWritePaths must align with the signed canonical helper-policy
+# manifest (server-go internal/helpermanifest.BuildLinux) Path
+# declarations. Misalignment fails loud at write — the executor does not
+# invent fallback paths. The rootd companion (separate unit) covers any
+# path requiring root + a different ReadWritePaths set.
+#
+# Path roots (each maps to a manifest PathID):
+#   /var/lib/borgee/queue        — queue state dir
+#   /var/lib/borgee/status       — status state dir
+#   /var/lib/borgee/audit-handoff
+#   /var/lib/borgee/credential
+#   /var/lib/borgee/openclaw     — openclaw_agent_config PathID (#1041)
+#   /var/lib/borgee/plugins      — borgee_plugin_config PathID (#1041)
+#   /var/lib/borgee/state        — borgee_state_config PathID (#1041)
+#   /var/log/borgee              — log dir
+#   /run/borgee                  — UDS dir
+ReadWritePaths=` + linuxLogDir + ` ` + linuxRunDir + ` ` + linuxStateRoot + `/queue ` + linuxStateRoot + `/status ` + linuxStateRoot + `/audit-handoff ` + linuxStateRoot + `/credential ` + linuxStateRoot + `/openclaw ` + linuxStateRoot + `/plugins ` + linuxStateRoot + `/state
 ReadOnlyPaths=` + linuxStateRoot + `
 
 Restart=on-failure

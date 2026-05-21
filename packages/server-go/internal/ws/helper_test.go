@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"borgee-server/internal/datalayer"
+	"borgee-server/internal/helpermanifest"
 	"borgee-server/internal/store"
 
 	"github.com/coder/websocket"
@@ -21,10 +22,10 @@ import (
 
 // fakeHelperAuth implements ws.HelperEnrollmentAuthenticator for tests.
 type fakeHelperAuth struct {
-	mu      sync.Mutex
-	calls   []fakeHelperAuthCall
-	err     error
-	enroll  *datalayer.HelperEnrollment
+	mu     sync.Mutex
+	calls  []fakeHelperAuthCall
+	err    error
+	enroll *datalayer.HelperEnrollment
 }
 
 type fakeHelperAuthCall struct {
@@ -51,10 +52,10 @@ type fakeHelperProcessor struct {
 	ackCalls    atomic.Int32
 	resultCalls atomic.Int32
 	lastResult  struct {
-		mu             sync.Mutex
-		jobID, status  string
-		failureCode    string
-		summary        json.RawMessage
+		mu            sync.Mutex
+		jobID, status string
+		failureCode   string
+		summary       json.RawMessage
 	}
 }
 
@@ -105,6 +106,12 @@ func dialHelperWS(t *testing.T, srv *httptest.Server, enrollmentID, credential, 
 	}
 	if deviceID != "" {
 		hdr.Set("X-Helper-Device-Id", deviceID)
+	}
+	// PR-4 final amend: default X-Helper-Platform to "linux" unless the
+	// test caller explicitly sets the key in extraHeaders (including to
+	// "" so the missing-platform reject path can be exercised).
+	if _, override := extraHeaders["X-Helper-Platform"]; !override {
+		hdr.Set("X-Helper-Platform", "linux")
 	}
 	for k, vs := range extraHeaders {
 		for _, v := range vs {
@@ -456,7 +463,9 @@ func TestHelperWS_LastSeenUpdatesOnRead(t *testing.T) {
 
 func TestHelperSession_SendJSONSerializes(t *testing.T) {
 	sess := &HelperSession{send: make(chan []byte, 4), done: make(chan struct{})}
-	sess.SendJSON(map[string]string{"type": "directive", "code": "revoked"})
+	if !sess.SendJSON(map[string]string{"type": "directive", "code": "revoked"}) {
+		t.Fatal("SendJSON should return true when buffer accepts")
+	}
 	select {
 	case data := <-sess.send:
 		var m map[string]string
@@ -469,8 +478,35 @@ func TestHelperSession_SendJSONSerializes(t *testing.T) {
 	default:
 		t.Fatal("SendJSON did not enqueue")
 	}
-	// Unmarshallable values are dropped without panic.
-	sess.SendJSON(make(chan int))
+	// Unmarshallable values are dropped without panic and report false.
+	if sess.SendJSON(make(chan int)) {
+		t.Fatal("SendJSON should return false on marshal failure")
+	}
+}
+
+// PR-4 P0 review fix — Send must report dropped frames so the caller
+// (pushOneLeasedFrame) can log + recover the already-leased row.
+func TestHelperSession_SendReturnsFalseOnFullBuffer(t *testing.T) {
+	// Construct a session whose writer pump is NOT running so the send
+	// channel cannot drain. Fill the buffer to capacity, then the next
+	// Send must return false instead of silently dropping.
+	const cap = 4
+	sess := &HelperSession{send: make(chan []byte, cap), done: make(chan struct{})}
+	for i := 0; i < cap; i++ {
+		if !sess.Send([]byte("frame")) {
+			t.Fatalf("Send #%d returned false before buffer full", i)
+		}
+	}
+	if sess.Send([]byte("overflow")) {
+		t.Fatal("Send must return false when send buffer is full")
+	}
+}
+
+func TestHelperSession_SendReturnsTrueWhenBufferAccepts(t *testing.T) {
+	sess := &HelperSession{send: make(chan []byte, 2), done: make(chan struct{})}
+	if !sess.Send([]byte("frame")) {
+		t.Fatal("Send must return true when buffer accepts")
+	}
 }
 
 func TestMapHelperAuthErrorToStatus(t *testing.T) {
@@ -579,5 +615,143 @@ func TestHelperSession_EnrollmentID(t *testing.T) {
 	sess := &HelperSession{enrollmentID: "enroll-X"}
 	if sess.EnrollmentID() != "enroll-X" {
 		t.Fatalf("EnrollmentID=%q", sess.EnrollmentID())
+	}
+}
+
+// PR-4 final amend — platform header gating + WS push wiring tests.
+
+func TestHelperWSUpgrade_RequiresPlatformHeader(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, _ := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	// Empty value override → server rejects with HTTP 400 before WS upgrade.
+	_, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", http.Header{"X-Helper-Platform": []string{""}})
+	if err == nil {
+		t.Fatal("expected upgrade to fail when X-Helper-Platform empty")
+	}
+}
+
+func TestHelperWSUpgrade_RejectsUnknownPlatform(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, _ := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	_, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", http.Header{"X-Helper-Platform": []string{"windows"}})
+	if err == nil {
+		t.Fatal("expected upgrade to fail when X-Helper-Platform=windows")
+	}
+}
+
+func TestHelperWSUpgrade_AcceptsLinuxAndDarwin(t *testing.T) {
+	for _, platform := range []string{"linux", "darwin"} {
+		platform := platform
+		t.Run(platform, func(t *testing.T) {
+			auth := &fakeHelperAuth{}
+			srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+			conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", http.Header{"X-Helper-Platform": []string{platform}})
+			if err != nil {
+				t.Fatalf("Dial %s: %v", platform, err)
+			}
+			defer conn.Close(websocket.StatusNormalClosure, "")
+			deadline := time.Now().Add(500 * time.Millisecond)
+			for time.Now().Before(deadline) {
+				if hub.GetHelper("enroll-1") != nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			sess := hub.GetHelper("enroll-1")
+			if sess == nil {
+				t.Fatalf("session not registered for platform=%s", platform)
+			}
+			if string(sess.Platform()) != platform {
+				t.Fatalf("session.Platform()=%q want %q", sess.Platform(), platform)
+			}
+		})
+	}
+}
+
+func TestHelperWS_PushJob_DeliversFrameToConnectedDaemon(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-1") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if hub.GetHelper("enroll-1") == nil {
+		t.Fatal("session not registered")
+	}
+
+	pushed := hub.SendJobToHelper("enroll-1", json.RawMessage(`{"job_id":"job-1"}`))
+	if !pushed {
+		t.Fatal("SendJobToHelper returned false for connected session")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("Read pushed frame: %v", err)
+	}
+	if !strings.Contains(string(data), `"type":"job"`) || !strings.Contains(string(data), `"job_id":"job-1"`) {
+		t.Fatalf("unexpected pushed frame: %s", data)
+	}
+}
+
+func TestHelperWS_SessionExposesCredentialDeviceAndPlatform(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+	conn, _, err := dialHelperWS(t, srv, "enroll-7", "tok-7", "device-7", http.Header{"X-Helper-Platform": []string{"darwin"}})
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if hub.GetHelper("enroll-7") != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	sess := hub.GetHelper("enroll-7")
+	if sess == nil {
+		t.Fatal("session not registered")
+	}
+	if sess.Credential() != "tok-7" || sess.DeviceID() != "device-7" || sess.Platform() != helpermanifest.PlatformDarwin {
+		t.Fatalf("session getters mismatch: credential=%q device=%q platform=%q", sess.Credential(), sess.DeviceID(), sess.Platform())
+	}
+}
+
+func TestHelperWS_ConnectHookFiresOnRegister(t *testing.T) {
+	auth := &fakeHelperAuth{}
+	srv, hub := newHelperTestServer(t, auth, &fakeHelperProcessor{})
+	var fired atomic.Int32
+	hub.SetHelperConnectHook(func(enrollmentID string) {
+		if enrollmentID == "enroll-1" {
+			fired.Add(1)
+		}
+	})
+	conn, _, err := dialHelperWS(t, srv, "enroll-1", "helper-token", "device-1", nil)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		if fired.Load() >= 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if fired.Load() != 1 {
+		t.Fatalf("connect hook fired %d times, want 1", fired.Load())
 	}
 }

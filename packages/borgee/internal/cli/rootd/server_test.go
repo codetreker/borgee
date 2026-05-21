@@ -277,19 +277,23 @@ func TestParseErrorRejected(t *testing.T) {
 	}
 }
 
-// TestWhitelistContainsOnlyPingInPR1 is a regression guard for the PR-1
-// scope: the production whitelist must contain exactly `ping` until
-// PR-4. Anyone who adds a real root command without also updating the
-// blueprint, systemd ReadWritePaths, and the audit + threat-model docs
-// should fail this assertion and re-read the package doc comment.
-func TestWhitelistContainsOnlyPingInPR1(t *testing.T) {
+// TestWhitelistContainsPR4Commands is the regression guard for the
+// PR-4 scope expansion: the production whitelist must contain ping +
+// the three real root commands (install_plugin / service_lifecycle /
+// delegation_revoke). Anyone who adds a NEW root command without also
+// updating the blueprint, systemd ReadWritePaths, audit + threat-model
+// docs should fail this assertion and re-read the package doc comment.
+func TestWhitelistContainsPR4Commands(t *testing.T) {
 	t.Parallel()
 	got := DefaultHandlers()
-	if len(got) != 1 {
-		t.Fatalf("PR-1 whitelist size = %d, want 1 (only ping). got keys: %v", len(got), keysOf(got))
+	want := []string{"ping", "install_plugin", "service_lifecycle", "delegation_revoke"}
+	if len(got) != len(want) {
+		t.Fatalf("PR-4 whitelist size = %d, want %d. got keys: %v", len(got), len(want), keysOf(got))
 	}
-	if _, ok := got["ping"]; !ok {
-		t.Fatalf("PR-1 whitelist missing ping: %v", keysOf(got))
+	for _, name := range want {
+		if _, ok := got[name]; !ok {
+			t.Fatalf("PR-4 whitelist missing %q: %v", name, keysOf(got))
+		}
 	}
 }
 

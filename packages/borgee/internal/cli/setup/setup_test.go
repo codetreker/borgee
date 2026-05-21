@@ -39,6 +39,13 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 		"After=network-online.target",
 		"Wants=network-online.target",
 		"Type=simple",
+		// PR-4 amend (#1033) — ReadWritePaths must include the path
+		// roots declared by the signed helper-policy manifest so the
+		// four no-root executors' writes land within the systemd
+		// hardening sandbox.
+		"/var/lib/borgee/openclaw",
+		"/var/lib/borgee/plugins",
+		"/var/lib/borgee/state",
 	}
 	for _, want := range required {
 		if !strings.Contains(unit, want) {

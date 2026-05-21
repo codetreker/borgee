@@ -34,6 +34,7 @@ func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
 
 	resp, wrongRail := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", ownerToken, map[string]any{
 		"helper_device_id": "device-1",
+		"helper_platform":  "linux",
 	})
 	if resp.StatusCode != http.StatusUnauthorized || wrongRail["code"] != "unauthorized" {
 		t.Fatalf("user token must not poll helper rail: status %d body %v", resp.StatusCode, wrongRail)
@@ -41,6 +42,7 @@ func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
 
 	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
 		"helper_device_id": "device-1",
+		"helper_platform":  "linux",
 		"wait_ms":          0,
 	})
 	if resp.StatusCode != http.StatusOK || poll["status"] != "leased" {
@@ -66,6 +68,7 @@ func TestHelperJobsPollAckResultWithHelperCredential(t *testing.T) {
 
 	resp, secondPoll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
 		"helper_device_id": "device-1",
+		"helper_platform":  "linux",
 	})
 	if resp.StatusCode != http.StatusOK || secondPoll["status"] != "no_work" || secondPoll["retry_after_ms"] == nil {
 		t.Fatalf("second poll should not lease duplicate work: status %d body %v", resp.StatusCode, secondPoll)
@@ -149,7 +152,7 @@ func TestHelperJobsResultRedactsSensitiveFailureMessageInAPIResponse(t *testing.
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("enqueue helper job: status %d", resp.StatusCode)
 	}
-	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-1"})
+	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-1", "helper_platform": "linux"})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("poll status %d body %v", resp.StatusCode, poll)
 	}
@@ -286,6 +289,7 @@ func TestHelperJobsEnqueueOpenClawInstallLeaseCarriesServerManifestBinding(t *te
 
 	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
 		"helper_device_id": "device-install",
+		"helper_platform":  "linux",
 	})
 	if resp.StatusCode != http.StatusOK || poll["status"] != "leased" {
 		t.Fatalf("poll install job: status %d body %v", resp.StatusCode, poll)
@@ -347,6 +351,7 @@ func TestHelperJobsEnqueueServiceLifecycleLeaseCarriesDeclaredServiceID(t *testi
 
 	resp, poll := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
 		"helper_device_id": "device-service",
+		"helper_platform":  "linux",
 	})
 	if resp.StatusCode != http.StatusOK || poll["status"] != "leased" {
 		t.Fatalf("poll service lifecycle job: status %d body %v", resp.StatusCode, poll)
@@ -455,7 +460,7 @@ func TestHelperJobsEnqueuePluginConfigureConnectionRequiresChannelAuthority(t *t
 	}
 	assertNoHelperJobSensitiveFields(t, job)
 
-	leaseResp, leaseBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-plugin"})
+	leaseResp, leaseBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-plugin", "helper_platform": "linux"})
 	if leaseResp.StatusCode != http.StatusOK {
 		t.Fatalf("poll plugin binding job: status %d body %v", leaseResp.StatusCode, leaseBody)
 	}
@@ -569,9 +574,9 @@ func TestHelperJobsEnqueueRejectsUnauthorizedRailsAndInvalidEnvelopes(t *testing
 		{"install client manifest authority", map[string]any{"job_type": "openclaw.install_from_manifest", "schema_version": 1, "payload": map[string]any{"runtime": "openclaw", "manifest_id": "client"}}, http.StatusBadRequest, "forbidden_field"},
 		{"plugin connection client authority", map[string]any{"job_type": "borgee_plugin.configure_connection", "schema_version": 1, "payload": map[string]any{"connection_id": "server-owned"}}, http.StatusBadRequest, "forbidden_field"},
 		{"service lifecycle requires lifecycle delegation", map[string]any{"job_type": "service.lifecycle", "schema_version": 1, "payload": map[string]any{"target": "openclaw"}}, http.StatusForbidden, "delegation_denied"},
-		{"recognized state write type", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
-		{"recognized status collect type", map[string]any{"job_type": "status.collect", "schema_version": 1, "payload": map[string]any{"scope": "helper"}}, http.StatusBadRequest, "job_type_not_enabled"},
-		{"recognized delegation revoke type", map[string]any{"job_type": "delegation.revoke", "schema_version": 1, "payload": map[string]any{"delegation_id": "server-owned"}}, http.StatusBadRequest, "job_type_not_enabled"},
+		{"state write payload schema invalid", map[string]any{"job_type": "state.write", "schema_version": 1, "payload": map[string]any{"state_id": "server-owned"}}, http.StatusBadRequest, "schema_invalid"},
+		{"status collect requires scope", map[string]any{"job_type": "status.collect", "schema_version": 1, "payload": map[string]any{"scope": ""}}, http.StatusBadRequest, "schema_invalid"},
+		{"delegation revoke requires helper-lifecycle delegation", map[string]any{"job_type": "delegation.revoke", "schema_version": 1, "payload": map[string]any{"target_category": "openclaw_config"}}, http.StatusForbidden, "delegation_denied"},
 		{"helper uninstall rejects wrong scope", map[string]any{"job_type": "helper.uninstall", "schema_version": 1, "payload": map[string]any{"scope": "agent"}}, http.StatusForbidden, "delegation_denied"},
 		{"extra top field owner", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}, "owner_user_id": "client"}, http.StatusBadRequest, "extra_field"},
 		{"client ttl", map[string]any{"job_type": "openclaw.configure_agent", "schema_version": 1, "payload": map[string]any{"agent_id": agent.ID}, "ttl": 999999}, http.StatusBadRequest, "ttl_invalid"},
@@ -879,6 +884,7 @@ func TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding(t *tes
 	// THUJ-1b: helper lease carries manifest binding with path + service ids.
 	resp, leased := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
 		"helper_device_id": "device-uninstall-1",
+		"helper_platform":  "linux",
 		"wait_ms":          0,
 	})
 	if resp.StatusCode != http.StatusOK || leased["status"] != "leased" {
@@ -1030,6 +1036,7 @@ func enqueueAndLeaseUninstall(t *testing.T, baseURL, ownerToken, helperCredentia
 	}
 	resp, leased := testutil.JSON(t, http.MethodPost, baseURL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{
 		"helper_device_id": deviceID,
+		"helper_platform":  "linux",
 		"wait_ms":          0,
 	})
 	if resp.StatusCode != http.StatusOK || leased["status"] != "leased" {

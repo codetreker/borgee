@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -273,6 +274,12 @@ func (c *Client) Dial(ctx context.Context) error {
 	hdr := http.Header{}
 	hdr.Set("Authorization", "Bearer "+c.credential.Credential)
 	hdr.Set("X-Helper-Device-Id", c.credential.HelperDeviceID)
+	// PR-4 final amend: declare runtime.GOOS so the server picks the
+	// matching signed canonical manifest body. Server gates the WS
+	// upgrade on this header — missing or unknown values get rejected
+	// with HTTP 400 helper_platform_required / unsupported_platform.
+	// v1 enum: {linux, darwin}; runtime.GOOS naturally matches.
+	hdr.Set("X-Helper-Platform", runtime.GOOS)
 
 	conn, _, err := websocket.Dial(ctx, dialURL, &websocket.DialOptions{
 		HTTPClient:   c.httpClient,
