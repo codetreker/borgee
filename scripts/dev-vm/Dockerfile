@@ -1,24 +1,12 @@
 # Borgee helper VM-simulator base image.
-#
-# Builds an Ubuntu 24.04 container that runs systemd as PID 1, close enough
-# to a real Linux VM for end-to-end testing of the borgee helper install /
-# claim / daemon-lifecycle flows. See
-# ../../docs/runbooks/local-e2e-helper-container.md for the full workflow,
-# limitations, and known caveats.
-#
-# Apt versions are intentionally not hard-pinned: Ubuntu's apt repos roll
-# point releases (e.g. systemd 255.4-1ubuntu8.X) and pinning to a single
-# build makes the image fail to rebuild within weeks. Pairing
-# --no-install-recommends with an explicit package list keeps the surface
-# minimal without the fragility of exact version pins.
+# Ubuntu 24.04 + systemd PID 1 + Node.js 20. Used by docker-compose.yml.
+# Full workflow: docs/runbooks/local-e2e-helper-container.md
 
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Core systemd + supporting libraries. ca-certificates / curl / sudo are
-# required by the borgee installer (NodeSource setup + sudo npx invocation
-# documented in the runbook).
+# No version pins: Ubuntu rolls point releases weekly and pinning breaks rebuilds.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         systemd \
@@ -31,10 +19,7 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Mask units that always fail inside an unprivileged-ish container. Without
-# these masks `systemctl is-system-running` reports `degraded` because
-# udev / logind / getty / hugepages / fuse cannot initialise against the
-# host kernel from a container namespace.
+# Mask units that always fail in a container (udev/logind/getty/hugepages/fuse) so is-system-running != degraded.
 RUN systemctl mask -- \
         systemd-udevd.service \
         systemd-udevd-control.socket \
@@ -48,17 +33,13 @@ RUN systemctl mask -- \
         systemd-firstboot.service \
     || true
 
-# Node.js 20 via NodeSource. The helper installer is published on npm
-# (`@codetreker/borgee-remote-agent`), so node + npm must be present before
-# running `npx @codetreker/borgee-remote-agent install` inside the container.
+# Node 20 for the helper installer (`npx @codetreker/borgee-remote-agent`).
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Clean shutdown signal for systemd. Without this, `docker stop` sends
-# SIGTERM, which systemd ignores; the container then takes the full 10s
-# grace period before docker SIGKILLs PID 1.
+# Clean shutdown signal for systemd; without it `docker stop` waits the 10s grace before SIGKILL.
 STOPSIGNAL SIGRTMIN+3
 
 ENTRYPOINT ["/sbin/init"]

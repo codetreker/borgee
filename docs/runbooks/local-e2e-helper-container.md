@@ -34,65 +34,13 @@ docker compose up -d
 ```
 
 That builds (first run only) an Ubuntu 24.04 image with systemd as PID 1
-plus node 20 preinstalled, then starts a container named `borgee-vm`. See
-[scripts/dev-vm/README.md](../../scripts/dev-vm/README.md) for the short
-operator pointer; the Dockerfile and compose file there are the source of
-truth for image contents (apt list, masked units, stop signal, cgroup
-flags).
+plus node 20 preinstalled, then starts a container named `borgee-vm`.
 
 Wait ~5-10s for systemd to settle before exec'ing in. On the validation
 host used while writing this runbook, `systemctl is-system-running`
 returned `running` ~8s after `docker compose up -d`.
 
-### Container name
-
-Once `docker compose up` finishes, the container is named `borgee-vm`
-(see `container_name:` in `scripts/dev-vm/docker-compose.yml`). The
-exec / restart commands later in this runbook use that name. If you also
-shell in via `docker compose exec borgee-vm ...`, both work — the latter
-is preferred from `scripts/dev-vm/` because it stays inside the compose
-project.
-
-### Manual `docker run` fallback
-
-If you prefer not to use compose (e.g. on a host without the compose
-plugin, or to spin up a second container with a different name for A/B
-testing), the equivalent raw command is:
-
-```bash
-docker build -t borgee-vm-base:latest scripts/dev-vm
-docker run -d \
-  --privileged \
-  --cgroupns=host \
-  -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-  --tmpfs /run --tmpfs /run/lock \
-  --stop-signal SIGRTMIN+3 \
-  --name borgee-vm-test \
-  --hostname borgee-vm-test \
-  borgee-vm-base:latest
-```
-
-Flag notes (same constraints either way, compose just hides them):
-- `--privileged`: required to access cgroup controllers + mount API. There
-  are non-privileged alternatives (`--cap-add SYS_ADMIN` + specific bind
-  mounts) but they are fragile across kernel versions; for dev use, just
-  go privileged.
-- `--cgroupns=host`: makes container cgroups share the host cgroup
-  namespace, which systemd inside the container needs to read. Compose
-  expresses this as `cgroup: host`.
-- `/sys/fs/cgroup` bind mount: required even with cgroup v2 hosts so that
-  systemd can write its slice/scope hierarchy.
-- `--tmpfs /run --tmpfs /run/lock`: systemd expects these as tmpfs; image
-  ships them as empty dirs.
-- `--stop-signal SIGRTMIN+3`: matches the Dockerfile `STOPSIGNAL` so
-  `docker stop` triggers a clean systemd shutdown instead of waiting out
-  the 10s grace period.
-
 ## Validating systemd is alive
-
-The compose path names the container `borgee-vm`. If you used the manual
-`docker run` form above, substitute `borgee-vm-test` (or whatever
-`--name` you passed) for `borgee-vm` in every `docker exec` below.
 
 ```bash
 docker exec borgee-vm ps -p 1 -o comm=
@@ -245,8 +193,6 @@ To be filled in Stage 2. Outline of what Stage 2 will document:
 
 ## Cleanup
 
-Compose path (canonical):
-
 ```bash
 cd scripts/dev-vm
 docker compose down --volumes
@@ -255,12 +201,6 @@ docker compose down --volumes
 That stops the container, removes it, and clears the compose-created
 network. The base image stays cached so the next `docker compose up -d`
 is fast.
-
-Manual `docker run` fallback:
-
-```bash
-docker rm -f borgee-vm-test
-```
 
 To also drop the base image:
 
