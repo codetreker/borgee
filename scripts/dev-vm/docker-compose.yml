@@ -1,0 +1,51 @@
+# Borgee helper VM-simulator for local end-to-end testing.
+# Brings up a single Ubuntu 24.04 container with systemd as PID 1,
+# behaving close enough to a real VM for install/claim/daemon-lifecycle
+# verification. See ../../docs/runbooks/local-e2e-helper-container.md
+# for the full workflow, reboot/crash tests, and known limitations.
+#
+# Quick start:
+#   docker compose up -d
+#   docker compose exec borgee-vm systemctl is-system-running   # -> running
+#
+# Install helper inside the container (interactive token required):
+#   docker compose exec borgee-vm bash -c '
+#     sudo npx @codetreker/borgee-remote-agent install \
+#       --server wss://testing-borgee.codetrek.cn \
+#       --token <enrollment_id>.<enrollment_secret>'
+#
+# Tail helper logs:
+#   docker compose exec borgee-vm journalctl -u borgee.service -f
+#
+# Teardown (also drops named tmpfs state):
+#   docker compose down --volumes
+services:
+  borgee-vm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: borgee-vm-base:latest
+    container_name: borgee-vm
+    hostname: borgee-vm
+    # --privileged is required so systemd can access cgroup controllers and
+    # mount API namespaces. Not safe for hardened CI; intended for dev hosts.
+    privileged: true
+    # cgroup: host == docker run --cgroupns=host. Makes the container share
+    # the host cgroup namespace, which systemd inside the container needs in
+    # order to read/write its slice + scope hierarchy under /sys/fs/cgroup.
+    # Compose spec key is `cgroup` (added in compose v2.15+, supported by the
+    # docker compose v2 plugin shipping with Docker 24+).
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      # cgroup v2 hosts still need /sys/fs/cgroup bind-mounted rw so systemd
+      # can manage its hierarchy. Without this, systemd as PID 1 fails to
+      # come up cleanly even with --privileged + cgroup: host.
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    # systemd's clean-shutdown signal. Matches STOPSIGNAL in the Dockerfile;
+    # repeated here so `docker compose stop` honours it regardless of image
+    # metadata caching.
+    stop_signal: SIGRTMIN+3
+    restart: unless-stopped
