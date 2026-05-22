@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -73,11 +74,44 @@ func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Re
 		writeJSONError(w, http.StatusInternalServerError, "Failed to create helper enrollment")
 		return
 	}
+	// The enrollment token is `<enrollment_id>.<enrollment_secret>` —
+	// `borgee install --token` splits on the first `.` (see
+	// packages/borgee/internal/cli/install/install.go::tokenParts). This is
+	// the ONE-time string the operator pastes; the server never stores it
+	// (only the digest of the secret) so we must return it in the create
+	// response and nowhere else.
+	enrollmentToken := enrollment.ID + "." + secret
+	installCommand := buildHelperInstallCommand(r, enrollmentToken)
 	writeJSONResponse(w, http.StatusCreated, map[string]any{
 		"enrollment":                   h.serialize(enrollment),
 		"enrollment_secret":            secret,
 		"enrollment_secret_expires_at": enrollment.EnrollmentSecretExpiresAt,
+		"enrollment_token":             enrollmentToken,
+		"install_command":              installCommand,
 	})
+}
+
+// buildHelperInstallCommand returns the one-line `sudo npx ...` command an
+// operator pastes on the host VM. Scheme + host are derived from the inbound
+// request: X-Forwarded-Proto / X-Forwarded-Host (production behind a TLS
+// terminating proxy) take precedence, otherwise r.TLS != nil → wss / r.Host.
+// We deliberately do NOT read a global "canonical origin" env var: in fork
+// / staging / on-prem deploys the host the operator hit IS the host the
+// helper must connect back to, by construction.
+func buildHelperInstallCommand(r *http.Request, enrollmentToken string) string {
+	scheme := "wss"
+	if proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); proto != "" {
+		if proto == "http" || proto == "ws" {
+			scheme = "ws"
+		}
+	} else if r.TLS == nil {
+		scheme = "ws"
+	}
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	return fmt.Sprintf("sudo npx @codetreker/borgee-remote-agent install --server %s://%s --token %s", scheme, host, enrollmentToken)
 }
 
 func (h *HelperEnrollmentHandler) handleList(w http.ResponseWriter, r *http.Request) {

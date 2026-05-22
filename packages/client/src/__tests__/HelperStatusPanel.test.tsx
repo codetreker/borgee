@@ -5,7 +5,10 @@ import { act } from 'react';
 
 import HelperStatusPanel from '../components/HelperStatusPanel';
 import { NavigationProvider } from '../components/Navigation/NavigationContext';
-import type { HelperEnrollmentStatusView } from '../lib/api';
+import type {
+  CreateHelperEnrollmentResponse,
+  HelperEnrollmentStatusView,
+} from '../lib/api';
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -280,3 +283,237 @@ function helperRow(
     },
   };
 }
+
+describe('HelperStatusPanel — Create enrollment (Add host) UI', () => {
+  const fakeToken = 'enr-newhost-1.super-secret-shown-once-9f3b';
+  const fakeInstallCommand = `sudo npx @codetreker/borgee-remote-agent install --server wss://borgee.example.com --token ${fakeToken}`;
+
+  // React tracks controlled-input values via a hidden value tracker; setting
+  // .value directly bypasses it. Use the native setter so React's onChange
+  // actually fires (mirrors ArtifactCommentSearchBox.test.tsx::setReactInputValue).
+  function setReactInputValue(input: HTMLInputElement, value: string) {
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value',
+    )!.set!;
+    setter.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function fakeCreateResponse(): CreateHelperEnrollmentResponse {
+    return {
+      enrollment_id: 'enr-newhost-1',
+      host_label: 'stage2-test-host',
+      allowed_categories: ['openclaw_config', 'status_collect'],
+      enrollment_token: fakeToken,
+      enrollment_secret: 'super-secret-shown-once-9f3b',
+      enrollment_secret_expires_at: 1778839900000 + 15 * 60 * 1000,
+      install_command: fakeInstallCommand,
+    };
+  }
+
+  async function flush() {
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+
+  it('clicks Add host, fills the form, mints a token, shows it once, and refreshes on Done', async () => {
+    const createEnrollment = vi.fn(async () => fakeCreateResponse());
+    const fetchEnrollments = vi
+      .fn<() => Promise<HelperEnrollmentStatusView[]>>()
+      // initial load: empty
+      .mockResolvedValueOnce([])
+      // after Done: now includes the new host (proves the list-refresh fired)
+      .mockResolvedValueOnce([
+        {
+          enrollment_id: 'enr-newhost-1',
+          host_label: 'stage2-test-host',
+          allowed_categories: ['openclaw_config', 'status_collect'],
+          status: 'pending',
+          fresh: false,
+          created_at: Date.now(),
+        },
+      ]);
+
+    await render(
+      <HelperStatusPanel
+        fetchEnrollments={fetchEnrollments}
+        createEnrollment={createEnrollment}
+      />,
+    );
+    await flush();
+
+    // Open the modal.
+    const addBtn = container!.querySelector(
+      '[data-action="add-helper-host"]',
+    ) as HTMLButtonElement | null;
+    expect(addBtn, 'Add host button visible').toBeTruthy();
+    await act(async () => {
+      addBtn!.click();
+    });
+
+    expect(container!.querySelector('[data-helper-create-modal]')).toBeTruthy();
+
+    // Fill the host label.
+    const label = container!.querySelector(
+      '[data-helper-host-label]',
+    ) as HTMLInputElement;
+    await act(async () => {
+      setReactInputValue(label, 'stage2-test-host');
+    });
+
+    // The two default-on categories are openclaw_config + status_collect; keep
+    // them as-is so the POST payload matches what the test asserts below.
+
+    // Submit.
+    const submit = container!.querySelector(
+      '[data-action="submit-helper-create"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      submit.click();
+    });
+    await flush();
+
+    expect(createEnrollment).toHaveBeenCalledTimes(1);
+    expect(createEnrollment).toHaveBeenCalledWith({
+      host_label: 'stage2-test-host',
+      allowed_categories: ['openclaw_config', 'status_collect'],
+    });
+
+    // Reveal view: token + install_command + warning all visible.
+    const installEl = container!.querySelector(
+      '[data-helper-install-command]',
+    ) as HTMLTextAreaElement | null;
+    const tokenEl = container!.querySelector(
+      '[data-helper-enrollment-token]',
+    ) as HTMLTextAreaElement | null;
+    const warning = container!.querySelector(
+      '[data-helper-create-warning]',
+    ) as HTMLElement | null;
+
+    expect(installEl?.value).toBe(fakeInstallCommand);
+    expect(tokenEl?.value).toBe(fakeToken);
+    expect(warning?.textContent ?? '').toContain('shown ONCE');
+
+    // Done closes the modal AND triggers a list refresh.
+    const done = container!.querySelector(
+      '[data-action="close-helper-create-modal"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      done.click();
+    });
+    await flush();
+
+    expect(container!.querySelector('[data-helper-create-modal]')).toBeNull();
+    expect(fetchEnrollments).toHaveBeenCalledTimes(2);
+    // The newly-created host now shows up in the list (proves the refresh,
+    // not just the close).
+    const text = container!.textContent ?? '';
+    expect(text).toContain('stage2-test-host');
+  });
+
+  it('only renders the token in the reveal-view textareas — no other DOM surface leaks it', async () => {
+    const fetchEnrollments = vi.fn(async () => [] as HelperEnrollmentStatusView[]);
+    const createEnrollment = vi.fn(async () => fakeCreateResponse());
+
+    await render(
+      <HelperStatusPanel
+        fetchEnrollments={fetchEnrollments}
+        createEnrollment={createEnrollment}
+      />,
+    );
+    await flush();
+
+    (
+      container!.querySelector('[data-action="add-helper-host"]') as HTMLButtonElement
+    ).click();
+    await flush();
+    const label = container!.querySelector(
+      '[data-helper-host-label]',
+    ) as HTMLInputElement;
+    await act(async () => {
+      setReactInputValue(label, 'stage2-test-host');
+    });
+    await act(async () => {
+      (
+        container!.querySelector('[data-action="submit-helper-create"]') as HTMLButtonElement
+      ).click();
+    });
+    await flush();
+
+    // Count token occurrences. The token MUST appear exactly twice: once in
+    // the install_command textarea (where it's embedded after --token), and
+    // once in the enrollment_token textarea on its own. No other rendered
+    // surface (no innerText of warnings / labels / status panels / list items)
+    // is allowed to reproduce it.
+    const tokens = (container!.innerHTML.match(/enr-newhost-1\.super-secret-shown-once-9f3b/g) ?? [])
+      .length;
+    expect(tokens, 'token should appear only in the two reveal textareas').toBe(2);
+
+    // After Done: token is gone from the DOM entirely.
+    await act(async () => {
+      (
+        container!.querySelector(
+          '[data-action="close-helper-create-modal"]',
+        ) as HTMLButtonElement
+      ).click();
+    });
+    await flush();
+    expect(container!.innerHTML).not.toContain('super-secret-shown-once');
+  });
+
+  it('disables Create until host_label is non-empty and at least one category is picked', async () => {
+    const fetchEnrollments = vi.fn(async () => [] as HelperEnrollmentStatusView[]);
+    const createEnrollment = vi.fn(async () => fakeCreateResponse());
+
+    await render(
+      <HelperStatusPanel
+        fetchEnrollments={fetchEnrollments}
+        createEnrollment={createEnrollment}
+      />,
+    );
+    await flush();
+
+    (
+      container!.querySelector('[data-action="add-helper-host"]') as HTMLButtonElement
+    ).click();
+    await flush();
+
+    const submit = container!.querySelector(
+      '[data-action="submit-helper-create"]',
+    ) as HTMLButtonElement;
+    expect(submit.disabled, 'disabled when host_label empty').toBe(true);
+
+    const label = container!.querySelector(
+      '[data-helper-host-label]',
+    ) as HTMLInputElement;
+    await act(async () => {
+      setReactInputValue(label, '   '); // whitespace only — still disabled
+    });
+    expect(submit.disabled, 'disabled when host_label is whitespace only').toBe(true);
+
+    await act(async () => {
+      setReactInputValue(label, 'My Host');
+    });
+    expect(submit.disabled, 'enabled once host_label is non-empty + default categories set').toBe(
+      false,
+    );
+
+    // Uncheck both default categories → disabled again.
+    const cb1 = container!.querySelector(
+      '[data-helper-category-checkbox="openclaw_config"] input',
+    ) as HTMLInputElement;
+    const cb2 = container!.querySelector(
+      '[data-helper-category-checkbox="status_collect"] input',
+    ) as HTMLInputElement;
+    await act(async () => {
+      cb1.click();
+      cb2.click();
+    });
+    expect(submit.disabled, 'disabled when zero categories selected').toBe(true);
+  });
+});

@@ -1,10 +1,20 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fetchHelperEnrollments, type HelperEnrollmentStatusView } from '../lib/api';
+import {
+  HELPER_ALLOWED_CATEGORIES,
+  createHelperEnrollment as defaultCreateHelperEnrollment,
+  fetchHelperEnrollments,
+  type CreateHelperEnrollmentInput,
+  type CreateHelperEnrollmentResponse,
+  type HelperEnrollmentStatusView,
+} from '../lib/api';
 import PageHeader from './common/PageHeader';
 
 interface Props {
   fetchEnrollments?: () => Promise<HelperEnrollmentStatusView[]>;
+  createEnrollment?: (
+    input: CreateHelperEnrollmentInput,
+  ) => Promise<CreateHelperEnrollmentResponse>;
 }
 
 const statusLabels: Record<string, string> = {
@@ -69,11 +79,13 @@ function configureStepLabel(jobType: string): string {
 
 export default function HelperStatusPanel({
   fetchEnrollments = fetchHelperEnrollments,
+  createEnrollment = defaultCreateHelperEnrollment,
 }: Props): React.ReactElement {
   const [rows, setRows] = useState<HelperEnrollmentStatusView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,11 +115,31 @@ export default function HelperStatusPanel({
       <PageHeader
         title="Helper Status"
         actions={
-          <button className="btn btn-sm" onClick={() => void load()} disabled={loading}>
-            Refresh
-          </button>
+          <>
+            <button
+              className="btn btn-sm btn-primary"
+              data-action="add-helper-host"
+              onClick={() => setCreateOpen(true)}
+              disabled={loading}
+            >
+              Add host
+            </button>
+            <button className="btn btn-sm" onClick={() => void load()} disabled={loading}>
+              Refresh
+            </button>
+          </>
         }
       />
+
+      {createOpen && (
+        <CreateHelperEnrollmentModal
+          createEnrollment={createEnrollment}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => {
+            void load();
+          }}
+        />
+      )}
 
       {loading && rows.length === 0 ? (
         <div className="helper-status-empty">Loading Helper status...</div>
@@ -281,6 +313,228 @@ export default function HelperStatusPanel({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+interface CreateHelperEnrollmentModalProps {
+  createEnrollment: (
+    input: CreateHelperEnrollmentInput,
+  ) => Promise<CreateHelperEnrollmentResponse>;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+// CreateHelperEnrollmentModal is the operator-facing UI surface that mints a
+// one-shot enrollment token + install command. Two phases:
+//   form:    operator picks host label + allowed categories, clicks Create
+//   reveal:  the server response (token + install_command) is shown ONCE.
+//            Closing the modal drops the response from React state — there
+//            is no second display path and no console / network log of the
+//            token (the only sink is the input value of the visible textarea
+//            for copy + Copy buttons that write to the clipboard).
+function CreateHelperEnrollmentModal({
+  createEnrollment,
+  onClose,
+  onCreated,
+}: CreateHelperEnrollmentModalProps): React.ReactElement {
+  const [hostLabel, setHostLabel] = useState('');
+  const [categories, setCategories] = useState<string[]>(['openclaw_config', 'status_collect']);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<CreateHelperEnrollmentResponse | null>(null);
+
+  const trimmedLabel = useMemo(() => hostLabel.trim(), [hostLabel]);
+  const canSubmit = trimmedLabel.length > 0 && categories.length > 0 && !submitting;
+
+  const toggleCategory = useCallback((category: string) => {
+    setCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
+    );
+  }, []);
+
+  const submit = useCallback(async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const out = await createEnrollment({
+        host_label: trimmedLabel,
+        allowed_categories: categories,
+      });
+      setRevealed(out);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error && err.message ? err.message : 'Failed to create enrollment',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [canSubmit, categories, createEnrollment, trimmedLabel]);
+
+  const handleDone = useCallback(() => {
+    setRevealed(null);
+    onCreated();
+    onClose();
+  }, [onClose, onCreated]);
+
+  // Copy-to-clipboard with a no-op fallback when the clipboard API is
+  // unavailable (older browsers, insecure context). The token textarea
+  // is also selectable so manual copy works regardless.
+  const copyToClipboard = useCallback(async (value: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        /* ignore — operator can still hand-select */
+      }
+    }
+  }, []);
+
+  return (
+    <div
+      className="helper-status-modal-backdrop"
+      data-helper-create-modal
+      role="dialog"
+      aria-modal="true"
+      aria-label="Create helper enrollment"
+    >
+      <div className="helper-status-modal">
+        {revealed ? (
+          <>
+            <h3>Helper enrollment ready</h3>
+            <p
+              className="helper-status-warning"
+              data-helper-create-warning
+              style={{
+                border: '2px solid #c0392b',
+                background: '#fdecea',
+                color: '#a93226',
+                padding: '0.75rem 1rem',
+                borderRadius: '0.375rem',
+                marginBottom: '1rem',
+              }}
+            >
+              This token is shown ONCE. Copy now; you cannot retrieve it later.
+              If you lose it, revoke this enrollment and create a new one.
+            </p>
+
+            <label className="helper-status-modal-label">
+              Install command (paste on the host VM)
+              <textarea
+                data-helper-install-command
+                readOnly
+                rows={3}
+                value={revealed.install_command}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{ width: '100%', fontFamily: 'monospace' }}
+              />
+            </label>
+            <button
+              className="btn btn-sm"
+              type="button"
+              data-action="copy-install-command"
+              onClick={() => void copyToClipboard(revealed.install_command)}
+            >
+              Copy install command
+            </button>
+
+            <label className="helper-status-modal-label" style={{ marginTop: '1rem' }}>
+              Enrollment token (only the part after <code>--token</code>)
+              <textarea
+                data-helper-enrollment-token
+                readOnly
+                rows={2}
+                value={revealed.enrollment_token}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{ width: '100%', fontFamily: 'monospace' }}
+              />
+            </label>
+            <button
+              className="btn btn-sm"
+              type="button"
+              data-action="copy-enrollment-token"
+              onClick={() => void copyToClipboard(revealed.enrollment_token)}
+            >
+              Copy token
+            </button>
+
+            <div className="helper-status-modal-actions" style={{ marginTop: '1rem' }}>
+              <button
+                className="btn btn-primary"
+                type="button"
+                data-action="close-helper-create-modal"
+                onClick={handleDone}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3>Add host</h3>
+            <p className="helper-status-modal-description">
+              Mint a one-time enrollment token. Paste the install command on the host VM —
+              no SSH or curl required.
+            </p>
+
+            <label className="helper-status-modal-label">
+              Host label
+              <input
+                type="text"
+                data-helper-host-label
+                value={hostLabel}
+                maxLength={100}
+                placeholder="e.g. stage-2-test-host"
+                onChange={(e) => setHostLabel(e.target.value)}
+                disabled={submitting}
+              />
+            </label>
+
+            <fieldset className="helper-status-modal-categories">
+              <legend>Allowed categories</legend>
+              {HELPER_ALLOWED_CATEGORIES.map((category) => (
+                <label key={category} data-helper-category-checkbox={category}>
+                  <input
+                    type="checkbox"
+                    checked={categories.includes(category)}
+                    onChange={() => toggleCategory(category)}
+                    disabled={submitting}
+                  />
+                  {categoryLabels[category] ?? category}
+                </label>
+              ))}
+            </fieldset>
+
+            {submitError && (
+              <p className="helper-status-error" data-helper-create-error>
+                {submitError}
+              </p>
+            )}
+
+            <div className="helper-status-modal-actions">
+              <button
+                className="btn"
+                type="button"
+                data-action="cancel-helper-create"
+                onClick={onClose}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                data-action="submit-helper-create"
+                onClick={() => void submit()}
+                disabled={!canSubmit}
+              >
+                {submitting ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 package api_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -699,5 +701,101 @@ func TestHelperEnrollmentInstalledVersions_TS5_RejectsBadAuth(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("device-id mismatch should be 403, got %d", resp.StatusCode)
+	}
+}
+// TestHelperEnrollmentCreate_ReturnsEnrollmentTokenAndInstallCommand locks the
+// new operator-facing surface added with the "Create enrollment" web UI:
+// handleCreate must return both `enrollment_token` (= `<enrollment_id>.<secret>`,
+// what `borgee install --token` expects per tokenParts) and `install_command`
+// (the ready-to-paste `sudo npx ... --server <wss> --token <token>` one-liner).
+// Without these the client would have to re-derive the token format and the
+// host URL, which is the curl-era footgun this PR removes.
+func TestHelperEnrollmentCreate_ReturnsEnrollmentTokenAndInstallCommand(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	resp, body := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
+		"host_label":         "Helper UI Host",
+		"allowed_categories": []string{"openclaw_config", "status_collect"},
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create helper enrollment: status %d body %v", resp.StatusCode, body)
+	}
+
+	enrollment := body["enrollment"].(map[string]any)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	secret, ok := body["enrollment_secret"].(string)
+	if !ok || secret == "" {
+		t.Fatalf("enrollment_secret missing/empty: %v", body)
+	}
+
+	token, ok := body["enrollment_token"].(string)
+	if !ok || token == "" {
+		t.Fatalf("enrollment_token missing/empty: %v", body)
+	}
+	if want := enrollmentID + "." + secret; token != want {
+		t.Fatalf("enrollment_token=%q, want %q (id+.+secret per tokenParts contract)", token, want)
+	}
+
+	installCmd, ok := body["install_command"].(string)
+	if !ok || installCmd == "" {
+		t.Fatalf("install_command missing/empty: %v", body)
+	}
+	if !strings.HasPrefix(installCmd, "sudo npx @codetreker/borgee-remote-agent install ") {
+		t.Fatalf("install_command should start with the canonical npx invocation: %q", installCmd)
+	}
+	if !strings.Contains(installCmd, "--token "+token) {
+		t.Fatalf("install_command must embed --token <enrollment_token>; got %q", installCmd)
+	}
+	// httptest server is plain HTTP and we did not send X-Forwarded-Proto, so
+	// the derived scheme is `ws://` (the install CLI accepts ws:// with
+	// --allow-insecure-server). The locked invariant is "scheme://host", not
+	// the literal value of host (httptest picks a random port per run).
+	if !strings.Contains(installCmd, "--server ws://") && !strings.Contains(installCmd, "--server wss://") {
+		t.Fatalf("install_command must contain --server <ws|wss>://<host>; got %q", installCmd)
+	}
+}
+
+// TestHelperEnrollmentCreate_InstallCommandHonorsForwardedProto locks the
+// proxy-aware scheme derivation: when X-Forwarded-Proto=https is set (nginx
+// in front of borgee-server in deployed environments) the install_command
+// must use wss://, not ws://. This prevents a silent-downgrade footgun where
+// the operator copies a ws:// command and runs into a TLS handshake failure
+// on the real server.
+func TestHelperEnrollmentCreate_InstallCommandHonorsForwardedProto(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	reqBody, _ := json.Marshal(map[string]any{
+		"host_label":         "Forwarded Host",
+		"allowed_categories": []string{"openclaw_config"},
+	})
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/helper/enrollments", bytes.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+ownerToken)
+	req.AddCookie(&http.Cookie{Name: "borgee_token", Value: ownerToken})
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set("X-Forwarded-Host", "borgee.example.com")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	installCmd, _ := body["install_command"].(string)
+	if !strings.Contains(installCmd, "--server wss://borgee.example.com") {
+		t.Fatalf("X-Forwarded-Proto=https + X-Forwarded-Host should yield wss://<fwd-host>; got %q", installCmd)
 	}
 }
