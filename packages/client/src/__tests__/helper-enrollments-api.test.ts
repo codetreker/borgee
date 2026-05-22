@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchHelperEnrollment, fetchHelperEnrollments } from '../lib/api';
+import {
+  createHelperEnrollment,
+  fetchHelperEnrollment,
+  fetchHelperEnrollments,
+} from '../lib/api';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -120,5 +124,74 @@ describe('Helper enrollment user-rail API', () => {
     expect(row.enrollment_id).toBe('enr-2');
     expect(urls).toEqual(['/api/v1/helper/enrollments/enr-2']);
     expect(urls.join(' ')).not.toMatch(/\/claim|\/status|\/uninstall/);
+  });
+});
+
+describe('createHelperEnrollment (operator UI mint)', () => {
+  it('POSTs host_label + allowed_categories and returns the one-shot token + install_command', async () => {
+    let captured: { url: string; init: RequestInit } | null = null;
+    const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      captured = { url: String(url), init: init ?? {} };
+      return jsonResponse({
+        enrollment: {
+          enrollment_id: 'enr-new-1',
+          host_label: 'Stage 2 Test Host',
+          allowed_categories: ['openclaw_config', 'status_collect'],
+          status: 'pending',
+          created_at: 1778839900000,
+        },
+        enrollment_secret: 'super-secret-shown-once',
+        enrollment_secret_expires_at: 1778839900000 + 15 * 60 * 1000,
+        enrollment_token: 'enr-new-1.super-secret-shown-once',
+        install_command:
+          'sudo npx @codetreker/borgee-remote-agent install --server wss://borgee.example.com --token enr-new-1.super-secret-shown-once',
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await createHelperEnrollment({
+      host_label: 'Stage 2 Test Host',
+      allowed_categories: ['openclaw_config', 'status_collect'],
+    });
+
+    expect(captured!.url).toBe('/api/v1/helper/enrollments');
+    expect(captured!.init.method).toBe('POST');
+    expect(JSON.parse(String(captured!.init.body))).toEqual({
+      host_label: 'Stage 2 Test Host',
+      allowed_categories: ['openclaw_config', 'status_collect'],
+    });
+    expect(out.enrollment_id).toBe('enr-new-1');
+    expect(out.enrollment_token).toBe('enr-new-1.super-secret-shown-once');
+    expect(out.enrollment_secret).toBe('super-secret-shown-once');
+    expect(out.install_command).toContain('--server wss://borgee.example.com');
+    expect(out.install_command).toContain('--token enr-new-1.super-secret-shown-once');
+    expect(out.allowed_categories).toEqual(['openclaw_config', 'status_collect']);
+  });
+
+  it('trims host_label and drops non-string allowed_categories before POSTing', async () => {
+    let bodyJSON: unknown = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        bodyJSON = JSON.parse(String(init?.body));
+        return jsonResponse({
+          enrollment: { enrollment_id: 'enr-2', host_label: 'X', allowed_categories: [] },
+          enrollment_secret: 's',
+          enrollment_token: 'enr-2.s',
+          install_command: 'sudo npx ... --server ws://localhost:4901 --token enr-2.s',
+        });
+      }),
+    );
+
+    await createHelperEnrollment({
+      host_label: '   Padded Host   ',
+      // @ts-expect-error — deliberately exercise the runtime filter
+      allowed_categories: ['openclaw_config', 42, null, ''],
+    });
+
+    expect(bodyJSON).toEqual({
+      host_label: 'Padded Host',
+      allowed_categories: ['openclaw_config'],
+    });
   });
 });
