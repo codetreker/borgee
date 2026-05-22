@@ -475,6 +475,21 @@ func (h *HelperJobsHandler) serializeHelperJobLease(lease *datalayer.HelperJobLe
 		"lease_token":      lease.LeaseToken,
 		"lease_expires_at": lease.LeaseExpiresAt,
 		"attempt":          lease.Attempt,
+		// Amend gap #1: daemon-side jobpolicy.validateJobSchema requires
+		// owner_user_id / org_id / helper_device_id / category /
+		// payload_hash / expires_at to be non-empty. Prior to this PR the
+		// lease frame omitted them, so every pushed job got rejected at
+		// the schema gate (ReasonSchemaInvalid) before any executor ran.
+		// All values come from the persisted helper_jobs row + the
+		// credential subject the lease was issued to. Category is already
+		// emitted above; the rest are added here.
+		"owner_user_id": job.OwnerUserID,
+		"org_id":        job.OrgID,
+		"payload_hash":  job.PayloadHash,
+		"expires_at":    job.ExpiresAt,
+	}
+	if job.HelperDeviceID != nil {
+		out["helper_device_id"] = *job.HelperDeviceID
 	}
 	if binding := decodeHelperJobManifestBinding(job.ManifestBindingJSON); binding != nil {
 		out["manifest_binding"] = binding

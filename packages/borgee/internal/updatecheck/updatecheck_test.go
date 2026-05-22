@@ -358,3 +358,26 @@ func toString(v any) string {
 		return string(b)
 	}
 }
+
+// TestDeriveHTTPOrigin_Schemes (amend gap #7) — the daemon's
+// ServerOrigin is `wss://...` (the persistent WS transport URL), but
+// the installed-versions endpoint is REST. Without scheme rewrite, the
+// underlying http.Transport rejects "wss" with `unsupported protocol
+// scheme`. The mapping is wss→https, ws→http, anything else passes
+// through unchanged.
+func TestDeriveHTTPOrigin_Schemes(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"wss://x.example", "https://x.example"},
+		{"ws://x.example:1234", "http://x.example:1234"},
+		{"https://x.example", "https://x.example"},
+		{"http://localhost", "http://localhost"},
+		{"  wss://x.example/  ", "https://x.example"},
+	}
+	for _, c := range cases {
+		if got := deriveHTTPOrigin(c.in); got != c.want {
+			t.Errorf("deriveHTTPOrigin(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

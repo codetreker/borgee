@@ -347,6 +347,15 @@ func helperJobLeaseJobFromStore(row *store.HelperJob) *HelperJob {
 	job := helperJobFromStore(row)
 	if job != nil && row != nil {
 		job.PayloadJSON = row.PayloadJSON
+		// Lease projection carries the envelope fields the daemon-side
+		// jobpolicy.validateJobSchema requires. The bare enqueue
+		// projection above intentionally drops them (the REST enqueue
+		// response is consumed by the operator, not the daemon, and
+		// must not echo owner/org back to the API caller — see
+		// TestHelperJobRepositoryEnqueueProjectionAndErrorMapping).
+		job.OwnerUserID = row.OwnerUserID
+		job.OrgID = row.OrgID
+		job.HelperDeviceID = row.HelperDeviceID
 	}
 	return job
 }

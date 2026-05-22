@@ -789,14 +789,24 @@ func assertNoHelperJobSensitiveFields(t *testing.T, job map[string]any) {
 func assertNoHelperLeaseSensitiveFields(t *testing.T, job map[string]any) {
 	t.Helper()
 	for _, key := range []string{
-		"owner_user_id", "org_id", "helper_device_id", "payload_json",
+		"payload_json",
 		// manifest_binding_json (raw) is intentionally emitted on the lease
 		// per PR-3 #1041 so the daemon's no-root executors get byte-stable
 		// bytes for manifestpath.Resolve. The binding has no secrets — same
 		// PathIDs/ArtifactIDs/Domains/ServiceIDs as the structured
 		// `manifest_binding` field already exposed.
+		//
+		// PR-4 amend gap #1: owner_user_id / org_id / helper_device_id /
+		// payload_hash / expires_at are now intentionally emitted on the
+		// lease so the daemon's jobpolicy.validateJobSchema receives a
+		// complete envelope. The helper's WS credential already authenticates
+		// it for (owner, org, enrollment, device) — echoing those IDs back
+		// to the same authenticated peer is not a leak; the gate the test
+		// originally guarded was the human owner-token poll path (HTTP 401
+		// is asserted separately above before the helper-credential poll
+		// runs).
 		"credential", "credentials", "credential_digest", "persistent_credential_digest", "token",
-		"result_summary_json", "payload_hash", "idempotency_key",
+		"result_summary_json", "idempotency_key",
 	} {
 		if _, ok := job[key]; ok {
 			t.Fatalf("helper lease response leaked field %q: %v", key, job)

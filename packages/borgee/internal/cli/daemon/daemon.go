@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"borgee/internal/acl"
 	"borgee/internal/audit"
@@ -371,23 +372,54 @@ func buildUpdateChecker(prep outbound.PreparedConfig, enrollmentIDFile, helperDe
 // payload. Empty env → empty TrustRoots → manifest-required jobs land
 // in ReasonManifestInvalid (Evaluate's documented "no trust roots"
 // path); that is the safe production default until ops rotates a key in.
+//
+// PR-4 amend gap #1: the envelope fields (owner_user_id, org_id,
+// helper_device_id, category, payload_hash, expires_at) now flow from
+// the server's lease frame into jobpolicy.Job, so validateJobSchema
+// passes. Without those six fields the prior code constructed an
+// envelope of empty strings and every pushed job got rejected with
+// ReasonSchemaInvalid before the executor ran. Enrollment is built
+// from the same envelope (the server vouches for the binding via the
+// WS credential gate, so the daemon doesn't need a duplicate local
+// store yet) — this keeps validateLocalState a no-op until the helper
+// installs its own enrollment cache in a later milestone.
 func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
 	trustRoots := loadHelperManifestTrustRoots()
 	return func(_ context.Context, job *outbound.LeasedJob) jobpolicy.Decision {
 		if job == nil {
 			return jobpolicy.Decision{Allow: false, Reason: jobpolicy.ReasonSchemaInvalid}
 		}
+		var expires time.Time
+		if job.ExpiresAt > 0 {
+			expires = time.UnixMilli(job.ExpiresAt)
+		}
 		return jobpolicy.Evaluate(jobpolicy.EvaluationInput{
 			TrustRoots: trustRoots,
 			Job: jobpolicy.Job{
-				JobID:               job.JobID,
-				EnrollmentID:        job.EnrollmentID,
-				JobType:             job.JobType,
-				SchemaVersion:       job.SchemaVersion,
-				PayloadJSON:         job.Payload,
-				ManifestDigest:      job.ManifestDigest,
-				ManifestJSON:        job.ManifestJSON,
-				ManifestBindingJSON: job.ManifestBindingJSON,
+				JobID:                job.JobID,
+				OwnerUserID:          job.OwnerUserID,
+				OrgID:                job.OrgID,
+				EnrollmentID:         job.EnrollmentID,
+				HelperDeviceID:       job.HelperDeviceID,
+				CredentialGeneration: 1,
+				JobType:              job.JobType,
+				Category:             job.Category,
+				SchemaVersion:        job.SchemaVersion,
+				PayloadJSON:          job.Payload,
+				PayloadHash:          job.PayloadHash,
+				ManifestDigest:       job.ManifestDigest,
+				ManifestJSON:         job.ManifestJSON,
+				ManifestBindingJSON:  job.ManifestBindingJSON,
+				ExpiresAt:            expires,
+			},
+			Enrollment: jobpolicy.EnrollmentState{
+				OwnerUserID:          job.OwnerUserID,
+				OrgID:                job.OrgID,
+				EnrollmentID:         job.EnrollmentID,
+				HelperDeviceID:       job.HelperDeviceID,
+				CredentialGeneration: 1,
+				Status:               "active",
+				AllowedCategories:    []string{job.Category},
 			},
 		})
 	}

@@ -186,6 +186,20 @@ type LeasedJob struct {
 	LeaseToken          string          `json:"lease_token"`
 	LeaseExpiresAt      int64           `json:"lease_expires_at"`
 	Attempt             int             `json:"attempt"`
+
+	// Amend gap #1 — daemon-side jobpolicy.validateJobSchema requires
+	// the envelope fields below; the server populates them on every
+	// lease frame. Tests that hand-craft a leased job with these zero
+	// must still drive jobpolicy.Evaluate into ReasonSchemaInvalid.
+	OwnerUserID    string `json:"owner_user_id,omitempty"`
+	OrgID          string `json:"org_id,omitempty"`
+	HelperDeviceID string `json:"helper_device_id,omitempty"`
+	Category       string `json:"category,omitempty"`
+	PayloadHash    string `json:"payload_hash,omitempty"`
+	// ExpiresAt is the server's persisted helper_jobs.expires_at column
+	// (unix milliseconds). The daemon converts to time.Time at the
+	// jobpolicy boundary; zero → ReasonSchemaInvalid.
+	ExpiresAt int64 `json:"expires_at,omitempty"`
 }
 
 type JobState struct {

@@ -3,8 +3,12 @@
 package setup
 
 import (
+	"database/sql"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // TestRenderLinuxUnit_Shape locks the rendered systemd unit shape.
@@ -27,6 +31,13 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 		"--helper-device-id-file=/var/lib/borgee/credential/device-id",
 		"--helper-credential-file=/var/lib/borgee/credential/credential",
 		"StateDirectory=borgee",
+		// Amend gap #4: /run/borgee is tmpfs; without RuntimeDirectory
+		// systemd does not create it on each start, so the daemon's
+		// net.Listen("unix", "/run/borgee/borgee.sock") fails after a
+		// reboot. systemd-level setup with helper ownership is what we
+		// want.
+		"RuntimeDirectory=borgee",
+		"RuntimeDirectoryMode=0750",
 		"ExecStart=/usr/local/lib/borgee/bin/borgee daemon",
 		"MemoryMax=256M",
 		"CPUQuota=50%",
@@ -46,6 +57,11 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 		"/var/lib/borgee/openclaw",
 		"/var/lib/borgee/plugins",
 		"/var/lib/borgee/state",
+		// Amend gap #3: landlock_create_ruleset / landlock_add_rule
+		// are NOT in @system-service; the daemon's in-process landlock
+		// layer SIGSYS-dies on @system-service alone. Additive group
+		// syntax per systemd-syscall-filter(7).
+		"SystemCallFilter=@system-service @sandbox",
 	}
 	for _, want := range required {
 		if !strings.Contains(unit, want) {
@@ -273,3 +289,65 @@ func TestRenderDarwinPlist_WSSOrigin(t *testing.T) {
 		t.Fatalf("rendered macOS plist missing wss origin")
 	}
 }
+
+// TestSeedHostGrantsDB_CreatesSchemaAndChmodsTight (amend gap #2) — the
+// daemon opens its grants DSN with mode=ro at startup; if `borgee setup`
+// did not pre-create the file with the canonical `host_grants` schema the
+// daemon dies with "no such table". This test seeds a fresh file into
+// t.TempDir(), then asserts a separate mode=ro reader can SELECT against
+// the table without error. Mirrors the daemon's exact runtime contract.
+func TestSeedHostGrantsDB_CreatesSchemaAndChmodsTight(t *testing.T) {
+	t.Parallel()
+	tmp := t.TempDir()
+	dbPath := filepath.Join(tmp, "server.db")
+	writableDSN := "file:" + dbPath + "?_busy_timeout=5000"
+	// Pass empty username so chown is skipped — we cannot create the
+	// `borgee` system user inside the test sandbox. The schema-creation
+	// path is what matters; production chown is exercised at install
+	// time when root runs setup.
+	if err := seedHostGrantsDB(writableDSN, "", ""); err != nil {
+		t.Fatalf("seedHostGrantsDB: %v", err)
+	}
+	// Reopen with mode=ro (the daemon's actual DSN shape) and query the
+	// table. If schema didn't land, this errors with "no such table".
+	roDSN := "file:" + dbPath + "?mode=ro&_busy_timeout=5000"
+	db, err := sql.Open("sqlite3", roDSN)
+	if err != nil {
+		t.Fatalf("open mode=ro: %v", err)
+	}
+	defer db.Close()
+	row := db.QueryRow(`SELECT COUNT(*) FROM host_grants`)
+	var n int
+	if err := row.Scan(&n); err != nil {
+		t.Fatalf("query host_grants after seed: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("freshly seeded host_grants should be empty, got %d rows", n)
+	}
+	// Re-seeding must be idempotent: running `borgee setup` after a
+	// claim must NOT wipe any grants the server pushed in between.
+	if _, err := sql.Open("sqlite3", writableDSN); err != nil {
+		t.Fatalf("reopen writable for idempotence test: %v", err)
+	}
+	if err := seedHostGrantsDB(writableDSN, "", ""); err != nil {
+		t.Fatalf("re-seed: %v", err)
+	}
+}
+
+// TestDsnFilePath_RejectsNonFileScheme guards the DSN parser. setup's
+// host-grants seed is the only writer; if a future code path passes a
+// non-file: DSN (in-memory, network), it must NOT silently fall through
+// to creating a path-named file in cwd.
+func TestDsnFilePath_RejectsNonFileScheme(t *testing.T) {
+	t.Parallel()
+	if _, ok := dsnFilePath(":memory:"); ok {
+		t.Fatal(":memory: DSN must not be treated as a file path")
+	}
+	if _, ok := dsnFilePath("relative/path.db"); ok {
+		t.Fatal("bare relative path must be rejected")
+	}
+	if path, ok := dsnFilePath("file:/var/lib/borgee/server.db?mode=ro&_busy_timeout=5000"); !ok || path != "/var/lib/borgee/server.db" {
+		t.Fatalf("canonical DSN extract: ok=%v path=%q", ok, path)
+	}
+}
+

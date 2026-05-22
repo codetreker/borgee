@@ -222,6 +222,18 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 		}
 	}
 
+	// 3a. Seed the host_grants SQLite DB the daemon opens with mode=ro.
+	// Without this, the daemon errors at startup with "no such table:
+	// host_grants" and systemd burns through its restart budget. The
+	// schema matches server-go migration v=27 byte-for-byte; the file
+	// stays empty until the server pushes grants via the REST channel.
+	logStep("seed " + linuxServerDSN)
+	if !dryRun {
+		if err := seedHostGrantsDB(linuxServerDSN, linuxUser, linuxGroup); err != nil {
+			return err
+		}
+	}
+
 	// 3b. Write the rootd companion unit. Same binary, different
 	//     subcommand (`borgee rootd`), runs as User=root, listens on a
 	//     local UDS, accepts only a hardcoded command whitelist. The
@@ -332,6 +344,15 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 		}
 	}
 
+	// 3a. Seed the host_grants SQLite DB the daemon opens with mode=ro.
+	// Mirrors the Linux step — see runLinux for rationale.
+	logStep("seed " + darwinServerDSN)
+	if !dryRun {
+		if err := seedHostGrantsDB(darwinServerDSN, darwinUser, darwinUser); err != nil {
+			return err
+		}
+	}
+
 	// 3b. Write the rootd companion plist. Same binary, `borgee rootd`
 	//     subcommand, runs as root, listens on a local UDS, accepts only
 	//     a hardcoded command whitelist. Independent of the main plist
@@ -394,7 +415,10 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-SystemCallFilter=@system-service
+# @sandbox covers landlock_create_ruleset / landlock_add_rule / landlock_restrict_self —
+# the daemon's in-process landlock layer SIGSYS-dies without it. The two
+# groups are additive per systemd-syscall-filter(7).
+SystemCallFilter=@system-service @sandbox
 
 # cgroups resource caps (蓝图 host-bridge.md:57).
 MemoryMax=256M
@@ -404,6 +428,12 @@ TasksMax=256
 IOWeight=100
 
 StateDirectory=borgee
+# RuntimeDirectory=borgee: systemd creates /run/borgee with helper
+# ownership before ExecStart and removes it on stop. Without this
+# directive /run is tmpfs and the daemon cannot bind its UDS after a
+# reboot (root-only mkdir, helper user fails).
+RuntimeDirectory=borgee
+RuntimeDirectoryMode=0750
 # ReadWritePaths must align with the signed canonical helper-policy
 # manifest (server-go internal/helpermanifest.BuildLinux) Path
 # declarations. Misalignment fails loud at write — the executor does not
@@ -463,7 +493,12 @@ ProtectHome=yes
 PrivateTmp=yes
 RestrictNamespaces=yes
 MemoryDenyWriteExecute=yes
-SystemCallFilter=@system-service
+# @sandbox kept aligned with borgee.service: even though the current
+# rootd surface does not invoke landlock, the unit's SystemCallFilter
+# is deliberately the same shape to avoid silently diverging hardening
+# between the two daemons. Additive group syntax per systemd-syscall-
+# filter(7).
+SystemCallFilter=@system-service @sandbox
 LockPersonality=yes
 
 MemoryMax=64M

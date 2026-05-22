@@ -224,7 +224,7 @@ func (c *Checker) fire(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	url := strings.TrimRight(c.ServerOrigin, "/") + "/api/v1/helper/enrollments/" + c.EnrollmentID + "/installed-versions"
+	url := deriveHTTPOrigin(c.ServerOrigin) + "/api/v1/helper/enrollments/" + c.EnrollmentID + "/installed-versions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -291,4 +291,22 @@ func readInstalledVersions(path string) (map[string]installedVersionRecord, erro
 		return nil, err
 	}
 	return parsed.Plugins, nil
+}
+
+// deriveHTTPOrigin rewrites the daemon's WS server origin into the
+// equivalent REST scheme: wss:// → https://, ws:// → http://. The
+// installed-versions endpoint is HTTP/REST, not WebSocket, so posting to
+// `wss://host/api/...` fails the underlying http.Transport with
+// `unsupported protocol scheme "wss"`. install.go::deriveHTTPOrigin does
+// the same rewrite; this duplicate avoids the cmd→internal/cli import
+// direction. Unknown schemes pass through untouched.
+func deriveHTTPOrigin(origin string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(origin), "/")
+	switch {
+	case strings.HasPrefix(trimmed, "wss://"):
+		return "https://" + trimmed[len("wss://"):]
+	case strings.HasPrefix(trimmed, "ws://"):
+		return "http://" + trimmed[len("ws://"):]
+	}
+	return trimmed
 }

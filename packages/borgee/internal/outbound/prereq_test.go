@@ -204,3 +204,31 @@ func TestPrereqValidateRejectsStatePathsOutsideAllowedRoots(t *testing.T) {
 		})
 	}
 }
+
+// TestDefaultStateRoots_LinuxMatchesSetup (amend gap #5) — `borgee setup`
+// provisions state dirs under /var/lib/borgee/{queue,status,...} and the
+// systemd unit's ExecStart points there. If DefaultStateRoots() returned
+// only the legacy /var/lib/borgee-helper root, every daemon-startup
+// state-dir validation would fail "outside allowed Helper-owned state
+// roots" — the gap that blocked Stage 2 e2e. The default keeps the
+// legacy root too so in-place upgrades from older packages don't lose
+// their existing state.
+func TestDefaultStateRoots_LinuxMatchesSetup(t *testing.T) {
+	roots := DefaultStateRoots()
+	if len(roots) == 0 {
+		t.Skip("DefaultStateRoots empty on this platform — see GOOS switch")
+	}
+	want := map[string]bool{"/var/lib/borgee": false, "/Library/Application Support/Borgee/Helper": false}
+	// Either Linux or Darwin must show up in want; missing both indicates
+	// the setup default root drifted from the GOOS we're running on.
+	matched := false
+	for _, r := range roots {
+		if _, ok := want[r]; ok {
+			matched = true
+			want[r] = true
+		}
+	}
+	if !matched {
+		t.Fatalf("DefaultStateRoots %v did not match setup.go state root for this platform", roots)
+	}
+}
