@@ -19,6 +19,17 @@ type HelperEnrollmentHandler struct {
 	// detection manifest load fallback warnings). Nil safe — passed through
 	// to LoadManifestEntries which itself nil-checks.
 	Logger *slog.Logger
+	// PublicHelperOrigin — optional override for the scheme+host that
+	// handleCreate stamps into `install_command`. #1052: in docker dev-stack
+	// or behind a reverse proxy the inbound r.Host is not the address the
+	// helper VM needs to dial. When set (e.g. `ws://borgee-server:4900`
+	// or `wss://borgee.codetrek.cn`) it wins over r.Host / X-Forwarded-*.
+	// When empty handleCreate falls back to the prior r.Host derivation,
+	// keeping existing prod / single-host deploys working with zero config.
+	// Sourced from config.Config.PublicHelperOrigin (env
+	// BORGEE_PUBLIC_HELPER_ORIGIN) at server wiring; validated once at
+	// boot by config.Validate() so handleCreate can trust the format.
+	PublicHelperOrigin string
 }
 
 func (h *HelperEnrollmentHandler) now() time.Time {
@@ -81,7 +92,7 @@ func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Re
 	// (only the digest of the secret) so we must return it in the create
 	// response and nowhere else.
 	enrollmentToken := enrollment.ID + "." + secret
-	installCommand := buildHelperInstallCommand(r, enrollmentToken)
+	installCommand := buildHelperInstallCommand(r, enrollmentToken, h.PublicHelperOrigin)
 	writeJSONResponse(w, http.StatusCreated, map[string]any{
 		"enrollment":                   h.serialize(enrollment),
 		"enrollment_secret":            secret,
@@ -92,13 +103,28 @@ func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Re
 }
 
 // buildHelperInstallCommand returns the one-line `sudo npx ...` command an
-// operator pastes on the host VM. Scheme + host are derived from the inbound
-// request: X-Forwarded-Proto / X-Forwarded-Host (production behind a TLS
-// terminating proxy) take precedence, otherwise r.TLS != nil → wss / r.Host.
-// We deliberately do NOT read a global "canonical origin" env var: in fork
-// / staging / on-prem deploys the host the operator hit IS the host the
-// helper must connect back to, by construction.
-func buildHelperInstallCommand(r *http.Request, enrollmentToken string) string {
+// operator pastes on the host VM.
+//
+// Origin selection priority (#1052):
+//  1. publicOrigin (from BORGEE_PUBLIC_HELPER_ORIGIN env at boot) when non-
+//     empty. Required for docker dev-stack (server bound on 127.0.0.1:4900
+//     on the host, helper container reaches it via docker network DNS
+//     `borgee-server:4900`) and for deploys where the public URL doesn't
+//     match the Host header reaching server-go (e.g. behind a reverse
+//     proxy that strips X-Forwarded-Host). Format validated at boot by
+//     config.Validate (`ws://...` or `wss://...`, no path) so we use it
+//     verbatim here.
+//  2. Otherwise derive from the inbound request: X-Forwarded-Proto /
+//     X-Forwarded-Host (production behind a TLS terminating proxy that
+//     does set the headers) take precedence, else r.TLS != nil → wss,
+//     and r.Host. This was the original (pre-#1052) behavior; it is the
+//     correct default when the server-facing host IS the operator-facing
+//     host (single-host on-prem / staging) and is preserved as the
+//     fallback so adding the env knob does not regress existing deploys.
+func buildHelperInstallCommand(r *http.Request, enrollmentToken string, publicOrigin string) string {
+	if origin := strings.TrimSpace(publicOrigin); origin != "" {
+		return fmt.Sprintf("sudo npx @codetreker/borgee-remote-agent install --server %s --token %s", origin, enrollmentToken)
+	}
 	scheme := "wss"
 	if proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); proto != "" {
 		if proto == "http" || proto == "ws" {

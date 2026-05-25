@@ -48,6 +48,39 @@ func TestConfigValidate(t *testing.T) {
 	if err := cfg5.Validate(); err != nil {
 		t.Fatalf("dev should allow empty CORS_ORIGIN; got %v", err)
 	}
+
+	// #1052 — BORGEE_PUBLIC_HELPER_ORIGIN format validation.
+	publicOriginCases := []struct {
+		name    string
+		value   string
+		wantErr bool
+		errSub  string
+	}{
+		{"empty_is_fine_dev", "", false, ""},
+		{"ws_ok", "ws://borgee-server:4900", false, ""},
+		{"wss_ok", "wss://borgee.codetrek.cn", false, ""},
+		{"https_rejected", "https://borgee.codetrek.cn", true, "ws:// or wss://"},
+		{"http_rejected", "http://borgee-server:4900", true, "ws:// or wss://"},
+		{"plain_host_rejected", "borgee-server:4900", true, "ws:// or wss://"},
+		{"trailing_slash_rejected", "wss://borgee.codetrek.cn/", true, "no path"},
+		{"with_path_rejected", "wss://borgee.codetrek.cn/ws", true, "no path"},
+	}
+	for _, tc := range publicOriginCases {
+		t.Run("public_helper_origin/"+tc.name, func(t *testing.T) {
+			cfg := &Config{NodeEnv: "development", PublicHelperOrigin: tc.value}
+			err := cfg.Validate()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for value %q", tc.value)
+				}
+				if !strings.Contains(err.Error(), tc.errSub) {
+					t.Fatalf("error %q should mention %q", err.Error(), tc.errSub)
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error for value %q: %v", tc.value, err)
+			}
+		})
+	}
 }
 
 func TestConfigLogLevel(t *testing.T) {
