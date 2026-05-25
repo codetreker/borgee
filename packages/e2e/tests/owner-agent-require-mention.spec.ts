@@ -162,7 +162,17 @@ test.describe('Owner My Agents — require_mention toggle (PATCH /api/v1/agents/
     await expect(toggle).toBeChecked();
 
     // 真 click → 翻成 false.
+    // 等 PATCH 响应回来再做 DB 对账 (反"toBeChecked 只看 UI 乐观态, PATCH 还在路上
+    // GET 抢跑"竞态; 这是 #1044 的根因, 历史阻塞 PR #1042 / #1054 / #1075).
+    const patchOff = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/v1/agents/${agent.id}`) &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+      { timeout: 10_000 },
+    );
     await toggle.click();
+    await patchOff;
     await expect(toggle).not.toBeChecked({ timeout: 5_000 });
 
     // DB 真值对账 (反"UI 翻了 DB 没翻").
@@ -171,7 +181,15 @@ test.describe('Owner My Agents — require_mention toggle (PATCH /api/v1/agents/
     expect(got1.require_mention).toBe(false);
 
     // 翻回 true.
+    const patchOn = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/v1/agents/${agent.id}`) &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+      { timeout: 10_000 },
+    );
     await toggle.click();
+    await patchOn;
     await expect(toggle).toBeChecked({ timeout: 5_000 });
     const got2 = await getAgent(SERVER_URL, owner.token, agent.id);
     expect(got2.require_mention).toBe(true);
