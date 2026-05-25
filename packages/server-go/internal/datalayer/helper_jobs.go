@@ -49,6 +49,13 @@ type HelperJob struct {
 	OwnerUserID         string
 	OrgID               string
 	EnrollmentID        string
+	// HelperDeviceID is the device the enrollment was claimed under at
+	// the time the job was leased. Nil on a pre-lease projection (the
+	// queue row only acquires a binding once a daemon polls / receives
+	// it). PR-4 amend (#1033): projected into the WS lease frame so the
+	// daemon-side jobpolicy.Evaluate can match against its own enrollment
+	// state (validateJobSchema requires this field present).
+	HelperDeviceID      *string
 	JobType             string
 	Category            string
 	SchemaVersion       int

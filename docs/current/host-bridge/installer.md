@@ -22,6 +22,12 @@ The installer turns a fresh host into a running helper service. The operator run
 **Key Flows**
 
 ```text
+operator opens the Borgee web UI Helper panel -> clicks "Add host"
+  -> fills host label + picks allowed categories -> clicks Create
+  -> the modal reveals a single `sudo npx @codetreker/borgee-remote-agent install
+     --server <wss://host> --token <enrollment_id>.<secret>` command (shown ONCE)
+operator pastes that command on the host VM
+  -> `borgee install` runs setup → claim → systemctl enable --now in one shot
 operator runs `sudo npm i -g @codetreker/borgee-remote-agent`
   -> tarball includes `bin/platforms/<plat>-<arch>/borgee` for all 4 platforms
   -> Node shim `bin/borgee.js` resolves the current platform's binary inside the tarball
@@ -35,6 +41,8 @@ operator runs `sudo borgee claim --enrollment-id=X --enrollment-secret=Y --serve
   -> persist credential (0600) + enrollment-id + device-id
 operator runs `sudo systemctl enable --now borgee.service`
 ```
+
+The web UI's "Add host" button (`HelperStatusPanel.tsx` → `POST /api/v1/helper/enrollments`) is the standard operator entry point — it eliminates the curl-era footgun of hand-building the `<enrollment_id>.<enrollment_secret>` token. The token + install command are revealed exactly once; the server only persists the secret's digest, so a lost token requires revoking the enrollment and minting a new one.
 
 **Invariants**
 
@@ -56,6 +64,8 @@ operator runs `sudo systemctl enable --now borgee.service`
 - `packages/borgee/internal/cli/setup/setup.go` — `borgee setup` (renders systemd unit + launchd plist + creates user + state dirs).
 - `packages/borgee/internal/cli/installbutler/installbutler.go` — `borgee install-plugin` (signed-manifest installer).
 - `packages/borgee/internal/cli/claim/claim.go` — `borgee claim` (enrollment claim).
+- `packages/client/src/components/HelperStatusPanel.tsx` — operator UI "Add host" button + create-form modal + token-reveal view (single-display).
+- `packages/server-go/internal/api/helper_enrollments.go::handleCreate` — server endpoint that returns `enrollment_token` + `install_command` (one-line `sudo npx ...`) the modal hands the operator.
 - `packages/remote-agent/bin/borgee.js` — Node shim resolving the platform binary embedded in the same tarball.
 - `packages/remote-agent/bin/platforms/{linux-x64,linux-arm64,darwin-x64,darwin-arm64}/borgee` — 4 platform binaries (populated at publish time by the release workflow; not checked into git).
 - `.github/workflows/publish-remote-agent.yml` — release pipeline (tag `borgee-v*` → matrix build 4 platforms → stage into `bin/platforms/` → single `npm publish`).

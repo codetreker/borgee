@@ -169,7 +169,14 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 	}
 
 	// 2. Create state dirs.
-	stateSubdirs := []string{"queue", "status", "audit-handoff", "credential"}
+	//
+	// PR-4 amend (#1033): include `openclaw` / `plugins` / `state` —
+	// the path roots declared by the signed helper-policy manifest
+	// (helpermanifest.BuildLinux) that the four no-root executors write
+	// under. systemd unit's ReadWritePaths must list these too (see
+	// renderLinuxUnit); chmod 0750 owned by the helper user matches the
+	// other state subdirs.
+	stateSubdirs := []string{"queue", "status", "audit-handoff", "credential", "openclaw", "plugins", "state"}
 	for _, sub := range stateSubdirs {
 		p := filepath.Join(linuxStateRoot, sub)
 		logStep("mkdir " + p)
@@ -212,6 +219,18 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 	if !dryRun {
 		if err := os.WriteFile(linuxServiceDst, []byte(unit), 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", linuxServiceDst, err)
+		}
+	}
+
+	// 3a. Seed the host_grants SQLite DB the daemon opens with mode=ro.
+	// Without this, the daemon errors at startup with "no such table:
+	// host_grants" and systemd burns through its restart budget. The
+	// schema matches server-go migration v=27 byte-for-byte; the file
+	// stays empty until the server pushes grants via the REST channel.
+	logStep("seed " + linuxServerDSN)
+	if !dryRun {
+		if err := seedHostGrantsDB(linuxServerDSN, linuxUser, linuxGroup); err != nil {
+			return err
 		}
 	}
 
@@ -281,7 +300,20 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 		darwinLogDir,
 		filepath.Dir(darwinUDS),
 		darwinAppSupport,
+		// PR-4 final amend: per-platform manifest subdirs that mirror
+		// the Linux setup additions (#1033 amend). Manifest-declared
+		// roots under /Library/Application Support/Borgee that the
+		// no-root executors write under. Without pre-creation, the
+		// first job hits a mkdir under a directory owned by another
+		// user (sandbox-exec writes go via darwinUser). Linux pre-
+		// creates the equivalent subdirs under /var/lib/borgee.
+		filepath.Join(darwinAppSupport, "openclaw"),
+		filepath.Join(darwinAppSupport, "plugins"),
+		filepath.Join(darwinAppSupport, "state"),
 		filepath.Join(darwinRuntimeDir, "bin"),
+		// openclaw_install root — under darwinRuntimeDir, parallel to
+		// the linux mkdir of /usr/local/lib/borgee/openclaw subdir.
+		filepath.Join(darwinRuntimeDir, "openclaw"),
 	} {
 		logStep("mkdir " + p)
 		if !dryRun {
@@ -309,6 +341,15 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 	if !dryRun {
 		if err := os.WriteFile(darwinSandboxDst, []byte(sandbox), 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", darwinSandboxDst, err)
+		}
+	}
+
+	// 3a. Seed the host_grants SQLite DB the daemon opens with mode=ro.
+	// Mirrors the Linux step — see runLinux for rationale.
+	logStep("seed " + darwinServerDSN)
+	if !dryRun {
+		if err := seedHostGrantsDB(darwinServerDSN, darwinUser, darwinUser); err != nil {
+			return err
 		}
 	}
 
@@ -374,7 +415,10 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-SystemCallFilter=@system-service
+# @sandbox covers landlock_create_ruleset / landlock_add_rule / landlock_restrict_self —
+# the daemon's in-process landlock layer SIGSYS-dies without it. The two
+# groups are additive per systemd-syscall-filter(7).
+SystemCallFilter=@system-service @sandbox
 
 # cgroups resource caps (蓝图 host-bridge.md:57).
 MemoryMax=256M
@@ -384,7 +428,29 @@ TasksMax=256
 IOWeight=100
 
 StateDirectory=borgee
-ReadWritePaths=` + linuxLogDir + ` ` + linuxRunDir + ` ` + linuxStateRoot + `/queue ` + linuxStateRoot + `/status ` + linuxStateRoot + `/audit-handoff ` + linuxStateRoot + `/credential
+# RuntimeDirectory=borgee: systemd creates /run/borgee with helper
+# ownership before ExecStart and removes it on stop. Without this
+# directive /run is tmpfs and the daemon cannot bind its UDS after a
+# reboot (root-only mkdir, helper user fails).
+RuntimeDirectory=borgee
+RuntimeDirectoryMode=0750
+# ReadWritePaths must align with the signed canonical helper-policy
+# manifest (server-go internal/helpermanifest.BuildLinux) Path
+# declarations. Misalignment fails loud at write — the executor does not
+# invent fallback paths. The rootd companion (separate unit) covers any
+# path requiring root + a different ReadWritePaths set.
+#
+# Path roots (each maps to a manifest PathID):
+#   /var/lib/borgee/queue        — queue state dir
+#   /var/lib/borgee/status       — status state dir
+#   /var/lib/borgee/audit-handoff
+#   /var/lib/borgee/credential
+#   /var/lib/borgee/openclaw     — openclaw_agent_config PathID (#1041)
+#   /var/lib/borgee/plugins      — borgee_plugin_config PathID (#1041)
+#   /var/lib/borgee/state        — borgee_state_config PathID (#1041)
+#   /var/log/borgee              — log dir
+#   /run/borgee                  — UDS dir
+ReadWritePaths=` + linuxLogDir + ` ` + linuxRunDir + ` ` + linuxStateRoot + `/queue ` + linuxStateRoot + `/status ` + linuxStateRoot + `/audit-handoff ` + linuxStateRoot + `/credential ` + linuxStateRoot + `/openclaw ` + linuxStateRoot + `/plugins ` + linuxStateRoot + `/state
 ReadOnlyPaths=` + linuxStateRoot + `
 
 Restart=on-failure
@@ -427,7 +493,12 @@ ProtectHome=yes
 PrivateTmp=yes
 RestrictNamespaces=yes
 MemoryDenyWriteExecute=yes
-SystemCallFilter=@system-service
+# @sandbox kept aligned with borgee.service: even though the current
+# rootd surface does not invoke landlock, the unit's SystemCallFilter
+# is deliberately the same shape to avoid silently diverging hardening
+# between the two daemons. Additive group syntax per systemd-syscall-
+# filter(7).
+SystemCallFilter=@system-service @sandbox
 LockPersonality=yes
 
 MemoryMax=64M

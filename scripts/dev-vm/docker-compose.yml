@@ -1,0 +1,34 @@
+# Borgee helper VM-simulator. Brings up a systemd container behaving close
+# enough to a Linux VM for helper install/claim/daemon-lifecycle testing.
+# Workflow: docs/runbooks/local-e2e-helper-container.md
+
+services:
+  borgee-vm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: borgee-vm-base:latest
+    container_name: borgee-vm
+    hostname: borgee-vm
+    # --privileged is required so systemd can access cgroup controllers and
+    # mount API namespaces. Not safe for hardened CI; intended for dev hosts.
+    privileged: true
+    # cgroup: host == docker run --cgroupns=host. Makes the container share
+    # the host cgroup namespace, which systemd inside the container needs in
+    # order to read/write its slice + scope hierarchy under /sys/fs/cgroup.
+    # Compose spec key is `cgroup` (added in compose v2.15+, supported by the
+    # docker compose v2 plugin shipping with Docker 24+).
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      # cgroup v2 hosts still need /sys/fs/cgroup bind-mounted rw so systemd
+      # can manage its hierarchy. Without this, systemd as PID 1 fails to
+      # come up cleanly even with --privileged + cgroup: host.
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    # systemd's clean-shutdown signal. Matches STOPSIGNAL in the Dockerfile;
+    # repeated here so `docker compose stop` honours it regardless of image
+    # metadata caching.
+    stop_signal: SIGRTMIN+3
+    restart: unless-stopped

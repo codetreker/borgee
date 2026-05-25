@@ -201,3 +201,40 @@ func TestHelperEnrollmentAuthAdapter_UpdateLastSeen(t *testing.T) {
 		t.Fatalf("repo captured args=%v %v %v", repo.lastID, repo.lastCredential, repo.lastDevice)
 	}
 }
+
+// PR-4 final amend — helperJobsPushAdapter is the api → ws seam used
+// by HelperJobsHandler.tryPushAfterEnqueue + PushQueuedToHelper. Nil
+// hub + missing session paths return ok=false so the upstream caller
+// soft-skips. Concrete hub.GetHelper coverage lives in internal/ws.
+func TestHelperJobsPushAdapter_NilSafe(t *testing.T) {
+	t.Parallel()
+	var nilAdapter *helperJobsPushAdapter
+	if _, _, _, ok := nilAdapter.GetHelperSessionPlatform("enroll-X"); ok {
+		t.Fatal("nil adapter should return ok=false from GetHelperSessionPlatform")
+	}
+	if nilAdapter.SendJobFrameToHelper("enroll-X", nil) {
+		t.Fatal("nil adapter should return false from SendJobFrameToHelper")
+	}
+	emptyHub := &helperJobsPushAdapter{}
+	if _, _, _, ok := emptyHub.GetHelperSessionPlatform("enroll-X"); ok {
+		t.Fatal("nil hub field should return ok=false")
+	}
+	if emptyHub.SendJobFrameToHelper("enroll-X", nil) {
+		t.Fatal("nil hub field should return false from send")
+	}
+}
+
+// TestHelperJobsPushAdapter_NoConnectedSession — adapter pointed at
+// a real (but empty) hub returns ok=false because no helper session
+// was registered for the enrollment.
+func TestHelperJobsPushAdapter_NoConnectedSession(t *testing.T) {
+	t.Parallel()
+	hub := ws.NewHub(nil, slog.Default(), nil)
+	a := &helperJobsPushAdapter{hub: hub}
+	if _, _, _, ok := a.GetHelperSessionPlatform("enroll-missing"); ok {
+		t.Fatal("expected ok=false for missing session")
+	}
+	if sent := a.SendJobFrameToHelper("enroll-missing", nil); sent {
+		t.Fatal("expected send=false for missing session")
+	}
+}

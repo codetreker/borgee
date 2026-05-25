@@ -92,7 +92,17 @@ func DefaultStateRoots() []string {
 	case "darwin":
 		return []string{"/Library/Application Support/Borgee/Helper"}
 	case "linux":
-		return []string{"/var/lib/borgee-helper"}
+		// Amend gap #5: `borgee setup` provisions state dirs under
+		// /var/lib/borgee/{queue,status,audit-handoff,...} and the
+		// systemd unit's ExecStart points to the same root. The legacy
+		// helper-specific path /var/lib/borgee-helper is no longer
+		// created on a fresh install — defaulting to that here caused
+		// every state-dir validation to fail with "outside allowed
+		// Helper-owned state roots". Keep /var/lib/borgee-helper in the
+		// list too so daemons upgraded in-place from older packages
+		// (whose existing state dirs may still sit under the old root)
+		// continue to validate cleanly.
+		return []string{"/var/lib/borgee", "/var/lib/borgee-helper"}
 	default:
 		return nil
 	}

@@ -4,10 +4,10 @@
 // daemon's UDS IPC. The main daemon (`borgee daemon`, User=borgee) uses
 // this to forward root-requiring jobs to rootd (User=root).
 //
-// PR-1 ships only a Ping() method that round-trips the placeholder ping
-// command rootd's whitelist contains. PR-4 adds typed methods for
-// install_plugin / service_lifecycle / delegation_revoke; no daemon code
-// calls this client yet.
+// PR-1 shipped the Ping() smoke method. PR-4 (#1033) added the three
+// typed root-command methods (InstallPlugin, ServiceLifecycle,
+// DelegationRevoke) used by the install_plugin / service.lifecycle /
+// delegation.revoke executors.
 //
 // Wire protocol matches internal/cli/rootd.Server: line-delimited JSON,
 // one request per connection, the connection closes after the response.
@@ -60,10 +60,8 @@ type response struct {
 	Error     string          `json:"error,omitempty"`
 }
 
-// Ping is the PR-1 smoke command. Returns the decoded result map on
-// success (`{"pong": true, "time": <unix ms>}`). Real ops (InstallPlugin,
-// ServiceLifecycle, DelegationRevoke) land in PR-4 as additional typed
-// methods on Client.
+// Ping is the smoke command. Returns the decoded result map on success
+// (`{"pong": true, "time": <unix ms>}`).
 func (c *Client) Ping(ctx context.Context) (map[string]any, error) {
 	raw, err := c.call(ctx, "ping", "ping-"+nowMS(), nil)
 	if err != nil {
@@ -74,6 +72,119 @@ func (c *Client) Ping(ctx context.Context) (map[string]any, error) {
 		return nil, fmt.Errorf("rootdclient: ping decode result: %w", err)
 	}
 	return out, nil
+}
+
+// InstallPluginRequest mirrors rootd.InstallPluginParams so callers
+// never hand-craft the params map. Kept as a duplicate type so this
+// package does not import the rootd package directly (the rootd package
+// only builds on linux+darwin; the client should compile everywhere
+// these executors do — same constraint).
+type InstallPluginRequest struct {
+	ManifestURL           string `json:"manifest_url"`
+	PubKeyBase64          string `json:"pubkey_base64"`
+	PluginID              string `json:"plugin_id"`
+	TargetPath            string `json:"target_path"`
+	HelperUser            string `json:"helper_user,omitempty"`
+	HelperGroup           string `json:"helper_group,omitempty"`
+	DryRun                bool   `json:"dry_run,omitempty"`
+	AllowInsecureManifest bool   `json:"allow_insecure_manifest,omitempty"`
+}
+
+// InstallPluginResponse mirrors rootd.InstallPluginResult.
+type InstallPluginResponse struct {
+	Installed     bool   `json:"installed"`
+	TargetPath    string `json:"target_path"`
+	StdoutSummary string `json:"stdout_summary,omitempty"`
+	StderrSummary string `json:"stderr_summary,omitempty"`
+}
+
+// InstallPlugin asks rootd to fetch + verify + place a signed plugin
+// binary. The daemon-side executor builds opts from the leased job's
+// payload + manifest binding.
+func (c *Client) InstallPlugin(ctx context.Context, opts InstallPluginRequest) (*InstallPluginResponse, error) {
+	params, err := json.Marshal(opts)
+	if err != nil {
+		return nil, fmt.Errorf("rootdclient: install_plugin marshal: %w", err)
+	}
+	raw, err := c.call(ctx, "install_plugin", "install-"+nowMS(), params)
+	if err != nil {
+		return nil, err
+	}
+	var out InstallPluginResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("rootdclient: install_plugin decode result: %w", err)
+	}
+	return &out, nil
+}
+
+// ServiceLifecycleRequest mirrors rootd.ServiceLifecycleParams.
+type ServiceLifecycleRequest struct {
+	Manager   string `json:"manager"`
+	Unit      string `json:"unit"`
+	Operation string `json:"operation"`
+}
+
+// ServiceLifecycleResponse mirrors rootd.ServiceLifecycleResult.
+type ServiceLifecycleResponse struct {
+	ExitCode int    `json:"exit_code"`
+	Stdout   string `json:"stdout,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+}
+
+// ServiceLifecycle asks rootd to exec systemctl / launchctl against
+// the (manager, unit, operation) triple the daemon executor resolved
+// from the signed manifest's ServiceDeclaration. Unit names never come
+// from operator free-form strings — only from server-signed manifest.
+func (c *Client) ServiceLifecycle(ctx context.Context, opts ServiceLifecycleRequest) (*ServiceLifecycleResponse, error) {
+	params, err := json.Marshal(opts)
+	if err != nil {
+		return nil, fmt.Errorf("rootdclient: service_lifecycle marshal: %w", err)
+	}
+	raw, err := c.call(ctx, "service_lifecycle", "svc-"+nowMS(), params)
+	if err != nil {
+		return nil, err
+	}
+	var out ServiceLifecycleResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("rootdclient: service_lifecycle decode result: %w", err)
+	}
+	return &out, nil
+}
+
+// DelegationRevokeRequest mirrors rootd.DelegationRevokeParams.
+type DelegationRevokeRequest struct {
+	EnrollmentID        string   `json:"enrollment_id"`
+	DrainTimeoutSeconds int      `json:"drain_timeout_seconds,omitempty"`
+	ServiceName         string   `json:"service_name,omitempty"`
+	ServiceManager      string   `json:"service_manager,omitempty"`
+	CredentialPaths     []string `json:"credential_paths,omitempty"`
+}
+
+// DelegationRevokeResponse mirrors rootd.DelegationRevokeResult.
+type DelegationRevokeResponse struct {
+	Disabled        bool     `json:"disabled"`
+	CredentialWiped bool     `json:"credential_wiped"`
+	WipedPaths      []string `json:"wiped_paths,omitempty"`
+}
+
+// DelegationRevoke asks rootd to disable borgee.service + wipe
+// credential files. The daemon executor calls this AFTER draining its
+// dispatcher; the daemon process then exits gracefully so the WS Result
+// frame can carry the terminal status back to the server before SIGTERM.
+func (c *Client) DelegationRevoke(ctx context.Context, opts DelegationRevokeRequest) (*DelegationRevokeResponse, error) {
+	params, err := json.Marshal(opts)
+	if err != nil {
+		return nil, fmt.Errorf("rootdclient: delegation_revoke marshal: %w", err)
+	}
+	raw, err := c.call(ctx, "delegation_revoke", "revoke-"+nowMS(), params)
+	if err != nil {
+		return nil, err
+	}
+	var out DelegationRevokeResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("rootdclient: delegation_revoke decode result: %w", err)
+	}
+	return &out, nil
 }
 
 // call performs a single round-trip. Internal so callers can only invoke

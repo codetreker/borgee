@@ -107,8 +107,9 @@ locks the high-level architecture; this section is the operational
 reference for the wire protocol.
 
 **Upgrade authentication.** The daemon sends `Authorization: Bearer
-<helper_credential>` and `X-Helper-Device-Id: <device_id>` headers on
-the upgrade request. The server validates the credential digest +
+<helper_credential>`, `X-Helper-Device-Id: <device_id>`, and (PR-4
+final amend) `X-Helper-Platform: <runtime.GOOS>` headers on the
+upgrade request. The server validates the credential digest +
 device id (same `HelperEnrollmentRepository.UpdateLastSeen` call the
 prior REST `/status` route used) and bumps `last_seen_at` in one DB
 write. On failure the server returns 401/403/404 and the daemon's
@@ -136,7 +137,42 @@ minutes. Three consecutive ping failures tear the connection down and
 the outbound client redials with exponential backoff (1s base, 30s
 cap, ±20% jitter). The previous POST `/status` producer is removed.
 
-**Backward compatibility.** The REST endpoints `POST /api/v1/helper/enrollments/{id}/jobs/poll`, `/jobs/{id}/ack`, `/jobs/{id}/result`, and `/status` stay mounted but are marked Deprecated. The shared `ProcessHelperAck` / `ProcessHelperResult` mutations are reused by both the WS read loop and the legacy REST handlers so there is one source of truth for the store mutation.
+**Backward compatibility.** The REST endpoints `POST /api/v1/helper/enrollments/{id}/jobs/poll`, `/jobs/{id}/ack`, `/jobs/{id}/result`, and `/status` stay mounted but are marked Deprecated. The shared `ProcessHelperAck` / `ProcessHelperResult` mutations are reused by both the WS read loop and the legacy REST handlers so there is one source of truth for the store mutation. The Deprecated REST `/jobs/poll` body now requires a `helper_platform` field (`linux` or `darwin`) — missing or unknown returns 400 `helper_platform_required`. Production daemons since the PR-2 WS rewrite never call REST poll; the field is the same selector the WS upgrade carries via `X-Helper-Platform`.
+
+**Platform header (PR-4 final amend).** The WS upgrade carries `X-Helper-Platform: <runtime.GOOS>` (`linux` or `darwin`). The server rejects a missing or unknown value with HTTP 400 before the WS handshake completes. The session stores the parsed platform so every pushed job frame carries the matching signed canonical manifest body (Linux paths + systemd vs. macOS paths + launchd). The platform-to-manifest mapping lives in `packages/server-go/internal/helpermanifest`.
+
+**Push wiring (PR-4 final amend).** Jobs land on the daemon via two paths now:
+
+1. **Push-on-enqueue.** When a user enqueues a helper job via `POST /api/v1/helper/enrollments/{enrollmentId}/jobs`, the server checks whether a daemon WS session is connected for that enrollment. If yes, it immediately leases the next queued job for that enrollment+device (same `PollAndLeaseForHelper` mutation REST poll uses) and pushes a `{"type":"job","job":...}` frame onto the WS write pump. Sub-second delivery.
+2. **Connect-hook drain.** When a daemon reconnects after a transient drop, the hub's `OnHelperConnected` hook fires and the helper-jobs handler leases + pushes one queued job to the freshly-connected session. The store's lease semantics are one-at-a-time per enrollment, so subsequent jobs follow on each ack/result frame.
+
+Push is best-effort. If the WS send buffer is full or the lease conflicts with a concurrent poll, the job stays queued and either REST poll fallback or the next connect-hook drain delivers it. No double-execution: the lease mutation is idempotent at the store layer.
+
+**Sequence (enqueue → execute → ack):**
+
+```
+owner (browser) ──POST /jobs──▶ server (api.HelperJobsHandler)
+                                  │ store.EnqueueForUser (persisted)
+                                  │ hub.GetHelper(enrollmentID) → session
+                                  │ store.PollAndLeaseForHelper (leased)
+                                  │ serializeHelperJobLease(lease, platform)
+                                  └─▶ session.SendJob(payload)  ◀── ws write pump
+                                                                       │
+                                                                       ▼
+                                                            daemon outbound.Receive
+                                                                       │
+                                                            jobpolicy.Evaluate (manifest sig + binding)
+                                                                       │
+                                                            dispatcher.routeByJobType
+                                                                       │
+                                                                       ▼
+                                                            executor.Execute (5 no-root) /
+                                                            rootd IPC (3 root)
+                                                                       │
+                                                            daemon ──{type:"ack"}──▶ server
+                                                            daemon ──{type:"result"}──▶ server
+                                                            server.ProcessHelperResult (terminal)
+```
 
 ## Audit Model
 
@@ -145,6 +181,36 @@ Helper audit is local JSONL for the current IPC path. It records the actor, acti
 ## Out Of Scope
 
 The helper does not create grants, write files, expose Remote Agent directories, install itself, provide an admin API, execute OpenClaw actions, write Borgee plugin config, upload bounded logs, or restart services. The local job-policy evaluator is present as a pure pre-action decision package; the outbound client is transport only and is not a host action loop.
+
+## Executors (all 8 JobTypes)
+
+The dispatcher registers per-`JobType` executors. Five run **in-process inside the `borgee daemon`** (`User=borgee`, no root) and only touch borgee-owned paths or read-only system state. The three root-requiring ones delegate the privileged operation to the `borgee rootd` companion (`User=root`) via local UDS IPC; rootd's command whitelist is the narrow security boundary. See `helper-daemon.md` § Privilege Separation for the rationale.
+
+The 5 no-root executors (`helper.uninstall`, `status.collect`, `state.write`, `openclaw.configure_agent`, `borgee_plugin.configure_connection`) resolve their target paths from the signed manifest carried in each leased job, NOT from any daemon-startup flag. The manifest is signed by Borgee server's ed25519 trust root; daemon-side `jobpolicy.Evaluate` validates the signature plus the binding's PathIDs are subset of manifest's allowed paths. The executor then re-parses the same manifest+binding via `internal/executors/manifestpath.Resolve(<PathID>)` to look up the concrete absolute root and writes there. No daemon-startup flag controls remote-write paths. The systemd unit's `ReadWritePaths` must align with the manifest-declared roots; misalignment fails loud at write time (the executor does NOT invent fallback paths).
+
+The 3 root-requiring executors (`openclaw.install_from_manifest`, `service.lifecycle`, `delegation.revoke`) follow the same manifest-binding pattern but forward the actual privileged syscall into rootd. The daemon-side executor builds the rootd request from the leased job's payload + manifest binding; rootd re-validates every field at the IPC boundary (defense-in-depth) before invoking install-butler / systemctl / launchctl / file removal. No new daemon-startup flag carries paths or unit names — manifest is authority.
+
+- `helper.uninstall` — one-key self-teardown of the helper footprint. See `packages/borgee/internal/executors/uninstall/README.md`.
+- `status.collect` — gather machine + helper + plugin status and return the snapshot in the terminal result summary (no filesystem write). See `packages/borgee/internal/executors/statuscollect/README.md`.
+- `state.write` — write an attested state record under the manifest-declared `borgee_state_config` path. See `packages/borgee/internal/executors/statewrite/README.md`.
+- `openclaw.configure_agent` — record the server-attested per-agent config metadata under the manifest-declared `openclaw_agent_config` path. See `packages/borgee/internal/executors/openclawconfigure/README.md`.
+- `borgee_plugin.configure_connection` — record the server-attested plugin connection metadata under the manifest-declared `borgee_plugin_config` path. See `packages/borgee/internal/executors/pluginconfigure/README.md`.
+- `openclaw.install_from_manifest` — fetch + verify + place a signed runtime plugin binary under the manifest-declared `openclaw_install` path. Daemon executor calls rootd's `install_plugin` whitelist entry which invokes install-butler in-process. See `packages/borgee/internal/executors/installplugin/README.md`.
+- `service.lifecycle` — start / stop / restart / reload / enable / disable a manifest-declared service unit. Daemon executor resolves the binding's ServiceID against the manifest's `ServiceDeclaration` to get `(manager, unit)`, then calls rootd's `service_lifecycle` whitelist entry which exec's systemctl / launchctl. See `packages/borgee/internal/executors/servicelifecycle/README.md`.
+- `delegation.revoke` — disable `borgee.service` (so systemd does not respawn) + wipe the helper credential / enrollment-id / device-id files. Daemon executor drains the dispatcher then calls rootd's `delegation_revoke` whitelist entry. The daemon process exits naturally after the WS Result frame is sent (no self-stop signal, mirroring `helper.uninstall`). See `packages/borgee/internal/executors/delegationrevoke/README.md`.
+
+### rootd whitelist (PR-4 #1033)
+
+`borgee rootd` (`User=root`) listens on a local UDS and accepts exactly four commands:
+
+| cmd | purpose | called by |
+|---|---|---|
+| `ping` | smoke / connectivity check | health probe (PR-1) |
+| `install_plugin` | fetch + verify + place a signed plugin binary | `executors/installplugin` |
+| `service_lifecycle` | exec systemctl / launchctl | `executors/servicelifecycle` |
+| `delegation_revoke` | disable service + wipe credential files | `executors/delegationrevoke` |
+
+Every command type-checks its params with a fixed schema, rejects unknown fields, audit-logs the request envelope, and is allow-listed at the daemon's `DefaultHandlers()` map. There is no eval / shell / arbitrary-exec command. See `packages/borgee/internal/cli/rootd/README.md` (if present) or the package doc comment for the threat model.
 
 ## Known Gaps
 

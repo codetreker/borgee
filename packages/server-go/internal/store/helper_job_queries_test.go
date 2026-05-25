@@ -183,8 +183,8 @@ func TestHelperJobServiceLifecycleIsServerBoundToDeclaredServiceID(t *testing.T)
 
 	for _, payload := range []string{
 		`{"target":"helper","operation":"restart"}`,
-		`{"target":"openclaw","operation":"stop"}`,
-		`{"target":"openclaw","operation":"reload"}`,
+		`{"target":"openclaw","operation":"bounce"}`,
+		`{"target":"openclaw","operation":""}`,
 	} {
 		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
 			OwnerUserID:   owner.ID,
@@ -196,6 +196,224 @@ func TestHelperJobServiceLifecycleIsServerBoundToDeclaredServiceID(t *testing.T)
 		}, now.Add(3*time.Minute))
 		if !errors.Is(err, ErrHelperJobSchemaInvalid) {
 			t.Fatalf("payload %s error=%v, want ErrHelperJobSchemaInvalid", payload, err)
+		}
+	}
+
+	// PR-4 (#1033): server now accepts the full 6-operation set the helper
+	// jobpolicy.allowedServiceOperation defines (start/stop/restart/reload
+	// /enable/disable). Earlier server-side limit of restart-only was a
+	// holdover from the pre-rootd era; the rootd whitelist enforces the
+	// same set on the privileged side.
+	for _, op := range []string{"start", "stop", "restart", "reload", "enable", "disable"} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:    owner.ID,
+			OrgID:          owner.OrgID,
+			EnrollmentID:   enrollment.ID,
+			JobType:        "service.lifecycle",
+			SchemaVersion:  1,
+			PayloadJSON:    `{"target":"openclaw","operation":"` + op + `"}`,
+			IdempotencyKey: "lifecycle-op-" + op,
+		}, now.Add(4*time.Minute))
+		if err != nil {
+			t.Fatalf("lifecycle operation %q rejected: %v", op, err)
+		}
+	}
+}
+
+// PR-4 (#1033): server enum + payload + binding for state.write. Verifies
+// the effective payload narrows to {state_key, value_sha256} (operator
+// cannot smuggle path/category/credential authority via unknown fields),
+// the binding declares borgee_state_config PathID only, and idempotency
+// scope round-trips a second equivalent enqueue without creating a
+// duplicate row.
+func TestHelperJobStateWriteIsServerBoundToBorgeeStateConfigPath(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-state-write")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"openclaw_config"}, now)
+
+	job, created, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+		OwnerUserID:    owner.ID,
+		OrgID:          owner.OrgID,
+		EnrollmentID:   enrollment.ID,
+		JobType:        "state.write",
+		SchemaVersion:  1,
+		PayloadJSON:    `{"state_key":"openclaw/cfg","value_sha256":"sha256:abcd"}`,
+		IdempotencyKey: "state-write-cfg-1",
+	}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("EnqueueHelperJobForUser state.write: %v", err)
+	}
+	if !created || job.Status != HelperJobStatusQueued || job.Category != "openclaw_config" || job.JobType != "state.write" {
+		t.Fatalf("bad state.write job: created=%v job=%+v", created, job)
+	}
+	assertHelperJobStateWritePayload(t, job.PayloadJSON, "openclaw/cfg", "sha256:abcd")
+	assertHelperJobManifestBinding(t, job, []string{"borgee_state_config"}, nil, nil)
+
+	// Re-enqueue identical contract: idempotency scope hit, same row.
+	job2, created2, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+		OwnerUserID:    owner.ID,
+		OrgID:          owner.OrgID,
+		EnrollmentID:   enrollment.ID,
+		JobType:        "state.write",
+		SchemaVersion:  1,
+		PayloadJSON:    `{"state_key":"openclaw/cfg","value_sha256":"sha256:abcd"}`,
+		IdempotencyKey: "state-write-cfg-1",
+	}, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("EnqueueHelperJobForUser state.write idempotent: %v", err)
+	}
+	if created2 || job2.ID != job.ID {
+		t.Fatalf("idempotent state.write created a new row: created=%v id=%s want %s", created2, job2.ID, job.ID)
+	}
+
+	// Forbidden-field set on state.write payload.
+	for _, payload := range []string{
+		`{"state_key":"k","path":"/etc/passwd"}`,
+		`{"state_key":"k","credential":"secret"}`,
+		`{"state_key":"k","path_id":"override"}`,
+		`{"state_key":"k","service_id":"evil"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "state.write",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(4*time.Minute))
+		if !errors.Is(err, ErrHelperJobForbiddenField) {
+			t.Fatalf("payload %s error=%v, want ErrHelperJobForbiddenField", payload, err)
+		}
+	}
+
+	// Schema-invalid: missing state_key, traversal, absolute path, bad
+	// value_sha256 prefix.
+	for _, payload := range []string{
+		`{}`,
+		`{"state_key":""}`,
+		`{"state_key":"../escape"}`,
+		`{"state_key":"/abs/path"}`,
+		`{"state_key":"a/./b"}`,
+		`{"state_key":"k","value_sha256":"hex-not-sha-prefixed"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "state.write",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(5*time.Minute))
+		if !errors.Is(err, ErrHelperJobSchemaInvalid) {
+			t.Fatalf("payload %s error=%v, want ErrHelperJobSchemaInvalid", payload, err)
+		}
+	}
+}
+
+// PR-4 (#1033): server enum + payload for status.collect. status.collect
+// is not in helper-side jobpolicy.requiresManifest — the job row carries
+// no manifest binding (ManifestBindingJSON nil), and the helper executor
+// returns the snapshot in ResultSummary without any filesystem write.
+func TestHelperJobStatusCollectAcceptsAllowedScopesAndCarriesNoManifestBinding(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-status-collect")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"status_collect"}, now)
+
+	for _, scope := range []string{"helper", "openclaw", "service"} {
+		job, created, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:    owner.ID,
+			OrgID:          owner.OrgID,
+			EnrollmentID:   enrollment.ID,
+			JobType:        "status.collect",
+			SchemaVersion:  1,
+			PayloadJSON:    `{"scope":"` + scope + `"}`,
+			IdempotencyKey: "status-collect-" + scope,
+		}, now.Add(2*time.Minute))
+		if err != nil {
+			t.Fatalf("EnqueueHelperJobForUser status.collect %s: %v", scope, err)
+		}
+		if !created || job.Category != "status_collect" || job.JobType != "status.collect" {
+			t.Fatalf("bad status.collect job (scope=%s): created=%v job=%+v", scope, created, job)
+		}
+		if job.ManifestDigest != "" {
+			t.Fatalf("status.collect must carry empty manifest digest, got %q", job.ManifestDigest)
+		}
+		if job.ManifestBindingJSON != nil {
+			t.Fatalf("status.collect must carry nil manifest binding, got %v", job.ManifestBindingJSON)
+		}
+	}
+
+	for _, payload := range []string{
+		`{"scope":""}`,
+		`{"scope":"unknown"}`,
+		`{}`,
+		`{"scope":"helper","path":"/etc"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "status.collect",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(3*time.Minute))
+		if err == nil {
+			t.Fatalf("payload %s accepted, want rejection", payload)
+		}
+	}
+}
+
+// PR-4 (#1033): server enum + payload for delegation.revoke. Like
+// status.collect, no manifest authority is attached — the operation is
+// the removal of authority, not the use of it.
+func TestHelperJobDelegationRevokeAcceptsCategoriesAndCarriesNoManifestBinding(t *testing.T) {
+	t.Parallel()
+	s := migratedStore(t)
+	owner := helperOwner(t, s, "helper-job-delegation-revoke")
+	now := time.UnixMilli(1778840000000)
+	enrollment := claimedFreshHelperEnrollment(t, s, owner, []string{"helper_lifecycle"}, now)
+
+	for _, category := range []string{"openclaw_config", "openclaw_lifecycle", "status_collect", "helper_lifecycle"} {
+		job, created, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:    owner.ID,
+			OrgID:          owner.OrgID,
+			EnrollmentID:   enrollment.ID,
+			JobType:        "delegation.revoke",
+			SchemaVersion:  1,
+			PayloadJSON:    `{"target_category":"` + category + `"}`,
+			IdempotencyKey: "revoke-" + category,
+		}, now.Add(2*time.Minute))
+		if err != nil {
+			t.Fatalf("EnqueueHelperJobForUser delegation.revoke %s: %v", category, err)
+		}
+		if !created || job.Category != "helper_lifecycle" || job.JobType != "delegation.revoke" {
+			t.Fatalf("bad delegation.revoke job (category=%s): created=%v job=%+v", category, created, job)
+		}
+		if job.ManifestDigest != "" || job.ManifestBindingJSON != nil {
+			t.Fatalf("delegation.revoke must carry no manifest authority, got digest=%q binding=%v", job.ManifestDigest, job.ManifestBindingJSON)
+		}
+	}
+
+	for _, payload := range []string{
+		`{"target_category":""}`,
+		`{"target_category":"unknown"}`,
+		`{}`,
+		`{"target_category":"helper_lifecycle","credential":"secret"}`,
+	} {
+		_, _, err := s.EnqueueHelperJobForUser(EnqueueHelperJobInput{
+			OwnerUserID:   owner.ID,
+			OrgID:         owner.OrgID,
+			EnrollmentID:  enrollment.ID,
+			JobType:       "delegation.revoke",
+			SchemaVersion: 1,
+			PayloadJSON:   payload,
+		}, now.Add(3*time.Minute))
+		if err == nil {
+			t.Fatalf("payload %s accepted, want rejection", payload)
 		}
 	}
 }
@@ -275,9 +493,22 @@ func TestHelperJobEnqueueRejectsInactiveDelegationAndClosedTaxonomy(t *testing.T
 			in.PayloadJSON = `{"target":"openclaw"}`
 			return in
 		}, ErrHelperJobDelegationDenied},
-		{"recognized state write type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "state.write"; return in }, ErrHelperJobTypeNotEnabled},
-		{"recognized status collect type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "status.collect"; return in }, ErrHelperJobTypeNotEnabled},
-		{"recognized delegation revoke type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "delegation.revoke"; return in }, ErrHelperJobTypeNotEnabled},
+		{"state write payload requires state_key", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.JobType = "state.write"
+			// base PayloadJSON is {agent_id:...} which lacks state_key and
+			// carries an unknown field under strict decode.
+			return in
+		}, ErrHelperJobSchemaInvalid},
+		{"status collect requires status delegation", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.JobType = "status.collect"
+			in.PayloadJSON = `{"scope":"helper"}`
+			return in
+		}, ErrHelperJobDelegationDenied},
+		{"delegation revoke requires helper-lifecycle delegation", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
+			in.JobType = "delegation.revoke"
+			in.PayloadJSON = `{"target_category":"openclaw_config"}`
+			return in
+		}, ErrHelperJobDelegationDenied},
 		{"recognized helper uninstall type", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.JobType = "helper.uninstall"; return in }, ErrHelperJobDelegationDenied},
 		{"schema version", func(in EnqueueHelperJobInput) EnqueueHelperJobInput { in.SchemaVersion = 2; return in }, ErrHelperJobSchemaInvalid},
 		{"cross-owner agent", func(in EnqueueHelperJobInput) EnqueueHelperJobInput {
@@ -1187,6 +1418,25 @@ func assertHelperJobServiceLifecyclePayload(t *testing.T, payload string) {
 	for _, key := range []string{"target", "service_id", "service_ids", "service_unit", "command", "shell", "argv", "path", "domain", "credential"} {
 		if _, ok := got[key]; ok {
 			t.Fatalf("service lifecycle payload leaked forbidden key %q: %v", key, got)
+		}
+	}
+}
+
+func assertHelperJobStateWritePayload(t *testing.T, payload string, wantKey, wantSHA string) {
+	t.Helper()
+	var got map[string]any
+	if err := json.Unmarshal([]byte(payload), &got); err != nil {
+		t.Fatalf("payload is not JSON: %v", err)
+	}
+	if got["state_key"] != wantKey {
+		t.Fatalf("payload state_key=%v, want %s in %v", got["state_key"], wantKey, got)
+	}
+	if got["value_sha256"] != wantSHA {
+		t.Fatalf("payload value_sha256=%v, want %s in %v", got["value_sha256"], wantSHA, got)
+	}
+	for _, key := range []string{"path", "path_id", "path_ids", "service_id", "credential", "shell", "argv", "command"} {
+		if _, ok := got[key]; ok {
+			t.Fatalf("state.write payload leaked forbidden key %q: %v", key, got)
 		}
 	}
 }

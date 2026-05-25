@@ -13,22 +13,34 @@ package daemon
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"flag"
 	"io"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"borgee/internal/acl"
 	"borgee/internal/audit"
 	"borgee/internal/dispatch"
+	"borgee/internal/executors/delegationrevoke"
+	"borgee/internal/executors/installplugin"
+	"borgee/internal/executors/openclawconfigure"
+	"borgee/internal/executors/pluginconfigure"
+	"borgee/internal/executors/servicelifecycle"
+	"borgee/internal/executors/statuscollect"
+	"borgee/internal/executors/statewrite"
 	"borgee/internal/executors/uninstall"
 	"borgee/internal/grants"
 	"borgee/internal/ipc"
 	"borgee/internal/jobpolicy"
 	"borgee/internal/outbound"
+	"borgee/internal/rootdclient"
 	"borgee/internal/sandbox"
 	"borgee/internal/updatecheck"
 )
@@ -265,19 +277,50 @@ func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDevic
 		log.Printf("borgee-helper: cannot construct outbound client for dispatcher: %v", err)
 		return nil, false
 	}
-	return &dispatch.Dispatcher{
+	// PR-4 #1033 — rootd companion client. Uses the platform-default
+	// UDS path (`/run/borgee/borgee-rootd.sock` on Linux,
+	// `/Users/Shared/Borgee/borgee-rootd.sock` on darwin). The
+	// install_plugin / service.lifecycle / delegation.revoke executors
+	// dial this client to forward root-requiring operations into the
+	// privileged `borgee rootd` companion daemon.
+	rootd := &rootdclient.Client{SocketPath: rootdclient.DefaultSocket()}
+	dispatcher := &dispatch.Dispatcher{
 		Client:          client,
 		EnrollmentID:    enrollmentID,
 		PolicyEvaluator: defaultPolicyEvaluator(),
-		Executors: map[string]dispatch.Executor{
-			// #998 helper.uninstall — one-key self-teardown. See
-			// internal/executors/uninstall for the cleanup sequence and the
-			// "no self-stop signal" safety note.
-			jobpolicy.JobTypeHelperUninstall: &uninstall.Executor{
-				Logger: log.Printf,
-			},
+	}
+	dispatcher.Executors = map[string]dispatch.Executor{
+		// #998 helper.uninstall — one-key self-teardown.
+		jobpolicy.JobTypeHelperUninstall: &uninstall.Executor{Logger: log.Printf},
+		// PR-3 #1041 — the four no-root executors.
+		jobpolicy.JobTypeStatusCollect: &statuscollect.Executor{
+			InstalledVersionsPath: updatecheck.DefaultInstalledVersionsPath,
+			Logger:                log.Printf,
 		},
-	}, true
+		jobpolicy.JobTypeStateWrite:                &statewrite.Executor{Logger: log.Printf},
+		jobpolicy.JobTypeOpenClawConfigureAgent:    &openclawconfigure.Executor{Logger: log.Printf},
+		jobpolicy.JobTypePluginConfigureConnection: &pluginconfigure.Executor{Logger: log.Printf},
+		// PR-4 #1033 — three root-requiring executors. All three
+		// forward the actual privileged operation into `borgee rootd`
+		// via the shared rootdclient. Paths / unit names / target
+		// directories come from the signed manifest carried in each
+		// leased job, NOT from any daemon-startup flag.
+		jobpolicy.JobTypeOpenClawInstallFromManifest: &installplugin.Executor{
+			Rootd:        rootd,
+			PubKeyBase64: os.Getenv("BORGEE_MANIFEST_SIGNING_PUBKEY"),
+			Logger:       log.Printf,
+		},
+		jobpolicy.JobTypeServiceLifecycle: &servicelifecycle.Executor{
+			Rootd:  rootd,
+			Logger: log.Printf,
+		},
+		jobpolicy.JobTypeDelegationRevoke: &delegationrevoke.Executor{
+			Rootd:      rootd,
+			Dispatcher: dispatcher,
+			Logger:     log.Printf,
+		},
+	}
+	return dispatcher, true
 }
 
 // buildUpdateChecker mirrors the buildHeartbeater / buildDispatcher
@@ -321,22 +364,93 @@ func buildUpdateChecker(prep outbound.PreparedConfig, enrollmentIDFile, helperDe
 // branches and the dispatcher reports the deterministic reason. The point of
 // wiring it here is to close the #1002 "0 production callers" gap so the
 // double-validate contract becomes real the moment any executor lands.
+//
+// PR-4 amend (#1033): TrustRoots is populated from
+// BORGEE_MANIFEST_SIGNING_PUBKEY (same env var the installplugin executor
+// already reads) so jobpolicy.verifyManifestAuthority can verify the
+// signed manifest body the server now emits in every leased-job
+// payload. Empty env → empty TrustRoots → manifest-required jobs land
+// in ReasonManifestInvalid (Evaluate's documented "no trust roots"
+// path); that is the safe production default until ops rotates a key in.
+//
+// PR-4 amend gap #1: the envelope fields (owner_user_id, org_id,
+// helper_device_id, category, payload_hash, expires_at) now flow from
+// the server's lease frame into jobpolicy.Job, so validateJobSchema
+// passes. Without those six fields the prior code constructed an
+// envelope of empty strings and every pushed job got rejected with
+// ReasonSchemaInvalid before the executor ran. Enrollment is built
+// from the same envelope (the server vouches for the binding via the
+// WS credential gate, so the daemon doesn't need a duplicate local
+// store yet) — this keeps validateLocalState a no-op until the helper
+// installs its own enrollment cache in a later milestone.
 func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
+	trustRoots := loadHelperManifestTrustRoots()
 	return func(_ context.Context, job *outbound.LeasedJob) jobpolicy.Decision {
 		if job == nil {
 			return jobpolicy.Decision{Allow: false, Reason: jobpolicy.ReasonSchemaInvalid}
 		}
+		var expires time.Time
+		if job.ExpiresAt > 0 {
+			expires = time.UnixMilli(job.ExpiresAt)
+		}
 		return jobpolicy.Evaluate(jobpolicy.EvaluationInput{
+			TrustRoots: trustRoots,
 			Job: jobpolicy.Job{
-				JobID:          job.JobID,
-				EnrollmentID:   job.EnrollmentID,
-				JobType:        job.JobType,
-				SchemaVersion:  job.SchemaVersion,
-				PayloadJSON:    job.Payload,
-				ManifestDigest: job.ManifestDigest,
+				JobID:                job.JobID,
+				OwnerUserID:          job.OwnerUserID,
+				OrgID:                job.OrgID,
+				EnrollmentID:         job.EnrollmentID,
+				HelperDeviceID:       job.HelperDeviceID,
+				CredentialGeneration: 1,
+				JobType:              job.JobType,
+				Category:             job.Category,
+				SchemaVersion:        job.SchemaVersion,
+				PayloadJSON:          job.Payload,
+				PayloadHash:          job.PayloadHash,
+				ManifestDigest:       job.ManifestDigest,
+				ManifestJSON:         job.ManifestJSON,
+				ManifestBindingJSON:  job.ManifestBindingJSON,
+				ExpiresAt:            expires,
+			},
+			Enrollment: jobpolicy.EnrollmentState{
+				OwnerUserID:          job.OwnerUserID,
+				OrgID:                job.OrgID,
+				EnrollmentID:         job.EnrollmentID,
+				HelperDeviceID:       job.HelperDeviceID,
+				CredentialGeneration: 1,
+				Status:               "active",
+				AllowedCategories:    []string{job.Category},
 			},
 		})
 	}
+}
+
+// loadHelperManifestTrustRoots decodes the daemon's startup
+// BORGEE_MANIFEST_SIGNING_PUBKEY env var into an ed25519 public key
+// slice for jobpolicy.EvaluationInput.TrustRoots. Multiple roots are
+// supported via comma-separation so future key rotations can run with a
+// grace window (current+next pubkey both valid). Empty / malformed env
+// produces an empty slice — Evaluate rejects manifest-required jobs
+// safely under that condition.
+func loadHelperManifestTrustRoots() []ed25519.PublicKey {
+	raw := strings.TrimSpace(os.Getenv("BORGEE_MANIFEST_SIGNING_PUBKEY"))
+	if raw == "" {
+		return nil
+	}
+	var roots []ed25519.PublicKey
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		decoded, err := base64.StdEncoding.DecodeString(entry)
+		if err != nil || len(decoded) != ed25519.PublicKeySize {
+			log.Printf("borgee-helper: BORGEE_MANIFEST_SIGNING_PUBKEY entry invalid (len=%d err=%v); skipping", len(decoded), err)
+			continue
+		}
+		roots = append(roots, ed25519.PublicKey(decoded))
+	}
+	return roots
 }
 
 // readTrimmedFile reads `path` and returns its whitespace-trimmed content. It

@@ -56,8 +56,13 @@ func main() {
 	sub := os.Args[1]
 	args := os.Args[2:]
 	if err := dispatch(sub, args, os.Stdout, os.Stderr); err != nil {
-		// Subcommands write their own structured error to stderr; the
-		// dispatcher only forwards the non-zero exit code.
+		// Surface the structured failure on stderr before exit. systemd
+		// captures stderr into the journal — operators see the reason
+		// (e.g. "--grants-db is required" or a sandbox-apply failure)
+		// instead of a bare non-zero exit. Subcommands also write their
+		// own context-rich diagnostics; this last-line guard ensures the
+		// final error is never silently swallowed.
+		fmt.Fprintf(os.Stderr, "borgee %s: %v\n", sub, err)
 		os.Exit(1)
 	}
 }

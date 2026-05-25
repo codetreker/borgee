@@ -539,8 +539,13 @@ func (h *Hub) GetHelper(enrollmentID string) *HelperSession {
 
 // SendJobToHelper queues a `{"type":"job","job":...}` frame to the
 // helper session for the enrollment. Returns true iff a session was
-// connected (and the buffer accepted the queue). False = no session;
-// caller can fall back to "leave queued for next connect".
+// connected AND the buffer accepted the queue. False = no session OR
+// the session's writer pump buffer is full / write goroutine wedged;
+// caller MUST treat false as "frame not delivered" and recover the
+// already-leased job (release the lease or rely on lease expiry +
+// REST-poll fallback). PR-4 P0 review fix: previously this returned
+// true unconditionally on the buffer-full path, so leased rows could
+// silently stall until lease expiry.
 func (h *Hub) SendJobToHelper(enrollmentID string, jobJSON json.RawMessage) bool {
 	h.mu.RLock()
 	sess := h.helperSessions[enrollmentID]
@@ -555,8 +560,7 @@ func (h *Hub) SendJobToHelper(enrollmentID string, jobJSON json.RawMessage) bool
 	if err != nil {
 		return false
 	}
-	sess.Send(frame)
-	return true
+	return sess.Send(frame)
 }
 
 // SendDirectiveToHelper queues a `{"type":"directive","code":...}`
@@ -564,7 +568,9 @@ func (h *Hub) SendJobToHelper(enrollmentID string, jobJSON json.RawMessage) bool
 // uninstall paths to tell the daemon to stop and exit (systemd
 // Restart=on-failure will keep bouncing it until the credential is
 // rotated / new claim happens — same semantics as the prior REST
-// 403 + stale_credential path).
+// 403 + stale_credential path). Returns true iff queued; false = no
+// session or send-buffer full (the directive will be re-sent on next
+// reconnect via the connect-hook).
 func (h *Hub) SendDirectiveToHelper(enrollmentID, code string) bool {
 	h.mu.RLock()
 	sess := h.helperSessions[enrollmentID]
@@ -579,8 +585,7 @@ func (h *Hub) SendDirectiveToHelper(enrollmentID, code string) bool {
 	if err != nil {
 		return false
 	}
-	sess.Send(frame)
-	return true
+	return sess.Send(frame)
 }
 
 // SetHelperConnectHook wires the on-connect callback invoked when a

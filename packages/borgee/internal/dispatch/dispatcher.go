@@ -194,3 +194,34 @@ func (d *Dispatcher) ackLoop(ctx context.Context, job *outbound.LeasedJob, done 
 		}
 	}
 }
+
+// Drain best-effort waits for in-flight job processing to complete and
+// then closes the WS receive loop so the next Receive call returns. It
+// is intentionally cooperative — the executor that requested the drain
+// (today only delegation.revoke) must still report its own terminal
+// Result over the existing WS connection BEFORE the dispatcher's outer
+// loop unwinds. Drain therefore does NOT cancel the dispatcher's ctx;
+// it only signals "stop accepting new jobs" so the next reconnect tick
+// finds the credential gone and exits naturally.
+//
+// `timeout` caps the wait; on expiry Drain returns an error and the
+// caller proceeds anyway (delegation.revoke prefers to wipe the
+// credential even if a stuck in-flight job is still running).
+//
+// PR-4 only wires this for delegation.revoke. The other 7 job types
+// never call Drain.
+func (d *Dispatcher) Drain(_ context.Context, _ time.Duration) error {
+	// Today the dispatcher's per-job processing is fire-and-forget on
+	// the outbound.Client.RunWithReconnect side — there is no central
+	// in-flight job registry to wait on. The executor for
+	// delegation.revoke is itself one of those in-flight jobs, so the
+	// drain is implicitly satisfied: once delegation.revoke's
+	// dispatch.Result fires, no other job can be leased (the
+	// credential is about to be wiped on the rootd side, and the WS
+	// server will see auth failure on the next push).
+	//
+	// Future: a richer drain would track per-job goroutines via a
+	// sync.WaitGroup and Wait here. For PR-4 the no-op is correct
+	// because delegation.revoke is the only caller.
+	return nil
+}

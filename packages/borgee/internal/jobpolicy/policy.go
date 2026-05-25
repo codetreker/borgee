@@ -288,9 +288,9 @@ func validatePayload(job Job) Reason {
 		}
 	case JobTypeDelegationRevoke:
 		var payload struct {
-			Category string `json:"category"`
+			TargetCategory string `json:"target_category"`
 		}
-		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || payload.Category == "" {
+		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || payload.TargetCategory == "" {
 			return ReasonSchemaInvalid
 		}
 	case JobTypeHelperUninstall:
@@ -319,7 +319,7 @@ func decodeStrict(raw []byte, dst any) error {
 
 func allowedServiceOperation(op string) bool {
 	switch op {
-	case "start", "stop", "restart", "disable":
+	case "start", "stop", "restart", "reload", "enable", "disable":
 		return true
 	default:
 		return false

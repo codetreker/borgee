@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"borgee-server/internal/datalayer"
+	"borgee-server/internal/helpermanifest"
 
 	"github.com/coder/websocket"
 )
@@ -51,6 +52,15 @@ const HelperWSSubprotocol = "borgee.helper.v1"
 // the displacement is a normal operational signal, not a fatal stop.
 const HelperWSCloseDisplaced websocket.StatusCode = 4001
 
+// HelperWSCloseUnsupportedPlatform is surfaced when the daemon's WS
+// upgrade is missing X-Helper-Platform or sends a token outside the
+// {linux, darwin} enum. PR-4 final amend hardline: the server emits a
+// platform-specific signed manifest, so a daemon without an upfront
+// platform declaration cannot be served. No backward-compat shim —
+// PR-2 rewrote the daemon to WS so every daemon in the wild ships
+// runtime.GOOS after this PR lands.
+const HelperWSCloseUnsupportedPlatform websocket.StatusCode = 4002
+
 // HelperEnrollmentAuthenticator is the narrow seam between this WS
 // endpoint and the datalayer.HelperEnrollmentRepository. Declared here
 // (not imported as the full repo) so unit tests can mock just the auth
@@ -84,6 +94,11 @@ type HelperSession struct {
 	enrollmentID string
 	credential   string
 	deviceID     string
+	// platform: daemon-declared runtime.GOOS (linux|darwin). Set at
+	// upgrade time from X-Helper-Platform; immutable for the session
+	// lifetime. The push path reads this so the manifest body in the
+	// leased-job frame matches the daemon's filesystem layout.
+	platform helpermanifest.Platform
 
 	send chan []byte
 	done chan struct{}
@@ -98,20 +113,30 @@ type HelperSession struct {
 // buffer rather than blocking — the daemon is expected to either be
 // reading promptly or be torn down by the displacement / liveness
 // path.
-func (h *HelperSession) Send(data []byte) {
+//
+// Returns true iff the frame was queued onto the writer pump. false =
+// dropped (buffer full or write goroutine wedged). Callers that lease a
+// job and rely on the daemon receiving the frame (helper job push) MUST
+// honor this return — silently dropping a leased job leaves the row
+// `leased` until lease expiry, blocking REST poll fallback during the
+// gap.
+func (h *HelperSession) Send(data []byte) bool {
 	select {
 	case h.send <- data:
+		return true
 	default:
+		return false
 	}
 }
 
-// SendJSON serializes and queues a JSON frame.
-func (h *HelperSession) SendJSON(v any) {
+// SendJSON serializes and queues a JSON frame. Returns the same bool
+// Send returns; false on marshal failure or full buffer.
+func (h *HelperSession) SendJSON(v any) bool {
 	data, err := json.Marshal(v)
 	if err != nil {
-		return
+		return false
 	}
-	h.Send(data)
+	return h.Send(data)
 }
 
 // LastSeen returns the most recent inbound-frame timestamp.
@@ -130,6 +155,25 @@ func (h *HelperSession) touchLastSeen() {
 // EnrollmentID lets callers (hub, tests) read the bound enrollment.
 func (h *HelperSession) EnrollmentID() string {
 	return h.enrollmentID
+}
+
+// Platform returns the daemon-declared runtime.GOOS the session was
+// upgraded with. Used by the push path to select the matching signed
+// manifest body.
+func (h *HelperSession) Platform() helpermanifest.Platform {
+	return h.platform
+}
+
+// Credential returns the daemon's bearer credential. Used by the push
+// path to call the same store.PollAndLeaseForHelper REST poll uses,
+// so the lease mutation is bit-identical across the two rails.
+func (h *HelperSession) Credential() string {
+	return h.credential
+}
+
+// DeviceID returns the daemon's X-Helper-Device-Id. Lease input.
+func (h *HelperSession) DeviceID() string {
+	return h.deviceID
 }
 
 // Close terminates the session, idempotent under the done channel.
@@ -182,6 +226,27 @@ func HandleHelper(hub *Hub, authenticator HelperEnrollmentAuthenticator, process
 			return
 		}
 
+		// PR-4 final amend: X-Helper-Platform required. v1 enum is
+		// {linux, darwin}; the daemon sends runtime.GOOS verbatim. We
+		// reject the upgrade BEFORE websocket.Accept so a non-WS HTTP
+		// 400 is observable on the daemon side as a hard config error
+		// (vs. accept → immediate close, which Reconnect would treat
+		// as a transient). PR-4 final-amend close code 4002 is also
+		// returned via a websocket.Accept + Close path so daemon
+		// outbound client can log the explicit close-reason; but for
+		// the pre-Accept reject we use HTTP 400 with a code body so
+		// curl + browser diagnostics are clear.
+		platformHeader := strings.TrimSpace(r.Header.Get("X-Helper-Platform"))
+		if platformHeader == "" {
+			http.Error(w, "helper_platform_required", http.StatusBadRequest)
+			return
+		}
+		platform, platformOK := helpermanifest.ParsePlatform(platformHeader)
+		if !platformOK {
+			http.Error(w, "unsupported_platform", http.StatusBadRequest)
+			return
+		}
+
 		if authenticator == nil {
 			http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 			return
@@ -214,6 +279,7 @@ func HandleHelper(hub *Hub, authenticator HelperEnrollmentAuthenticator, process
 			enrollmentID: enrollmentID,
 			credential:   credential,
 			deviceID:     deviceID,
+			platform:     platform,
 			send:         make(chan []byte, sendBufSize),
 			done:         make(chan struct{}),
 			lastSeenAt:   time.Now(),

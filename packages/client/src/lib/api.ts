@@ -1221,6 +1221,87 @@ export async function fetchHelperEnrollment(
   return sanitizeHelperEnrollment(data.enrollment);
 }
 
+// ─── Helper Enrollment — create (operator UI mint) ───────────
+//
+// Operators previously had to bootstrap with curl:
+//   `curl -X POST .../api/v1/helper/enrollments -d '{"host_label":...,"allowed_categories":[...]}'`
+// then hand-build a `<enrollment_id>.<enrollment_secret>` token and paste it
+// into `borgee install --token`. This API mints the same token from the web UI.
+//
+// The server response carries both the raw secret (back-compat for any caller
+// that wants to compose its own URL) and two pre-built convenience fields:
+//   - enrollment_token  — `<enrollment_id>.<enrollment_secret>` (the string
+//     `borgee install --token` takes; see install.go::tokenParts)
+//   - install_command   — `sudo npx @codetreker/borgee-remote-agent install
+//     --server <wss://host> --token <token>` (single line the operator
+//     copies onto the VM)
+//
+// Both fields are shown ONCE. The server only stores the secret's digest, so
+// once the modal closes the operator cannot retrieve them again.
+
+export interface CreateHelperEnrollmentInput {
+  host_label: string;
+  allowed_categories: string[];
+}
+
+export interface CreateHelperEnrollmentResponse {
+  enrollment_id: string;
+  host_label: string;
+  allowed_categories: string[];
+  enrollment_token: string;
+  enrollment_secret: string;
+  enrollment_secret_expires_at?: number;
+  install_command: string;
+}
+
+export async function createHelperEnrollment(
+  input: CreateHelperEnrollmentInput,
+): Promise<CreateHelperEnrollmentResponse> {
+  const raw = await request<{
+    enrollment?: { enrollment_id?: unknown; host_label?: unknown; allowed_categories?: unknown };
+    enrollment_secret?: unknown;
+    enrollment_secret_expires_at?: unknown;
+    enrollment_token?: unknown;
+    install_command?: unknown;
+  }>('/api/v1/helper/enrollments', {
+    method: 'POST',
+    body: JSON.stringify({
+      host_label: String(input.host_label ?? '').trim(),
+      allowed_categories: Array.isArray(input.allowed_categories)
+        ? input.allowed_categories.filter((v): v is string => typeof v === 'string' && v !== '')
+        : [],
+    }),
+  });
+  const enrollment = raw.enrollment ?? {};
+  return {
+    enrollment_id: String(enrollment.enrollment_id ?? ''),
+    host_label: String(enrollment.host_label ?? ''),
+    allowed_categories: Array.isArray(enrollment.allowed_categories)
+      ? enrollment.allowed_categories.filter((v: unknown): v is string => typeof v === 'string')
+      : [],
+    enrollment_token: typeof raw.enrollment_token === 'string' ? raw.enrollment_token : '',
+    enrollment_secret: typeof raw.enrollment_secret === 'string' ? raw.enrollment_secret : '',
+    ...(typeof raw.enrollment_secret_expires_at === 'number'
+      ? { enrollment_secret_expires_at: raw.enrollment_secret_expires_at }
+      : {}),
+    install_command: typeof raw.install_command === 'string' ? raw.install_command : '',
+  };
+}
+
+// HELPER_ALLOWED_CATEGORIES — canonical list mirrored from
+// packages/server-go/internal/store/helper_enrollment_queries.go::helperAllowedCategories.
+// The server is source of truth for which categories are accepted; this
+// constant is used only as the form's checkbox option list and is locked by
+// the helper-enrollments-api test (the server rejects anything else with
+// ErrHelperEnrollmentInvalidCategory).
+export const HELPER_ALLOWED_CATEGORIES = [
+  'openclaw_lifecycle',
+  'openclaw_config',
+  'helper_lifecycle',
+  'status_collect',
+] as const;
+export type HelperAllowedCategory = (typeof HELPER_ALLOWED_CATEGORIES)[number];
+
 // ─── Commands ──────────────────────────────────────────
 
 export interface AgentCommandInfo {

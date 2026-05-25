@@ -1,0 +1,67 @@
+# Local borgee e2e stack: server-go + helper-vm sharing a docker
+# network. One-command bring-up for PR pre-merge e2e — no
+# testing-borgee dependency. See docs/runbooks/local-e2e-helper-container.md.
+#
+# First-time setup:
+#   ./gen-keypair.sh > .env
+#   cat .env.example | grep -v '^BORGEE_MANIFEST_SIGNING_KEY' >> .env
+#   docker compose up -d
+#
+# The helper VM waits for the server's healthcheck before booting, so
+# `docker compose up -d` returns when both sides are reachable on the
+# shared `borgee-e2e` network.
+
+services:
+  borgee-server:
+    build:
+      context: ../..
+      dockerfile: scripts/dev-stack/Dockerfile.server
+    image: borgee-server:dev-stack
+    container_name: borgee-server
+    hostname: borgee-server
+    env_file: ./.env
+    ports:
+      # Bind to loopback only; the dev host should not expose the
+      # local-e2e server publicly.
+      - "127.0.0.1:4900:4900"
+    volumes:
+      - server-data:/var/lib/borgee-server
+    healthcheck:
+      # /health is the unauthenticated readiness probe registered in
+      # internal/server/server.go. Helper boot gates on this returning
+      # 200 before its depends_on condition resolves.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4900/health || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [borgee-e2e]
+
+  borgee-vm:
+    build:
+      context: ../dev-vm
+      dockerfile: Dockerfile
+    image: borgee-vm-base:latest
+    container_name: borgee-vm
+    hostname: borgee-vm
+    # --privileged + cgroup: host required for systemd PID 1. Identical
+    # to scripts/dev-vm/docker-compose.yml — keep in sync.
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    stop_signal: SIGRTMIN+3
+    restart: unless-stopped
+    depends_on:
+      borgee-server:
+        condition: service_healthy
+    networks: [borgee-e2e]
+
+volumes:
+  server-data:
+
+networks:
+  borgee-e2e:
+    driver: bridge

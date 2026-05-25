@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -172,9 +173,33 @@ type LeasedJob struct {
 	SchemaVersion  int             `json:"schema_version"`
 	Payload        json.RawMessage `json:"payload"`
 	ManifestDigest string          `json:"manifest_digest"`
-	LeaseToken     string          `json:"lease_token"`
-	LeaseExpiresAt int64           `json:"lease_expires_at"`
-	Attempt        int             `json:"attempt"`
+	// ManifestJSON / ManifestBindingJSON carry the signed policy manifest
+	// (per jobpolicy.PolicyManifest / ManifestBinding). The dispatcher's
+	// jobpolicy.Evaluate verifies signature + binding ⊆ manifest paths
+	// before the executor runs; the no-root executors then call
+	// manifestpath.Resolve on these same bytes to translate a PathID
+	// (e.g. openclaw_agent_config) into the real filesystem root they
+	// must write under. Empty bytes → executor fails loud with
+	// manifest_invalid; the daemon does not synthesize fallback paths.
+	ManifestJSON        json.RawMessage `json:"manifest_json,omitempty"`
+	ManifestBindingJSON json.RawMessage `json:"manifest_binding_json,omitempty"`
+	LeaseToken          string          `json:"lease_token"`
+	LeaseExpiresAt      int64           `json:"lease_expires_at"`
+	Attempt             int             `json:"attempt"`
+
+	// Amend gap #1 — daemon-side jobpolicy.validateJobSchema requires
+	// the envelope fields below; the server populates them on every
+	// lease frame. Tests that hand-craft a leased job with these zero
+	// must still drive jobpolicy.Evaluate into ReasonSchemaInvalid.
+	OwnerUserID    string `json:"owner_user_id,omitempty"`
+	OrgID          string `json:"org_id,omitempty"`
+	HelperDeviceID string `json:"helper_device_id,omitempty"`
+	Category       string `json:"category,omitempty"`
+	PayloadHash    string `json:"payload_hash,omitempty"`
+	// ExpiresAt is the server's persisted helper_jobs.expires_at column
+	// (unix milliseconds). The daemon converts to time.Time at the
+	// jobpolicy boundary; zero → ReasonSchemaInvalid.
+	ExpiresAt int64 `json:"expires_at,omitempty"`
 }
 
 type JobState struct {
@@ -263,6 +288,12 @@ func (c *Client) Dial(ctx context.Context) error {
 	hdr := http.Header{}
 	hdr.Set("Authorization", "Bearer "+c.credential.Credential)
 	hdr.Set("X-Helper-Device-Id", c.credential.HelperDeviceID)
+	// PR-4 final amend: declare runtime.GOOS so the server picks the
+	// matching signed canonical manifest body. Server gates the WS
+	// upgrade on this header — missing or unknown values get rejected
+	// with HTTP 400 helper_platform_required / unsupported_platform.
+	// v1 enum: {linux, darwin}; runtime.GOOS naturally matches.
+	hdr.Set("X-Helper-Platform", runtime.GOOS)
 
 	conn, _, err := websocket.Dial(ctx, dialURL, &websocket.DialOptions{
 		HTTPClient:   c.httpClient,

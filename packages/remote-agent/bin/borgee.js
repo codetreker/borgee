@@ -83,6 +83,22 @@ function main() {
 }
 
 // Run as CLI only when invoked directly (not when imported by tests).
-if (import.meta.url === `file://${process.argv[1]}`) {
+//
+// Node 20's `import.meta.url` follows symlinks while `process.argv[1]`
+// does not, so `npm i -g`-installed shims (which sit behind a symlink
+// at `/usr/bin/borgee`) never matched the simple string comparison and
+// the binary spawn never happened — the shim exited silently. Canonicalize
+// both sides via fs.realpathSync before comparing.
+const isDirectInvocation = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    const realInvoked = fs.realpathSync(process.argv[1]);
+    const realModule = fileURLToPath(import.meta.url);
+    return realInvoked === realModule;
+  } catch {
+    return false;
+  }
+})();
+if (isDirectInvocation) {
   main();
 }
