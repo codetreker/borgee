@@ -1221,6 +1221,7 @@ export async function fetchHelperEnrollment(
   return sanitizeHelperEnrollment(data.enrollment);
 }
 
+<<<<<<< HEAD
 // ─── Plugin connections (#1049) ─────────────────────────────────
 //
 // Owner-side UI for `borgee_plugin.configure_connection` /
@@ -1294,6 +1295,125 @@ export async function removePluginConnection(
       payload: { agent_id: agentId, connection_id: connectionId },
     }),
   });
+}
+
+// ─── Helper Job — Install OpenClaw (#1050) ──────────────────
+//
+// Owner-facing trigger for the `openclaw.install_from_manifest` helper job.
+// Reuses the existing helper-jobs enqueue endpoint (see
+// packages/server-go/internal/api/helper_jobs.go::handleEnqueue) which:
+//   - gates on session auth + `isHelperHumanOwner`,
+//   - rejects non-owner with 403 (OUT-5),
+//   - server-constructs the canonical payload (install_plan_id) and signs
+//     the manifest binding (OUT-4) — the client-supplied `payload` of
+//     `{runtime: "openclaw"}` is replaced by the store layer with the
+//     authoritative effective payload,
+//   - de-duplicates by `idempotency_key`; we use a deterministic
+//     `install-openclaw-<enrollmentId>` so two clicks return the same
+//     job_id rather than racing two rows (OUT-6).
+//
+// Returns the server's `job` shape (subset). Callers use `job.status` to
+// drive the inline progress badge until they re-fetch the enrollment.
+
+export interface InstallOpenClawJob {
+  job_id: string;
+  status: string;
+  job_type: string;
+  category: string;
+  enrollment_id: string;
+  created_at?: number;
+  failure_code?: string;
+  failure_message?: string;
+}
+
+export async function installOpenClawOnHelper(
+  enrollmentId: string,
+): Promise<InstallOpenClawJob> {
+  const id = String(enrollmentId ?? '').trim();
+  if (!id) {
+    throw new Error('enrollment id is required');
+  }
+  const body = {
+    job_type: 'openclaw.install_from_manifest',
+    schema_version: 1,
+    // The server's helper-jobs effective-payload layer ignores the client
+    // payload contents for install_from_manifest and injects the canonical
+    // install plan id; sending a minimal `{runtime: "openclaw"}` keeps the
+    // envelope's `payload` non-empty (the decoder rejects empty payloads
+    // with schema_invalid) without making the client guess values.
+    payload: { runtime: 'openclaw' },
+    idempotency_key: `install-openclaw-${id}`,
+  };
+  const data = await request<{ job: Record<string, unknown> }>(
+    `/api/v1/helper/enrollments/${encodeURIComponent(id)}/jobs`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+  const job = (data && typeof data.job === 'object' && data.job) || {};
+  return {
+    job_id: String((job as any).job_id ?? ''),
+    status: String((job as any).status ?? 'queued'),
+    job_type: String((job as any).job_type ?? 'openclaw.install_from_manifest'),
+    category: String((job as any).category ?? 'openclaw_lifecycle'),
+    enrollment_id: String((job as any).enrollment_id ?? id),
+    ...(typeof (job as any).created_at === 'number'
+      ? { created_at: (job as any).created_at as number }
+      : {}),
+    ...(typeof (job as any).failure_code === 'string'
+      ? { failure_code: (job as any).failure_code as string }
+      : {}),
+    ...(typeof (job as any).failure_message === 'string'
+      ? { failure_message: (job as any).failure_message as string }
+      : {}),
+  };
+}
+
+// openClawInstallSucceeded — true when the enrollment's configure_openclaw
+// status history shows an `openclaw.install_from_manifest` step that has
+// reached "succeeded". Used by HelperStatusPanel to hide the "Install
+// OpenClaw" button once the binary is in place.
+export function openClawInstallSucceeded(
+  view: HelperEnrollmentStatusView | undefined | null,
+): boolean {
+  const status = view?.configure_openclaw;
+  if (!status) return false;
+  for (const step of status.steps ?? []) {
+    if (
+      step.job_type === 'openclaw.install_from_manifest' &&
+      step.status === 'succeeded'
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// openClawInstallInFlight — true when the configure_openclaw aggregate
+// is in a queued/leased/running state for an install step, so the button
+// should show "Installing…" rather than offer to launch another job.
+export function openClawInstallInFlight(
+  view: HelperEnrollmentStatusView | undefined | null,
+): boolean {
+  const status = view?.configure_openclaw;
+  if (!status) return false;
+  // Aggregate-level shortcut: queued/leased/running implies an install OR
+  // configure step is mid-flight; either way the operator should wait.
+  if (
+    status.state === 'queued' ||
+    status.state === 'leased' ||
+    status.state === 'running'
+  ) {
+    return true;
+  }
+  for (const step of status.steps ?? []) {
+    if (step.job_type !== 'openclaw.install_from_manifest') continue;
+    if (step.status === 'queued' || step.status === 'leased' || step.status === 'running') {
+      return true;
+    }
+  }
+  return false;
 }
 
 // ─── Helper Enrollment — create (operator UI mint) ───────────

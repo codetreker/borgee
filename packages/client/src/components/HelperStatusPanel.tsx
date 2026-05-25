@@ -4,9 +4,13 @@ import {
   HELPER_ALLOWED_CATEGORIES,
   createHelperEnrollment as defaultCreateHelperEnrollment,
   fetchHelperEnrollments,
+  installOpenClawOnHelper as defaultInstallOpenClaw,
+  openClawInstallInFlight,
+  openClawInstallSucceeded,
   type CreateHelperEnrollmentInput,
   type CreateHelperEnrollmentResponse,
   type HelperEnrollmentStatusView,
+  type InstallOpenClawJob,
 } from '../lib/api';
 import PageHeader from './common/PageHeader';
 
@@ -15,7 +19,20 @@ interface Props {
   createEnrollment?: (
     input: CreateHelperEnrollmentInput,
   ) => Promise<CreateHelperEnrollmentResponse>;
+  installOpenClaw?: (enrollmentId: string) => Promise<InstallOpenClawJob>;
 }
+
+// OpenClaw install metadata shown in the confirmation modal. These are
+// informational only — the server is the source of truth for the actual
+// `manifest_url`, `pubkey_base64`, and `target_path` (see
+// packages/server-go/internal/api/helper_manifest.go). The literals below
+// mirror the daemon's expected install target (`RequiredPathID =
+// openclaw_install`, root `/usr/local/lib/borgee/openclaw`) so the
+// operator sees the same path the executor will write.
+const OPENCLAW_INSTALL_TARGET_PATH = '/usr/local/lib/borgee/openclaw';
+const OPENCLAW_INSTALL_PLUGIN_ID = 'openclaw';
+const OPENCLAW_INSTALL_MANIFEST_NOTE =
+  'Manifest URL and signing key are resolved server-side from the signed canonical helper-policy manifest.';
 
 const statusLabels: Record<string, string> = {
   connected: 'Helper connected',
@@ -80,12 +97,16 @@ function configureStepLabel(jobType: string): string {
 export default function HelperStatusPanel({
   fetchEnrollments = fetchHelperEnrollments,
   createEnrollment = defaultCreateHelperEnrollment,
+  installOpenClaw = defaultInstallOpenClaw,
 }: Props): React.ReactElement {
   const [rows, setRows] = useState<HelperEnrollmentStatusView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [installOpenForId, setInstallOpenForId] = useState<string | null>(null);
+  const [pendingInstallJob, setPendingInstallJob] =
+    useState<{ enrollment_id: string; status: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -140,6 +161,33 @@ export default function HelperStatusPanel({
           }}
         />
       )}
+
+      {installOpenForId && (() => {
+        const target = rows.find((row) => row.enrollment_id === installOpenForId);
+        if (!target) {
+          return null;
+        }
+        return (
+          <InstallOpenClawModal
+            enrollment={target}
+            installOpenClaw={installOpenClaw}
+            onClose={() => setInstallOpenForId(null)}
+            onEnqueued={(job) => {
+              setPendingInstallJob({
+                enrollment_id: job.enrollment_id || target.enrollment_id,
+                status: job.status,
+              });
+              setInstallOpenForId(null);
+              // Refresh the list so the configure_openclaw aggregate
+              // includes the new in-flight install step. The WS subscribe
+              // (helper_job state transitions) keeps the badge live; this
+              // initial reload primes the UI for operators who land on
+              // the page right after click.
+              void load();
+            }}
+          />
+        );
+      })()}
 
       {loading && rows.length === 0 ? (
         <div className="helper-status-empty">Loading Helper status...</div>
@@ -244,6 +292,70 @@ export default function HelperStatusPanel({
                   )}
                 </div>
               </div>
+
+              {(() => {
+                const installSucceeded = openClawInstallSucceeded(selected);
+                const installInFlight = openClawInstallInFlight(selected);
+                const helperAlive = selected.status === 'connected' && selected.fresh;
+                const pendingForThis =
+                  pendingInstallJob && pendingInstallJob.enrollment_id === selected.enrollment_id
+                    ? pendingInstallJob
+                    : null;
+                const showInstallSurface =
+                  helperAlive && !installSucceeded && selected.allowed_categories.includes('openclaw_lifecycle');
+                if (!showInstallSurface) {
+                  if (installSucceeded) {
+                    return (
+                      <div
+                        className="helper-install-openclaw-installed"
+                        data-helper-openclaw-state="installed"
+                        aria-label="OpenClaw install state"
+                      >
+                        <span
+                          className="helper-install-openclaw-badge helper-install-openclaw-badge-installed"
+                          data-helper-openclaw-badge="installed"
+                        >
+                          OpenClaw installed
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                }
+                const liveJobStatus = pendingForThis?.status ?? '';
+                const showProgressBadge =
+                  installInFlight ||
+                  (liveJobStatus !== '' && liveJobStatus !== 'succeeded' && liveJobStatus !== 'failed');
+                return (
+                  <div
+                    className="helper-install-openclaw"
+                    data-helper-openclaw-state={
+                      showProgressBadge ? 'in_flight' : 'not_installed'
+                    }
+                    aria-label="OpenClaw install action"
+                  >
+                    {showProgressBadge ? (
+                      <span
+                        className="helper-install-openclaw-badge helper-install-openclaw-badge-progress"
+                        data-helper-openclaw-badge="progress"
+                        aria-live="polite"
+                      >
+                        Installing OpenClaw{liveJobStatus ? ` (${liveJobStatus})` : '…'}
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        type="button"
+                        data-action="install-openclaw"
+                        aria-label="Install OpenClaw on this host"
+                        onClick={() => setInstallOpenForId(selected.enrollment_id)}
+                      >
+                        Install OpenClaw
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {selected.configure_openclaw && (
                 <section
@@ -534,6 +646,158 @@ function CreateHelperEnrollmentModal({
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+interface InstallOpenClawModalProps {
+  enrollment: HelperEnrollmentStatusView;
+  installOpenClaw: (enrollmentId: string) => Promise<InstallOpenClawJob>;
+  onClose: () => void;
+  onEnqueued: (job: InstallOpenClawJob) => void;
+}
+
+// InstallOpenClawModal is the owner-facing confirmation for issue #1050.
+// Shows the operator a summary of what will happen (target path, plugin
+// id, server-resolved manifest), accepts a single Confirm, and POSTs to
+// the existing helper-jobs enqueue endpoint.
+//
+// Server contract (see packages/server-go/internal/api/helper_jobs.go):
+//   - Owner-gated. Non-owner returns 403 / forbidden — surfaced as an
+//     inline error inside the modal so the operator can close + escalate
+//     rather than thinking the click did nothing.
+//   - Idempotent on `idempotency_key="install-openclaw-<enrollment_id>"`.
+//     A second click while the prior job is still queued/running returns
+//     the same `job_id` with status 200; the WS-driven badge then
+//     continues to reflect the existing job.
+//
+// Accessibility:
+//   - role=dialog, aria-modal, aria-labelledby pinned to the heading.
+//   - ESC closes (unless a POST is in flight, where ESC is no-op so the
+//     user does not race the network).
+//   - Focus auto-targets the Cancel button on mount.
+function InstallOpenClawModal({
+  enrollment,
+  installOpenClaw,
+  onClose,
+  onEnqueued,
+}: InstallOpenClawModalProps): React.ReactElement {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const headingId = `install-openclaw-heading-${enrollment.enrollment_id}`;
+  const cancelButtonRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    // Focus the Cancel button so keyboard operators can ESC / TAB
+    // without the modal stealing focus into an interactive control.
+    cancelButtonRef.current?.focus();
+  }, []);
+
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !submitting) {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, submitting]);
+
+  const submit = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const job = await installOpenClaw(enrollment.enrollment_id);
+      onEnqueued(job);
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to enqueue OpenClaw install';
+      setSubmitError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [enrollment.enrollment_id, installOpenClaw, onEnqueued, submitting]);
+
+  return (
+    <div
+      className="helper-status-modal-backdrop"
+      data-helper-install-openclaw-modal
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={headingId}
+    >
+      <div className="helper-status-modal">
+        <h3 id={headingId}>
+          Install OpenClaw on {enrollment.host_label || enrollment.enrollment_id}
+        </h3>
+        <p className="helper-status-modal-description">
+          The Borgee helper on this host will download and install OpenClaw
+          from the signed canonical manifest. The operator does not need to
+          SSH into the machine.
+        </p>
+
+        <dl className="helper-install-openclaw-facts" data-helper-install-openclaw-facts>
+          <div>
+            <dt>Host</dt>
+            <dd data-helper-install-openclaw-host>
+              {enrollment.host_label || enrollment.enrollment_id}
+            </dd>
+          </div>
+          <div>
+            <dt>Plugin ID</dt>
+            <dd data-helper-install-openclaw-plugin-id>{OPENCLAW_INSTALL_PLUGIN_ID}</dd>
+          </div>
+          <div>
+            <dt>Target path</dt>
+            <dd data-helper-install-openclaw-target-path>
+              <code>{OPENCLAW_INSTALL_TARGET_PATH}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Manifest</dt>
+            <dd data-helper-install-openclaw-manifest-note>
+              {OPENCLAW_INSTALL_MANIFEST_NOTE}
+            </dd>
+          </div>
+        </dl>
+
+        {submitError && (
+          <p
+            className="helper-status-error"
+            data-helper-install-openclaw-error
+            role="alert"
+          >
+            {submitError}
+          </p>
+        )}
+
+        <div className="helper-status-modal-actions">
+          <button
+            ref={cancelButtonRef}
+            className="btn"
+            type="button"
+            data-action="cancel-install-openclaw"
+            aria-label="Cancel OpenClaw install"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            data-action="confirm-install-openclaw"
+            aria-label="Confirm OpenClaw install"
+            onClick={() => void submit()}
+            disabled={submitting}
+          >
+            {submitting ? 'Installing…' : 'Confirm install'}
+          </button>
+        </div>
       </div>
     </div>
   );
