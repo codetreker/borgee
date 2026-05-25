@@ -58,34 +58,6 @@ func al42Register(t *testing.T, url, tok, agentID string) map[string]any {
 	return data
 }
 
-// al42SeedLifecycleHelper creates + claims a helper enrollment that
-// delegates openclaw_lifecycle so the runtime start/stop handlers can
-// dispatch service.lifecycle jobs (issue #1046 — the handlers now
-// require an active lifecycle-capable enrollment as a precondition).
-// Returns (enrollmentID, helperCredential).
-func al42SeedLifecycleHelper(t *testing.T, baseURL, ownerToken string) (string, string) {
-	t.Helper()
-	resp, body := testutil.JSON(t, "POST", baseURL+"/api/v1/helper/enrollments", ownerToken, map[string]any{
-		"host_label":         "Test Helper",
-		"allowed_categories": []string{"openclaw_lifecycle"},
-	})
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("al42SeedLifecycleHelper: create enrollment status %d body %v", resp.StatusCode, body)
-	}
-	enrollment := body["enrollment"].(map[string]any)
-	enrollmentID := enrollment["enrollment_id"].(string)
-	secret := body["enrollment_secret"].(string)
-	resp, claimed := testutil.JSON(t, "POST", baseURL+"/api/v1/helper/enrollments/"+enrollmentID+"/claim", "", map[string]any{
-		"enrollment_secret": secret,
-		"helper_device_id":  "al42-device",
-	})
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("al42SeedLifecycleHelper: claim status %d body %v", resp.StatusCode, claimed)
-	}
-	credential := claimed["helper_credential"].(string)
-	return enrollmentID, credential
-}
-
 // TestAL_RegisterRuntime_OwnerOnly pins acceptance §2.1 owner-only.
 // Non-owner POST /runtime/register → 403. admin god-mode 走 admin rail
 // (admin token is `borgee_admin_session` cookie — user JSON helper sends
@@ -149,12 +121,11 @@ func TestAL_RegisterDuplicateRejected(t *testing.T) {
 func TestAL_StartTransitionsRunning(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, s, agentID := al42Setup(t)
-	al42SeedLifecycleHelper(t, url, ownerTok)
 	al42Register(t, url, ownerTok, agentID)
 
 	resp, data := testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/start", ownerTok, nil)
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("start not 200: got %d body=%v", resp.StatusCode, data)
+		t.Fatalf("start not 200: got %d", resp.StatusCode)
 	}
 	if data["status"] != api.RuntimeStatusRunning {
 		t.Errorf("status not 'running': got %v", data["status"])
@@ -193,7 +164,6 @@ func TestAL_StartTransitionsRunning(t *testing.T) {
 func TestAL_StopIdempotent(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, s, agentID := al42Setup(t)
-	al42SeedLifecycleHelper(t, url, ownerTok)
 	al42Register(t, url, ownerTok, agentID)
 	_, _ = testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/start", ownerTok, nil)
 
@@ -619,7 +589,6 @@ func TestAL_StartStopGet_NonOwner_403(t *testing.T) {
 func TestAL_StartTransitionsRunning_FromError(t *testing.T) {
 	t.Parallel()
 	url, ownerTok, s, agentID := al42Setup(t)
-	al42SeedLifecycleHelper(t, url, ownerTok)
 	al42Register(t, url, ownerTok, agentID)
 	_, _ = testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/error", ownerTok, map[string]any{
 		"reason": "runtime_crashed",
@@ -697,7 +666,6 @@ func TestAL_ListAnchorComments_Coverage(t *testing.T) {
 // insert fails. The handler logs + returns 200 (best-effort fanout).
 func TestAL_FanoutOwnerSystemDM_CreateMessageFails(t *testing.T) {
 	url, ownerTok, s, agentID := al42Setup(t)
-	al42SeedLifecycleHelper(t, url, ownerTok)
 	al42Register(t, url, ownerTok, agentID)
 	// Drop messages so the system DM Create fails. CreateDmChannel still
 	// succeeds (it doesn't insert messages).
@@ -729,140 +697,4 @@ func TestAL_FanoutOwnerSystemDM_CreateChannelFails(t *testing.T) {
 	// Start might succeed or fail depending on flow — what matters is the
 	// fanoutOwnerSystemDM error branch executes when CreateDmChannel fails.
 	_ = resp
-}
-
-// TestAL_StartEnqueuesServiceLifecycleJob pins issue #1046: the
-// /runtime/start API must enqueue a service.lifecycle helper job
-// after flipping agent_runtimes.status. Before this fix only the DB
-// column flipped, producing a silent failure where the UI showed
-// "Running" but the systemd unit on the helper VM was unchanged.
-func TestAL_StartEnqueuesServiceLifecycleJob(t *testing.T) {
-	t.Parallel()
-	url, ownerTok, s, agentID := al42Setup(t)
-	enrollmentID, _ := al42SeedLifecycleHelper(t, url, ownerTok)
-	al42Register(t, url, ownerTok, agentID)
-
-	resp, data := testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/start", ownerTok, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("start not 200: got %d body=%v", resp.StatusCode, data)
-	}
-	if data["helper_enrollment_id"] != enrollmentID {
-		t.Errorf("helper_enrollment_id mismatch: want %q got %v", enrollmentID, data["helper_enrollment_id"])
-	}
-	jobID, _ := data["helper_job_id"].(string)
-	if jobID == "" {
-		t.Fatalf("helper_job_id missing: %v", data)
-	}
-
-	// Verify a service.lifecycle row landed for this enrollment with the
-	// right payload + queued status.
-	var rows []struct {
-		JobType     string `gorm:"column:job_type"`
-		Status      string `gorm:"column:status"`
-		PayloadJSON string `gorm:"column:payload_json"`
-	}
-	if err := s.DB().Raw(`SELECT job_type, status, payload_json FROM helper_jobs WHERE enrollment_id = ?`, enrollmentID).Scan(&rows).Error; err != nil {
-		t.Fatalf("query helper_jobs: %v", err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 helper_job row, got %d (%v)", len(rows), rows)
-	}
-	if rows[0].JobType != "service.lifecycle" {
-		t.Errorf("job_type want service.lifecycle, got %q", rows[0].JobType)
-	}
-	if rows[0].Status != "queued" {
-		t.Errorf("status want queued, got %q", rows[0].Status)
-	}
-	if !strings.Contains(rows[0].PayloadJSON, `"operation":"start"`) {
-		t.Errorf("payload missing start operation: %s", rows[0].PayloadJSON)
-	}
-
-	// Idempotency: a second rapid start within the active window
-	// returns the SAME helper_job_id (no duplicate row).
-	resp2, data2 := testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/start", ownerTok, nil)
-	if resp2.StatusCode != http.StatusOK {
-		t.Fatalf("second start not 200: got %d", resp2.StatusCode)
-	}
-	if data2["helper_job_id"] != jobID {
-		t.Errorf("second start should reuse helper_job_id: want %q got %v", jobID, data2["helper_job_id"])
-	}
-	var count int64
-	_ = s.DB().Raw(`SELECT COUNT(*) FROM helper_jobs WHERE enrollment_id = ?`, enrollmentID).Scan(&count).Error
-	if count != 1 {
-		t.Errorf("idempotent double-start created duplicate rows: got %d (want 1)", count)
-	}
-}
-
-// TestAL_StopEnqueuesServiceLifecycleJob — issue #1046 stop variant.
-func TestAL_StopEnqueuesServiceLifecycleJob(t *testing.T) {
-	t.Parallel()
-	url, ownerTok, s, agentID := al42Setup(t)
-	enrollmentID, _ := al42SeedLifecycleHelper(t, url, ownerTok)
-	al42Register(t, url, ownerTok, agentID)
-
-	resp, data := testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/stop", ownerTok, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("stop not 200: got %d body=%v", resp.StatusCode, data)
-	}
-	if data["helper_job_id"] == "" || data["helper_job_id"] == nil {
-		t.Fatalf("helper_job_id missing on stop: %v", data)
-	}
-	var rows []struct {
-		JobType     string `gorm:"column:job_type"`
-		PayloadJSON string `gorm:"column:payload_json"`
-	}
-	if err := s.DB().Raw(`SELECT job_type, payload_json FROM helper_jobs WHERE enrollment_id = ?`, enrollmentID).Scan(&rows).Error; err != nil {
-		t.Fatalf("query helper_jobs: %v", err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 helper_job row, got %d", len(rows))
-	}
-	if rows[0].JobType != "service.lifecycle" {
-		t.Errorf("job_type want service.lifecycle, got %q", rows[0].JobType)
-	}
-	if !strings.Contains(rows[0].PayloadJSON, `"operation":"stop"`) {
-		t.Errorf("payload missing stop operation: %s", rows[0].PayloadJSON)
-	}
-}
-
-// TestAL_StartReturnsNoHelperEnrolledWhenAbsent pins issue #1046's
-// explicit precondition: clicking Start with no claimed helper
-// enrollment must return 400 `no_helper_enrolled` BEFORE flipping
-// agent_runtimes.status. The earlier code silently flipped the
-// column so the UI showed "Running" with nothing actually started.
-func TestAL_StartReturnsNoHelperEnrolledWhenAbsent(t *testing.T) {
-	t.Parallel()
-	url, ownerTok, s, agentID := al42Setup(t)
-	al42Register(t, url, ownerTok, agentID)
-
-	resp, data := testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/start", ownerTok, nil)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("start without helper not 400: got %d body=%v", resp.StatusCode, data)
-	}
-	if data["code"] != "no_helper_enrolled" {
-		t.Errorf("error code want no_helper_enrolled, got %v", data["code"])
-	}
-	// Reverse-assert: agent_runtimes.status was NOT flipped to running
-	// (the precondition rejects before the DB UPDATE).
-	var status string
-	if err := s.DB().Raw(`SELECT status FROM agent_runtimes WHERE agent_id = ?`, agentID).Scan(&status).Error; err != nil {
-		t.Fatalf("query runtime status: %v", err)
-	}
-	if status != "registered" {
-		t.Errorf("status leaked to %q despite precondition fail (want registered)", status)
-	}
-}
-
-// TestAL_StopReturnsNoHelperEnrolledWhenAbsent — issue #1046 stop variant.
-func TestAL_StopReturnsNoHelperEnrolledWhenAbsent(t *testing.T) {
-	t.Parallel()
-	url, ownerTok, _, agentID := al42Setup(t)
-	al42Register(t, url, ownerTok, agentID)
-	resp, data := testutil.JSON(t, "POST", url+"/api/v1/agents/"+agentID+"/runtime/stop", ownerTok, nil)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("stop without helper not 400: got %d body=%v", resp.StatusCode, data)
-	}
-	if data["code"] != "no_helper_enrolled" {
-		t.Errorf("error code want no_helper_enrolled, got %v", data["code"])
-	}
 }

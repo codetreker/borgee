@@ -549,11 +549,7 @@ func (s *Server) SetupRoutes() {
 	// owner-only via the same inline OwnerID check used by agents.go handleDeleteAgent /
 	// handleRotateAPIKey. Admin traffic does not enter this rail (admin path
 	// 只 read 元数据 via AdminRuntimeHandler above).
-	runtimeHandler := &api.RuntimeHandler{
-		Store:               s.store,
-		Logger:              s.logger,
-		LifecycleDispatcher: helperJobsHandler,
-	}
+	runtimeHandler := &api.RuntimeHandler{Store: s.store, Logger: s.logger}
 	runtimeHandler.RegisterRoutes(s.mux, authMw)
 
 	// Agent invitations (CM-4.1 + RT-0 #40 push wiring)
