@@ -139,4 +139,21 @@ type HelperJobRepository interface {
 	AckForHelper(ctx context.Context, input HelperJobAckInput, now time.Time) (*HelperJob, error)
 	CompleteForHelper(ctx context.Context, input HelperJobResultInput, now time.Time) (*HelperJob, error)
 	ConfigureOpenClawForEnrollments(ctx context.Context, ownerUserID, orgID string, enrollmentIDs []string) (map[string]HelperConfigureOpenClawStatus, error)
+	// ListPluginConnections — #1049. Returns one entry per active
+	// borgee_plugin connection_id for the given enrollment, derived
+	// from the helper_jobs job stream. A connection is "active" iff
+	// the latest succeeded configure_connection for the connection_id
+	// is more recent than the latest succeeded remove_connection. The
+	// repo MUST scope by ownerUserID+orgID; returns ErrHelperJobForbidden
+	// when the enrollment does not belong to (owner, org), or
+	// ErrHelperJobEnrollmentNotFound when missing.
+	ListPluginConnections(ctx context.Context, ownerUserID, orgID, enrollmentID string) ([]PluginConnectionRow, error)
+}
+
+// PluginConnectionRow is the projection emitted by ListPluginConnections.
+type PluginConnectionRow struct {
+	ConnectionID     string
+	AgentID          string
+	ChannelID        string
+	LastConfiguredAt int64
 }

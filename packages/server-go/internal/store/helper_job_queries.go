@@ -49,6 +49,7 @@ const (
 	HelperJobTypeOpenClawConfigureAgent      = "openclaw.configure_agent"
 	HelperJobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
 	HelperJobTypePluginConfigureConnection   = "borgee_plugin.configure_connection"
+	HelperJobTypePluginRemoveConnection      = "borgee_plugin.remove_connection"
 	HelperJobTypeServiceLifecycle            = "service.lifecycle"
 	HelperJobTypeStateWrite                  = "state.write"
 	HelperJobTypeStatusCollect               = "status.collect"
@@ -153,6 +154,7 @@ var helperJobTaxonomy = map[string]helperJobSpec{
 	"openclaw.configure_agent":           {Category: "openclaw_config", Enabled: true, Manifest: true},
 	"openclaw.install_from_manifest":     {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
 	"borgee_plugin.configure_connection": {Category: "openclaw_config", Enabled: true, Manifest: true},
+	"borgee_plugin.remove_connection":    {Category: "openclaw_config", Enabled: true, Manifest: true},
 	"service.lifecycle":                  {Category: "openclaw_lifecycle", Enabled: true, Manifest: true},
 	// PR-4 closes the enum gap for these three (#1033): state.write needs
 	// manifest binding (borgee_state_config PathID); status.collect +
@@ -177,6 +179,16 @@ type openClawInstallPayload struct {
 type borgeePluginConfigurePayload struct {
 	AgentID   string `json:"agent_id"`
 	ChannelID string `json:"channel_id"`
+}
+
+// borgeePluginRemovePayload — #1049 client contract for the
+// `borgee_plugin.remove_connection` job. The client identifies the
+// connection to remove by the server-owned `connection_id` it received
+// from the list endpoint, plus the owning `agent_id` (authz pivot — the
+// server verifies the agent belongs to the caller's owner/org).
+type borgeePluginRemovePayload struct {
+	ConnectionID string `json:"connection_id"`
+	AgentID      string `json:"agent_id"`
 }
 
 type serviceLifecyclePayload struct {
@@ -227,6 +239,15 @@ type borgeePluginEffectivePayload struct {
 	ConnectionID string `json:"connection_id"`
 	AgentID      string `json:"agent_id"`
 	ChannelID    string `json:"channel_id"`
+}
+
+// borgeePluginRemoveEffectivePayload — what the server signs into the
+// leased job frame for `borgee_plugin.remove_connection`. Channel id is
+// not needed at execute time (the daemon side keys the per-connection
+// JSON file by connection_id only).
+type borgeePluginRemoveEffectivePayload struct {
+	ConnectionID string `json:"connection_id"`
+	AgentID      string `json:"agent_id"`
 }
 
 type serviceLifecycleEffectivePayload struct {
@@ -841,6 +862,41 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 			return nil, "", "", nil, err
 		}
 		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
+	case HelperJobTypePluginRemoveConnection:
+		// #1049. Remove the per-connection record identified by the
+		// caller's `connection_id`. Authz: the agent_id must belong to
+		// the caller's owner+org. The connection_id itself is the
+		// server-derived id the client previously received from the
+		// list endpoint — the server does NOT independently verify
+		// that the id maps to one of this agent's known channels,
+		// because the daemon-side executor is idempotent on missing
+		// files (so a stale or spoofed id at worst no-ops). The agent
+		// authz check is sufficient to prevent IDOR (only files under
+		// THIS deployment's daemon root are reachable).
+		payload, err := decodeBorgeePluginRemovePayload(input.PayloadJSON)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		var agent User
+		if err := tx.Where("id = ? AND role = 'agent' AND owner_id = ? AND org_id = ? AND deleted_at IS NULL", payload.AgentID, input.OwnerUserID, input.OrgID).First(&agent).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, "", "", nil, ErrHelperJobForbidden
+			}
+			return nil, "", "", nil, err
+		}
+		effective := borgeePluginRemoveEffectivePayload{
+			ConnectionID: payload.ConnectionID,
+			AgentID:      payload.AgentID,
+		}
+		b, err := json.Marshal(effective)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		manifestDigest, bindingJSON, err := openClawManifestBindingForJob(input.JobType)
+		if err != nil {
+			return nil, "", "", nil, err
+		}
+		return b, helperJobDigest(b), manifestDigest, bindingJSON, nil
 	case HelperJobTypeServiceLifecycle:
 		payload, err := decodeServiceLifecyclePayload(input.PayloadJSON)
 		if err != nil {
@@ -947,6 +1003,10 @@ func openClawManifestBindingForJob(jobType string) (string, *string, error) {
 		binding.Domains = []string{helperJobOpenClawPluginOrigin}
 	case HelperJobTypePluginConfigureConnection:
 		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
+	case HelperJobTypePluginRemoveConnection:
+		// #1049 — remove writes (deletes) under the same path id as
+		// configure. Same manifest authority surface.
+		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
 	case HelperJobTypeStateWrite:
 		// PR-4: state.write binds the helper-owned borgee_state_config
 		// PathID. The actual filesystem root is declared by the signed
@@ -1044,6 +1104,78 @@ func decodeBorgeePluginConfigurePayload(raw string) (borgeePluginConfigurePayloa
 		return borgeePluginConfigurePayload{}, ErrHelperJobSchemaInvalid
 	}
 	return payload, nil
+}
+
+// decodeBorgeePluginRemovePayload — #1049. The remove flow requires the
+// client to round-trip the `connection_id` it got from the list endpoint
+// (which is itself server-derived), so the global "forbidden field"
+// check on `connection_id` is intentionally bypassed here. Other
+// forbidden fields (shell/url/credential/etc.) remain enforced. The
+// caller must also supply `agent_id` so the server can verify the agent
+// belongs to the caller's owner/org before enqueuing.
+//
+// Server-side validation:
+//   - connection_id MUST match `^borgee-plugin:[A-Za-z0-9_.-]{1,200}$`
+//     (mirrors the daemon-side suffix policy in pluginremove.validSuffix).
+//   - agent_id non-empty, <= 255.
+func decodeBorgeePluginRemovePayload(raw string) (borgeePluginRemovePayload, error) {
+	var pre map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &pre); err != nil || pre == nil {
+		return borgeePluginRemovePayload{}, ErrHelperJobSchemaInvalid
+	}
+	for k := range pre {
+		key := strings.ToLower(strings.TrimSpace(k))
+		if key == "connection_id" || key == "agent_id" {
+			continue
+		}
+		if helperJobForbiddenPayloadField(k) {
+			return borgeePluginRemovePayload{}, ErrHelperJobForbiddenField
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(raw)))
+	dec.DisallowUnknownFields()
+	var payload borgeePluginRemovePayload
+	if err := dec.Decode(&payload); err != nil {
+		return borgeePluginRemovePayload{}, ErrHelperJobSchemaInvalid
+	}
+	payload.AgentID = strings.TrimSpace(payload.AgentID)
+	payload.ConnectionID = strings.TrimSpace(payload.ConnectionID)
+	if payload.AgentID == "" || len(payload.AgentID) > 255 {
+		return borgeePluginRemovePayload{}, ErrHelperJobSchemaInvalid
+	}
+	if !validBorgeePluginConnectionID(payload.ConnectionID) {
+		return borgeePluginRemovePayload{}, ErrHelperJobSchemaInvalid
+	}
+	return payload, nil
+}
+
+// validBorgeePluginConnectionID mirrors the daemon-side `validSuffix`
+// regex (`^borgee-plugin:[A-Za-z0-9_.-]{1,200}$`). Kept tight: rejects
+// path separators, NUL, leading `.` segments, and `..` traversal.
+func validBorgeePluginConnectionID(id string) bool {
+	const prefix = "borgee-plugin:"
+	if !strings.HasPrefix(id, prefix) {
+		return false
+	}
+	suffix := strings.TrimPrefix(id, prefix)
+	if suffix == "" || len(suffix) > 200 || suffix == "." || suffix == ".." || strings.Contains(suffix, "..") {
+		return false
+	}
+	if strings.ContainsAny(suffix, "/\\\x00") {
+		return false
+	}
+	for _, r := range suffix {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '-' || r == '_' || r == '.':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func decodeServiceLifecyclePayload(raw string) (serviceLifecyclePayload, error) {

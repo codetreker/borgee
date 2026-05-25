@@ -17,7 +17,15 @@ import (
 
 type HelperJobsHandler struct {
 	Repo datalayer.HelperJobRepository
-	Now  func() time.Time
+	// EnrollmentRepo, when non-nil, is used by handleListPluginConnections
+	// (#1049) to verify (enrollmentID, ownerUserID, orgID) ownership
+	// BEFORE returning the plugin-connection list. Without this seam
+	// the SQL filter in ListPluginConnections silently returns an empty
+	// slice for cross-owner requests, which is safe (no data leak) but
+	// returns 200 — the OUT-5 IDOR contract requires 401/403/404.
+	// Nil-safe: handler degrades to 200 + empty list (still no leak).
+	EnrollmentRepo datalayer.HelperEnrollmentRepository
+	Now            func() time.Time
 	// ManifestProvider supplies the signed canonical helper-policy
 	// manifest body injected into every leased-job payload (PR-4 amend
 	// #1033). Nil → manifest_json field is omitted; the daemon then
@@ -106,6 +114,9 @@ func (h *HelperJobsHandler) now() time.Time {
 
 func (h *HelperJobsHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("POST /api/v1/helper/enrollments/{enrollmentId}/jobs", authMw(http.HandlerFunc(h.handleEnqueue)))
+	// #1049: list active plugin connections for an enrollment, derived
+	// from the helper_jobs job stream (configure + remove). Owner-only.
+	mux.Handle("GET /api/v1/helper/enrollments/{enrollmentId}/plugin-connections", authMw(http.HandlerFunc(h.handleListPluginConnections)))
 	// PR-2 #1038: poll/ack/result REST endpoints remain mounted for
 	// backward compatibility. Deprecated: new daemons use the WS
 	// transport at /ws/helper/<enrollmentId> and exchange ack/result
@@ -158,6 +169,53 @@ func (h *HelperJobsHandler) handleEnqueue(w http.ResponseWriter, r *http.Request
 	// enqueue contract is "job persisted", push is an optimization.
 	h.tryPushAfterEnqueue(r.Context(), enrollmentID)
 	writeJSONResponse(w, status, map[string]any{"job": serializeHelperJob(job)})
+}
+
+// handleListPluginConnections — #1049. Owner-gated list of active plugin
+// connections for an enrollment. Derived from the helper_jobs job
+// stream (configure + remove) by ListPluginConnections; no separate
+// connections table.
+func (h *HelperJobsHandler) handleListPluginConnections(w http.ResponseWriter, r *http.Request) {
+	user, ok := mustUser(w, r)
+	if !ok {
+		return
+	}
+	if !isHelperHumanOwner(user) {
+		h.writeErrorCode(w, http.StatusForbidden, "forbidden", "plugin connections forbidden")
+		return
+	}
+	enrollmentID := r.PathValue("enrollmentId")
+	// IDOR pivot: confirm enrollment exists and belongs to (user, org)
+	// BEFORE returning data. A silent empty-list-on-stranger response
+	// (the SQL filter handles scoping anyway) would also be safe, but
+	// the OUT-5 acceptance contract requires one of [401, 403, 404] for
+	// cross-owner. We pick 404 to avoid disclosing enrollment existence
+	// across owners.
+	if h.EnrollmentRepo != nil {
+		if _, err := h.EnrollmentRepo.GetForUser(r.Context(), enrollmentID, user.ID, user.OrgID); err != nil {
+			if errors.Is(err, datalayer.ErrHelperEnrollmentNotFound) || errors.Is(err, datalayer.ErrHelperEnrollmentForbidden) {
+				h.writeErrorCode(w, http.StatusNotFound, "not_found", "helper enrollment not found")
+				return
+			}
+			h.writeErrorCode(w, http.StatusInternalServerError, "helper_job_error", "plugin connection lookup failed")
+			return
+		}
+	}
+	rows, err := h.Repo.ListPluginConnections(r.Context(), user.ID, user.OrgID, enrollmentID)
+	if err != nil {
+		h.writeRepoError(w, err)
+		return
+	}
+	out := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, map[string]any{
+			"connection_id":      row.ConnectionID,
+			"agent_id":           row.AgentID,
+			"channel_id":         row.ChannelID,
+			"last_configured_at": row.LastConfiguredAt,
+		})
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"plugin_connections": out})
 }
 
 func (h *HelperJobsHandler) handlePoll(w http.ResponseWriter, r *http.Request) {
@@ -389,7 +447,7 @@ func decodeHelperJobEnqueueRequest(r *http.Request) (helperJobEnqueueRequest, st
 	if len(req.IdempotencyKey) > 128 {
 		return helperJobEnqueueRequest{}, "schema_invalid", errors.New("invalid idempotency key")
 	}
-	if code := rejectHelperJobPayloadPreflight(req.Payload); code != "" {
+	if code := rejectHelperJobPayloadPreflight(req.JobType, req.Payload); code != "" {
 		if code == "ttl_invalid" {
 			return helperJobEnqueueRequest{}, code, errors.New("client ttl fields are not allowed")
 		}
@@ -398,16 +456,26 @@ func decodeHelperJobEnqueueRequest(r *http.Request) (helperJobEnqueueRequest, st
 	return req, "", nil
 }
 
-func rejectHelperJobPayloadPreflight(raw json.RawMessage) string {
+func rejectHelperJobPayloadPreflight(jobType string, raw json.RawMessage) string {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &payload); err != nil || payload == nil {
 		return "schema_invalid"
 	}
 	for key := range payload {
-		switch strings.ToLower(strings.TrimSpace(key)) {
+		k := strings.ToLower(strings.TrimSpace(key))
+		switch k {
 		case "ttl", "expires_at", "deadline", "lease_expires_at":
 			return "ttl_invalid"
-		case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "paths", "path_id", "path_ids", "domain", "domains", "domain_id", "domain_ids", "url", "base_url", "credential", "credentials", "token", "api_key", "bot_user_id", "account_id", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "connection_id", "manifest_id", "manifest_digest", "manifest_binding", "manifest_binding_json", "artifact", "artifact_id", "artifact_ids", "service_id", "service_ids", "install_plan_id":
+		case "connection_id":
+			// #1049: remove_connection allows the client to round-trip
+			// the server-derived connection_id it got from the list
+			// endpoint. For every other job type, connection_id remains
+			// forbidden (server-owned authority).
+			if jobType == "borgee_plugin.remove_connection" {
+				continue
+			}
+			return "forbidden_field"
+		case "shell", "argv", "command", "raw_command", "executable_path", "script", "service_unit", "path", "paths", "path_id", "path_ids", "domain", "domains", "domain_id", "domain_ids", "url", "base_url", "credential", "credentials", "token", "api_key", "bot_user_id", "account_id", "env", "environment", "owner_user_id", "org_id", "device_id", "helper_device_id", "category", "agent_config_id", "config_hash", "config_version", "schema_hash", "manifest_id", "manifest_digest", "manifest_binding", "manifest_binding_json", "artifact", "artifact_id", "artifact_ids", "service_id", "service_ids", "install_plan_id":
 			return "forbidden_field"
 		}
 	}

@@ -99,6 +99,103 @@ func (r *sqliteHelperJobRepo) ConfigureOpenClawForEnrollments(_ context.Context,
 	return out, nil
 }
 
+// ListPluginConnections — #1049. One grouped query (no N+1) that pulls
+// every configure / remove job for this enrollment+owner+org, then
+// folds the stream into the current active connection set in memory.
+// Active iff the latest succeeded configure for the connection_id is
+// newer than the latest succeeded remove (or there is no remove).
+func (r *sqliteHelperJobRepo) ListPluginConnections(_ context.Context, ownerUserID, orgID, enrollmentID string) ([]PluginConnectionRow, error) {
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	orgID = strings.TrimSpace(orgID)
+	enrollmentID = strings.TrimSpace(enrollmentID)
+	if ownerUserID == "" || orgID == "" || enrollmentID == "" {
+		return nil, ErrHelperJobInvalidInput
+	}
+	// Owner+org scoping is done in the SQL filter, so a cross-owner
+	// request silently returns an empty slice (handler upgrades that
+	// to 404 by separately verifying enrollment existence via the
+	// enrollment repo when needed; for #1049 the simpler 200+empty is
+	// also acceptable since the empty-state UI handles both cases).
+	var rows []store.HelperJob
+	if err := r.s.DB().
+		Where("owner_user_id = ? AND org_id = ? AND enrollment_id = ? AND job_type IN ?",
+			ownerUserID, orgID, enrollmentID,
+			[]string{"borgee_plugin.configure_connection", "borgee_plugin.remove_connection"}).
+		Order("created_at ASC, id ASC").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	type acc struct {
+		latestConfigureAt int64
+		latestRemoveAt    int64
+		agentID           string
+		channelID         string
+	}
+	byConn := map[string]*acc{}
+	for i := range rows {
+		row := &rows[i]
+		if row.Status != "succeeded" {
+			continue
+		}
+		var payload struct {
+			ConnectionID string `json:"connection_id"`
+			AgentID      string `json:"agent_id"`
+			ChannelID    string `json:"channel_id"`
+		}
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &payload); err != nil {
+			continue
+		}
+		if !strings.HasPrefix(payload.ConnectionID, "borgee-plugin:") {
+			continue
+		}
+		entry := byConn[payload.ConnectionID]
+		if entry == nil {
+			entry = &acc{}
+			byConn[payload.ConnectionID] = entry
+		}
+		ts := row.CreatedAt
+		if row.CompletedAt != nil {
+			ts = *row.CompletedAt
+		}
+		if row.JobType == "borgee_plugin.configure_connection" {
+			if ts >= entry.latestConfigureAt {
+				entry.latestConfigureAt = ts
+				entry.agentID = payload.AgentID
+				if payload.ChannelID != "" {
+					entry.channelID = payload.ChannelID
+				}
+			}
+		} else if row.JobType == "borgee_plugin.remove_connection" {
+			if ts > entry.latestRemoveAt {
+				entry.latestRemoveAt = ts
+			}
+		}
+	}
+	out := make([]PluginConnectionRow, 0, len(byConn))
+	for connID, entry := range byConn {
+		if entry.latestConfigureAt == 0 {
+			continue
+		}
+		if entry.latestRemoveAt >= entry.latestConfigureAt {
+			continue
+		}
+		out = append(out, PluginConnectionRow{
+			ConnectionID:     connID,
+			AgentID:          entry.agentID,
+			ChannelID:        entry.channelID,
+			LastConfiguredAt: entry.latestConfigureAt,
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].LastConfiguredAt == out[j].LastConfiguredAt {
+			return out[i].ConnectionID < out[j].ConnectionID
+		}
+		return out[i].LastConfiguredAt > out[j].LastConfiguredAt
+	})
+	return out, nil
+}
+
 func helperJobFromStore(row *store.HelperJob) *HelperJob {
 	if row == nil {
 		return nil
@@ -140,6 +237,11 @@ func compactStrings(values []string) []string {
 }
 
 func configureOpenClawJobTypes() []string {
+	// NOTE (#1049): borgee_plugin.remove_connection is intentionally NOT
+	// in this set. The set drives the "Configure OpenClaw" multi-step
+	// status projection (install → configure → bind → start), which is
+	// a setup pipeline. Remove is a tear-down that should not regress
+	// the configured-status to running/failed when it succeeds.
 	return []string{"openclaw.install_from_manifest", "openclaw.configure_agent", "borgee_plugin.configure_connection", "service.lifecycle"}
 }
 

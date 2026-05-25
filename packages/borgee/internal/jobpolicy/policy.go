@@ -38,6 +38,7 @@ const (
 	JobTypeOpenClawConfigureAgent      = "openclaw.configure_agent"
 	JobTypeOpenClawInstallFromManifest = "openclaw.install_from_manifest"
 	JobTypePluginConfigureConnection   = "borgee_plugin.configure_connection"
+	JobTypePluginRemoveConnection      = "borgee_plugin.remove_connection"
 	JobTypeServiceLifecycle            = "service.lifecycle"
 	JobTypeStateWrite                  = "state.write"
 	JobTypeStatusCollect               = "status.collect"
@@ -228,7 +229,7 @@ func validatePayloadHash(job Job) Reason {
 
 func knownJobType(jobType string) bool {
 	switch jobType {
-	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection,
+	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypePluginRemoveConnection,
 		JobTypeServiceLifecycle, JobTypeStateWrite, JobTypeStatusCollect, JobTypeDelegationRevoke, JobTypeHelperUninstall:
 		return true
 	default:
@@ -262,6 +263,14 @@ func validatePayload(job Job) Reason {
 			ChannelID    string `json:"channel_id"`
 		}
 		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || !strings.HasPrefix(payload.ConnectionID, "borgee-plugin:") || payload.AgentID == "" || payload.ChannelID == "" {
+			return ReasonSchemaInvalid
+		}
+	case JobTypePluginRemoveConnection:
+		var payload struct {
+			ConnectionID string `json:"connection_id"`
+			AgentID      string `json:"agent_id"`
+		}
+		if err := decodeStrict(job.PayloadJSON, &payload); err != nil || !strings.HasPrefix(payload.ConnectionID, "borgee-plugin:") || payload.AgentID == "" {
 			return ReasonSchemaInvalid
 		}
 	case JobTypeServiceLifecycle:
@@ -365,7 +374,7 @@ func validateLocalState(job Job, enrollment EnrollmentState, now time.Time) Reas
 
 func requiresManifest(jobType string) bool {
 	switch jobType {
-	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypeServiceLifecycle, JobTypeStateWrite, JobTypeHelperUninstall:
+	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypePluginRemoveConnection, JobTypeServiceLifecycle, JobTypeStateWrite, JobTypeHelperUninstall:
 		return true
 	default:
 		return false
@@ -443,7 +452,7 @@ func validateManifestRequirements(jobType string, binding ManifestBinding) Reaso
 		if len(binding.Domains) == 0 {
 			return ReasonDomainDenied
 		}
-	case JobTypePluginConfigureConnection, JobTypeStateWrite:
+	case JobTypePluginConfigureConnection, JobTypePluginRemoveConnection, JobTypeStateWrite:
 		if len(binding.PathIDs) == 0 {
 			return ReasonPathDenied
 		}
@@ -530,7 +539,7 @@ func validatePaths(jobType string, authority manifestAuthority, sandbox SandboxP
 
 func jobRequiresWritePath(jobType string) bool {
 	switch jobType {
-	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypeStateWrite:
+	case JobTypeOpenClawConfigureAgent, JobTypeOpenClawInstallFromManifest, JobTypePluginConfigureConnection, JobTypePluginRemoveConnection, JobTypeStateWrite:
 		return true
 	default:
 		return false

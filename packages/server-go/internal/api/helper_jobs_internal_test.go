@@ -60,6 +60,10 @@ func (r *fakeHelperJobRepo) ConfigureOpenClawForEnrollments(context.Context, str
 	return map[string]datalayer.HelperConfigureOpenClawStatus{}, nil
 }
 
+func (r *fakeHelperJobRepo) ListPluginConnections(context.Context, string, string, string) ([]datalayer.PluginConnectionRow, error) {
+	return nil, nil
+}
+
 func TestHelperJobsWriteHelperRailRepoErrorMapping(t *testing.T) {
 	t.Parallel()
 	h := &HelperJobsHandler{}

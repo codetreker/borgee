@@ -1221,6 +1221,79 @@ export async function fetchHelperEnrollment(
   return sanitizeHelperEnrollment(data.enrollment);
 }
 
+// ─── Plugin connections (#1049) ─────────────────────────────────
+//
+// Owner-side UI for `borgee_plugin.configure_connection` /
+// `borgee_plugin.remove_connection` helper jobs. The state surface is
+// derived from the helper_jobs job stream by the server (no separate
+// connections table); the client lists, adds, edits (= remove + add),
+// and removes connections via three thin REST calls.
+
+export interface PluginConnectionView {
+  connection_id: string;
+  agent_id: string;
+  channel_id: string;
+  last_configured_at: number;
+}
+
+// CONNECTION_ID_RE — `^borgee-plugin:[A-Za-z0-9_.-]{1,200}$`. Mirrors
+// server-side validBorgeePluginConnectionID + daemon-side validSuffix.
+// Exposed for client-side validation in the add/edit form.
+export const PLUGIN_CONNECTION_ID_RE = /^borgee-plugin:[A-Za-z0-9_.-]{1,200}$/;
+
+export async function fetchPluginConnections(
+  enrollmentId: string,
+): Promise<PluginConnectionView[]> {
+  const data = await request<{ plugin_connections: unknown[] }>(
+    `/api/v1/helper/enrollments/${encodeURIComponent(enrollmentId)}/plugin-connections`,
+  );
+  if (!Array.isArray(data.plugin_connections)) return [];
+  return data.plugin_connections
+    .map(raw => {
+      const row = (raw ?? {}) as Record<string, unknown>;
+      return {
+        connection_id: typeof row.connection_id === 'string' ? row.connection_id : '',
+        agent_id: typeof row.agent_id === 'string' ? row.agent_id : '',
+        channel_id: typeof row.channel_id === 'string' ? row.channel_id : '',
+        last_configured_at:
+          typeof row.last_configured_at === 'number' ? row.last_configured_at : 0,
+      };
+    })
+    .filter(row => row.connection_id !== '');
+}
+
+export async function configurePluginConnection(
+  enrollmentId: string,
+  agentId: string,
+  channelId: string,
+): Promise<void> {
+  await request(`/api/v1/helper/enrollments/${encodeURIComponent(enrollmentId)}/jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_type: 'borgee_plugin.configure_connection',
+      schema_version: 1,
+      payload: { agent_id: agentId, channel_id: channelId },
+    }),
+  });
+}
+
+export async function removePluginConnection(
+  enrollmentId: string,
+  agentId: string,
+  connectionId: string,
+): Promise<void> {
+  await request(`/api/v1/helper/enrollments/${encodeURIComponent(enrollmentId)}/jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_type: 'borgee_plugin.remove_connection',
+      schema_version: 1,
+      payload: { agent_id: agentId, connection_id: connectionId },
+    }),
+  });
+}
+
 // ─── Helper Enrollment — create (operator UI mint) ───────────
 //
 // Operators previously had to bootstrap with curl:
