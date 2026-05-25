@@ -167,6 +167,12 @@ func TestRenderLinuxRootdUnit_Shape(t *testing.T) {
 		"MemoryMax=64M",
 		"CPUQuota=10%",
 		"TasksMax=32",
+		// Issue #1053: rootd's UDS lives under /run/borgee. systemd must
+		// create the dir before ExecStart; otherwise first boot fails
+		// with "Failed to set up mount namespacing: /run/borgee: No such
+		// file or directory" until borgee.service lazily creates it.
+		"RuntimeDirectory=borgee",
+		"RuntimeDirectoryMode=0750",
 		// ReadWritePaths covers PR-4 needs (install_plugin / service_lifecycle).
 		"ReadWritePaths=/run/borgee /usr/local/lib/borgee /var/lib/borgee /etc/systemd/system",
 		"Restart=on-failure",
