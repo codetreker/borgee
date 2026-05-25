@@ -19,8 +19,11 @@
 //     orphan — out-of-scope cleanup for this PR, see
 //     acceptance-criteria.md). This avoids the remove+configure
 //     non-atomic failure mode where remove succeeds and configure fails.
-//   - Confirm-delete dialog: focus moves to Cancel on open, Escape
-//     dismisses (mirrors RollbackConfirmModal pattern in ArtifactPanel).
+//   - Confirm-delete dialog (run_4 fix): focus moves to Cancel on
+//     open, Escape dismisses, Tab/Shift+Tab cycle stays inside the
+//     dialog (so `aria-modal="true"` no longer lies), and focus
+//     returns to the Delete button that opened the dialog when it
+//     closes (so keyboard users don't lose context to <body>).
 //   - States: loading / error (with retry) / empty / populated.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -54,6 +57,10 @@ export function PluginConnectionsPanel({
   const [formChannelId, setFormChannelId] = useState('');
   const [pending, setPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDelete>(null);
+  // Tracks the element that opened the confirm-delete dialog so we
+  // can restore focus to it on close (run_4 a11y fix). Captured at
+  // openDelete() call site; consumed on dialog unmount.
+  const deleteOpenerRef = useRef<HTMLElement | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,6 +115,15 @@ export function PluginConnectionsPanel({
     } finally {
       setPending(false);
     }
+  }
+
+  function openDelete(connectionId: string, opener: HTMLElement | null) {
+    deleteOpenerRef.current = opener;
+    setConfirmDelete({ connectionId });
+  }
+
+  function closeDelete() {
+    setConfirmDelete(null);
   }
 
   function openAdd() {
@@ -209,7 +225,7 @@ export function PluginConnectionsPanel({
                       type="button"
                       data-testid={`plugin-connection-delete-btn-${row.connection_id}`}
                       aria-label={`Delete connection ${row.connection_id}`}
-                      onClick={() => setConfirmDelete({ connectionId: row.connection_id })}
+                      onClick={e => openDelete(row.connection_id, e.currentTarget)}
                       disabled={pending}
                     >
                       Delete
@@ -258,7 +274,8 @@ export function PluginConnectionsPanel({
         <ConfirmDeleteDialog
           connectionId={confirmDelete.connectionId}
           pending={pending}
-          onCancel={() => setConfirmDelete(null)}
+          openerRef={deleteOpenerRef}
+          onCancel={closeDelete}
           onConfirm={() => void handleConfirmDelete()}
         />
       )}
@@ -269,17 +286,25 @@ export function PluginConnectionsPanel({
 // ConfirmDeleteDialog — small subcomponent so the focus / Escape effect
 // has a stable mount lifecycle. Mirrors RollbackConfirmModal in
 // ArtifactPanel.tsx (autofocus Cancel for destructive ops, Esc dismiss).
+//
+// run_4 a11y: also (a) traps Tab + Shift+Tab inside the dialog so
+// `aria-modal="true"` is not a lie for keyboard users, and (b) restores
+// focus to `openerRef.current` (= the Delete button that opened the
+// dialog) on unmount so keyboard users don't lose context to <body>.
 function ConfirmDeleteDialog({
   connectionId,
   pending,
+  openerRef,
   onCancel,
   onConfirm,
 }: {
   connectionId: string;
   pending: boolean;
+  openerRef: React.MutableRefObject<HTMLElement | null>;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -288,9 +313,52 @@ function ConfirmDeleteDialog({
     cancelBtnRef.current?.focus();
   }, []);
 
+  // Focus return on unmount: restore focus to the opener (the Delete
+  // button that triggered the dialog). Captured by parent as ref.
+  useEffect(() => {
+    const opener = openerRef.current;
+    return () => {
+      // Some openers may have been re-rendered / removed (row deleted
+      // after confirm); guard for that. document.body is the fallback,
+      // which is what the browser would do anyway.
+      if (opener && typeof opener.focus === 'function' && document.body.contains(opener)) {
+        opener.focus();
+      }
+    };
+  }, [openerRef]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !pending) onCancel();
+      if (e.key === 'Escape' && !pending) {
+        onCancel();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      // Trap Tab + Shift+Tab inside the dialog. Pull all currently-
+      // focusable descendants on every Tab press so dynamic content
+      // (e.g. button enabling after pending flips) is handled.
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusables = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(el => !el.hasAttribute('aria-hidden'));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey) {
+        if (active === first || !root.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last || !root.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -298,6 +366,7 @@ function ConfirmDeleteDialog({
 
   return (
     <div
+      ref={dialogRef}
       data-testid="plugin-connection-confirm-dialog"
       role="dialog"
       aria-modal="true"

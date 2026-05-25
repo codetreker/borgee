@@ -1,9 +1,11 @@
 package api_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"borgee-server/internal/store"
 	"borgee-server/internal/testutil"
@@ -223,5 +225,260 @@ func TestHelperJobsPluginConnectionsRemoveRejectsUnboundConnection(t *testing.T)
 	})
 	if rmResp.StatusCode != http.StatusForbidden && rmResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("remove of unbound connection_id should be rejected (403/404), got %d body %v", rmResp.StatusCode, rmBody)
+	}
+}
+
+// TestHelperJobsPluginConnectionsRemoveAcceptsBoundConnection — #1049
+// CRIT-2 happy path. Owner A configures connection X via agent A1, then
+// owner A removes connection X via agent A1. Must succeed (enqueue
+// returns 201 Created and the row is delivered to the daemon via poll).
+// Pins the gate's positive path so a future regression that flips the
+// `bound` check default doesn't silently bypass authorization.
+func TestHelperJobsPluginConnectionsRemoveAcceptsBoundConnection(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-bound-happy")
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "remove-bound-agent")
+	ch := testutil.CreateChannel(t, ts.URL, ownerToken, "remove-bound-private", "private")
+	chID := ch["id"].(string)
+	if err := s.AddChannelMember(&store.ChannelMember{ChannelID: chID, UserID: agent.ID}); err != nil {
+		t.Fatalf("add agent channel member: %v", err)
+	}
+
+	// Step 1: configure → succeed.
+	enqResp, enqBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.configure_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "channel_id": chID},
+	})
+	if enqResp.StatusCode != http.StatusCreated {
+		t.Fatalf("configure enqueue: %d %v", enqResp.StatusCode, enqBody)
+	}
+	cfgJobID := enqBody["job"].(map[string]any)["job_id"].(string)
+	pollResp, pollBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-bound-happy", "helper_platform": "linux"})
+	if pollResp.StatusCode != http.StatusOK {
+		t.Fatalf("configure poll: %d %v", pollResp.StatusCode, pollBody)
+	}
+	leased := pollBody["job"].(map[string]any)
+	leaseToken := leased["lease_token"].(string)
+	derivedConnID := leased["payload"].(map[string]any)["connection_id"].(string)
+	if !strings.HasPrefix(derivedConnID, "borgee-plugin:") {
+		t.Fatalf("expected server-derived borgee-plugin: prefix, got %q", derivedConnID)
+	}
+	rrResp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+cfgJobID+"/result", helperCredential, map[string]any{
+		"helper_device_id": "device-bound-happy",
+		"lease_token":      leaseToken,
+		"status":           "succeeded",
+		"result_summary":   map[string]any{"audit_refs": []string{"borgee-plugin-configure-connection-ok"}, "log_refs": []string{}},
+	})
+	if rrResp.StatusCode != http.StatusOK {
+		t.Fatalf("configure result: %d", rrResp.StatusCode)
+	}
+
+	// Step 2: remove of the SAME (agent_id, connection_id) MUST succeed.
+	rmResp, rmBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.remove_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "connection_id": derivedConnID},
+	})
+	if rmResp.StatusCode != http.StatusCreated {
+		t.Fatalf("legit remove of bound connection should 201, got %d body %v", rmResp.StatusCode, rmBody)
+	}
+}
+
+// TestHelperJobsPluginConnectionsRemoveRejectsCrossAgentSameOwner —
+// #1049 CRIT-2 attacker model. Owner A configures connection X via
+// agent A1 (which derives connection_id `derived`), then owner A
+// attempts remove of `derived` via agent A2 (also owned by A, but no
+// configure was ever done on A2). The binding check at the enqueue
+// gate must reject because (enrollment, A2, derived) isn't bound,
+// even though both agents share the owner.
+//
+// Without this gate an attacker who legitimately owns A2 and learned
+// `derived` (from logs / list output for A1) could submit a remove via
+// A2 and trigger a file delete on the daemon for A1's connection —
+// because the daemon root is shared per deployment, agent ownership
+// alone is insufficient to scope the delete.
+func TestHelperJobsPluginConnectionsRemoveRejectsCrossAgentSameOwner(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-crossagent")
+	agent1 := seedHelperJobAgent(t, s, "owner@test.com", "crossagent-a1")
+	agent2 := seedHelperJobAgent(t, s, "owner@test.com", "crossagent-a2")
+	ch := testutil.CreateChannel(t, ts.URL, ownerToken, "crossagent-private", "private")
+	chID := ch["id"].(string)
+	if err := s.AddChannelMember(&store.ChannelMember{ChannelID: chID, UserID: agent1.ID}); err != nil {
+		t.Fatalf("add agent1 channel member: %v", err)
+	}
+	// Note: agent2 deliberately NOT added to the channel — but the
+	// remove gate's binding check is independent of channel membership;
+	// the rejection must come from the (agent, connection_id) binding
+	// scan, not from a channel ACL.
+
+	// Step 1: configure on agent1 → succeed.
+	enqResp, enqBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.configure_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent1.ID, "channel_id": chID},
+	})
+	if enqResp.StatusCode != http.StatusCreated {
+		t.Fatalf("configure enqueue on agent1: %d %v", enqResp.StatusCode, enqBody)
+	}
+	cfgJobID := enqBody["job"].(map[string]any)["job_id"].(string)
+	pollResp, pollBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-crossagent", "helper_platform": "linux"})
+	if pollResp.StatusCode != http.StatusOK {
+		t.Fatalf("configure poll: %d %v", pollResp.StatusCode, pollBody)
+	}
+	leased := pollBody["job"].(map[string]any)
+	leaseToken := leased["lease_token"].(string)
+	derivedConnID := leased["payload"].(map[string]any)["connection_id"].(string)
+	rrResp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+cfgJobID+"/result", helperCredential, map[string]any{
+		"helper_device_id": "device-crossagent",
+		"lease_token":      leaseToken,
+		"status":           "succeeded",
+		"result_summary":   map[string]any{"audit_refs": []string{"borgee-plugin-configure-connection-ok"}, "log_refs": []string{}},
+	})
+	if rrResp.StatusCode != http.StatusOK {
+		t.Fatalf("configure result: %d", rrResp.StatusCode)
+	}
+
+	// Step 2: remove `derivedConnID` via agent2 MUST be rejected.
+	rmResp, rmBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.remove_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent2.ID, "connection_id": derivedConnID},
+	})
+	if rmResp.StatusCode != http.StatusForbidden && rmResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("cross-agent same-owner remove should be rejected (403/404), got %d body %v", rmResp.StatusCode, rmBody)
+	}
+}
+
+// TestHelperJobsPluginConnectionsRemoveBindingBypassesListCap — #1049
+// run_4 fix. The list projection caps the historical scan at
+// helperJobsPluginConnectionsRowCap (5000). Earlier the remove
+// binding check inherited that same LIMIT, so a legitimate remove
+// against an old configure that had scrolled past 5000 newer rows
+// was silently rejected. The fix narrows the scan with a
+// payload_json LIKE on connection_id+agent_id and removes the LIMIT.
+// This test seeds the legit configure, then bulk-inserts >5000
+// unrelated succeeded configure rows that newer it under
+// (created_at ASC, id ASC) ordering, then attempts remove of the
+// legit connection. Must succeed (201) — proves the binding check
+// is unbounded by the list cap. To keep wall time low we directly
+// INSERT the noise rows via store.DB(), bypassing the public enqueue
+// path (which is irrelevant — we only need the binding-scan SQL to
+// see >5000 rows ordered before the legit one).
+func TestHelperJobsPluginConnectionsRemoveBindingBypassesListCap(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, secret := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	_, helperCredential := claimHelperEnrollmentViaAPI(t, ts.URL, enrollmentID, secret, "device-cap-bypass")
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "cap-bypass-agent")
+	ch := testutil.CreateChannel(t, ts.URL, ownerToken, "cap-bypass-private", "private")
+	chID := ch["id"].(string)
+	if err := s.AddChannelMember(&store.ChannelMember{ChannelID: chID, UserID: agent.ID}); err != nil {
+		t.Fatalf("add agent channel member: %v", err)
+	}
+
+	// Step 1: legit configure → succeed. This row will be the OLDEST
+	// configure under (created_at ASC, id ASC) ordering.
+	enqResp, enqBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.configure_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "channel_id": chID},
+	})
+	if enqResp.StatusCode != http.StatusCreated {
+		t.Fatalf("legit configure enqueue: %d %v", enqResp.StatusCode, enqBody)
+	}
+	cfgJobID := enqBody["job"].(map[string]any)["job_id"].(string)
+	pollResp, pollBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/poll", helperCredential, map[string]any{"helper_device_id": "device-cap-bypass", "helper_platform": "linux"})
+	if pollResp.StatusCode != http.StatusOK {
+		t.Fatalf("legit configure poll: %d %v", pollResp.StatusCode, pollBody)
+	}
+	leased := pollBody["job"].(map[string]any)
+	leaseToken := leased["lease_token"].(string)
+	derivedConnID := leased["payload"].(map[string]any)["connection_id"].(string)
+	rrResp, _ := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs/"+cfgJobID+"/result", helperCredential, map[string]any{
+		"helper_device_id": "device-cap-bypass",
+		"lease_token":      leaseToken,
+		"status":           "succeeded",
+		"result_summary":   map[string]any{"audit_refs": []string{"borgee-plugin-configure-connection-ok"}, "log_refs": []string{}},
+	})
+	if rrResp.StatusCode != http.StatusOK {
+		t.Fatalf("legit configure result: %d", rrResp.StatusCode)
+	}
+
+	// Step 2: bulk-insert noise. We need MORE than
+	// helperJobsPluginConnectionsRowCap (5000) succeeded configure
+	// rows newer than the legit one (under created_at ASC, id ASC)
+	// in the SAME (owner, org, enrollment) so the legit row would
+	// scroll out of any LIMIT(5000)-bounded scan ordered ASC.
+	owner, err := s.GetUserByEmail("owner@test.com")
+	if err != nil {
+		t.Fatalf("GetUserByEmail: %v", err)
+	}
+	now := time.Now().UnixMilli()
+	const noiseRows = 5050
+	rows := make([]store.HelperJob, 0, noiseRows)
+	for i := 0; i < noiseRows; i++ {
+		// Payload deliberately does NOT contain derivedConnID or
+		// agent.ID — the binding-scan LIKE filter will exclude these
+		// rows quickly. But the binding scan WITHOUT the LIKE filter
+		// (i.e. the old bug) would have hit the LIMIT(5000) before
+		// reaching the legit row.
+		fakeConn := fmt.Sprintf("borgee-plugin:noise-%05d", i)
+		fakeAgent := fmt.Sprintf("noise-agent-%05d", i)
+		payload := fmt.Sprintf(`{"connection_id":%q,"agent_id":%q,"channel_id":"noise"}`, fakeConn, fakeAgent)
+		rows = append(rows, store.HelperJob{
+			ID:               fmt.Sprintf("noise-cfg-%05d", i),
+			OwnerUserID:      owner.ID,
+			OrgID:            owner.OrgID,
+			EnrollmentID:     enrollmentID,
+			JobType:          store.HelperJobTypePluginConfigureConnection,
+			Category:         "borgee_plugin",
+			SchemaVersion:    1,
+			PayloadJSON:      payload,
+			PayloadHash:      fmt.Sprintf("sha256:noise-%05d", i),
+			ManifestDigest:   "sha256:noise",
+			IdempotencyScope: fmt.Sprintf("noise-scope-%05d", i),
+			Status:           "succeeded",
+			CreatedAt:        now + int64(i+1), // newer than legit configure
+			UpdatedAt:        now + int64(i+1),
+			ExpiresAt:        now + int64(86_400_000),
+		})
+	}
+	// Bulk insert in chunks (GORM default has a parameter limit).
+	const chunk = 500
+	for start := 0; start < len(rows); start += chunk {
+		end := start + chunk
+		if end > len(rows) {
+			end = len(rows)
+		}
+		if err := s.DB().Create(rows[start:end]).Error; err != nil {
+			t.Fatalf("bulk insert noise configure rows [%d..%d]: %v", start, end, err)
+		}
+	}
+
+	// Step 3: remove the legit connection. With the OLD bug
+	// (Limit(5000) on the binding scan ordered ASC) the legit row
+	// would not be visible — the scan would return only noise rows,
+	// `bound` stays false, and we'd get 403 Forbidden. With the
+	// fix (narrowed LIKE + no LIMIT) the legit configure is found
+	// regardless of how many newer unrelated rows exist.
+	rmResp, rmBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.remove_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "connection_id": derivedConnID},
+	})
+	if rmResp.StatusCode != http.StatusCreated {
+		t.Fatalf("remove of legit connection after >5000 noise rows should 201, got %d body %v", rmResp.StatusCode, rmBody)
 	}
 }

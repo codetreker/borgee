@@ -300,6 +300,98 @@ describe('PluginConnectionsPanel', () => {
     ).toBeNull();
   });
 
+  // run_4 a11y: focus trap (Tab + Shift+Tab cycle stays inside the
+  // dialog) + focus return on close. Without these, `aria-modal="true"`
+  // is a lie — keyboard users can Tab into elements behind the
+  // confirm-delete dialog and lose context to <body> on dismiss.
+  it('confirm dialog traps Tab cycle (Tab from last → first; Shift+Tab from first → last)', async () => {
+    vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([
+      {
+        connection_id: 'borgee-plugin:abc',
+        agent_id: 'agent-1',
+        channel_id: 'chan-1',
+        last_configured_at: 1234,
+      },
+    ]);
+    render({ enrollmentId: 'enroll-1', agentId: 'agent-1' });
+    await flushPromises();
+    const delBtn = container!.querySelector(
+      '[data-testid="plugin-connection-delete-btn-borgee-plugin:abc"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      delBtn.click();
+    });
+    await flushPromises();
+    const cancel = container!.querySelector(
+      '[data-testid="plugin-connection-cancel-delete-btn"]',
+    ) as HTMLButtonElement;
+    const confirm = container!.querySelector(
+      '[data-testid="plugin-connection-confirm-delete-btn"]',
+    ) as HTMLButtonElement;
+    expect(cancel).not.toBeNull();
+    expect(confirm).not.toBeNull();
+    // Focus on last → Tab should wrap to first (Cancel).
+    act(() => {
+      confirm.focus();
+    });
+    expect(document.activeElement).toBe(confirm);
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    });
+    expect(document.activeElement).toBe(cancel);
+    // Focus on first → Shift+Tab should wrap to last (Delete).
+    act(() => {
+      cancel.focus();
+    });
+    expect(document.activeElement).toBe(cancel);
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
+      );
+    });
+    expect(document.activeElement).toBe(confirm);
+  });
+
+  it('confirm dialog returns focus to the Delete button after Cancel', async () => {
+    vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([
+      {
+        connection_id: 'borgee-plugin:abc',
+        agent_id: 'agent-1',
+        channel_id: 'chan-1',
+        last_configured_at: 1234,
+      },
+    ]);
+    render({ enrollmentId: 'enroll-1', agentId: 'agent-1' });
+    await flushPromises();
+    const delBtn = container!.querySelector(
+      '[data-testid="plugin-connection-delete-btn-borgee-plugin:abc"]',
+    ) as HTMLButtonElement;
+    // Simulate keyboard click (focus naturally lands on the button
+    // before the user activates it; this is the real keyboard a11y
+    // path the focus-return logic is designed for).
+    act(() => {
+      delBtn.focus();
+      delBtn.click();
+    });
+    await flushPromises();
+    expect(
+      container!.querySelector('[data-testid="plugin-connection-confirm-dialog"]'),
+    ).not.toBeNull();
+    // Cancel → dialog unmounts → focus must return to the Delete
+    // button that opened it (asserts ConfirmDeleteDialog cleanup).
+    const cancel = container!.querySelector(
+      '[data-testid="plugin-connection-cancel-delete-btn"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      cancel.click();
+    });
+    await flushPromises();
+    expect(
+      container!.querySelector('[data-testid="plugin-connection-confirm-dialog"]'),
+    ).toBeNull();
+    expect(document.activeElement).toBe(delBtn);
+  });
+
   it('shows loading state while the initial fetch is in flight', () => {
     let resolve!: (v: api.PluginConnectionView[]) => void;
     vi.mocked(api.fetchPluginConnections).mockImplementationOnce(

@@ -887,16 +887,30 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 			return nil, "", "", nil, err
 		}
 		// Verify the connection_id was previously configured for this
-		// (enrollment_id, agent_id) by the same owner. Scan succeeded
-		// configure rows; for each, unmarshal the effective payload and
-		// match agent_id + connection_id. Same query as the list
-		// projection (helper_jobs_sqlite.go ListPluginConnections) but
-		// filtered to configure only and bounded by the same row cap.
+		// (enrollment_id, agent_id) by the same owner. This is an
+		// UNCAPPED check (no LIMIT) — unlike the list projection,
+		// which is bounded by helperJobsPluginConnectionsRowCap for
+		// performance, this authz gate must remain correct even when
+		// an enrollment has scrolled the historical configure past
+		// the projection window. A legitimate remove of an old
+		// connection must not be silently rejected as Forbidden just
+		// because newer unrelated rows have piled up.
+		//
+		// To keep the scan bounded in practice we narrow with a
+		// payload_json LIKE that requires both the connection_id and
+		// agent_id substrings to appear. SQLite parameter-binds the
+		// LIKE arguments — no string interpolation — so this stays
+		// injection-safe. We then unmarshal each match defensively
+		// to reject substring false positives that might appear in,
+		// e.g., a result_summary field embedded elsewhere (the
+		// payload_json column is the effective payload only, but the
+		// defensive structural check is cheap).
+		connLike := "%" + payload.ConnectionID + "%"
+		agentLike := "%" + payload.AgentID + "%"
 		var configureRows []HelperJob
-		if err := tx.Where("owner_user_id = ? AND org_id = ? AND enrollment_id = ? AND job_type = ? AND status = 'succeeded'",
-			input.OwnerUserID, input.OrgID, input.EnrollmentID, HelperJobTypePluginConfigureConnection).
+		if err := tx.Where("owner_user_id = ? AND org_id = ? AND enrollment_id = ? AND job_type = ? AND status = 'succeeded' AND payload_json LIKE ? AND payload_json LIKE ?",
+			input.OwnerUserID, input.OrgID, input.EnrollmentID, HelperJobTypePluginConfigureConnection, connLike, agentLike).
 			Order("created_at ASC, id ASC").
-			Limit(5000).
 			Find(&configureRows).Error; err != nil {
 			return nil, "", "", nil, err
 		}
