@@ -5,8 +5,12 @@ The `@codetreker/borgee-remote-agent` package ships two CLIs:
 1. **`borgee`** — the Borgee host-bridge daemon (Go binary, delivered inside
    this same npm tarball under `bin/platforms/<plat>-<arch>/borgee`; the
    Node shim picks the right one at runtime). One-shot operator bootstrap
-   (`install`), local cleanup (`uninstall-host`), and the long-lived
-   `daemon` + advanced `setup` / `claim` / `install-plugin` subcommands.
+   (`install`), local cleanup (`uninstall-host`), the long-lived `daemon`
+   + root companion `rootd`, and the signed-manifest plugin installer
+   (`install-plugin`). (The pre-#1055 standalone `setup` and `claim`
+   subcommands have been folded into `install` and are no longer
+   operator-facing — they remain as internal helpers invoked by
+   `borgee install`.)
 2. **`borgee-remote-agent`** — the Node-based remote file-system bridge
    (TypeScript CLI that connects local directories to a Borgee channel via
    WebSocket). Unchanged from the prior 0.1.x release.
@@ -50,33 +54,35 @@ For server-driven uninstall (operator triggers via web UI), the
 `helper.uninstall` job runs the same cleanup buckets from inside the
 daemon (`internal/executors/uninstall`).
 
-## Advanced (re-claim, redo setup)
+## Advanced (re-run install, replace credential)
 
 Subcommands available under `borgee`:
 
 ```
 borgee install          # one-shot operator bootstrap (the recommended path above)
 borgee uninstall-host   # operator-driven local cleanup
-borgee setup            # systemd unit / launchd plist + system user + state dirs (called by install)
-borgee claim ...        # one-time enrollment claim (called by install; re-runnable to re-claim)
 borgee daemon ...       # long-lived host-bridge daemon (started by systemd / launchd)
+borgee rootd ...        # root companion daemon — narrow IPC whitelist (started by systemd)
 borgee install-plugin   # signed-manifest plugin binary installer (HB-1; was: borgee install)
 borgee --version
 ```
 
-Re-claim with a new token:
+To re-claim with a new token or refresh the systemd unit / launchd plist,
+re-run the one-shot bootstrap with a fresh token from the web UI:
 
 ```bash
-sudo borgee claim --enrollment-id=<id> --enrollment-secret=<secret> \
-                  --server-origin=https://borgee.codetrek.cn
+sudo npx @codetreker/borgee-remote-agent install \
+  --server wss://borgee.codetrek.cn \
+  --token <new-token-from-web-ui>
 ```
 
-Redo systemd unit only (e.g. after a config bump):
-
-```bash
-sudo borgee setup --server-origin=https://borgee.codetrek.cn
-sudo systemctl daemon-reload && sudo systemctl restart borgee
-```
+`install` is idempotent: it overwrites the systemd unit / launchd plist,
+preserves state dirs, and re-issues the enrollment claim with the new
+token. The prior standalone `borgee setup` / `borgee claim` commands were
+dropped from the public CLI (issue #1055) because bare `setup` produced a
+non-functional install — the helpers live on as internal helpers under
+`packages/borgee/internal/cli/setup/` and `packages/borgee/internal/cli/claim/`,
+invoked by `borgee install`.
 
 ## What gets installed
 

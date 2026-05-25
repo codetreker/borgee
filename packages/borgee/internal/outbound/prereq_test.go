@@ -205,8 +205,9 @@ func TestPrereqValidateRejectsStatePathsOutsideAllowedRoots(t *testing.T) {
 	}
 }
 
-// TestDefaultStateRoots_LinuxMatchesSetup (amend gap #5) — `borgee setup`
-// provisions state dirs under /var/lib/borgee/{queue,status,...} and the
+// TestDefaultStateRoots_LinuxMatchesSetup (amend gap #5) — the internal
+// setup helper (invoked by `borgee install`) provisions state dirs under
+// /var/lib/borgee/{queue,status,...} and the
 // systemd unit's ExecStart points there. If DefaultStateRoots() returned
 // only the legacy /var/lib/borgee-helper root, every daemon-startup
 // state-dir validation would fail "outside allowed Helper-owned state
