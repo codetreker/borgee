@@ -7,21 +7,26 @@
 // jobs, and lets the owner enqueue a remove job for a row.
 //
 // Notes:
-//   - `connection_id` shown in the list is server-derived (digest of
-//     org_id|agent_id|channel_id). The "Add connection" form lets the
-//     owner type a free-text connection_id which is validated against
-//     `^borgee-plugin:[A-Za-z0-9_.-]{1,200}$` client-side; the server
-//     still derives the canonical id for the configure path. For remove,
-//     the client round-trips the server-derived id from the list.
-//   - "Edit" is modeled as remove(old) + configure(new) since the
-//     server-derived id changes when (agent, channel) changes.
+//   - `connection_id` is ALWAYS server-derived (= digest of
+//     org_id|agent_id|channel_id). The add form only takes `channel_id`
+//     — there is no user-facing connection_id input, because anything
+//     the user typed would be silently discarded by the server. The
+//     list view still shows the server-derived id per row (read-only).
+//   - "Edit" simply re-issues a `configure_connection` with the new
+//     `channel_id`. The server's idempotency on (org|agent|channel)
+//     means same-channel reconfigure overwrites in place; switching to
+//     a NEW channel derives a NEW connection_id (the old row would
+//     orphan — out-of-scope cleanup for this PR, see
+//     acceptance-criteria.md). This avoids the remove+configure
+//     non-atomic failure mode where remove succeeds and configure fails.
+//   - Confirm-delete dialog: focus moves to Cancel on open, Escape
+//     dismisses (mirrors RollbackConfirmModal pattern in ArtifactPanel).
 //   - States: loading / error (with retry) / empty / populated.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   configurePluginConnection,
   fetchPluginConnections,
-  PLUGIN_CONNECTION_ID_RE,
   removePluginConnection,
   type PluginConnectionView,
 } from '../lib/api';
@@ -38,8 +43,6 @@ type FormMode =
 
 type ConfirmDelete = { connectionId: string } | null;
 
-const FORM_INITIAL_CONN_ID = '';
-
 export function PluginConnectionsPanel({
   enrollmentId,
   agentId,
@@ -48,7 +51,6 @@ export function PluginConnectionsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormMode>({ kind: 'closed' });
-  const [formConnectionId, setFormConnectionId] = useState(FORM_INITIAL_CONN_ID);
   const [formChannelId, setFormChannelId] = useState('');
   const [pending, setPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDelete>(null);
@@ -60,7 +62,7 @@ export function PluginConnectionsPanel({
       const list = await fetchPluginConnections(enrollmentId);
       setRows(list.filter(r => r.agent_id === agentId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败');
+      setError(err instanceof Error ? err.message : 'Failed to load plugin connections');
     } finally {
       setLoading(false);
     }
@@ -70,26 +72,25 @@ export function PluginConnectionsPanel({
     void load();
   }, [load]);
 
-  const connectionIdValid =
-    form.kind === 'add' ? PLUGIN_CONNECTION_ID_RE.test(formConnectionId) : true;
   const channelIdValid = formChannelId.trim().length > 0;
-  const submitDisabled = pending || !channelIdValid || (form.kind === 'add' && !connectionIdValid);
+  const submitDisabled = pending || !channelIdValid;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitDisabled) return;
     setPending(true);
     try {
-      if (form.kind === 'edit') {
-        await removePluginConnection(enrollmentId, agentId, form.connectionId);
-      }
+      // Edit and Add both just re-issue configure — the server is
+      // idempotent on (org|agent|channel) so same-channel save
+      // overwrites in place (no remove needed); switching to a new
+      // channel derives a new connection_id. Avoids the remove-then-
+      // configure non-atomic failure mode (CRIT-5).
       await configurePluginConnection(enrollmentId, agentId, formChannelId.trim());
       setForm({ kind: 'closed' });
-      setFormConnectionId(FORM_INITIAL_CONN_ID);
       setFormChannelId('');
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败');
+      setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setPending(false);
     }
@@ -103,7 +104,7 @@ export function PluginConnectionsPanel({
       setConfirmDelete(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除失败');
+      setError(err instanceof Error ? err.message : 'Failed to delete');
     } finally {
       setPending(false);
     }
@@ -111,26 +112,23 @@ export function PluginConnectionsPanel({
 
   function openAdd() {
     setForm({ kind: 'add' });
-    setFormConnectionId(FORM_INITIAL_CONN_ID);
     setFormChannelId('');
     setError(null);
   }
   function openEdit(row: PluginConnectionView) {
     setForm({ kind: 'edit', connectionId: row.connection_id, channelId: row.channel_id });
-    setFormConnectionId(row.connection_id);
     setFormChannelId(row.channel_id);
     setError(null);
   }
   function closeForm() {
     setForm({ kind: 'closed' });
-    setFormConnectionId(FORM_INITIAL_CONN_ID);
     setFormChannelId('');
   }
 
   return (
     <section
       data-testid="plugin-connections-section"
-      style={{ marginTop: 16, padding: 12, border: '1px solid var(--color-border, #ddd)', borderRadius: 4 }}
+      style={{ marginTop: 16, padding: 12, border: '1px solid var(--border-color)', borderRadius: 4 }}
     >
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <strong>Plugin connections</strong>
@@ -146,7 +144,7 @@ export function PluginConnectionsPanel({
 
       {loading && (
         <p data-testid="plugin-connections-loading" style={{ marginTop: 8 }}>
-          加载中...
+          Loading...
         </p>
       )}
 
@@ -154,7 +152,7 @@ export function PluginConnectionsPanel({
         <div
           data-testid="plugin-connections-error"
           role="alert"
-          style={{ marginTop: 8, color: 'var(--color-error, #c00)' }}
+          style={{ marginTop: 8, color: 'var(--danger)' }}
         >
           {error}{' '}
           <button
@@ -174,78 +172,62 @@ export function PluginConnectionsPanel({
       )}
 
       {!loading && rows.length > 0 && (
-        <table
-          data-testid="plugin-connections-table"
-          style={{ marginTop: 8, width: '100%', borderCollapse: 'collapse' }}
-        >
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left' }}>Connection ID</th>
-              <th style={{ textAlign: 'left' }}>Channel</th>
-              <th style={{ textAlign: 'left' }}>Last configured</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(row => (
-              <tr key={row.connection_id} data-testid="plugin-connection-row" data-connection-id={row.connection_id}>
-                <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.connection_id}</td>
-                <td>{row.channel_id}</td>
-                <td>
-                  {row.last_configured_at > 0
-                    ? new Date(row.last_configured_at).toISOString()
-                    : ''}
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <button
-                    type="button"
-                    data-testid={`plugin-connection-edit-btn-${row.connection_id}`}
-                    onClick={() => openEdit(row)}
-                    disabled={pending || form.kind !== 'closed'}
-                  >
-                    Edit
-                  </button>{' '}
-                  <button
-                    type="button"
-                    data-testid={`plugin-connection-delete-btn-${row.connection_id}`}
-                    onClick={() => setConfirmDelete({ connectionId: row.connection_id })}
-                    disabled={pending}
-                  >
-                    Delete
-                  </button>
-                </td>
+        <div style={{ marginTop: 8, overflowX: 'auto' }}>
+          <table
+            data-testid="plugin-connections-table"
+            style={{ width: '100%', borderCollapse: 'collapse' }}
+          >
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left' }}>Connection ID</th>
+                <th style={{ textAlign: 'left' }}>Channel</th>
+                <th style={{ textAlign: 'left' }}>Last configured</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.connection_id} data-testid="plugin-connection-row" data-connection-id={row.connection_id}>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.connection_id}</td>
+                  <td>{row.channel_id}</td>
+                  <td>
+                    {row.last_configured_at > 0
+                      ? new Date(row.last_configured_at).toISOString()
+                      : ''}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      data-testid={`plugin-connection-edit-btn-${row.connection_id}`}
+                      aria-label={`Edit connection ${row.connection_id}`}
+                      onClick={() => openEdit(row)}
+                      disabled={pending || form.kind !== 'closed'}
+                    >
+                      Edit
+                    </button>{' '}
+                    <button
+                      type="button"
+                      data-testid={`plugin-connection-delete-btn-${row.connection_id}`}
+                      aria-label={`Delete connection ${row.connection_id}`}
+                      onClick={() => setConfirmDelete({ connectionId: row.connection_id })}
+                      disabled={pending}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {form.kind !== 'closed' && (
         <form
           data-testid="plugin-connection-form"
           onSubmit={handleSubmit}
-          style={{ marginTop: 12, padding: 8, border: '1px solid var(--color-border, #ddd)', borderRadius: 4 }}
+          style={{ marginTop: 12, padding: 8, border: '1px solid var(--border-color)', borderRadius: 4 }}
         >
-          <label style={{ display: 'block', marginTop: 4 }}>
-            Connection ID
-            <input
-              type="text"
-              data-testid="plugin-connection-form-connection-id"
-              value={formConnectionId}
-              onChange={e => setFormConnectionId(e.target.value)}
-              placeholder="borgee-plugin:my-connection"
-              disabled={form.kind === 'edit'}
-              style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
-            />
-            {form.kind === 'add' && formConnectionId !== '' && !connectionIdValid && (
-              <span
-                data-testid="plugin-connection-form-connection-id-error"
-                style={{ color: 'var(--color-error, #c00)', fontSize: 12 }}
-              >
-                connection_id must match {String(PLUGIN_CONNECTION_ID_RE)}
-              </span>
-            )}
-          </label>
           <label style={{ display: 'block', marginTop: 8 }}>
             Channel ID
             <input
@@ -273,39 +255,81 @@ export function PluginConnectionsPanel({
       )}
 
       {confirmDelete && (
-        <div
-          data-testid="plugin-connection-confirm-dialog"
-          role="dialog"
-          aria-label="Confirm delete"
-          style={{
-            marginTop: 12,
-            padding: 12,
-            background: 'var(--color-surface-alt, #fafafa)',
-            border: '1px solid var(--color-border, #ddd)',
-            borderRadius: 4,
-          }}
-        >
-          <p>Delete connection {confirmDelete.connectionId}?</p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              data-testid="plugin-connection-cancel-delete-btn"
-              onClick={() => setConfirmDelete(null)}
-              disabled={pending}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              data-testid="plugin-connection-confirm-delete-btn"
-              onClick={() => void handleConfirmDelete()}
-              disabled={pending}
-            >
-              {pending ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        </div>
+        <ConfirmDeleteDialog
+          connectionId={confirmDelete.connectionId}
+          pending={pending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => void handleConfirmDelete()}
+        />
       )}
     </section>
+  );
+}
+
+// ConfirmDeleteDialog — small subcomponent so the focus / Escape effect
+// has a stable mount lifecycle. Mirrors RollbackConfirmModal in
+// ArtifactPanel.tsx (autofocus Cancel for destructive ops, Esc dismiss).
+function ConfirmDeleteDialog({
+  connectionId,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  connectionId: string;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    // a11y: focus Cancel by default for destructive op — prevents
+    // an accidental Enter press from confirming the delete.
+    cancelBtnRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !pending) onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel, pending]);
+
+  return (
+    <div
+      data-testid="plugin-connection-confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirm delete"
+      style={{
+        marginTop: 12,
+        padding: 12,
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 4,
+      }}
+    >
+      <p>Delete connection {connectionId}?</p>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button
+          ref={cancelBtnRef}
+          type="button"
+          data-testid="plugin-connection-cancel-delete-btn"
+          onClick={onCancel}
+          disabled={pending}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          data-testid="plugin-connection-confirm-delete-btn"
+          onClick={onConfirm}
+          disabled={pending}
+        >
+          {pending ? 'Deleting...' : 'Delete'}
+        </button>
+      </div>
+    </div>
   );
 }

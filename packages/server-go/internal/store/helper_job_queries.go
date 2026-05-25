@@ -865,14 +865,16 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 	case HelperJobTypePluginRemoveConnection:
 		// #1049. Remove the per-connection record identified by the
 		// caller's `connection_id`. Authz: the agent_id must belong to
-		// the caller's owner+org. The connection_id itself is the
-		// server-derived id the client previously received from the
-		// list endpoint — the server does NOT independently verify
-		// that the id maps to one of this agent's known channels,
-		// because the daemon-side executor is idempotent on missing
-		// files (so a stale or spoofed id at worst no-ops). The agent
-		// authz check is sufficient to prevent IDOR (only files under
-		// THIS deployment's daemon root are reachable).
+		// the caller's owner+org, AND there must exist a prior succeeded
+		// `borgee_plugin.configure_connection` job binding this exact
+		// (enrollment_id, agent_id, connection_id) triple — otherwise an
+		// attacker who learned ANY borgee-plugin connection_id (logs,
+		// list output for a different agent in the same deployment) could
+		// submit a remove via their own owned agent_id and trigger a file
+		// delete on the daemon that serves the legitimate agent. The
+		// daemon root is shared per deployment so simple agent ownership
+		// is insufficient — the binding check below ties the connection
+		// to the agent at enqueue time.
 		payload, err := decodeBorgeePluginRemovePayload(input.PayloadJSON)
 		if err != nil {
 			return nil, "", "", nil, err
@@ -883,6 +885,37 @@ func (s *Store) effectiveHelperJobPayload(tx *gorm.DB, input EnqueueHelperJobInp
 				return nil, "", "", nil, ErrHelperJobForbidden
 			}
 			return nil, "", "", nil, err
+		}
+		// Verify the connection_id was previously configured for this
+		// (enrollment_id, agent_id) by the same owner. Scan succeeded
+		// configure rows; for each, unmarshal the effective payload and
+		// match agent_id + connection_id. Same query as the list
+		// projection (helper_jobs_sqlite.go ListPluginConnections) but
+		// filtered to configure only and bounded by the same row cap.
+		var configureRows []HelperJob
+		if err := tx.Where("owner_user_id = ? AND org_id = ? AND enrollment_id = ? AND job_type = ? AND status = 'succeeded'",
+			input.OwnerUserID, input.OrgID, input.EnrollmentID, HelperJobTypePluginConfigureConnection).
+			Order("created_at ASC, id ASC").
+			Limit(5000).
+			Find(&configureRows).Error; err != nil {
+			return nil, "", "", nil, err
+		}
+		bound := false
+		for i := range configureRows {
+			var cfgPayload struct {
+				ConnectionID string `json:"connection_id"`
+				AgentID      string `json:"agent_id"`
+			}
+			if err := json.Unmarshal([]byte(configureRows[i].PayloadJSON), &cfgPayload); err != nil {
+				continue
+			}
+			if cfgPayload.ConnectionID == payload.ConnectionID && cfgPayload.AgentID == payload.AgentID {
+				bound = true
+				break
+			}
+		}
+		if !bound {
+			return nil, "", "", nil, ErrHelperJobForbidden
 		}
 		effective := borgeePluginRemoveEffectivePayload{
 			ConnectionID: payload.ConnectionID,

@@ -88,7 +88,12 @@ func (e *Executor) Execute(_ context.Context, job *outbound.LeasedJob) (dispatch
 	}
 
 	if err := os.Remove(dest); err != nil && !errors.Is(err, os.ErrNotExist) {
-		e.logf("borgee: borgee_plugin.remove_connection remove %s failed: %v", dest, err)
+		// #1049: do not log the resolved absolute path (it embeds the
+		// connection_id digest). Acceptance §"Quality Constraints" forbids
+		// `connection_id` at info level or above; log only the basename
+		// (which mirrors the success-path LogRefs) so the failure is
+		// debuggable without leaking the stable identifier.
+		e.logf("borgee: borgee_plugin.remove_connection remove %s failed: %v", filepath.Base(dest), err)
 		return failed("remove_failed", err.Error()), err
 	}
 
@@ -146,6 +151,7 @@ func failed(code, msg string) dispatch.TerminalStatus {
 }
 
 // silence unused-import warning when Now() is not invoked in some paths.
-var _ = time.Now
+// (Kept as a no-op — `time.Time` and `e.now()` keep the symbol live in
+// the type signature; this line is harmless and removed by the linker.)
 
 var _ dispatch.Executor = (*Executor)(nil)

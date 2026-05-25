@@ -1,7 +1,18 @@
 // PluginConnectionsPanel.test.tsx — #1049 client unit tests.
 //
 // Cover the four states (loading / error / empty / populated) plus
-// form validation and submit. No real network — `lib/api` is mocked.
+// form validation, submit (add + edit), and delete. No real network —
+// `lib/api` is mocked.
+//
+// Notes (post-iteration run_3):
+//   - The form no longer renders a `connection_id` input — the server
+//     derives the id from (org|agent|channel), so any user-typed value
+//     would be silently discarded. Tests assert the absence of the
+//     input.
+//   - Edit calls configurePluginConnection only (no remove-then-
+//     configure). Server idempotency on (org|agent|channel) overwrites
+//     in place; switching channel derives a new connection_id (orphan
+//     cleanup is out of scope per acceptance-criteria.md).
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
@@ -93,7 +104,7 @@ describe('PluginConnectionsPanel', () => {
     expect(rows[0].getAttribute('data-connection-id')).toBe('borgee-plugin:abc');
   });
 
-  it('disables the submit button when connection_id does not match the regex', async () => {
+  it('add form has no connection_id input — server derives the id', async () => {
     vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([]);
     render({ enrollmentId: 'enroll-1', agentId: 'agent-1' });
     await flushPromises();
@@ -103,35 +114,36 @@ describe('PluginConnectionsPanel', () => {
     act(() => {
       addBtn.click();
     });
-    const connInput = container!.querySelector(
-      '[data-testid="plugin-connection-form-connection-id"]',
-    ) as HTMLInputElement;
+    expect(
+      container!.querySelector('[data-testid="plugin-connection-form-connection-id"]'),
+    ).toBeNull();
+    expect(
+      container!.querySelector('[data-testid="plugin-connection-form-channel-id"]'),
+    ).not.toBeNull();
+  });
+
+  it('disables submit until channel_id is non-empty', async () => {
+    vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([]);
+    render({ enrollmentId: 'enroll-1', agentId: 'agent-1' });
+    await flushPromises();
+    const addBtn = container!.querySelector(
+      '[data-testid="plugin-connection-add-btn"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      addBtn.click();
+    });
     const chanInput = container!.querySelector(
       '[data-testid="plugin-connection-form-channel-id"]',
     ) as HTMLInputElement;
     const submit = container!.querySelector(
       '[data-testid="plugin-connection-form-submit"]',
     ) as HTMLButtonElement;
-    // Simulate bad connection_id input.
+    expect(submit.disabled).toBe(true);
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!
         .set!;
-      setter.call(connInput, 'not-valid');
-      connInput.dispatchEvent(new Event('input', { bubbles: true }));
       setter.call(chanInput, 'channel-x');
       chanInput.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    expect(submit.disabled).toBe(true);
-    expect(
-      container!.querySelector('[data-testid="plugin-connection-form-connection-id-error"]'),
-    ).not.toBeNull();
-
-    // Fix the connection_id so the submit enables.
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!
-        .set!;
-      setter.call(connInput, 'borgee-plugin:test-1');
-      connInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(submit.disabled).toBe(false);
   });
@@ -155,9 +167,6 @@ describe('PluginConnectionsPanel', () => {
     act(() => {
       addBtn.click();
     });
-    const connInput = container!.querySelector(
-      '[data-testid="plugin-connection-form-connection-id"]',
-    ) as HTMLInputElement;
     const chanInput = container!.querySelector(
       '[data-testid="plugin-connection-form-channel-id"]',
     ) as HTMLInputElement;
@@ -167,8 +176,6 @@ describe('PluginConnectionsPanel', () => {
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!
         .set!;
-      setter.call(connInput, 'borgee-plugin:test-1');
-      connInput.dispatchEvent(new Event('input', { bubbles: true }));
       setter.call(chanInput, 'chan-x');
       chanInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -178,6 +185,52 @@ describe('PluginConnectionsPanel', () => {
     await flushPromises();
     expect(api.configurePluginConnection).toHaveBeenCalledWith('enroll-1', 'agent-1', 'chan-x');
     expect(api.fetchPluginConnections).toHaveBeenCalledTimes(2);
+  });
+
+  it('edit flow calls configurePluginConnection only (no remove)', async () => {
+    vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([
+      {
+        connection_id: 'borgee-plugin:abc',
+        agent_id: 'agent-1',
+        channel_id: 'chan-old',
+        last_configured_at: 1234,
+      },
+    ]);
+    vi.mocked(api.configurePluginConnection).mockResolvedValueOnce(undefined);
+    vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([
+      {
+        connection_id: 'borgee-plugin:abc',
+        agent_id: 'agent-1',
+        channel_id: 'chan-new',
+        last_configured_at: 2000,
+      },
+    ]);
+    render({ enrollmentId: 'enroll-1', agentId: 'agent-1' });
+    await flushPromises();
+    const editBtn = container!.querySelector(
+      '[data-testid="plugin-connection-edit-btn-borgee-plugin:abc"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      editBtn.click();
+    });
+    const chanInput = container!.querySelector(
+      '[data-testid="plugin-connection-form-channel-id"]',
+    ) as HTMLInputElement;
+    const submit = container!.querySelector(
+      '[data-testid="plugin-connection-form-submit"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!
+        .set!;
+      setter.call(chanInput, 'chan-new');
+      chanInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      submit.click();
+    });
+    await flushPromises();
+    expect(api.configurePluginConnection).toHaveBeenCalledWith('enroll-1', 'agent-1', 'chan-new');
+    expect(api.removePluginConnection).not.toHaveBeenCalled();
   });
 
   it('confirms delete then calls removePluginConnection', async () => {
@@ -212,6 +265,39 @@ describe('PluginConnectionsPanel', () => {
       'agent-1',
       'borgee-plugin:abc',
     );
+  });
+
+  it('confirm dialog focuses Cancel button and Escape dismisses', async () => {
+    vi.mocked(api.fetchPluginConnections).mockResolvedValueOnce([
+      {
+        connection_id: 'borgee-plugin:abc',
+        agent_id: 'agent-1',
+        channel_id: 'chan-1',
+        last_configured_at: 1234,
+      },
+    ]);
+    render({ enrollmentId: 'enroll-1', agentId: 'agent-1' });
+    await flushPromises();
+    const delBtn = container!.querySelector(
+      '[data-testid="plugin-connection-delete-btn-borgee-plugin:abc"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      delBtn.click();
+    });
+    await flushPromises();
+    const cancel = container!.querySelector(
+      '[data-testid="plugin-connection-cancel-delete-btn"]',
+    ) as HTMLButtonElement;
+    expect(cancel).not.toBeNull();
+    expect(document.activeElement).toBe(cancel);
+    // Escape dismisses the dialog.
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    await flushPromises();
+    expect(
+      container!.querySelector('[data-testid="plugin-connection-confirm-dialog"]'),
+    ).toBeNull();
   });
 
   it('shows loading state while the initial fetch is in flight', () => {

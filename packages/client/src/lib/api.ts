@@ -1236,10 +1236,12 @@ export interface PluginConnectionView {
   last_configured_at: number;
 }
 
-// CONNECTION_ID_RE — `^borgee-plugin:[A-Za-z0-9_.-]{1,200}$`. Mirrors
-// server-side validBorgeePluginConnectionID + daemon-side validSuffix.
-// Exposed for client-side validation in the add/edit form.
-export const PLUGIN_CONNECTION_ID_RE = /^borgee-plugin:[A-Za-z0-9_.-]{1,200}$/;
+// Connection_id is server-derived (sha256 digest of org_id|agent_id|
+// channel_id, prefixed `borgee-plugin:`). The client never sends a
+// connection_id on configure, so there is no client-side prefix regex
+// to enforce (the previous PLUGIN_CONNECTION_ID_RE export was dropped
+// in #1079 run_3 — CRIT-3). The list endpoint returns the canonical id
+// per row; the remove endpoint round-trips that id unchanged.
 
 export async function fetchPluginConnections(
   enrollmentId: string,

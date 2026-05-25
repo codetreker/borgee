@@ -104,6 +104,16 @@ func (r *sqliteHelperJobRepo) ConfigureOpenClawForEnrollments(_ context.Context,
 // folds the stream into the current active connection set in memory.
 // Active iff the latest succeeded configure for the connection_id is
 // newer than the latest succeeded remove (or there is no remove).
+//
+// Known limitation (architect WARN-5 / acceptance-criteria.md "Out of
+// Scope"): the projection is derived purely from the helper_jobs job
+// stream. There is no reconciliation against (a) the daemon's
+// per-connection JSON files on disk and (b) the plugin's actual wiring.
+// If a job row is GC'd (TTL expiry / future prune) the projection
+// silently drops that connection even though the daemon's file may
+// still exist. A dedicated `plugin_connections` table will replace
+// this projection before the connection count exceeds ~50 per agent;
+// tracked in a follow-up issue.
 func (r *sqliteHelperJobRepo) ListPluginConnections(_ context.Context, ownerUserID, orgID, enrollmentID string) ([]PluginConnectionRow, error) {
 	ownerUserID = strings.TrimSpace(ownerUserID)
 	orgID = strings.TrimSpace(orgID)
@@ -116,12 +126,25 @@ func (r *sqliteHelperJobRepo) ListPluginConnections(_ context.Context, ownerUser
 	// to 404 by separately verifying enrollment existence via the
 	// enrollment repo when needed; for #1049 the simpler 200+empty is
 	// also acceptable since the empty-state UI handles both cases).
+	// #1049 — cap the projection-source row scan. Acceptance §"Performance"
+	// targets ≥100 connections per agent under 500ms p95; for now we hard-
+	// cap at 5000 historical configure/remove rows per enrollment to keep
+	// the in-memory fold bounded. If an enrollment ever exceeds this we
+	// silently truncate to the oldest 5000 — the latest-wins fold then
+	// reflects whatever recent activity fits the window. Pagination of
+	// the projected output (per-connection rows) is intentionally not
+	// implemented in this PR; documented as a known limitation in
+	// acceptance-criteria.md ("Out of Scope") and a dedicated DB table
+	// will replace the projection before the connection count exceeds
+	// ~50 per agent.
+	const helperJobsPluginConnectionsRowCap = 5000
 	var rows []store.HelperJob
 	if err := r.s.DB().
 		Where("owner_user_id = ? AND org_id = ? AND enrollment_id = ? AND job_type IN ?",
 			ownerUserID, orgID, enrollmentID,
 			[]string{"borgee_plugin.configure_connection", "borgee_plugin.remove_connection"}).
 		Order("created_at ASC, id ASC").
+		Limit(helperJobsPluginConnectionsRowCap).
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}

@@ -140,9 +140,11 @@ func TestHelperJobsPluginConnectionsListAddRemoveFlow(t *testing.T) {
 	}
 }
 
-// TestHelperJobsPluginConnectionsCrossOwnerIDOR — OUT-5 #1049. Owner B
-// cannot list / add / remove on owner A's enrollment. Every endpoint
-// returns one of [401, 403, 404].
+// TestHelperJobsPluginConnectionsCrossOwnerIDOR — OUT-5 #1049. A foreign
+// (different-org) owner cannot list / add / remove on owner A's
+// enrollment. Every endpoint returns one of [401, 403, 404] AND after
+// the cross-owner attempt the original owner's list view continues to
+// show zero new rows (no silent enqueue-then-deny).
 func TestHelperJobsPluginConnectionsCrossOwnerIDOR(t *testing.T) {
 	t.Parallel()
 	ts, s, _ := testutil.NewTestServer(t)
@@ -151,10 +153,13 @@ func TestHelperJobsPluginConnectionsCrossOwnerIDOR(t *testing.T) {
 	enrollmentID := enrollment["enrollment_id"].(string)
 	agent := seedHelperJobAgent(t, s, "owner@test.com", "idor-plugin-agent")
 
-	// Owner B (different account, also fails isHelperHumanOwner gate for
-	// non-helper-owner members — either path resolves to one of the
-	// 401/403/404 buckets the acceptance criteria allow).
-	ownerBToken := testutil.LoginAs(t, ts.URL, "member@test.com", "password123")
+	// Owner B in a DIFFERENT org via the SeedForeignOrgUser helper —
+	// `member@test.com` is in the same org as owner@test.com and would
+	// not exercise the cross-org SQL filter. The foreign-org owner
+	// flow proves the `org_id = ?` filter + the
+	// `enrollment.OwnerUserID != input.OwnerUserID` gate together.
+	_ = testutil.SeedForeignOrgUser(t, s, "PluginConn Foreign Owner", "plugin-conn-foreign@test.com")
+	ownerBToken := testutil.LoginAs(t, ts.URL, "plugin-conn-foreign@test.com", "password123")
 
 	cases := []struct {
 		name   string
@@ -181,5 +186,42 @@ func TestHelperJobsPluginConnectionsCrossOwnerIDOR(t *testing.T) {
 				t.Fatalf("cross-owner %s expected 401/403/404, got %d body %v", tc.name, resp.StatusCode, body)
 			}
 		})
+	}
+
+	// After cross-owner attempts, owner A's list MUST still be empty —
+	// confirms no silent enqueue slipped through (defense in depth, also
+	// pins the regression if a future change reorders the gate).
+	resp, listBody := testutil.JSON(t, http.MethodGet, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/plugin-connections", ownerAToken, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("post-IDOR ownerA list: status %d body %v", resp.StatusCode, listBody)
+	}
+	if conns, ok := listBody["plugin_connections"].([]any); !ok || len(conns) != 0 {
+		t.Fatalf("post-IDOR ownerA list expected empty, got %v", listBody)
+	}
+}
+
+// TestHelperJobsPluginConnectionsRemoveRejectsUnboundConnection — #1049
+// CRIT-2. Removing a `connection_id` that was never configured for the
+// given (enrollment_id, agent_id) must be rejected at the enqueue path,
+// not silently enqueued + delivered to the daemon. Prevents the
+// cross-agent file-delete DoS where an attacker who learns ANY
+// borgee-plugin connection_id can submit a remove via their own owned
+// agent_id and trigger a file delete on the daemon.
+func TestHelperJobsPluginConnectionsRemoveRejectsUnboundConnection(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+	enrollment, _ := createHelperEnrollmentViaAPI(t, ts.URL, ownerToken)
+	enrollmentID := enrollment["enrollment_id"].(string)
+	agent := seedHelperJobAgent(t, s, "owner@test.com", "remove-unbound-agent")
+
+	// Attempt to remove a well-formed but never-configured connection_id.
+	rmResp, rmBody := testutil.JSON(t, http.MethodPost, ts.URL+"/api/v1/helper/enrollments/"+enrollmentID+"/jobs", ownerToken, map[string]any{
+		"job_type":       "borgee_plugin.remove_connection",
+		"schema_version": 1,
+		"payload":        map[string]any{"agent_id": agent.ID, "connection_id": "borgee-plugin:never-configured-12345"},
+	})
+	if rmResp.StatusCode != http.StatusForbidden && rmResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("remove of unbound connection_id should be rejected (403/404), got %d body %v", rmResp.StatusCode, rmBody)
 	}
 }
