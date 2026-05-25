@@ -1371,14 +1371,28 @@ export async function installOpenClawOnHelper(
 }
 
 // openClawInstallSucceeded — true when the enrollment's configure_openclaw
-// status history shows an `openclaw.install_from_manifest` step that has
-// reached "succeeded". Used by HelperStatusPanel to hide the "Install
-// OpenClaw" button once the binary is in place.
+// aggregate state is `succeeded` AND the history contains an
+// `openclaw.install_from_manifest` step that reached `succeeded`. Used by
+// HelperStatusPanel to hide the "Install OpenClaw" button once the binary
+// is in place.
+//
+// Why we require BOTH the aggregate state and the install step status:
+// the aggregate state mirrors the latest activity on the openclaw
+// lifecycle. If a subsequent job (e.g. a future uninstall) flips the
+// aggregate away from `succeeded`, the predicate must return false even
+// though the historical install step is still present — otherwise the
+// button stays hidden forever and the operator has no UI path back to
+// installing again. The eval found this latent bug (F-A-4); fixing the
+// predicate is a one-line change that matches what the type already
+// emits. The fully robust fix (server-emitted `openclaw_installed_at`
+// heartbeat tied to actual on-disk binary presence) is tracked as a
+// follow-up and would replace this predicate wholesale.
 export function openClawInstallSucceeded(
   view: HelperEnrollmentStatusView | undefined | null,
 ): boolean {
   const status = view?.configure_openclaw;
   if (!status) return false;
+  if (status.state !== 'succeeded') return false;
   for (const step of status.steps ?? []) {
     if (
       step.job_type === 'openclaw.install_from_manifest' &&

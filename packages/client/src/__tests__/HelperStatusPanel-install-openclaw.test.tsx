@@ -195,6 +195,48 @@ describe('HelperStatusPanel — Install OpenClaw button visibility', () => {
     );
     expect(container!.querySelector('[data-action="install-openclaw"]')).toBeNull();
   });
+
+  it('shows the button again when a prior install succeeded but the aggregate state has since moved away (F-A-4)', async () => {
+    // Regression: the previous predicate (history-only check) would
+    // leave the "installed" badge stuck forever even if a later openclaw
+    // lifecycle action flipped the aggregate state. The fixed predicate
+    // requires BOTH aggregate.state === 'succeeded' AND an install step
+    // with status === 'succeeded'. When the aggregate state moves away
+    // from 'succeeded' (e.g. a future uninstall job sets it to
+    // 'running' / 'failed' / 'revoked'), the install button must come
+    // back so the operator can re-trigger an install without SSH.
+    const stale = aliveEnrollment('enr-stale-1', 'Stale Host', {
+      configure_openclaw: {
+        state: 'failed',
+        label: 'Configure OpenClaw failed',
+        failure_code: 'binary_missing',
+        audit_refs: [],
+        log_refs: [],
+        steps: [
+          {
+            job_type: 'openclaw.install_from_manifest',
+            status: 'succeeded',
+            audit_refs: [],
+            log_refs: [],
+          },
+        ],
+      },
+    });
+    await render(
+      <HelperStatusPanel
+        fetchEnrollments={() => Promise.resolve([stale])}
+        installOpenClaw={async () => fakeJob()}
+      />,
+    );
+    expect(
+      container!.querySelector('[data-action="install-openclaw"]'),
+      'install-openclaw button is visible again',
+    ).toBeTruthy();
+    expect(
+      container!.querySelector('[data-helper-openclaw-badge="installed"]'),
+      'no stale installed badge',
+    ).toBeNull();
+  });
 });
 
 describe('HelperStatusPanel — Install OpenClaw modal interaction', () => {
@@ -328,10 +370,12 @@ describe('HelperStatusPanel — Install OpenClaw modal interaction', () => {
     expect(err?.textContent).toContain('helper job enqueue forbidden');
   });
 
-  it('reflects WS-driven configure_openclaw state changes in the progress badge after refresh', async () => {
-    // Simulates the WS subscription delivering a transition by re-fetching
-    // the enrollment list with the new aggregate state — same effect path
-    // the real WS handler uses (it calls back into fetchHelperEnrollments).
+  it('reflects refresh-driven configure_openclaw state changes in the progress badge', async () => {
+    // The panel is refresh-driven (no WS subscription on this surface).
+    // Each Refresh click re-runs fetchEnrollments(); we simulate a job
+    // state transition by returning a new aggregate state on the next
+    // fetch. Acceptance OUT-3 explicitly allows this page-refresh
+    // fallback.
     const states: HelperEnrollmentStatusView[][] = [
       [aliveEnrollment('enr-ws-1', 'WS Host')],
       [

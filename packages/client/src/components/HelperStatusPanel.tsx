@@ -179,10 +179,13 @@ export default function HelperStatusPanel({
               });
               setInstallOpenForId(null);
               // Refresh the list so the configure_openclaw aggregate
-              // includes the new in-flight install step. The WS subscribe
-              // (helper_job state transitions) keeps the badge live; this
-              // initial reload primes the UI for operators who land on
-              // the page right after click.
+              // includes the new in-flight install step. Progress is
+              // refresh-driven (post-POST cache + the Refresh button +
+              // any subsequent navigation back to this page that re-runs
+              // `load()`); there is no WS subscription on this panel.
+              // Acceptance OUT-3 permits this page-refresh fallback. A
+              // true helper-job WS push hookup is tracked as follow-up
+              // to PR-4 (#1042); see acceptance-criteria.md.
               void load();
             }}
           />
@@ -669,7 +672,7 @@ interface InstallOpenClawModalProps {
 //     rather than thinking the click did nothing.
 //   - Idempotent on `idempotency_key="install-openclaw-<enrollment_id>"`.
 //     A second click while the prior job is still queued/running returns
-//     the same `job_id` with status 200; the WS-driven badge then
+//     the same `job_id` with status 200; the refresh-driven badge then
 //     continues to reflect the existing job.
 //
 // Accessibility:

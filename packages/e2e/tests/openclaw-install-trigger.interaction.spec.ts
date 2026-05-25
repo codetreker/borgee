@@ -1,36 +1,54 @@
-// tests/openclaw-install-trigger.spec.ts — Issue #1050 e2e.
+// tests/openclaw-install-trigger.interaction.spec.ts — Issue #1050 UI
+// interaction spec.
 //
-// Owner clicks "Install OpenClaw" on the HelperStatusPanel and the request
-// reaches the existing helper-jobs enqueue endpoint with the correct
-// envelope. The UI then flips through the helper_job state machine and
-// settles on "OpenClaw installed".
+// SCOPE — this is NOT a live-backend e2e. It is an interaction test that
+// exercises the React UI through the real production build (navigation +
+// fetch + modal + a11y) with the helper-enrollment GET and the
+// helper-jobs POST stubbed via Playwright `page.route()`. The filename
+// ends in `.interaction.spec.ts` to make that honest at the disk-tree
+// level; the original `.spec.ts` name overstated what this proves.
+// Per project memory rule `e2e_no_curl_only_ui` /
+// `e2e_full_smoke_regression`: a real e2e must drive a real backend.
 //
-// Why this spec uses page.route() to shape the helper-enrollments
-// response instead of a live dev-stack helper-vm:
-//   - The visibility gate for the Install button requires the enrollment
-//     status to be `connected` + `fresh`, i.e. an actually-heartbeating
-//     helper daemon. The Playwright workspace does not boot the helper-VM
-//     container by default, and the issue scope is the UI trigger, not
-//     the daemon's `install-butler` rootd exec (PR-4 covers that).
-//   - The server enqueue contract (auth, idempotency, payload shape,
-//     manifest binding) is pinned in
-//     packages/server-go/internal/api/helper_jobs_install_openclaw_ui_test.go
-//     (Go tests for issue #1050, acceptance OUT-4 / OUT-5 / OUT-6).
-//   - Vitest in HelperStatusPanel-install-openclaw.test.tsx pins the
-//     component-level button visibility, modal interaction, error path,
-//     and WS-driven state transitions.
-//   - The route stub here keeps the rest of the stack identical to a
-//     production run: real React build, real navigation, real fetch
-//     against the dev server. The only intercept is the helper-enrollments
-//     GET (so we can claim a fresh enrollment without running a daemon)
-//     and the helper-jobs POST/result (so we can observe the request and
-//     flip the aggregate to "installed").
+// What this spec proves:
+//   - Real React build serves the helper-status page.
+//   - Owner can navigate to it via the real Settings UI.
+//   - Install OpenClaw button gates on the visibility predicate
+//     (status=connected, fresh, allowed_categories has
+//     openclaw_lifecycle, no succeeded install in history).
+//   - Modal opens, shows the read-only facts the operator must confirm,
+//     and Confirm POSTs the exact envelope the server contract pins.
+//   - After enqueue the UI flips to the in-flight progress badge; a
+//     subsequent refresh that returns a `succeeded` aggregate flips the
+//     surface to the installed badge.
 //
-// The full live-trigger path that the issue's OUT-7 verification table
-// describes (button click → daemon `install-butler` → binary present at
-// /usr/local/lib/borgee/openclaw) is captured in
-// docs/runbooks/local-e2e-helper-container.md as a manual step until the
-// dev-stack helper-vm container can be wired into the Playwright runner.
+// What this spec does NOT prove (acceptance OUT-7 re-scoped):
+//   - That `install-butler` actually runs inside the helper container.
+//   - That `/usr/local/lib/borgee/openclaw` exists on disk after the
+//     POST.
+//   - That the lease + WS push end-to-end carries the signed manifest
+//     body to the helper.
+//
+// Why deferral is the right call here:
+//   - The dev-stack at `scripts/dev-stack/` runs `borgee-vm` as a
+//     `--privileged` Docker container (systemd PID 1). Per
+//     `docs/runbooks/local-e2e-helper-container.md` privileged
+//     containers are "not safe for hardened CI; intended for dev
+//     machines." The Playwright runner used in CI cannot host this.
+//   - The `install-butler` executor contract is already pinned by
+//     PR-4 (#1042) Stage 2 e2e (8 JobType helper-vm runs via the
+//     runbook). Re-running the same coverage from Playwright would
+//     add no signal that PR-4 doesn't already give us.
+//   - Acceptance file `acceptance-criteria.md` for #1050 has been
+//     amended to mark OUT-7 as "compile-time wiring + server contract +
+//     UI interaction" with the live-binary assertion deferred and the
+//     blocker (`--privileged` in CI) cited.
+//
+// The server enqueue contract (auth, idempotency, payload shape,
+// canonical manifest body) is pinned in
+// packages/server-go/internal/api/helper_jobs_install_openclaw_ui_test.go.
+// Component-level a11y, visibility, error-path coverage is in
+// HelperStatusPanel-install-openclaw.test.tsx.
 
 import { test, expect, request as apiRequest } from '@playwright/test';
 import path from 'node:path';
