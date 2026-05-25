@@ -123,7 +123,28 @@ async function createHelperEnrollment(
     },
   });
   expect(r.ok() || r.status() === 201, `helper enrollment create: ${r.status()}`).toBe(true);
-  const body = (await r.json()) as { enrollment: { enrollment_id: string } };
+  const body = (await r.json()) as {
+    enrollment: { enrollment_id: string };
+    enrollment_secret: string;
+  };
+  // Claim the enrollment so its status moves out of "pending". The
+  // AgentPluginConnectionsSection wrapper filters pending enrollments
+  // (helper not yet online), which would otherwise omit the section.
+  // Claim acts as the helper-side install-time step in this test seam;
+  // no real helper daemon needs to be running for the UI to render.
+  const claimRes = await ctx.post(
+    `/api/v1/helper/enrollments/${body.enrollment.enrollment_id}/claim`,
+    {
+      data: {
+        enrollment_secret: body.enrollment_secret,
+        helper_device_id: 'e2e-plugin-conn-device',
+      },
+    },
+  );
+  expect(
+    claimRes.ok() || claimRes.status() === 201,
+    `helper enrollment claim: ${claimRes.status()}`,
+  ).toBe(true);
   return { enrollmentId: body.enrollment.enrollment_id };
 }
 
