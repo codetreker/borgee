@@ -5,6 +5,12 @@ package install
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -295,5 +301,123 @@ func TestRun_StartsBothServices(t *testing.T) {
 				t.Fatalf("missing required launchctl bootstrap for %q (got: %v)", p, got)
 			}
 		}
+	}
+}
+
+// TestRun_InstallInvokesClaim — #1055 follow-up (PR #1077 code-review F-A-2 /
+// F-S-1): the existing systemctl-chain tests above skip both setup AND claim,
+// so they prove only the post-setup post-claim wrapper layer. This test
+// drops skipClaim and asserts that install.Run actually invokes claim.Run
+// against a real httptest /claim endpoint, writes the credential, enrollment
+// id, and device id files to the override path, and propagates the parsed
+// enrollment id through to the request URL. Setup remains skipped because
+// setup.Run hard-codes system paths (/var/lib/borgee, /etc/systemd/system/)
+// and requires root or --dry-run — out of scope for #1055 (no in-flow
+// plumbing for either was touched). Compile-time imports at install.go:52-53
+// still prove the setup.Run linkage; this test proves the claim.Run linkage
+// at runtime.
+func TestRun_InstallInvokesClaim(t *testing.T) {
+	const (
+		enrollmentID  = "enr-fullchain-1"
+		secret        = "sec-fullchain-1"
+		fakeCredToken = "credtok-from-server"
+	)
+
+	var (
+		mu         sync.Mutex
+		seenURL    string
+		seenMethod string
+		seenBody   []byte
+	)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seenURL = r.URL.Path
+		seenMethod = r.Method
+		seenBody, _ = io.ReadAll(r.Body)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"helper_credential": fakeCredToken})
+	}))
+	t.Cleanup(srv.Close)
+
+	tempDir := t.TempDir()
+	credentialFile := filepath.Join(tempDir, "credential")
+
+	var out, errBuf bytes.Buffer
+	cfg := &config{
+		// httptest server is http://; --allow-insecure-server-origin keeps
+		// claim from rejecting the non-https origin in tests.
+		server:                 srv.URL,
+		token:                  enrollmentID + "." + secret,
+		allowInsecureServer:    true,
+		skipBinaryCopy:         true,
+		skipSetup:              true, // see godoc above
+		skipClaim:              false,
+		skipStart:              true,
+		skipRootCheck:          true,
+		credentialFileOverride: credentialFile,
+		heartbeatTimeout:       50 * time.Millisecond,
+	}
+
+	if err := run(cfg, &out, &errBuf); err != nil {
+		t.Fatalf("run: %v stderr=%s", err, errBuf.String())
+	}
+
+	// Assertion 1: claim actually POSTed to the server — proves install.Run
+	// reached and executed claim.Run, not just imported it.
+	mu.Lock()
+	gotURL, gotMethod, gotBody := seenURL, seenMethod, seenBody
+	mu.Unlock()
+	wantURL := "/api/v1/helper/enrollments/" + enrollmentID + "/claim"
+	if gotURL != wantURL {
+		t.Fatalf("claim POST URL = %q, want %q (claim.Run was not invoked from install.Run)", gotURL, wantURL)
+	}
+	if gotMethod != http.MethodPost {
+		t.Fatalf("claim method = %q, want POST", gotMethod)
+	}
+	var bodyJSON struct {
+		EnrollmentSecret string `json:"enrollment_secret"`
+		HelperDeviceID   string `json:"helper_device_id"`
+	}
+	if err := json.Unmarshal(gotBody, &bodyJSON); err != nil {
+		t.Fatalf("claim body not JSON: %v (raw=%s)", err, string(gotBody))
+	}
+	if bodyJSON.EnrollmentSecret != secret {
+		t.Fatalf("claim body enrollment_secret = %q, want %q", bodyJSON.EnrollmentSecret, secret)
+	}
+	if strings.TrimSpace(bodyJSON.HelperDeviceID) == "" {
+		t.Fatalf("claim body helper_device_id is empty (claim.Run did not resolve a device id)")
+	}
+
+	// Assertion 2: credential file written with the body the server returned
+	// — proves claim.Run's persistence step executed end-to-end.
+	got, err := os.ReadFile(credentialFile)
+	if err != nil {
+		t.Fatalf("read credential file: %v", err)
+	}
+	if string(got) != fakeCredToken {
+		t.Fatalf("credential file = %q, want %q", string(got), fakeCredToken)
+	}
+
+	// Assertion 3: enrollment-id + device-id sibling files exist under the
+	// same credential dir (the layout install.go:294-297 set up).
+	for _, sibling := range []string{"enrollment-id", "device-id"} {
+		p := filepath.Join(tempDir, sibling)
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatalf("read sibling %s: %v", sibling, err)
+		}
+		if strings.TrimSpace(string(b)) == "" {
+			t.Fatalf("sibling %s is empty", sibling)
+		}
+	}
+
+	// Assertion 4: install stdout walks the "step 2/4 claim" banner — proves
+	// the install.Run dispatcher reached the claim step (rather than e.g.
+	// returning early after setup with skipClaim still effectively true).
+	if !strings.Contains(out.String(), "step 2/4 claim") {
+		t.Fatalf("stdout missing claim step banner: %q", out.String())
 	}
 }
