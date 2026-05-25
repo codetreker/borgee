@@ -286,7 +286,7 @@ func (s *Server) SetupRoutes() {
 
 	// Helper enrollment/status foundation. User management routes use authMw;
 	// claim/status/uninstall use the distinct Helper credential rail.
-	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Repo: s.dl.HelperEnrollmentRepo, JobRepo: s.dl.HelperJobRepo, Logger: s.logger}
+	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Repo: s.dl.HelperEnrollmentRepo, JobRepo: s.dl.HelperJobRepo, Logger: s.logger, PublicHelperOrigin: s.cfg.PublicHelperOrigin}
 	helperEnrollmentHandler.RegisterRoutes(s.mux, authMw)
 	// PR-4 amend (#1033) — load BORGEE_MANIFEST_SIGNING_KEY here (earlier
 	// than the HB-1 plugin manifest handler below) so the helper-jobs

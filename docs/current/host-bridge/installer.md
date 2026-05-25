@@ -50,6 +50,16 @@ The web UI's "Add host" button (`HelperStatusPanel.tsx` → `POST /api/v1/helper
 - `borgee setup` is idempotent on re-runs (state dirs preserved, user creation skipped if present, unit file overwritten).
 - `borgee setup` never reads or writes enrollment credentials — that path lives in `borgee claim`.
 
+## `install_command` Origin Selection (#1052)
+
+The server stamps a `scheme://host` into the printed `install_command` so the operator pastes a ready-to-run line; that origin must be reachable from the helper host. Selection priority in `handleCreate` → `buildHelperInstallCommand`:
+
+1. **`BORGEE_PUBLIC_HELPER_ORIGIN` env (optional override).** When set, used verbatim as the `--server` value. Must start with `ws://` or `wss://`, no trailing path (validated at boot in `config.Validate`). Use this when the inbound `r.Host` reaching `server-go` is NOT the address the helper VM should dial:
+   - **Docker dev-stack** (`scripts/dev-stack/.env.example` ships `BORGEE_PUBLIC_HELPER_ORIGIN=ws://borgee-server:4900`): the server is bound on the host's `127.0.0.1:4900` for the operator browser, but the helper container reaches it via the shared docker network DNS name `borgee-server:4900`.
+   - **Reverse proxy / multi-host deploys** where the proxy does NOT set `X-Forwarded-Host` (or where the public hostname is intentionally different from any header the operator browser sends): pin the public WS origin explicitly (e.g. `wss://borgee.codetrek.cn`).
+2. **`X-Forwarded-Proto` + `X-Forwarded-Host`** (when the env override is unset). Standard TLS-terminating reverse proxy path — nginx in front of `server-go` setting both headers.
+3. **`r.TLS != nil` → `wss://r.Host`, else `ws://r.Host`.** The single-host on-prem default: the host the operator browser hit IS the host the helper must connect back to. Leaving `BORGEE_PUBLIC_HELPER_ORIGIN` unset preserves this behavior — the env knob is additive, not a breaking change.
+
 ## Current Trust Boundary
 
 `borgee install-plugin` (folded from install-butler in #996) is the signed-manifest path for *runtime plugin* binaries (openclaw etc.), still backed by the server-side ed25519 signing chain documented in [`manifest-signing.md`](./manifest-signing.md). The helper binary itself is delivered through npm (registry trust + the main package's own provenance), which is a separate trust boundary from the manifest-signing path.
