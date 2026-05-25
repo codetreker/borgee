@@ -204,14 +204,16 @@ async function addAgentToChannel(
 // Test scaffolding: poll the next leased helper job for the given
 // enrollment and post a succeeded result. Used to simulate the daemon
 // completing the configure/remove job the UI just enqueued — the daemon
-// itself is not running in this CI test seam.
+// itself is not running in this CI test seam. The helper credential is
+// authenticated via Authorization: Bearer (see helperCredentialFromRequest
+// in packages/server-go/internal/api/helper_enrollments.go).
 async function completeNextHelperJob(
   serverURL: string,
   seed: HelperEnrollmentSeed,
 ): Promise<void> {
   const ctx = await apiRequest.newContext({
     baseURL: serverURL,
-    extraHTTPHeaders: { Cookie: `borgee_token=${seed.helperCredential}` },
+    extraHTTPHeaders: { Authorization: `Bearer ${seed.helperCredential}` },
   });
   const pollRes = await ctx.post(
     `/api/v1/helper/enrollments/${seed.enrollmentId}/jobs/poll`,
@@ -305,11 +307,17 @@ test.describe('Owner plugin connections UI (#1049)', () => {
     await page.locator('[data-testid="plugin-connection-form-channel-id"]').fill(ch1.id);
     await expect(submit).toBeEnabled();
     await submit.click();
-    // Simulate the daemon completing the configure job out-of-band.
+    // The submit handler closes the form after configurePluginConnection
+    // returns + a list reload completes. Wait for the form to close so
+    // we know the enqueue has been accepted before completing the job.
+    await expect(page.locator('[data-testid="plugin-connection-form"]')).toHaveCount(0, {
+      timeout: 10_000,
+    });
+    // Simulate the daemon completing the configure job out-of-band, then
+    // reload so the projection-derived list re-fetches.
     await completeNextHelperJob(SERVER_URL, seed);
-    // Row should appear within 2 seconds of completion (the UI calls
-    // load() after submit returns; the row appears once the projection
-    // sees the succeeded configure). Allow up to 10s for CI jitter.
+    await page.reload();
+    await openAgentManage(page);
     const row = page.locator('[data-testid="plugin-connection-row"]').first();
     await expect(row).toBeVisible({ timeout: 10_000 });
     await expect(row).toContainText(ch1.id);
@@ -321,9 +329,14 @@ test.describe('Owner plugin connections UI (#1049)', () => {
     const channelInput = page.locator('[data-testid="plugin-connection-form-channel-id"]');
     await channelInput.fill(ch2.id);
     await submit.click();
+    await expect(page.locator('[data-testid="plugin-connection-form"]')).toHaveCount(0, {
+      timeout: 10_000,
+    });
     await completeNextHelperJob(SERVER_URL, seed);
-    // The row's channel cell updates within 2s. New channel derives a
-    // new server connection_id; assert at least one row contains ch2.id.
+    await page.reload();
+    await openAgentManage(page);
+    // The new channel derives a new server connection_id; assert at
+    // least one row contains ch2.id.
     await expect(
       page.locator('[data-testid="plugin-connection-row"]', { hasText: ch2.id }).first(),
     ).toBeVisible({ timeout: 10_000 });
@@ -340,10 +353,13 @@ test.describe('Owner plugin connections UI (#1049)', () => {
     const confirmDialog = page.locator('[data-testid="plugin-connection-confirm-dialog"]');
     await expect(confirmDialog).toBeVisible();
     await page.locator('[data-testid="plugin-connection-confirm-delete-btn"]').click();
+    await expect(confirmDialog).toHaveCount(0, { timeout: 10_000 });
     await completeNextHelperJob(SERVER_URL, seed);
+    await page.reload();
+    await openAgentManage(page);
     // After delete + daemon completion, the row count for ch2 should
-    // drop to zero within 2s. The old ch1 row may still be present (its
-    // own configure was never removed when channel switched — orphan
+    // drop to zero. The old ch1 row may still be present (its own
+    // configure was never removed when channel switched — orphan
     // cleanup is out of scope for this PR per acceptance-criteria.md).
     await expect(
       page.locator('[data-testid="plugin-connection-row"]', { hasText: ch2.id }),
