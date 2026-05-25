@@ -59,6 +59,8 @@ The rate limiter selects one of three token buckets per request: an `auth` bucke
 
 Static hosting is part of routing but not a substitute for API errors. API-like and WebSocket-like paths must return API-shaped misses; browser routes can fall back to the SPA entrypoint.
 
+`BORGEE_PUBLIC_HELPER_ORIGIN` is an optional process-prerequisite env var loaded during phase 1 alongside other config knobs. When set it overrides the `r.Host`/`X-Forwarded-*` derivation in `helper_enrollments.go::handleCreate` so the `install_command` returned to the operator carries the address the helper VM must dial (e.g. `ws://borgee-server:4900` for the docker dev-stack, `wss://borgee.codetrek.cn` behind a reverse proxy that does not propagate `X-Forwarded-Host`). Validated once at boot in `config.Validate` (`ws://` or `wss://`, no path). Unset preserves the request-derived behavior — single-host on-prem deploys are unaffected.
+
 ## Key Flows
 
 Boot flow: config and logger are created, the store opens, schema migration runs, admin identity is bootstrapped, the server runtime is composed, and HTTP serving begins. The store and server lifetime context are shared by the components created during composition.
