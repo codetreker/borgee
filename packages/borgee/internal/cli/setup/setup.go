@@ -505,6 +505,18 @@ MemoryMax=64M
 CPUQuota=10%
 TasksMax=32
 
+# RuntimeDirectory=borgee: rootd binds its UDS at /run/borgee/borgee-rootd.sock,
+# so /run/borgee must exist before ExecStart. borgee.service also declares
+# the same RuntimeDirectory — systemd handles two units sharing one
+# RuntimeDirectory cleanly: it is created on first start and removed when
+# the last user stops. Without this directive, rootd fails on first boot
+# with "Failed to set up mount namespacing: /run/borgee: No such file or
+# directory" until borgee.service has run and lazily created the dir
+# (Restart=on-failure masked it, but polluted journals and delayed first
+# job acceptance — issue #1053).
+RuntimeDirectory=borgee
+RuntimeDirectoryMode=0750
+
 # PR-4 commands write to these paths. Setting them now so PR-4 does not
 # need to ship a unit change alongside the executor code.
 ReadWritePaths=` + linuxRunDir + ` ` + linuxRuntimeDir + ` ` + linuxStateRoot + ` /etc/systemd/system
