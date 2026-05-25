@@ -63,8 +63,6 @@
 package api
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -108,35 +106,12 @@ const (
 	RuntimeStatusDMTemplateError = "%s 出错: %s"
 )
 
-// RuntimeLifecycleDispatcher is the seam by which the runtime
-// start/stop handlers ask the helper-jobs subsystem to enqueue +
-// push a `service.lifecycle` job for a chosen enrollment. The real
-// implementation is *HelperJobsHandler.EnqueueServiceLifecycle (see
-// helper_jobs.go). Tests substitute a fake to capture inputs without
-// driving the full enqueue + WS push path.
-//
-// Issue #1046 — before this seam existed, the start/stop handlers
-// only flipped agent_runtimes.status without ever asking the daemon
-// to run systemctl, producing a silent failure where the UI showed
-// "Running" but the systemd unit on the helper VM was unchanged.
-type RuntimeLifecycleDispatcher interface {
-	EnqueueServiceLifecycle(ctx context.Context, input RuntimeLifecycleInput) (RuntimeLifecycleResult, error)
-}
-
 // RuntimeHandler exposes the AL-4.2 user-rail HTTP surface.
 type RuntimeHandler struct {
 	Store  *store.Store
 	Logger *slog.Logger
 	Now    func() time.Time
 	NewID  func() string
-	// LifecycleDispatcher is the helper-job enqueue + WS push entry
-	// point invoked from handleStart / handleStop (issue #1046). When
-	// nil the handlers return 400 `no_helper_enrolled` for start +
-	// stop so a misconfigured server never silently flips the DB
-	// column without asking the helper to actually start/stop the
-	// systemd unit. Production server.go always injects
-	// *HelperJobsHandler so the silent-failure path is closed.
-	LifecycleDispatcher RuntimeLifecycleDispatcher
 }
 
 func (h *RuntimeHandler) now() time.Time {
@@ -303,42 +278,9 @@ func (h *RuntimeHandler) handleRegister(w http.ResponseWriter, r *http.Request) 
 // via inline OwnerID check (see file-level docstring §6 — RequirePermission
 // 后续). Idempotent if already 'running'.
 //
-// Issue #1046: also enqueues a `service.lifecycle` helper job carrying
-// `{target:"openclaw", operation:"start"}` so the daemon on the helper
-// VM actually runs `systemctl start`. The earlier handler only flipped
-// agent_runtimes.status, producing a silent failure where the UI
-// showed "Running" but the systemd unit was unchanged.
-//
-// Precondition: the owner must have at least one claimed helper
-// enrollment that delegates openclaw_lifecycle and is connected (not
-// revoked / uninstalled). When none exists the handler returns
-// HTTP 400 `no_helper_enrolled` BEFORE flipping the DB so an operator
-// gets an explicit precondition error instead of a runtime that
-// appears running in the UI but is not actually started.
-//
 // 反向约束 (acceptance §4.4): 不发自造 'runtime.start' BPP frame — AL-4
 // 真接管时复用既有 AgentRegisterFrame, 不拆 namespace.
 func (h *RuntimeHandler) handleStart(w http.ResponseWriter, r *http.Request) {
-	h.handleLifecycle(w, r, "start", RuntimeStatusRunning, RuntimeStatusDMTemplateStart, true /* clearReason */)
-}
-
-// ----- POST /api/v1/agents/{id}/runtime/stop -----
-
-// handleStop transitions status → stopped (acceptance §2.2). Owner-only,
-// idempotent (a repeated stop does not duplicate the system DM).
-//
-// Issue #1046: also enqueues a `service.lifecycle` helper job carrying
-// `{target:"openclaw", operation:"stop"}` so the daemon actually runs
-// `systemctl stop`. See handleStart docstring for the precondition.
-func (h *RuntimeHandler) handleStop(w http.ResponseWriter, r *http.Request) {
-	h.handleLifecycle(w, r, "stop", RuntimeStatusStopped, RuntimeStatusDMTemplateStop, false /* clearReason */)
-}
-
-// handleLifecycle is the shared start/stop body. Both transitions are
-// owner-only, idempotent on the source state, and emit a `service.lifecycle`
-// helper job after the DB flip (issue #1046). clearReason=true mirrors the
-// pre-#1046 handleStart that wiped last_error_reason when going running.
-func (h *RuntimeHandler) handleLifecycle(w http.ResponseWriter, r *http.Request, operation, targetStatus, dmTemplate string, clearReason bool) {
 	_, agent, ok := h.loadOwnerCheckedAgent(w, r)
 	if !ok {
 		return
@@ -348,130 +290,59 @@ func (h *RuntimeHandler) handleLifecycle(w http.ResponseWriter, r *http.Request,
 		writeJSONError(w, http.StatusNotFound, "Runtime not registered for this agent")
 		return
 	}
-
-	// Precondition: must have an active helper enrollment delegating
-	// openclaw_lifecycle (issue #1046). Resolving the enrollment
-	// BEFORE the DB flip means a misconfigured account never sees a
-	// "running" runtime that was never actually started.
-	enrollmentID, ok := h.findActiveLifecycleEnrollment(*agent.OwnerID, agent.OrgID)
-	if !ok {
-		writeJSONErrorCode(w, http.StatusBadRequest, "no_helper_enrolled",
-			"runtime "+operation+" requires a claimed helper enrollment that delegates openclaw_lifecycle")
-		return
-	}
-
 	nowMs := h.now().UnixMilli()
-	var execErr error
-	if clearReason {
-		execErr = h.Store.DB().Exec(`UPDATE agent_runtimes
+	res := h.Store.DB().Exec(`UPDATE agent_runtimes
   SET status = ?, last_error_reason = NULL, updated_at = ?
-  WHERE id = ?`, targetStatus, nowMs, rt.ID).Error
-	} else {
-		execErr = h.Store.DB().Exec(`UPDATE agent_runtimes
-  SET status = ?, updated_at = ?
-  WHERE id = ?`, targetStatus, nowMs, rt.ID).Error
-	}
-	if execErr != nil {
-		writeJSONError(w, http.StatusInternalServerError, operation+" runtime failed")
+  WHERE id = ?`, RuntimeStatusRunning, nowMs, rt.ID)
+	if res.Error != nil {
+		writeJSONError(w, http.StatusInternalServerError, "start runtime failed")
 		return
 	}
-
-	// status DM fanout — emit only on state transition so repeated
-	// clicks do not duplicate the message (#321 §2 idempotency).
-	if rt.Status != targetStatus {
+	// status 转 running 仅在源态 != running 时发 system DM (idempotent —
+	// 重复 start 不重复发文案 #321 §2 反向约束).
+	if rt.Status != RuntimeStatusRunning {
 		h.fanoutOwnerSystemDM(*agent.OwnerID,
-			fmt.Sprintf(dmTemplate, agent.DisplayName), nowMs)
+			fmt.Sprintf(RuntimeStatusDMTemplateStart, agent.DisplayName), nowMs)
 	}
-
-	// Enqueue + WS push the service.lifecycle helper job (issue #1046).
-	// Errors here are reported to the caller so the UI sees the real
-	// dispatch outcome rather than a fake-OK. Defensive: if the
-	// dispatcher is nil (no helper-jobs subsystem wired), the
-	// precondition check above already returned 400.
-	if h.LifecycleDispatcher == nil {
-		writeJSONErrorCode(w, http.StatusBadRequest, "no_helper_enrolled",
-			"runtime "+operation+" requires the helper jobs subsystem to be wired")
-		return
-	}
-	result, dispatchErr := h.LifecycleDispatcher.EnqueueServiceLifecycle(r.Context(), RuntimeLifecycleInput{
-		OwnerUserID:  *agent.OwnerID,
-		OrgID:        agent.OrgID,
-		EnrollmentID: enrollmentID,
-		AgentID:      agent.ID,
-		Operation:    operation,
-	})
-	if dispatchErr != nil {
-		if h.Logger != nil {
-			h.Logger.Error("runtime lifecycle dispatch failed",
-				"agent_id", agent.ID, "operation", operation, "error", dispatchErr)
-		}
-		if errors.Is(dispatchErr, ErrNoHelperEnrolled) {
-			writeJSONErrorCode(w, http.StatusBadRequest, "no_helper_enrolled",
-				"runtime "+operation+" requires a claimed helper enrollment")
-			return
-		}
-		writeJSONErrorCode(w, http.StatusBadGateway, "helper_dispatch_failed",
-			"helper job dispatch failed: "+dispatchErr.Error())
-		return
-	}
-
 	writeJSONResponse(w, http.StatusOK, map[string]any{
-		"id":                    rt.ID,
-		"agent_id":              rt.AgentID,
-		"status":                targetStatus,
-		"updated_at":            nowMs,
-		"helper_job_id":         result.JobID,
-		"helper_enrollment_id":  enrollmentID,
-		"helper_job_created":    result.Created,
+		"id":         rt.ID,
+		"agent_id":   rt.AgentID,
+		"status":     RuntimeStatusRunning,
+		"updated_at": nowMs,
 	})
 }
 
-// findActiveLifecycleEnrollment locates the most-recently-active
-// claimed helper enrollment for the owner whose AllowedCategories
-// include "openclaw_lifecycle". Returns ("", false) when no eligible
-// enrollment exists — meaning the runtime cannot actually be started
-// or stopped (issue #1046). The store-side enqueue path re-validates
-// the enrollment under transaction (freshness, category, status), so
-// this lookup is a precondition cache, not the security gate.
-func (h *RuntimeHandler) findActiveLifecycleEnrollment(ownerUserID, orgID string) (string, bool) {
-	if h.Store == nil {
-		return "", false
-	}
-	rows, err := h.Store.ListHelperEnrollmentsForUser(ownerUserID, orgID)
-	if err != nil {
-		return "", false
-	}
-	var bestID string
-	var bestLastSeen int64
-	for _, e := range rows {
-		if e.Status == "pending" || e.Status == "revoked" || e.Status == "uninstalled" {
-			continue
-		}
-		if e.RevokedAt != nil || e.UninstalledAt != nil {
-			continue
-		}
-		if !runtimeEnrollmentAllowsLifecycle(&e) {
-			continue
-		}
-		ls := int64(0)
-		if e.LastSeenAt != nil {
-			ls = *e.LastSeenAt
-		}
-		if bestID == "" || ls > bestLastSeen {
-			bestID = e.ID
-			bestLastSeen = ls
-		}
-	}
-	return bestID, bestID != ""
-}
+// ----- POST /api/v1/agents/{id}/runtime/stop -----
 
-func runtimeEnrollmentAllowsLifecycle(e *store.HelperEnrollment) bool {
-	for _, c := range e.AllowedCategoryList() {
-		if c == "openclaw_lifecycle" {
-			return true
-		}
+func (h *RuntimeHandler) handleStop(w http.ResponseWriter, r *http.Request) {
+	_, agent, ok := h.loadOwnerCheckedAgent(w, r)
+	if !ok {
+		return
 	}
-	return false
+	rt, err := h.loadRuntimeByAgent(agent.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "Runtime not registered for this agent")
+		return
+	}
+	nowMs := h.now().UnixMilli()
+	res := h.Store.DB().Exec(`UPDATE agent_runtimes
+  SET status = ?, updated_at = ?
+  WHERE id = ?`, RuntimeStatusStopped, nowMs, rt.ID)
+	if res.Error != nil {
+		writeJSONError(w, http.StatusInternalServerError, "stop runtime failed")
+		return
+	}
+	// Idempotent — 重复 stop 不重复发文案.
+	if rt.Status != RuntimeStatusStopped {
+		h.fanoutOwnerSystemDM(*agent.OwnerID,
+			fmt.Sprintf(RuntimeStatusDMTemplateStop, agent.DisplayName), nowMs)
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{
+		"id":         rt.ID,
+		"agent_id":   rt.AgentID,
+		"status":     RuntimeStatusStopped,
+		"updated_at": nowMs,
+	})
 }
 
 // ----- POST /api/v1/agents/{id}/runtime/heartbeat -----
