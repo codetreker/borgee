@@ -1,13 +1,11 @@
 // Package main — borgee single-binary entry point.
 //
-// Dispatches to one of seven subcommands:
+// Dispatches to one of five subcommands:
 //
 //	borgee install ...          # operator one-shot bootstrap: setup → claim → start → wait heartbeat
 //	borgee uninstall-host ...   # operator-driven local cleanup (mirror of `install`)
 //	borgee daemon ...           # long-lived host-bridge daemon (User=borgee)
 //	borgee rootd ...            # long-lived root-privileged companion daemon (User=root, narrow IPC whitelist)
-//	borgee claim ...            # one-time enrollment claim (advanced/recovery)
-//	borgee setup ...            # systemd/launchd unit + state-dir bootstrap (advanced/recovery)
 //	borgee install-plugin ...   # signed-manifest plugin binary installer (was: borgee install)
 //	borgee --version            # version metadata (injected at link time)
 //
@@ -20,6 +18,15 @@
 // `borgee install-plugin`. The new `borgee install` is the operator-facing
 // one-shot bootstrap that wraps setup + claim + start. The web-UI / install-
 // butler workflow continues to invoke `install-plugin` for runtime plugins.
+//
+// Internal-only helpers note (issue #1055): the prior top-level `borgee setup`
+// and `borgee claim` subcommands were leftover internals from the .deb/.pkg
+// era and produced non-functional installs when run standalone. They have
+// been dropped from the public dispatch surface; their packages
+// (`internal/cli/setup` and `internal/cli/claim`) remain in-tree and are
+// invoked transitively by `borgee install`. If a real advanced use case for
+// the standalone flow surfaces later, re-expose under an `internal`
+// subcommand group rather than at the top level.
 //
 // Privilege-separation note (rootd-skeleton): `borgee daemon` runs as the
 // `borgee` system user (no root); `borgee rootd` is the new companion that
@@ -34,12 +41,10 @@ import (
 	"io"
 	"os"
 
-	"borgee/internal/cli/claim"
 	"borgee/internal/cli/daemon"
 	"borgee/internal/cli/install"
 	"borgee/internal/cli/installbutler"
 	"borgee/internal/cli/rootd"
-	"borgee/internal/cli/setup"
 	"borgee/internal/cli/uninstallhost"
 )
 
@@ -73,14 +78,10 @@ func dispatch(sub string, args []string, stdout, stderr io.Writer) error {
 		return daemon.Run(args, stdout, stderr)
 	case "rootd":
 		return rootd.Run(args, stdout, stderr)
-	case "claim":
-		return claim.Run(args, stdout, stderr)
 	case "install":
 		return install.Run(args, stdout, stderr)
 	case "install-plugin":
 		return installbutler.Run(args, stdout, stderr)
-	case "setup":
-		return setup.Run(args, stdout, stderr)
 	case "uninstall-host":
 		return uninstallhost.Run(args, stdout, stderr)
 	case "uninstall":
@@ -114,8 +115,6 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  uninstall-host   Operator-driven local cleanup (mirror of `install`).")
 	fmt.Fprintln(w, "  daemon           Long-lived host-bridge daemon (started by systemd / launchd, User=borgee).")
 	fmt.Fprintln(w, "  rootd            Long-lived root companion daemon — narrow IPC whitelist (User=root).")
-	fmt.Fprintln(w, "  claim            One-time enrollment claim (advanced; `install` invokes this).")
-	fmt.Fprintln(w, "  setup            Install systemd unit / launchd plist + state dirs (advanced; `install` invokes this).")
 	fmt.Fprintln(w, "  install-plugin   Signed-manifest plugin binary installer (HB-1; was: install).")
 	fmt.Fprintln(w, "  version          Print version.")
 	fmt.Fprintln(w)

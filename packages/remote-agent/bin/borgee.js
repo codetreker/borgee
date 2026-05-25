@@ -12,8 +12,8 @@
 // (2026-05-20): single npm package, single publish workflow, lower complexity.
 //
 // Boundary: this shim must NOT do anything beyond resolve + spawn — any
-// install-time logic (system user, systemd unit, state dirs) lives in
-// `borgee setup`, which is invoked AFTER `npm i -g @codetreker/borgee-remote-agent`.
+// install-time logic (system user, systemd unit, state dirs) lives behind
+// `borgee install`, which is invoked AFTER `npm i -g @codetreker/borgee-remote-agent`.
 
 import { spawn } from 'node:child_process';
 import path from 'node:path';

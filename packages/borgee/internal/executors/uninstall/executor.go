@@ -143,7 +143,8 @@ func DefaultLayout(goos string) Layout {
 			},
 			RuntimeDir:     "/usr/local/libexec/borgee",
 			HelperBinaries: nil,
-			// Sandbox profile path (written by `borgee setup`) lives outside
+			// Sandbox profile path (written by the internal setup helper
+			// invoked from `borgee install`) lives outside
 			// the runtime dir wipe; remove it explicitly so a fresh install
 			// re-deploys a clean profile. rootd UDS socket file is also
 			// listed so an uninstall-then-reinstall does not leave a stale

@@ -4,8 +4,9 @@
 // 平台 transport: POSIX UDS via net.Listen("unix", path).
 //
 // hb-2-v0d-spec.md §0.2: real sandbox, real IO, and real SQLite consumer.
-// `borgee setup` (or external system packaging) installs the systemd unit /
-// launchd plist that supervises this subcommand:
+// The internal `setup` helper invoked by `borgee install` (or external
+// system packaging) installs the systemd unit / launchd plist that
+// supervises this subcommand:
 //   - Linux: systemd unit + landlock LSM
 //   - macOS: launchd + sandbox-exec wrapper
 //   - DSN: --grants-db=/var/lib/borgee/server.db?mode=ro
@@ -162,7 +163,8 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 	// backoff (1s base, 30s cap, ±20% jitter) is handled inside
 	// outbound.Client. Pre-claim daemons skip dispatch — the persistent
 	// WS dial requires credential + device id + enrollment id, which
-	// the operator populates via `borgee claim`.
+	// the operator populates by running `borgee install` (which invokes
+	// the internal `claim` helper).
 	if dp, ok := buildDispatcher(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
 		log.Printf("borgee-helper: dispatcher enabled enrollment_id=%s (WS transport)", dp.EnrollmentID)
 		go func() {

@@ -2,8 +2,9 @@
 
 Scope: this doc explains *why* the host-bridge helper daemon survives both
 a clean reboot and a process crash without anyone logging into the host.
-The systemd unit (Linux) and launchd plist (macOS) are written by
-`borgee setup` from the templates inside
+The systemd unit (Linux) and launchd plist (macOS) are written by the
+`setup` internal helper (invoked by `borgee install`) from the templates
+inside
 [`packages/borgee/internal/cli/setup/setup.go`](../../../packages/borgee/internal/cli/setup/setup.go);
 the steady-state daemon contract is in
 [`helper-daemon.md`](./helper-daemon.md).
@@ -30,20 +31,25 @@ sudo npx @codetreker/borgee-remote-agent install \
 
 That single command does: sudo + platform pre-flight → copy the running
 `borgee` binary (from npx's cache) to `/usr/local/lib/borgee/bin/borgee`
-(Linux) or `/usr/local/libexec/borgee/borgee` (macOS) → `borgee setup`
-(systemd unit / launchd plist + system user + state dirs) → `borgee
-claim` (POST `/api/v1/helper/enrollments/{id}/claim` with the parsed
-enrollment_secret + a stable helper_device_id) → `systemctl enable
---now borgee.service` (Linux) / `launchctl bootstrap system <plist>`
-(macOS) → wait up to `--heartbeat-timeout` (default 30s) for first
-heartbeat.
+(Linux) or `/usr/local/libexec/borgee/borgee` (macOS) → internal `setup`
+helper (systemd unit / launchd plist + system user + state dirs) →
+internal `claim` helper (POST `/api/v1/helper/enrollments/{id}/claim`
+with the parsed enrollment_secret + a stable helper_device_id) →
+`systemctl enable --now borgee.service` (Linux) / `launchctl bootstrap
+system <plist>` (macOS) → wait up to `--heartbeat-timeout` (default 30s)
+for first heartbeat.
 
-`setup` / `claim` remain available as standalone subcommands (advanced
-flows — e.g. re-claim with a new token after rotation, or rewrite the
-systemd unit after a config change). `install` is the convenience
-wrapper that ties them together for the one-line operator path.
+`setup` and `claim` are NOT public subcommands of the `borgee` binary
+(issue #1055 dropped them from the dispatch table because bare `setup`
+produced a non-functional install). They live on as internal helpers
+under `packages/borgee/internal/cli/setup/` and
+`packages/borgee/internal/cli/claim/`, invoked transitively by `borgee
+install`. To re-claim with a new token or rewrite the systemd unit /
+launchd plist, re-run `borgee install` (or the `npx ... install`
+one-liner) with a fresh token from the web UI — `install` is
+idempotent and the supported re-run path.
 
-The `borgee` binary's subcommands:
+The `borgee` binary's public subcommands:
 
 - `borgee install` — one-shot operator bootstrap (the wrapper above).
 - `borgee uninstall-host` — operator-driven local cleanup mirror.
@@ -57,22 +63,6 @@ The `borgee` binary's subcommands:
   §1.1 (two-process privilege separation) and
   [`helper-daemon.md`](helper-daemon.md) (Privilege Separation section)
   for the rationale + wire protocol.
-- `borgee setup` — writes the systemd unit / launchd plist + sandbox profile,
-  creates the system user (`borgee` Linux, `_borgee` macOS), creates the
-  Helper-owned state directories (`/var/lib/borgee/{queue,status,audit-handoff,credential}`
-  Linux, `/Library/Application Support/Borgee/Helper/...` macOS), and
-  pre-creates the persistent binary dir (`/usr/local/lib/borgee/bin/`).
-  Does NOT auto-start; `install` issues the start after claim.
-- `borgee claim` — one-time enrollment claim. Derives a stable
-  `helper_device_id` (Linux `/etc/machine-id`, macOS `IOPlatformUUID`,
-  falling back to a persisted UUIDv4), POSTs
-  `/api/v1/helper/enrollments/{id}/claim` with body
-  `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
-  three files the daemon reads on next start (`credential` mode 0600,
-  `enrollment-id`, `device-id`) under `/var/lib/borgee/credential/`
-  (Linux) or `/Library/Application Support/Borgee/Helper/credential/`
-  (macOS). Defaults updated in chore/install-onecmd (#1017 bug 1 fix)
-  to match the daemon's expected directory layout.
 - `borgee install-plugin` — signed-manifest binary installer (HB-1).
   One-shot CLI that fetches a manifest, ed25519-verifies an entry,
   fetches the referenced binary, sha256-verifies the bytes, atomically
@@ -82,10 +72,31 @@ The `borgee` binary's subcommands:
   chore/install-onecmd. Source:
   [`packages/borgee/internal/cli/installbutler/`](../../../packages/borgee/internal/cli/installbutler/README.md).
 
-After `borgee claim` the daemon either picks up the new files on next
-start (Linux `sudo systemctl restart borgee` / macOS
-`sudo launchctl kickstart -k system/cloud.borgee.host-bridge`) or at next
-reboot. `enrollment_secret` is short-lived (15-minute TTL — see
+Internal helpers invoked by `borgee install` (NOT public CLI surface):
+
+- `internal/cli/setup` — writes the systemd unit / launchd plist + sandbox
+  profile, creates the system user (`borgee` Linux, `_borgee` macOS),
+  creates the Helper-owned state directories
+  (`/var/lib/borgee/{queue,status,audit-handoff,credential}` Linux,
+  `/Library/Application Support/Borgee/Helper/...` macOS), and
+  pre-creates the persistent binary dir (`/usr/local/lib/borgee/bin/`).
+  Does NOT auto-start; `install` issues the start after claim.
+- `internal/cli/claim` — one-time enrollment claim. Derives a stable
+  `helper_device_id` (Linux `/etc/machine-id`, macOS `IOPlatformUUID`,
+  falling back to a persisted UUIDv4), POSTs
+  `/api/v1/helper/enrollments/{id}/claim` with body
+  `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
+  three files the daemon reads on next start (`credential` mode 0600,
+  `enrollment-id`, `device-id`) under `/var/lib/borgee/credential/`
+  (Linux) or `/Library/Application Support/Borgee/Helper/credential/`
+  (macOS). Defaults updated in chore/install-onecmd (#1017 bug 1 fix)
+  to match the daemon's expected directory layout.
+
+After the claim step inside `install` completes the daemon either picks
+up the new credential files on next start (Linux `sudo systemctl restart
+borgee` / macOS `sudo launchctl kickstart -k
+system/cloud.borgee.host-bridge`) or at next reboot. `enrollment_secret`
+is short-lived (15-minute TTL — see
 [`helper_enrollment_queries.go`](../../../packages/server-go/internal/store/helper_enrollment_queries.go))
 and never leaves the operator's session.
 
@@ -269,9 +280,10 @@ End-to-end:
    disable side-effect ensures systemd does not respawn.
 
 A re-enrollment on the same machine can fast-path: binaries and state
-dirs are still in place, so the operator only needs to run `borgee
-claim` (or `npx ... install` with a fresh token) — no `borgee setup`
-re-run, no system user re-creation.
+dirs are still in place, so the operator only needs to re-run
+`borgee install` (or `npx ... install` with a fresh token from the web
+UI) — `install` is idempotent and re-issues the claim without recreating
+the system user or wiping state dirs.
 
 | | `delegation.revoke` | `helper.uninstall` |
 |---|---|---|
@@ -314,7 +326,8 @@ flags. That leaked `enrollment_id` to anyone with `ps` access via
 ## End-to-end verification
 
 [`packages/borgee/e2e/claim_heartbeat_e2e_test.go`](../../../packages/borgee/e2e/claim_heartbeat_e2e_test.go)
-spawns the real `borgee claim` and `borgee` binaries
+spawns the internal `claim` helper (via the test harness) and the real
+`borgee` daemon binary
 against an `httptest.Server` that mirrors the production /claim and
 /status routes. It asserts:
 

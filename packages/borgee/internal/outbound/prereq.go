@@ -92,7 +92,8 @@ func DefaultStateRoots() []string {
 	case "darwin":
 		return []string{"/Library/Application Support/Borgee/Helper"}
 	case "linux":
-		// Amend gap #5: `borgee setup` provisions state dirs under
+		// Amend gap #5: the internal setup helper (invoked by `borgee
+		// install`) provisions state dirs under
 		// /var/lib/borgee/{queue,status,audit-handoff,...} and the
 		// systemd unit's ExecStart points to the same root. The legacy
 		// helper-specific path /var/lib/borgee-helper is no longer
