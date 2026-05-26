@@ -262,14 +262,6 @@ func devArtifactURLAndDomains(artifactID, platform string) (string, []string) {
 	return DomainCDN, []string{DomainCDN}
 }
 
-// devOriginAndDomains preserves the legacy signature for callers that
-// only need an origin pair (no per-platform artifact URL). Deprecated —
-// new callers should use DevOriginForBinding or devArtifactURLAndDomains.
-func devOriginAndDomains() (string, []string) {
-	base := DevOriginForBinding()
-	return base, []string{base}
-}
-
 // devSHA256For honors BORGEE_DEV_MANIFEST_SHA256_OVERRIDE, a JSON map
 // of artifact_id → sha256 hex string. Missing keys or empty / invalid
 // JSON falls back to the supplied placeholder. The override lets the

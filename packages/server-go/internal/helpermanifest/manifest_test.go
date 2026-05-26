@@ -308,3 +308,22 @@ func TestBuildDarwin_DevOverrideOriginAndSHA256(t *testing.T) {
 		t.Fatalf("env override should set darwin sha256 to %q, got %q", overrideSHA, dev.Artifacts[0].SHA256)
 	}
 }
+
+// TestDevOriginForBinding exercises the public helper that store-side
+// binding emission calls. With the env unset we get the prod CDN
+// placeholder; with the env set we get the bare base URL (no path).
+func TestDevOriginForBinding(t *testing.T) {
+	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", "")
+	if got := DevOriginForBinding(); got != DomainCDN {
+		t.Fatalf("env unset should return DomainCDN, got %q", got)
+	}
+	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", "http://borgee-server:4900")
+	if got := DevOriginForBinding(); got != "http://borgee-server:4900" {
+		t.Fatalf("env set should return bare base, got %q", got)
+	}
+	// Trailing slash stripped.
+	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", "http://borgee-server:4900/")
+	if got := DevOriginForBinding(); got != "http://borgee-server:4900" {
+		t.Fatalf("env set with trailing slash should strip, got %q", got)
+	}
+}
