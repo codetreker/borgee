@@ -148,3 +148,47 @@ func TestHandler_NotFoundOnMissingArtifact(t *testing.T) {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
+
+func TestRegistry_EntriesStableOrder(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "openclaw-plugin")
+	_ = os.MkdirAll(path, 0o755)
+	for _, pf := range []string{"linux-x64", "darwin-arm64"} {
+		_ = os.WriteFile(filepath.Join(path, pf), []byte("x"), 0o644)
+	}
+	reg, err := LoadFromDir(dir, nil)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	entries := reg.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("want 2 entries, got %d", len(entries))
+	}
+	// Sorted by (PluginID, Platform): darwin-arm64 before linux-x64.
+	if entries[0].Platform != "darwin-arm64" || entries[1].Platform != "linux-x64" {
+		t.Fatalf("unstable order: %+v", entries)
+	}
+}
+
+func TestHandler_ManifestNotFound_MissingExtension(t *testing.T) {
+	reg, _ := LoadFromDir("", nil)
+	h := &Handler{Registry: reg}
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	// Missing .json suffix → 404.
+	resp, _ := http.Get(srv.URL + "/dev-artifacts/manifests/openclaw-plugin/linux-x64")
+	if resp.StatusCode != 404 {
+		t.Fatalf("expected 404 for non-json manifest path, got %d", resp.StatusCode)
+	}
+}
+
+func TestRegisterRoutes_NoOpWhenRegistryNil(t *testing.T) {
+	var h *Handler
+	mux := http.NewServeMux()
+	// Must not panic.
+	h.RegisterRoutes(mux)
+	h2 := &Handler{Registry: nil}
+	h2.RegisterRoutes(mux)
+}

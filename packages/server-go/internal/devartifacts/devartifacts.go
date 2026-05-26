@@ -138,33 +138,6 @@ func (r *Registry) Get(pluginID, platform string) (Entry, bool) {
 	return e, ok
 }
 
-// SHAOverrideJSON returns a JSON object mapping artifact_id → sha256 hex,
-// suitable for export to BORGEE_DEV_MANIFEST_SHA256_OVERRIDE. Stable
-// ordering (sorted by plugin_id) so identical bytes across reboots.
-func (r *Registry) SHAOverrideJSON() string {
-	keys := make([]string, 0, len(r.entries))
-	seen := map[string]string{}
-	for _, e := range r.entries {
-		// Map by plugin id only — the helpermanifest sha override is
-		// keyed by ArtifactID, and we keep one entry per plugin id.
-		// When two platforms have the same plugin id (linux + darwin),
-		// we rely on the bytes being identical (which they are for the
-		// sentinel — both files are the same shell script).
-		if _, ok := seen[e.PluginID]; ok {
-			continue
-		}
-		seen[e.PluginID] = e.SHA256
-		keys = append(keys, e.PluginID)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, k := range keys {
-		// JSON-escape both sides defensively.
-		parts = append(parts, fmt.Sprintf("%q:%q", k, seen[k]))
-	}
-	return "{" + strings.Join(parts, ",") + "}"
-}
-
 // Handler is the http.Handler for the two dev endpoints. The handler is
 // stateless beyond the embedded Registry + signing key.
 type Handler struct {
