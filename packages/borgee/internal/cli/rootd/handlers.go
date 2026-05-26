@@ -137,6 +137,12 @@ func installPluginHandler(ctx context.Context, raw json.RawMessage) (any, error)
 	}
 	if params.AllowInsecure {
 		args = append(args, "--allow-insecure-manifest-url")
+		// #1050 blocker #3: dev-stack pairs an http:// manifest URL
+		// with an http:// binary URL (both served by the dev server
+		// container). install-butler validates them independently —
+		// allow both when the dev opt-in is set. Production rootd
+		// rejects both at parseInstallPluginParams before this line.
+		args = append(args, "--allow-insecure-binary-url")
 	}
 	// Respect a ctx deadline by tightening installbutler's HTTP timeout.
 	if deadline, ok := ctx.Deadline(); ok {

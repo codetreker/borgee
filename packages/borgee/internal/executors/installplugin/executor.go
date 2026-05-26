@@ -36,6 +36,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -114,6 +115,16 @@ func (e *Executor) Execute(ctx context.Context, job *outbound.LeasedJob) (dispat
 		PubKeyBase64: e.PubKeyBase64,
 		PluginID:     plugin,
 		TargetPath:   dest,
+		// #1050 blocker #3 dev-stack escape hatch: when the operator
+		// opts in via BORGEE_DEV_ALLOW_INSECURE_WS=1 (same env that
+		// already gates ws:// to docker network DNS for the daemon's
+		// outbound origin), allow http:// manifest URLs through to
+		// rootd's install-butler. Production daemons leave the env
+		// unset and rootd's strict https-only gate continues to
+		// reject http:// URLs. The override is plumbed through
+		// rootd.InstallPluginParams.AllowInsecure (and re-validated
+		// there as defense-in-depth).
+		AllowInsecureManifest: os.Getenv("BORGEE_DEV_ALLOW_INSECURE_WS") == "1",
 	}
 	resp, err := e.Rootd.InstallPlugin(ctx, req)
 	if err != nil {

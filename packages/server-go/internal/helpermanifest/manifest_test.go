@@ -246,3 +246,63 @@ func TestCanonicalBytes_StripsSignature(t *testing.T) {
 		t.Fatalf("manifest_version not 1: %v", parsed["manifest_version"])
 	}
 }
+
+// TestBuildLinux_DevOverrideOriginAndSHA256 (#1050 blocker #3) — when
+// BORGEE_DEV_MANIFEST_ORIGIN_BASE / BORGEE_DEV_MANIFEST_SHA256_OVERRIDE
+// are set, BuildLinux substitutes the openclaw artifact Origin + Domains
+// + sha256 in place of the cdn.borgee.io / zero-sha placeholder. Without
+// the env vars production behavior is unchanged.
+func TestBuildLinux_DevOverrideOriginAndSHA256(t *testing.T) {
+	// Unset → placeholder preserved.
+	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", "")
+	t.Setenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE", "")
+	def := BuildLinux()
+	if def.Artifacts[0].Origin != DomainCDN {
+		t.Fatalf("unset env should preserve %q, got %q", DomainCDN, def.Artifacts[0].Origin)
+	}
+	if def.Domains[0] != DomainCDN {
+		t.Fatalf("unset env should preserve domain %q, got %q", DomainCDN, def.Domains[0])
+	}
+	if def.Artifacts[0].SHA256 != strings.Repeat("0", 64) {
+		t.Fatalf("unset env should preserve zero-sha placeholder, got %q", def.Artifacts[0].SHA256)
+	}
+
+	// Set → override applied.
+	overrideBase := "http://borgee-server:4900/dev-artifacts"
+	overrideSHA := "aa11bb22cc33dd44ee55ff6677889900aabbccddeeff00112233445566778899"
+	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", overrideBase)
+	t.Setenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE", `{"`+ArtifactIDOpenClawPlugin+`":"`+overrideSHA+`"}`)
+	dev := BuildLinux()
+	if dev.Artifacts[0].Origin != overrideBase {
+		t.Fatalf("env override should set origin to %q, got %q", overrideBase, dev.Artifacts[0].Origin)
+	}
+	if len(dev.Domains) != 1 || dev.Domains[0] != overrideBase {
+		t.Fatalf("env override should set domains to [%q], got %v", overrideBase, dev.Domains)
+	}
+	if dev.Artifacts[0].SHA256 != overrideSHA {
+		t.Fatalf("env override should set sha256 to %q, got %q", overrideSHA, dev.Artifacts[0].SHA256)
+	}
+
+	// Malformed JSON SHA override falls back to placeholder without panic.
+	t.Setenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE", "{not json")
+	fallback := BuildLinux()
+	if fallback.Artifacts[0].SHA256 != strings.Repeat("0", 64) {
+		t.Fatalf("malformed sha override should fall back to placeholder, got %q", fallback.Artifacts[0].SHA256)
+	}
+}
+
+// TestBuildDarwin_DevOverrideOriginAndSHA256 mirrors the Linux check —
+// both platform builders honor the dev-stack overrides.
+func TestBuildDarwin_DevOverrideOriginAndSHA256(t *testing.T) {
+	overrideBase := "http://borgee-server:4900/dev-artifacts"
+	overrideSHA := "1111111111111111111111111111111111111111111111111111111111111111"
+	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", overrideBase)
+	t.Setenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE", `{"`+ArtifactIDOpenClawPlugin+`":"`+overrideSHA+`"}`)
+	dev := BuildDarwin()
+	if dev.Artifacts[0].Origin != overrideBase {
+		t.Fatalf("env override should set darwin origin to %q, got %q", overrideBase, dev.Artifacts[0].Origin)
+	}
+	if dev.Artifacts[0].SHA256 != overrideSHA {
+		t.Fatalf("env override should set darwin sha256 to %q, got %q", overrideSHA, dev.Artifacts[0].SHA256)
+	}
+}

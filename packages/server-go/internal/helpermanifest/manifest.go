@@ -33,6 +33,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -125,7 +127,21 @@ var (
 // BuildLinux returns the canonical Linux helper manifest. Deterministic:
 // repeated calls produce byte-identical output (sorted slices, fixed
 // timestamps) so the digest is stable.
+//
+// #1050 blocker #3 dev-stack override: if BORGEE_DEV_MANIFEST_ORIGIN_BASE
+// is set (e.g. "http://borgee-server:4900/dev-artifacts"), the openclaw
+// artifact's Origin + the Domains list are rewritten to that base URL
+// in place of the production https://cdn.borgee.io placeholder. If
+// BORGEE_DEV_MANIFEST_SHA256_OVERRIDE is set to a JSON object mapping
+// artifact_id → sha256 hex, those values replace the zero-sha
+// placeholder. Production runs leave both env vars unset and the
+// manifest body is unchanged. The override is read at every BuildLinux
+// call (and LinuxDigest is computed from that snapshot at init time);
+// dev-stack must set the env vars BEFORE the server boots so the
+// digest is consistent across the run.
 func BuildLinux() PolicyManifest {
+	origin, domains := devOriginAndDomains()
+	sha := devSHA256For(ArtifactIDOpenClawPlugin, "0000000000000000000000000000000000000000000000000000000000000000")
 	return PolicyManifest{
 		ManifestVersion: 1,
 		IssuedAt:        epoch,
@@ -141,8 +157,8 @@ func BuildLinux() PolicyManifest {
 				// bytes only when binding.ArtifactIDs is non-empty, so
 				// placeholder is safe for the install-from-manifest path
 				// that never lands without a real release pipeline.
-				SHA256: "0000000000000000000000000000000000000000000000000000000000000000",
-				Origin: DomainCDN,
+				SHA256: sha,
+				Origin: origin,
 			},
 		},
 		Paths: []PathDeclaration{
@@ -153,7 +169,7 @@ func BuildLinux() PolicyManifest {
 			{ID: PathIDHelperState, Root: "/var/lib/borgee", Mode: "write_state"},
 			{ID: PathIDHelperRuntime, Root: "/usr/local/lib/borgee", Mode: "write_runtime"},
 		},
-		Domains: []string{DomainCDN},
+		Domains: domains,
 		Services: []ServiceDeclaration{
 			{ID: ServiceIDOpenClawUser, Platform: "linux", Manager: "systemd", Unit: "openclaw.service"},
 			{ID: ServiceIDBorgeeHelper, Platform: "linux", Manager: "systemd", Unit: "borgee.service"},
@@ -176,6 +192,8 @@ func BuildLinux() PolicyManifest {
 // /usr/local/libexec/borgee/openclaw (openclaw_install) and the binary
 // itself.
 func BuildDarwin() PolicyManifest {
+	origin, domains := devOriginAndDomains()
+	sha := devSHA256For(ArtifactIDOpenClawPlugin, "0000000000000000000000000000000000000000000000000000000000000000")
 	return PolicyManifest{
 		ManifestVersion: 1,
 		IssuedAt:        epoch,
@@ -185,8 +203,8 @@ func BuildDarwin() PolicyManifest {
 				ID:       ArtifactIDOpenClawPlugin,
 				Platform: "darwin-arm64",
 				Version:  "1.0.0",
-				SHA256:   "0000000000000000000000000000000000000000000000000000000000000000",
-				Origin:   DomainCDN,
+				SHA256:   sha,
+				Origin:   origin,
 			},
 		},
 		Paths: []PathDeclaration{
@@ -197,12 +215,48 @@ func BuildDarwin() PolicyManifest {
 			{ID: PathIDHelperState, Root: "/Library/Application Support/Borgee", Mode: "write_state"},
 			{ID: PathIDHelperRuntime, Root: "/usr/local/libexec/borgee", Mode: "write_runtime"},
 		},
-		Domains: []string{DomainCDN},
+		Domains: domains,
 		Services: []ServiceDeclaration{
 			{ID: ServiceIDOpenClawUser, Platform: "darwin", Manager: "launchd", Unit: "cloud.borgee.openclaw"},
 			{ID: ServiceIDBorgeeHelper, Platform: "darwin", Manager: "launchd", Unit: "cloud.borgee.host-bridge"},
 		},
 	}
+}
+
+// devOriginAndDomains reads BORGEE_DEV_MANIFEST_ORIGIN_BASE and, when
+// non-empty, returns it as the openclaw artifact Origin + the single
+// Domains entry in place of the production https://cdn.borgee.io
+// placeholder. Production runs leave the env unset and the manifest
+// continues to declare cdn.borgee.io. The override is the only thing
+// that lets the dev-stack `borgee-vm` reach a reachable artifact
+// endpoint (the public CDN is not provisioned yet — #1003 follow-up).
+// See scripts/dev-stack/.env.example for the configured value.
+func devOriginAndDomains() (string, []string) {
+	if base := strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE")); base != "" {
+		return base, []string{base}
+	}
+	return DomainCDN, []string{DomainCDN}
+}
+
+// devSHA256For honors BORGEE_DEV_MANIFEST_SHA256_OVERRIDE, a JSON map
+// of artifact_id → sha256 hex string. Missing keys or empty / invalid
+// JSON falls back to the supplied placeholder. The override lets the
+// dev-stack stamp the real sha256 of a sentinel artifact dropped into
+// the server container at build time (#1050 blocker #3); production
+// runs leave the env unset and the canonical placeholder is preserved.
+func devSHA256For(artifactID, fallback string) string {
+	raw := strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE"))
+	if raw == "" {
+		return fallback
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return fallback
+	}
+	if sha, ok := m[artifactID]; ok && strings.TrimSpace(sha) != "" {
+		return strings.TrimSpace(sha)
+	}
+	return fallback
 }
 
 // CanonicalManifest returns the canonical manifest body for the given
