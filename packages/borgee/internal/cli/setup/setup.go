@@ -519,10 +519,13 @@ ExecStart=` + layout.RootdBinaryPath + ` rootd \
     --socket-owner-uid=` + fmt.Sprintf("%d", layout.UID) + ` \
     --socket-owner-gid=` + fmt.Sprintf("%d", layout.GID) + `
 
-# Defense-in-depth: rootd has no network access at all. The only inbound
-# path is the local UDS at --socket; the only outbound is to whatever
-# system tooling the whitelisted commands invoke (systemctl, etc.).
-RestrictAddressFamilies=AF_UNIX
+# Defense-in-depth: rootd's whitelisted commands include install_plugin,
+# which invokes install-butler in-process to GET the signed plugin
+# manifest + artifact bytes over HTTPS. AF_INET/AF_INET6 are therefore
+# required outbound families. AF_UNIX remains for the inbound rootd
+# control socket. No other socket families are permitted; the rest of
+# the hardening (NoNewPrivileges / ProtectSystem / etc.) still binds.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

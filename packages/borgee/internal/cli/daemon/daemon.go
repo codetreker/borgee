@@ -640,6 +640,7 @@ func resolveArtifactsCache(ctx context.Context, fetcher artifactFetcher, manifes
 			log.Printf("borgee-helper: artifact pre-fetch: id=%q origin=%s err=%v", id, decl.Origin, err)
 			continue
 		}
+		log.Printf("borgee-helper: artifact pre-fetch: id=%q origin=%s ok bytes=%d", id, decl.Origin, len(bytes))
 		out[id] = bytes
 	}
 	return out

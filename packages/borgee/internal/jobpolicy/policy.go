@@ -517,7 +517,14 @@ func validateArtifacts(authority manifestAuthority, cache map[string][]byte, pla
 		if !ok {
 			return ReasonArtifactInvalid
 		}
-		if digestBytes(bytes) != artifact.SHA256 {
+		// artifact.SHA256 may be either bare hex (canonical helper
+		// manifest format, matches api.PluginManifestEntry.SHA256) or
+		// the "sha256:" prefixed form used elsewhere in jobpolicy.
+		// Strip a leading "sha256:" before comparison so both shapes
+		// match cleanly. digestBytes always emits the prefixed form.
+		want := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(artifact.SHA256)), "sha256:")
+		got := strings.TrimPrefix(digestBytes(bytes), "sha256:")
+		if got != want {
 			return ReasonArtifactInvalid
 		}
 	}

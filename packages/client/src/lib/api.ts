@@ -1221,7 +1221,6 @@ export async function fetchHelperEnrollment(
   return sanitizeHelperEnrollment(data.enrollment);
 }
 
-<<<<<<< HEAD
 // ─── Plugin connections (#1049) ─────────────────────────────────
 //
 // Owner-side UI for `borgee_plugin.configure_connection` /
