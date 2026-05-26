@@ -312,6 +312,49 @@ func TestHelperJobsSerializeLeaseAndJobOptionalFields(t *testing.T) {
 	}
 }
 
+// TestSerializeHelperJobLease_IncludesOwnerAndOrg (#1050 blocker #2) —
+// the daemon's jobpolicy.validateJobSchema rejects every leased job
+// with reason=schema_invalid unless owner_user_id + org_id are
+// non-empty on the wire (jobpolicy/policy.go validateJobSchema). The
+// handler must echo the row's OwnerUserID + OrgID to the helper so
+// the schema gate accepts and the same-tenant defense-in-depth
+// (jobpolicy validateLocalState) has a value to compare against the
+// helper's known enrollment.
+func TestSerializeHelperJobLease_IncludesOwnerAndOrg(t *testing.T) {
+	t.Parallel()
+	deviceID := "device-xyz"
+	job := &datalayer.HelperJob{
+		ID:             "job-owner-check",
+		EnrollmentID:   "enroll-owner-check",
+		JobType:        "openclaw.install_from_manifest",
+		SchemaVersion:  1,
+		Status:         "leased",
+		Category:       "openclaw_lifecycle",
+		PayloadJSON:    `{"install_plan_id":"openclaw-plugin-v1"}`,
+		PayloadHash:    "sha256:deadbeef",
+		ManifestDigest: "sha256:manifest",
+		OwnerUserID:    "user-01KSF",
+		OrgID:          "org-01KSF",
+		HelperDeviceID: &deviceID,
+		ExpiresAt:      1779726658077,
+	}
+	lease := &datalayer.HelperJobLease{Status: "leased", Job: job, LeaseToken: "lease-owner", Attempt: 1}
+	handler := &HelperJobsHandler{}
+	out := handler.serializeHelperJobLease(lease, helpermanifest.PlatformLinux)
+	if got, want := out["owner_user_id"], "user-01KSF"; got != want {
+		t.Fatalf("owner_user_id: got %v, want %q (#1050 blocker #2 regression)", got, want)
+	}
+	if got, want := out["org_id"], "org-01KSF"; got != want {
+		t.Fatalf("org_id: got %v, want %q (#1050 blocker #2 regression)", got, want)
+	}
+	if got, want := out["helper_device_id"], deviceID; got != want {
+		t.Fatalf("helper_device_id: got %v, want %q", got, want)
+	}
+	if got := out["payload_hash"]; got != "sha256:deadbeef" {
+		t.Fatalf("payload_hash: got %v", got)
+	}
+}
+
 // TestSerializeHelperJobLease_IncludesSignedManifest — PR-4 amend
 // (#1033). When the handler has a ManifestProvider, every leased job
 // payload carries the signed canonical manifest_json so the daemon's

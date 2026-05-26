@@ -690,8 +690,8 @@ func TestHelperJobPollAckResultLeaseIdempotencyAndBoundaries(t *testing.T) {
 	if lease == nil || lease.Job == nil || lease.Job.ID != job.ID || lease.Job.Status != HelperJobStatusLeased || lease.LeaseToken == "" {
 		t.Fatalf("bad lease: %+v", lease)
 	}
-	if lease.Job.PayloadJSON == "" || lease.Job.OwnerUserID != "" || lease.Job.OrgID != "" {
-		t.Fatalf("lease projection should include payload but not owner/org internals: %+v", lease.Job)
+	if lease.Job.PayloadJSON == "" || lease.Job.OwnerUserID == "" || lease.Job.OrgID == "" {
+		t.Fatalf("lease projection must carry payload + owner/org for daemon jobpolicy schema gate (#1050 blocker #2): %+v", lease.Job)
 	}
 	if lease.RetryAfter != 0 || lease.Attempt != 1 || lease.LeaseExpiresAt <= now.UnixMilli() {
 		t.Fatalf("lease metadata not populated: %+v", lease)

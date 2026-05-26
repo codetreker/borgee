@@ -1478,8 +1478,20 @@ func helperJobLeaseProjection(row *HelperJob) *HelperJob {
 		return nil
 	}
 	copy := *row
-	copy.OwnerUserID = ""
-	copy.OrgID = ""
+	// #1050 blocker #2: keep OwnerUserID + OrgID on the lease projection.
+	// The daemon-side jobpolicy.validateJobSchema rejects every leased
+	// job with reason=schema_invalid unless these fields are non-empty
+	// (packages/borgee/internal/jobpolicy/policy.go line ~208); it then
+	// re-validates them against the helper's known enrollment as a
+	// defense-in-depth same-tenant check (policy.go validateLocalState
+	// "WrongOwner / WrongOrg" rules). Blanking these fields earlier
+	// looked like a privacy reflex but it broke every helper-job push
+	// because the helper already knows its own owner_user_id + org_id
+	// from the enrollment record — the lease frame must echo them so
+	// the schema gate has a value to compare. The handler-level
+	// serialization (packages/server-go/internal/api/helper_jobs.go
+	// serializeHelperJobLease) is the source of truth for what reaches
+	// the wire; both endpoints now agree.
 	return &copy
 }
 
