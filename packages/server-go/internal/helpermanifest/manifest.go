@@ -129,18 +129,20 @@ var (
 // timestamps) so the digest is stable.
 //
 // #1050 blocker #3 dev-stack override: if BORGEE_DEV_MANIFEST_ORIGIN_BASE
-// is set (e.g. "http://borgee-server:4900/dev-artifacts"), the openclaw
-// artifact's Origin + the Domains list are rewritten to that base URL
-// in place of the production https://cdn.borgee.io placeholder. If
-// BORGEE_DEV_MANIFEST_SHA256_OVERRIDE is set to a JSON object mapping
-// artifact_id → sha256 hex, those values replace the zero-sha
+// is set (e.g. "http://borgee-server:4900"), the openclaw artifact's
+// Origin becomes a full artifact bytes URL `<base>/dev-artifacts/
+// openclaw-plugin/linux-x64` and the manifest Domains list is set to
+// just the bare origin `<base>` (no path) so jobpolicy.validateDomains
+// can compare against binding.Domains entries which are also origin-
+// only. If BORGEE_DEV_MANIFEST_SHA256_OVERRIDE is set to a JSON object
+// mapping artifact_id → sha256 hex, those values replace the zero-sha
 // placeholder. Production runs leave both env vars unset and the
 // manifest body is unchanged. The override is read at every BuildLinux
 // call (and LinuxDigest is computed from that snapshot at init time);
 // dev-stack must set the env vars BEFORE the server boots so the
 // digest is consistent across the run.
 func BuildLinux() PolicyManifest {
-	origin, domains := devOriginAndDomains()
+	artifactURL, domains := devArtifactURLAndDomains(ArtifactIDOpenClawPlugin, "linux-x64")
 	sha := devSHA256For(ArtifactIDOpenClawPlugin, "0000000000000000000000000000000000000000000000000000000000000000")
 	return PolicyManifest{
 		ManifestVersion: 1,
@@ -158,7 +160,7 @@ func BuildLinux() PolicyManifest {
 				// placeholder is safe for the install-from-manifest path
 				// that never lands without a real release pipeline.
 				SHA256: sha,
-				Origin: origin,
+				Origin: artifactURL,
 			},
 		},
 		Paths: []PathDeclaration{
@@ -192,7 +194,7 @@ func BuildLinux() PolicyManifest {
 // /usr/local/libexec/borgee/openclaw (openclaw_install) and the binary
 // itself.
 func BuildDarwin() PolicyManifest {
-	origin, domains := devOriginAndDomains()
+	artifactURL, domains := devArtifactURLAndDomains(ArtifactIDOpenClawPlugin, "darwin-arm64")
 	sha := devSHA256For(ArtifactIDOpenClawPlugin, "0000000000000000000000000000000000000000000000000000000000000000")
 	return PolicyManifest{
 		ManifestVersion: 1,
@@ -204,7 +206,7 @@ func BuildDarwin() PolicyManifest {
 				Platform: "darwin-arm64",
 				Version:  "1.0.0",
 				SHA256:   sha,
-				Origin:   origin,
+				Origin:   artifactURL,
 			},
 		},
 		Paths: []PathDeclaration{
@@ -223,19 +225,49 @@ func BuildDarwin() PolicyManifest {
 	}
 }
 
-// devOriginAndDomains reads BORGEE_DEV_MANIFEST_ORIGIN_BASE and, when
-// non-empty, returns it as the openclaw artifact Origin + the single
-// Domains entry in place of the production https://cdn.borgee.io
-// placeholder. Production runs leave the env unset and the manifest
-// continues to declare cdn.borgee.io. The override is the only thing
-// that lets the dev-stack `borgee-vm` reach a reachable artifact
-// endpoint (the public CDN is not provisioned yet — #1003 follow-up).
-// See scripts/dev-stack/.env.example for the configured value.
-func devOriginAndDomains() (string, []string) {
-	if base := strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE")); base != "" {
-		return base, []string{base}
+// devOriginBase returns the BORGEE_DEV_MANIFEST_ORIGIN_BASE env value
+// trimmed of whitespace + trailing slash. Empty when unset.
+func devOriginBase() string {
+	base := strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE"))
+	return strings.TrimRight(base, "/")
+}
+
+// DevOriginForBinding returns the canonical origin (no path) used by both
+// the manifest Domains list and binding.Domains emission. When the dev
+// env is unset, returns the production placeholder DomainCDN so the
+// canonical manifest body stays byte-identical to prod. When set,
+// returns the bare base URL — the artifact bytes URL is synthesized
+// separately via devArtifactURLAndDomains so jobpolicy domain checks
+// (origin-only) and the prefetcher's GET (full URL with path) stay
+// distinct.
+func DevOriginForBinding() string {
+	if base := devOriginBase(); base != "" {
+		return base
+	}
+	return DomainCDN
+}
+
+// devArtifactURLAndDomains returns (artifactFullURL, domains). The full
+// URL carries the path the daemon's prefetcher GETs to retrieve the
+// artifact bytes (`<base>/dev-artifacts/<artifactID>/<platform>` in dev,
+// `<DomainCDN>` in prod). The domains list is always origin-only — no
+// path — so jobpolicy.validateDomains's normalizeOrigin accepts it.
+// Production runs leave the env unset and the placeholder
+// https://cdn.borgee.io is preserved.
+func devArtifactURLAndDomains(artifactID, platform string) (string, []string) {
+	if base := devOriginBase(); base != "" {
+		bytesURL := base + "/dev-artifacts/" + artifactID + "/" + platform
+		return bytesURL, []string{base}
 	}
 	return DomainCDN, []string{DomainCDN}
+}
+
+// devOriginAndDomains preserves the legacy signature for callers that
+// only need an origin pair (no per-platform artifact URL). Deprecated —
+// new callers should use DevOriginForBinding or devArtifactURLAndDomains.
+func devOriginAndDomains() (string, []string) {
+	base := DevOriginForBinding()
+	return base, []string{base}
 }
 
 // devSHA256For honors BORGEE_DEV_MANIFEST_SHA256_OVERRIDE, a JSON map

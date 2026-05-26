@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -427,6 +428,7 @@ func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
 // the bound artifact bytes via `fetcher` before invoking
 // jobpolicy.Evaluate. Tests substitute a fake fetcher to avoid real HTTP.
 func newPolicyEvaluator(trustRoots []ed25519.PublicKey, fetcher artifactFetcher) dispatch.PolicyEvaluator {
+	devAllowInsecure := os.Getenv("BORGEE_DEV_ALLOW_INSECURE_WS") == "1"
 	return func(ctx context.Context, job *outbound.LeasedJob) jobpolicy.Decision {
 		if job == nil {
 			return jobpolicy.Decision{Allow: false, Reason: jobpolicy.ReasonSchemaInvalid}
@@ -436,6 +438,17 @@ func newPolicyEvaluator(trustRoots []ed25519.PublicKey, fetcher artifactFetcher)
 			expires = time.UnixMilli(job.ExpiresAt)
 		}
 		artifacts := resolveArtifactsCache(ctx, fetcher, job.ManifestJSON, job.ManifestBindingJSON)
+		// Derive the local sandbox from the signed manifest the server
+		// shipped in the lease frame. The manifest is the authoritative
+		// declaration of what paths/origins/services this helper job is
+		// allowed to touch — daemon-side jobpolicy compares
+		// binding.{X} ⊆ sandbox.{X} as a defense-in-depth check, but
+		// today there is no separate per-host sandbox config (#1050
+		// follow-up). Trusting the manifest after signature
+		// verification preserves the deny-by-default posture: a bad
+		// manifest can't widen authority because it would fail the
+		// trust-root check earlier in Evaluate.
+		sandbox := sandboxFromManifest(job.ManifestJSON)
 		return jobpolicy.Evaluate(jobpolicy.EvaluationInput{
 			TrustRoots: trustRoots,
 			Job: jobpolicy.Job{
@@ -464,8 +477,71 @@ func newPolicyEvaluator(trustRoots []ed25519.PublicKey, fetcher artifactFetcher)
 				Status:               "active",
 				AllowedCategories:    []string{job.Category},
 			},
-			Artifacts: artifacts,
+			Sandbox:                 sandbox,
+			Platform:                platformLabel(),
+			Artifacts:               artifacts,
+			DevAllowInsecureOrigins: devAllowInsecure,
 		})
+	}
+}
+
+// sandboxFromManifest derives a jobpolicy.SandboxProfile from the signed
+// manifest body the server shipped. Trust source = manifest signature
+// (verified by jobpolicy.verifyManifestAuthority before sandbox checks
+// run). Returns zero-value SandboxProfile when manifest is empty / malformed
+// so non-manifest jobs continue to short-circuit at the requiresManifest
+// gate before any sandbox dereference.
+func sandboxFromManifest(manifestJSON []byte) jobpolicy.SandboxProfile {
+	if len(manifestJSON) == 0 {
+		return jobpolicy.SandboxProfile{}
+	}
+	var manifest jobpolicy.PolicyManifest
+	if err := json.Unmarshal(manifestJSON, &manifest); err != nil {
+		return jobpolicy.SandboxProfile{}
+	}
+	out := jobpolicy.SandboxProfile{
+		AllowedOrigins: append([]string(nil), manifest.Domains...),
+	}
+	for _, p := range manifest.Paths {
+		out.ReadRoots = append(out.ReadRoots, p.Root)
+		if strings.Contains(p.Mode, "write") {
+			out.WriteRoots = append(out.WriteRoots, p.Root)
+		}
+	}
+	for _, svc := range manifest.Services {
+		out.ServiceIDs = append(out.ServiceIDs, svc.ID)
+	}
+	return out
+}
+
+// platformLabel returns the helper's manifest-platform token (matches
+// helpermanifest.ArtifactDeclaration.Platform format). Built from
+// runtime.GOOS / GOARCH so the daemon's evaluation input gives
+// validateArtifacts the same value the manifest declares.
+func platformLabel() string {
+	switch runtime.GOOS {
+	case "linux":
+		// dev-stack is amd64; honor GOARCH so future arm64 helpers
+		// resolve cleanly without touching the manifest's Platform.
+		switch runtime.GOARCH {
+		case "amd64":
+			return "linux-x64"
+		case "arm64":
+			return "linux-arm64"
+		default:
+			return "linux-" + runtime.GOARCH
+		}
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm64":
+			return "darwin-arm64"
+		case "amd64":
+			return "darwin-x64"
+		default:
+			return "darwin-" + runtime.GOARCH
+		}
+	default:
+		return runtime.GOOS + "-" + runtime.GOARCH
 	}
 }
 

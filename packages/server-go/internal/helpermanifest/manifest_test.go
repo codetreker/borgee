@@ -268,13 +268,14 @@ func TestBuildLinux_DevOverrideOriginAndSHA256(t *testing.T) {
 	}
 
 	// Set → override applied.
-	overrideBase := "http://borgee-server:4900/dev-artifacts"
+	overrideBase := "http://borgee-server:4900"
 	overrideSHA := "aa11bb22cc33dd44ee55ff6677889900aabbccddeeff00112233445566778899"
 	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", overrideBase)
 	t.Setenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE", `{"`+ArtifactIDOpenClawPlugin+`":"`+overrideSHA+`"}`)
 	dev := BuildLinux()
-	if dev.Artifacts[0].Origin != overrideBase {
-		t.Fatalf("env override should set origin to %q, got %q", overrideBase, dev.Artifacts[0].Origin)
+	wantArtifactURL := overrideBase + "/dev-artifacts/" + ArtifactIDOpenClawPlugin + "/linux-x64"
+	if dev.Artifacts[0].Origin != wantArtifactURL {
+		t.Fatalf("env override should set artifact URL to %q, got %q", wantArtifactURL, dev.Artifacts[0].Origin)
 	}
 	if len(dev.Domains) != 1 || dev.Domains[0] != overrideBase {
 		t.Fatalf("env override should set domains to [%q], got %v", overrideBase, dev.Domains)
@@ -294,13 +295,14 @@ func TestBuildLinux_DevOverrideOriginAndSHA256(t *testing.T) {
 // TestBuildDarwin_DevOverrideOriginAndSHA256 mirrors the Linux check —
 // both platform builders honor the dev-stack overrides.
 func TestBuildDarwin_DevOverrideOriginAndSHA256(t *testing.T) {
-	overrideBase := "http://borgee-server:4900/dev-artifacts"
+	overrideBase := "http://borgee-server:4900"
 	overrideSHA := "1111111111111111111111111111111111111111111111111111111111111111"
 	t.Setenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE", overrideBase)
 	t.Setenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE", `{"`+ArtifactIDOpenClawPlugin+`":"`+overrideSHA+`"}`)
 	dev := BuildDarwin()
-	if dev.Artifacts[0].Origin != overrideBase {
-		t.Fatalf("env override should set darwin origin to %q, got %q", overrideBase, dev.Artifacts[0].Origin)
+	wantArtifactURL := overrideBase + "/dev-artifacts/" + ArtifactIDOpenClawPlugin + "/darwin-arm64"
+	if dev.Artifacts[0].Origin != wantArtifactURL {
+		t.Fatalf("env override should set darwin artifact URL to %q, got %q", wantArtifactURL, dev.Artifacts[0].Origin)
 	}
 	if dev.Artifacts[0].SHA256 != overrideSHA {
 		t.Fatalf("env override should set darwin sha256 to %q, got %q", overrideSHA, dev.Artifacts[0].SHA256)

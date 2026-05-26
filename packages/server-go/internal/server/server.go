@@ -18,6 +18,7 @@ import (
 	"borgee-server/internal/bpp"
 	"borgee-server/internal/config"
 	"borgee-server/internal/datalayer"
+	"borgee-server/internal/devartifacts"
 	"borgee-server/internal/presence"
 	"borgee-server/internal/push"
 	"borgee-server/internal/store"
@@ -379,6 +380,32 @@ func (s *Server) SetupRoutes() {
 	// warn 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
 	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey}
 	hb1ManifestHandler.RegisterRoutes(s.mux, authMw)
+
+	// #1050 blocker #6 dev-stack artifact server. Only mounted when
+	// BORGEE_DEV_ARTIFACTS_DIR is set (production leaves it unset and
+	// these handlers are never registered). Serves the openclaw sentinel
+	// shipped in scripts/dev-stack/artifacts/ so a local docker-compose
+	// dev-stack can complete an end-to-end install_from_manifest job
+	// without reaching the unprovisioned production CDN. Signing key
+	// reuses hb1SigningKey so install-butler's ed25519 trust check
+	// passes byte-identical with prod.
+	if devArtifactsDir := strings.TrimSpace(os.Getenv("BORGEE_DEV_ARTIFACTS_DIR")); devArtifactsDir != "" {
+		reg, err := devartifacts.LoadFromDir(devArtifactsDir, s.logger)
+		if err != nil {
+			s.logger.Error("devartifacts load failed", "err", err)
+		} else if len(reg.Entries()) > 0 {
+			devHandler := &devartifacts.Handler{
+				Registry:        reg,
+				SigningKey:      hb1SigningKey,
+				ManifestURLBase: strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE")),
+				Logger:          s.logger,
+			}
+			devHandler.RegisterRoutes(s.mux)
+			s.logger.Info("devartifacts.mounted",
+				"dir", devArtifactsDir,
+				"entries", len(reg.Entries()))
+		}
+	}
 
 	// (DL-4.3 push gateway init moved earlier — line ~85 — to feed
 	// MentionDispatcher.PushNotifier.)

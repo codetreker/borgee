@@ -76,8 +76,15 @@ const (
 	helperJobOpenClawAgentConfigPathID = helpermanifest.PathIDOpenClawAgentConfig
 	helperJobBorgeePluginConfigPathID  = helpermanifest.PathIDBorgeePluginConfig
 	helperJobBorgeeStateConfigPathID   = helpermanifest.PathIDBorgeeStateConfig
-	helperJobOpenClawServiceID         = helpermanifest.ServiceIDOpenClawUser
-	helperJobOpenClawPluginOrigin      = helpermanifest.DomainCDN
+	helperJobOpenClawServiceID = helpermanifest.ServiceIDOpenClawUser
+	// helperJobOpenClawPluginOriginFn returns the origin to stamp into
+	// binding.Domains for the openclaw install_from_manifest job. It is
+	// a function (not a const) because BORGEE_DEV_MANIFEST_ORIGIN_BASE
+	// (#1050 blocker #5) lets the dev-stack swap the production
+	// placeholder cdn.borgee.io for the dev artifact server's bare
+	// origin (`http://borgee-server:4900`). Production runs leave the
+	// env unset and the function returns helpermanifest.DomainCDN as
+	// before, so prod canonical bytes stay unchanged.
 	helperJobOpenClawPluginInstallPlan = "openclaw-plugin-v1"
 	helperJobOpenClawRuntimeIdentifier = "openclaw"
 
@@ -1047,7 +1054,7 @@ func openClawManifestBindingForJob(jobType string) (string, *string, error) {
 	case HelperJobTypeOpenClawInstallFromManifest:
 		binding.ArtifactIDs = []string{helperJobOpenClawPluginArtifactID}
 		binding.PathIDs = []string{helperJobOpenClawInstallPathID, helperJobOpenClawAgentConfigPathID}
-		binding.Domains = []string{helperJobOpenClawPluginOrigin}
+		binding.Domains = []string{helpermanifest.DevOriginForBinding()}
 	case HelperJobTypePluginConfigureConnection:
 		binding.PathIDs = []string{helperJobBorgeePluginConfigPathID}
 	case HelperJobTypePluginRemoveConnection:

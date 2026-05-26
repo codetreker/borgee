@@ -26,6 +26,12 @@ services:
       - "127.0.0.1:4900:4900"
     volumes:
       - server-data:/var/lib/borgee-server
+      # #1050 blocker #6 — sentinel artifact mount. The server reads
+      # BORGEE_DEV_ARTIFACTS_DIR at startup and serves
+      # /dev-artifacts/<plugin>/<platform> (+ a signed plugin-manifest
+      # JSON endpoint) from this read-only directory. Production runs
+      # leave the env unset; the handler is never mounted.
+      - ./artifacts:/var/lib/borgee-server/dev-artifacts:ro
     healthcheck:
       # /health is the unauthenticated readiness probe registered in
       # internal/server/server.go. Helper boot gates on this returning
