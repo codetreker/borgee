@@ -112,6 +112,10 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 	preparedOutbound, err := outbound.ValidateAndPrepare(outboundPrereq, outbound.ValidationOptions{
 		AllowLoopbackHTTP: allowLoopbackOutbound,
 		AllowedStateRoots: splitCSV(allowedStateRoots),
+		// #1050 blocker #1: dev-stack escape hatch for ws:// to docker
+		// network DNS (e.g. ws://borgee-server:4900). Opt-in via env;
+		// unset / not "1" leaves production behavior unchanged.
+		AllowDevContainerWS: os.Getenv("BORGEE_DEV_ALLOW_INSECURE_WS") == "1",
 	})
 	if err != nil {
 		return err

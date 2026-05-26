@@ -180,6 +180,52 @@ func TestPrereqValidateRejectsPartialConfig(t *testing.T) {
 	}
 }
 
+// TestPrereqValidateDevContainerWSAllowance (#1050 blocker #1) — the
+// dev-stack escape hatch lets ws:// flow to docker-network DNS like
+// `borgee-server` and to RFC1918 / localhost destinations when the
+// operator explicitly opts in via BORGEE_DEV_ALLOW_INSECURE_WS=1
+// (plumbed as ValidationOptions.AllowDevContainerWS). Without the
+// opt-in the strict https/wss-only rule continues to bind. With the
+// opt-in, attacker.com (public DNS shape) still rejects.
+func TestPrereqValidateDevContainerWSAllowance(t *testing.T) {
+	root := t.TempDir()
+	for name, tc := range map[string]struct {
+		origin   string
+		devOptIn bool
+		allowed  bool
+	}{
+		"ws localhost without opt-in":           {origin: "ws://localhost:4900", devOptIn: false, allowed: false},
+		"ws localhost with opt-in":              {origin: "ws://localhost:4900", devOptIn: true, allowed: true},
+		"ws docker DNS without opt-in":          {origin: "ws://borgee-server:4900", devOptIn: false, allowed: false},
+		"ws docker DNS with opt-in":             {origin: "ws://borgee-server:4900", devOptIn: true, allowed: true},
+		"ws RFC1918 with opt-in":                {origin: "ws://10.0.0.5:4900", devOptIn: true, allowed: true},
+		"ws public dotted host with opt-in":     {origin: "ws://attacker.example.com:4900", devOptIn: true, allowed: false},
+		"ws public dotted host without opt-in":  {origin: "ws://attacker.example.com:4900", devOptIn: false, allowed: false},
+		"http loopback IP with opt-in":          {origin: "http://127.0.0.1:4900", devOptIn: true, allowed: true},
+		"wss public host stays allowed default": {origin: "wss://app.borgee.io", devOptIn: false, allowed: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := PrereqConfig{
+				ServerOrigin:    tc.origin,
+				AllowedOrigins:  tc.origin,
+				QueueStateDir:   filepath.Join(root, "queue"),
+				StatusStateDir:  filepath.Join(root, "status"),
+				AuditHandoffDir: filepath.Join(root, "audit-handoff"),
+			}
+			_, err := ValidateAndPrepare(cfg, ValidationOptions{
+				AllowedStateRoots:   []string{root},
+				AllowDevContainerWS: tc.devOptIn,
+			})
+			if tc.allowed && err != nil {
+				t.Fatalf("expected dev-stack allowance for %q (optIn=%v), got %v", tc.origin, tc.devOptIn, err)
+			}
+			if !tc.allowed && err == nil {
+				t.Fatalf("expected reject for %q (optIn=%v), got nil error", tc.origin, tc.devOptIn)
+			}
+		})
+	}
+}
+
 func TestPrereqValidateRejectsStatePathsOutsideAllowedRoots(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
