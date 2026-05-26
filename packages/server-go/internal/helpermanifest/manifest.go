@@ -265,9 +265,12 @@ func devArtifactURLAndDomains(artifactID, platform string) (string, []string) {
 // devSHA256For honors BORGEE_DEV_MANIFEST_SHA256_OVERRIDE, a JSON map
 // of artifact_id → sha256 hex string. Missing keys or empty / invalid
 // JSON falls back to the supplied placeholder. The override lets the
-// dev-stack stamp the real sha256 of a sentinel artifact dropped into
-// the server container at build time (#1050 blocker #3); production
-// runs leave the env unset and the canonical placeholder is preserved.
+// dev-stack stamp the real sha256 of the @codetreker/borgee-openclaw-
+// plugin tarball produced by scripts/dev-stack/build-plugin-artifact.sh
+// (#1050 blocker #3, run_7 update — pre-run_7 dev-stacks shipped a
+// 66-byte sentinel shell script with a pinned sha; that fake was
+// removed). Production runs leave the env unset and the canonical
+// placeholder is preserved.
 func devSHA256For(artifactID, fallback string) string {
 	raw := strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_SHA256_OVERRIDE"))
 	if raw == "" {

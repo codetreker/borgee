@@ -1,31 +1,53 @@
-# Dev-stack sentinel artifacts
+# openclaw-plugin/ — real plugin tarball staging dir
 
-This directory carries committed-to-repo placeholder artifacts that the
-dev-stack server-go container serves at `/dev-artifacts/<plugin>/<platform>`.
-They exist solely so a local `docker compose up -d` dev-stack can complete
-an end-to-end `openclaw.install_from_manifest` job (PR #1078, blocker #6/#8)
-without depending on the unprovisioned production CDN.
+This directory stores the **real** `@codetreker/borgee-openclaw-plugin`
+tarball that the dev-stack `borgee-server` container serves under
+`/dev-artifacts/openclaw-plugin/<platform>`. Bytes are produced by:
 
-## Layout
-
-```
-openclaw-plugin/linux-x64       — Linux helper-vm install target
-openclaw-plugin/darwin-arm64    — macOS host install target (informational)
+```bash
+scripts/dev-stack/build-plugin-artifact.sh
 ```
 
-## Why committed (not generated)
+That script:
 
-The bytes are tiny (66 B each) shell scripts with a fixed sha256
-(`2cab696f9b434cdf6b7be13e34fa6b241153e67372c8f06c383cab9906714c8b`). Pinning
-the bytes + sha in the repo lets `.env` carry the matching
-`BORGEE_DEV_MANIFEST_SHA256_OVERRIDE` JSON literal without a runtime
-compute step that would otherwise need to land before `helpermanifest`'s
-`LinuxDigest` package-level init runs.
+1. Runs `pnpm build` in `packages/plugins/openclaw/` (tsc → `dist/`).
+2. Runs `npm pack` to produce `codetreker-borgee-openclaw-plugin-<version>.tgz`.
+3. Copies the tarball to both `linux-x64` and `darwin-arm64` here (same
+   bytes — the plugin is platform-independent JavaScript).
+4. Prints the tarball's sha256 plus the matching
+   `BORGEE_DEV_MANIFEST_SHA256_OVERRIDE` line for `scripts/dev-stack/.env`.
+
+## Why the bytes are not committed
+
+`.gitignore` in this dir excludes `linux-x64` / `darwin-arm64` (and any
+`*.tgz`). The bytes are derived; pinning them to the repo would
+invalidate on every plugin edit. Only the dir + the README + the build
+script are committed.
+
+## End-to-end chain (no fakes, no sentinels)
+
+```
+build-plugin-artifact.sh
+  → tarball at artifacts/openclaw-plugin/<platform>
+  → server-go reads via BORGEE_DEV_ARTIFACTS_DIR mount
+    → serves at GET /dev-artifacts/openclaw-plugin/<platform> (real bytes)
+    → signs a plugin-manifest at GET /dev-artifacts/manifests/openclaw-plugin/<platform>.json
+      with the real sha256
+  → helper-vm `borgee daemon` leases install_from_manifest job
+    → rootd install-butler fetches the bytes, verifies sha
+    → writes /usr/local/lib/borgee/openclaw/openclaw-plugin (real .tgz bytes)
+  → systemd path-watcher openclaw-plugin-install.path in borgee-vm
+    fires openclaw-plugin-install.service which:
+       cp /usr/local/lib/borgee/openclaw/openclaw-plugin /tmp/borgee-plugin.tgz
+       openclaw plugins install --force /tmp/borgee-plugin.tgz
+  → docker exec borgee-vm openclaw plugins list shows
+    @codetreker/borgee-openclaw-plugin (id=borgee) status=enabled
+```
 
 ## NOT for production
 
-These bytes are not the real openclaw binary — they print a sentinel line
-and exit 0. Production runs leave `BORGEE_DEV_MANIFEST_ORIGIN_BASE` /
-`BORGEE_DEV_ARTIFACTS_DIR` unset and the canonical manifest declares
-`https://cdn.borgee.io` (the placeholder release-helper.yml will eventually
-populate).
+This whole tree is dev-stack only. Production `borgee-server` deployments
+leave `BORGEE_DEV_ARTIFACTS_DIR` unset; the `/dev-artifacts/*` handler
+is not registered. The production install-from-manifest flow targets
+`https://cdn.borgee.io` once release-helper.yml publishes signed
+plugin manifests there.
