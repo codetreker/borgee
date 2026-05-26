@@ -21,6 +21,8 @@ import { describeAgentState } from '../lib/agent-state';
 import PresenceDot from './PresenceDot';
 import RuntimeCard from './RuntimeCard';
 import { AgentConfigPanel } from './AgentConfigPanel';
+import { PluginConnectionsPanel } from './PluginConnectionsPanel';
+import { fetchHelperEnrollments } from '../lib/api';
 import { usePresence } from '../hooks/usePresence';
 
 // #684 — Mask helper for API keys.
@@ -494,6 +496,14 @@ function AgentCard({
             <AgentConfigPanel agentId={agent.id} />
           </section>
 
+          {/* #1049 — Plugin connections card. Owner UI for
+              borgee_plugin.configure_connection / remove_connection on
+              the agent's configured helper enrollment. Renders only
+              when the user has at least one active helper enrollment
+              (otherwise the section is omitted — there is no helper
+              to receive the jobs). */}
+          <AgentPluginConnectionsSection agentId={agent.id} />
+
           {/* #684 — Permissions 卡 (第 5 卡). */}
           <section className="agent-detail-card agent-detail-card-permissions">
             <strong>Permissions</strong>
@@ -665,5 +675,57 @@ function CreateAgentModal({ onClose, onCreated }: { onClose: () => void; onCreat
         </form>
       </div>
     </div>
+  );
+}
+
+// AgentPluginConnectionsSection — #1049 mount wrapper. Resolves the
+// caller's first active helper enrollment (active = claimed + not
+// revoked / uninstalled). If no helper enrollment is present, the
+// section omits itself — the connection UI is meaningless without a
+// helper to deliver the configure / remove jobs to.
+function AgentPluginConnectionsSection({ agentId }: { agentId: string }) {
+  const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchHelperEnrollments()
+      .then(list => {
+        if (cancelled) return;
+        const active = list.find(
+          e =>
+            e.status !== 'revoked' &&
+            e.status !== 'uninstalled' &&
+            e.status !== 'pending',
+        );
+        setEnrollmentId(active ? active.enrollment_id : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEnrollmentId(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="agent-detail-card agent-detail-card-plugin-connections">
+        <p data-testid="plugin-connections-wrapper-loading">加载 plugin connections...</p>
+      </section>
+    );
+  }
+  if (!enrollmentId) {
+    return null;
+  }
+  return (
+    <section className="agent-detail-card agent-detail-card-plugin-connections">
+      <PluginConnectionsPanel enrollmentId={enrollmentId} agentId={agentId} />
+    </section>
   );
 }

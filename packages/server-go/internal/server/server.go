@@ -303,6 +303,9 @@ func (s *Server) SetupRoutes() {
 	}
 	helperJobsHandler := &api.HelperJobsHandler{
 		Repo: s.dl.HelperJobRepo,
+		// #1049: list endpoint verifies enrollment ownership BEFORE
+		// returning rows so cross-owner returns 404 rather than 200+empty.
+		EnrollmentRepo: s.dl.HelperEnrollmentRepo,
 		// PR-4 amend (#1033): server emits the signed canonical helper-
 		// policy manifest body in every leased-job payload so the daemon
 		// can run jobpolicy.Evaluate against an actual signed manifest

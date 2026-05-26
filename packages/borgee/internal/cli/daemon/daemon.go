@@ -33,6 +33,7 @@ import (
 	"borgee/internal/executors/installplugin"
 	"borgee/internal/executors/openclawconfigure"
 	"borgee/internal/executors/pluginconfigure"
+	"borgee/internal/executors/pluginremove"
 	"borgee/internal/executors/servicelifecycle"
 	"borgee/internal/executors/statuscollect"
 	"borgee/internal/executors/statewrite"
@@ -302,6 +303,10 @@ func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDevic
 		jobpolicy.JobTypeStateWrite:                &statewrite.Executor{Logger: log.Printf},
 		jobpolicy.JobTypeOpenClawConfigureAgent:    &openclawconfigure.Executor{Logger: log.Printf},
 		jobpolicy.JobTypePluginConfigureConnection: &pluginconfigure.Executor{Logger: log.Printf},
+		// #1049 — remove a previously-configured per-connection plugin record.
+		// Mirrors pluginconfigure but deletes instead of writes; idempotent
+		// on missing file.
+		jobpolicy.JobTypePluginRemoveConnection: &pluginremove.Executor{Logger: log.Printf},
 		// PR-4 #1033 — three root-requiring executors. All three
 		// forward the actual privileged operation into `borgee rootd`
 		// via the shared rootdclient. Paths / unit names / target
