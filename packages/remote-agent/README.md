@@ -1,19 +1,11 @@
 # @codetreker/borgee-remote-agent
 
-The `@codetreker/borgee-remote-agent` package ships two CLIs:
-
-1. **`borgee`** — the Borgee host-bridge daemon (Go binary, delivered inside
-   this same npm tarball under `bin/platforms/<plat>-<arch>/borgee`; the
-   Node shim picks the right one at runtime). One-shot operator bootstrap
-   (`install`), local cleanup (`uninstall-host`), the long-lived `daemon`
-   + root companion `rootd`, and the signed-manifest plugin installer
-   (`install-plugin`). (The pre-#1055 standalone `setup` and `claim`
-   subcommands have been folded into `install` and are no longer
-   operator-facing — they remain as internal helpers invoked by
-   `borgee install`.)
-2. **`borgee-remote-agent`** — the Node-based remote file-system bridge
-   (TypeScript CLI that connects local directories to a Borgee channel via
-   WebSocket). Unchanged from the prior 0.1.x release.
+The `@codetreker/borgee-remote-agent` package exposes one public npm CLI:
+`borgee-remote-agent`. Host setup subcommands such as `install` and
+`uninstall-host` are dispatched by that default CLI to the embedded Go binary
+stored under `bin/platforms/<plat>-<arch>/borgee`. The older direct
+remote-filesystem bridge mode still exists for compatibility, but direct
+startup via `--server ... --dirs ...` is deprecated.
 
 ## Install on a host
 
@@ -56,15 +48,13 @@ daemon (`internal/executors/uninstall`).
 
 ## Advanced (re-run install, replace credential)
 
-Subcommands available under `borgee`:
+Subcommands available through the package default CLI:
 
 ```
-borgee install          # one-shot operator bootstrap (the recommended path above)
-borgee uninstall-host   # operator-driven local cleanup
-borgee daemon ...       # long-lived host-bridge daemon (started by systemd / launchd)
-borgee rootd ...        # root companion daemon — narrow IPC whitelist (started by systemd)
-borgee install-plugin   # signed-manifest plugin binary installer (HB-1; was: borgee install)
-borgee --version
+npx @codetreker/borgee-remote-agent install          # one-shot operator bootstrap
+npx @codetreker/borgee-remote-agent uninstall-host   # operator-driven local cleanup
+npx @codetreker/borgee-remote-agent install-plugin   # signed-manifest plugin installer
+npx @codetreker/borgee-remote-agent --version
 ```
 
 To re-claim with a new token or refresh the systemd unit / launchd plist,
@@ -78,11 +68,11 @@ sudo npx @codetreker/borgee-remote-agent install \
 
 `install` is idempotent: it overwrites the systemd unit / launchd plist,
 preserves state dirs, and re-issues the enrollment claim with the new
-token. The prior standalone `borgee setup` / `borgee claim` commands were
+token. The prior standalone `setup` / `claim` commands were
 dropped from the public CLI (issue #1055) because bare `setup` produced a
 non-functional install — the helpers live on as internal helpers under
 `packages/borgee/internal/cli/setup/` and `packages/borgee/internal/cli/claim/`,
-invoked by `borgee install`.
+invoked by `install`.
 
 ## What gets installed
 
@@ -107,9 +97,9 @@ macOS:
 | `/Library/Application Support/Borgee/Helper/...` | Helper-owned state dirs |
 | user `_borgee`, group `_borgee` | System service account |
 
-## Use (Node remote-agent path — `borgee-remote-agent`)
+## Deprecated: direct Node remote-agent path
 
-The original Node WebSocket CLI; bin name unchanged.
+The original Node WebSocket CLI remains available temporarily:
 
 ```bash
 npx @codetreker/borgee-remote-agent --server wss://borgee.codetrek.cn --token <connection_token> --dirs /path/to/dir
@@ -170,15 +160,15 @@ This package ships ONE tarball carrying all 4 platform Go binaries:
 - `bin/platforms/darwin-x64/borgee`
 - `bin/platforms/darwin-arm64/borgee`
 
-`bin/borgee.js` is a tiny Node shim that picks the right binary for the
-current `process.platform` + `process.arch` and `spawn`s it with all argv
-passed through. Tarball size is ~15-20 MB gzipped (same ballpark as
-`typescript`); Borgee is a one-shot install per host, so the trade is to
-keep the install path single-package rather than split across four
+The default CLI resolves the current `process.platform` + `process.arch`
+internally and spawns the matching embedded binary for host-bridge
+subcommands. Tarball size is ~15-20 MB gzipped (same ballpark as
+`typescript`); Borgee is a one-shot install per host, so the trade is to keep
+the install path single-package rather than split across four
 `optionalDependencies` subpackages.
 
-Windows is intentionally out of scope (track issue #659); the shim exits 2
-with a structured error if invoked on an unsupported `platform-arch`.
+Windows is intentionally out of scope (track issue #659); the CLI exits 2 with
+a structured error if invoked on an unsupported `platform-arch`.
 
 The release workflow (`.github/workflows/publish-remote-agent.yml`) builds
 all 4 binaries from native runners and publishes a single

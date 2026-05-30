@@ -12,14 +12,14 @@ trap 'rm -rf "$TMP"' EXIT
 setup_repo() {
   local repo="$1"
   mkdir -p "$repo/packages/remote-agent/src" \
-           "$repo/packages/remote-agent/bin" \
+           "$repo/packages/remote-agent/bin/platforms/linux-x64" \
            "$repo/packages/borgee/cmd/borgee" \
            "$repo/packages/borgee/internal/grants/testdata"
   cat > "$repo/packages/remote-agent/package.json" <<'JSON'
 {"name":"@codetreker/borgee-remote-agent","version":"0.1.2"}
 JSON
   printf 'export const value = 1;\n' > "$repo/packages/remote-agent/src/index.ts"
-  printf '#!/usr/bin/env node\n' > "$repo/packages/remote-agent/bin/borgee.js"
+  printf '#!/usr/bin/env bash\n' > "$repo/packages/remote-agent/bin/platforms/linux-x64/borgee"
   printf 'package main\nfunc main(){}\n' > "$repo/packages/borgee/cmd/borgee/main.go"
   printf 'package grants\nfunc Do(){}\n' > "$repo/packages/borgee/internal/grants/grants.go"
   printf 'package grants\nfunc TestX(){}\n' > "$repo/packages/borgee/internal/grants/grants_test.go"
@@ -54,7 +54,7 @@ expect_fail_bin_without_bump() {
   local repo="$TMP/fail-bin"
   setup_repo "$repo"
   local base; base=$(git -C "$repo" rev-parse HEAD)
-  printf '#!/usr/bin/env node\nconsole.log(1);\n' > "$repo/packages/remote-agent/bin/borgee.js"
+  printf '#!/usr/bin/env bash\necho 1\n' > "$repo/packages/remote-agent/bin/platforms/linux-x64/borgee"
   git -C "$repo" add . && git -C "$repo" commit -qm change-bin
   local head; head=$(git -C "$repo" rev-parse HEAD)
   ! run_check "$repo" "$base" "$head" >/dev/null 2>&1

@@ -57,6 +57,7 @@ Remote Agent does not provide host-wide privileges, OS sandboxing, package insta
 - Treat Remote Agent's boundary as node ownership plus local allowlist intent until those protocol caveats are resolved.
 - Remote Agent tokens do not authenticate Helper enrollment claim, heartbeat, credential rotation, or helper-originated uninstall. Helper enrollment rows and credentials live in the server Helper enrollment rail.
 - PR-2 #1038 bundled the host-bridge daemon's WebSocket transport into the `@codetreker/borgee-remote-agent` npm package as part of the single-binary distribution chain. The daemon now connects to the server via `wss://<server>/ws/helper/<enrollmentId>` instead of the prior HTTP long-poll. This does not affect the Remote Agent reverse WebSocket data plane; the bumped tarball version (0.2.0) reflects the new bundled binary capability set.
+- The package now exposes one public npm bin, `borgee-remote-agent`. Host-bridge subcommands such as `install` are dispatched by that default CLI to the embedded platform binary under `bin/platforms/<plat>-<arch>/borgee`; there is no separate public npm `borgee` bin or `bin/borgee.js` shim. Direct Node remote-agent startup through `--server ... --dirs ...` remains as a deprecated compatibility path.
 
 ## Implementation Anchors
 
@@ -70,5 +71,7 @@ Remote Agent does not provide host-wide privileges, OS sandboxing, package insta
 - `packages/server-go/internal/api/helper_enrollments.go` (`HelperEnrollmentHandler`, separate rail)
 - `packages/server-go/internal/store/helper_enrollment_queries.go` (separate rail)
 - `packages/remote-agent/src/index.ts`
+- `packages/remote-agent/src/cli.ts` (default CLI dispatcher)
+- `packages/remote-agent/src/platform-binary.ts` (embedded platform binary resolver)
 - `packages/remote-agent/src/agent.ts` (`RemoteAgent`)
 - `packages/remote-agent/src/fs-ops.ts`

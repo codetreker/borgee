@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Mirror of scripts/check-openclaw-plugin-version-bump.sh for
 # @codetreker/borgee-remote-agent. The npm tarball bundles:
-#   - packages/remote-agent/{src,bin,package.json}  (Node CLI + shim)
+#   - packages/remote-agent/{src,bin,package.json}  (Node CLI + embedded platform binaries)
 #   - packages/borgee/                              (Go binary, built per-plat
 #                                                   and staged under bin/platforms/)
 # So changes under any of those paths require a bump of

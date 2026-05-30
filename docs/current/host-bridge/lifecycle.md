@@ -3,7 +3,7 @@
 Scope: this doc explains *why* the host-bridge helper daemon survives both
 a clean reboot and a process crash without anyone logging into the host.
 The systemd unit (Linux) and launchd plist (macOS) are written by the
-`setup` internal helper (invoked by `borgee install`) from the templates
+`setup` internal helper (invoked by `install`) from the templates
 inside
 [`packages/borgee/internal/cli/setup/setup.go`](../../../packages/borgee/internal/cli/setup/setup.go);
 the steady-state daemon contract is in
@@ -43,36 +43,36 @@ for first heartbeat.
 (issue #1055 dropped them from the dispatch table because bare `setup`
 produced a non-functional install). They live on as internal helpers
 under `packages/borgee/internal/cli/setup/` and
-`packages/borgee/internal/cli/claim/`, invoked transitively by `borgee
-install`. To re-claim with a new token or rewrite the systemd unit /
-launchd plist, re-run `borgee install` (or the `npx ... install`
+`packages/borgee/internal/cli/claim/`, invoked transitively by `install`.
+To re-claim with a new token or rewrite the systemd unit /
+launchd plist, re-run the `npx ... install`
 one-liner) with a fresh token from the web UI — `install` is
 idempotent and the supported re-run path.
 
-The `borgee` binary's public subcommands:
+Host-bridge subcommands reached through the package default CLI:
 
-- `borgee install` — one-shot operator bootstrap (the wrapper above).
-- `borgee uninstall-host` — operator-driven local cleanup mirror.
-- `borgee daemon` — long-lived host-bridge daemon (started by systemd / launchd).
-- `borgee rootd` — long-lived root-privileged companion daemon (started by
+- `install` — one-shot operator bootstrap (the wrapper above).
+- `uninstall-host` — operator-driven local cleanup mirror.
+- `daemon` — long-lived host-bridge daemon (started by systemd / launchd).
+- `rootd` — long-lived root-privileged companion daemon (started by
   systemd / launchd as a separate unit, `User=root`). Listens on a local
   UDS, accepts only a hardcoded command whitelist, executed via IPC by
-  `borgee daemon`. Defense-in-depth: the WS-facing main daemon does not
+  the main daemon. Defense-in-depth: the WS-facing main daemon does not
   hold root; rootd's command set is narrow + audited. See
   [`docs/blueprint/current/host-bridge.md`](../../blueprint/current/host-bridge.md)
   §1.1 (two-process privilege separation) and
   [`helper-daemon.md`](helper-daemon.md) (Privilege Separation section)
   for the rationale + wire protocol.
-- `borgee install-plugin` — signed-manifest binary installer (HB-1).
+- `install-plugin` — signed-manifest binary installer (HB-1).
   One-shot CLI that fetches a manifest, ed25519-verifies an entry,
   fetches the referenced binary, sha256-verifies the bytes, atomically
   renames into place, and exits. Used to deliver runtime plugins (e.g.
   openclaw) separately from the helper itself; the helper itself ships
-  as the npm bundle above. Renamed from `borgee install` in
+  as the npm bundle above. Renamed from the old install command in
   chore/install-onecmd. Source:
   [`packages/borgee/internal/cli/installbutler/`](../../../packages/borgee/internal/cli/installbutler/README.md).
 
-Internal helpers invoked by `borgee install` (NOT public CLI surface):
+Internal helpers invoked by `install` (NOT public CLI surface):
 
 - `internal/cli/setup` — writes the systemd unit / launchd plist + sandbox
   profile, creates the system user (`borgee` Linux, `_borgee` macOS),
@@ -281,8 +281,8 @@ End-to-end:
 
 A re-enrollment on the same machine can fast-path: binaries and state
 dirs are still in place, so the operator only needs to re-run
-`borgee install` (or `npx ... install` with a fresh token from the web
-UI) — `install` is idempotent and re-issues the claim without recreating
+`npx ... install` with a fresh token from the web UI — `install` is
+idempotent and re-issues the claim without recreating
 the system user or wiping state dirs.
 
 | | `delegation.revoke` | `helper.uninstall` |
@@ -299,7 +299,7 @@ the system user or wiping state dirs.
 A third daemon goroutine — `updatecheck.Checker` — runs alongside the
 heartbeater + dispatcher. Every ~15 minutes it reads
 `/var/lib/borgee/installed-versions.json` (written by
-`borgee install-plugin`) and POSTs the snapshot to
+`install-plugin`) and POSTs the snapshot to
 `POST /api/v1/helper/enrollments/{id}/installed-versions`. The server
 computes drift against the current signed manifest and returns a
 classified list (`security` vs `feature` per blueprint §1.3). The helper
@@ -449,7 +449,7 @@ does not apply on Windows in v1 — there is no install path to break.
 | Server flips enrollment on uninstall success | `packages/server-go/internal/api/helper_jobs_test.go`                            | `TestHelperJobsHelperUninstallTerminalSucceededMarksEnrollmentUninstalled` |
 | Server taxonomy accepts well-formed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                   | `TestHelperJobsEnqueueHelperUninstallAcceptsAndCarriesManifestBinding` |
 | Server taxonomy rejects malformed uninstall payload | `packages/server-go/internal/api/helper_jobs_test.go`                     | `TestHelperJobsEnqueueHelperUninstallRejectsInvalidPayload` |
-| npm shim platform → binary path mapping     | `packages/remote-agent/src/__tests__/borgeeShim.test.ts`                           | `borgee shim platform matrix`                   |
+| default package CLI platform → binary path mapping | `packages/remote-agent/src/__tests__/borgeeShim.test.ts`                    | `embedded borgee platform matrix`               |
 
 The rendered systemd / launchd assertion plus the server-side freshness
 derivation together stand in for a real reboot/crash e2e (which a CI

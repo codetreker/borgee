@@ -1,9 +1,9 @@
 {
   "name": "@codetreker/borgee-remote-agent",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": false,
   "type": "module",
-  "files": ["dist", "bin", "bin/platforms/**"],
+  "files": ["dist", "bin/platforms/**"],
   "repository": {
     "type": "git",
     "url": "https://github.com/codetreker/borgee.git",
@@ -14,8 +14,7 @@
     "access": "public"
   },
   "bin": {
-    "borgee-remote-agent": "dist/index.js",
-    "borgee": "bin/borgee.js"
+    "borgee-remote-agent": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
