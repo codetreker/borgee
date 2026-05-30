@@ -14,10 +14,8 @@
 //  1. platform / install-user pre-flight
 //  2. derives https origin from wss:// (or accepts https:// directly)
 //  3. splits --token on the first `.` into <enrollment_id>.<secret>
-//  4. copies the running borgee binary (typically from npx's cache) to
-//     the install user's Borgee data directory so the user service's
-//     ExecStart points at a stable path that survives npx cache eviction
-//     (#1017 bug 3 mitigation)
+//  4. sudo-installs the running borgee binary (typically from npx's cache) to
+//     /usr/local/borgee/bin/borgee, shared by the user service and rootd
 //  5. calls setup.Run with --server-origin = the derived https origin
 //  6. calls claim.Run with the parsed enrollment_id/secret
 //  7. sudo installs/starts rootd, Linux enables linger, user service starts
@@ -85,13 +83,15 @@ type config struct {
 	osExecutable           func() (string, error)
 	credentialFileOverride string // testing: where claim writes credential
 	installUser            *installUser
+	installPrefix          string // shared root-owned install prefix; empty uses platform default
 }
 
 type installUser struct {
-	Username string
-	UID      int
-	GID      int
-	HomeDir  string
+	Username      string
+	UID           int
+	GID           int
+	HomeDir       string
+	InstallPrefix string
 }
 
 type systemRunner interface {
@@ -114,6 +114,7 @@ func parseArgs(args []string, stderr io.Writer) (*config, error) {
 	token := fs.String("token", "", "One-shot enrollment token from web UI (format <enrollment_id>.<enrollment_secret>). Required.")
 	allowInsecure := fs.Bool("allow-insecure-server", false, "Allow http:// / ws:// schemes (test environments only)")
 	allowRootUser := fs.Bool("allow-root-user", false, "Allow installing the main daemon as root with state under /root")
+	installPrefix := fs.String("install-prefix", "", "Shared root-owned Borgee install prefix (default /usr/local/borgee)")
 	skipStart := fs.Bool("skip-start", false, "Skip systemctl/launchctl start + heartbeat wait (useful for CI / pre-baking images)")
 	heartbeatTimeout := fs.Duration("heartbeat-timeout", 30*time.Second, "Max wait for first heartbeat / status=connected after start")
 	if err := fs.Parse(args); err != nil {
@@ -132,6 +133,7 @@ func parseArgs(args []string, stderr io.Writer) (*config, error) {
 		token:               *token,
 		allowInsecureServer: *allowInsecure,
 		allowRootUser:       *allowRootUser,
+		installPrefix:       *installPrefix,
 		skipStart:           *skipStart,
 		heartbeatTimeout:    *heartbeatTimeout,
 	}, nil
@@ -278,7 +280,7 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 	//    eviction. Skip path is a testing hook (e2e drives a fake binary
 	//    that lives in t.TempDir already).
 	if !cfg.skipBinaryCopy {
-		if err := copyRunningBinary(cfg, stdout); err != nil {
+		if err := copyRunningBinary(cfg, stdout, stderr); err != nil {
 			return fmt.Errorf("copy binary: %w", err)
 		}
 	}
@@ -292,6 +294,9 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 			fmt.Sprintf("--install-uid=%d", installUser.UID),
 			fmt.Sprintf("--install-gid=%d", installUser.GID),
 			fmt.Sprintf("--install-home=%s", installUser.HomeDir),
+		}
+		if installUser.InstallPrefix != "" {
+			setupArgs = append(setupArgs, "--install-prefix="+installUser.InstallPrefix)
 		}
 		if cfg.allowInsecureServer {
 			setupArgs = append(setupArgs, "--allow-insecure-server-origin")
@@ -366,6 +371,11 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 
 func (cfg *config) resolvedInstallUser() (*installUser, error) {
 	if cfg.installUser != nil {
+		if cfg.installUser.InstallPrefix == "" && cfg.installPrefix != "" {
+			cp := *cfg.installUser
+			cp.InstallPrefix = cfg.installPrefix
+			return &cp, nil
+		}
 		return cfg.installUser, nil
 	}
 	u, err := user.Current()
@@ -379,12 +389,19 @@ func (cfg *config) resolvedInstallUser() (*installUser, error) {
 	if _, err := fmt.Sscanf(u.Gid, "%d", &out.GID); err != nil {
 		return nil, fmt.Errorf("parse gid %q: %w", u.Gid, err)
 	}
+	out.InstallPrefix = cfg.installPrefix
 	return out, nil
 }
 
 func userLayout(u *installUser) setup.UserLayout {
 	if runtime.GOOS == "darwin" {
+		if u.InstallPrefix != "" {
+			return setup.DarwinUserLayoutWithInstallPrefix(u.Username, u.UID, u.GID, u.HomeDir, u.InstallPrefix)
+		}
 		return setup.DarwinUserLayout(u.Username, u.UID, u.GID, u.HomeDir)
+	}
+	if u.InstallPrefix != "" {
+		return setup.LinuxUserLayoutWithInstallPrefix(u.Username, u.UID, u.GID, u.HomeDir, u.InstallPrefix)
 	}
 	return setup.LinuxUserLayout(u.Username, u.UID, u.GID, u.HomeDir)
 }
@@ -395,7 +412,7 @@ func userLayout(u *installUser) setup.UserLayout {
 // which downloads the binary into npm's npx cache (`~/.npm/_npx/<hash>/`)
 // — a directory that npm garbage-collects on its own schedule. Without a
 // copy step the systemd unit would dangle on first cache eviction.
-func copyRunningBinary(cfg *config, stdout io.Writer) error {
+func copyRunningBinary(cfg *config, stdout, stderr io.Writer) error {
 	src := cfg.binarySrcOverride
 	if src == "" {
 		fn := cfg.osExecutable
@@ -409,6 +426,7 @@ func copyRunningBinary(cfg *config, stdout io.Writer) error {
 		src = got
 	}
 	dst := cfg.binaryDstOverride
+	dstFromLayout := dst == ""
 	if dst == "" {
 		u, err := cfg.resolvedInstallUser()
 		if err != nil {
@@ -418,6 +436,17 @@ func copyRunningBinary(cfg *config, stdout io.Writer) error {
 	}
 	if src == dst {
 		fmt.Fprintf(stdout, "borgee install: binary already at %s (skipping copy)\n", dst)
+		return nil
+	}
+	if dstFromLayout {
+		r := cfg.systemctl
+		if r == nil {
+			r = realRunner{}
+		}
+		fmt.Fprintf(stdout, "borgee install: installing shared binary %s → %s\n", src, dst)
+		if err := r.Run(context.Background(), "sudo", "install", "-D", "-m", "0755", src, dst); err != nil {
+			return err
+		}
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
@@ -483,9 +512,6 @@ func startService(cfg *config, stdout, stderr io.Writer) error {
 	case "linux":
 		if err := r.Run(ctx, "sudo", "loginctl", "enable-linger", installUser.Username); err != nil {
 			return fmt.Errorf("loginctl enable-linger: %w", err)
-		}
-		if err := r.Run(ctx, "sudo", "install", "-D", "-m", "0755", layout.BinaryPath, layout.RootdBinaryPath); err != nil {
-			return fmt.Errorf("install rootd binary: %w", err)
 		}
 		if err := installPrivilegedFile(ctx, r, setup.RenderLinuxRootdUnit(layout), layout.RootdServiceDst, 0o644); err != nil {
 			return fmt.Errorf("install rootd unit: %w", err)

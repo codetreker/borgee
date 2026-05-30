@@ -20,10 +20,11 @@ npx @codetreker/borgee-remote-agent install \
 
 That's it. The daemon is installed, claimed, started, and survives
 reboot via systemd (Linux) / launchd (macOS). The internal sequence —
-copy binary to a persistent user path, write the user service, POST `/claim`
-with the enrollment secret, prompt for sudo only to install/start rootd and
-enable Linux linger, start the user daemon, wait for the first heartbeat —
-happens behind one operator-visible command.
+sudo-install the binary once to `<install-prefix>/bin/borgee`
+(`/usr/local/borgee/bin/borgee` by default), write the user service, POST
+`/claim` with the enrollment secret, prompt for sudo only to install/start
+rootd and enable Linux linger, start the user daemon, wait for the first
+heartbeat — happens behind one operator-visible command.
 
 The `--token` value is `<enrollment_id>.<enrollment_secret>` (a single
 opaque string the web UI concatenates for paste convenience). The CLI
@@ -81,10 +82,9 @@ Linux:
 
 | Path | Purpose |
 |---|---|
-| `~/.local/share/borgee/bin/borgee` | Persistent user daemon binary |
+| `/usr/local/borgee/bin/borgee` | Shared persistent binary used by main daemon and rootd |
 | `~/.config/systemd/user/borgee.service` | user systemd unit |
 | `~/.local/state/borgee/{queue,status,audit-handoff,credential,...}` | user-owned state dirs |
-| `/usr/local/lib/borgee/rootd/<uid>/borgee` | root-owned companion binary |
 | `/etc/systemd/system/borgee-rootd-<uid>.service` | rootd system unit |
 | `/run/borgee/<uid>/borgee-rootd.sock` | rootd UDS, owned by the installing UID |
 
@@ -92,15 +92,16 @@ macOS:
 
 | Path | Purpose |
 |---|---|
-| `~/Library/Application Support/Borgee/bin/borgee` | Persistent user daemon binary |
+| `/usr/local/borgee/bin/borgee` | Shared persistent binary used by main daemon and rootd |
 | `~/Library/LaunchAgents/cloud.borgee.host-bridge.plist` | user launchd plist |
 | `/Library/Application Support/Borgee/borgee-helper.sb` | sandbox-exec profile |
 | `~/Library/Application Support/Borgee/Helper/...` | user-owned state dirs |
-| `/usr/local/libexec/borgee/rootd/<uid>/borgee` | root-owned companion binary |
 | `/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.<uid>.plist` | rootd LaunchDaemon |
 
 If you run `install` as root, the CLI warns that the main daemon will run as
 root with state under `/root`; pass `--allow-root-user` to confirm that mode.
+Use `--install-prefix <path>` to override `/usr/local/borgee` for tests,
+packages, or non-standard deployments.
 
 ## Deprecated: direct Node remote-agent path
 

@@ -16,7 +16,7 @@ import (
 // borgee-helper.service asset; that asset is now rendered by `borgee setup`
 // so the same anti-regression net runs against the renderer.
 func TestRenderLinuxUnit_Shape(t *testing.T) {
-	layout := LinuxUserLayout("alice", 1000, 1000, "/home/alice")
+	layout := LinuxUserLayoutWithInstallPrefix("alice", 1000, 1000, "/home/alice", "/opt/borgee-test")
 	unit := renderLinuxUserUnit("https://app.borgee.io", layout)
 	required := []string{
 		"[Install]",
@@ -34,7 +34,7 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 		"--rootd-socket=/run/borgee/1000/borgee-rootd.sock",
 		"RuntimeDirectory=borgee",
 		"RuntimeDirectoryMode=0750",
-		"ExecStart=/home/alice/.local/share/borgee/bin/borgee daemon",
+		"ExecStart=/opt/borgee-test/bin/borgee daemon",
 		"MemoryMax=256M",
 		"CPUQuota=50%",
 		"TasksMax=256",
@@ -97,11 +97,11 @@ func TestRenderLinuxUnit_Shape(t *testing.T) {
 }
 
 func TestRenderDarwinPlist_Shape(t *testing.T) {
-	layout := DarwinUserLayout("alice", 501, 20, "/Users/alice")
+	layout := DarwinUserLayoutWithInstallPrefix("alice", 501, 20, "/Users/alice", "/opt/borgee-test")
 	plist := renderDarwinUserPlist("https://app.borgee.io", layout)
 	required := []string{
 		"/usr/bin/sandbox-exec",
-		"<string>/Users/alice/Library/Application Support/Borgee/bin/borgee</string>",
+		"<string>/opt/borgee-test/bin/borgee</string>",
 		"<string>daemon</string>",
 		"--socket=/Users/alice/Library/Application Support/Borgee/borgee.sock",
 		"--rootd-socket=/Users/Shared/Borgee/501/borgee-rootd.sock",
@@ -149,12 +149,12 @@ func TestRenderDarwinPlist_Shape(t *testing.T) {
 // has no network access (AF_UNIX-only), tighter resource caps, and
 // ReadWritePaths covering what PR-4 root commands will need to write to.
 func TestRenderLinuxRootdUnit_Shape(t *testing.T) {
-	layout := LinuxUserLayout("alice", 1000, 1000, "/home/alice")
+	layout := LinuxUserLayoutWithInstallPrefix("alice", 1000, 1000, "/home/alice", "/opt/borgee-test")
 	unit := renderLinuxRootdUnit(layout)
 	required := []string{
 		"Description=Borgee root-privileged companion daemon",
 		"User=root",
-		"ExecStart=/usr/local/lib/borgee/rootd/1000/borgee rootd",
+		"ExecStart=/opt/borgee-test/bin/borgee rootd",
 		"--socket=/run/borgee/1000/borgee-rootd.sock",
 		"--allowed-peer-uid=1000",
 		"--socket-owner-uid=1000",
@@ -179,7 +179,7 @@ func TestRenderLinuxRootdUnit_Shape(t *testing.T) {
 		"RuntimeDirectory=borgee/1000",
 		"RuntimeDirectoryMode=0750",
 		// ReadWritePaths covers PR-4 needs (install_plugin / service_lifecycle).
-		"ReadWritePaths=/run/borgee/1000 /usr/local/lib/borgee/rootd/1000 /home/alice/.local/state/borgee /etc/systemd/system",
+		"ReadWritePaths=/run/borgee/1000 /opt/borgee-test /home/alice/.local/state/borgee /etc/systemd/system",
 		"Restart=on-failure",
 		"RestartSec=10s",
 		"WantedBy=multi-user.target",
@@ -218,12 +218,12 @@ func TestRenderLinuxRootdUnit_Shape(t *testing.T) {
 // paths from the main plist so an operator can grep rootd-stdout
 // independently.
 func TestRenderDarwinRootdPlist_Shape(t *testing.T) {
-	layout := DarwinUserLayout("alice", 501, 20, "/Users/alice")
+	layout := DarwinUserLayoutWithInstallPrefix("alice", 501, 20, "/Users/alice", "/opt/borgee-test")
 	plist := renderDarwinRootdPlist(layout)
 	required := []string{
 		"<key>Label</key>",
 		"<string>cloud.borgee.host-bridge.rootd.501</string>",
-		"<string>/usr/local/libexec/borgee/rootd/501/borgee</string>",
+		"<string>/opt/borgee-test/bin/borgee</string>",
 		"<string>rootd</string>",
 		"--socket=/Users/Shared/Borgee/501/borgee-rootd.sock",
 		"--allowed-peer-uid=501",

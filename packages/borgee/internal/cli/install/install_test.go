@@ -259,10 +259,11 @@ func TestRun_StartsBothServices(t *testing.T) {
 		heartbeatTimeout:    50 * time.Millisecond,
 		allowInsecureServer: true,
 		installUser: &installUser{
-			Username: "alice",
-			UID:      1000,
-			GID:      1000,
-			HomeDir:  "/home/alice",
+			Username:      "alice",
+			UID:           1000,
+			GID:           1000,
+			HomeDir:       "/home/alice",
+			InstallPrefix: "/opt/borgee-test",
 		},
 	}
 	if err := run(cfg, &out, &errBuf); err != nil {
@@ -294,6 +295,11 @@ func TestRun_StartsBothServices(t *testing.T) {
 				t.Fatalf("missing required systemctl call %q (got: %v)", want, got)
 			}
 		}
+		for _, c := range got {
+			if strings.Contains(c, "/usr/local/lib/borgee/rootd") || strings.Contains(c, ".local/share/borgee/bin") {
+				t.Fatalf("rootd and main daemon must use shared install prefix binary, got call %q", c)
+			}
+		}
 	case "darwin":
 		// Expect bootstrap for both plists.
 		wantPaths := []string{
@@ -312,6 +318,37 @@ func TestRun_StartsBothServices(t *testing.T) {
 				t.Fatalf("missing required launchctl bootstrap for %q (got: %v)", p, got)
 			}
 		}
+	}
+}
+
+func TestCopyRunningBinary_InstallsSharedBinaryWithSudo(t *testing.T) {
+	runner := &recordingRunner{}
+	src := filepath.Join(t.TempDir(), "borgee")
+	if err := os.WriteFile(src, []byte("binary"), 0o755); err != nil {
+		t.Fatalf("write src: %v", err)
+	}
+	cfg := &config{
+		binarySrcOverride: src,
+		systemctl:         runner,
+		installPrefix:     filepath.Join(t.TempDir(), "install-prefix"),
+		installUser: &installUser{
+			Username: "alice",
+			UID:      1000,
+			GID:      1000,
+			HomeDir:  "/home/alice",
+		},
+	}
+	var out, errBuf bytes.Buffer
+	if err := copyRunningBinary(cfg, &out, &errBuf); err != nil {
+		t.Fatalf("copyRunningBinary: %v stderr=%s", err, errBuf.String())
+	}
+	calls := runner.joined()
+	want := "sudo install -D -m 0755 " + src + " " + filepath.Join(cfg.installPrefix, "bin", "borgee")
+	if runtimeGOOS() == "darwin" {
+		want = "sudo install -D -m 0755 " + src + " " + filepath.Join(cfg.installPrefix, "bin", "borgee")
+	}
+	if len(calls) != 1 || calls[0] != want {
+		t.Fatalf("copyRunningBinary calls = %v, want [%q]", calls, want)
 	}
 }
 

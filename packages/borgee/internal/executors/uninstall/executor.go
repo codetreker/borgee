@@ -104,9 +104,8 @@ type Layout struct {
 // + `borgee.service` unit; align the executor with the actual on-disk
 // names. `HelperBinaries` is intentionally empty — `/usr/local/bin/borgee`
 // (if present) is an npm shim symlink owned by npm, not the executor.
-// `borgee uninstall-host` removes `/usr/local/lib/borgee/` whole, which is
-// where `borgee install` deposits the persistent binary at
-// `/usr/local/lib/borgee/bin/borgee` (see internal/cli/install). The
+// `borgee uninstall-host` removes `/usr/local/borgee/` whole, which is
+// where `borgee install` deposits the shared persistent binary. The
 // RuntimeDir wipe in this executor therefore takes that path with it.
 func DefaultLayout(goos string) Layout {
 	u := currentUserLayout(goos)
@@ -119,7 +118,7 @@ func DefaultLayout(goos string) Layout {
 				filepath.Join(u.StateRoot, "audit-handoff"),
 				filepath.Join(u.StateRoot, "credential"),
 			},
-			RuntimeDir:           filepath.Dir(filepath.Dir(u.BinaryPath)),
+			RuntimeDir:           "/usr/local/borgee",
 			HelperBinaries:       nil,
 			ServiceUnitPath:      u.UserUnitPath,
 			ServiceName:          "borgee.service",
@@ -137,7 +136,7 @@ func DefaultLayout(goos string) Layout {
 				filepath.Join(u.StateRoot, "AuditHandoff"),
 				filepath.Join(u.StateRoot, "credential"),
 			},
-			RuntimeDir:     filepath.Dir(filepath.Dir(u.BinaryPath)),
+			RuntimeDir:     "/usr/local/borgee",
 			HelperBinaries: nil,
 			// Sandbox profile path (written by the internal setup helper
 			// invoked from `borgee install`) lives outside
@@ -188,7 +187,7 @@ func currentUserLayout(goos string) userLayout {
 			UID:             uid,
 			GID:             gid,
 			HomeDir:         home,
-			BinaryPath:      filepath.Join(home, "Library", "Application Support", "Borgee", "bin", "borgee"),
+			BinaryPath:      "/usr/local/borgee/bin/borgee",
 			StateRoot:       stateRoot,
 			UserUnitPath:    filepath.Join(home, "Library", "LaunchAgents", "cloud.borgee.host-bridge.plist"),
 			RootdSocket:     filepath.Join("/Users/Shared/Borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
@@ -201,7 +200,7 @@ func currentUserLayout(goos string) userLayout {
 			UID:             uid,
 			GID:             gid,
 			HomeDir:         home,
-			BinaryPath:      filepath.Join(home, ".local", "share", "borgee", "bin", "borgee"),
+			BinaryPath:      "/usr/local/borgee/bin/borgee",
 			StateRoot:       stateRoot,
 			UserUnitPath:    filepath.Join(home, ".config", "systemd", "user", "borgee.service"),
 			RootdSocket:     filepath.Join("/run/borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
@@ -374,8 +373,8 @@ func (e *Executor) Execute(ctx context.Context, job *outbound.LeasedJob) (dispat
 		summary.Buckets = append(summary.Buckets, e.removePath(layout.RootdServiceUnitPath, "rootd_service_unit"))
 	}
 
-	// Bucket C: remove the runtime binaries install-butler dropped under
-	// /usr/local/lib/borgee/. Whole-tree wipe — operator opted into uninstall.
+	// Bucket C: remove the shared runtime binaries under /usr/local/borgee.
+	// Whole-tree wipe — operator opted into uninstall.
 	if layout.RuntimeDir != "" {
 		summary.Buckets = append(summary.Buckets, e.removeTree(layout.RuntimeDir, "runtime_dir"))
 	}
