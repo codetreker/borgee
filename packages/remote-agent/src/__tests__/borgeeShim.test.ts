@@ -1,34 +1,49 @@
-// bin/borgee shim — unit tests for the platform binary resolver.
+// Default package CLI — unit tests for the embedded platform binary resolver.
 //
 // chore/collapse-npm (2026-05-20): 4 platform binaries now live inside the
-// SAME npm tarball at `bin/platforms/<plat>-<arch>/borgee`. This test locks
-// the resolver's dispatch table: it must pick the right path per platform/arch,
-// reject unsupported targets, surface a helpful error when the binary file is
-// missing, and never bake Windows into the supported set.
+// SAME npm tarball at `bin/platforms/<plat>-<arch>/borgee`. The package should
+// not expose a second public `borgee` bin; the default `borgee-remote-agent`
+// bin owns dispatch and uses this resolver internally.
 
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { resolveBinary, SUPPORTED } from '../../bin/borgee.js';
+import fs from 'node:fs';
+import { resolveBorgeeBinary, SUPPORTED } from '../platform-binary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-void __dirname; // reserved for future fixture paths
+const packageRoot = path.resolve(__dirname, '..', '..');
 
-describe('borgee shim platform matrix', () => {
+describe('default package CLI shape', () => {
+  it('TS-0 PackageBin: exposes only borgee-remote-agent as the public npm bin', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as {
+      bin?: Record<string, string>;
+      files?: string[];
+    };
+
+    assert.deepEqual(manifest.bin, {
+      'borgee-remote-agent': 'dist/index.js',
+    });
+    assert.deepEqual(manifest.files, ['dist', 'bin/platforms/**']);
+    assert.equal(fs.existsSync(path.join(packageRoot, 'bin', 'borgee.js')), false);
+  });
+});
+
+describe('embedded borgee platform matrix', () => {
   it('TS-1 SupportedPlatform: resolves bin/platforms/<plat>-<arch>/borgee for each supported target', () => {
-    const stubDir = '/tmp/stub-shim-dir';
+    const stubRoot = '/tmp/stub-package-bin-dir';
     const supported = ['linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64'];
     for (const key of supported) {
       const [platform, arch] = key.split('-');
-      const got = resolveBinary({
+      const got = resolveBorgeeBinary({
         platform,
         arch,
-        dir: stubDir,
+        binRoot: stubRoot,
         exists: () => true,
       });
-      const want = path.join(stubDir, 'platforms', key, 'borgee');
+      const want = path.join(stubRoot, 'platforms', key, 'borgee');
       assert.equal(got, want, `expected resolver to pick ${want} for ${key}`);
     }
   });
@@ -36,10 +51,10 @@ describe('borgee shim platform matrix', () => {
   it('TS-2 UnsupportedPlatform: win32 raises with structured message', () => {
     assert.throws(
       () =>
-        resolveBinary({
+        resolveBorgeeBinary({
           platform: 'win32',
           arch: 'x64',
-          dir: '/tmp/unused',
+          binRoot: '/tmp/unused',
           exists: () => true,
         }),
       (err: unknown) => {
@@ -53,10 +68,10 @@ describe('borgee shim platform matrix', () => {
   it('TS-2b UnsupportedArch: linux-mips raises with structured message', () => {
     assert.throws(
       () =>
-        resolveBinary({
+        resolveBorgeeBinary({
           platform: 'linux',
           arch: 'mips',
-          dir: '/tmp/unused',
+          binRoot: '/tmp/unused',
           exists: () => true,
         }),
       (err: unknown) => err instanceof Error && /unsupported platform\/arch linux-mips/.test(err.message),
@@ -66,10 +81,10 @@ describe('borgee shim platform matrix', () => {
   it('TS-3 BinaryMissing: surfaces repair hint when the embedded binary is absent', () => {
     assert.throws(
       () =>
-        resolveBinary({
+        resolveBorgeeBinary({
           platform: 'linux',
           arch: 'x64',
-          dir: '/tmp/stub-shim-dir',
+          binRoot: '/tmp/stub-package-bin-dir',
           exists: () => false,
         }),
       (err: unknown) => {

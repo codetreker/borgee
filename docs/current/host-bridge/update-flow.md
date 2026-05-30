@@ -6,14 +6,14 @@ Blueprint锚: `docs/blueprint/current/host-bridge.md` §1.3 — "更新策略: �
 
 ## Detection (this PR)
 
-1. `borgee install-plugin` writes `/var/lib/borgee/installed-versions.json`
+1. `install-plugin` writes `/var/lib/borgee/installed-versions.json`
    after each successful install (atomic tempfile+rename, `0644`). Schema:
 
    ```json
    {"plugins": {"<plugin-id>": {"version": "...", "installed_at": <ms>, "sha256": "..."}}}
    ```
 
-2. `borgee daemon` runs an `updatecheck.Checker` goroutine (interval
+2. The helper daemon runs an `updatecheck.Checker` goroutine (interval
    default 15 minutes; see `internal/updatecheck/updatecheck.go`). Each
    tick: reads the snapshot file, POSTs `{helper_device_id, installed:
    [{id, version}]}` to
@@ -53,7 +53,7 @@ the UI surface exists:
 - User UI → `POST /api/v1/helper/enrollments/{id}/jobs/enqueue` with
   `{type: "plugin.update", payload: {plugin_id, target_version}}`
 - Dispatcher (#1001+#1002) picks up the leased job, runs a new
-  `internal/executors/update` executor that invokes `borgee install-plugin`
+  `internal/executors/update` executor that invokes `install-plugin`
   with the manifest's target version and atomically replaces the binary.
 
 Auto-apply is a banned anti-pattern. There is no scheduled / silent path
