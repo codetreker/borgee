@@ -45,7 +45,7 @@ func TestBuildHelperInstallCommand_PublicOriginOverridesRHost(t *testing.T) {
 	t.Parallel()
 	req := mkReq(t, "127.0.0.1:4900", false, nil)
 	got := buildHelperInstallCommand(req, testToken, "ws://borgee-server:4900")
-	want := "sudo npx @codetreker/borgee-remote-agent install --server ws://borgee-server:4900 --token " + testToken
+	want := "npx @codetreker/borgee-remote-agent install --server ws://borgee-server:4900 --token " + testToken
 	if got != want {
 		t.Fatalf("override branch mismatch:\n got %q\nwant %q", got, want)
 	}
@@ -86,7 +86,7 @@ func TestBuildHelperInstallCommand_EmptyPublicOriginFallsBackToRHost(t *testing.
 	// the pre-#1052 derivation: r.TLS=nil + no X-Forwarded-* → ws://r.Host.
 	req := mkReq(t, "borgee.local:4900", false, nil)
 	got := buildHelperInstallCommand(req, testToken, "")
-	want := "sudo npx @codetreker/borgee-remote-agent install --server ws://borgee.local:4900 --token " + testToken
+	want := "npx @codetreker/borgee-remote-agent install --server ws://borgee.local:4900 --token " + testToken
 	if got != want {
 		t.Fatalf("fallback branch mismatch:\n got %q\nwant %q", got, want)
 	}

@@ -286,7 +286,7 @@ function helperRow(
 
 describe('HelperStatusPanel — Create enrollment (Add host) UI', () => {
   const fakeToken = 'enr-newhost-1.super-secret-shown-once-9f3b';
-  const fakeInstallCommand = `sudo npx @codetreker/borgee-remote-agent install --server wss://borgee.example.com --token ${fakeToken}`;
+  const fakeInstallCommand = `npx @codetreker/borgee-remote-agent install --server wss://borgee.example.com --token ${fakeToken}`;
 
   // React tracks controlled-input values via a hidden value tracker; setting
   // .value directly bypasses it. Use the native setter so React's onChange

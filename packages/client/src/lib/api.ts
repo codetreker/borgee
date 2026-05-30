@@ -1307,7 +1307,7 @@ export async function removePluginConnection(
 // that wants to compose its own URL) and two pre-built convenience fields:
 //   - enrollment_token  — `<enrollment_id>.<enrollment_secret>` (the string
 //     `borgee install --token` takes; see install.go::tokenParts)
-//   - install_command   — `sudo npx @codetreker/borgee-remote-agent install
+//   - install_command   — `npx @codetreker/borgee-remote-agent install
 //     --server <wss://host> --token <token>` (single line the operator
 //     copies onto the VM)
 //

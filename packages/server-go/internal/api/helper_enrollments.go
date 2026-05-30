@@ -123,7 +123,7 @@ func (h *HelperEnrollmentHandler) handleCreate(w http.ResponseWriter, r *http.Re
 //     fallback so adding the env knob does not regress existing deploys.
 func buildHelperInstallCommand(r *http.Request, enrollmentToken string, publicOrigin string) string {
 	if origin := strings.TrimSpace(publicOrigin); origin != "" {
-		return fmt.Sprintf("sudo npx @codetreker/borgee-remote-agent install --server %s --token %s", origin, enrollmentToken)
+		return fmt.Sprintf("npx @codetreker/borgee-remote-agent install --server %s --token %s", origin, enrollmentToken)
 	}
 	scheme := "wss"
 	if proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); proto != "" {
@@ -137,7 +137,7 @@ func buildHelperInstallCommand(r *http.Request, enrollmentToken string, publicOr
 	if host == "" {
 		host = r.Host
 	}
-	return fmt.Sprintf("sudo npx @codetreker/borgee-remote-agent install --server %s://%s --token %s", scheme, host, enrollmentToken)
+	return fmt.Sprintf("npx @codetreker/borgee-remote-agent install --server %s://%s --token %s", scheme, host, enrollmentToken)
 }
 
 func (h *HelperEnrollmentHandler) handleList(w http.ResponseWriter, r *http.Request) {
@@ -297,8 +297,8 @@ func (h *HelperEnrollmentHandler) handleUninstall(w http.ResponseWriter, r *http
 // install-butler's installed-versions.json) regardless of drift state — the
 // server computes drift authoritatively against the signed manifest.
 type installedVersionsRequest struct {
-	HelperDeviceID string                     `json:"helper_device_id"`
-	Installed      []installedVersionsEntry   `json:"installed"`
+	HelperDeviceID string                   `json:"helper_device_id"`
+	Installed      []installedVersionsEntry `json:"installed"`
 }
 
 type installedVersionsEntry struct {
@@ -307,12 +307,12 @@ type installedVersionsEntry struct {
 }
 
 // handleInstalledVersions — #999. Helper POSTs installed snapshot; server:
-//   1. authenticates via helper Bearer credential + device id match
-//   2. loads the live manifest (LoadManifestEntries, three-tier ops fallback)
-//   3. computes drift: for each manifest entry, if its Version != installed
-//      version, record a drift entry with normalized class
-//   4. persists snapshot via RecordUpdatesAvailable
-//   5. returns the drift list so helper can log per-class prompt events
+//  1. authenticates via helper Bearer credential + device id match
+//  2. loads the live manifest (LoadManifestEntries, three-tier ops fallback)
+//  3. computes drift: for each manifest entry, if its Version != installed
+//     version, record a drift entry with normalized class
+//  4. persists snapshot via RecordUpdatesAvailable
+//  5. returns the drift list so helper can log per-class prompt events
 //
 // Idempotent (latest-wins). Empty installed list is valid (fresh helper that
 // hasn't installed anything yet) — drift list is then "every manifest entry

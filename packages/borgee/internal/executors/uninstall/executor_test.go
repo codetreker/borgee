@@ -341,54 +341,63 @@ func TestExecutor_NilJob(t *testing.T) {
 	}
 }
 
-// TU-8 DefaultLayoutPostRename — guards #1017 bug 2 fix: the post-#1017
-// distribution shipped as a single `borgee` binary + `borgee` system
-// user + `borgee.service` unit, but DefaultLayout still referenced the
-// pre-rename `borgee-helper` paths everywhere. Lock the new layout so
-// any future drift fails this assertion.
+// TU-8 DefaultLayoutUserOwned — the default uninstall layout follows the
+// installing user's home/XDG paths and does not try to delete an OS user.
 func TestDefaultLayout_LinuxPostRename(t *testing.T) {
 	t.Parallel()
 	l := DefaultLayout("linux")
-	if l.UserName != "borgee" || l.GroupName != "borgee" {
-		t.Fatalf("linux user/group = %s/%s, want borgee/borgee", l.UserName, l.GroupName)
+	if l.UserName != "" || l.GroupName != "" {
+		t.Fatalf("linux user/group = %s/%s, want empty (do not delete OS user)", l.UserName, l.GroupName)
 	}
 	if l.ServiceName != "borgee.service" {
 		t.Fatalf("linux service name = %q, want borgee.service", l.ServiceName)
 	}
-	if l.ServiceUnitPath != "/etc/systemd/system/borgee.service" {
+	if !strings.HasSuffix(l.ServiceUnitPath, "/.config/systemd/user/borgee.service") {
 		t.Fatalf("linux unit path = %q", l.ServiceUnitPath)
 	}
 	// rootd-skeleton: DefaultLayout must include the rootd companion
 	// unit + service name so uninstall takes both down.
-	if l.RootdServiceName != "borgee-rootd.service" {
-		t.Fatalf("linux rootd service name = %q, want borgee-rootd.service", l.RootdServiceName)
+	if !strings.HasPrefix(l.RootdServiceName, "borgee-rootd-") || !strings.HasSuffix(l.RootdServiceName, ".service") {
+		t.Fatalf("linux rootd service name = %q, want per-uid borgee-rootd-<uid>.service", l.RootdServiceName)
 	}
-	if l.RootdServiceUnitPath != "/etc/systemd/system/borgee-rootd.service" {
+	if !strings.HasPrefix(l.RootdServiceUnitPath, "/etc/systemd/system/borgee-rootd-") {
 		t.Fatalf("linux rootd unit path = %q", l.RootdServiceUnitPath)
 	}
 	// rootd UDS socket file is listed as AuxFiles so a stale socket
 	// from a prior boot does not trip the new rootd's bind.
 	foundRootdSock := false
 	for _, a := range l.AuxFiles {
-		if a == "/run/borgee/borgee-rootd.sock" {
+		if strings.Contains(a, "/run/borgee/") && strings.HasSuffix(a, "/borgee-rootd.sock") {
 			foundRootdSock = true
 		}
 	}
 	if !foundRootdSock {
 		t.Fatalf("linux DefaultLayout missing rootd socket in AuxFiles, got %v", l.AuxFiles)
 	}
-	wantStateDirs := map[string]bool{
-		"/var/lib/borgee/queue":         true,
-		"/var/lib/borgee/status":        true,
-		"/var/lib/borgee/audit-handoff": true,
-		"/var/lib/borgee/credential":    true,
+	wantSuffixes := map[string]bool{
+		"/.local/state/borgee/queue":         false,
+		"/.local/state/borgee/status":        false,
+		"/.local/state/borgee/audit-handoff": false,
+		"/.local/state/borgee/credential":    false,
 	}
 	for _, d := range l.StateDirs {
-		if !wantStateDirs[d] {
+		matched := false
+		for suffix := range wantSuffixes {
+			if strings.HasSuffix(d, suffix) {
+				wantSuffixes[suffix] = true
+				matched = true
+			}
+		}
+		if !matched {
 			t.Fatalf("unexpected state dir %q in DefaultLayout(linux)", d)
 		}
 	}
-	if l.RuntimeDir != "/usr/local/lib/borgee" {
+	for suffix, seen := range wantSuffixes {
+		if !seen {
+			t.Fatalf("missing state dir suffix %q in %v", suffix, l.StateDirs)
+		}
+	}
+	if !strings.HasSuffix(l.RuntimeDir, "/.local/share/borgee") {
 		t.Fatalf("runtime dir = %q", l.RuntimeDir)
 	}
 	// `HelperBinaries` must be empty — `/usr/local/bin/borgee` is an
@@ -408,21 +417,21 @@ func TestDefaultLayout_LinuxPostRename(t *testing.T) {
 func TestDefaultLayout_DarwinPostRename(t *testing.T) {
 	t.Parallel()
 	l := DefaultLayout("darwin")
-	if l.UserName != "_borgee" || l.GroupName != "_borgee" {
-		t.Fatalf("darwin user/group = %s/%s, want _borgee/_borgee", l.UserName, l.GroupName)
+	if l.UserName != "" || l.GroupName != "" {
+		t.Fatalf("darwin user/group = %s/%s, want empty (do not delete OS user)", l.UserName, l.GroupName)
 	}
 	if l.ServiceName != "cloud.borgee.host-bridge" {
 		t.Fatalf("darwin service name = %q", l.ServiceName)
 	}
-	if l.RuntimeDir != "/usr/local/libexec/borgee" {
+	if !strings.Contains(l.RuntimeDir, "/Library/Application Support/Borgee") {
 		t.Fatalf("darwin runtime dir = %q", l.RuntimeDir)
 	}
 	// rootd-skeleton: DefaultLayout must include the rootd companion
 	// plist + label so uninstall takes both down.
-	if l.RootdServiceName != "cloud.borgee.host-bridge.rootd" {
-		t.Fatalf("darwin rootd service name = %q, want cloud.borgee.host-bridge.rootd", l.RootdServiceName)
+	if !strings.HasPrefix(l.RootdServiceName, "cloud.borgee.host-bridge.rootd.") {
+		t.Fatalf("darwin rootd service name = %q, want per-uid label", l.RootdServiceName)
 	}
-	if l.RootdServiceUnitPath != "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.plist" {
+	if !strings.HasPrefix(l.RootdServiceUnitPath, "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.") {
 		t.Fatalf("darwin rootd plist path = %q", l.RootdServiceUnitPath)
 	}
 	// AuxFiles must include the sandbox profile path so an uninstall
@@ -434,7 +443,7 @@ func TestDefaultLayout_DarwinPostRename(t *testing.T) {
 		if a == "/Library/Application Support/Borgee/borgee-helper.sb" {
 			foundSandbox = true
 		}
-		if a == "/Users/Shared/Borgee/borgee-rootd.sock" {
+		if strings.Contains(a, "/Users/Shared/Borgee/") && strings.HasSuffix(a, "/borgee-rootd.sock") {
 			foundRootdSock = true
 		}
 	}

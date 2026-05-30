@@ -134,7 +134,7 @@ test.describe('Operator UI mints a helper enrollment token (no curl)', () => {
     );
     expect(installCmd, 'install command embeds the rendered token').toContain(`--token ${token}`);
     expect(installCmd, 'install command is the npx one-liner').toContain(
-      'sudo npx @codetreker/borgee-remote-agent install',
+      'npx @codetreker/borgee-remote-agent install',
     );
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '03-reveal.png') });

@@ -2,7 +2,7 @@
 
 // Package uninstall implements the `helper.uninstall` dispatcher executor
 // (#998). Blueprint promise: 装得上卸得掉 — one server-enqueued job tears
-// down the helper's local footprint (binaries, state, runtime, OS user/group,
+// down the helper's local footprint (binaries, state, runtime, service files,
 // systemd / launchd unit) and POSTs a terminal `succeeded` Result. The
 // server-side complete handler (helper_job_queries.CompleteHelperJobForHelper)
 // flips the enrollment to `uninstalled` in the same transaction so the
@@ -16,27 +16,27 @@
 // executor therefore intentionally does NOT issue a stop signal to itself.
 // Cleanup order:
 //
-//	1. systemctl disable / launchctl disable (does not kill us)
-//	2. remove unit / plist file
-//	3. wipe runtime binaries (under /usr/local/lib/borgee/)
-//	4. wipe helper binaries (under /usr/local/bin/)
-//	5. wipe Helper-owned state dirs (queue / status / audit-handoff /
-//	   credential / enrollment-id / device-id) UNLESS preserve_state=true
-//	6. delete OS user/group (userdel / dscl --delete)
-//	7. return terminal `succeeded` with a typed summary of what was removed
+//  1. systemctl disable / launchctl disable (does not kill us)
+//  2. remove unit / plist file
+//  3. wipe user-owned runtime binaries
+//  4. wipe helper binaries when a custom layout explicitly lists them
+//  5. wipe Helper-owned state dirs (queue / status / audit-handoff /
+//     credential / enrollment-id / device-id) UNLESS preserve_state=true
+//  6. delete OS user/group only when a legacy/custom layout explicitly lists one
+//  7. return terminal `succeeded` with a typed summary of what was removed
 //
 // After the dispatcher posts the Result, the daemon exits naturally on the
 // next poll loop iteration (or systemd reaps it on shutdown). Either path
 // leaves the server with the source-of-truth terminal status.
 //
 // Privilege: most cleanup steps require root or CAP_DAC_OVERRIDE. The
-// production helper daemon runs as the system `borgee` user, which
-// does NOT have those caps by default. Therefore the executor uses a
+// production helper daemon runs as the installing user, which does NOT have
+// those caps by default. Therefore the executor uses a
 // SystemCommand interface that defaults to `exec.Command` in production
 // and that tests stub out. When the executor lacks the OS privilege to run
 // `systemctl disable` / `userdel`, those individual steps log a warning and
 // the executor continues — the per-file cleanup it CAN do (state dirs
-// owned by borgee) still happens, and the executor reports the
+// owned by the installing user) still happens, and the executor reports the
 // per-bucket results in the terminal `result_summary`. Operators that need
 // a fully-clean uninstall can wrap borgee with the documented
 // sudoers entry (see README.md).
@@ -49,6 +49,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -108,40 +109,35 @@ type Layout struct {
 // `/usr/local/lib/borgee/bin/borgee` (see internal/cli/install). The
 // RuntimeDir wipe in this executor therefore takes that path with it.
 func DefaultLayout(goos string) Layout {
+	u := currentUserLayout(goos)
 	switch goos {
 	case "linux":
 		return Layout{
 			StateDirs: []string{
-				"/var/lib/borgee/queue",
-				"/var/lib/borgee/status",
-				"/var/lib/borgee/audit-handoff",
-				"/var/lib/borgee/credential",
+				filepath.Join(u.StateRoot, "queue"),
+				filepath.Join(u.StateRoot, "status"),
+				filepath.Join(u.StateRoot, "audit-handoff"),
+				filepath.Join(u.StateRoot, "credential"),
 			},
-			RuntimeDir:           "/usr/local/lib/borgee",
+			RuntimeDir:           filepath.Dir(filepath.Dir(u.BinaryPath)),
 			HelperBinaries:       nil,
-			ServiceUnitPath:      "/etc/systemd/system/borgee.service",
+			ServiceUnitPath:      u.UserUnitPath,
 			ServiceName:          "borgee.service",
-			RootdServiceUnitPath: "/etc/systemd/system/borgee-rootd.service",
-			RootdServiceName:     "borgee-rootd.service",
-			// rootd UDS socket file lives under /run/borgee. tmpfs wipes
-			// it on reboot anyway, but list it explicitly so an
-			// uninstall-then-reinstall on the same boot leaves no stale
-			// socket for the new rootd to trip over.
+			RootdServiceUnitPath: u.RootdServiceDst,
+			RootdServiceName:     u.RootdService,
 			AuxFiles: []string{
-				"/run/borgee/borgee-rootd.sock",
+				u.RootdSocket,
 			},
-			UserName:  "borgee",
-			GroupName: "borgee",
 		}
 	case "darwin":
 		return Layout{
 			StateDirs: []string{
-				"/Library/Application Support/Borgee/Helper/QueueState",
-				"/Library/Application Support/Borgee/Helper/StatusState",
-				"/Library/Application Support/Borgee/Helper/AuditHandoff",
-				"/Library/Application Support/Borgee/Helper/credential",
+				filepath.Join(u.StateRoot, "QueueState"),
+				filepath.Join(u.StateRoot, "StatusState"),
+				filepath.Join(u.StateRoot, "AuditHandoff"),
+				filepath.Join(u.StateRoot, "credential"),
 			},
-			RuntimeDir:     "/usr/local/libexec/borgee",
+			RuntimeDir:     filepath.Dir(filepath.Dir(u.BinaryPath)),
 			HelperBinaries: nil,
 			// Sandbox profile path (written by the internal setup helper
 			// invoked from `borgee install`) lives outside
@@ -151,17 +147,67 @@ func DefaultLayout(goos string) Layout {
 			// socket.
 			AuxFiles: []string{
 				"/Library/Application Support/Borgee/borgee-helper.sb",
-				"/Users/Shared/Borgee/borgee-rootd.sock",
+				u.RootdSocket,
 			},
-			ServiceUnitPath:      "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist",
+			ServiceUnitPath:      u.UserUnitPath,
 			ServiceName:          "cloud.borgee.host-bridge",
-			RootdServiceUnitPath: "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.plist",
-			RootdServiceName:     "cloud.borgee.host-bridge.rootd",
-			UserName:             "_borgee",
-			GroupName:            "_borgee",
+			RootdServiceUnitPath: u.RootdServiceDst,
+			RootdServiceName:     u.RootdService,
 		}
 	default:
 		return Layout{}
+	}
+}
+
+type userLayout struct {
+	UID             int
+	GID             int
+	HomeDir         string
+	BinaryPath      string
+	StateRoot       string
+	UserUnitPath    string
+	RootdSocket     string
+	RootdService    string
+	RootdServiceDst string
+}
+
+func currentUserLayout(goos string) userLayout {
+	u, err := user.Current()
+	home := "/root"
+	uid := 0
+	gid := 0
+	if err == nil {
+		home = u.HomeDir
+		_, _ = fmt.Sscanf(u.Uid, "%d", &uid)
+		_, _ = fmt.Sscanf(u.Gid, "%d", &gid)
+	}
+	switch goos {
+	case "darwin":
+		stateRoot := filepath.Join(home, "Library", "Application Support", "Borgee", "Helper")
+		return userLayout{
+			UID:             uid,
+			GID:             gid,
+			HomeDir:         home,
+			BinaryPath:      filepath.Join(home, "Library", "Application Support", "Borgee", "bin", "borgee"),
+			StateRoot:       stateRoot,
+			UserUnitPath:    filepath.Join(home, "Library", "LaunchAgents", "cloud.borgee.host-bridge.plist"),
+			RootdSocket:     filepath.Join("/Users/Shared/Borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
+			RootdService:    "cloud.borgee.host-bridge.rootd." + fmt.Sprintf("%d", uid),
+			RootdServiceDst: "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd." + fmt.Sprintf("%d", uid) + ".plist",
+		}
+	default:
+		stateRoot := filepath.Join(home, ".local", "state", "borgee")
+		return userLayout{
+			UID:             uid,
+			GID:             gid,
+			HomeDir:         home,
+			BinaryPath:      filepath.Join(home, ".local", "share", "borgee", "bin", "borgee"),
+			StateRoot:       stateRoot,
+			UserUnitPath:    filepath.Join(home, ".config", "systemd", "user", "borgee.service"),
+			RootdSocket:     filepath.Join("/run/borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
+			RootdService:    fmt.Sprintf("borgee-rootd-%d.service", uid),
+			RootdServiceDst: filepath.Join("/etc/systemd/system", fmt.Sprintf("borgee-rootd-%d.service", uid)),
+		}
 	}
 }
 
@@ -256,9 +302,9 @@ type uninstallPayload struct {
 // error detail. Operators reading the server-recorded result can tell
 // exactly which steps the helper completed before exit.
 type resultSummary struct {
-	Buckets    []bucketResult `json:"buckets"`
-	Platform   string         `json:"platform"`
-	PreservedState bool       `json:"preserved_state"`
+	Buckets        []bucketResult `json:"buckets"`
+	Platform       string         `json:"platform"`
+	PreservedState bool           `json:"preserved_state"`
 }
 
 type bucketResult struct {

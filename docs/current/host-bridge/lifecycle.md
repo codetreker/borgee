@@ -24,20 +24,21 @@ through the `@codetreker/borgee-remote-agent` npm package (chore/npm-bundle-rewo
 Operator one-line path on a fresh host:
 
 ```
-sudo npx @codetreker/borgee-remote-agent install \
+npx @codetreker/borgee-remote-agent install \
   --server wss://borgee.codetrek.cn \
   --token <enrollment_id>.<enrollment_secret>
 ```
 
-That single command does: sudo + platform pre-flight → copy the running
-`borgee` binary (from npx's cache) to `/usr/local/lib/borgee/bin/borgee`
-(Linux) or `/usr/local/libexec/borgee/borgee` (macOS) → internal `setup`
-helper (systemd unit / launchd plist + system user + state dirs) →
+That single command does: platform/install-user pre-flight → copy the running
+`borgee` binary (from npx's cache) to the install user's persistent Borgee
+binary path → internal `setup`
+helper (user systemd unit / launchd plist + user-owned state dirs) →
 internal `claim` helper (POST `/api/v1/helper/enrollments/{id}/claim`
-with the parsed enrollment_secret + a stable helper_device_id) →
-`systemctl enable --now borgee.service` (Linux) / `launchctl bootstrap
-system <plist>` (macOS) → wait up to `--heartbeat-timeout` (default 30s)
-for first heartbeat.
+with the parsed enrollment_secret + a stable helper_device_id) → sudo stage
+for rootd install/start and Linux `loginctl enable-linger <user>` →
+`systemctl --user enable --now borgee.service` (Linux) / user launchd
+bootstrap (macOS) → wait up to `--heartbeat-timeout` (default 30s) for first
+heartbeat.
 
 `setup` and `claim` are NOT public subcommands of the `borgee` binary
 (issue #1055 dropped them from the dispatch table because bare `setup`
@@ -53,12 +54,13 @@ Host-bridge subcommands reached through the package default CLI:
 
 - `install` — one-shot operator bootstrap (the wrapper above).
 - `uninstall-host` — operator-driven local cleanup mirror.
-- `daemon` — long-lived host-bridge daemon (started by systemd / launchd).
-- `rootd` — long-lived root-privileged companion daemon (started by
-  systemd / launchd as a separate unit, `User=root`). Listens on a local
-  UDS, accepts only a hardcoded command whitelist, executed via IPC by
-  the main daemon. Defense-in-depth: the WS-facing main daemon does not
-  hold root; rootd's command set is narrow + audited. See
+- `daemon` — long-lived host-bridge daemon (started by the installing user's systemd / launchd service).
+- `rootd` — long-lived root-privileged companion daemon (started by systemd /
+  launchd as a separate root unit bound to the installing UID). Listens on a
+  local UDS, accepts only a hardcoded command whitelist, and requires peer uid
+  equality with the installing user before executing IPC forwarded by the main
+  daemon. Defense-in-depth: the WS-facing main daemon does not hold root;
+  rootd's command set is narrow + audited. See
   [`docs/blueprint/current/host-bridge.md`](../../blueprint/current/host-bridge.md)
   §1.1 (two-process privilege separation) and
   [`helper-daemon.md`](helper-daemon.md) (Privilege Separation section)
@@ -74,12 +76,9 @@ Host-bridge subcommands reached through the package default CLI:
 
 Internal helpers invoked by `install` (NOT public CLI surface):
 
-- `internal/cli/setup` — writes the systemd unit / launchd plist + sandbox
-  profile, creates the system user (`borgee` Linux, `_borgee` macOS),
-  creates the Helper-owned state directories
-  (`/var/lib/borgee/{queue,status,audit-handoff,credential}` Linux,
-  `/Library/Application Support/Borgee/Helper/...` macOS), and
-  pre-creates the persistent binary dir (`/usr/local/lib/borgee/bin/`).
+- `internal/cli/setup` — writes the user systemd unit / launchd plist +
+  sandbox profile, creates user-owned Helper state directories under the
+  install user's home, and pre-creates the persistent user binary dir.
   Does NOT auto-start; `install` issues the start after claim.
 - `internal/cli/claim` — one-time enrollment claim. Derives a stable
   `helper_device_id` (Linux `/etc/machine-id`, macOS `IOPlatformUUID`,
@@ -87,15 +86,12 @@ Internal helpers invoked by `install` (NOT public CLI surface):
   `/api/v1/helper/enrollments/{id}/claim` with body
   `{"enrollment_secret":..., "helper_device_id":...}`, and persists the
   three files the daemon reads on next start (`credential` mode 0600,
-  `enrollment-id`, `device-id`) under `/var/lib/borgee/credential/`
-  (Linux) or `/Library/Application Support/Borgee/Helper/credential/`
-  (macOS). Defaults updated in chore/install-onecmd (#1017 bug 1 fix)
-  to match the daemon's expected directory layout.
+  `enrollment-id`, `device-id`) under the install user's Borgee state
+  credential directory.
 
 After the claim step inside `install` completes the daemon either picks
-up the new credential files on next start (Linux `sudo systemctl restart
-borgee` / macOS `sudo launchctl kickstart -k
-system/cloud.borgee.host-bridge`) or at next reboot. `enrollment_secret`
+up the new credential files on next start (Linux `systemctl --user restart
+borgee` / macOS user launchd kickstart) or at next reboot. `enrollment_secret`
 is short-lived (15-minute TTL — see
 [`helper_enrollment_queries.go`](../../../packages/server-go/internal/store/helper_enrollment_queries.go))
 and never leaves the operator's session.
@@ -104,19 +100,18 @@ and never leaves the operator's session.
 
 1. PID 1 systemd reaches `multi-user.target` (the standard non-graphical
    boot target — graphical `default.target` is *not* a prerequisite).
-2. `borgee.service` declares `WantedBy=multi-user.target` and was
-   linked into that target's `.wants` set when the installer ran
-   `systemctl enable borgee.service`. systemd therefore starts the
-   unit as part of the target.
+2. The installer runs `loginctl enable-linger <user>` during the sudo stage.
+   The user's systemd manager can therefore start at boot without an active
+   login session. `~/.config/systemd/user/borgee.service` declares
+   `WantedBy=default.target` and is enabled with `systemctl --user enable`.
 3. Ordering directives `After=network-online.target` +
    `Wants=network-online.target` keep the start from racing the network
    layer, so the helper does not crash-loop just because routes are not
    ready yet.
 4. The unit runs `Type=simple` — systemd considers the service started
    as soon as `ExecStart=` exec's, with no daemonisation handshake.
-5. The daemon then opens `/var/lib/borgee/server.db` (read-only, via
-   `ReadOnlyPaths=/var/lib/borgee`) for `host_grants`. That DB is owned
-   by system root/`borgee`; no user session is involved.
+5. The daemon then opens the install user's Borgee `server.db` read-only for
+   `host_grants`. No dedicated `borgee` OS user is involved.
 6. `cmd/borgee/main.go::run` continues with:
    `outbound.ValidateAndPrepare(...)` (validates `--outbound-server-origin`
    against the `--outbound-allowed-origins` allowlist and sets up state
@@ -269,8 +264,7 @@ End-to-end:
        - disables `borgee.service` (Linux) or
          `cloud.borgee.host-bridge` (macOS),
        - removes the credential trio at the well-known daemon paths
-         (`/var/lib/borgee/credential/{credential,enrollment-id,
-         device-id}` on Linux).
+         under the install user's Borgee state credential directory.
    - returns `dispatch.StatusSucceeded` so the dispatcher's WS Result
      frame fires BEFORE the daemon process dies.
 6. The dispatcher posts `/result` with the terminal status. The daemon
@@ -282,15 +276,14 @@ End-to-end:
 A re-enrollment on the same machine can fast-path: binaries and state
 dirs are still in place, so the operator only needs to re-run
 `npx ... install` with a fresh token from the web UI — `install` is
-idempotent and re-issues the claim without recreating
-the system user or wiping state dirs.
+idempotent and re-issues the claim without wiping state dirs.
 
 | | `delegation.revoke` | `helper.uninstall` |
 |---|---|---|
 | credential wipe | yes | yes |
 | state-dir wipe | NO (forensic preserve) | yes (unless `preserve_state`) |
 | binary wipe | NO | yes |
-| OS user delete | NO | yes |
+| OS user delete | NO | NO |
 | service disable | yes | yes |
 | can re-enroll on same machine without reinstall | yes | NO |
 
@@ -298,7 +291,7 @@ the system user or wiping state dirs.
 
 A third daemon goroutine — `updatecheck.Checker` — runs alongside the
 heartbeater + dispatcher. Every ~15 minutes it reads
-`/var/lib/borgee/installed-versions.json` (written by
+the install user's Borgee installed-versions snapshot (written by
 `install-plugin`) and POSTs the snapshot to
 `POST /api/v1/helper/enrollments/{id}/installed-versions`. The server
 computes drift against the current signed manifest and returns a
@@ -316,8 +309,8 @@ flags. That leaked `enrollment_id` to anyone with `ps` access via
 
 - The systemd unit and launchd plist pass only *file paths* on the
   cmdline (which are operationally safe to disclose).
-- The actual values live in `StateDirectory=borgee` (Linux) or
-  the Helper Application Support dir (macOS), with 0644 perms for
+- The actual values live in the install user's Borgee state directory, with
+  0644 perms for
   enrollment/device id and 0600 for the credential.
 - The daemon reads each file at startup; an empty or missing file
   collapses to `(nil, false)` and skips the heartbeat without
@@ -370,11 +363,12 @@ in
 
 ## macOS equivalents
 
-The plist installs to `/Library/LaunchDaemons/` — a *LaunchDaemon*, not a
-*LaunchAgent*. LaunchDaemons run under launchd's system domain and load
-before any user logs in; LaunchAgents would only load inside a user
-session and would defeat the "no user login" requirement (the installer
-deploy plan test guards against an accidental switch).
+The main plist installs to the user's `~/Library/LaunchAgents/` and runs as
+the installing user. The rootd companion remains a root LaunchDaemon under
+`/Library/LaunchDaemons/`. macOS does not provide the same linger mechanism as
+Linux user services; the main daemon starts when the user's launchd domain is
+available. Rootd is available at boot and remains UID-gated to the installing
+user.
 
 - `RunAtLoad=true` — equivalent to `WantedBy=multi-user.target` +
   `systemctl start`; launchd starts the daemon as soon as the LaunchDaemon
@@ -384,31 +378,19 @@ deploy plan test guards against an accidental switch).
 - `ThrottleInterval=10` — equivalent to `RestartSec=10s`; launchd waits
   at least 10s between respawns. macOS does not expose a direct burst cap
   the way systemd does, but the throttle prevents a spin loop.
-- Run user: `UserName=_borgee` (system-only `_` prefix), again
-  ensuring no user session is required.
-
-Install form: the installer's `DarwinPlan` invokes
-`sudo launchctl load /Library/LaunchDaemons/cloud.borgee.host-bridge.plist`
-to register the LaunchDaemon. `launchctl load` is the form currently
-used (see `deploy.go::DarwinPlan` and `deploy_test.go::TestHB1B_DarwinPlan_HasSudoAndLaunchd`).
-The modern alternative is `launchctl bootstrap system /Library/LaunchDaemons/cloud.borgee.host-bridge.plist`
-(supported since 10.10, deprecated `load` in favor of the domain-aware
-form). Switching to `bootstrap system` is a follow-up — it would tighten
-error reporting on macOS 11+ but does not affect the reboot/crash
-survival contract this doc is locking, so it is intentionally deferred.
+- Run user: the installing user for the main daemon; `root` for rootd.
+- Install form: the installer uses user-domain launchctl for the main daemon
+  and sudo only for the rootd LaunchDaemon.
 
 ## Persisted vs ephemeral state
 
 Survives reboot and crash:
 
-- Host grants DB (`/var/lib/borgee/server.db` Linux,
-  `/Library/Application Support/Borgee/server.db` macOS) — read-only to
-  the helper, owned by the system, populated by the installer / OpenClaw
-  configure flow.
+- Host grants DB under the install user's Borgee state directory — read-only
+  to the helper after setup, populated by the installer / OpenClaw configure
+  flow.
 - Queue, status, and audit-handoff state directories
-  (`/var/lib/borgee/{queue,status,audit-handoff}` Linux,
-  `/Library/Application Support/Borgee/Helper/{QueueState,StatusState,AuditHandoff}`
-  macOS) — Helper-owned, append/replay safe.
+  under the install user's Borgee state directory — append/replay safe.
 
 Does *not* survive (intentionally ephemeral):
 
@@ -417,14 +399,13 @@ Does *not* survive (intentionally ephemeral):
 
 ## Why no user login is required
 
-- Linux: `User=borgee` / `Group=borgee` is a *system* user
-  (created by the `.deb` postinst, UID < 1000). `loginctl enable-linger`
-  is **not** needed because systemd PID 1 starts system units directly
-  via `multi-user.target`; `enable-linger` is only relevant to user-mode
-  systemd instances under `--user`.
-- macOS: `_borgee` is a system role account (`_` prefix); launchd
-  starts the LaunchDaemon in the system domain at boot. No Aqua / Finder
-  session, no console login, no SSH session is required.
+- Linux: the installer runs `loginctl enable-linger <user>` during the sudo
+  stage, then enables `borgee.service` in the user's systemd manager. The
+  daemon can therefore start before an interactive login.
+- macOS: the main daemon is user-domain launchd; rootd is system-domain
+  launchd and UID-gated. A stronger pre-login macOS main-daemon story would
+  require a system LaunchDaemon with `UserName=<install user>`, which is a
+  separate design decision.
 
 ## Windows
 
