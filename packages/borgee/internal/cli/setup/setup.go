@@ -36,15 +36,11 @@ import (
 )
 
 const (
-	// linuxBinaryPath — the persistent on-disk path the systemd unit's
-	// ExecStart refers to. `borgee install` copies the running borgee
-	// binary (typically from npx's cache) to this location so the daemon
-	// survives npx cache eviction. `/usr/local/bin/borgee` (if present
-	// from `npm i -g`) is an npm-owned symlink that the daemon does NOT
-	// depend on — keeping the persistent binary under `/usr/local/lib/`
-	// also sidesteps the #1017 bug 3 symlink-vs-real-binary confusion.
-	linuxBinaryPath = "/usr/local/lib/borgee/bin/borgee"
-	linuxRuntimeDir = "/usr/local/lib/borgee"
+	// linuxBinaryPath is the shared root-owned binary used by both the
+	// user-level main daemon and the rootd companion. The services do not
+	// depend on npx's temporary cache or npm's global shim.
+	linuxBinaryPath = "/usr/local/borgee/bin/borgee"
+	linuxRuntimeDir = "/usr/local/borgee"
 	linuxStateRoot  = "/var/lib/borgee"
 	linuxLogDir     = "/var/log/borgee"
 	linuxRunDir     = "/run/borgee"
@@ -66,10 +62,9 @@ const (
 	darwinLogDir     = "/Library/Logs/Borgee"
 	darwinPlistDst   = "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist"
 	darwinSandboxDst = "/Library/Application Support/Borgee/borgee-helper.sb"
-	// macOS persistent binary path. Mirror of linuxBinaryPath. Apple
-	// convention uses `libexec` for per-product helper binaries.
-	darwinBinaryPath      = "/usr/local/libexec/borgee/borgee"
-	darwinRuntimeDir      = "/usr/local/libexec/borgee"
+	// macOS persistent binary path. Same shared-binary contract as Linux.
+	darwinBinaryPath      = "/usr/local/borgee/bin/borgee"
+	darwinRuntimeDir      = "/usr/local/borgee"
 	darwinPlistLabel      = "cloud.borgee.host-bridge"
 	darwinUDS             = "/Users/Shared/Borgee/borgee.sock"
 	darwinAuditLog        = "/Library/Logs/Borgee/audit.log.jsonl"
@@ -90,6 +85,7 @@ type UserLayout struct {
 	GID             int
 	HomeDir         string
 	BinaryPath      string
+	InstallPrefix   string
 	StateRoot       string
 	LogDir          string
 	ConfigDir       string
@@ -103,20 +99,26 @@ type UserLayout struct {
 }
 
 func LinuxUserLayout(username string, uid, gid int, homeDir string) UserLayout {
+	return LinuxUserLayoutWithInstallPrefix(username, uid, gid, homeDir, linuxRuntimeDir)
+}
+
+func LinuxUserLayoutWithInstallPrefix(username string, uid, gid int, homeDir string, installPrefix string) UserLayout {
 	stateRoot := filepath.Join(homeDir, ".local", "state", "borgee")
+	binaryPath := filepath.Join(installPrefix, "bin", "borgee")
 	return UserLayout{
 		Username:        username,
 		UID:             uid,
 		GID:             gid,
 		HomeDir:         homeDir,
-		BinaryPath:      filepath.Join(homeDir, ".local", "share", "borgee", "bin", "borgee"),
+		BinaryPath:      binaryPath,
+		InstallPrefix:   installPrefix,
 		StateRoot:       stateRoot,
 		LogDir:          filepath.Join(stateRoot, "log"),
 		ConfigDir:       filepath.Join(homeDir, ".config", "systemd", "user"),
 		UserUnitPath:    filepath.Join(homeDir, ".config", "systemd", "user", "borgee.service"),
 		UserSocket:      "%t/borgee/borgee.sock",
 		RootdSocket:     filepath.Join("/run/borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
-		RootdBinaryPath: filepath.Join("/usr/local/lib/borgee/rootd", fmt.Sprintf("%d", uid), "borgee"),
+		RootdBinaryPath: binaryPath,
 		RootdService:    fmt.Sprintf("borgee-rootd-%d.service", uid),
 		RootdServiceDst: filepath.Join("/etc/systemd/system", fmt.Sprintf("borgee-rootd-%d.service", uid)),
 		ServerDSN:       "file:" + filepath.Join(stateRoot, "server.db") + "?mode=ro&_busy_timeout=5000",
@@ -124,20 +126,26 @@ func LinuxUserLayout(username string, uid, gid int, homeDir string) UserLayout {
 }
 
 func DarwinUserLayout(username string, uid, gid int, homeDir string) UserLayout {
+	return DarwinUserLayoutWithInstallPrefix(username, uid, gid, homeDir, darwinRuntimeDir)
+}
+
+func DarwinUserLayoutWithInstallPrefix(username string, uid, gid int, homeDir string, installPrefix string) UserLayout {
 	stateRoot := filepath.Join(homeDir, "Library", "Application Support", "Borgee", "Helper")
+	binaryPath := filepath.Join(installPrefix, "bin", "borgee")
 	return UserLayout{
 		Username:        username,
 		UID:             uid,
 		GID:             gid,
 		HomeDir:         homeDir,
-		BinaryPath:      filepath.Join(homeDir, "Library", "Application Support", "Borgee", "bin", "borgee"),
+		BinaryPath:      binaryPath,
+		InstallPrefix:   installPrefix,
 		StateRoot:       stateRoot,
 		LogDir:          filepath.Join(homeDir, "Library", "Logs", "Borgee"),
 		ConfigDir:       filepath.Join(homeDir, "Library", "LaunchAgents"),
 		UserUnitPath:    filepath.Join(homeDir, "Library", "LaunchAgents", "cloud.borgee.host-bridge.plist"),
 		UserSocket:      filepath.Join(homeDir, "Library", "Application Support", "Borgee", "borgee.sock"),
 		RootdSocket:     filepath.Join("/Users/Shared/Borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
-		RootdBinaryPath: filepath.Join("/usr/local/libexec/borgee/rootd", fmt.Sprintf("%d", uid), "borgee"),
+		RootdBinaryPath: binaryPath,
 		RootdService:    "cloud.borgee.host-bridge.rootd." + fmt.Sprintf("%d", uid),
 		RootdServiceDst: "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd." + fmt.Sprintf("%d", uid) + ".plist",
 		ServerDSN:       "file:" + filepath.Join(stateRoot, "server.db") + "?mode=ro&_busy_timeout=5000",
@@ -181,6 +189,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	installUID := fs.Int("install-uid", -1, "UID that owns the main daemon service")
 	installGID := fs.Int("install-gid", -1, "Primary GID that owns the main daemon service")
 	installHome := fs.String("install-home", "", "Home directory for user-owned Borgee state and service files")
+	installPrefix := fs.String("install-prefix", "", "Shared root-owned Borgee install prefix (default /usr/local/borgee)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -194,7 +203,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 		return errors.New("insecure server origin")
 	}
 
-	layout, err := layoutForCurrentPlatform(*installUsername, *installUID, *installGID, *installHome)
+	layout, err := layoutForCurrentPlatform(*installUsername, *installUID, *installGID, *installHome, *installPrefix)
 	if err != nil {
 		return err
 	}
@@ -209,7 +218,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	}
 }
 
-func layoutForCurrentPlatform(username string, uid, gid int, homeDir string) (UserLayout, error) {
+func layoutForCurrentPlatform(username string, uid, gid int, homeDir string, installPrefix string) (UserLayout, error) {
 	if username == "" || uid < 0 || gid < 0 || homeDir == "" {
 		u, err := user.Current()
 		if err != nil {
@@ -237,7 +246,13 @@ func layoutForCurrentPlatform(username string, uid, gid int, homeDir string) (Us
 		}
 	}
 	if runtime.GOOS == "darwin" {
+		if installPrefix != "" {
+			return DarwinUserLayoutWithInstallPrefix(username, uid, gid, homeDir, installPrefix), nil
+		}
 		return DarwinUserLayout(username, uid, gid, homeDir), nil
+	}
+	if installPrefix != "" {
+		return LinuxUserLayoutWithInstallPrefix(username, uid, gid, homeDir, installPrefix), nil
 	}
 	return LinuxUserLayout(username, uid, gid, homeDir), nil
 }
@@ -261,20 +276,12 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, layout UserLayout, 
 			}
 		}
 	}
-	for _, p := range []string{layout.LogDir, filepath.Dir(layout.UserUnitPath), filepath.Dir(layout.BinaryPath)} {
+	for _, p := range []string{layout.LogDir, filepath.Dir(layout.UserUnitPath)} {
 		logStep("mkdir " + p)
 		if !dryRun {
 			if err := os.MkdirAll(p, 0o750); err != nil {
 				return fmt.Errorf("mkdir %s: %w", p, err)
 			}
-		}
-	}
-
-	runtimeBinDir := filepath.Dir(layout.BinaryPath)
-	logStep("mkdir " + runtimeBinDir)
-	if !dryRun {
-		if err := os.MkdirAll(runtimeBinDir, 0o755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", runtimeBinDir, err)
 		}
 	}
 
@@ -343,7 +350,6 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, layout UserLayout,
 		filepath.Join(layout.HomeDir, "Library", "Application Support", "Borgee", "openclaw"),
 		filepath.Join(layout.HomeDir, "Library", "Application Support", "Borgee", "plugins"),
 		filepath.Join(layout.HomeDir, "Library", "Application Support", "Borgee", "state"),
-		filepath.Dir(layout.BinaryPath),
 	} {
 		logStep("mkdir " + p)
 		if !dryRun {
@@ -494,7 +500,7 @@ func renderLinuxUnit(serverOrigin string) string {
 // hardening profile because rootd does not need network access at all.
 //
 // ReadWritePaths covers what PR-4 root commands will need to write to
-// (install_plugin → /usr/local/lib/borgee, service_lifecycle → systemd
+// (install_plugin → /usr/local/borgee, service_lifecycle → systemd
 // units, delegation_revoke → /var/lib/borgee). We set this now so PR-4
 // can extend the whitelist without needing to change the unit; the
 // systemd-level hardening is independent of which commands are exposed.
@@ -549,7 +555,7 @@ RuntimeDirectoryMode=0750
 
 # PR-4 commands write to these paths. Setting them now so PR-4 does not
 # need to ship a unit change alongside the executor code.
-ReadWritePaths=` + filepath.Dir(layout.RootdSocket) + ` ` + filepath.Dir(layout.RootdBinaryPath) + ` ` + layout.StateRoot + ` /etc/systemd/system
+ReadWritePaths=` + filepath.Dir(layout.RootdSocket) + ` ` + filepath.Dir(filepath.Dir(layout.RootdBinaryPath)) + ` ` + layout.StateRoot + ` /etc/systemd/system
 
 Restart=on-failure
 RestartSec=10s

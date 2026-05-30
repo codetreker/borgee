@@ -29,9 +29,10 @@ npx @codetreker/borgee-remote-agent install \
   --token <enrollment_id>.<enrollment_secret>
 ```
 
-That single command does: platform/install-user pre-flight → copy the running
-`borgee` binary (from npx's cache) to the install user's persistent Borgee
-binary path → internal `setup`
+That single command does: platform/install-user pre-flight → sudo-install the
+running `borgee` binary (from npx's cache) once to
+`<install-prefix>/bin/borgee` (`/usr/local/borgee/bin/borgee` by default) →
+internal `setup`
 helper (user systemd unit / launchd plist + user-owned state dirs) →
 internal `claim` helper (POST `/api/v1/helper/enrollments/{id}/claim`
 with the parsed enrollment_secret + a stable helper_device_id) → sudo stage
@@ -77,8 +78,9 @@ Host-bridge subcommands reached through the package default CLI:
 Internal helpers invoked by `install` (NOT public CLI surface):
 
 - `internal/cli/setup` — writes the user systemd unit / launchd plist +
-  sandbox profile, creates user-owned Helper state directories under the
-  install user's home, and pre-creates the persistent user binary dir.
+  sandbox profile and creates user-owned Helper state directories under the
+  install user's home. The shared binary path is `<install-prefix>/bin/borgee`
+  and is used by both the main user service and rootd.
   Does NOT auto-start; `install` issues the start after claim.
 - `internal/cli/claim` — one-time enrollment claim. Derives a stable
   `helper_device_id` (Linux `/etc/machine-id`, macOS `IOPlatformUUID`,

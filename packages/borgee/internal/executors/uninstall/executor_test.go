@@ -397,7 +397,7 @@ func TestDefaultLayout_LinuxPostRename(t *testing.T) {
 			t.Fatalf("missing state dir suffix %q in %v", suffix, l.StateDirs)
 		}
 	}
-	if !strings.HasSuffix(l.RuntimeDir, "/.local/share/borgee") {
+	if l.RuntimeDir != "/usr/local/borgee" {
 		t.Fatalf("runtime dir = %q", l.RuntimeDir)
 	}
 	// `HelperBinaries` must be empty — `/usr/local/bin/borgee` is an
@@ -423,7 +423,7 @@ func TestDefaultLayout_DarwinPostRename(t *testing.T) {
 	if l.ServiceName != "cloud.borgee.host-bridge" {
 		t.Fatalf("darwin service name = %q", l.ServiceName)
 	}
-	if !strings.Contains(l.RuntimeDir, "/Library/Application Support/Borgee") {
+	if l.RuntimeDir != "/usr/local/borgee" {
 		t.Fatalf("darwin runtime dir = %q", l.RuntimeDir)
 	}
 	// rootd-skeleton: DefaultLayout must include the rootd companion
