@@ -8,5 +8,4 @@ set -e
 export TMPDIR="${TMPDIR:-/tmp/go-test}"
 mkdir -p "$TMPDIR"
 cd "$(dirname "$0")/.."
-go test -timeout=120s -coverprofile=coverage.out -coverpkg=borgee-server/internal/api,borgee-server/internal/auth,borgee-server/internal/config,borgee-server/internal/store,borgee-server/internal/ws,borgee-server/internal/server ./...
-go tool cover -func=coverage.out | tail -1
+COVERPROFILE="${COVERPROFILE:-coverage.out}" go run github.com/codetreker/go-cov/cmd/go-cov@v0.1.0

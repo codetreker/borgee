@@ -14,16 +14,8 @@ precheck:
 	mkdir -p "$$tmp_dir/go-build"; \
 	cd packages/server-go && env \
 		GOTMPDIR="$$tmp_dir/go-build" \
-		THRESHOLD_TOTAL=85 \
-		THRESHOLD_FUNC=50 \
-		THRESHOLD_PACKAGE=70 \
-		THRESHOLD_PRINT=85 \
-		BUILD_TAGS="sqlite_fts5 race_heavy" \
 		COVERPROFILE="$$tmp_dir/coverage.out" \
-		FAIL_ON_CRITICAL_BLOCKS=false \
-		GENERATE_HTML=false \
-		RACE_DETECTION=false \
-		go run ./scripts/lib/coverage/
+		go run github.com/codetreker/go-cov/cmd/go-cov@v0.1.0
 	@echo "==> client vitest"
 	@cd packages/client && ./node_modules/.bin/vitest run --reporter=dot --testTimeout=10000
 	@echo "==> typecheck"

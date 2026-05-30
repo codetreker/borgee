@@ -26,12 +26,10 @@ vet:
 	go vet -tags "$(GOTAGS)" ./...
 
 coverage:
-	go test -tags "$(GOTAGS)" ./... -race -coverprofile=coverage.out
-	go tool cover -func=coverage.out | tail -1
+	./scripts/coverage.sh
 
 coverage-html:
-	go test -tags "$(GOTAGS)" ./... -coverprofile=coverage.out
-	go tool cover -html=coverage.out -o coverage.html
+	GENERATE_HTML=true HTML_OUT=coverage.html ./scripts/coverage.sh
 
 # regression — runs every test registered via internal/testutil/regression.
 # Closed milestones add a blank import in regression_suite/suite_test.go so
