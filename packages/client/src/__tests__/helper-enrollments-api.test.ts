@@ -144,7 +144,7 @@ describe('createHelperEnrollment (operator UI mint)', () => {
         enrollment_secret_expires_at: 1778839900000 + 15 * 60 * 1000,
         enrollment_token: 'enr-new-1.super-secret-shown-once',
         install_command:
-          'sudo npx @codetreker/borgee-remote-agent install --server wss://borgee.example.com --token enr-new-1.super-secret-shown-once',
+          'npx @codetreker/borgee-remote-agent install --server wss://borgee.example.com --token enr-new-1.super-secret-shown-once',
       });
     });
     vi.stubGlobal('fetch', fetchMock);

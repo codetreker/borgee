@@ -35,8 +35,8 @@ import (
 	"borgee/internal/executors/pluginconfigure"
 	"borgee/internal/executors/pluginremove"
 	"borgee/internal/executors/servicelifecycle"
-	"borgee/internal/executors/statuscollect"
 	"borgee/internal/executors/statewrite"
+	"borgee/internal/executors/statuscollect"
 	"borgee/internal/executors/uninstall"
 	"borgee/internal/grants"
 	"borgee/internal/ipc"
@@ -69,6 +69,7 @@ func Run(args []string, _ io.Writer, stderr io.Writer) error {
 	enrollmentIDFile := fs.String("enrollment-id-file", "", "Path to file containing the helper enrollment id (#968 heartbeat producer config)")
 	helperDeviceIDFile := fs.String("helper-device-id-file", "", "Path to file containing the helper device id bound at claim (#968 heartbeat)")
 	helperCredentialFile := fs.String("helper-credential-file", "", "Path to file containing the helper credential (Bearer token) issued at claim; readable only by helper user (#968 heartbeat)")
+	rootdSocket := fs.String("rootd-socket", rootdclient.DefaultSocket(), "UDS path for the root-privileged companion daemon")
 	allowLoopbackOutbound := fs.Bool("allow-loopback-outbound", false, "Permit http:// loopback as --outbound-server-origin (e2e tests only; production daemon always uses https)")
 	allowedStateRoots := fs.String("allowed-state-roots", "", "Comma-separated list of allowed parent directories for queue/status/audit-handoff state dirs; empty defaults to platform helper state root (production default; e2e tests override)")
 	if err := fs.Parse(args); err != nil {
@@ -82,10 +83,10 @@ func Run(args []string, _ io.Writer, stderr io.Writer) error {
 		StatusStateDir:  *statusStateDir,
 		AuditHandoffDir: *auditHandoffDir,
 	}
-	return run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq, *enrollmentIDFile, *helperDeviceIDFile, *helperCredentialFile, *allowLoopbackOutbound, *allowedStateRoots)
+	return run(*socket, *auditLog, *grantsDSN, *readPathsFlag, outboundPrereq, *enrollmentIDFile, *helperDeviceIDFile, *helperCredentialFile, *rootdSocket, *allowLoopbackOutbound, *allowedStateRoots)
 }
 
-func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile string, allowLoopbackOutbound bool, allowedStateRoots string) error {
+func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbound.PrereqConfig, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile string, rootdSocket string, allowLoopbackOutbound bool, allowedStateRoots string) error {
 	// Audit log writer (forward-only, JSON-line).
 	logFile, err := os.OpenFile(auditLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -166,7 +167,7 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 	// WS dial requires credential + device id + enrollment id, which
 	// the operator populates by running `borgee install` (which invokes
 	// the internal `claim` helper).
-	if dp, ok := buildDispatcher(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile); ok {
+	if dp, ok := buildDispatcher(preparedOutbound, enrollmentIDFile, helperDeviceIDFile, helperCredentialFile, rootdSocket); ok {
 		log.Printf("borgee-helper: dispatcher enabled enrollment_id=%s (WS transport)", dp.EnrollmentID)
 		go func() {
 			if err := dp.Run(ctx); err != nil {
@@ -253,7 +254,7 @@ func splitCSV(s string) []string {
 //
 // All three inputs are *file paths* (not raw values): keeping secrets
 // out of the cmdline avoids /proc/PID/cmdline leakage.
-func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string) (*dispatch.Dispatcher, bool) {
+func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDeviceIDFile, credentialFile string, rootdSocket string) (*dispatch.Dispatcher, bool) {
 	if !prep.Enabled {
 		return nil, false
 	}
@@ -286,7 +287,7 @@ func buildDispatcher(prep outbound.PreparedConfig, enrollmentIDFile, helperDevic
 	// install_plugin / service.lifecycle / delegation.revoke executors
 	// dial this client to forward root-requiring operations into the
 	// privileged `borgee rootd` companion daemon.
-	rootd := &rootdclient.Client{SocketPath: rootdclient.DefaultSocket()}
+	rootd := &rootdclient.Client{SocketPath: rootdSocket}
 	dispatcher := &dispatch.Dispatcher{
 		Client:          client,
 		EnrollmentID:    enrollmentID,

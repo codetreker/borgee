@@ -3,21 +3,19 @@
 // Package setup — `borgee setup` subcommand.
 //
 // Replaces the .deb / .pkg postinstall scripts that the prior nfpm-based
-// distribution used. After `npm i -g @codetreker/borgee-remote-agent` placed
-// the `borgee` binary on PATH, the operator runs `sudo borgee setup` once to:
+// distribution used. The operator-facing `install` command calls this helper
+// after resolving the installing user:
 //
 //   - Linux:
-//       1. useradd --system --no-create-home --shell /usr/sbin/nologin borgee (if missing)
-//       2. mkdir -p /var/lib/borgee/{queue,status,audit-handoff,credential}
-//          /var/log/borgee /run/borgee, chown borgee:borgee, perm 0750
-//       3. Write /etc/systemd/system/borgee.service from the embedded template
-//       4. systemctl daemon-reload
-//       5. Print next-step (claim → start) — do NOT auto-start
+//     1. mkdir user-owned Borgee state/config/data dirs under the install user's home
+//     2. Write ~/.config/systemd/user/borgee.service from the embedded template
+//     3. Prepare the per-uid rootd service template for privileged install
+//     5. Print next-step (claim → start) — do NOT auto-start
 //   - macOS:
-//       1. dscl create _borgee group + user if missing
-//       2. mkdir -p the equivalent /Library/Application Support/Borgee/Helper subdirs
-//       3. Write /Library/LaunchDaemons/cloud.borgee.host-bridge.plist + sandbox profile
-//       4. Print next-step (claim → launchctl load) — do NOT auto-load
+//     1. mkdir user-owned Borgee state/config/data dirs under the install user's home
+//     2. Write ~/Library/LaunchAgents/cloud.borgee.host-bridge.plist + sandbox profile
+//     3. Prepare the per-uid rootd LaunchDaemon template for privileged install
+//     4. Print next-step (claim → start) — do NOT auto-load
 //
 // Intentionally NOT idempotent in the "wipe and reinstall" sense: each step
 // checks for the prior state and skips if already correct, so re-running
@@ -62,12 +60,12 @@ const (
 	linuxRootdServiceDst = "/etc/systemd/system/borgee-rootd.service"
 	linuxRootdSocket     = "/run/borgee/borgee-rootd.sock"
 
-	darwinUser            = "_borgee"
-	darwinStateRoot       = "/Library/Application Support/Borgee/Helper"
-	darwinAppSupport      = "/Library/Application Support/Borgee"
-	darwinLogDir          = "/Library/Logs/Borgee"
-	darwinPlistDst        = "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist"
-	darwinSandboxDst      = "/Library/Application Support/Borgee/borgee-helper.sb"
+	darwinUser       = "_borgee"
+	darwinStateRoot  = "/Library/Application Support/Borgee/Helper"
+	darwinAppSupport = "/Library/Application Support/Borgee"
+	darwinLogDir     = "/Library/Logs/Borgee"
+	darwinPlistDst   = "/Library/LaunchDaemons/cloud.borgee.host-bridge.plist"
+	darwinSandboxDst = "/Library/Application Support/Borgee/borgee-helper.sb"
 	// macOS persistent binary path. Mirror of linuxBinaryPath. Apple
 	// convention uses `libexec` for per-product helper binaries.
 	darwinBinaryPath      = "/usr/local/libexec/borgee/borgee"
@@ -86,6 +84,66 @@ const (
 	darwinRootdSocket     = "/Users/Shared/Borgee/borgee-rootd.sock"
 )
 
+type UserLayout struct {
+	Username        string
+	UID             int
+	GID             int
+	HomeDir         string
+	BinaryPath      string
+	StateRoot       string
+	LogDir          string
+	ConfigDir       string
+	UserUnitPath    string
+	UserSocket      string
+	RootdSocket     string
+	RootdBinaryPath string
+	RootdService    string
+	RootdServiceDst string
+	ServerDSN       string
+}
+
+func LinuxUserLayout(username string, uid, gid int, homeDir string) UserLayout {
+	stateRoot := filepath.Join(homeDir, ".local", "state", "borgee")
+	return UserLayout{
+		Username:        username,
+		UID:             uid,
+		GID:             gid,
+		HomeDir:         homeDir,
+		BinaryPath:      filepath.Join(homeDir, ".local", "share", "borgee", "bin", "borgee"),
+		StateRoot:       stateRoot,
+		LogDir:          filepath.Join(stateRoot, "log"),
+		ConfigDir:       filepath.Join(homeDir, ".config", "systemd", "user"),
+		UserUnitPath:    filepath.Join(homeDir, ".config", "systemd", "user", "borgee.service"),
+		UserSocket:      "%t/borgee/borgee.sock",
+		RootdSocket:     filepath.Join("/run/borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
+		RootdBinaryPath: filepath.Join("/usr/local/lib/borgee/rootd", fmt.Sprintf("%d", uid), "borgee"),
+		RootdService:    fmt.Sprintf("borgee-rootd-%d.service", uid),
+		RootdServiceDst: filepath.Join("/etc/systemd/system", fmt.Sprintf("borgee-rootd-%d.service", uid)),
+		ServerDSN:       "file:" + filepath.Join(stateRoot, "server.db") + "?mode=ro&_busy_timeout=5000",
+	}
+}
+
+func DarwinUserLayout(username string, uid, gid int, homeDir string) UserLayout {
+	stateRoot := filepath.Join(homeDir, "Library", "Application Support", "Borgee", "Helper")
+	return UserLayout{
+		Username:        username,
+		UID:             uid,
+		GID:             gid,
+		HomeDir:         homeDir,
+		BinaryPath:      filepath.Join(homeDir, "Library", "Application Support", "Borgee", "bin", "borgee"),
+		StateRoot:       stateRoot,
+		LogDir:          filepath.Join(homeDir, "Library", "Logs", "Borgee"),
+		ConfigDir:       filepath.Join(homeDir, "Library", "LaunchAgents"),
+		UserUnitPath:    filepath.Join(homeDir, "Library", "LaunchAgents", "cloud.borgee.host-bridge.plist"),
+		UserSocket:      filepath.Join(homeDir, "Library", "Application Support", "Borgee", "borgee.sock"),
+		RootdSocket:     filepath.Join("/Users/Shared/Borgee", fmt.Sprintf("%d", uid), "borgee-rootd.sock"),
+		RootdBinaryPath: filepath.Join("/usr/local/libexec/borgee/rootd", fmt.Sprintf("%d", uid), "borgee"),
+		RootdService:    "cloud.borgee.host-bridge.rootd." + fmt.Sprintf("%d", uid),
+		RootdServiceDst: "/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd." + fmt.Sprintf("%d", uid) + ".plist",
+		ServerDSN:       "file:" + filepath.Join(stateRoot, "server.db") + "?mode=ro&_busy_timeout=5000",
+	}
+}
+
 // LinuxBinaryPath / DarwinBinaryPath / LinuxRuntimeDir / DarwinRuntimeDir
 // are exported so the `install` and `uninstall-host` subcommands can
 // reference the same persistent paths without duplicating the constants.
@@ -103,12 +161,12 @@ const (
 
 	// rootd companion daemon (PR-1 skeleton). Exported so install /
 	// uninstall flows can manage the second unit alongside borgee.service.
-	LinuxRootdServiceDst   = linuxRootdServiceDst
-	LinuxRootdServiceName  = "borgee-rootd.service"
-	LinuxRootdSocket       = linuxRootdSocket
-	DarwinRootdPlistDst    = darwinRootdPlistDst
-	DarwinRootdPlistLabel  = darwinRootdPlistLabel
-	DarwinRootdSocket      = darwinRootdSocket
+	LinuxRootdServiceDst  = linuxRootdServiceDst
+	LinuxRootdServiceName = "borgee-rootd.service"
+	LinuxRootdSocket      = linuxRootdSocket
+	DarwinRootdPlistDst   = darwinRootdPlistDst
+	DarwinRootdPlistLabel = darwinRootdPlistLabel
+	DarwinRootdSocket     = darwinRootdSocket
 )
 
 // Run is the entry for `borgee setup`. Dispatcher in cmd/borgee passes the
@@ -119,6 +177,10 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	dryRun := fs.Bool("dry-run", false, "Print what would be done without touching the system")
 	serverOrigin := fs.String("server-origin", "wss://app.borgee.io", "Borgee server WS origin to bake into the systemd/launchd unit (wss:// for the daemon's persistent transport, PR-2 #1038)")
 	allowInsecureOrigin := fs.Bool("allow-insecure-server-origin", false, "Allow http:// / ws:// server-origin (test environments only)")
+	installUsername := fs.String("install-username", "", "User that owns the main daemon service")
+	installUID := fs.Int("install-uid", -1, "UID that owns the main daemon service")
+	installGID := fs.Int("install-gid", -1, "Primary GID that owns the main daemon service")
+	installHome := fs.String("install-home", "", "Home directory for user-owned Borgee state and service files")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -132,22 +194,55 @@ func Run(args []string, stdout, stderr io.Writer) error {
 		return errors.New("insecure server origin")
 	}
 
-	if os.Geteuid() != 0 && !*dryRun {
-		fmt.Fprintln(stderr, "borgee setup: must be run as root (use sudo); pass --dry-run to preview without writing")
-		return errors.New("not root")
+	layout, err := layoutForCurrentPlatform(*installUsername, *installUID, *installGID, *installHome)
+	if err != nil {
+		return err
 	}
 
 	switch runtime.GOOS {
 	case "linux":
-		return runLinux(stdout, stderr, *serverOrigin, *dryRun)
+		return runLinux(stdout, stderr, *serverOrigin, layout, *dryRun)
 	case "darwin":
-		return runDarwin(stdout, stderr, *serverOrigin, *dryRun)
+		return runDarwin(stdout, stderr, *serverOrigin, layout, *dryRun)
 	default:
 		return fmt.Errorf("borgee setup: unsupported platform %q", runtime.GOOS)
 	}
 }
 
-func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error {
+func layoutForCurrentPlatform(username string, uid, gid int, homeDir string) (UserLayout, error) {
+	if username == "" || uid < 0 || gid < 0 || homeDir == "" {
+		u, err := user.Current()
+		if err != nil {
+			return UserLayout{}, fmt.Errorf("current user: %w", err)
+		}
+		if username == "" {
+			username = u.Username
+		}
+		if homeDir == "" {
+			homeDir = u.HomeDir
+		}
+		if uid < 0 {
+			var parsed int
+			if _, err := fmt.Sscanf(u.Uid, "%d", &parsed); err != nil {
+				return UserLayout{}, fmt.Errorf("parse uid %q: %w", u.Uid, err)
+			}
+			uid = parsed
+		}
+		if gid < 0 {
+			var parsed int
+			if _, err := fmt.Sscanf(u.Gid, "%d", &parsed); err != nil {
+				return UserLayout{}, fmt.Errorf("parse gid %q: %w", u.Gid, err)
+			}
+			gid = parsed
+		}
+	}
+	if runtime.GOOS == "darwin" {
+		return DarwinUserLayout(username, uid, gid, homeDir), nil
+	}
+	return LinuxUserLayout(username, uid, gid, homeDir), nil
+}
+
+func runLinux(stdout, stderr io.Writer, serverOrigin string, layout UserLayout, dryRun bool) error {
 	logStep := func(label string) {
 		if dryRun {
 			fmt.Fprintln(stdout, "[dry-run] "+label)
@@ -156,56 +251,26 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 		}
 	}
 
-	// 1. Ensure system user exists.
-	if _, err := user.Lookup(linuxUser); err != nil {
-		logStep("create system user " + linuxUser)
-		if !dryRun {
-			if err := runCmd("useradd", "--system", "--no-create-home", "--shell", "/usr/sbin/nologin", linuxUser); err != nil {
-				return fmt.Errorf("useradd %s: %w", linuxUser, err)
-			}
-		}
-	} else {
-		logStep("system user " + linuxUser + " already exists; skip")
-	}
-
-	// 2. Create state dirs.
-	//
-	// PR-4 amend (#1033): include `openclaw` / `plugins` / `state` —
-	// the path roots declared by the signed helper-policy manifest
-	// (helpermanifest.BuildLinux) that the four no-root executors write
-	// under. systemd unit's ReadWritePaths must list these too (see
-	// renderLinuxUnit); chmod 0750 owned by the helper user matches the
-	// other state subdirs.
 	stateSubdirs := []string{"queue", "status", "audit-handoff", "credential", "openclaw", "plugins", "state"}
 	for _, sub := range stateSubdirs {
-		p := filepath.Join(linuxStateRoot, sub)
+		p := filepath.Join(layout.StateRoot, sub)
 		logStep("mkdir " + p)
 		if !dryRun {
 			if err := os.MkdirAll(p, 0o750); err != nil {
 				return fmt.Errorf("mkdir %s: %w", p, err)
-			}
-			if err := chown(p, linuxUser, linuxGroup); err != nil {
-				return fmt.Errorf("chown %s: %w", p, err)
 			}
 		}
 	}
-	for _, p := range []string{linuxLogDir, linuxRunDir} {
+	for _, p := range []string{layout.LogDir, filepath.Dir(layout.UserUnitPath), filepath.Dir(layout.BinaryPath)} {
 		logStep("mkdir " + p)
 		if !dryRun {
 			if err := os.MkdirAll(p, 0o750); err != nil {
 				return fmt.Errorf("mkdir %s: %w", p, err)
-			}
-			if err := chown(p, linuxUser, linuxGroup); err != nil {
-				return fmt.Errorf("chown %s: %w", p, err)
 			}
 		}
 	}
 
-	// Runtime dir: holds the persistent borgee binary copy that the
-	// `install` subcommand drops (`/usr/local/lib/borgee/bin/borgee`).
-	// Owned by root with mode 0755 so the helper user can exec it but
-	// only root can replace it.
-	runtimeBinDir := filepath.Join(linuxRuntimeDir, "bin")
+	runtimeBinDir := filepath.Dir(layout.BinaryPath)
 	logStep("mkdir " + runtimeBinDir)
 	if !dryRun {
 		if err := os.MkdirAll(runtimeBinDir, 0o755); err != nil {
@@ -213,39 +278,28 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 		}
 	}
 
-	// 3. Write systemd unit.
-	unit := renderLinuxUnit(serverOrigin)
-	logStep("write " + linuxServiceDst)
+	unit := renderLinuxUserUnit(serverOrigin, layout)
+	logStep("write " + layout.UserUnitPath)
 	if !dryRun {
-		if err := os.WriteFile(linuxServiceDst, []byte(unit), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", linuxServiceDst, err)
+		if err := os.WriteFile(layout.UserUnitPath, []byte(unit), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", layout.UserUnitPath, err)
 		}
 	}
 
-	// 3a. Seed the host_grants SQLite DB the daemon opens with mode=ro.
-	// Without this, the daemon errors at startup with "no such table:
-	// host_grants" and systemd burns through its restart budget. The
-	// schema matches server-go migration v=27 byte-for-byte; the file
-	// stays empty until the server pushes grants via the REST channel.
-	logStep("seed " + linuxServerDSN)
+	logStep("seed " + layout.ServerDSN)
 	if !dryRun {
-		if err := seedHostGrantsDB(linuxServerDSN, linuxUser, linuxGroup); err != nil {
+		if err := seedHostGrantsDB(layout.ServerDSN, "", ""); err != nil {
 			return err
 		}
 	}
 
-	// 3b. Write the rootd companion unit. Same binary, different
-	//     subcommand (`borgee rootd`), runs as User=root, listens on a
-	//     local UDS, accepts only a hardcoded command whitelist. The
-	//     unit is written even when PR-1's whitelist is just `ping`
-	//     because the systemd-level hardening (AF_UNIX-only, no network,
-	//     tight memory/cpu caps) is independent of which commands the
-	//     whitelist contains.
-	rootdUnit := renderLinuxRootdUnit()
-	logStep("write " + linuxRootdServiceDst)
+	rootdUnit := renderLinuxRootdUnit(layout)
+	logStep("write " + layout.RootdServiceDst)
 	if !dryRun {
-		if err := os.WriteFile(linuxRootdServiceDst, []byte(rootdUnit), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", linuxRootdServiceDst, err)
+		if os.Geteuid() == 0 {
+			if err := os.WriteFile(layout.RootdServiceDst, []byte(rootdUnit), 0o644); err != nil {
+				return fmt.Errorf("write %s: %w", layout.RootdServiceDst, err)
+			}
 		}
 	}
 
@@ -263,13 +317,13 @@ func runLinux(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error 
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "borgee setup: Linux scaffold ready. Next steps:")
 	fmt.Fprintln(stdout, "  1. Generate an enrollment in the Borgee web UI")
-	fmt.Fprintln(stdout, "  2. sudo borgee claim --enrollment-id=<id> --enrollment-secret=<secret> \\")
+	fmt.Fprintln(stdout, "  2. borgee claim --enrollment-id=<id> --enrollment-secret=<secret> \\")
 	fmt.Fprintln(stdout, "         --server-origin="+serverOrigin)
-	fmt.Fprintln(stdout, "  3. sudo systemctl enable --now borgee.service")
+	fmt.Fprintln(stdout, "  3. systemctl --user enable --now borgee.service")
 	return nil
 }
 
-func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error {
+func runDarwin(stdout, stderr io.Writer, serverOrigin string, layout UserLayout, dryRun bool) error {
 	logStep := func(label string) {
 		if dryRun {
 			fmt.Fprintln(stdout, "[dry-run] "+label)
@@ -278,62 +332,36 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 		}
 	}
 
-	// 1. Ensure macOS user/group via dscl.
-	if _, err := user.Lookup(darwinUser); err != nil {
-		logStep("create macOS user " + darwinUser + " (via dscl)")
-		if !dryRun {
-			if err := ensureMacUser(darwinUser); err != nil {
-				return fmt.Errorf("create macOS user %s: %w", darwinUser, err)
-			}
-		}
-	} else {
-		logStep("macOS user " + darwinUser + " already exists; skip")
-	}
-
-	// 2. Create state dirs + log dir.
 	for _, p := range []string{
-		darwinStateRoot,
-		darwinQueueStateDir,
-		darwinStatusStateDir,
-		darwinAuditHandoffDir,
-		filepath.Join(darwinStateRoot, "credential"),
-		darwinLogDir,
-		filepath.Dir(darwinUDS),
-		darwinAppSupport,
-		// PR-4 final amend: per-platform manifest subdirs that mirror
-		// the Linux setup additions (#1033 amend). Manifest-declared
-		// roots under /Library/Application Support/Borgee that the
-		// no-root executors write under. Without pre-creation, the
-		// first job hits a mkdir under a directory owned by another
-		// user (sandbox-exec writes go via darwinUser). Linux pre-
-		// creates the equivalent subdirs under /var/lib/borgee.
-		filepath.Join(darwinAppSupport, "openclaw"),
-		filepath.Join(darwinAppSupport, "plugins"),
-		filepath.Join(darwinAppSupport, "state"),
-		filepath.Join(darwinRuntimeDir, "bin"),
-		// openclaw_install root — under darwinRuntimeDir, parallel to
-		// the linux mkdir of /usr/local/lib/borgee/openclaw subdir.
-		filepath.Join(darwinRuntimeDir, "openclaw"),
+		layout.StateRoot,
+		filepath.Join(layout.StateRoot, "QueueState"),
+		filepath.Join(layout.StateRoot, "StatusState"),
+		filepath.Join(layout.StateRoot, "AuditHandoff"),
+		filepath.Join(layout.StateRoot, "credential"),
+		layout.LogDir,
+		filepath.Dir(layout.UserSocket),
+		filepath.Join(layout.HomeDir, "Library", "Application Support", "Borgee", "openclaw"),
+		filepath.Join(layout.HomeDir, "Library", "Application Support", "Borgee", "plugins"),
+		filepath.Join(layout.HomeDir, "Library", "Application Support", "Borgee", "state"),
+		filepath.Dir(layout.BinaryPath),
 	} {
 		logStep("mkdir " + p)
 		if !dryRun {
 			if err := os.MkdirAll(p, 0o750); err != nil {
 				return fmt.Errorf("mkdir %s: %w", p, err)
 			}
-			if err := chown(p, darwinUser, darwinUser); err != nil {
-				// chown best-effort on macOS — directory ownership matters
-				// only for the writable subset; sandbox-exec walls the rest.
-				fmt.Fprintf(stderr, "borgee setup: warn: chown %s: %v\n", p, err)
-			}
 		}
 	}
 
 	// 3. Write launchd plist + sandbox profile.
-	plist := renderDarwinPlist(serverOrigin)
-	logStep("write " + darwinPlistDst)
+	plist := renderDarwinUserPlist(serverOrigin, layout)
+	logStep("write " + layout.UserUnitPath)
 	if !dryRun {
-		if err := os.WriteFile(darwinPlistDst, []byte(plist), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", darwinPlistDst, err)
+		if err := os.MkdirAll(filepath.Dir(layout.UserUnitPath), 0o750); err != nil {
+			return fmt.Errorf("mkdir %s: %w", filepath.Dir(layout.UserUnitPath), err)
+		}
+		if err := os.WriteFile(layout.UserUnitPath, []byte(plist), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", layout.UserUnitPath, err)
 		}
 	}
 	sandbox := embeddedSandboxProfile()
@@ -346,9 +374,9 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 
 	// 3a. Seed the host_grants SQLite DB the daemon opens with mode=ro.
 	// Mirrors the Linux step — see runLinux for rationale.
-	logStep("seed " + darwinServerDSN)
+	logStep("seed " + layout.ServerDSN)
 	if !dryRun {
-		if err := seedHostGrantsDB(darwinServerDSN, darwinUser, darwinUser); err != nil {
+		if err := seedHostGrantsDB(layout.ServerDSN, "", ""); err != nil {
 			return err
 		}
 	}
@@ -357,11 +385,13 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 	//     subcommand, runs as root, listens on a local UDS, accepts only
 	//     a hardcoded command whitelist. Independent of the main plist
 	//     so each launchd unit can be loaded/unloaded separately.
-	rootdPlist := renderDarwinRootdPlist()
-	logStep("write " + darwinRootdPlistDst)
+	rootdPlist := renderDarwinRootdPlist(layout)
+	logStep("write " + layout.RootdServiceDst)
 	if !dryRun {
-		if err := os.WriteFile(darwinRootdPlistDst, []byte(rootdPlist), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", darwinRootdPlistDst, err)
+		if os.Geteuid() == 0 {
+			if err := os.WriteFile(layout.RootdServiceDst, []byte(rootdPlist), 0o644); err != nil {
+				return fmt.Errorf("write %s: %w", layout.RootdServiceDst, err)
+			}
 		}
 	}
 
@@ -369,16 +399,16 @@ func runDarwin(stdout, stderr io.Writer, serverOrigin string, dryRun bool) error
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "borgee setup: macOS scaffold ready. Next steps:")
 	fmt.Fprintln(stdout, "  1. Generate an enrollment in the Borgee web UI")
-	fmt.Fprintln(stdout, "  2. sudo borgee claim --enrollment-id=<id> --enrollment-secret=<secret> \\")
+	fmt.Fprintln(stdout, "  2. borgee claim --enrollment-id=<id> --enrollment-secret=<secret> \\")
 	fmt.Fprintln(stdout, "         --server-origin="+serverOrigin)
-	fmt.Fprintln(stdout, "  3. sudo launchctl load -w "+darwinPlistDst)
+	fmt.Fprintln(stdout, "  3. launchctl bootstrap gui/$(id -u) "+layout.UserUnitPath)
 	return nil
 }
 
 // renderLinuxUnit builds the systemd unit content. Keeping the template here
 // (rather than embedding from install/) lets `borgee setup` ship as a single
 // statically-linked binary — the npm subpackage only carries one file.
-func renderLinuxUnit(serverOrigin string) string {
+func renderLinuxUserUnit(serverOrigin string, layout UserLayout) string {
 	return `[Unit]
 Description=Borgee host-bridge daemon
 Documentation=https://github.com/codetreker/borgee
@@ -389,20 +419,19 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=` + linuxUser + `
-Group=` + linuxGroup + `
-ExecStart=` + linuxBinaryPath + ` daemon \
-    --socket=` + linuxRunDir + `/borgee.sock \
-    --audit-log=` + linuxLogDir + `/audit.log.jsonl \
-    --grants-db=` + linuxServerDSN + ` \
+ExecStart=` + layout.BinaryPath + ` daemon \
+    --socket=` + layout.UserSocket + ` \
+    --audit-log=` + layout.LogDir + `/audit.log.jsonl \
+    --grants-db=` + layout.ServerDSN + ` \
+    --rootd-socket=` + layout.RootdSocket + ` \
     --outbound-server-origin=` + serverOrigin + ` \
     --outbound-allowed-origins=` + serverOrigin + ` \
-    --queue-state-dir=` + linuxStateRoot + `/queue \
-    --status-state-dir=` + linuxStateRoot + `/status \
-    --audit-handoff-dir=` + linuxStateRoot + `/audit-handoff \
-    --enrollment-id-file=` + linuxStateRoot + `/credential/enrollment-id \
-    --helper-device-id-file=` + linuxStateRoot + `/credential/device-id \
-    --helper-credential-file=` + linuxStateRoot + `/credential/credential
+    --queue-state-dir=` + layout.StateRoot + `/queue \
+    --status-state-dir=` + layout.StateRoot + `/status \
+    --audit-handoff-dir=` + layout.StateRoot + `/audit-handoff \
+    --enrollment-id-file=` + layout.StateRoot + `/credential/enrollment-id \
+    --helper-device-id-file=` + layout.StateRoot + `/credential/device-id \
+    --helper-credential-file=` + layout.StateRoot + `/credential/credential
 
 # Defense-in-depth sandbox layers (landlock 在 daemon 内 + systemd OS-level).
 ProtectSystem=strict
@@ -427,7 +456,6 @@ CPUQuota=50%
 TasksMax=256
 IOWeight=100
 
-StateDirectory=borgee
 # RuntimeDirectory=borgee: systemd creates /run/borgee with helper
 # ownership before ExecStart and removes it on stop. Without this
 # directive /run is tmpfs and the daemon cannot bind its UDS after a
@@ -441,24 +469,23 @@ RuntimeDirectoryMode=0750
 # path requiring root + a different ReadWritePaths set.
 #
 # Path roots (each maps to a manifest PathID):
-#   /var/lib/borgee/queue        — queue state dir
-#   /var/lib/borgee/status       — status state dir
-#   /var/lib/borgee/audit-handoff
-#   /var/lib/borgee/credential
-#   /var/lib/borgee/openclaw     — openclaw_agent_config PathID (#1041)
-#   /var/lib/borgee/plugins      — borgee_plugin_config PathID (#1041)
-#   /var/lib/borgee/state        — borgee_state_config PathID (#1041)
-#   /var/log/borgee              — log dir
-#   /run/borgee                  — UDS dir
-ReadWritePaths=` + linuxLogDir + ` ` + linuxRunDir + ` ` + linuxStateRoot + `/queue ` + linuxStateRoot + `/status ` + linuxStateRoot + `/audit-handoff ` + linuxStateRoot + `/credential ` + linuxStateRoot + `/openclaw ` + linuxStateRoot + `/plugins ` + linuxStateRoot + `/state
-ReadOnlyPaths=` + linuxStateRoot + `
+#   queue/status/audit-handoff/credential under the user's Borgee state root
+#   openclaw/plugins/state under the user's Borgee state root
+#   log dir under the user's Borgee state root
+#   %t/borgee                    — user runtime UDS dir
+ReadWritePaths=` + layout.LogDir + ` ` + layout.StateRoot + `/queue ` + layout.StateRoot + `/status ` + layout.StateRoot + `/audit-handoff ` + layout.StateRoot + `/credential ` + layout.StateRoot + `/openclaw ` + layout.StateRoot + `/plugins ` + layout.StateRoot + `/state
+ReadOnlyPaths=` + layout.StateRoot + `
 
 Restart=on-failure
 RestartSec=10s
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 `
+}
+
+func renderLinuxUnit(serverOrigin string) string {
+	return renderLinuxUserUnit(serverOrigin, LinuxUserLayout(linuxUser, 0, 0, "/var/lib/borgee"))
 }
 
 // renderLinuxRootdUnit builds the systemd unit for the rootd companion
@@ -471,7 +498,7 @@ WantedBy=multi-user.target
 // units, delegation_revoke → /var/lib/borgee). We set this now so PR-4
 // can extend the whitelist without needing to change the unit; the
 // systemd-level hardening is independent of which commands are exposed.
-func renderLinuxRootdUnit() string {
+func renderLinuxRootdUnit(layout UserLayout) string {
 	return `[Unit]
 Description=Borgee root-privileged companion daemon
 Documentation=https://github.com/codetreker/borgee
@@ -480,8 +507,11 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=` + linuxBinaryPath + ` rootd \
-    --socket=` + linuxRootdSocket + `
+ExecStart=` + layout.RootdBinaryPath + ` rootd \
+    --socket=` + layout.RootdSocket + ` \
+    --allowed-peer-uid=` + fmt.Sprintf("%d", layout.UID) + ` \
+    --socket-owner-uid=` + fmt.Sprintf("%d", layout.UID) + ` \
+    --socket-owner-gid=` + fmt.Sprintf("%d", layout.GID) + `
 
 # Defense-in-depth: rootd has no network access at all. The only inbound
 # path is the local UDS at --socket; the only outbound is to whatever
@@ -514,12 +544,12 @@ TasksMax=32
 # directory" until borgee.service has run and lazily created the dir
 # (Restart=on-failure masked it, but polluted journals and delayed first
 # job acceptance — issue #1053).
-RuntimeDirectory=borgee
+RuntimeDirectory=borgee/` + fmt.Sprintf("%d", layout.UID) + `
 RuntimeDirectoryMode=0750
 
 # PR-4 commands write to these paths. Setting them now so PR-4 does not
 # need to ship a unit change alongside the executor code.
-ReadWritePaths=` + linuxRunDir + ` ` + linuxRuntimeDir + ` ` + linuxStateRoot + ` /etc/systemd/system
+ReadWritePaths=` + filepath.Dir(layout.RootdSocket) + ` ` + filepath.Dir(layout.RootdBinaryPath) + ` ` + layout.StateRoot + ` /etc/systemd/system
 
 Restart=on-failure
 RestartSec=10s
@@ -529,7 +559,15 @@ WantedBy=multi-user.target
 `
 }
 
+func RenderLinuxRootdUnit(layout UserLayout) string {
+	return renderLinuxRootdUnit(layout)
+}
+
 func renderDarwinPlist(serverOrigin string) string {
+	return renderDarwinUserPlist(serverOrigin, DarwinUserLayout(darwinUser, 0, 0, "/var/empty"))
+}
+
+func renderDarwinUserPlist(serverOrigin string, layout UserLayout) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -543,19 +581,20 @@ func renderDarwinPlist(serverOrigin string) string {
       <string>/usr/bin/sandbox-exec</string>
       <string>-f</string>
       <string>` + darwinSandboxDst + `</string>
-      <string>` + darwinBinaryPath + `</string>
+      <string>` + layout.BinaryPath + `</string>
       <string>daemon</string>
-      <string>--socket=` + darwinUDS + `</string>
-      <string>--audit-log=` + darwinAuditLog + `</string>
-      <string>--grants-db=` + darwinServerDSN + `</string>
+      <string>--socket=` + layout.UserSocket + `</string>
+      <string>--audit-log=` + layout.LogDir + `/audit.log.jsonl</string>
+      <string>--grants-db=` + layout.ServerDSN + `</string>
+      <string>--rootd-socket=` + layout.RootdSocket + `</string>
       <string>--outbound-server-origin=` + serverOrigin + `</string>
       <string>--outbound-allowed-origins=` + serverOrigin + `</string>
-      <string>--queue-state-dir=` + darwinQueueStateDir + `</string>
-      <string>--status-state-dir=` + darwinStatusStateDir + `</string>
-      <string>--audit-handoff-dir=` + darwinAuditHandoffDir + `</string>
-      <string>--enrollment-id-file=` + darwinStateRoot + `/credential/enrollment-id</string>
-      <string>--helper-device-id-file=` + darwinStateRoot + `/credential/device-id</string>
-      <string>--helper-credential-file=` + darwinStateRoot + `/credential/credential</string>
+      <string>--queue-state-dir=` + layout.StateRoot + `/QueueState</string>
+      <string>--status-state-dir=` + layout.StateRoot + `/StatusState</string>
+      <string>--audit-handoff-dir=` + layout.StateRoot + `/AuditHandoff</string>
+      <string>--enrollment-id-file=` + layout.StateRoot + `/credential/enrollment-id</string>
+      <string>--helper-device-id-file=` + layout.StateRoot + `/credential/device-id</string>
+      <string>--helper-credential-file=` + layout.StateRoot + `/credential/credential</string>
     </array>
 
     <key>RunAtLoad</key>
@@ -570,17 +609,11 @@ func renderDarwinPlist(serverOrigin string) string {
     <key>ThrottleInterval</key>
     <integer>10</integer>
 
-    <key>UserName</key>
-    <string>` + darwinUser + `</string>
-
-    <key>GroupName</key>
-    <string>` + darwinUser + `</string>
-
     <key>StandardOutPath</key>
-    <string>` + darwinLogDir + `/stdout.log</string>
+    <string>` + layout.LogDir + `/stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>` + darwinLogDir + `/stderr.log</string>
+    <string>` + layout.LogDir + `/stderr.log</string>
   </dict>
 </plist>
 `
@@ -592,20 +625,27 @@ func renderDarwinPlist(serverOrigin string) string {
 // helper-daemon sandbox profile would be inappropriate). The plist
 // path is kept distinct from the main plist so `launchctl bootstrap` /
 // `launchctl bootout` can manage each unit independently.
-func renderDarwinRootdPlist() string {
+func renderDarwinRootdPlist(layouts ...UserLayout) string {
+	layout := DarwinUserLayout(darwinUser, 0, 0, "/var/empty")
+	if len(layouts) > 0 {
+		layout = layouts[0]
+	}
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>` + darwinRootdPlistLabel + `</string>
+    <string>` + layout.RootdService + `</string>
 
     <key>ProgramArguments</key>
     <array>
-      <string>` + darwinBinaryPath + `</string>
+      <string>` + layout.RootdBinaryPath + `</string>
       <string>rootd</string>
-      <string>--socket=` + darwinRootdSocket + `</string>
+      <string>--socket=` + layout.RootdSocket + `</string>
+      <string>--allowed-peer-uid=` + fmt.Sprintf("%d", layout.UID) + `</string>
+      <string>--socket-owner-uid=` + fmt.Sprintf("%d", layout.UID) + `</string>
+      <string>--socket-owner-gid=` + fmt.Sprintf("%d", layout.GID) + `</string>
     </array>
 
     <key>RunAtLoad</key>
@@ -634,6 +674,10 @@ func renderDarwinRootdPlist() string {
   </dict>
 </plist>
 `
+}
+
+func RenderDarwinRootdPlist(layout UserLayout) string {
+	return renderDarwinRootdPlist(layout)
 }
 
 // embeddedSandboxProfile returns the macOS sandbox-exec profile contents. We

@@ -2,8 +2,8 @@
 
 // Package rootd — `borgee rootd` subcommand: privilege-separated companion
 // daemon to `borgee daemon`. Runs as root, listens on a UDS, accepts only
-// a hardcoded command whitelist. The main daemon (running as the `borgee`
-// system user) forwards root-requiring jobs over this IPC.
+// a hardcoded command whitelist. The main daemon (running as the installing
+// user) forwards root-requiring jobs over this IPC.
 //
 // PR-1 scope: skeleton only — the whitelist contains a single `ping`
 // handler that round-trips a `{"pong": true, "time": <unix ms>}` envelope.
@@ -35,23 +35,20 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"syscall"
 )
 
 const (
-	// defaultSocketLinux is the canonical UDS path baked into the
-	// borgee-rootd.service unit. Lives under /run/borgee so reboot does
-	// not leave a stale socket (tmpfs).
+	// defaultSocketLinux is the legacy fallback UDS path. Installed units pass
+	// a per-uid --socket path under /run/borgee/<uid>/.
 	defaultSocketLinux = "/run/borgee/borgee-rootd.sock"
-	// defaultSocketDarwin lives under /Users/Shared so non-root accounts
-	// in the `borgee` group can find it; the file itself is chmod 0660
-	// + chown root:borgee.
+	// defaultSocketDarwin is the legacy fallback UDS path. Installed units pass
+	// a per-uid --socket path under /Users/Shared/Borgee/<uid>/.
 	defaultSocketDarwin = "/Users/Shared/Borgee/borgee-rootd.sock"
 
-	// PeerGroup is the unix group whose members are allowed to connect
-	// to the rootd UDS. The main `borgee daemon` runs as user `borgee`
-	// which is in the `borgee` group; rootd refuses peers whose primary
-	// gid is not in this group.
+	// PeerGroup is the legacy group-gated fallback. Installed units pass
+	// --allowed-peer-uid and disable group-based authorization.
 	PeerGroup = "borgee"
 )
 
@@ -60,6 +57,9 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("borgee rootd", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	socket := fs.String("socket", defaultSocket(), "UDS path to listen on")
+	allowedPeerUID := fs.Int("allowed-peer-uid", -1, "Only allow this uid to connect to rootd")
+	socketOwnerUID := fs.Int("socket-owner-uid", -1, "UID to chown the rootd socket to")
+	socketOwnerGID := fs.Int("socket-owner-gid", -1, "GID to chown the rootd socket to")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -71,17 +71,44 @@ func Run(args []string, stdout, stderr io.Writer) error {
 		return errors.New("not root")
 	}
 
+	var allowed *uint32
+	if *allowedPeerUID >= 0 {
+		v := uint32(*allowedPeerUID)
+		allowed = &v
+	}
+	var ownerUID *int
+	if *socketOwnerUID >= 0 {
+		v := *socketOwnerUID
+		ownerUID = &v
+	}
+	var ownerGID *int
+	if *socketOwnerGID >= 0 {
+		v := *socketOwnerGID
+		ownerGID = &v
+	}
+	peerGroup := PeerGroup
+	if allowed != nil {
+		peerGroup = ""
+	}
+
 	logger := log.New(stderr, "borgee-rootd: ", log.LstdFlags|log.Lmicroseconds)
 	srv := &Server{
-		SocketPath: *socket,
-		PeerGroup:  PeerGroup,
-		Logger:     logger.Printf,
-		Handlers:   DefaultHandlers(),
+		SocketPath:     *socket,
+		PeerGroup:      peerGroup,
+		AllowedPeerUID: allowed,
+		SocketOwnerUID: ownerUID,
+		SocketOwnerGID: ownerGID,
+		Logger:         logger.Printf,
+		Handlers:       DefaultHandlers(),
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	fmt.Fprintf(stdout, "borgee rootd: listening on %s (whitelist: %v)\n", *socket, srv.handlerNames())
+	uidNote := "group=" + peerGroup
+	if allowed != nil {
+		uidNote = "uid=" + strconv.Itoa(int(*allowed))
+	}
+	fmt.Fprintf(stdout, "borgee rootd: listening on %s (%s whitelist: %v)\n", *socket, uidNote, srv.handlerNames())
 	return srv.Serve(ctx)
 }
 

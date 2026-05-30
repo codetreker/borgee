@@ -197,12 +197,33 @@ func TestRejectsNonBorgeeGroupPeer(t *testing.T) {
 	}
 }
 
-// TestSocketModeAfterListen asserts the socket file mode is 0660 after
-// the server Listen. The chown to root:borgee may fail in the test env
-// (running non-root), but the chmod runs unconditionally.
+// TestSocketModeAfterListen asserts the socket file mode is 0600 after
+// the server Listen when rootd is bound to a single allowed operator UID.
 func TestSocketModeAfterListen(t *testing.T) {
 	t.Parallel()
-	sock, stop := startTestServer(t, DefaultHandlers())
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "rootd.sock")
+	uid := uint32(os.Getuid())
+	srv := &Server{
+		SocketPath:     sock,
+		AllowedPeerUID: &uid,
+		Handlers:       DefaultHandlers(),
+		Logger:         func(string, ...any) {},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(ctx) }()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(sock); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	stop := func() {
+		cancel()
+		<-serveErr
+	}
 	defer stop()
 
 	info, err := os.Stat(sock)
@@ -210,8 +231,8 @@ func TestSocketModeAfterListen(t *testing.T) {
 		t.Fatalf("stat socket: %v", err)
 	}
 	got := info.Mode().Perm()
-	if got != 0o660 {
-		t.Fatalf("socket mode = %o, want 0660", got)
+	if got != 0o600 {
+		t.Fatalf("socket mode = %o, want 0600", got)
 	}
 }
 

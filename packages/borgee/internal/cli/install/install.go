@@ -5,26 +5,25 @@
 // operator only has to copy one URL + token from the Borgee web UI and
 // run a single command:
 //
-//	sudo npx @codetreker/borgee-remote-agent install \
+//	npx @codetreker/borgee-remote-agent install \
 //	    --server wss://borgee.codetrek.cn \
 //	    --token <enrollment_id>.<enrollment_secret>
 //
 // Internally it:
 //
-//	1. sudo / platform / systemctl-or-launchctl pre-flight
-//	2. derives https origin from wss:// (or accepts https:// directly)
-//	3. splits --token on the first `.` into <enrollment_id>.<secret>
-//	4. copies the running borgee binary (typically from npx's cache) to
-//	   `/usr/local/lib/borgee/bin/borgee` (Linux) or
-//	   `/usr/local/libexec/borgee/borgee` (macOS) so the systemd unit /
-//	   launchd plist's ExecStart points at a stable path that survives
-//	   npx cache eviction (#1017 bug 3 mitigation)
-//	5. calls setup.Run with --server-origin = the derived https origin
-//	6. calls claim.Run with the parsed enrollment_id/secret
-//	7. systemctl daemon-reload + enable + start (or launchctl bootstrap)
-//	8. waits up to --heartbeat-timeout for the server to mark the
-//	   enrollment status=connected via the helper's heartbeat producer
-//	9. prints next-step (uninstall pointer) and exits 0
+//  1. platform / install-user pre-flight
+//  2. derives https origin from wss:// (or accepts https:// directly)
+//  3. splits --token on the first `.` into <enrollment_id>.<secret>
+//  4. copies the running borgee binary (typically from npx's cache) to
+//     the install user's Borgee data directory so the user service's
+//     ExecStart points at a stable path that survives npx cache eviction
+//     (#1017 bug 3 mitigation)
+//  5. calls setup.Run with --server-origin = the derived https origin
+//  6. calls claim.Run with the parsed enrollment_id/secret
+//  7. sudo installs/starts rootd, Linux enables linger, user service starts
+//  8. waits up to --heartbeat-timeout for the server to mark the
+//     enrollment status=connected via the helper's heartbeat producer
+//  9. prints next-step (uninstall pointer) and exits 0
 //
 // `setup` / `claim` remain available as standalone subcommands for
 // advanced flows (re-claim with new token, redo systemd unit on its own,
@@ -44,6 +43,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -67,22 +67,31 @@ func Run(args []string, stdout, stderr io.Writer) error {
 // run() entry point takes a plain struct, decoupling test fixtures from
 // flag parsing.
 type config struct {
-	server               string
-	token                string
-	allowInsecureServer  bool
-	skipStart            bool
-	heartbeatTimeout     time.Duration
-	binarySrcOverride    string // testing hook: pretend os.Executable() returned this
-	binaryDstOverride    string // testing hook: copy to here instead of platform default
-	skipBinaryCopy       bool   // testing hook: skip the copy step
-	skipSetup            bool   // testing hook
-	skipClaim            bool   // testing hook
-	skipRootCheck        bool   // testing hook: bypass sudo gate
-	httpClient           *http.Client
-	systemctl            systemRunner
-	now                  func() time.Time
-	osExecutable         func() (string, error)
+	server                 string
+	token                  string
+	allowInsecureServer    bool
+	allowRootUser          bool
+	skipStart              bool
+	heartbeatTimeout       time.Duration
+	binarySrcOverride      string // testing hook: pretend os.Executable() returned this
+	binaryDstOverride      string // testing hook: copy to here instead of platform default
+	skipBinaryCopy         bool   // testing hook: skip the copy step
+	skipSetup              bool   // testing hook
+	skipClaim              bool   // testing hook
+	skipRootCheck          bool   // testing hook: bypass sudo gate
+	httpClient             *http.Client
+	systemctl              systemRunner
+	now                    func() time.Time
+	osExecutable           func() (string, error)
 	credentialFileOverride string // testing: where claim writes credential
+	installUser            *installUser
+}
+
+type installUser struct {
+	Username string
+	UID      int
+	GID      int
+	HomeDir  string
 }
 
 type systemRunner interface {
@@ -104,6 +113,7 @@ func parseArgs(args []string, stderr io.Writer) (*config, error) {
 	server := fs.String("server", "", "Borgee server URL (wss:// from web UI, or https://). Required.")
 	token := fs.String("token", "", "One-shot enrollment token from web UI (format <enrollment_id>.<enrollment_secret>). Required.")
 	allowInsecure := fs.Bool("allow-insecure-server", false, "Allow http:// / ws:// schemes (test environments only)")
+	allowRootUser := fs.Bool("allow-root-user", false, "Allow installing the main daemon as root with state under /root")
 	skipStart := fs.Bool("skip-start", false, "Skip systemctl/launchctl start + heartbeat wait (useful for CI / pre-baking images)")
 	heartbeatTimeout := fs.Duration("heartbeat-timeout", 30*time.Second, "Max wait for first heartbeat / status=connected after start")
 	if err := fs.Parse(args); err != nil {
@@ -121,6 +131,7 @@ func parseArgs(args []string, stderr io.Writer) (*config, error) {
 		server:              *server,
 		token:               *token,
 		allowInsecureServer: *allowInsecure,
+		allowRootUser:       *allowRootUser,
 		skipStart:           *skipStart,
 		heartbeatTimeout:    *heartbeatTimeout,
 	}, nil
@@ -226,13 +237,20 @@ func deriveWSOrigin(raw string, allowInsecure bool) (string, error) {
 // pre-flight or step failure. Each step writes a structured banner so
 // the operator sees what landed.
 func run(cfg *config, stdout, stderr io.Writer) error {
-	// 1. Pre-flight: sudo, platform.
-	if !cfg.skipRootCheck && os.Geteuid() != 0 {
-		fmt.Fprintln(stderr, "borgee install: must be run as root (use sudo)")
-		return errors.New("not root")
-	}
+	// 1. Pre-flight: platform + install user.
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return fmt.Errorf("unsupported platform %q (linux/darwin only)", runtime.GOOS)
+	}
+	installUser, err := cfg.resolvedInstallUser()
+	if err != nil {
+		return err
+	}
+	if installUser.UID == 0 && !cfg.allowRootUser && !cfg.skipRootCheck {
+		fmt.Fprintln(stderr, "borgee install: refusing to install the main daemon as root without --allow-root-user")
+		return errors.New("root install requires confirmation")
+	}
+	if installUser.UID == 0 {
+		fmt.Fprintln(stderr, "borgee install: warning: installing as root; main daemon state will live under /root and run as root")
 	}
 
 	httpOrigin, err := deriveHTTPOrigin(cfg.server, cfg.allowInsecureServer)
@@ -265,10 +283,16 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 		}
 	}
 
-	// 3. setup: systemd unit / launchd plist + state dirs + system user.
+	// 3. setup: user service / launchd plist + state dirs.
 	if !cfg.skipSetup {
 		fmt.Fprintln(stdout, "borgee install: step 1/4 setup (systemd/launchd unit + state dirs)")
-		setupArgs := []string{"--server-origin=" + wsOrigin}
+		setupArgs := []string{
+			"--server-origin=" + wsOrigin,
+			fmt.Sprintf("--install-username=%s", installUser.Username),
+			fmt.Sprintf("--install-uid=%d", installUser.UID),
+			fmt.Sprintf("--install-gid=%d", installUser.GID),
+			fmt.Sprintf("--install-home=%s", installUser.HomeDir),
+		}
 		if cfg.allowInsecureServer {
 			setupArgs = append(setupArgs, "--allow-insecure-server-origin")
 		}
@@ -296,6 +320,13 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 				"--enrollment-id-file="+filepath.Join(filepath.Dir(cfg.credentialFileOverride), "enrollment-id"),
 				"--device-id-file="+filepath.Join(filepath.Dir(cfg.credentialFileOverride), "device-id"),
 			)
+		} else {
+			layout := userLayout(installUser)
+			claimArgs = append(claimArgs,
+				"--credential-file="+filepath.Join(layout.StateRoot, "credential", "credential"),
+				"--enrollment-id-file="+filepath.Join(layout.StateRoot, "credential", "enrollment-id"),
+				"--device-id-file="+filepath.Join(layout.StateRoot, "credential", "device-id"),
+			)
 		}
 		if err := claim.Run(claimArgs, stdout, stderr); err != nil {
 			return fmt.Errorf("claim: %w", err)
@@ -305,7 +336,7 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 	// 5. Start the service (or skip when --skip-start).
 	if cfg.skipStart {
 		fmt.Fprintln(stdout, "borgee install: --skip-start set; bootstrap finished without starting the daemon.")
-		fmt.Fprintln(stdout, "  Start later with: sudo systemctl enable --now borgee.service  (Linux)")
+		fmt.Fprintln(stdout, "  Start later with: systemctl --user enable --now borgee.service  (Linux)")
 		fmt.Fprintln(stdout, "                or: sudo launchctl bootstrap system /Library/LaunchDaemons/cloud.borgee.host-bridge.plist  (macOS)")
 		return nil
 	}
@@ -329,8 +360,33 @@ func run(cfg *config, stdout, stderr io.Writer) error {
 
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "borgee installed and running. Survives reboot via systemd / launchd.")
-	fmt.Fprintln(stdout, "To uninstall: sudo npx @codetreker/borgee-remote-agent uninstall-host")
+	fmt.Fprintln(stdout, "To uninstall: npx @codetreker/borgee-remote-agent uninstall-host")
 	return nil
+}
+
+func (cfg *config) resolvedInstallUser() (*installUser, error) {
+	if cfg.installUser != nil {
+		return cfg.installUser, nil
+	}
+	u, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("current user: %w", err)
+	}
+	out := &installUser{Username: u.Username, HomeDir: u.HomeDir}
+	if _, err := fmt.Sscanf(u.Uid, "%d", &out.UID); err != nil {
+		return nil, fmt.Errorf("parse uid %q: %w", u.Uid, err)
+	}
+	if _, err := fmt.Sscanf(u.Gid, "%d", &out.GID); err != nil {
+		return nil, fmt.Errorf("parse gid %q: %w", u.Gid, err)
+	}
+	return out, nil
+}
+
+func userLayout(u *installUser) setup.UserLayout {
+	if runtime.GOOS == "darwin" {
+		return setup.DarwinUserLayout(u.Username, u.UID, u.GID, u.HomeDir)
+	}
+	return setup.LinuxUserLayout(u.Username, u.UID, u.GID, u.HomeDir)
 }
 
 // copyRunningBinary places the currently-running borgee binary at the
@@ -354,11 +410,11 @@ func copyRunningBinary(cfg *config, stdout io.Writer) error {
 	}
 	dst := cfg.binaryDstOverride
 	if dst == "" {
-		if runtime.GOOS == "darwin" {
-			dst = setup.DarwinBinaryPath
-		} else {
-			dst = setup.LinuxBinaryPath
+		u, err := cfg.resolvedInstallUser()
+		if err != nil {
+			return err
 		}
+		dst = userLayout(u).BinaryPath
 	}
 	if src == dst {
 		fmt.Fprintf(stdout, "borgee install: binary already at %s (skipping copy)\n", dst)
@@ -417,29 +473,39 @@ func startService(cfg *config, stdout, stderr io.Writer) error {
 	if r == nil {
 		r = realRunner{}
 	}
+	installUser, err := cfg.resolvedInstallUser()
+	if err != nil {
+		return err
+	}
+	layout := userLayout(installUser)
 	ctx := context.Background()
 	switch runtime.GOOS {
 	case "linux":
-		// Best-effort daemon-reload — the unit was just written by setup.
-		if err := r.Run(ctx, "systemctl", "daemon-reload"); err != nil {
+		if err := r.Run(ctx, "sudo", "loginctl", "enable-linger", installUser.Username); err != nil {
+			return fmt.Errorf("loginctl enable-linger: %w", err)
+		}
+		if err := r.Run(ctx, "sudo", "install", "-D", "-m", "0755", layout.BinaryPath, layout.RootdBinaryPath); err != nil {
+			return fmt.Errorf("install rootd binary: %w", err)
+		}
+		if err := installPrivilegedFile(ctx, r, setup.RenderLinuxRootdUnit(layout), layout.RootdServiceDst, 0o644); err != nil {
+			return fmt.Errorf("install rootd unit: %w", err)
+		}
+		if err := r.Run(ctx, "sudo", "systemctl", "daemon-reload"); err != nil {
 			fmt.Fprintf(stderr, "borgee install: warn: systemctl daemon-reload: %v\n", err)
 		}
-		// Enable + start both units: the main daemon (User=borgee) AND
-		// the rootd companion (User=root). rootd is the privilege-
-		// separated IPC target for root-requiring jobs; it must be up
-		// before the main daemon forwards anything to it. We enable
-		// rootd first so the systemd ordering matches the eventual
-		// runtime call pattern (main daemon → rootd over UDS).
-		if err := r.Run(ctx, "systemctl", "enable", setup.LinuxRootdServiceName); err != nil {
+		if err := r.Run(ctx, "sudo", "systemctl", "enable", layout.RootdService); err != nil {
 			return fmt.Errorf("systemctl enable rootd: %w", err)
 		}
-		if err := r.Run(ctx, "systemctl", "start", setup.LinuxRootdServiceName); err != nil {
+		if err := r.Run(ctx, "sudo", "systemctl", "start", layout.RootdService); err != nil {
 			return fmt.Errorf("systemctl start rootd: %w", err)
 		}
-		if err := r.Run(ctx, "systemctl", "enable", setup.LinuxServiceName); err != nil {
+		if err := r.Run(ctx, "systemctl", "--user", "daemon-reload"); err != nil {
+			fmt.Fprintf(stderr, "borgee install: warn: systemctl --user daemon-reload: %v\n", err)
+		}
+		if err := r.Run(ctx, "systemctl", "--user", "enable", setup.LinuxServiceName); err != nil {
 			return fmt.Errorf("systemctl enable: %w", err)
 		}
-		if err := r.Run(ctx, "systemctl", "start", setup.LinuxServiceName); err != nil {
+		if err := r.Run(ctx, "systemctl", "--user", "start", setup.LinuxServiceName); err != nil {
 			return fmt.Errorf("systemctl start: %w", err)
 		}
 	case "darwin":
@@ -447,14 +513,34 @@ func startService(cfg *config, stdout, stderr io.Writer) error {
 		// form (10.10+). Prior `launchctl load` is deprecated but still
 		// functional; we use bootstrap so error reporting is honest on
 		// 11+. Bootstrap both plists (main daemon + rootd companion).
-		if err := r.Run(ctx, "launchctl", "bootstrap", "system", setup.DarwinRootdPlistDst); err != nil {
+		if err := installPrivilegedFile(ctx, r, setup.RenderDarwinRootdPlist(layout), layout.RootdServiceDst, 0o644); err != nil {
+			return fmt.Errorf("install rootd plist: %w", err)
+		}
+		if err := r.Run(ctx, "sudo", "launchctl", "bootstrap", "system", layout.RootdServiceDst); err != nil {
 			return fmt.Errorf("launchctl bootstrap rootd: %w", err)
 		}
-		if err := r.Run(ctx, "launchctl", "bootstrap", "system", setup.DarwinPlistDst); err != nil {
+		if err := r.Run(ctx, "launchctl", "bootstrap", "gui/"+fmt.Sprintf("%d", installUser.UID), layout.UserUnitPath); err != nil {
 			return fmt.Errorf("launchctl bootstrap: %w", err)
 		}
 	}
 	return nil
+}
+
+func installPrivilegedFile(ctx context.Context, r systemRunner, content string, dst string, mode os.FileMode) error {
+	tmp, err := os.CreateTemp("", "borgee-rootd-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.WriteString(content); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return r.Run(ctx, "sudo", "install", "-D", "-m", fmt.Sprintf("%04o", mode.Perm()), tmpPath, dst)
 }
 
 // waitConnected polls the server's per-enrollment endpoint until status

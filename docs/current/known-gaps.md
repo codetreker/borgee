@@ -50,6 +50,16 @@ Do not assume: Helper startup validation prevents DNS rebinding or private/link-
 
 Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server Helper jobs.
 
+## Helper Policy Manifest Uses Static System Paths
+
+Current behavior: The installer now runs the main helper daemon as the installing user and stores the daemon binary, service file, credentials, and local state under that user's home/XDG paths. The server-side helper policy manifest still declares some Linux/macOS action roots as static system paths such as `/var/lib/borgee` and `/Library/Application Support/Borgee`.
+
+Architecture impact: The install/runtime identity model has moved to user-owned service state, but helper job action roots are not yet fully parameterized by the installed user's home/state/runtime roots.
+
+Do not assume: OpenClaw/config/state helper jobs can write user-home locations solely because the service itself now runs as the installing user. The manifest root model needs a follow-up dynamic-root design before those actions are treated as fully aligned with user-owned installation.
+
+Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), helper policy manifest, server Helper jobs.
+
 ## Channel Management Mutations Not Implemented
 
 Current behavior: the user Settings sidepane has a channel-management tab that groups non-DM channels into channels created by the current user and channels joined by the current user. The tab renders read-only leave/delete/archive/owner-transfer availability from the authorized channel list already present in client app state. Self-created or owned channels do not show leave as available, joined-only non-general channels can show leave as available, delete/archive require the matching permission state as well as channel ownership, and owner transfer is unavailable for v1.

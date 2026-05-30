@@ -5,26 +5,26 @@ The Host Bridge installer path is the deployment route for the helper daemon. Af
 ## Overview
 
 **Role**
-The installer turns a fresh host into a running helper service. The operator runs one command: `sudo npx @codetreker/borgee-remote-agent install --server <wss://host> --token <enrollment_id>.<secret>`. The npm tarball carries all 4 platform `borgee` binaries under `bin/platforms/<plat>-<arch>/borgee`; the default CLI resolves the current platform internally and dispatches to the embedded binary. `install` is the one-shot operator bootstrap: it copies the running binary to a persistent path, writes the systemd unit (Linux) or launchd plist (macOS), creates the system user, creates the helper-owned state directories, POSTs `/claim` to mint a long-term credential, runs `systemctl enable --now` (or `launchctl bootstrap`), and waits for the first heartbeat before returning.
+The installer turns a fresh host into a running helper service. The operator runs one command without a leading sudo: `npx @codetreker/borgee-remote-agent install --server <wss://host> --token <enrollment_id>.<secret>`. The npm tarball carries all 4 platform `borgee` binaries under `bin/platforms/<plat>-<arch>/borgee`; the default CLI resolves the current platform internally and dispatches to the embedded binary. `install` is the one-shot operator bootstrap: it copies the running binary to a persistent user path, writes the user service, creates user-owned state directories, POSTs `/claim` to mint a long-term credential, prompts for sudo only to install/start the rootd companion and enable Linux linger, starts the user daemon, and waits for the first heartbeat before returning.
 
 **Boundary**
 `install` orchestrates platform service install + enrollment claim + service start + heartbeat wait. It does not decide whether a future agent request is authorized (a helper/grant decision at runtime), it does not fetch the helper binary (the npm package machinery already did that), and it does not embed an enrollment secret (the operator supplies `--token` from the web UI's one-shot reveal). Internal helpers `internal/cli/setup/` and `internal/cli/claim/` render platform service assets and post the claim respectively — they are not operator-facing public commands.
 
 **Collaborators**
-`install` collaborates with `useradd` / `dscl` (system user creation), the platform service manager (`systemctl daemon-reload` + `enable --now` / `launchctl bootstrap`), the file system (state dirs + unit / plist files), the server enrollment API (`POST /api/v1/helper/enrollments/{id}/claim`), and the heartbeat endpoint (poll until `last_seen_at` populates). It does not collaborate with Remote Agent and does not create admin routes.
+`install` collaborates with the platform service manager (`systemctl --user`, `loginctl enable-linger`, sudo-managed rootd systemd / launchd), the file system (user state dirs + unit / plist files), the server enrollment API (`POST /api/v1/helper/enrollments/{id}/claim`), and the heartbeat endpoint (poll until `last_seen_at` populates). It does not create a `borgee` / `_borgee` OS user, does not collaborate with Remote Agent, and does not create admin routes.
 
 **Internal Architecture**
 
 - Package default CLI (`packages/remote-agent/src/cli.ts`) dispatches host-bridge subcommands to the embedded platform binary resolved by `packages/remote-agent/src/platform-binary.ts`.
 - Embedded binary dispatcher (`packages/borgee/cmd/borgee/main.go`) routes `install`, `uninstall-host`, `daemon`, `rootd`, `install-plugin`. `setup` and `claim` are NOT public commands (issue #1055); their packages are linked transitively because `internal/cli/install` imports them.
 - `install` (`packages/borgee/internal/cli/install/install.go`) chains:
-  1. sudo / platform / `systemctl`-or-`launchctl` pre-flight,
+  1. platform and install-user pre-flight,
   2. derives the https origin from the wss:// `--server` (or accepts https:// directly),
   3. splits `--token` on the first `.` into `<enrollment_id>.<enrollment_secret>`,
-  4. copies the running binary to `/usr/local/lib/borgee/bin/borgee` (Linux) or `/usr/local/libexec/borgee/borgee` (macOS),
-  5. calls `setup.Run` (internal helper) with `--server-origin = <derived https>`,
+  4. copies the running binary to the install user's persistent Borgee path,
+  5. calls `setup.Run` (internal helper) with `--server-origin = <derived wss>` plus install user uid/gid/home,
   6. calls `claim.Run` (internal helper) with the parsed enrollment id + secret,
-  7. `systemctl daemon-reload` + `enable --now` (Linux) or `launchctl bootstrap` (macOS),
+  7. enables Linux linger, installs the rootd system service with sudo, then starts the user daemon,
   8. polls the server until heartbeat lands or `--heartbeat-timeout` elapses.
 - `--dry-run` (where supported by the internal helpers) prints what would be done without touching the system.
 - The setup package embeds the systemd unit and launchd plist templates (`renderLinuxUnit` / `renderDarwinPlist`); regression test `setup_test.go` locks the rendered content against silent drift even though setup is no longer operator-facing.
@@ -35,7 +35,7 @@ The installer turns a fresh host into a running helper service. The operator run
 operator opens the Borgee web UI Helper panel -> clicks "Add host"
   -> fills host label + picks allowed categories -> clicks Create
   -> the modal reveals a single
-       `sudo npx @codetreker/borgee-remote-agent install --server <wss://host> --token <enrollment_id>.<secret>`
+       `npx @codetreker/borgee-remote-agent install --server <wss://host> --token <enrollment_id>.<secret>`
      command (shown ONCE)
 operator runs `sudo npm i -g @codetreker/borgee-remote-agent`
   -> tarball includes `bin/platforms/<plat>-<arch>/borgee` for all 4 platforms
@@ -50,8 +50,9 @@ The web UI's "Add host" button (`HelperStatusPanel.tsx` → `POST /api/v1/helper
 **Invariants**
 
 - npm bundle delivery means the operator NEVER hand-copies a `.deb` / `.pkg`; the tarball carries all 4 platform binaries at `bin/platforms/<plat>-<arch>/borgee` and the default package CLI picks one at runtime.
-- `install` is idempotent on re-runs (state dirs preserved, user creation skipped if present, unit file overwritten, claim re-issued with the new token).
+- `install` is idempotent on re-runs (user state dirs preserved, user unit/rootd unit overwritten, claim re-issued with the new token).
 - `setup` and `claim` are internal-only helpers (issue #1055). They are not exposed as public commands; operators must use `npx @codetreker/borgee-remote-agent install`. A re-run of `install` with a fresh token is the supported re-claim path.
+- Root execution is supported only as an explicit operator choice: running as root prints a warning and requires `--allow-root-user`, then stores main-daemon state under `/root`.
 
 ## `install_command` Origin Selection (#1052)
 

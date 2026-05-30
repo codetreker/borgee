@@ -9,7 +9,7 @@
 //     `systemctl stop borgee` first (the server-job executor can't
 //     stop itself without SIGTERM-ing mid-cleanup before /result lands)
 //   - is invoked directly by the operator via
-//     `sudo npx @codetreker/borgee-remote-agent uninstall-host`
+//     `npx @codetreker/borgee-remote-agent uninstall-host`
 //   - shares the cleanup buckets (state dirs, runtime dir, sandbox
 //     profile, service unit, OS user) with the server-job executor by
 //     calling the same `uninstall.Executor` underneath
@@ -25,7 +25,6 @@ package uninstallhost
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -91,10 +90,6 @@ func parseArgs(args []string, stderr io.Writer) (*config, error) {
 
 // run is the testable entry. Returns nil on success.
 func run(cfg *config, stdout, stderr io.Writer) error {
-	if !cfg.skipRootCheck && os.Geteuid() != 0 {
-		fmt.Fprintln(stderr, "borgee uninstall-host: must be run as root (use sudo)")
-		return errors.New("not root")
-	}
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return fmt.Errorf("unsupported platform %q", runtime.GOOS)
 	}
@@ -140,19 +135,16 @@ func stopService(cfg *config, stdout, stderr io.Writer) error {
 	switch runtime.GOOS {
 	case "linux":
 		fmt.Fprintln(stdout, "borgee uninstall-host: systemctl stop + disable (main + rootd companion)")
-		// stop + disable are intentionally best-effort — a fresh host
-		// where the service was never enabled returns non-zero but
-		// the file-level cleanup should still proceed. Stop the main
-		// daemon first so it stops forwarding to rootd, then stop
-		// rootd. Disable in the same order.
-		_ = r.Run(ctx, "systemctl", "stop", setup.LinuxServiceName)
-		_ = r.Run(ctx, "systemctl", "stop", setup.LinuxRootdServiceName)
-		_ = r.Run(ctx, "systemctl", "disable", setup.LinuxServiceName)
-		_ = r.Run(ctx, "systemctl", "disable", setup.LinuxRootdServiceName)
+		layout := uninstall.DefaultLayout(runtime.GOOS)
+		_ = r.Run(ctx, "systemctl", "--user", "stop", setup.LinuxServiceName)
+		_ = r.Run(ctx, "sudo", "systemctl", "stop", layout.RootdServiceName)
+		_ = r.Run(ctx, "systemctl", "--user", "disable", setup.LinuxServiceName)
+		_ = r.Run(ctx, "sudo", "systemctl", "disable", layout.RootdServiceName)
 	case "darwin":
 		fmt.Fprintln(stdout, "borgee uninstall-host: launchctl bootout (main + rootd companion)")
-		_ = r.Run(ctx, "launchctl", "bootout", "system/"+setup.DarwinPlistLabel)
-		_ = r.Run(ctx, "launchctl", "bootout", "system/"+setup.DarwinRootdPlistLabel)
+		layout := uninstall.DefaultLayout(runtime.GOOS)
+		_ = r.Run(ctx, "launchctl", "bootout", "gui/$(id -u)/"+setup.DarwinPlistLabel)
+		_ = r.Run(ctx, "sudo", "launchctl", "bootout", "system/"+layout.RootdServiceName)
 	}
 	return nil
 }

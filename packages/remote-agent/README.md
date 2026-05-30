@@ -13,17 +13,17 @@ Get a server URL + one-shot token from the Borgee web UI, then run a
 single command on the target host:
 
 ```bash
-sudo npx @codetreker/borgee-remote-agent install \
+npx @codetreker/borgee-remote-agent install \
   --server wss://borgee.codetrek.cn \
   --token <token-from-web-ui>
 ```
 
 That's it. The daemon is installed, claimed, started, and survives
 reboot via systemd (Linux) / launchd (macOS). The internal sequence —
-copy binary to a persistent path, write the systemd unit / launchd
-plist + system user + state dirs, POST `/claim` with the enrollment
-secret, `systemctl enable --now` / `launchctl bootstrap`, wait for the
-first heartbeat — happens behind one operator-visible command.
+copy binary to a persistent user path, write the user service, POST `/claim`
+with the enrollment secret, prompt for sudo only to install/start rootd and
+enable Linux linger, start the user daemon, wait for the first heartbeat —
+happens behind one operator-visible command.
 
 The `--token` value is `<enrollment_id>.<enrollment_secret>` (a single
 opaque string the web UI concatenates for paste convenience). The CLI
@@ -37,11 +37,12 @@ Plaintext `http://` / `ws://` are rejected unless
 ## Uninstall
 
 ```bash
-sudo npx @codetreker/borgee-remote-agent uninstall-host
+npx @codetreker/borgee-remote-agent uninstall-host
 ```
 
-Stops + disables the service, wipes state / runtime / unit-file / OS
-user, prints a pointer to `npm uninstall -g` if you installed globally.
+Stops + disables the user service and rootd companion, wipes state / runtime /
+unit files, and prints a pointer to `npm uninstall -g` if you installed
+globally. It does not delete an OS user.
 For server-driven uninstall (operator triggers via web UI), the
 `helper.uninstall` job runs the same cleanup buckets from inside the
 daemon (`internal/executors/uninstall`).
@@ -61,7 +62,7 @@ To re-claim with a new token or refresh the systemd unit / launchd plist,
 re-run the one-shot bootstrap with a fresh token from the web UI:
 
 ```bash
-sudo npx @codetreker/borgee-remote-agent install \
+npx @codetreker/borgee-remote-agent install \
   --server wss://borgee.codetrek.cn \
   --token <new-token-from-web-ui>
 ```
@@ -80,22 +81,26 @@ Linux:
 
 | Path | Purpose |
 |---|---|
-| `/usr/local/lib/borgee/bin/borgee` | Persistent helper binary (`install` copies it from npx cache) |
-| `/etc/systemd/system/borgee.service` | systemd unit (ExecStart points at above) |
-| `/var/lib/borgee/{queue,status,audit-handoff,credential}` | Helper-owned state dirs (mode 0750) |
-| `/var/log/borgee` | Audit log dir |
-| `/run/borgee` | UDS socket dir |
-| user `borgee`, group `borgee` | System service account (UID < 1000) |
+| `~/.local/share/borgee/bin/borgee` | Persistent user daemon binary |
+| `~/.config/systemd/user/borgee.service` | user systemd unit |
+| `~/.local/state/borgee/{queue,status,audit-handoff,credential,...}` | user-owned state dirs |
+| `/usr/local/lib/borgee/rootd/<uid>/borgee` | root-owned companion binary |
+| `/etc/systemd/system/borgee-rootd-<uid>.service` | rootd system unit |
+| `/run/borgee/<uid>/borgee-rootd.sock` | rootd UDS, owned by the installing UID |
 
 macOS:
 
 | Path | Purpose |
 |---|---|
-| `/usr/local/libexec/borgee/borgee` | Persistent helper binary |
-| `/Library/LaunchDaemons/cloud.borgee.host-bridge.plist` | launchd plist |
+| `~/Library/Application Support/Borgee/bin/borgee` | Persistent user daemon binary |
+| `~/Library/LaunchAgents/cloud.borgee.host-bridge.plist` | user launchd plist |
 | `/Library/Application Support/Borgee/borgee-helper.sb` | sandbox-exec profile |
-| `/Library/Application Support/Borgee/Helper/...` | Helper-owned state dirs |
-| user `_borgee`, group `_borgee` | System service account |
+| `~/Library/Application Support/Borgee/Helper/...` | user-owned state dirs |
+| `/usr/local/libexec/borgee/rootd/<uid>/borgee` | root-owned companion binary |
+| `/Library/LaunchDaemons/cloud.borgee.host-bridge.rootd.<uid>.plist` | rootd LaunchDaemon |
+
+If you run `install` as root, the CLI warns that the main daemon will run as
+root with state under `/root`; pass `--allow-root-user` to confirm that mode.
 
 ## Deprecated: direct Node remote-agent path
 

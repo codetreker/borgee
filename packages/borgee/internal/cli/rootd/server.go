@@ -41,6 +41,13 @@ type Server struct {
 	// from peers whose primary gid is not in this group are closed
 	// immediately. Empty disables the peer-cred check (tests only).
 	PeerGroup string
+	// AllowedPeerUID, when set, restricts connections to exactly this uid.
+	// This is the production path for user-owned installs; it avoids granting
+	// rootd access to every member of a broad primary group such as staff.
+	AllowedPeerUID *uint32
+	// SocketOwnerUID/GID, when non-nil, receive ownership of the socket file.
+	SocketOwnerUID *int
+	SocketOwnerGID *int
 	// Handlers is the command whitelist. cmd names not present here are
 	// rejected with unknown_command before any work runs.
 	Handlers map[string]HandlerFunc
@@ -92,6 +99,22 @@ func (s *Server) Serve(ctx context.Context) error {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("rootd: mkdir parent %s: %w", dir, err)
 		}
+		if s.SocketOwnerUID != nil || s.SocketOwnerGID != nil {
+			uid := 0
+			gid := 0
+			if s.SocketOwnerUID != nil {
+				uid = *s.SocketOwnerUID
+			}
+			if s.SocketOwnerGID != nil {
+				gid = *s.SocketOwnerGID
+			}
+			if err := os.Chown(dir, uid, gid); err != nil {
+				s.logf("warn: chown socket parent %s uid=%d gid=%d: %v", dir, uid, gid, err)
+			}
+			if err := os.Chmod(dir, 0o700); err != nil {
+				s.logf("warn: chmod socket parent %s: %v", dir, err)
+			}
+		}
 	}
 
 	// Clean up stale socket from a prior unclean shutdown. We do this
@@ -116,11 +139,25 @@ func (s *Server) Serve(ctx context.Context) error {
 		_ = os.Remove(s.SocketPath)
 	}()
 
-	// chmod 0660 + chown root:<PeerGroup> so only members of PeerGroup
-	// can connect. The peer-cred check is defense-in-depth on top of
-	// these filesystem perms.
-	if err := os.Chmod(s.SocketPath, 0o660); err != nil {
+	mode := os.FileMode(0o660)
+	if s.AllowedPeerUID != nil {
+		mode = 0o600
+	}
+	if err := os.Chmod(s.SocketPath, mode); err != nil {
 		return fmt.Errorf("rootd: chmod %s: %w", s.SocketPath, err)
+	}
+	if s.SocketOwnerUID != nil || s.SocketOwnerGID != nil {
+		uid := 0
+		gid := 0
+		if s.SocketOwnerUID != nil {
+			uid = *s.SocketOwnerUID
+		}
+		if s.SocketOwnerGID != nil {
+			gid = *s.SocketOwnerGID
+		}
+		if err := os.Chown(s.SocketPath, uid, gid); err != nil {
+			s.logf("warn: chown %s uid=%d gid=%d: %v", s.SocketPath, uid, gid, err)
+		}
 	}
 	if s.PeerGroup != "" {
 		if gid, err := lookupGID(s.PeerGroup); err == nil {
@@ -196,6 +233,10 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 			s.logf("reject peer uid=%d gid=%d not in group %q (gid=%d)", uid, gid, s.PeerGroup, wantGID)
 			return
 		}
+	}
+	if s.AllowedPeerUID != nil && uid != *s.AllowedPeerUID {
+		s.logf("reject peer uid=%d gid=%d not allowed uid=%d", uid, gid, *s.AllowedPeerUID)
+		return
 	}
 
 	// Read a single request line, dispatch, write response, close.

@@ -131,7 +131,7 @@ and per-JobType exercises. The command shape is:
 
 ```bash
 docker exec borgee-vm bash -c '
-  sudo npx @codetreker/borgee-remote-agent install \
+  npx @codetreker/borgee-remote-agent install \
     --server wss://testing-borgee.codetrek.cn \
     --token <enrollment_id>.<enrollment_secret>
 '

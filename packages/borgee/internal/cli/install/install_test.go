@@ -119,26 +119,27 @@ func TestDeriveWSOrigin_Schemes(t *testing.T) {
 	}
 }
 
-// TI-1 NotSudo — non-root invocation fails with friendly msg.
-//
-// run() checks os.Geteuid() == 0 and exits early. We cannot test the
-// not-root path under the regular `go test` binary because tests often
-// run as root in CI containers. Skip when running as root; otherwise
-// exercise the early-exit branch.
-func TestRun_NotSudo(t *testing.T) {
-	if isRoot() {
-		t.Skip("test runs as root; not-sudo branch unreachable")
-	}
+// TI-1 NoSudo — normal operator path is intentionally non-root. The
+// installer should set up a user-owned main daemon and invoke sudo only for
+// the rootd companion / linger pieces.
+func TestRun_NoSudoIsAccepted(t *testing.T) {
 	var out, errBuf bytes.Buffer
 	err := run(&config{
-		server: "wss://example.com",
-		token:  "id.secret",
+		server:         "wss://example.com",
+		token:          "id.secret",
+		skipStart:      true,
+		skipBinaryCopy: true,
+		skipSetup:      true,
+		skipClaim:      true,
+		installUser: &installUser{
+			Username: "alice",
+			UID:      1000,
+			GID:      1000,
+			HomeDir:  "/home/alice",
+		},
 	}, &out, &errBuf)
-	if err == nil {
-		t.Fatalf("expected not-sudo error")
-	}
-	if !strings.Contains(errBuf.String(), "must be run as root") {
-		t.Fatalf("stderr missing not-root banner: %q", errBuf.String())
+	if err != nil {
+		t.Fatalf("run should accept non-root install: %v stderr=%s", err, errBuf.String())
 	}
 }
 
@@ -175,15 +176,15 @@ func TestRun_SkipStartNoSystemctl(t *testing.T) {
 	runner := &recordingRunner{}
 	var out, errBuf bytes.Buffer
 	cfg := &config{
-		server:               "https://example.test",
-		token:                "enr1.secret1",
-		skipStart:            true,
-		skipBinaryCopy:       true,
-		skipSetup:            true,
-		skipClaim:            true,
-		skipRootCheck:        true,
-		systemctl:            runner,
-		allowInsecureServer:  false,
+		server:              "https://example.test",
+		token:               "enr1.secret1",
+		skipStart:           true,
+		skipBinaryCopy:      true,
+		skipSetup:           true,
+		skipClaim:           true,
+		skipRootCheck:       true,
+		systemctl:           runner,
+		allowInsecureServer: false,
 	}
 	if err := run(cfg, &out, &errBuf); err != nil {
 		t.Fatalf("run: %v (stderr=%s)", err, errBuf.String())
@@ -257,6 +258,12 @@ func TestRun_StartsBothServices(t *testing.T) {
 		systemctl:           runner,
 		heartbeatTimeout:    50 * time.Millisecond,
 		allowInsecureServer: true,
+		installUser: &installUser{
+			Username: "alice",
+			UID:      1000,
+			GID:      1000,
+			HomeDir:  "/home/alice",
+		},
 	}
 	if err := run(cfg, &out, &errBuf); err != nil {
 		t.Fatalf("run: %v stderr=%s", err, errBuf.String())
@@ -264,17 +271,21 @@ func TestRun_StartsBothServices(t *testing.T) {
 	got := runner.joined()
 	switch runtimeGOOS() {
 	case "linux":
-		// Expect enable+start for both borgee.service AND borgee-rootd.service.
+		// Expect user-level main daemon plus sudo-managed linger/rootd.
 		wantPairs := []string{
-			"systemctl enable borgee-rootd.service",
-			"systemctl start borgee-rootd.service",
-			"systemctl enable borgee.service",
-			"systemctl start borgee.service",
+			"sudo loginctl enable-linger alice",
+			"sudo install -D -m 0644",
+			"sudo systemctl daemon-reload",
+			"sudo systemctl enable borgee-rootd-1000.service",
+			"sudo systemctl start borgee-rootd-1000.service",
+			"systemctl --user daemon-reload",
+			"systemctl --user enable borgee.service",
+			"systemctl --user start borgee.service",
 		}
 		for _, want := range wantPairs {
 			found := false
 			for _, c := range got {
-				if c == want {
+				if c == want || (strings.HasSuffix(want, "0644") && strings.HasPrefix(c, want) && strings.HasSuffix(c, "/etc/systemd/system/borgee-rootd-1000.service")) {
 					found = true
 					break
 				}

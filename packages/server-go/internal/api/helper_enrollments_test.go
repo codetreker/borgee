@@ -703,6 +703,7 @@ func TestHelperEnrollmentInstalledVersions_TS5_RejectsBadAuth(t *testing.T) {
 		t.Fatalf("device-id mismatch should be 403, got %d", resp.StatusCode)
 	}
 }
+
 // TestHelperEnrollmentCreate_ReturnsEnrollmentTokenAndInstallCommand locks the
 // new operator-facing surface added with the "Create enrollment" web UI:
 // handleCreate must return both `enrollment_token` (= `<enrollment_id>.<secret>`,
@@ -742,7 +743,7 @@ func TestHelperEnrollmentCreate_ReturnsEnrollmentTokenAndInstallCommand(t *testi
 	if !ok || installCmd == "" {
 		t.Fatalf("install_command missing/empty: %v", body)
 	}
-	if !strings.HasPrefix(installCmd, "sudo npx @codetreker/borgee-remote-agent install ") {
+	if !strings.HasPrefix(installCmd, "npx @codetreker/borgee-remote-agent install ") {
 		t.Fatalf("install_command should start with the canonical npx invocation: %q", installCmd)
 	}
 	if !strings.Contains(installCmd, "--token "+token) {
