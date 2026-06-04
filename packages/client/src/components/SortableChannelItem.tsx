@@ -100,25 +100,37 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
       )}
       {/* CHN-3.3 personal sortable handle (markup matches chn-3-content-lock.md
           §1 ① 字面锁 + #371 spec §1 CHN-3.3 同源).
-          DOM 锁: <button class="sortable-handle" data-sortable-handle=""
-                    aria-label="拖拽调整顺序">⋮⋮</button>.
+          DOM 锁: <span class="sortable-handle" role="button" tabindex="0"
+                    data-sortable-handle="" aria-label="拖拽调整顺序">⋮⋮</span>.
+          NOTE: this used to be a <button>; it is now a <span role="button"> to
+          un-nest the button-in-button DOM that fired React validateDOMNesting
+          (bf-wo fix-skill-findings / task button-nesting). The outer row is
+          itself a <button>, and the HTML 5 + React rule forbids a button
+          descending another button. Keyboard activation (Enter / Space) is
+          preserved via an explicit onKeyDown that synthesizes a click.
           Constraint: DM 行不渲染 (Sidebar.tsx DMItem 绕过此组件; 此 component
           只服务 channel rows). isOwner 走作者侧 ≡ handle (CHN-1 #288); 非
           owner 也可 reorder 自己侧栏 (CHN-3 设计 ① author-side vs personal split) —
           但 dnd-kit useSortable 的 ordering 影响只在本人 SPA 内, 写 PUT
           /me/layout (CHN-3.2). */}
       {!isArchived && (
-        <button
-          type="button"
+        <span
           className="sortable-handle"
           data-sortable-handle=""
           aria-label="拖拽调整顺序"
           {...attributes}
           {...listeners}
           onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              (e.currentTarget as HTMLElement).click();
+            }
+          }}
         >
           ⋮⋮
-        </button>
+        </span>
       )}
       <ChannelVisibilityMarker isArchived={isArchived} isPrivate={isPrivate} />
       <span className="channel-name">{channelDisplayName(channel)}</span>
