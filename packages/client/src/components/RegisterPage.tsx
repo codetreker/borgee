@@ -80,7 +80,9 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
         <h1 className="login-title">Borgee</h1>
         <h2 style={{ textAlign: 'center', fontSize: 16, marginBottom: 16, fontWeight: 400, color: 'var(--text-secondary)' }}>Create Account</h2>
         <form onSubmit={handleSubmit}>
+          <label htmlFor="register-invite-code" className="sr-only">Invite Code</label>
           <input
+            id="register-invite-code"
             type="text"
             placeholder="Invite Code"
             value={inviteCode}
@@ -88,7 +90,9 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
             className="input-field login-input"
             autoFocus
           />
+          <label htmlFor="register-display-name" className="sr-only">Display Name</label>
           <input
+            id="register-display-name"
             type="text"
             placeholder="Display Name"
             value={displayName}
@@ -99,7 +103,9 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
             className="input-field login-input"
           />
           {fieldErrors.displayName && <div className="login-error" style={{ marginTop: -8, marginBottom: 8, fontSize: 13 }}>{fieldErrors.displayName}</div>}
+          <label htmlFor="register-email" className="sr-only">Email</label>
           <input
+            id="register-email"
             type="email"
             placeholder="Email"
             value={email}
@@ -110,7 +116,9 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
             className="input-field login-input"
           />
           {fieldErrors.email && <div className="login-error" style={{ marginTop: -8, marginBottom: 8, fontSize: 13 }}>{fieldErrors.email}</div>}
+          <label htmlFor="register-password" className="sr-only">Password</label>
           <input
+            id="register-password"
             type="password"
             placeholder="Password"
             value={password}

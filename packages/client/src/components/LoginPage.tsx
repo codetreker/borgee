@@ -32,7 +32,9 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
       <div className="login-card">
         <h1 className="login-title">Borgee</h1>
         <form onSubmit={handleSubmit}>
+          <label htmlFor="login-email" className="sr-only">Email</label>
           <input
+            id="login-email"
             type="email"
             placeholder="Email"
             value={email}
@@ -40,7 +42,9 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
             className="input-field login-input"
             autoFocus
           />
+          <label htmlFor="login-password" className="sr-only">Password</label>
           <input
+            id="login-password"
             type="password"
             placeholder="Password"
             value={password}
