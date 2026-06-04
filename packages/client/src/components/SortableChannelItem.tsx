@@ -114,8 +114,6 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
           /me/layout (CHN-3.2). */}
       {!isArchived && (
         <span
-          role="button"
-          tabIndex={0}
           className="sortable-handle"
           data-sortable-handle=""
           aria-label="拖拽调整顺序"
