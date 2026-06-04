@@ -32,20 +32,28 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
       <div className="login-card">
         <h1 className="login-title">Borgee</h1>
         <form onSubmit={handleSubmit}>
+          <label htmlFor="email" className="sr-only">Email</label>
           <input
+            id="email"
+            name="email"
             type="email"
             placeholder="Email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             className="input-field login-input"
+            autoComplete="email"
             autoFocus
           />
+          <label htmlFor="password" className="sr-only">Password</label>
           <input
+            id="password"
+            name="password"
             type="password"
             placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             className="input-field login-input"
+            autoComplete="current-password"
           />
           {error && <div className="login-error">{error}</div>}
           <button
