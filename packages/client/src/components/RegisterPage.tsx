@@ -124,7 +124,14 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
           {error && <div className="login-error">{error}</div>}
           <button
             type="submit"
-            disabled={loading || !inviteCode || !email || !password || !displayName}
+            disabled={
+              loading ||
+              !inviteCode ||
+              !email ||
+              !password ||
+              !displayName ||
+              Object.keys(fieldErrors).length > 0
+            }
             className="btn btn-primary login-btn"
           >
             {loading ? 'Creating account...' : 'Register'}
