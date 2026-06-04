@@ -3,6 +3,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../Toast';
 import type { Channel } from '../../types';
 import { buildChannelManagementSections, canDeleteChannel } from '../../lib/channelManagement';
+import { displayChannelName } from '../../lib/channelDisplay';
 import { useCan } from '../../hooks/usePermissions';
 import { deleteChannel } from '../../lib/api';
 import ChannelMentionControls from './ChannelMentionControls';
@@ -35,7 +36,7 @@ function ChannelRow({
     <li className="channel-management-row" data-channel-id={channel.id}>
       <div className="channel-management-row-header">
         <div className="channel-management-row-main">
-          <span className="channel-management-name">#{channel.name}</span>
+          <span className="channel-management-name">#{displayChannelName(channel)}</span>
           <span className="channel-management-visibility">{formatVisibility(channel)}</span>
           <span className="channel-management-meta">{formatMemberCount(channel)}</span>
         </div>
@@ -45,7 +46,7 @@ function ChannelRow({
             className="btn btn-sm btn-danger channel-management-delete"
             data-action="delete"
             data-channel-id={channel.id}
-            aria-label={`删除频道 #${channel.name}`}
+            aria-label={`删除频道 #${displayChannelName(channel)}`}
             onClick={() => onRequestDelete(channel)}
           >
             删除
@@ -132,7 +133,7 @@ export default function ChannelManagementSurface() {
       if (general && state.currentChannelId === target.id) {
         dispatch({ type: 'SET_CURRENT_CHANNEL', channelId: general.id });
       }
-      showToast(`#${target.name} 已删除`);
+      showToast(`#${displayChannelName(target)} 已删除`);
       setPendingDelete(null);
     } catch (err) {
       showToast(err instanceof Error ? err.message : '删除失败');

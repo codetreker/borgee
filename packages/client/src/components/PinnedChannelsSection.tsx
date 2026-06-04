@@ -9,6 +9,7 @@
 //   - 同义词反向: 收藏/标星/star/favorite/top/顶置/钉住 0 hit
 import type { Channel } from '../types';
 import { POSITION_PIN_THRESHOLD } from '../lib/pin';
+import { displayChannelName } from '../lib/channelDisplay';
 
 interface PinnedChannelsSectionProps {
   channels: Array<Channel & { position?: number }>;
@@ -41,7 +42,7 @@ export function PinnedChannelsSection({ channels, onSelect }: PinnedChannelsSect
             data-pinned="true"
             onClick={() => onSelect?.(ch.id)}
           >
-            <span className="channel-name">#{ch.name}</span>
+            <span className="channel-name">#{displayChannelName(ch)}</span>
           </li>
         ))}
       </ul>

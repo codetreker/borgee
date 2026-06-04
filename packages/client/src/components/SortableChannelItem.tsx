@@ -2,6 +2,7 @@ import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "../types";
+import { displayChannelName } from "../lib/channelDisplay";
 
 interface Props {
   channel: Channel;
@@ -120,7 +121,7 @@ export default function SortableChannelItem({ channel, active, isOwner, onClick,
         </button>
       )}
       <ChannelVisibilityMarker isArchived={isArchived} isPrivate={isPrivate} />
-      <span className="channel-name">{channel.name}</span>
+      <span className="channel-name">{displayChannelName(channel)}</span>
       {pinned && <span className="channel-pinned-indicator" title="已置顶">📌</span>}
       {isArchived && <span className="archived-badge" title="已归档">已归档</span>}
       {!isMember && !isPrivate && !isArchived && (
@@ -149,7 +150,7 @@ export function ChannelItemStatic({ channel, active, onClick }: Omit<Props, "isO
       data-private={isPrivate && !isArchived ? "true" : undefined}
     >
       <ChannelVisibilityMarker isArchived={isArchived} isPrivate={isPrivate} />
-      <span className="channel-name">{channel.name}</span>
+      <span className="channel-name">{displayChannelName(channel)}</span>
       {isArchived && <span className="archived-badge" title="已归档">已归档</span>}
       {!isMember && !isPrivate && !isArchived && (
         <span className="preview-badge">预览</span>
