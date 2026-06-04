@@ -71,7 +71,21 @@ export function flattenWsFrame(frame: unknown): { type: string; [key: string]: u
   return { ...rest, ...flatPayload, type };
 }
 
-export function useWebSocket() {
+/**
+ * bf task ws-auth-gate (fix-skill-findings): the SPA must NOT open `/ws`
+ * before the session cookie is set, or the server rejects with 401 and the
+ * reconnect loop spams the browser console (borgee-local-e2e skill first-run
+ * counted ~11 entries during a fresh signup). The `isAuthenticated` argument
+ * gates connect: while false the hook is inert (no `new WebSocket(...)`); on
+ * transition to true the effect re-runs and `connect()` fires once. The
+ * argument is optional and defaults to `true` so legacy call sites (and the
+ * existing test harnesses that don't model auth) keep the previous behavior.
+ *
+ * Lock: useWebSocket-auth-gate.test.tsx asserts the wire-level contract
+ * (zero `new WebSocket()` while `isAuthenticated === false`, exactly one on
+ * transition to true).
+ */
+export function useWebSocket(isAuthenticated = true) {
   const { state, dispatch } = useAppContext();
   const { showToast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
@@ -597,9 +611,18 @@ export function useWebSocket() {
     }
   }, []);
 
-  // Connect on mount
+  // Connect on mount (gated on isAuthenticated — see hook docblock).
+  // While `isAuthenticated` is false the effect body is a no-op, so the
+  // pre-auth `/ws` 401 spam observed by borgee-local-e2e cannot happen.
+  // The effect re-runs on transition to true and `connect()` fires once.
+  // Cleanup still runs on unmount and on the false→true→unmount path.
   useEffect(() => {
     mountedRef.current = true;
+    if (!isAuthenticated) {
+      return () => {
+        mountedRef.current = false;
+      };
+    }
     connect();
 
     return () => {
@@ -612,7 +635,7 @@ export function useWebSocket() {
         wsRef.current = null;
       }
     };
-  }, [connect, cleanup]);
+  }, [isAuthenticated, connect, cleanup]);
 
   // Auto-subscribe to DM channels
   useEffect(() => {

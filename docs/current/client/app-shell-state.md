@@ -68,7 +68,7 @@ Before switching view mode, the shell runs registered unsaved-change guards. Fea
 
 Initialization follows a simple sequence: validate session, load identity, load permissions, load channel rail, load online users, then mark initialized. DM channels are not part of the initialized gate; the sidebar refreshes the DM rail after it mounts, and the realtime hook subscribes DM channels as they appear. Online users refresh periodically after authentication because presence is useful even without a fresh WS event.
 
-The shell also wires WebSocket send and ack-timer functions into the shared context. Message composition and retry flows can then remain feature-local while using the same realtime transport.
+The shell also wires WebSocket send and ack-timer functions into the shared context. Message composition and retry flows can then remain feature-local while using the same realtime transport. The realtime hook accepts an `isAuthenticated` argument; the shell passes its session-check result so the hook is inert (no `/ws` connect) until the session cookie is set. This prevents the pre-auth 401 reconnect loop that would otherwise spam the browser console during fresh signup.
 
 ## Interfaces To Other Modules
 
