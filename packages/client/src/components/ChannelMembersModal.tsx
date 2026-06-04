@@ -7,6 +7,7 @@ import ConfirmDeleteModal from './ConfirmDeleteModal';
 import { useToast } from './Toast';
 import PresenceDot from './PresenceDot';
 import { usePresence } from '../hooks/usePresence';
+import { channelDisplayName } from '../lib/channelDisplay';
 
 // AL-3.3 (#R3 Phase 2) — agent member presence row.
 // Constraint §3.2: 仅 role==='agent' 行带 dot, 人 (member/admin) 行无 [data-presence].
@@ -46,6 +47,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
   const [archiving, setArchiving] = useState(false);
 
   const channelName = channel?.name ?? '';
+  const channelLabel = channel ? channelDisplayName(channel) : '';
   const channelCreatedBy = channel?.created_by ?? '';
   const isGeneral = channelName === 'general';
   const isDm = channel?.type === 'dm';
@@ -184,7 +186,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{visibility === 'private' ? '🔒' : '#'}{channelName} 成员</h3>
+          <h3>{visibility === 'private' ? '🔒' : '#'}{channelLabel} 成员</h3>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -335,7 +337,7 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
       </div>
       {confirmingDelete && (
         <ConfirmDeleteModal
-          channelName={channelName}
+          channelName={channelLabel}
           onConfirm={handleDelete}
           onCancel={() => setConfirmingDelete(false)}
           loading={deleting}

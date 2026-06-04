@@ -1,5 +1,6 @@
 import { commandRegistry, CommandError } from './registry';
 import type { CommandContext } from './registry';
+import { channelDisplayName } from '../lib/channelDisplay';
 
 commandRegistry.register({
   name: 'help',
@@ -84,7 +85,7 @@ commandRegistry.register({
     const offline = members.filter(m => !onlineSet.has(m.user_id));
 
     const lines = [
-      `**#${channel.name}**`,
+      `**#${channelDisplayName(channel)}**`,
       `主题: ${channel.topic || '无'}`,
       `成员: ${members.length} (在线 ${online.length})`,
       '',

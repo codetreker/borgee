@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import type { Channel } from '../types';
 import { listArchivedChannels, archiveChannel } from '../lib/api';
+import { channelDisplayName } from '../lib/channelDisplay';
 
 export function ArchivedChannelsPanel({ onRestore }: { onRestore?: (id: string) => void }) {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -63,7 +64,7 @@ export function ArchivedChannelsPanel({ onRestore }: { onRestore?: (id: string) 
             className="archived-channel-item"
             data-archived="true"
           >
-            <span className="channel-name">#{ch.name}</span>
+            <span className="channel-name">#{channelDisplayName(ch)}</span>
             <span className="archived-badge" title="已归档">已归档</span>
             <button
               className="btn btn-sm btn-restore"
