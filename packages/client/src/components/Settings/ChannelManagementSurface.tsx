@@ -7,6 +7,7 @@ import { useCan } from '../../hooks/usePermissions';
 import { deleteChannel } from '../../lib/api';
 import ChannelMentionControls from './ChannelMentionControls';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { channelDisplayName } from '../../lib/channelDisplay';
 
 function formatVisibility(channel: Channel): string {
   if (channel.visibility === 'private') return '私有';
@@ -35,7 +36,7 @@ function ChannelRow({
     <li className="channel-management-row" data-channel-id={channel.id}>
       <div className="channel-management-row-header">
         <div className="channel-management-row-main">
-          <span className="channel-management-name">#{channel.name}</span>
+          <span className="channel-management-name">#{channelDisplayName(channel)}</span>
           <span className="channel-management-visibility">{formatVisibility(channel)}</span>
           <span className="channel-management-meta">{formatMemberCount(channel)}</span>
         </div>
@@ -45,7 +46,7 @@ function ChannelRow({
             className="btn btn-sm btn-danger channel-management-delete"
             data-action="delete"
             data-channel-id={channel.id}
-            aria-label={`删除频道 #${channel.name}`}
+            aria-label={`删除频道 #${channelDisplayName(channel)}`}
             onClick={() => onRequestDelete(channel)}
           >
             删除
@@ -132,7 +133,7 @@ export default function ChannelManagementSurface() {
       if (general && state.currentChannelId === target.id) {
         dispatch({ type: 'SET_CURRENT_CHANNEL', channelId: general.id });
       }
-      showToast(`#${target.name} 已删除`);
+      showToast(`#${channelDisplayName(target)} 已删除`);
       setPendingDelete(null);
     } catch (err) {
       showToast(err instanceof Error ? err.message : '删除失败');
@@ -170,7 +171,7 @@ export default function ChannelManagementSurface() {
       />
       {pendingDelete && (
         <ConfirmDeleteModal
-          channelName={pendingDelete.name}
+          channelName={channelDisplayName(pendingDelete)}
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
           loading={deleting}

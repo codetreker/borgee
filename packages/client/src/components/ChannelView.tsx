@@ -13,6 +13,7 @@ import ArtifactPanel from './ArtifactPanel';
 import { useVisualViewport } from '../hooks/useVisualViewport';
 import type { Message } from '../types';
 import { canLeaveChannel } from '../lib/channelManagement';
+import { channelDisplayName } from '../lib/channelDisplay';
 
 interface Props {
   channelId: string;
@@ -144,7 +145,7 @@ export default function ChannelView({ channelId }: Props) {
 
   const headerTitle = isDm
     ? dmChannel.peer.display_name
-    : `${channel!.visibility === 'private' ? '🔒 ' : '#'}${channel!.name}`;
+    : `${channel!.visibility === 'private' ? '🔒 ' : '#'}${channelDisplayName(channel!)}`;
   const headerTopic = isDm ? undefined : channel!.topic;
   const isGeneral = channel?.name === 'general';
 
@@ -243,7 +244,7 @@ export default function ChannelView({ channelId }: Props) {
         <>
           {isPublicPreview && (
             <div className="preview-banner">
-              你正在预览 <strong>#{channel!.name}</strong>
+              你正在预览 <strong>#{channelDisplayName(channel!)}</strong>
             </div>
           )}
           <ConnectionStatus state={connectionState} />

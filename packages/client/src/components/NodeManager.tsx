@@ -13,6 +13,7 @@ import {
   type RemoteNode,
   type RemoteBinding,
 } from '../lib/api';
+import { channelDisplayName } from '../lib/channelDisplay';
 
 export default function NodeManager() {
   const { state } = useAppContext();
@@ -255,7 +256,7 @@ export function NodeDetail({ node, online, channels, onDelete }: {
             <select value={bindChannelId} onChange={e => setBindChannelId(e.target.value)}>
               <option value="">选择频道...</option>
               {channels.filter(c => (c as any).type !== 'dm').map(c => (
-                <option key={c.id} value={c.id}>#{c.name}</option>
+                <option key={c.id} value={c.id}>#{channelDisplayName(c)}</option>
               ))}
             </select>
             <input type="text" placeholder="远程路径 (如 /workspace)" value={bindPath} onChange={e => setBindPath(e.target.value)} />
@@ -276,7 +277,7 @@ export function NodeDetail({ node, online, channels, onDelete }: {
               return (
                 <div key={b.id} className="node-binding-item">
                   <span className="node-binding-path">{b.label || b.path}</span>
-                  <span className="node-binding-channel">→ #{ch?.name ?? '未知'}</span>
+                  <span className="node-binding-channel">→ #{ch ? channelDisplayName(ch) : '未知'}</span>
                   <button className="btn btn-sm btn-danger" onClick={() => handleDeleteBinding(b.id)}>解绑</button>
                 </div>
               );

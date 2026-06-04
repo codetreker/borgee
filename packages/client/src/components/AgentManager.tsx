@@ -18,6 +18,7 @@ import {
   type PermissionDetail,
 } from '../lib/api';
 import { describeAgentState } from '../lib/agent-state';
+import { channelDisplayName } from '../lib/channelDisplay';
 import PresenceDot from './PresenceDot';
 import RuntimeCard from './RuntimeCard';
 import { AgentConfigPanel } from './AgentConfigPanel';
@@ -531,7 +532,7 @@ function AgentCard({
               <select className="input-field" value={joinChannelId} onChange={e => setJoinChannelId(e.target.value)} style={{ flex: 1 }}>
                 <option value="">Select channel...</option>
                 {channels.filter(c => c.name !== 'general').map(c => (
-                  <option key={c.id} value={c.id}>#{c.name}</option>
+                  <option key={c.id} value={c.id}>#{channelDisplayName(c)}</option>
                 ))}
               </select>
               <button className="btn btn-primary btn-sm" onClick={handleJoinChannel} disabled={!joinChannelId}>Add</button>
