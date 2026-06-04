@@ -40,14 +40,19 @@ async function waitForAuthReady(): Promise<void> {
 
 function AppInner() {
   const { state, actions, dispatch, setSendWsMessage, setRegisterAckTimer } = useAppContext();
-  const { subscribe, sendWsMessage, registerAckTimer } = useWebSocket();
-  const nav = useNavigation();
-  const mainView = nav.current;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  // Gate the /ws connect on auth being settled. Opening /ws before the
+  // auth cookie is set produced a 401-retry storm on first SPA load:
+  // 11 console errors stacked before signup completed (~50ms reconnect
+  // loop until the cookie landed). The hook respects this flag and
+  // tears the socket down on logout.
+  const { subscribe, sendWsMessage, registerAckTimer } = useWebSocket({ enabled: authenticated });
+  const nav = useNavigation();
+  const mainView = nav.current;
 
   // Wire sendWsMessage into context
   useEffect(() => {

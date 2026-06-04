@@ -71,7 +71,20 @@ export function flattenWsFrame(frame: unknown): { type: string; [key: string]: u
   return { ...rest, ...flatPayload, type };
 }
 
-export function useWebSocket() {
+export interface UseWebSocketOptions {
+  /**
+   * Gate the /ws connect on auth being settled. When false, the hook
+   * holds back from opening a WebSocket — this avoids the pre-auth
+   * 401-retry storm that piled up console errors on first SPA load
+   * (cookie not set yet → server closes /ws with auth code → scheduler
+   * retries → repeat). Default true preserves prior behavior for any
+   * call site that does not know about auth (existing tests, etc.).
+   */
+  enabled?: boolean;
+}
+
+export function useWebSocket(options: UseWebSocketOptions = {}) {
+  const { enabled = true } = options;
   const { state, dispatch } = useAppContext();
   const { showToast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
@@ -597,9 +610,17 @@ export function useWebSocket() {
     }
   }, []);
 
-  // Connect on mount
+  // Connect on mount (only after auth is settled — see
+  // UseWebSocketOptions.enabled). When `enabled` flips from false to
+  // true we connect; when it flips back (logout) we tear the socket
+  // down so a stale auth cookie can't keep the connection open.
   useEffect(() => {
     mountedRef.current = true;
+    if (!enabled) {
+      return () => {
+        mountedRef.current = false;
+      };
+    }
     connect();
 
     return () => {
@@ -612,7 +633,7 @@ export function useWebSocket() {
         wsRef.current = null;
       }
     };
-  }, [connect, cleanup]);
+  }, [enabled, connect, cleanup]);
 
   // Auto-subscribe to DM channels
   useEffect(() => {
