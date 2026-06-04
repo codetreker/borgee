@@ -40,7 +40,6 @@ async function waitForAuthReady(): Promise<void> {
 
 function AppInner() {
   const { state, actions, dispatch, setSendWsMessage, setRegisterAckTimer } = useAppContext();
-  const { subscribe, sendWsMessage, registerAckTimer } = useWebSocket();
   const nav = useNavigation();
   const mainView = nav.current;
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -48,6 +47,11 @@ function AppInner() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  // bf task ws-auth-gate: gate /ws connect on `authenticated`. Until the
+  // session cookie is set the hook is inert; on transition to true it
+  // opens exactly one WS. Stops the pre-auth 401 spam observed by
+  // borgee-local-e2e first-run during fresh signup.
+  const { subscribe, sendWsMessage, registerAckTimer } = useWebSocket(authenticated);
 
   // Wire sendWsMessage into context
   useEffect(() => {
