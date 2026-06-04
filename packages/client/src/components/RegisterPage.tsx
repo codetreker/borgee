@@ -45,6 +45,21 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
     });
   };
 
+  // Validation predicate evaluated each render. Mirrors what handleSubmit
+  // recomputes on click — required fields non-empty AND every per-field
+  // validator (email format / password length / display name length)
+  // returns null. Used by the submit button `disabled` prop so the button
+  // reflects form validity in the same render as the field edit, and by
+  // handleSubmit as defense-in-depth (button could in theory be re-enabled
+  // by the browser; we keep the click-time check too).
+  const requiredFilled =
+    Boolean(inviteCode) && Boolean(email) && Boolean(password) && Boolean(displayName);
+  const isFormValid =
+    requiredFilled &&
+    validateEmail(email) === null &&
+    validatePassword(password) === null &&
+    validateDisplayName(displayName) === null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -139,7 +154,7 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
           {error && <div className="login-error">{error}</div>}
           <button
             type="submit"
-            disabled={loading || !inviteCode || !email || !password || !displayName}
+            disabled={loading || !isFormValid}
             className="btn btn-primary login-btn"
           >
             {loading ? 'Creating account...' : 'Register'}
