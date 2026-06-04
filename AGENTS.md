@@ -41,3 +41,14 @@ git -C /workspace/borgee branch -D fix/<slug>
 
 如发现已经在主树动了手, 立刻 `git stash` → 起 worktree → `git stash pop`, 再继续.
 
+## 本地 e2e — 见 skill
+
+任何要做本地端到端测试 (helper / openclaw / install / configure / channel-bridge / 任何同时跨 web UI + Linux VM 的流程) 之前, 必须**先读** `.claude/skills/borgee-local-e2e/SKILL.md`.
+
+核心铁律 (skill 全文展开):
+- server-go 跑在**宿主**, 不在容器
+- dev-vm 是**干净 Ubuntu+systemd 容器**, 不预装 borgee/Node/openclaw 任何东西
+- server-go 跟 dev-vm **绝对禁止**塞同一 docker network (历史 `scripts/dev-stack/` 错例, 已删)
+- e2e 你 = 用户, 所有命令 / token / origin **从 web UI 拿**, 不准 hardcode
+- dev-vm 是**一次性 fixture**, 跑完 `docker compose down -v` 删干净, 下次重起干净环境
+
