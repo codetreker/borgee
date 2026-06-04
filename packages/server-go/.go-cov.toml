@@ -1,0 +1,28 @@
+[thresholds]
+total = 85
+function = 50
+package = 70
+print = 85
+
+[test]
+timeout = "15m"
+race = false
+tags = ["sqlite_fts5", "race_heavy"]
+
+[exclude]
+packages = [
+  "borgee-server/scripts/",
+  "borgee-server/cmd",
+  "borgee-server/internal/testutil",
+  "borgee-server/internal/api/cm5stance",
+  "borgee-server/internal/testutil/regression_suite",
+]
+files = ["internal/testutil/", "main.go"]
+funcs = []
+
+[html]
+enabled = false
+path = ".coverage/test_coverage.html"
+
+[critical_blocks]
+fail = false
