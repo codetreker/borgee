@@ -80,7 +80,10 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
         <h1 className="login-title">Borgee</h1>
         <h2 style={{ textAlign: 'center', fontSize: 16, marginBottom: 16, fontWeight: 400, color: 'var(--text-secondary)' }}>Create Account</h2>
         <form onSubmit={handleSubmit}>
+          <label htmlFor="inviteCode" className="sr-only">Invite Code</label>
           <input
+            id="inviteCode"
+            name="inviteCode"
             type="text"
             placeholder="Invite Code"
             value={inviteCode}
@@ -88,7 +91,10 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
             className="input-field login-input"
             autoFocus
           />
+          <label htmlFor="displayName" className="sr-only">Display Name</label>
           <input
+            id="displayName"
+            name="displayName"
             type="text"
             placeholder="Display Name"
             value={displayName}
@@ -97,9 +103,13 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
               updateFieldError('displayName', validateDisplayName(e.target.value));
             }}
             className="input-field login-input"
+            autoComplete="name"
           />
           {fieldErrors.displayName && <div className="login-error" style={{ marginTop: -8, marginBottom: 8, fontSize: 13 }}>{fieldErrors.displayName}</div>}
+          <label htmlFor="email" className="sr-only">Email</label>
           <input
+            id="email"
+            name="email"
             type="email"
             placeholder="Email"
             value={email}
@@ -108,9 +118,13 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
               updateFieldError('email', validateEmail(e.target.value));
             }}
             className="input-field login-input"
+            autoComplete="email"
           />
           {fieldErrors.email && <div className="login-error" style={{ marginTop: -8, marginBottom: 8, fontSize: 13 }}>{fieldErrors.email}</div>}
+          <label htmlFor="password" className="sr-only">Password</label>
           <input
+            id="password"
+            name="password"
             type="password"
             placeholder="Password"
             value={password}
@@ -119,6 +133,7 @@ export default function RegisterPage({ onLogin, onBack }: Props) {
               updateFieldError('password', validatePassword(e.target.value));
             }}
             className="input-field login-input"
+            autoComplete="new-password"
           />
           {fieldErrors.password && <div className="login-error" style={{ marginTop: -8, marginBottom: 8, fontSize: 13 }}>{fieldErrors.password}</div>}
           {error && <div className="login-error">{error}</div>}
