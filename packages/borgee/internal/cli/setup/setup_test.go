@@ -159,8 +159,13 @@ func TestRenderLinuxRootdUnit_Shape(t *testing.T) {
 		"--allowed-peer-uid=1000",
 		"--socket-owner-uid=1000",
 		"--socket-owner-gid=1000",
-		// Defense-in-depth: rootd is AF_UNIX-only (no network).
-		"RestrictAddressFamilies=AF_UNIX",
+		// rootd's install_plugin handler invokes install-butler which
+		// performs HTTPS GETs for the signed plugin manifest +
+		// artifact bytes; AF_INET/AF_INET6 are required outbound
+		// families. AF_UNIX remains for the inbound rootd control
+		// socket. (#1050 — old comment "AF_UNIX-only" was aspirational
+		// and broke install_plugin in production.)
+		"RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",
 		"NoNewPrivileges=yes",
 		"ProtectSystem=strict",
 		"ProtectHome=yes",
@@ -190,9 +195,10 @@ func TestRenderLinuxRootdUnit_Shape(t *testing.T) {
 		}
 	}
 	forbidden := []string{
-		// rootd has NO network — these would defeat the threat model.
-		"AF_INET",
-		"AF_INET6",
+		// AF_INET / AF_INET6 are PERMITTED (#1050) so install-butler can
+		// fetch the signed plugin manifest + artifact. They are listed in
+		// the required RestrictAddressFamilies line above; we only ban
+		// the raw-link families that are NOT needed.
 		"AF_PACKET",
 		"AF_NETLINK",
 		// rootd must NOT run as borgee — the whole point is privilege split.

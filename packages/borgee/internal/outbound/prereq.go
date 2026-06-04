@@ -21,6 +21,16 @@ type PrereqConfig struct {
 type ValidationOptions struct {
 	AllowedStateRoots []string
 	AllowLoopbackHTTP bool
+	// AllowDevContainerWS, when true, permits ws:// (and http://) to
+	// non-routable destinations beyond the strict loopback set:
+	// RFC1918 private addresses, link-local, the wildcard 0.0.0.0
+	// family, and single-label "container DNS" hostnames (no dot, no
+	// public TLD shape — e.g. `borgee-server` resolved by the docker
+	// embedded DNS). It is OFF by default; daemon.go opts in only
+	// when BORGEE_DEV_ALLOW_INSECURE_WS=1 is set. This is a dev-stack
+	// escape hatch — production daemons leave it off and the
+	// existing https/wss-only rule continues to bind.
+	AllowDevContainerWS bool
 }
 
 type PreparedConfig struct {
@@ -172,7 +182,15 @@ func normalizeOrigin(raw string, opts ValidationOptions) (string, error) {
 	case "https", "wss":
 		// secure schemes: accept
 	case "http", "ws":
-		if !(opts.AllowLoopbackHTTP && isLoopbackHost(u.Hostname())) {
+		loopbackOK := opts.AllowLoopbackHTTP && isLoopbackHost(u.Hostname())
+		// Dev-stack escape hatch (#1050 blocker #1): permit ws:// to
+		// docker-network DNS names (no dot, single label) and to
+		// non-routable / private addresses when the operator explicitly
+		// opts in via BORGEE_DEV_ALLOW_INSECURE_WS=1. Production
+		// daemons run with AllowDevContainerWS=false so the strict
+		// https/wss-only rule continues to bind.
+		devOK := opts.AllowDevContainerWS && isDevPrivateOrContainerHost(u.Hostname())
+		if !(loopbackOK || devOK) {
 			return "", fmt.Errorf("https/wss is required")
 		}
 	default:
@@ -208,6 +226,38 @@ func isLocalOrPrivateHost(host string) bool {
 		return false
 	}
 	return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsUnspecified()
+}
+
+// isDevPrivateOrContainerHost decides whether `host` looks like a
+// non-routable destination acceptable under the dev-stack
+// BORGEE_DEV_ALLOW_INSECURE_WS opt-in. Three buckets accepted:
+//
+//  1. Loopback literals + `*.localhost`.
+//  2. RFC1918 / link-local / unspecified IP addresses (parsed via
+//     netip), matching the existing isLocalOrPrivateHost set.
+//  3. Single-label hostnames (no dot) — docker embedded DNS uses
+//     bare service names like `borgee-server`. Public TLDs always
+//     carry at least one dot, so this gate cannot accidentally let
+//     `example` pass when there is no public `example` TLD record
+//     reachable from the daemon (and the operator has already opted
+//     in with the env var anyway).
+//
+// Anything else (public DNS name with at least one dot, public IP)
+// is rejected even with the opt-in.
+func isDevPrivateOrContainerHost(host string) bool {
+	host = canonicalOriginHost(host)
+	if host == "" {
+		return false
+	}
+	if isLocalOrPrivateHost(host) {
+		return true
+	}
+	// Hostnames containing a dot may resolve to public DNS — refuse
+	// even with the dev opt-in. Single-label tokens are container DNS.
+	if !strings.Contains(host, ".") {
+		return true
+	}
+	return false
 }
 
 func canonicalOriginHost(host string) string {

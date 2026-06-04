@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -377,5 +378,232 @@ func TestDaemonEndToEnd_StatusCollectRunsAcrossWS(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatalf("end-to-end status.collect timed out before result frame arrived")
+	}
+}
+
+// fakeArtifactFetcher returns canned bytes per URL. Tests inject this
+// in place of the production httpArtifactFetcher to avoid real HTTP.
+type fakeArtifactFetcher struct {
+	bytesByURL map[string][]byte
+	errByURL   map[string]error
+	calls      []string
+}
+
+func (f *fakeArtifactFetcher) Fetch(_ context.Context, url string) ([]byte, error) {
+	f.calls = append(f.calls, url)
+	if err, ok := f.errByURL[url]; ok {
+		return nil, err
+	}
+	if b, ok := f.bytesByURL[url]; ok {
+		return b, nil
+	}
+	return nil, errors.New("fake fetcher: no entry for " + url)
+}
+
+// TestNewPolicyEvaluator_PreFetchesArtifactsAndPassesArtifactGate
+// (#1050 blocker #4 regression guard) — the install_from_manifest
+// policy gate requires EvaluationInput.Artifacts to contain the bound
+// artifact's bytes whose sha256 matches the signed manifest's
+// ArtifactDeclaration. Before this fix the dispatcher built
+// EvaluationInput with Artifacts=nil, so validateArtifacts always
+// returned ReasonArtifactInvalid before the executor ran.
+//
+// This test pins the pre-fetch + cache-construction contract: given a
+// real signed manifest with one declared artifact whose Origin returns
+// bytes whose sha matches the declared SHA256, the artifact-cache
+// gate no longer fires. Downstream gates (validatePaths /
+// validateDomains / validateServices) still depend on Sandbox state
+// the helper does not yet wire — those are separate scope. The
+// regression we are locking is: artifact_invalid never appears when
+// pre-fetch is wired correctly.
+//
+// If anyone removes the pre-fetch wiring this test fails with
+// reason=artifact_invalid — the exact symptom that surfaced in
+// run_4's live dev-stack.
+func TestNewPolicyEvaluator_PreFetchesArtifactsAndPassesArtifactGate(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("genkey: %v", err)
+	}
+	now := time.Now()
+	artifactBytes := []byte("sentinel-binary-bytes-v1")
+	artifactSHA := sha256Hex(artifactBytes)
+
+	manifest := jobpolicy.PolicyManifest{
+		ManifestVersion: 1,
+		IssuedAt:        now.Add(-time.Hour),
+		ExpiresAt:       now.Add(time.Hour),
+		Artifacts: []jobpolicy.ArtifactDeclaration{{
+			ID:       "openclaw-plugin",
+			Platform: "linux-x64",
+			Version:  "1.0.0",
+			SHA256:   artifactSHA,
+			Origin:   "https://cdn.example.test",
+		}},
+		Paths: []jobpolicy.PathDeclaration{
+			{ID: "openclaw_install", Root: "/usr/local/lib/borgee/openclaw", Mode: "write_install"},
+			{ID: "openclaw_agent_config", Root: "/var/lib/borgee/openclaw", Mode: "write_config"},
+		},
+		Domains: []string{"https://cdn.example.test"},
+		Services: []jobpolicy.ServiceDeclaration{
+			{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"},
+		},
+	}
+	canonical, err := jobpolicy.CanonicalManifestBytes(manifest)
+	if err != nil {
+		t.Fatalf("canonical: %v", err)
+	}
+	manifest.Signature = base64.StdEncoding.EncodeToString(ed25519.Sign(priv, canonical))
+	signedManifest, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	manifestDigest := sha256Hex(canonical)
+
+	binding := jobpolicy.ManifestBinding{
+		ManifestDigest: manifestDigest,
+		ArtifactIDs:    []string{"openclaw-plugin"},
+		PathIDs:        []string{"openclaw_install", "openclaw_agent_config"},
+		Domains:        []string{"https://cdn.example.test"},
+	}
+	bindingJSON, err := json.Marshal(binding)
+	if err != nil {
+		t.Fatalf("binding: %v", err)
+	}
+	payload := json.RawMessage(`{"install_plan_id":"openclaw-plugin-v1"}`)
+	payloadHash := sha256Hex(payload)
+	leased := &outbound.LeasedJob{
+		JobID:               "job-install-1",
+		EnrollmentID:        "enroll-1",
+		JobType:             jobpolicy.JobTypeOpenClawInstallFromManifest,
+		SchemaVersion:       1,
+		Payload:             payload,
+		OwnerUserID:         "user-1",
+		OrgID:               "org-1",
+		HelperDeviceID:      "device-1",
+		Category:            jobpolicy.CategoryOpenClawLifecycle,
+		PayloadHash:         payloadHash,
+		ManifestDigest:      manifestDigest,
+		ManifestJSON:        signedManifest,
+		ManifestBindingJSON: bindingJSON,
+		ExpiresAt:           now.Add(time.Hour).UnixMilli(),
+		LeaseToken:          "lease-1",
+	}
+
+	// Confirm pre-fetch produces the right cache shape FIRST (unit-level
+	// regression on the pre-fetch helper).
+	cache := resolveArtifactsCache(context.Background(),
+		&fakeArtifactFetcher{bytesByURL: map[string][]byte{"https://cdn.example.test": artifactBytes}},
+		signedManifest, bindingJSON)
+	if got, ok := cache["openclaw-plugin"]; !ok || string(got) != string(artifactBytes) {
+		t.Fatalf("resolveArtifactsCache: openclaw-plugin entry missing or wrong: ok=%v len=%d", ok, len(got))
+	}
+
+	// End-to-end through the evaluator: artifact_invalid must NOT be the
+	// failure reason (the gate we are locking).
+	fetcher := &fakeArtifactFetcher{
+		bytesByURL: map[string][]byte{"https://cdn.example.test": artifactBytes},
+	}
+	evaluator := newPolicyEvaluator([]ed25519.PublicKey{pub}, fetcher)
+	decision := evaluator(context.Background(), leased)
+	if len(fetcher.calls) == 0 {
+		t.Fatalf("pre-fetch did not run; fetcher.calls=%v", fetcher.calls)
+	}
+	if fetcher.calls[0] != "https://cdn.example.test" {
+		t.Fatalf("pre-fetch called wrong URL: got %q want %q", fetcher.calls[0], "https://cdn.example.test")
+	}
+	if decision.Reason == jobpolicy.ReasonArtifactInvalid {
+		t.Fatalf("artifact_invalid leaked through even with pre-fetched matching bytes — blocker #4 regressed")
+	}
+}
+
+// TestNewPolicyEvaluator_PreFetchFailureYieldsArtifactInvalid — when
+// the fetcher returns an error (network down, 5xx, oversize, etc) the
+// cache entry is absent and the policy gate returns the clean
+// ReasonArtifactInvalid rather than silently passing on no bytes.
+// Defense-in-depth so a transient fetch failure cannot promote into a
+// permissive Allow.
+func TestNewPolicyEvaluator_PreFetchFailureYieldsArtifactInvalid(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("genkey: %v", err)
+	}
+	now := time.Now()
+	artifactBytes := []byte("sentinel-binary-bytes-v1")
+	artifactSHA := sha256Hex(artifactBytes)
+	manifest := jobpolicy.PolicyManifest{
+		ManifestVersion: 1,
+		IssuedAt:        now.Add(-time.Hour),
+		ExpiresAt:       now.Add(time.Hour),
+		Artifacts: []jobpolicy.ArtifactDeclaration{{
+			ID: "openclaw-plugin", Platform: "linux-x64", Version: "1.0.0",
+			SHA256: artifactSHA, Origin: "https://cdn.example.test",
+		}},
+		Paths: []jobpolicy.PathDeclaration{
+			{ID: "openclaw_install", Root: "/usr/local/lib/borgee/openclaw", Mode: "write_install"},
+			{ID: "openclaw_agent_config", Root: "/var/lib/borgee/openclaw", Mode: "write_config"},
+		},
+		Domains: []string{"https://cdn.example.test"},
+		Services: []jobpolicy.ServiceDeclaration{
+			{ID: "openclaw-user", Platform: "linux", Manager: "systemd", Unit: "openclaw.service"},
+		},
+	}
+	canonical, _ := jobpolicy.CanonicalManifestBytes(manifest)
+	manifest.Signature = base64.StdEncoding.EncodeToString(ed25519.Sign(priv, canonical))
+	signedManifest, _ := json.Marshal(manifest)
+	manifestDigest := sha256Hex(canonical)
+	binding := jobpolicy.ManifestBinding{
+		ManifestDigest: manifestDigest, ArtifactIDs: []string{"openclaw-plugin"},
+		PathIDs: []string{"openclaw_install", "openclaw_agent_config"}, Domains: []string{"https://cdn.example.test"},
+	}
+	bindingJSON, _ := json.Marshal(binding)
+	payload := json.RawMessage(`{"install_plan_id":"openclaw-plugin-v1"}`)
+	leased := &outbound.LeasedJob{
+		JobID: "job-install-2", EnrollmentID: "enroll-1",
+		JobType: jobpolicy.JobTypeOpenClawInstallFromManifest, SchemaVersion: 1,
+		Payload: payload, OwnerUserID: "user-1", OrgID: "org-1",
+		HelperDeviceID: "device-1", Category: jobpolicy.CategoryOpenClawLifecycle,
+		PayloadHash: sha256Hex(payload), ManifestDigest: manifestDigest,
+		ManifestJSON: signedManifest, ManifestBindingJSON: bindingJSON,
+		ExpiresAt: now.Add(time.Hour).UnixMilli(), LeaseToken: "lease-1",
+	}
+	fetcher := &fakeArtifactFetcher{errByURL: map[string]error{"https://cdn.example.test": errors.New("synthetic 503")}}
+	decision := newPolicyEvaluator([]ed25519.PublicKey{pub}, fetcher)(context.Background(), leased)
+	if decision.Allow || decision.Reason != jobpolicy.ReasonArtifactInvalid {
+		t.Fatalf("fetch failure must yield artifact_invalid: allow=%v reason=%s", decision.Allow, decision.Reason)
+	}
+}
+
+// TestHTTPArtifactFetcher_HappyPath — production fetcher against a
+// real httptest server. Locks the contract that we GET the URL,
+// honor 200 OK, and return the body bytes verbatim.
+func TestHTTPArtifactFetcher_HappyPath(t *testing.T) {
+	want := []byte("hello-from-test-server")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(want)
+	}))
+	defer srv.Close()
+	f := &httpArtifactFetcher{client: srv.Client(), maxSize: 1 << 20}
+	got, err := f.Fetch(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("body mismatch: got %q want %q", string(got), string(want))
+	}
+}
+
+// TestHTTPArtifactFetcher_RejectsNon200 — defense-in-depth: a 404 / 5xx
+// must surface as an error so resolveArtifactsCache can leave the
+// cache entry absent (-> clean ReasonArtifactInvalid downstream).
+func TestHTTPArtifactFetcher_RejectsNon200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	f := &httpArtifactFetcher{client: srv.Client(), maxSize: 1 << 20}
+	if _, err := f.Fetch(context.Background(), srv.URL); err == nil {
+		t.Fatal("expected non-2xx error, got nil")
 	}
 }

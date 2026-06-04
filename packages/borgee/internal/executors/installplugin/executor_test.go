@@ -82,8 +82,9 @@ func TestExecuteHappyPathBuildsRequestAndMapsSuccess(t *testing.T) {
 	if term.Status != dispatch.StatusSucceeded {
 		t.Fatalf("status=%q, want succeeded; full=%+v", term.Status, term)
 	}
-	if fake.gotReq.ManifestURL != "https://cdn.borgee.io" {
-		t.Fatalf("rootd req manifest_url=%q, want https://cdn.borgee.io", fake.gotReq.ManifestURL)
+	wantManifestURL := "https://cdn.borgee.io/dev-artifacts/manifests/openclaw-plugin/linux-x64.json"
+	if fake.gotReq.ManifestURL != wantManifestURL {
+		t.Fatalf("rootd req manifest_url=%q, want %q", fake.gotReq.ManifestURL, wantManifestURL)
 	}
 	if fake.gotReq.PluginID != "openclaw-plugin" {
 		t.Fatalf("rootd req plugin_id=%q, want openclaw-plugin", fake.gotReq.PluginID)

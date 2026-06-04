@@ -26,6 +26,15 @@ services:
       - "127.0.0.1:4900:4900"
     volumes:
       - server-data:/var/lib/borgee-server
+      # #1050 blocker #6 (run_7 update — real plugin tarball mount, no
+      # sentinel). The server reads BORGEE_DEV_ARTIFACTS_DIR at startup
+      # and serves /dev-artifacts/<plugin>/<platform> (+ a signed
+      # plugin-manifest JSON endpoint) from this read-only directory.
+      # Bytes are produced by scripts/dev-stack/build-plugin-artifact.sh
+      # (real @codetreker/borgee-openclaw-plugin tarball; openclaw
+      # plugins install --force accepts it inside the helper-vm).
+      # Production runs leave the env unset; the handler is never mounted.
+      - ./artifacts:/var/lib/borgee-server/dev-artifacts:ro
     healthcheck:
       # /health is the unauthenticated readiness probe registered in
       # internal/server/server.go. Helper boot gates on this returning

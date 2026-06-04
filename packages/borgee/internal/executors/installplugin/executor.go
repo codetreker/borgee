@@ -36,6 +36,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -103,17 +104,27 @@ func (e *Executor) Execute(ctx context.Context, job *outbound.LeasedJob) (dispat
 		return failed("policy_denied", "manifest trust root not configured"), errors.New("installplugin: empty PubKeyBase64")
 	}
 
-	target, manifestURL, err := resolveTargetAndManifestURL(job.ManifestJSON, job.ManifestBindingJSON)
+	plugin := pluginIDFromInstallPlan(payload.InstallPlanID)
+	target, manifestURL, err := resolveTargetAndManifestURL(job.ManifestJSON, job.ManifestBindingJSON, plugin)
 	if err != nil {
 		return failed(mapResolveErr(err), err.Error()), err
 	}
-	plugin := pluginIDFromInstallPlan(payload.InstallPlanID)
 	dest := filepath.Join(target, plugin)
 	req := rootdclient.InstallPluginRequest{
 		ManifestURL:  manifestURL,
 		PubKeyBase64: e.PubKeyBase64,
 		PluginID:     plugin,
 		TargetPath:   dest,
+		// #1050 blocker #3 dev-stack escape hatch: when the operator
+		// opts in via BORGEE_DEV_ALLOW_INSECURE_WS=1 (same env that
+		// already gates ws:// to docker network DNS for the daemon's
+		// outbound origin), allow http:// manifest URLs through to
+		// rootd's install-butler. Production daemons leave the env
+		// unset and rootd's strict https-only gate continues to
+		// reject http:// URLs. The override is plumbed through
+		// rootd.InstallPluginParams.AllowInsecure (and re-validated
+		// there as defense-in-depth).
+		AllowInsecureManifest: os.Getenv("BORGEE_DEV_ALLOW_INSECURE_WS") == "1",
 	}
 	resp, err := e.Rootd.InstallPlugin(ctx, req)
 	if err != nil {
@@ -153,10 +164,14 @@ func pluginIDFromInstallPlan(planID string) string {
 }
 
 // resolveTargetAndManifestURL parses the signed manifest + binding to
-// produce (target_install_dir, manifest_url). The manifest URL is the
-// first bound domain — manifest-signing.md guarantees it carries the
-// JSON manifest endpoint, not an artifact mirror.
-func resolveTargetAndManifestURL(manifestJSON, bindingJSON json.RawMessage) (string, string, error) {
+// produce (target_install_dir, manifest_url). The manifest URL is
+// synthesized from the first bound domain + a dev-stack convention
+// (`/dev-artifacts/manifests/<plugin>/<platform>.json`) so install-
+// butler reaches the plugin-manifest JSON endpoint rather than the
+// origin root. Production rollout will swap this to the canonical
+// `/api/v1/plugin-manifest` once the public CDN is provisioned — the
+// dev-stack convention lives behind BORGEE_DEV_ALLOW_INSECURE_WS=1.
+func resolveTargetAndManifestURL(manifestJSON, bindingJSON json.RawMessage, pluginID string) (string, string, error) {
 	if len(manifestJSON) == 0 {
 		return "", "", errors.New("manifest_invalid: empty manifest")
 	}
@@ -193,7 +208,22 @@ func resolveTargetAndManifestURL(manifestJSON, bindingJSON json.RawMessage) (str
 	if !filepath.IsAbs(target) {
 		return "", "", errors.New("manifest_invalid: target path not absolute")
 	}
-	return target, binding.Domains[0], nil
+	// Find the artifact declaration whose ID matches the plugin we're
+	// about to install so we can pick the right platform suffix for the
+	// synthesized manifest URL.
+	platform := ""
+	for _, a := range manifest.Artifacts {
+		if a.ID == RequiredArtifactID {
+			platform = a.Platform
+			break
+		}
+	}
+	if platform == "" {
+		return "", "", fmt.Errorf("manifest_invalid: artifact platform missing for %s", RequiredArtifactID)
+	}
+	base := strings.TrimRight(binding.Domains[0], "/")
+	manifestURL := base + "/dev-artifacts/manifests/" + pluginID + "/" + platform + ".json"
+	return target, manifestURL, nil
 }
 
 func contains(list []string, want string) bool {

@@ -48,6 +48,10 @@ operator pastes the one-line install command on the host VM
 
 The web UI's "Add host" button (`HelperStatusPanel.tsx` → `POST /api/v1/helper/enrollments`) is the standard operator entry point — it eliminates the curl-era footgun of hand-building the `<enrollment_id>.<enrollment_secret>` token. The token + install command are revealed exactly once; the server only persists the secret's digest, so a lost token requires revoking the enrollment and minting a new one.
 
+## Owner-driven OpenClaw install (#1050)
+
+Once the helper is connected, owners can install OpenClaw without SSHing into the host. From the same `HelperStatusPanel` page the operator selects a helper that is fresh (`status=connected`) and whose `configure_openclaw` aggregate does not yet show a succeeded `openclaw.install_from_manifest` step, then clicks **Install OpenClaw**. A confirmation modal surfaces the read-only target path (`/usr/local/lib/borgee/openclaw`) and plugin id (`openclaw`); Confirm POSTs the existing helper-jobs enqueue endpoint (`POST /api/v1/helper/enrollments/{id}/jobs`, `job_type=openclaw.install_from_manifest`, deterministic `idempotency_key=install-openclaw-<enrollment_id>`). The server constructs the canonical payload + signed manifest binding (see [`manifest-signing.md`](./manifest-signing.md)); the daemon's `install_plugin` executor writes the binary to the manifest-declared target path. The button is replaced by a live progress badge driven by the existing helper-job state subscription, and flips to "OpenClaw installed" once the install step reaches `succeeded`.
+
 **Invariants**
 
 - npm bundle delivery means the operator NEVER hand-copies a `.deb` / `.pkg`; the tarball carries all 4 platform binaries at `bin/platforms/<plat>-<arch>/borgee` and the default package CLI picks one at runtime.

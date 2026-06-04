@@ -16,12 +16,16 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -112,6 +116,10 @@ func run(socket, auditLogPath, grantsDSN, readPaths string, outboundPrereq outbo
 	preparedOutbound, err := outbound.ValidateAndPrepare(outboundPrereq, outbound.ValidationOptions{
 		AllowLoopbackHTTP: allowLoopbackOutbound,
 		AllowedStateRoots: splitCSV(allowedStateRoots),
+		// #1050 blocker #1: dev-stack escape hatch for ws:// to docker
+		// network DNS (e.g. ws://borgee-server:4900). Opt-in via env;
+		// unset / not "1" leaves production behavior unchanged.
+		AllowDevContainerWS: os.Getenv("BORGEE_DEV_ALLOW_INSECURE_WS") == "1",
 	})
 	if err != nil {
 		return err
@@ -391,9 +399,37 @@ func buildUpdateChecker(prep outbound.PreparedConfig, enrollmentIDFile, helperDe
 // WS credential gate, so the daemon doesn't need a duplicate local
 // store yet) — this keeps validateLocalState a no-op until the helper
 // installs its own enrollment cache in a later milestone.
+//
+// #1050 blocker #4: jobpolicy.validateArtifacts requires the
+// EvaluationInput.Artifacts map to carry pre-fetched bytes (keyed by
+// artifact ID) so its sha256 can be compared to the signed manifest's
+// declaration. Before this change the dispatcher always passed
+// Artifacts=nil → every install_from_manifest job was rejected with
+// ReasonArtifactInvalid before reaching the executor. The fix wires a
+// pre-fetch step: on each lease, the evaluator parses
+// ManifestJSON + ManifestBindingJSON, looks each bound artifact ID up
+// to its declared Origin URL, HTTP GETs the bytes, and stuffs them
+// into the cache. Failures are logged + the cache entry is left empty
+// so validateArtifacts returns a clean ReasonArtifactInvalid (rather
+// than the executor running on unverified bytes).
+//
+// NOTE: this closes the daemon-side input-construction gap. End-to-end
+// delivery of a real binary onto disk still requires (a) a dev/prod
+// release pipeline that actually serves the artifact at the declared
+// Origin with bytes whose sha matches the signed manifest, and (b)
+// alignment between the server's manifest emission (artifact.Origin)
+// and binding emission (binding.Domains) — both are out-of-scope
+// follow-ups beyond this UI PR.
 func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
-	trustRoots := loadHelperManifestTrustRoots()
-	return func(_ context.Context, job *outbound.LeasedJob) jobpolicy.Decision {
+	return newPolicyEvaluator(loadHelperManifestTrustRoots(), defaultArtifactFetcher())
+}
+
+// newPolicyEvaluator returns a dispatch.PolicyEvaluator that pre-fetches
+// the bound artifact bytes via `fetcher` before invoking
+// jobpolicy.Evaluate. Tests substitute a fake fetcher to avoid real HTTP.
+func newPolicyEvaluator(trustRoots []ed25519.PublicKey, fetcher artifactFetcher) dispatch.PolicyEvaluator {
+	devAllowInsecure := os.Getenv("BORGEE_DEV_ALLOW_INSECURE_WS") == "1"
+	return func(ctx context.Context, job *outbound.LeasedJob) jobpolicy.Decision {
 		if job == nil {
 			return jobpolicy.Decision{Allow: false, Reason: jobpolicy.ReasonSchemaInvalid}
 		}
@@ -401,6 +437,18 @@ func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
 		if job.ExpiresAt > 0 {
 			expires = time.UnixMilli(job.ExpiresAt)
 		}
+		artifacts := resolveArtifactsCache(ctx, fetcher, job.ManifestJSON, job.ManifestBindingJSON)
+		// Derive the local sandbox from the signed manifest the server
+		// shipped in the lease frame. The manifest is the authoritative
+		// declaration of what paths/origins/services this helper job is
+		// allowed to touch — daemon-side jobpolicy compares
+		// binding.{X} ⊆ sandbox.{X} as a defense-in-depth check, but
+		// today there is no separate per-host sandbox config (#1050
+		// follow-up). Trusting the manifest after signature
+		// verification preserves the deny-by-default posture: a bad
+		// manifest can't widen authority because it would fail the
+		// trust-root check earlier in Evaluate.
+		sandbox := sandboxFromManifest(job.ManifestJSON)
 		return jobpolicy.Evaluate(jobpolicy.EvaluationInput{
 			TrustRoots: trustRoots,
 			Job: jobpolicy.Job{
@@ -429,8 +477,173 @@ func defaultPolicyEvaluator() dispatch.PolicyEvaluator {
 				Status:               "active",
 				AllowedCategories:    []string{job.Category},
 			},
+			Sandbox:                 sandbox,
+			Platform:                platformLabel(),
+			Artifacts:               artifacts,
+			DevAllowInsecureOrigins: devAllowInsecure,
 		})
 	}
+}
+
+// sandboxFromManifest derives a jobpolicy.SandboxProfile from the signed
+// manifest body the server shipped. Trust source = manifest signature
+// (verified by jobpolicy.verifyManifestAuthority before sandbox checks
+// run). Returns zero-value SandboxProfile when manifest is empty / malformed
+// so non-manifest jobs continue to short-circuit at the requiresManifest
+// gate before any sandbox dereference.
+func sandboxFromManifest(manifestJSON []byte) jobpolicy.SandboxProfile {
+	if len(manifestJSON) == 0 {
+		return jobpolicy.SandboxProfile{}
+	}
+	var manifest jobpolicy.PolicyManifest
+	if err := json.Unmarshal(manifestJSON, &manifest); err != nil {
+		return jobpolicy.SandboxProfile{}
+	}
+	out := jobpolicy.SandboxProfile{
+		AllowedOrigins: append([]string(nil), manifest.Domains...),
+	}
+	for _, p := range manifest.Paths {
+		out.ReadRoots = append(out.ReadRoots, p.Root)
+		if strings.Contains(p.Mode, "write") {
+			out.WriteRoots = append(out.WriteRoots, p.Root)
+		}
+	}
+	for _, svc := range manifest.Services {
+		out.ServiceIDs = append(out.ServiceIDs, svc.ID)
+	}
+	return out
+}
+
+// platformLabel returns the helper's manifest-platform token (matches
+// helpermanifest.ArtifactDeclaration.Platform format). Built from
+// runtime.GOOS / GOARCH so the daemon's evaluation input gives
+// validateArtifacts the same value the manifest declares.
+func platformLabel() string {
+	switch runtime.GOOS {
+	case "linux":
+		// dev-stack is amd64; honor GOARCH so future arm64 helpers
+		// resolve cleanly without touching the manifest's Platform.
+		switch runtime.GOARCH {
+		case "amd64":
+			return "linux-x64"
+		case "arm64":
+			return "linux-arm64"
+		default:
+			return "linux-" + runtime.GOARCH
+		}
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm64":
+			return "darwin-arm64"
+		case "amd64":
+			return "darwin-x64"
+		default:
+			return "darwin-" + runtime.GOARCH
+		}
+	default:
+		return runtime.GOOS + "-" + runtime.GOARCH
+	}
+}
+
+// artifactFetcher is the seam tests use to inject a deterministic byte
+// source in place of real HTTP. Production wires defaultArtifactFetcher
+// (net/http with a short timeout).
+type artifactFetcher interface {
+	Fetch(ctx context.Context, url string) ([]byte, error)
+}
+
+// httpArtifactFetcher is the production fetcher: GETs the artifact
+// Origin URL with a short timeout, 1MiB-min / 64MiB cap to bound RAM.
+type httpArtifactFetcher struct {
+	client  *http.Client
+	maxSize int64
+}
+
+const defaultArtifactFetchTimeout = 30 * time.Second
+const defaultArtifactMaxSize int64 = 64 << 20 // 64 MiB
+
+func defaultArtifactFetcher() artifactFetcher {
+	return &httpArtifactFetcher{
+		client:  &http.Client{Timeout: defaultArtifactFetchTimeout},
+		maxSize: defaultArtifactMaxSize,
+	}
+}
+
+func (f *httpArtifactFetcher) Fetch(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http get: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http status %d", resp.StatusCode)
+	}
+	limited := io.LimitReader(resp.Body, f.maxSize+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %w", err)
+	}
+	if int64(len(body)) > f.maxSize {
+		return nil, fmt.Errorf("artifact exceeds %d byte cap", f.maxSize)
+	}
+	return body, nil
+}
+
+// resolveArtifactsCache parses the lease frame's signed manifest body
+// + binding and returns a map[artifact_id]bytes containing whatever the
+// fetcher returned for each artifact declared in the binding. Parse
+// errors / fetch errors leave the corresponding entry absent — the
+// downstream jobpolicy.validateArtifacts then returns a clean
+// ReasonArtifactInvalid (the safe deny default). Both inputs may be
+// nil/empty (no manifest-required job, or trust-roots-empty boot); we
+// return nil in that case so the existing test-vector for
+// non-manifest jobs continues to short-circuit at Evaluate's "no
+// manifest required" branch.
+func resolveArtifactsCache(ctx context.Context, fetcher artifactFetcher, manifestJSON, bindingJSON []byte) map[string][]byte {
+	if len(manifestJSON) == 0 || len(bindingJSON) == 0 || fetcher == nil {
+		return nil
+	}
+	var binding jobpolicy.ManifestBinding
+	if err := json.Unmarshal(bindingJSON, &binding); err != nil {
+		log.Printf("borgee-helper: artifact pre-fetch: binding decode failed: %v", err)
+		return nil
+	}
+	if len(binding.ArtifactIDs) == 0 {
+		// Job does not declare any bound artifacts (e.g. configure_agent,
+		// state.write, service.lifecycle) — nothing to pre-fetch.
+		return nil
+	}
+	var manifest jobpolicy.PolicyManifest
+	if err := json.Unmarshal(manifestJSON, &manifest); err != nil {
+		log.Printf("borgee-helper: artifact pre-fetch: manifest decode failed: %v", err)
+		return nil
+	}
+	byID := make(map[string]jobpolicy.ArtifactDeclaration, len(manifest.Artifacts))
+	for _, artifact := range manifest.Artifacts {
+		byID[artifact.ID] = artifact
+	}
+	out := make(map[string][]byte, len(binding.ArtifactIDs))
+	fetchCtx, cancel := context.WithTimeout(ctx, defaultArtifactFetchTimeout)
+	defer cancel()
+	for _, id := range binding.ArtifactIDs {
+		decl, ok := byID[id]
+		if !ok || strings.TrimSpace(decl.Origin) == "" {
+			log.Printf("borgee-helper: artifact pre-fetch: binding id %q not declared / empty origin", id)
+			continue
+		}
+		bytes, err := fetcher.Fetch(fetchCtx, decl.Origin)
+		if err != nil {
+			log.Printf("borgee-helper: artifact pre-fetch: id=%q origin=%s err=%v", id, decl.Origin, err)
+			continue
+		}
+		log.Printf("borgee-helper: artifact pre-fetch: id=%q origin=%s ok bytes=%d", id, decl.Origin, len(bytes))
+		out[id] = bytes
+	}
+	return out
 }
 
 // loadHelperManifestTrustRoots decodes the daemon's startup

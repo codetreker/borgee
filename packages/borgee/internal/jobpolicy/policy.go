@@ -64,6 +64,16 @@ type EvaluationInput struct {
 	Enrollment EnrollmentState
 	Sandbox    SandboxProfile
 	Artifacts  map[string][]byte
+	// DevAllowInsecureOrigins, when true, relaxes the strict
+	// https/origin-only origin validation used by validateDomains +
+	// validateArtifacts. The daemon sets this from
+	// BORGEE_DEV_ALLOW_INSECURE_WS=1 so dev-stack manifests carrying
+	// `http://borgee-server:4900` (single-label container DNS) and
+	// `artifact.Origin` URLs with a path component pass policy.
+	// Production daemons leave it false and the strict rule continues
+	// to bind. The flag travels with the evaluation input — no
+	// package-level mutable state.
+	DevAllowInsecureOrigins bool
 }
 
 type Job struct {
@@ -180,13 +190,13 @@ func Evaluate(input EvaluationInput) Decision {
 	if reason := validateManifestRequirements(input.Job.JobType, authority.binding); reason != ReasonOK {
 		return deny(reason)
 	}
-	if reason := validateArtifacts(authority, input.Artifacts, input.Platform); reason != ReasonOK {
+	if reason := validateArtifacts(authority, input.Artifacts, input.Platform, input.DevAllowInsecureOrigins); reason != ReasonOK {
 		return deny(reason)
 	}
 	if reason := validatePaths(input.Job.JobType, authority, input.Sandbox); reason != ReasonOK {
 		return deny(reason)
 	}
-	if reason := validateDomains(authority, input.Sandbox); reason != ReasonOK {
+	if reason := validateDomains(authority, input.Sandbox, input.DevAllowInsecureOrigins); reason != ReasonOK {
 		return deny(reason)
 	}
 	if reason := validateServices(authority, input.Sandbox, input.Platform); reason != ReasonOK {
@@ -468,7 +478,7 @@ func validateManifestRequirements(jobType string, binding ManifestBinding) Reaso
 	return ReasonOK
 }
 
-func validateArtifacts(authority manifestAuthority, cache map[string][]byte, platform string) Reason {
+func validateArtifacts(authority manifestAuthority, cache map[string][]byte, platform string, devAllowInsecure bool) Reason {
 	byID := make(map[string]ArtifactDeclaration, len(authority.manifest.Artifacts))
 	for _, artifact := range authority.manifest.Artifacts {
 		if artifact.ID == "" || artifact.SHA256 == "" || artifact.Origin == "" {
@@ -478,7 +488,7 @@ func validateArtifacts(authority manifestAuthority, cache map[string][]byte, pla
 	}
 	boundOrigins := make(map[string]struct{}, len(authority.binding.Domains))
 	for _, domain := range authority.binding.Domains {
-		normalized, err := normalizeOrigin(domain)
+		normalized, err := normalizeOriginOpts(domain, devAllowInsecure)
 		if err != nil {
 			return ReasonDomainDenied
 		}
@@ -492,7 +502,11 @@ func validateArtifacts(authority manifestAuthority, cache map[string][]byte, pla
 		if artifact.Platform != "" && platform != "" && artifact.Platform != platform {
 			return ReasonArtifactInvalid
 		}
-		origin, err := normalizeOrigin(artifact.Origin)
+		// artifact.Origin may carry a path (e.g. dev-stack bytes URL
+		// `http://borgee-server:4900/dev-artifacts/openclaw-plugin/linux-x64`).
+		// The bound-origins set only contains origin-only entries, so
+		// extract the origin component before the membership check.
+		origin, err := originOfURL(artifact.Origin, devAllowInsecure)
 		if err != nil {
 			return ReasonDomainDenied
 		}
@@ -503,7 +517,14 @@ func validateArtifacts(authority manifestAuthority, cache map[string][]byte, pla
 		if !ok {
 			return ReasonArtifactInvalid
 		}
-		if digestBytes(bytes) != artifact.SHA256 {
+		// artifact.SHA256 may be either bare hex (canonical helper
+		// manifest format, matches api.PluginManifestEntry.SHA256) or
+		// the "sha256:" prefixed form used elsewhere in jobpolicy.
+		// Strip a leading "sha256:" before comparison so both shapes
+		// match cleanly. digestBytes always emits the prefixed form.
+		want := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(artifact.SHA256)), "sha256:")
+		got := strings.TrimPrefix(digestBytes(bytes), "sha256:")
+		if got != want {
 			return ReasonArtifactInvalid
 		}
 	}
@@ -592,10 +613,10 @@ func pathWithin(path, root string) bool {
 	return err == nil && rel != "." && !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
 }
 
-func validateDomains(authority manifestAuthority, sandbox SandboxProfile) Reason {
+func validateDomains(authority manifestAuthority, sandbox SandboxProfile, devAllowInsecure bool) Reason {
 	manifestDomains := make(map[string]struct{}, len(authority.manifest.Domains))
 	for _, domain := range authority.manifest.Domains {
-		normalized, err := normalizeOrigin(domain)
+		normalized, err := normalizeOriginOpts(domain, devAllowInsecure)
 		if err != nil {
 			return ReasonDomainDenied
 		}
@@ -603,14 +624,14 @@ func validateDomains(authority manifestAuthority, sandbox SandboxProfile) Reason
 	}
 	sandboxOrigins := make(map[string]struct{}, len(sandbox.AllowedOrigins))
 	for _, origin := range sandbox.AllowedOrigins {
-		normalized, err := normalizeOrigin(origin)
+		normalized, err := normalizeOriginOpts(origin, devAllowInsecure)
 		if err != nil {
 			return ReasonPolicyDenied
 		}
 		sandboxOrigins[normalized] = struct{}{}
 	}
 	for _, domain := range authority.binding.Domains {
-		normalized, err := normalizeOrigin(domain)
+		normalized, err := normalizeOriginOpts(domain, devAllowInsecure)
 		if err != nil {
 			return ReasonDomainDenied
 		}
@@ -624,7 +645,26 @@ func validateDomains(authority manifestAuthority, sandbox SandboxProfile) Reason
 	return ReasonOK
 }
 
+// normalizeOrigin keeps the strict prod contract (callers without
+// devAllowInsecure use this — no behavior change for production code).
 func normalizeOrigin(raw string) (string, error) {
+	return normalizeOriginOpts(raw, false)
+}
+
+// normalizeOriginOpts validates `raw` as an origin (scheme + host, no
+// path/query/fragment). When devAllowInsecure is true, the daemon's
+// BORGEE_DEV_ALLOW_INSECURE_WS=1 opt-in relaxes the strict rules:
+//
+//   - http:// is accepted in addition to https://.
+//   - Single-label hostnames (no dot — docker container DNS like
+//     `borgee-server`) are accepted.
+//   - RFC1918 / loopback / link-local IPs are accepted.
+//
+// Production daemons leave devAllowInsecure false so the strict path
+// continues to bind. Path / query / fragment components are still
+// rejected in both modes — callers that need to compare a full URL
+// with path use originOfURL instead.
+func normalizeOriginOpts(raw string, devAllowInsecure bool) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
 		return "", err
@@ -638,24 +678,50 @@ func normalizeOrigin(raw string) (string, error) {
 	if u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return "", fmt.Errorf("origin must not include path, query, or fragment")
 	}
-	u.Scheme = strings.ToLower(u.Scheme)
-	if u.Scheme != "https" {
-		return "", fmt.Errorf("https is required")
-	}
-	host := canonicalOriginHost(u.Hostname())
-	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return "", fmt.Errorf("local origins are not allowed")
-	}
-	if addr, ok := parseOriginHostAddr(host); ok {
-		if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsUnspecified() {
-			return "", fmt.Errorf("local/private origins are not allowed")
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "https" {
+		if !(devAllowInsecure && scheme == "http") {
+			return "", fmt.Errorf("https is required")
 		}
 	}
+	host := canonicalOriginHost(u.Hostname())
+	if !devAllowInsecure {
+		if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+			return "", fmt.Errorf("local origins are not allowed")
+		}
+		if addr, ok := parseOriginHostAddr(host); ok {
+			if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsUnspecified() {
+				return "", fmt.Errorf("local/private origins are not allowed")
+			}
+		}
+	}
+	u.Scheme = scheme
 	u.Host = strings.ToLower(u.Host)
 	u.Path = ""
 	u.RawPath = ""
 	u.ForceQuery = false
 	return u.String(), nil
+}
+
+// originOfURL parses a possibly-full URL (with path) and returns just
+// its origin component (scheme + host) after normalizing under the
+// supplied dev opt-in. Used by validateArtifacts: artifact.Origin may
+// carry a path so the daemon's prefetcher can GET the exact bytes URL,
+// but the domain membership check only compares origins.
+func originOfURL(raw string, devAllowInsecure bool) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("scheme and host are required")
+	}
+	// Strip path/query/fragment before re-normalizing as an origin.
+	u.Path = ""
+	u.RawPath = ""
+	u.RawQuery = ""
+	u.Fragment = ""
+	return normalizeOriginOpts(u.String(), devAllowInsecure)
 }
 
 func canonicalOriginHost(host string) string {
