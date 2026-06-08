@@ -24,13 +24,13 @@ flowchart TB
 | Admin SPA | Browser console for operators. | Entry, session provider, protected routes, page surfaces. | Server enforcement or persistence. |
 | Admin API client | Frontend boundary for admin endpoints. | Admin path prefix, request shape, response types, admin errors. | User API calls or server authorization. |
 | Admin server rail | Server control plane. | Admin auth, middleware, handlers, serializers, audit writes, retention endpoints. | User session authority or user feature UI. |
-| Privacy/audit projection | Shared visibility model for admin impact. | Admin audit views, user-scoped impact view, impersonation grant state. | A guarantee that every local/helper audit source is ingested. |
+| Privacy/audit projection | Shared visibility model for admin impact. | Admin audit views, user-scoped impact view, impersonation grant state. | A guarantee that every external audit source is ingested. |
 
 ## Responsibilities
 
 This section owns the architecture contract between admin browser surfaces, admin server endpoints, and privacy/audit visibility. The SPA subdocument explains browser composition; the server rail subdocument explains server surfaces; the privacy/audit subdocument explains audience-specific projections.
 
-It does not own user SPA feature behavior, remote node execution, host helper authority, or plugin transport behavior.
+It does not own user SPA feature behavior, remote node execution, or plugin transport behavior.
 
 ## Primary Boundaries
 

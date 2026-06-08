@@ -11,7 +11,7 @@ The admin rail gives operators a bounded management surface for users, permissio
 The boundary is the admin session. A request must carry the admin session cookie, resolve to an unexpired server-side session, and pass through admin middleware before it reaches admin handlers.
 
 **Collaborators**
-The admin rail collaborates with bootstrap configuration, admin session storage, admin middleware, management handlers, runtime metadata views, and audit endpoints. It does not collaborate with user cookie auth, dev bypass, remote node tokens, or host grant ownership.
+The admin rail collaborates with bootstrap configuration, admin session storage, admin middleware, management handlers, runtime metadata views, and audit endpoints. It does not collaborate with user cookie auth, dev bypass, or remote node tokens.
 
 **Internal Architecture**
 
@@ -76,7 +76,7 @@ The runtime admin view summarizes process descriptors and heartbeat metadata. It
 
 ## Out Of Scope
 
-The admin rail does not authenticate with user cookies, create host grants for users, connect Remote Agent nodes, or act as helper daemon authority.
+The admin rail does not authenticate with user cookies, connect Remote Agent nodes, or browse user content.
 
 ## Known Gaps
 

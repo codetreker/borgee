@@ -49,7 +49,7 @@ Plugin-to-server API RPC is initiated by the plugin over `/ws/plugin`. The plugi
 
 ### Server-To-Plugin Local Request
 
-Server-to-plugin local request is initiated by the server over the already-authenticated plugin websocket. The plugin receives a `request` frame and dispatches only recognized local actions. The current local action is `read_file`; it is guarded by the plugin's local file-access allow-list and size limit. This is not the same boundary as Borgee remote-agent or helper-daemon file access.
+Server-to-plugin local request is initiated by the server over the already-authenticated plugin websocket. The plugin receives a `request` frame and dispatches only recognized local actions. The current local action is `read_file`; it is guarded by the plugin's local file-access allow-list and size limit. This is not the same boundary as Borgee remote-agent file access.
 
 ### Outbound Writes
 
@@ -64,7 +64,7 @@ BPP frame definitions and the Go SDK live in the server module. The OpenClaw Typ
 - The server remains authoritative for auth, channel access, message persistence, and event cursor ordering.
 - Plugin outbound actions must tolerate WS RPC absence by using HTTP fallback.
 - Server-to-plugin local requests must stay behind plugin-local allow-lists.
-- Local file reads in the plugin are separate from remote-agent and helper grants.
+- Local file reads in the plugin are separate from remote-agent file reads.
 
 ## Implementation Anchors
 
