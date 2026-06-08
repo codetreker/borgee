@@ -6,14 +6,14 @@ This sketch is an Interaction And Layout Reference for the user settings sidepan
 
 ## Surface
 
-Settings is a global sidepane in the user SPA. It has local tabs for privacy/admin-awareness, channel management, and runtime launch points. The privacy tab can show user-owned admin-impact metadata, impersonation grant state, and the user's current capability grants without creating an admin session or mounting the admin SPA. The channel tab shows channels the current user created and channels they joined, a per-row `删除` button for creators with `channel.delete` permission (soft delete via `Store.SoftDeleteChannel`), and expandable mention delivery controls for agent channel members. The runtime tab launches Remote Nodes and Helper Status without merging their rails.
+Settings is a global sidepane in the user SPA. It has local tabs for privacy/admin-awareness, channel management, and runtime launch points. The privacy tab can show user-owned admin-impact metadata, impersonation grant state, and the user's current capability grants without creating an admin session or mounting the admin SPA. The channel tab shows channels the current user created and channels they joined, a per-row `删除` button for creators with `channel.delete` permission (soft delete via `Store.SoftDeleteChannel`), and expandable mention delivery controls for agent channel members. The runtime tab launches Remote Nodes.
 
 ## Interaction Model
 
 - The user opens settings from the shell navigation rail.
-- Settings uses the same sidepane navigation model as agents, invitations, workspaces, remote nodes, and Helper status.
+- Settings uses the same sidepane navigation model as agents, invitations, workspaces, and remote nodes.
 - The Settings tab state is local to the settings sidepane; switching between Privacy, Channels, and Runtime does not alter app-level sidepane routing.
-- Runtime entries open the existing Remote Nodes and Helper Status sidepanes through the shell view selector. They are distinct launch points, not a shared credential or host-management surface.
+- Runtime entries open the existing Remote Nodes sidepane through the shell view selector. It is a distinct launch point, not a shared credential or host-management surface.
 - Channel management reads the authorized channel list already held in app state. It groups non-DM channels by explicit `created_by` and `is_member` fields.
 - Mention delivery controls load channel members on demand, show `@Everyone` as server-computed, and update agent `requireMention` policy through the user rail when the signed-in user has `channel.manage_members`.
 - Channel management surfaces a per-row `删除` button for the current user when the row represents a non-DM non-general channel they created AND `useCan('channel.delete', channelId)` resolves true. Clicking opens the shared `ConfirmDeleteModal`; confirm calls `deleteChannel()` (`DELETE /api/v1/channels/{id}`, soft delete, broadcasts `channel_deleted`). Failure surfaces as a toast and leaves the modal closeable. Success dispatches `REMOVE_CHANNEL`, toasts `#name 已删除`, and (if the user was viewing the deleted channel) dispatches `SET_CURRENT_CHANNEL` to `#general`. If the channel disappears from `state.channels` between modal-open and confirm (e.g. server `channel_deleted` push from another session), the modal auto-closes.
@@ -63,7 +63,6 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 │                                              │
 │  Runtime                                      │
 │  [Remote Nodes]  Remote Agent file proxy     │
-│  [Helper Status] Helper actuator enrollment  │
 +──────────────────────────────────────────────+
 ```
 
@@ -78,7 +77,7 @@ Settings is a global sidepane in the user SPA. It has local tabs for privacy/adm
 - Created channels appear in the created section only; joined channels created by someone else appear in the joined section. DM channels are outside this surface.
 - Self-created or owned channels do not expose leave as an available action anywhere. Joined-only non-general channels can leave via the channel header (outside Settings). Settings only exposes `删除` for owned non-general non-dm channels with `channel.delete` permission; `archive` and `owner-transfer` are not exposed in Settings.
 - Notification, collapse, sort, pin, group, and private-indicator controls are outside this Settings channel-management surface.
-- Runtime entries are navigation-only. Remote Agent node tokens, Helper enrollment credentials, host grants, and enforcement checks remain owned by their existing rails.
+- Runtime entries are navigation-only. Remote Agent node tokens and enforcement checks remain owned by their existing rail.
 - The admin privacy/audit module owns the durable audit projection and current limitations.
 - The shell may show a global banner when user-owned grant state is active.
 - Settings should not become a viewer for admin-wide audit data.

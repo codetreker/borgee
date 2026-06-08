@@ -16,7 +16,6 @@ flowchart TB
   AllWorkspaces[All workspaces sidepane]
   ChannelRemote[Channel remote tab]
   RemoteNodes[Remote nodes sidepane]
-  HelperStatus[Helper status sidepane]
   Agents[Agent ownership]
   Settings[Settings, channel management, and admin-awareness]
 
@@ -30,7 +29,6 @@ flowchart TB
   Sidepanes --> Agents
   Sidepanes --> AllWorkspaces
   Sidepanes --> RemoteNodes
-  Sidepanes --> HelperStatus
   Sidepanes --> Settings
 ```
 
@@ -44,7 +42,6 @@ flowchart TB
 | All workspaces sidepane | Cross-channel workspace index and preview. | Pulls the all-workspaces projection from REST; grouping/filtering stays local. |
 | Channel remote tab | Browse remote bindings attached to the active channel. | Pulls channel binding metadata and read-only remote tree/file data from REST. |
 | Remote nodes sidepane | Manage user-owned remote nodes and channel bindings. | Pulls node, status, token, and binding data from the user remote API. |
-| Helper status sidepane | Inspect user-owned Helper enrollment status. | Pulls redacted Helper enrollment status from the user Helper enrollment API. |
 | Agent/invitation | Owner-side agent management and join approval. | Uses user agent APIs and signal-then-pull invitation updates. |
 | Settings | User privacy, channel management, channel mention delivery controls, admin-impact history, impersonation grant. | Uses user-owned admin-awareness endpoints, the existing authorized channel list from shared app state, and user-rail channel member policy endpoints. |
 
@@ -101,21 +98,6 @@ Remote has two separate user surfaces: browsing a channel binding and managing n
 The remote browsing surface reads directory listings and file content through user APIs. It does not provide an admin bypass and does not write remote files in the current UI architecture.
 
 Sketch reference: [../remote-agent/ui/README.md](../remote-agent/ui/README.md) preserves a combined Remote Explorer reference sketch. Current user SPA architecture splits that concept into the channel remote tab and the remote nodes sidepane.
-
-## Helper Status Surface
-
-Helper status is a user-owned global sidepane for Host Bridge enrollment visibility. It lists Helper enrollments from the user Helper enrollment REST rail and renders connected, offline, revoked, uninstalled, and pending enrollment states with last-seen and allowed-category details. When the server includes a safe Configure OpenClaw projection, the same surface also renders queued, running, succeeded, failed, denied, revoked, and manual-debug Configure OpenClaw states.
-
-Helper status also exposes an operator-owned create flow: an "Add host" button opens a modal where the operator fills a host label and picks allowed categories, posts to the user Helper enrollment create endpoint, and receives a one-time enrollment token plus a ready-to-paste install command (`npx @codetreker/borgee-remote-agent install --server <wss://host> --token <id>.<secret>`) shown in a single token-reveal view. The token and install command are dropped from React state when the modal closes, so a lost token requires revoking the enrollment and minting a new one. This removes the curl-era bootstrap path.
-
-| Surface | State owner | Data owner |
-| --- | --- | --- |
-| Helper status sidepane | Enrollment list, selected enrollment, refresh/error state, status display, last-seen display, allowed-category display, and bounded Configure OpenClaw terminal-state display. | User Helper enrollment list/detail endpoints. |
-| Helper enrollment create modal | Pending create-form state (host label, allowed categories), submit/loading/error state, and the one-time token-reveal state. | User Helper enrollment create endpoint (returns `enrollment_token` + `install_command` once). |
-
-The surface is read-only status outside the create modal. It does not call Helper credential claim, heartbeat/status, or uninstall endpoints from the browser, and it does not display raw Helper credentials, Remote Agent connection tokens, org internals, private file content, raw job payloads, payload hashes, manifest digests, raw result summaries, raw logs, or local environment details. The one-time enrollment secret is rendered only in the create modal's token-reveal textareas and is removed from the DOM once the modal closes.
-
-Helper connected means the enrolled Helper/device was recently seen by the server. It is not OpenClaw connected status. Configure OpenClaw success appears only from the server-derived closure projection after the required typed job chain succeeds; failed, denied, revoked, and manual-debug projections expose only bounded reason fields and bounded audit/log refs. Remote nodes remain the separate Remote Agent filesystem proxy surface.
 
 ## Agent And Invitation Surfaces
 

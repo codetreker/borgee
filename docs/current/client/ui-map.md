@@ -26,11 +26,10 @@ User SPA
         Invitations
         All workspaces
         Remote nodes
-        Helper status
         Settings
           Privacy/admin-awareness tab
           Channel management tab
-          Runtime tab: Remote Nodes and Helper Status launch entries
+          Runtime tab: Remote Nodes launch entry
 ```
 
 ## Responsibilities
@@ -48,7 +47,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Does it affect the entire authenticated session? | Place it in the shell layer. Examples: auth state, initialization, active impersonation banner, connection wiring. |
 | Does it choose where the user is working? | Place it in the navigation rail or view selector. Examples: channel selection, DM selection, sidepane buttons. |
 | Is it scoped to the selected channel? | Place it under the channel host as a tab or chat capability. Examples: messages, canvas artifact, channel workspace, channel remote bindings. |
-| Does it span channels but remain user-owned? | Place it as a global sidepane. Examples: all workspaces, remote nodes, Helper status, agent management, invitations, settings. |
+| Does it span channels but remain user-owned? | Place it as a global sidepane. Examples: all workspaces, remote nodes, agent management, invitations, settings. |
 | Does it need admin authority? | It belongs outside the user SPA unless it is user-owned admin-awareness metadata. |
 
 ## Surface Map
@@ -65,8 +64,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Invitations | Global sidepane | Local list/filter state | Agent invitation REST rail, refreshed by signals |
 | All workspaces | Global sidepane | Local grouping/filter/preview state | Workspace REST rail |
 | Remote nodes | Global sidepane | Local node/detail/binding state | Remote user REST rail |
-| Helper status | Global sidepane | Local enrollment list/detail/refresh state | User Helper enrollment REST rail |
-| Settings | Global sidepane | Local settings tab state | User admin-awareness endpoints, existing authorized channel list from app state, and runtime launch callbacks for Remote Nodes and Helper Status |
+| Settings | Global sidepane | Local settings tab state | User admin-awareness endpoints, existing authorized channel list from app state, and runtime launch callback for Remote Nodes |
 | Account panel | Shell chrome | Local sidebar panel state | Current user/session REST rail |
 
 ## Sketch Coverage
@@ -81,7 +79,7 @@ The sketches are an Interaction And Layout Reference. They help maintainers reco
 | Canvas/artifact | [ui/canvas-modal.md](ui/canvas-modal.md) | In-app decision flow reference for canvas actions. |
 | Workspace | [ui/workspace.md](ui/workspace.md) | File tree and viewer reference. |
 | Agents | [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), [ui/agent-collab.md](ui/agent-collab.md) | Owner-side agent management and collaboration references. |
-| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching, Settings Runtime placement for Helper Status and Remote Nodes, channel-management overview, and admin-awareness references. |
+| Sidepanes and settings | [ui/sidepane.md](ui/sidepane.md), [ui/settings.md](ui/settings.md) | Sidepane switching, Settings Runtime placement for Remote Nodes, channel-management overview, and admin-awareness references. |
 | Remote surfaces | [../remote-agent/ui/README.md](../remote-agent/ui/README.md) | Combined Remote Explorer reference sketch; current client architecture splits remote nodes from channel remote browsing. |
 
 ## Cross-Surface Signals
