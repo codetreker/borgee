@@ -986,7 +986,6 @@ export interface RemoteNode {
   id: string;
   user_id: string;
   machine_name: string;
-  connection_token: string;
   last_seen_at: string | null;
   created_at: string;
 }
@@ -1014,12 +1013,18 @@ export async function fetchRemoteNodes(): Promise<RemoteNode[]> {
   return data.nodes;
 }
 
-export async function createRemoteNode(machineName: string): Promise<RemoteNode> {
-  const data = await request<{ node: RemoteNode }>('/api/v1/remote/nodes', {
+// createRemoteNode returns the node AND its connection token. The token is
+// surfaced by the server ONLY in this create response (json:"-" strips it from
+// list/get/status — the standard "secret shown once" pattern), so callers must
+// capture it here; it is unrecoverable afterwards.
+export async function createRemoteNode(
+  machineName: string,
+): Promise<{ node: RemoteNode; connectionToken: string }> {
+  const data = await request<{ node: RemoteNode; connection_token: string }>('/api/v1/remote/nodes', {
     method: 'POST',
     body: JSON.stringify({ machine_name: machineName }),
   });
-  return data.node;
+  return { node: data.node, connectionToken: data.connection_token };
 }
 
 export async function deleteRemoteNode(nodeId: string): Promise<void> {

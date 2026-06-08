@@ -22,6 +22,11 @@ export default function NodeManager() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
+  // connection_token is surfaced by the server ONLY in the create response
+  // (json:"-" strips it from list/get/status). We hold it in memory keyed by
+  // node id so it can be shown right after creation; it is intentionally lost
+  // on page refresh — the correct "secret shown once" UX.
+  const [tokens, setTokens] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -47,9 +52,10 @@ export default function NodeManager() {
   useEffect(() => { load(); }, [load]);
 
   const handleCreate = async (name: string) => {
-    const node = await createRemoteNode(name);
+    const { node, connectionToken } = await createRemoteNode(name);
     setShowCreate(false);
     setNodes(prev => [node, ...prev]);
+    setTokens(prev => ({ ...prev, [node.id]: connectionToken }));
     setSelectedNode(node.id);
   };
 
@@ -106,6 +112,7 @@ export default function NodeManager() {
         {selected && (
           <NodeDetail
             node={selected}
+            token={tokens[selected.id]}
             online={onlineStatus[selected.id] ?? false}
             channels={state.channels}
             onDelete={() => handleDelete(selected.id)}
@@ -147,8 +154,12 @@ export function CreateNodeForm({ onSubmit, onCancel }: { onSubmit: (name: string
 
 // gh#703 PR-2/2 — export 给单测直接渲染 (反 NodeManager 拉全 AppContext +
 // fetchRemoteNodes mock 重壳测试).
-export function NodeDetail({ node, online, channels, onDelete }: {
+export function NodeDetail({ node, token, online, channels, onDelete }: {
   node: RemoteNode;
+  // connection_token, surfaced once at create and held in NodeManager memory.
+  // undefined after a page refresh (the server never re-sends it) — the UI
+  // then tells the operator to re-create the node to get a fresh token.
+  token?: string;
   online: boolean;
   channels: { id: string; name: string }[];
   onDelete: () => void;
@@ -193,8 +204,17 @@ export function NodeDetail({ node, online, channels, onDelete }: {
   // codetrek.cn 字面 in source — fork / staging / testing / on-prem 部署
   // 真生效 (deploy.yml + deploy-test.yml inject per-env value).
   const agentWsServer = (import.meta.env.VITE_AGENT_WS_SERVER as string | undefined) ?? 'wss://localhost:4900';
-  const startCmd = `npx @codetreker/borgee-remote-agent --server ${agentWsServer} --token ${showToken ? node.connection_token : '••••••••'} --dirs /path/to/dir`;
-  const fullCmd = `npx @codetreker/borgee-remote-agent --server ${agentWsServer} --token ${node.connection_token} --dirs /path/to/dir`;
+  // The current CLI (single Go binary, npm bin forwards args) REQUIRES the
+  // `install` subcommand with --server/--token/--dirs; the old subcommand-less
+  // form would fail with "unknown subcommand". token is undefined after a page
+  // refresh (shown once) — fall back to a literal placeholder so the command
+  // shape is still copyable/instructive.
+  const tokenForCmd = token ?? '<token>';
+  // Mask the real secret behind the show/hide toggle; the placeholder (no real
+  // secret) is shown verbatim since there is nothing to hide and no toggle.
+  const tokenDisplay = token ? (showToken ? token : '••••••••') : tokenForCmd;
+  const startCmd = `npx @codetreker/borgee-remote-agent install --server ${agentWsServer} --token ${tokenDisplay} --dirs /path/to/dir`;
+  const fullCmd = `npx @codetreker/borgee-remote-agent install --server ${agentWsServer} --token ${tokenForCmd} --dirs /path/to/dir`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullCmd);
@@ -228,14 +248,20 @@ export function NodeDetail({ node, online, channels, onDelete }: {
 
       <div className="node-detail-section">
         <h4>连接信息</h4>
-        <div className="node-token-area">
-          <button className="btn btn-sm" onClick={() => setShowToken(!showToken)}>
-            {showToken ? '隐藏 Token' : '显示 Token'}
-          </button>
-          {showToken && (
-            <code className="node-token">{node.connection_token}</code>
-          )}
-        </div>
+        {token ? (
+          <div className="node-token-area">
+            <button className="btn btn-sm" onClick={() => setShowToken(!showToken)}>
+              {showToken ? '隐藏 Token' : '显示 Token'}
+            </button>
+            {showToken && (
+              <code className="node-token">{token}</code>
+            )}
+          </div>
+        ) : (
+          <p className="node-token-unavailable" style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+            连接 Token 仅在创建时显示一次。如需重新获取，请删除并重新创建此 Node。
+          </p>
+        )}
         <div className="node-cmd-area">
           <p style={{ fontSize: '0.8em', color: 'var(--text-secondary)', margin: '8px 0 4px' }}>启动命令：</p>
           <div className="node-cmd-box">

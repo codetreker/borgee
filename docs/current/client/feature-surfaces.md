@@ -93,9 +93,11 @@ Remote has two separate user surfaces: browsing a channel binding and managing n
 | Surface | State owner | Data owner |
 | --- | --- | --- |
 | Channel remote tab | Selected channel binding, current remote path, viewed file, and local tree/error state. | Channel remote binding endpoint plus read-only remote `ls` and file-read endpoints. |
-| Remote nodes sidepane | Node list, selected node, status snapshot, token visibility, create/binding forms, and local dirty guards. | User remote node, node status, connection token, and node binding endpoints. |
+| Remote nodes sidepane | Node list, selected node, status snapshot, in-memory create-time token, create/binding forms, and local dirty guards. | User remote node, node status, and node binding endpoints. The connection token is surfaced only by the create response. |
 
 The remote browsing surface reads directory listings and file content through user APIs. It does not provide an admin bypass and does not write remote files in the current UI architecture.
+
+The connection token is a "shown once at create" secret: the create response returns it as a sibling `connection_token` field, while node list/status responses never carry it (the model column is `json:"-"`). The sidepane holds it in memory keyed by node id to render it and the `borgee install` command right after creation; it is gone on refresh, and re-obtaining it requires deleting and re-creating the node.
 
 Sketch reference: [../remote-agent/ui/README.md](../remote-agent/ui/README.md) preserves a combined Remote Explorer reference sketch. Current user SPA architecture splits that concept into the channel remote tab and the remote nodes sidepane.
 
