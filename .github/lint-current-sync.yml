@@ -44,7 +44,7 @@ modules:
     code_prefix: packages/helper/
     docs_prefix: docs/current/helper/
   - name: remote-agent
-    code_prefix: packages/remote-agent/
+    code_prefix: packages/borgee/
     docs_prefix: docs/current/remote-agent/
   - name: e2e
     code_prefix: packages/e2e/
