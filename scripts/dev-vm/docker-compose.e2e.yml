@@ -1,0 +1,20 @@
+# Per-run compose override for the remote-node browse e2e (t6).
+#
+# WHY this exists: the committed Playwright harness binds server-go to
+# 127.0.0.1:4901 (playwright.config.ts webServer `HOST: '127.0.0.1'`, shared by
+# all specs — Option A keeps it untouched). A bridge-networked container reaches
+# the host only via the docker bridge gateway IP, which canNOT reach a
+# loopback-only listener (connection refused). host networking lets the daemon
+# inside the dev-vm dial ws://127.0.0.1:4901/ws/remote directly — the only
+# zero-server-change way to reach the loopback-bound harness from the VM.
+#
+# Applied as an overlay: `docker compose -f docker-compose.yml -f
+# docker-compose.e2e.yml up -d` (the spec's beforeAll does this). It changes
+# ONLY the network model; the privileged systemd setup (cgroup: host,
+# /sys/fs/cgroup, tmpfs, stop_signal) is inherited from the base compose.
+#
+# network_mode: host also drops the per-container bridge network, so the daemon
+# uses the host loopback — no gateway-IP resolution needed.
+services:
+  borgee-vm:
+    network_mode: host
