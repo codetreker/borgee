@@ -52,7 +52,7 @@ func TestChannelMemberRequireMentionPolicyMigration(t *testing.T) {
 	}
 }
 
-func TestMigrationRegistryIncludesChannelMemberRequireMentionAfterHelperJobs(t *testing.T) {
+func TestMigrationRegistryIncludesChannelMemberRequireMentionPolicyOrder(t *testing.T) {
 	t.Parallel()
 	// Locate channel_member_require_mention_policy (v52) regardless of how
 	// many follow-up migrations land after it; the constraint is "v52 must
@@ -73,7 +73,7 @@ func TestMigrationRegistryIncludesChannelMemberRequireMentionAfterHelperJobs(t *
 		t.Fatalf("missing migration v52 channel_member_require_mention_policy")
 	}
 	if posV52 < posV51 {
-		t.Fatalf("require mention policy v52 appears before helper jobs v51")
+		t.Fatalf("v52 require_mention_policy appears before v51")
 	}
 }
 

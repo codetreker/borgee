@@ -76,6 +76,7 @@ var All = []Migration{
 	helperJobs,
 	channelMemberRequireMentionPolicy,
 	helperUpdatesAvailable,
+	helperAndHostGrantsRailDrop,
 }
 
 // Default returns an Engine wired to db with All registered.

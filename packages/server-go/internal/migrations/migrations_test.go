@@ -16,6 +16,23 @@ func openMem(t *testing.T) *gorm.DB {
 	return db
 }
 
+// sqliteTableDDL returns the CREATE TABLE statement recorded in
+// sqlite_master for the named table. Shared across migration tests that
+// need to assert CHECK constraint literals (e.g. enum coverage). Defined
+// here after the helper-rail tests were removed in t1; channel_member_*
+// and others still depend on it.
+func sqliteTableDDL(t *testing.T, gdb *gorm.DB, name string) string {
+	t.Helper()
+	var ddl string
+	if err := gdb.Raw(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&ddl).Error; err != nil {
+		t.Fatalf("load table DDL %s: %v", name, err)
+	}
+	if ddl == "" {
+		t.Fatalf("missing table DDL for %s", name)
+	}
+	return ddl
+}
+
 func TestEnsureSchemaCreatesTable(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
