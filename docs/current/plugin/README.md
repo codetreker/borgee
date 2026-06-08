@@ -45,7 +45,7 @@ flowchart LR
 
 - Borgee server state is authoritative; plugin-local state is a resume aid.
 - Server auth and channel policy are enforced by server contracts, not by OpenClaw routing.
-- Plugin-local file access is separate from remote-agent and helper-daemon file access.
+- Plugin-local file access is separate from remote-agent file access.
 
 ## Documents
 

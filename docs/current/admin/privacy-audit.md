@@ -8,7 +8,7 @@ Admin privacy audit is the design that makes admin impact visible without making
 Privacy audit records selected admin impacts and provides two visibility modes: affected users can see actions targeting them, while admins can inspect broader operational audit data through the admin rail.
 
 **Boundary**
-The boundary is audience. User-facing privacy views are target-user scoped. Admin-facing audit views are admin-session scoped. Helper local audit is outside this durable server audit boundary unless explicitly ingested.
+The boundary is audience. User-facing privacy views are target-user scoped. Admin-facing audit views are admin-session scoped.
 
 **Collaborators**
 Privacy audit collaborates with admin write handlers, audit storage, user settings/privacy surfaces, system DM notification, impersonation grants, retention/archival behavior, and multi-source admin audit queries.
@@ -63,13 +63,12 @@ The user-owned impersonation grant represents a temporary support consent state.
 
 ## Out Of Scope
 
-Privacy audit does not guarantee helper JSONL ingestion, does not make all admin writes uniformly audited today, and does not by itself enforce impersonation checks.
+Privacy audit does not make all admin writes uniformly audited today, and does not by itself enforce impersonation checks.
 
 ## Known Gaps
 
 - Some admin write paths have audit hooks and some do not.
 - `RequireImpersonationGrant` currently has no production admin write-handler call sites; it is present as a helper with tests, so the current limitation is wiring, not grant storage or user grant CRUD.
-- Helper-local audit is not yet part of the durable server audit projection.
 
 ## Implementation Anchors
 

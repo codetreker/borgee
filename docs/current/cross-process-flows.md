@@ -12,7 +12,6 @@ This index points each cross-process flow to its owner documents. The sections b
 | Plugin event bridge | OpenClaw plugin, server event paths, outbound actions | [plugin runtime](plugin/openclaw-runtime.md), [plugin transports](plugin/transports.md), [server realtime/events](server/realtime-and-events.md) |
 | BPP control | server-go BPP handlers and live plugin connection | [BPP internals](server/bpp-internals.md), [plugin server contracts](plugin/server-contracts.md) |
 | Remote file read | server remote socket and user-machine remote-agent | [remote-agent protocol](remote-agent/protocol.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md) |
-| Host grant/helper request | installer/helper process and grants-backed local IPC | [helper daemon](host-bridge/helper-daemon.md), [host grants](host-bridge/host-grants.md), [installer](host-bridge/installer.md) |
 | Admin privacy audit | admin browser, admin rail, audit/privacy state | [admin privacy/audit](admin/privacy-audit.md), [admin server rail](admin/server-rail.md) |
 | Validation harness | local verification orchestration outside product runtime | [E2E / verification](e2e/) |
 
@@ -70,19 +69,16 @@ sequenceDiagram
 
 BPP is the plugin control plane. It carries config updates, permission signals, reconnect/cold-start handshakes, and task lifecycle signals. It is not the only realtime path; browser-facing frames and event backfill still exist.
 
-## Remote And Host Bridge Paths
+## Remote File Read Path
 
-Remote-agent and borgee-helper solve different problems. The remote-agent path proxies file operations through a user-owned remote node connection. The helper path is a local daemon with grants-backed host bridge IPC. Both stay outside server-go's process.
+The remote-agent path proxies read-only file operations through a user-owned remote node connection. It stays outside server-go's process.
 
 ```mermaid
 flowchart LR
   server[server-go]
   remote[remote-agent]
-  helper[borgee-helper]
-  db[(SQLite grants)]
 
   server <-->|remote request/response| remote
-  helper -->|read grants| db
 ```
 
 ## Implementation Anchors
@@ -91,4 +87,4 @@ flowchart LR
 - Server realtime endpoints: `packages/server-go/internal/ws`, `packages/server-go/internal/api/poll.go`
 - BPP control plane: `packages/server-go/internal/bpp`, `packages/server-go/internal/ws/agent_config_push.go`, `packages/server-go/internal/ws/agent_task_state_changed_frame.go`
 - Plugin bridge: `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/inbound.ts`, `packages/plugins/openclaw/src/outbound.ts`
-- Remote and helper paths: `packages/remote-agent/src/agent.ts`, `packages/server-go/internal/ws/remote.go`, `packages/borgee-helper`
+- Remote path: `packages/borgee/internal/remotews`, `packages/server-go/internal/ws/remote.go`

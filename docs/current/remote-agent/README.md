@@ -1,79 +1,65 @@
 # Remote Agent
 
-Remote Agent is the user-owned path intended to make selected local directories visible to Borgee while the agent process is running. It is a reverse WebSocket bridge with a local read-only executor, but current protocol caveats mean the filesystem proxy should be treated as a partially wired capability. It is separate from Host Bridge and Helper enrollment: Remote Agent is for user-selected remote filesystem browsing; Host Bridge is for host capabilities mediated by grants, helper IPC, audit, Helper enrollment/status identity, and sandboxing.
+Remote Node is a working, read-only filesystem browser. A signed-in user attaches one machine to their Borgee account, binds selected directories to channels, and browses and reads those files through the server. The server proxies each request over one reverse WebSocket to a single Go daemon running on that machine as the install user. There is no second rail: the daemon performs bounded read-only filesystem operations and nothing else.
 
 ## Overview
 
 **Role**
-Remote Agent gives a signed-in user a way to attach a machine to their Borgee account, bind selected paths to channels, and use the server as an intended proxy for directory listing and file reads to that machine. The server never mounts the filesystem directly; in the intended contract it asks the connected agent to perform bounded local operations.
+Remote Node gives a signed-in user a way to attach a machine to their Borgee account, bind selected paths to channels, and use the server as a proxy for directory listing and file reads to that machine. The server never mounts the filesystem directly; it asks the connected daemon to perform bounded read-only operations. That is the contract, not an intended one.
 
 **Boundary**
-The boundary is the remote node plus the current protocol caveat. A node belongs to one user, authenticates with its own connection token, and is only reachable through that user's remote API requests. Local filesystem access is intended to be constrained by the agent's startup directory allowlist, but maintainers should account for the protocol caveats before treating server-triggered list/read as a reliable filesystem boundary.
+The boundary is the remote node. A node belongs to one user, authenticates with its own connection token, and is only reachable through that user's remote API requests. Local filesystem access is constrained by the daemon's startup directory allowlist; server-triggered ls/read/stat is the real filesystem boundary for that node.
 
 **Collaborators**
-Remote Agent collaborates with the user API control plane, the WebSocket hub data plane, the remote node store, channel remote bindings, and the local filesystem boundary. It does not collaborate with host grants, Helper enrollment credentials, or helper daemon IPC.
+Remote Node collaborates with the user API control plane, the WebSocket hub data plane, the remote node store, channel remote bindings, and the local filesystem boundary.
 
 **Internal Architecture**
 The design splits into three layers:
 
 - Control plane: node and binding lifecycle, owned by the server and scoped to the user.
-- Data plane: a long-lived reverse WebSocket connection keyed by the node token.
-- Local executor: a small agent process that dispatches filesystem actions against the startup allowlist.
+- Data plane: a long-lived reverse WebSocket connection keyed by the node connection token.
+- Local executor: the Go daemon dispatching read-only filesystem actions against its startup allowlist.
 
 **Key Flows**
 
 ```text
-intended contract:
-  create node -> obtain connection token -> start agent with server/token/dirs
-  agent connects -> server marks node online -> user requests ls/read
-  server checks owner + online state -> WebSocket request -> agent filesystem executor
-  agent response -> server HTTP response or mapped error
-
-current caveat:
-  server and TypeScript agent disagree on where request path is carried
+create node -> create response returns the connection token once (UI shows it)
+run `npx @codetreker/borgee-remote-agent install --server <wss://host> --token <id>.<secret> --dirs <paths>` on the target
+daemon installs under the user's home/XDG service -> opens one reverse WebSocket authenticated by the node token
+server marks node online -> user issues ls/read/stat
+server checks owner + online state -> flat {action, path} request frame to the daemon
+daemon runs the read-only op -> response frame -> server HTTP response or mapped error
 ```
 
 **Invariants**
 
 - Remote nodes are user-owned resources; cross-user node access is rejected.
-- The remote WebSocket token is node-specific and not the same credential as the user cookie, API key, plugin API key, Helper enrollment credential, or helper grant.
+- The remote WebSocket token is node-specific and not the same credential as the user cookie, API key, or plugin API key.
 - Remote reads are online-only; no offline queue or cached filesystem snapshot is part of this path.
-- Directory exposure is selected at agent startup and enforced locally by the agent process once the agent receives a correctly shaped filesystem request.
-- Remote Agent is not an execution channel, installer, network egress broker, Helper enrollment authority, or host grant consumer.
+- Directory exposure is selected at install/startup and enforced locally by the daemon process.
+- Remote Node is not an execution channel, installer, or network egress broker.
 
 ## Module Map
 
 - [protocol.md](protocol.md) describes the control plane/data plane split, message contract, timeout behavior, and protocol-level invariants.
-- [filesystem-boundary.md](filesystem-boundary.md) describes the local directory allowlist, read limits, read-only behavior, and how this differs from helper sandboxing.
-- [ui/](ui/) keeps a combined Remote Explorer ASCII reference sketch as Interaction And Layout Reference. It maps to the user SPA's remote nodes sidepane and channel remote tab; protocol caveats and filesystem boundary rules remain defined in [protocol.md](protocol.md) and [filesystem-boundary.md](filesystem-boundary.md).
+- [filesystem-boundary.md](filesystem-boundary.md) describes the local directory allowlist, read limits, and read-only behavior.
+- [ui/](ui/) keeps a combined Remote Explorer ASCII reference sketch as Interaction And Layout Reference. It maps to the user SPA's remote nodes sidepane and channel remote tab; protocol details and filesystem boundary rules are defined in [protocol.md](protocol.md) and [filesystem-boundary.md](filesystem-boundary.md).
 
 ## Out Of Scope
 
-Remote Agent does not provide host-wide privileges, OS sandboxing, package installation, command execution, Helper enrollment status, or helper audit integration. Those belong to the Host Bridge capability path.
-
-## Current Status And Boundary Caveats
-
-- The current filesystem proxy is an intended capability with protocol caveats; [protocol.md](protocol.md) owns the connection setup and request-contract details.
-- Treat Remote Agent's boundary as node ownership plus local allowlist intent until those protocol caveats are resolved.
-- Remote Agent tokens do not authenticate Helper enrollment claim, heartbeat, credential rotation, or helper-originated uninstall. Helper enrollment rows and credentials live in the server Helper enrollment rail.
-- PR-2 #1038 bundled the host-bridge daemon's WebSocket transport into the `@codetreker/borgee-remote-agent` npm package as part of the single-binary distribution chain. The daemon now connects to the server via `wss://<server>/ws/helper/<enrollmentId>` instead of the prior HTTP long-poll. This does not affect the Remote Agent reverse WebSocket data plane; the bumped tarball version (0.2.0) reflects the new bundled binary capability set.
-- The package now exposes one public npm bin, `borgee-remote-agent`. Host-bridge subcommands such as `install` are dispatched by that default CLI to the embedded platform binary under `bin/platforms/<plat>-<arch>/borgee`; there is no separate public npm `borgee` bin or `bin/borgee.js` shim. Direct Node remote-agent startup through `--server ... --dirs ...` remains as a deprecated compatibility path.
-- Version 0.3.4 makes the host-bridge install command non-sudo by default: operators run `npx @codetreker/borgee-remote-agent install --server <wss://host> --token <id>.<secret>`. The main daemon installs under the invoking user's home/XDG service and state paths, while the rootd companion is still installed with sudo as a per-UID root service. Root installs are explicit via `--allow-root-user`, and `uninstall-host` no longer deletes a default `borgee` OS user.
-- Version 0.3.5 keeps that user-service model but moves the executable back to a shared root-owned install prefix: both the user daemon and rootd execute `<install-prefix>/bin/borgee`, defaulting to `/usr/local/borgee/bin/borgee`. Tests and non-standard packages can override the prefix with `--install-prefix`.
+Remote Node does not provide host-wide privileges, OS sandboxing, package installation, or command execution. These are simply not part of v1; there is no other rail that supplies them.
 
 ## Implementation Anchors
 
-- `packages/server-go/internal/api/remote.go` (`RemoteHandler`, `RemoteProxy`)
-- `packages/server-go/internal/ws/remote.go` (`RemoteConn`, `HandleRemote`)
+- `packages/borgee/cmd/borgee` (daemon entrypoint)
+- `packages/borgee/internal/fsops` (`Ls`, `Read`, `Stat`, allowlist check)
+- `packages/borgee/internal/remotews` (flat `{action, path}` frame; reverse-WebSocket client)
+- `packages/borgee/internal/cli/install`, `internal/cli/daemon`, `internal/cli/uninstall`
+- `packages/borgee/internal/tokenstore`
+- `packages/server-go/internal/api/remote.go` (`RemoteHandler`, `handleNodeStat`)
+- `packages/server-go/internal/ws/remote.go` (`RemoteConn`, `HandleRemote`, `SendRequest`)
 - `packages/server-go/internal/ws/hub.go` (`Hub.RegisterRemote`, `Hub.GetRemote`)
-- `packages/server-go/internal/server/server.go` (`hubRemoteAdapter`)
+- `packages/server-go/internal/server/server.go` (`hubRemoteAdapter.ProxyRequest`)
 - `packages/server-go/internal/store/models.go` (`RemoteNode`, `RemoteBinding`)
 - `packages/server-go/internal/store/queries_phase2b.go` (remote node and binding queries)
 - `packages/server-go/internal/store/queries_phase3.go` (remote token lookup and last-seen update)
-- `packages/server-go/internal/api/helper_enrollments.go` (`HelperEnrollmentHandler`, separate rail)
-- `packages/server-go/internal/store/helper_enrollment_queries.go` (separate rail)
-- `packages/remote-agent/src/index.ts`
-- `packages/remote-agent/src/cli.ts` (default CLI dispatcher)
-- `packages/remote-agent/src/platform-binary.ts` (embedded platform binary resolver)
-- `packages/remote-agent/src/agent.ts` (`RemoteAgent`)
-- `packages/remote-agent/src/fs-ops.ts`

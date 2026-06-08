@@ -12,7 +12,6 @@ The server realtime layer turns committed collaboration changes into live signal
 | Poll and SSE | Cursor-based event recovery and plugin-friendly streaming | Store, Hub waiters, browser/plugin clients | UI merge policy |
 | Plugin websocket | Plugin RPC plus BPP ingress boundary | OpenClaw plugin, BPP dispatcher | General event broadcast to plugins |
 | Remote websocket | Remote node liveness and request/response transport | remote-agent, remote REST handlers | Local filesystem policy |
-| Helper websocket (PR-2 #1038) | Host-bridge daemon push transport: server-pushed leased jobs, ack/result frames, ping/pong heartbeat | borgee daemon, helper job repository | Browser fanout, plugin RPC |
 
 ## Internal Architecture
 
@@ -22,7 +21,6 @@ flowchart LR
   poll[/Poll, SSE, events/]
   plugin[/Plugin /ws/plugin/]
   remote[/Remote /ws/remote/]
-  helper[/Helper /ws/helper/]
   hub[Hub]
   store[(Event store)]
   bpp[BPP dispatcher]
@@ -34,7 +32,6 @@ flowchart LR
   plugin --> hub
   plugin --> bpp
   remote --> hub
-  helper --> hub
 ```
 
 The Hub is the in-memory coordination point. It tracks browser clients, online users, plugin connections, remote connections, event waiters, and a cursor allocator for typed push frames. Durable event history stays in the store; the Hub only wakes waiters and fans out live frames.
@@ -65,42 +62,12 @@ An active plugin socket is the liveness input for agent runtime status. Runtime 
 
 The remote socket authenticates a remote node token and gives server REST handlers a live request/response channel to that node. The remote-agent process owns local filesystem operations.
 
-### Helper Socket (PR-2 #1038)
-
-The helper socket mounts at `/ws/helper/{enrollmentId}` and serves the
-host-bridge daemon's persistent push transport. On upgrade the server
-validates `Authorization: Bearer <helper_credential>` and
-`X-Helper-Device-Id` (delegated to
-`HelperEnrollmentRepository.UpdateLastSeen` — same call the prior REST
-`POST /status` route used), bumps `last_seen_at` in one DB write, and
-registers an at-most-one session per enrollment in the Hub. A second
-connect for the same enrollment displaces the older with close code
-4001 ("displaced"). Origin headers are rejected on upgrade (the
-daemon does not send Origin; any non-empty Origin signals a
-confused-deputy attack).
-
-The protocol is JSON text frames: server pushes `{"type":"job",...}`
-when a helper job is enqueued (no polling round-trip), the daemon
-replies with `{"type":"ack",...}` and finally `{"type":"result",...}`
-which the read loop routes through the same `ProcessHelperAck` /
-`ProcessHelperResult` mutations the legacy REST handlers call. Server
-also sends `{"type":"directive","code":...}` for revoke /
-stale_credential / uninstalled / displaced. Heartbeat is WS ping/pong
-every 30s; the pong handler bumps `last_seen_at` and the 5-minute
-freshness window stays unchanged.
-
-REST `/api/v1/helper/enrollments/{id}/jobs/poll|ack|result` remain
-mounted for backward compatibility but are marked Deprecated. New
-daemons exclusively use the WS path; the shared mutation functions
-ensure the two rails settle to identical store state.
-
 ## Invariants
 
 - Durable event ordering is cursor-based.
 - Live websocket fanout is best-effort; recovery uses poll/SSE/backfill or REST pull paths.
-- Browser, plugin, remote, and helper sockets are distinct protocols even though they share the Hub process.
+- Browser, plugin, and remote sockets are distinct protocols even though they share the Hub process.
 - Plugin liveness is interpreted from plugin socket activity; browser heartbeat is separate.
-- Helper liveness derives from WS ping/pong arrival timestamps; `HelperEnrollment.LastSeenAt` is bumped on upgrade and on each application-level inbound frame.
 - Per-channel non-mention agent delivery, explicit mention targets, and `@Everyone` expansion are server-derived from message content, channel membership, and agent owner policy; clients do not supply recipient id arrays.
 - Agent senders cannot trigger `@Everyone` fanout.
 

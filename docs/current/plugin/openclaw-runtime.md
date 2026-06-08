@@ -8,7 +8,7 @@ The OpenClaw plugin presents Borgee as an OpenClaw chat channel. It resolves acc
 
 | Area | Role | Collaborators | Out Of Scope |
 | --- | --- | --- | --- |
-| Package metadata | Identifies the plugin and bundled channel entry | OpenClaw host | Server manifest signing |
+| Package metadata | Identifies the plugin and bundled channel entry | OpenClaw host | Server-side plugin manifest signing |
 | Channel plugin | Defines chat type support, target parsing, routing, and setup | OpenClaw channel SDK | Borgee ACL decisions |
 | Account resolution | Merges channel/account config into a runtime account | OpenClaw config runtime | Server agent config blobs |
 | Runtime status | Reports configured/running account snapshots | OpenClaw status helpers | Server liveness tracking |
@@ -52,7 +52,7 @@ OpenClaw outbound text resolves a `channel:` or `dm:` target. DM targets are cre
 - Borgee account config must provide a base URL and API key before the gateway runs.
 - API keys are redacted in runtime status.
 - The plugin treats Borgee server state as authoritative; local cursor files are only resume hints.
-- Plugin-local file reads are separate from remote-agent and helper-daemon file paths.
+- Plugin-local file reads are separate from remote-agent file paths.
 
 ## Implementation Anchors
 
