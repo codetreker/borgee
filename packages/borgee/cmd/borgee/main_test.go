@@ -1,7 +1,7 @@
-// Regression test for the public dispatch surface after t3a (binary strip)
-// removed the high-privilege subcommands. Only `install` and `daemon`
-// remain routed; `setup`, `claim`, `rootd`, `install-plugin`, and
-// `uninstall-host` must all be rejected with the standard "unknown
+// Regression test for the public dispatch surface. After t3a (binary strip)
+// removed the high-privilege subcommands, t3b routes install / daemon /
+// uninstall. `setup`, `claim`, `rootd`, `install-plugin`, and `uninstall-host`
+// (renamed to `uninstall`) must all be rejected with the standard "unknown
 // subcommand" error and must not appear in the usage banner.
 
 package main
@@ -13,8 +13,9 @@ import (
 	"testing"
 )
 
-// TestDispatchPublicSubcommands locks in the public dispatch surface after
-// t3a (binary strip) dropped the high-privilege subcommands.
+// TestDispatchPublicSubcommands locks in the public dispatch surface: the
+// high-privilege subcommands stay rejected, and install / daemon / uninstall
+// route.
 func TestDispatchPublicSubcommands(t *testing.T) {
 	t.Run("removed_subcommands_return_unknown", func(t *testing.T) {
 		for _, sub := range []string{"setup", "claim", "rootd", "install-plugin", "uninstall-host"} {
@@ -46,6 +47,7 @@ func TestDispatchPublicSubcommands(t *testing.T) {
 		for _, sub := range []string{
 			"install",
 			"daemon",
+			"uninstall",
 		} {
 			sub := sub
 			t.Run(sub, func(t *testing.T) {
@@ -95,6 +97,7 @@ func TestDispatchPublicSubcommands(t *testing.T) {
 		for _, want := range []string{
 			"install",
 			"daemon",
+			"uninstall",
 		} {
 			// Match the listed subcommand at the start of a banner
 			// line (two-space indent) so a substring like `install`
