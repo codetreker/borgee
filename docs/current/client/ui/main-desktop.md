@@ -43,7 +43,7 @@ The desktop shell hosts the navigation rail, selected channel host, channel tabs
 
 - The rail and channel host are one browser shell, not independent applications.
 - Chat, workspace, and remote are selected-channel surfaces; sidepane buttons open global sidepanes.
-- The sidebar footer primary row stays small: avatar account panel, Agents, Workspaces, and Settings. Logout lives in the avatar account panel with account summary only; Invitations lives behind the footer overflow menu, and Remote Nodes plus Helper Status live in Settings Runtime as separate rail entries.
+- The sidebar footer primary row stays small: avatar account panel, Agents, Workspaces, and Settings. Logout lives in the avatar account panel with account summary only; Invitations lives behind the footer overflow menu, and Remote Nodes lives in Settings Runtime as a rail entry.
 - Durable message and workspace data remain REST-authoritative, with realtime used for direct updates and signals.
 
 ## Related Docs

@@ -29,15 +29,14 @@ describe('mainView state machine — #682 反堆栈', () => {
     expect(MAIN_VIEW_DEFAULT).toBe('channel');
   });
 
-  it('合法值正好 7 个 (6 个 sidepane + 1 个 channel 默认)', () => {
-    expect(ALL_MAIN_VIEWS).toHaveLength(7);
+  it('合法值正好 6 个 (5 个 sidepane + 1 个 channel 默认)', () => {
+    expect(ALL_MAIN_VIEWS).toHaveLength(6);
     expect(ALL_MAIN_VIEWS).toEqual([
       'channel',
       'agents',
       'invitations',
       'workspaces',
       'remote-nodes',
-      'helper-status',
       'settings',
     ]);
   });
@@ -49,7 +48,7 @@ describe('mainView state machine — #682 反堆栈', () => {
     }
   });
 
-  it('TS 类型锁: MainView 只能取 7 个值之一 (编译期检查, 这里只锚 runtime 数组)', () => {
+  it('TS 类型锁: MainView 只能取 6 个值之一 (编译期检查, 这里只锚 runtime 数组)', () => {
     // 这个测试主要是给未来加 sidepane 的人提个醒 — 加新值要改 ALL_MAIN_VIEWS
     // + isSidepane 也要顾上.
     const _exhaustive: MainView = 'channel';
@@ -147,10 +146,10 @@ describe('#682 集成场景 (mainView + 守卫合约一起)', () => {
     expect(result).toBe(false);
   });
 
-  it('场景 4 (回归 #682): 之前堆栈 bug — 现在合法值只 7 种, 状态机里同时只能一个 active', () => {
+  it('场景 4 (回归 #682): 之前堆栈 bug — 现在合法值只 6 种, 状态机里同时只能一个 active', () => {
     // 这个 case 概念锁: 5 个独立 boolean 时状态空间是 2^5 = 32, 31 种是
     // 'showAgents 跟 showSettings 同时 true' 之类的 bug. 改成 1 个字符串
-    // 后状态空间收缩到 7 (合法集), 反堆栈是 by construction.
-    expect(ALL_MAIN_VIEWS.length).toBe(7); // 锚: 7 种状态, 不是 32
+    // 后状态空间收缩到 6 (合法集), 反堆栈是 by construction.
+    expect(ALL_MAIN_VIEWS.length).toBe(6); // 锚: 6 种状态, 不是 32
   });
 });

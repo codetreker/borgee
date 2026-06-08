@@ -111,7 +111,7 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
     expect(container!.querySelector('[data-ap2-empty]')?.textContent).toBe('暂无授权');
   });
 
-  it('places Remote Nodes and Helper Status as separate runtime Settings entries', async () => {
+  it('renders single Remote Nodes runtime entry, no Helper Status (t2)', async () => {
     const navRef: { current: ReturnType<typeof useNavigation> | null } = { current: null };
     const root = createRoot(container!);
     await act(async () => {
@@ -125,31 +125,23 @@ describe('SettingsPage — default runtime tab (#975 privacy UI removed)', () =>
 
     const runtime = container!.querySelector('[data-settings-runtime-surface="true"]')!;
     const remoteEntry = runtime.querySelector('[data-runtime-entry="remote-nodes"]') as HTMLButtonElement;
-    const helperEntry = runtime.querySelector('[data-runtime-entry="helper-status"]') as HTMLButtonElement;
 
+    // Remote Nodes entry present (EV-3 getByText('Remote Nodes') equivalent).
     expect(remoteEntry).toBeTruthy();
     expect(remoteEntry.textContent).toContain('Remote Nodes');
     expect(remoteEntry.getAttribute('data-authority-rail')).toBe('remote-agent');
-    expect(helperEntry).toBeTruthy();
-    expect(helperEntry.textContent).toContain('Helper Status');
-    expect(helperEntry.getAttribute('data-authority-rail')).toBe('helper-actuator');
-    expect(runtime.textContent).not.toContain('Helper/Remote Nodes');
+
+    // Helper Status entry gone (EV-3 queryByText('Helper Status') === null equivalent).
+    expect(runtime.querySelector('[data-runtime-entry="helper-status"]')).toBeNull();
+    expect(runtime.textContent).not.toContain('Helper Status');
+
+    // Runtime section now has exactly one entry (AC-3).
+    expect(runtime.querySelectorAll('.settings-runtime-entry')).toHaveLength(1);
 
     await act(async () => {
       remoteEntry.click();
     });
     expect(navRef.current!.current).toBe('remote-nodes');
-
-    // 回到 settings, 再点 helper-status
-    await act(async () => {
-      navRef.current!.back();
-    });
-    expect(navRef.current!.current).toBe('settings');
-    const helperEntry2 = container!.querySelector('[data-runtime-entry="helper-status"]') as HTMLButtonElement;
-    await act(async () => {
-      helperEntry2.click();
-    });
-    expect(navRef.current!.current).toBe('helper-status');
   });
 
   it('channels tab is still reachable next to runtime', async () => {

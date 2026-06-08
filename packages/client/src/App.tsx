@@ -11,7 +11,6 @@ import AgentManager from './components/AgentManager';
 import InvitationsInbox from './components/InvitationsInbox';
 import WorkspaceManager from './components/WorkspaceManager';
 import NodeManager from './components/NodeManager';
-import HelperStatusPanel from './components/HelperStatusPanel';
 import SettingsPage from './components/Settings/SettingsPage';
 import { useWebSocket } from './hooks/useWebSocket';
 import { fetchMe, ApiError } from './lib/api';
@@ -230,8 +229,6 @@ function AppInner() {
           <WorkspaceManager onBack={() => nav.back()} />
         ) : mainView === 'remote-nodes' ? (
           <NodeManager />
-        ) : mainView === 'helper-status' ? (
-          <HelperStatusPanel />
         ) : mainView === 'settings' ? (
           <SettingsPage />
         ) : state.currentChannelId ? (

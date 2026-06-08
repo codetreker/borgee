@@ -94,7 +94,7 @@ describe('NavigationContext — 栈契约', () => {
     const ref = mount();
     act(() => ref.current!.push('settings'));
     act(() => ref.current!.push('remote-nodes'));
-    act(() => ref.current!.push('helper-status'));
+    act(() => ref.current!.push('agents'));
     act(() => ref.current!.close());
     expect(ref.current!.current).toBe('channel');
     expect(ref.current!.canGoBack).toBe(false);

@@ -33,11 +33,11 @@ flowchart TB
 | State | Hold cross-surface user state. | Shared state stops at user/session/channel/message/presence concerns; feature editors keep local draft state. |
 | REST | Provide authoritative user data. | Lists, details, file bodies, artifact bodies, comments, permissions, and admin-awareness rows are pulled from REST. |
 | Realtime | Reduce latency and wake stale surfaces. | WebSocket frames either update reducer state directly or signal a surface to pull fresh REST data. |
-| Surfaces | Present chat, DM, artifact, workspace, remote, Helper status, agent, invitation, and settings workflows. | Surfaces are composed under the shell and call shared rails rather than owning global stores. |
+| Surfaces | Present chat, DM, artifact, workspace, remote, agent, invitation, and settings workflows. | Surfaces are composed under the shell and call shared rails rather than owning global stores. |
 
 ## Responsibilities
 
-The client module owns the user browser experience: login/register gating, app initialization, channel and DM navigation, chat composition and message rendering, artifact canvas work, workspace browsing/editing, remote node browsing, Helper enrollment status visibility, agent ownership workflows, invitation handling, settings privacy controls, PWA registration, and user REST/WS integration.
+The client module owns the user browser experience: login/register gating, app initialization, channel and DM navigation, chat composition and message rendering, artifact canvas work, workspace browsing/editing, remote node browsing, agent ownership workflows, invitation handling, settings privacy controls, PWA registration, and user REST/WS integration.
 
 It does not own backend authorization, persistence, admin server enforcement, remote execution, or the admin SPA. Those are separate rails; the user SPA consumes their exposed user-safe contracts.
 
@@ -66,7 +66,7 @@ It does not own backend authorization, persistence, admin server enforcement, re
 | --- | --- |
 | [app-shell-state.md](app-shell-state.md) | Shell lifecycle, auth gate, app state boundary, and view selection. |
 | [realtime-sync.md](realtime-sync.md) | REST authority, WebSocket direct updates, signal-then-pull, and reconnect reconciliation. |
-| [feature-surfaces.md](feature-surfaces.md) | Surface layering for chat, channels, DMs, artifacts, workspace, remote, Helper status, settings, agents, and invitations. |
+| [feature-surfaces.md](feature-surfaces.md) | Surface layering for chat, channels, DMs, artifacts, workspace, remote, settings, agents, and invitations. |
 | [ui-map.md](ui-map.md) | Architecture-level surface map for maintainers, without component-directory enumeration. |
 | [ui/](ui/) | Interaction and layout reference sketches for browser surfaces; they do not define product behavior, verification status, or design-system rules. |
 | [build-pwa-cache.md](build-pwa-cache.md) | Build, PWA, service-worker, and cache constraints that affect architecture. |
@@ -84,7 +84,6 @@ The user SPA architecture starts with shell/state boundaries, then drills into s
 | Agents and invitations | [feature-surfaces.md](feature-surfaces.md) | [ui/agent-manager.md](ui/agent-manager.md), [ui/agent-config.md](ui/agent-config.md), [ui/agent-collab.md](ui/agent-collab.md) |
 | Settings and admin-awareness | [feature-surfaces.md](feature-surfaces.md), [../admin/privacy-audit.md](../admin/privacy-audit.md) | [ui/settings.md](ui/settings.md) |
 | Remote user surfaces | [feature-surfaces.md](feature-surfaces.md), [../remote-agent/](../remote-agent/) | [../remote-agent/ui/](../remote-agent/ui/) plus client remote surfaces in [ui-map.md](ui-map.md) |
-| Helper status | [feature-surfaces.md](feature-surfaces.md), [../host-bridge/](../host-bridge/) | Global sidepane in [ui-map.md](ui-map.md) |
 
 ## Implementation Anchors
 

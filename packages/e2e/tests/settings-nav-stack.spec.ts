@@ -3,7 +3,10 @@
 // 测试范围 (PR #1012 nav-history 框架 + PageHeader 三个页面迁完):
 //   A — channel → settings → remote-nodes → ← 回 settings (真出栈, 不跳 channel)
 //   B — channel → settings → remote-nodes → × 直接清栈回 channel
-//   C — channel → settings → helper-status → ← 回 settings + 再 ← 回 channel
+//
+// (t2 删 helper-rail UI 后, Settings Runtime 只剩 Remote Nodes 单入口;
+//  原 Scenario C 走 helper-status 二级页的出栈路径随入口删除, A/B 已用
+//  remote-nodes 完整覆盖 ← / × 真出栈行为.)
 //
 // 实施约束 (memory `e2e_no_curl_only_ui` + `e2e_full_smoke_regression`):
 //   - 真 page.click / page.locator().click() 触发按钮, 禁 page.evaluate(fetch)
@@ -140,27 +143,5 @@ test.describe('PR #1012 nav-history — PageHeader ← / × 真出栈', () => {
     await expect(page.locator('[data-page="settings"]')).toHaveCount(0);
     await expect(page.locator('.node-manager')).toHaveCount(0);
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'B2-closed-to-channel.png') });
-  });
-
-  test('C — channel → settings → helper-status → ← 回 settings + 再 ← 回 channel', async ({ page }) => {
-    await openSettings(page);
-
-    await page.locator('[data-runtime-entry="helper-status"]').click();
-    await expect(page.locator('[data-page="helper-status"]')).toBeVisible();
-    await expect(page.locator('[data-page="settings"]')).toHaveCount(0);
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'C1-helper-status.png') });
-
-    // ← on Helper Status → settings.
-    await page.locator('[aria-label="返回"]').first().click();
-    await expect(page.locator('[data-page="settings"]')).toBeVisible();
-    await expect(page.locator('[data-page="helper-status"]')).toHaveCount(0);
-    await expect(page.locator('.channel-view')).toHaveCount(0);
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'C2-back-to-settings.png') });
-
-    // ← on settings → channel.
-    await page.locator('[aria-label="返回"]').first().click();
-    await expect(page.locator('.channel-view')).toBeVisible();
-    await expect(page.locator('[data-page="settings"]')).toHaveCount(0);
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'C3-back-to-channel.png') });
   });
 });

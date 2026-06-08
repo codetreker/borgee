@@ -54,13 +54,13 @@ Feature-local state stays outside the shared context when it is not required acr
 
 ## View Model
 
-The user shell has one primary view mode: channel, agents, invitations, workspaces, remote nodes, Helper status, or settings. Channel mode then delegates to the selected channel and its tab state. This keeps app-level navigation shallow and avoids using browser routes for normal user workflow.
+The user shell has one primary view mode: channel, agents, invitations, workspaces, remote nodes, or settings. Channel mode then delegates to the selected channel and its tab state. This keeps app-level navigation shallow and avoids using browser routes for normal user workflow.
 
 View mode is backed by a navigation stack rather than a single value. `NavigationProvider` owns the stack; `useNavigation` exposes `push`, `back`, `close`, `current`, and `canGoBack`. `push` is dedupe-on-top so repeated entry clicks never inflate the stack. `back` pops one layer and falls back to channel when the stack is one deep; `close` always clears the stack to channel. Channel is the only implicit home; the stack is in-memory only and is not persisted to URL or storage.
 
 Sidepane page headers render through the shared `PageHeader` component (back arrow on the left, close on the right, optional actions slot). Back drives `nav.back` so users can step out of a sub-page (for example, Remote Nodes opened from Settings) without losing the parent page; close drives `nav.close` for an explicit return-to-channel exit.
 
-The sidebar footer separates account/session behavior, repeated primary entries, and secondary actions. The primary row exposes the avatar account trigger plus Agents, Workspaces, Settings, and a More toggle for Invitations when role gates allow it. The avatar opens the account panel, which shows account summary and Logout only. Pending invitation count appears on More for discoverability. Remote Nodes and Helper Status are launched from the Settings Runtime tab as separate entries; that IA move does not merge Remote Agent and Helper rails, expand account settings, or change feature authorization.
+The sidebar footer separates account/session behavior, repeated primary entries, and secondary actions. The primary row exposes the avatar account trigger plus Agents, Workspaces, Settings, and a More toggle for Invitations when role gates allow it. The avatar opens the account panel, which shows account summary and Logout only. Pending invitation count appears on More for discoverability. Remote Nodes is launched from the Settings Runtime tab; that IA placement does not expand account settings or change feature authorization.
 
 Before switching view mode, the shell runs registered unsaved-change guards. Feature forms that can lose user input register with the guard system; the shell treats cancellation as a navigation veto.
 
