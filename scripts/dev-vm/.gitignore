@@ -1,0 +1,5 @@
+# Build artifact: the locally-packed @codetreker/borgee-remote-agent tarball,
+# staged into this build context by build-image.sh immediately before
+# `docker build`, then removed. Never committed.
+/borgee-remote-agent.tgz
+/codetreker-borgee-remote-agent-*.tgz
