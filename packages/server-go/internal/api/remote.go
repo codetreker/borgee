@@ -12,7 +12,7 @@ import (
 
 type RemoteProxy interface {
 	IsNodeOnline(nodeID string) bool
-	ProxyRequest(nodeID string, action string, params map[string]string) (json.RawMessage, error)
+	ProxyRequest(nodeID string, action string, path string) (json.RawMessage, error)
 }
 
 type RemoteHandler struct {
@@ -36,6 +36,7 @@ func (h *RemoteHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Hand
 	mux.Handle("GET /api/v1/remote/nodes/{nodeId}/status", wrap(h.handleNodeStatus))
 	mux.Handle("GET /api/v1/remote/nodes/{nodeId}/ls", wrap(h.handleNodeLs))
 	mux.Handle("GET /api/v1/remote/nodes/{nodeId}/read", wrap(h.handleNodeRead))
+	mux.Handle("GET /api/v1/remote/nodes/{nodeId}/stat", wrap(h.handleNodeStat))
 }
 
 func (h *RemoteHandler) handleListNodes(w http.ResponseWriter, r *http.Request) {
@@ -263,7 +264,7 @@ func (h *RemoteHandler) handleNodeLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := r.URL.Query().Get("path")
-	resp, err := h.Hub.ProxyRequest(nodeID, "ls", map[string]string{"path": path})
+	resp, err := h.Hub.ProxyRequest(nodeID, "ls", path)
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			writeJSONError(w, http.StatusGatewayTimeout, "timeout")
@@ -299,7 +300,43 @@ func (h *RemoteHandler) handleNodeRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := r.URL.Query().Get("path")
-	resp, err := h.Hub.ProxyRequest(nodeID, "read", map[string]string{"path": path})
+	resp, err := h.Hub.ProxyRequest(nodeID, "read", path)
+	if err != nil {
+		if err == context.DeadlineExceeded {
+			writeJSONError(w, http.StatusGatewayTimeout, "timeout")
+			return
+		}
+		writeJSONError(w, http.StatusBadGateway, "Remote request failed")
+		return
+	}
+
+	writeRemoteResponse(w, resp)
+}
+
+func (h *RemoteHandler) handleNodeStat(w http.ResponseWriter, r *http.Request) {
+	user, ok := mustUser(w, r)
+	if !ok {
+		return
+	}
+
+	nodeID := r.PathValue("nodeId")
+	node, err := h.Store.GetRemoteNode(nodeID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "Node not found")
+		return
+	}
+	if node.UserID != user.ID {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
+	if h.Hub == nil || !h.Hub.IsNodeOnline(nodeID) {
+		writeJSONError(w, http.StatusServiceUnavailable, "node_offline")
+		return
+	}
+
+	path := r.URL.Query().Get("path")
+	resp, err := h.Hub.ProxyRequest(nodeID, "stat", path)
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			writeJSONError(w, http.StatusGatewayTimeout, "timeout")

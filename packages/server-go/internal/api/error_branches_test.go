@@ -37,7 +37,7 @@ type remoteProxyStub struct {
 
 func (s remoteProxyStub) IsNodeOnline(string) bool { return s.online }
 
-func (s remoteProxyStub) ProxyRequest(string, string, map[string]string) (json.RawMessage, error) {
+func (s remoteProxyStub) ProxyRequest(string, string, string) (json.RawMessage, error) {
 	return s.resp, s.err
 }
 

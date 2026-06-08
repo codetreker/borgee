@@ -733,15 +733,23 @@ func (a *hubRemoteAdapter) IsNodeOnline(nodeID string) bool {
 	return a.hub.GetRemote(nodeID) != nil
 }
 
-func (a *hubRemoteAdapter) ProxyRequest(nodeID string, action string, params map[string]string) (json.RawMessage, error) {
+// buildRequestData shapes the WS proxy frame "data" body as flat
+// {action, path} with no nested params object. The in-field Node 0.3.5
+// agent and the T3b Go daemon both read data.path flat
+// (packages/remote-agent/src/agent.ts:144). See t3c spec AC-2 / AC-4.
+func buildRequestData(action, path string) map[string]any {
+	return map[string]any{
+		"action": action,
+		"path":   path,
+	}
+}
+
+func (a *hubRemoteAdapter) ProxyRequest(nodeID string, action string, path string) (json.RawMessage, error) {
 	rc := a.hub.GetRemote(nodeID)
 	if rc == nil {
 		return nil, fmt.Errorf("node offline")
 	}
-	return rc.SendRequest(map[string]any{
-		"action": action,
-		"params": params,
-	})
+	return rc.SendRequest(buildRequestData(action, path))
 }
 
 type hubBroadcastAdapter struct {
