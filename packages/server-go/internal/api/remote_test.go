@@ -1,9 +1,12 @@
 package api_test
 
 import (
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
+	"borgee-server/internal/auth"
 	"borgee-server/internal/testutil"
 )
 
@@ -178,4 +181,75 @@ func TestRemoteNodesCRUD(t *testing.T) {
 			t.Fatalf("expected 404, got %d", resp.StatusCode)
 		}
 	})
+}
+
+// TestRemoteNodeConnectionTokenSurfacedOnceOnCreate locks the "secret shown
+// once at create" contract: the connection token (the secret a remote agent
+// uses to enroll) is returned ONLY in the POST create response, and is NEVER
+// leaked by list/status — those read paths serialize the RemoteNode model,
+// which carries json:"-" on the token column. A node row can be re-read by any
+// later request, so leaking the token there would defeat the one-shot model.
+func TestRemoteNodeConnectionTokenSurfacedOnceOnCreate(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	adminToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	// Create — the token MUST be present as a top-level sibling field.
+	resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/remote/nodes", adminToken, map[string]string{
+		"machine_name": "token-surface-machine",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %v", resp.StatusCode, data)
+	}
+	token, ok := data["connection_token"].(string)
+	if !ok || token == "" {
+		t.Fatalf("create response must surface a non-empty connection_token, got %v", data["connection_token"])
+	}
+	// The token must NOT be nested inside the node object (json:"-" strips it).
+	node := data["node"].(map[string]any)
+	if _, leaked := node["connection_token"]; leaked {
+		t.Fatalf("node object must not carry connection_token (json:\"-\"), got %v", node)
+	}
+	nodeID := node["id"].(string)
+
+	// rawGET returns the verbatim response body so we can substring-scan for the
+	// secret (testutil.JSON parses into a map, which would hide a token nested
+	// anywhere unexpected).
+	rawGET := func(url string) (int, string) {
+		t.Helper()
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			t.Fatalf("new request: %v", err)
+		}
+		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: adminToken})
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("do request: %v", err)
+		}
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		return res.StatusCode, string(b)
+	}
+
+	// List — must NOT leak the token anywhere in the response body.
+	listStatus, listBody := rawGET(ts.URL + "/api/v1/remote/nodes")
+	if listStatus != http.StatusOK {
+		t.Fatalf("list: expected 200, got %d", listStatus)
+	}
+	if strings.Contains(listBody, token) {
+		t.Fatalf("list response leaked connection token: %s", listBody)
+	}
+	if strings.Contains(listBody, "connection_token") {
+		t.Fatalf("list response must not contain a connection_token field: %s", listBody)
+	}
+
+	// Status — must NOT leak the token either.
+	statusStatus, statusBody := rawGET(ts.URL + "/api/v1/remote/nodes/" + nodeID + "/status")
+	if statusStatus != http.StatusOK {
+		t.Fatalf("status: expected 200, got %d", statusStatus)
+	}
+	if strings.Contains(statusBody, token) {
+		t.Fatalf("status response leaked connection token: %s", statusBody)
+	}
 }

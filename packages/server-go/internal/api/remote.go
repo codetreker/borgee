@@ -80,7 +80,17 @@ func (h *RemoteHandler) handleCreateNode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSONResponse(w, http.StatusCreated, map[string]any{"node": node})
+	// Surface the connection token ONCE, only on create. The token is the
+	// secret a remote agent uses to enroll (`borgee install --token …`); the
+	// UI shows it right after creation and the operator copies it into the
+	// install command. The RemoteNode model keeps `json:"-"` on the column so
+	// list/get/status responses NEVER leak it (a node row can be re-read by any
+	// later request — the token must not be recoverable from those). We add it
+	// here as a sibling field rather than mutating the model's tag.
+	writeJSONResponse(w, http.StatusCreated, map[string]any{
+		"node":             node,
+		"connection_token": node.ConnectionToken,
+	})
 }
 
 func (h *RemoteHandler) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
