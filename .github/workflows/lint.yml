@@ -37,7 +37,7 @@ jobs:
             ["packages/client/src/"]="docs/current/client/"
             ["packages/plugins/"]="docs/current/plugin/"
             ["packages/helper/"]="docs/current/helper/"
-            ["packages/remote-agent/"]="docs/current/remote-agent/"
+            ["packages/borgee/"]="docs/current/remote-agent/"
             ["packages/e2e/"]="docs/current/e2e/"
           )
 

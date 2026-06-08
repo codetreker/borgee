@@ -1,0 +1,22 @@
+{
+  "name": "@codetreker/borgee-remote-agent",
+  "version": "0.3.9",
+  "private": false,
+  "type": "commonjs",
+  "files": [
+    "borgee-remote-agent.cjs",
+    "bin/platforms/**"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codetreker/borgee.git",
+    "directory": "packages/borgee"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "borgee-remote-agent": "borgee-remote-agent.cjs"
+  }
+}
