@@ -85,15 +85,6 @@ func TestHandlerNowNewIDInjected(t *testing.T) {
 		_ = (&AgentConfigHandler{}).now()
 	}
 
-	// HostGrantsHandler.now() returns int64
-	{
-		h := &HostGrantsHandler{Now: clk}
-		if got := h.now(); got != fixedTime.UnixMilli() {
-			t.Errorf("HostGrantsHandler.now: got %d", got)
-		}
-		_ = (&HostGrantsHandler{}).now()
-	}
-
 	// LayoutHandler.now() returns int64
 	{
 		h := &LayoutHandler{Now: clk}
