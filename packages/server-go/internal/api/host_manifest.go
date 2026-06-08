@@ -89,24 +89,6 @@ type PluginManifestEntry struct {
 	Class     string   `json:"class,omitempty"`
 }
 
-// UpdateClass* — #999 manifest entry classification literals. Used by the
-// helper-side update-checker (drift POST) + server-side serializer
-// (updates_available). Empty / unknown class normalizes to feature.
-const (
-	UpdateClassSecurity = "security"
-	UpdateClassFeature  = "feature"
-)
-
-// NormalizeUpdateClass folds empty / unknown values to "feature" — the
-// default per blueprint §1.3 ("功能更新只在设置面板提示" is the conservative
-// classification; security must be explicitly opted into).
-func NormalizeUpdateClass(c string) string {
-	if c == UpdateClassSecurity {
-		return UpdateClassSecurity
-	}
-	return UpdateClassFeature
-}
-
 // PluginManifestPayload mirrors content-lock §1 top-level shape.
 type PluginManifestPayload struct {
 	ManifestVersion int                   `json:"manifest_version"`

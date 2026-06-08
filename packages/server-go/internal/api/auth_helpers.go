@@ -51,7 +51,3 @@ func mustUser(w http.ResponseWriter, r *http.Request) (*store.User, bool) {
 	}
 	return user, true
 }
-
-func isHelperHumanOwner(user *store.User) bool {
-	return user != nil && user.Role == "member"
-}

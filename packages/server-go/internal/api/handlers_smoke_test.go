@@ -24,17 +24,13 @@ import (
 	"testing"
 )
 
-// TestCovBump_HandlerLogErrSmokes 真测 3 个 0% logErr helper (HostGrants /
-// Layout / PushSubscriptions). 各 helper 是 nil-safe wrapper (Logger==nil
+// TestCovBump_HandlerLogErrSmokes 真测 2 个 0% logErr helper (Layout /
+// PushSubscriptions). 各 helper 是 nil-safe wrapper (Logger==nil
 // 直返), 真调跑两路 (有 logger / 无 logger). 0 production 行为改.
 func TestHandlerLogErrSmokes(t *testing.T) {
 	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	err := errors.New("test-cov-err")
-
-	// HostGrantsHandler.logErr (host_grants.go:261)
-	(&HostGrantsHandler{Logger: logger}).logErr("test-op", err)
-	(&HostGrantsHandler{Logger: nil}).logErr("test-op-nil", err)
 
 	// LayoutHandler.logErr (layout.go:213)
 	(&LayoutHandler{Logger: logger}).logErr("test-op", err)

@@ -33,18 +33,6 @@ type Hub struct {
 	plugins map[string]*PluginConn
 	remotes map[string]*RemoteConn
 
-	// helperSessions tracks at-most-one WS session per helper enrollment.
-	// A second connect for the same enrollment displaces the first (close
-	// code 4001). The map key is enrollment_id; the slot is set/cleared
-	// under hub.mu.
-	helperSessions map[string]*HelperSession
-
-	// helperConnectHook is invoked best-effort after a helper WS session
-	// is registered, so the server can push any queued jobs that arrived
-	// while the helper was disconnected. Nil = no push integration wired
-	// (unit tests / pre-claim boot).
-	helperConnectHook func(enrollmentID string)
-
 	eventWaiters   map[chan struct{}]struct{}
 	eventWaitersMu sync.Mutex
 
@@ -111,7 +99,6 @@ func NewHub(s *store.Store, logger *slog.Logger, cfg *config.Config) *Hub {
 		onlineUsers:  make(map[string]map[*Client]bool),
 		plugins:      make(map[string]*PluginConn),
 		remotes:      make(map[string]*RemoteConn),
-		helperSessions: make(map[string]*HelperSession),
 		eventWaiters: make(map[chan struct{}]struct{}),
 		cursors:      NewCursorAllocator(s),
 	}
@@ -496,130 +483,3 @@ func (h *Hub) GetRemote(nodeID string) *RemoteConn {
 	defer h.mu.RUnlock()
 	return h.remotes[nodeID]
 }
-
-// RegisterHelper installs the WS session for an enrollment. If a prior
-// session existed for the same enrollment it is returned so the caller
-// can close it outside the hub lock (avoids holding hub.mu while the
-// teardown's conn.Close blocks on a slow client). PR-2 #1038 single-
-// session-per-enrollment invariant.
-func (h *Hub) RegisterHelper(enrollmentID string, sess *HelperSession) *HelperSession {
-	if enrollmentID == "" || sess == nil {
-		return nil
-	}
-	h.mu.Lock()
-	prev := h.helperSessions[enrollmentID]
-	h.helperSessions[enrollmentID] = sess
-	h.mu.Unlock()
-	return prev
-}
-
-// UnregisterHelperIfCurrent drops the session iff the bound session
-// is still the same pointer. The displacement path swaps a newer
-// session into the slot before the older session's defer runs; using
-// pointer identity prevents the older session's defer from clobbering
-// the newer registration.
-func (h *Hub) UnregisterHelperIfCurrent(enrollmentID string, sess *HelperSession) {
-	if enrollmentID == "" || sess == nil {
-		return
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if cur, ok := h.helperSessions[enrollmentID]; ok && cur == sess {
-		delete(h.helperSessions, enrollmentID)
-	}
-}
-
-// GetHelper returns the active session for an enrollment, or nil if
-// none is connected.
-func (h *Hub) GetHelper(enrollmentID string) *HelperSession {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	return h.helperSessions[enrollmentID]
-}
-
-// SendJobToHelper queues a `{"type":"job","job":...}` frame to the
-// helper session for the enrollment. Returns true iff a session was
-// connected AND the buffer accepted the queue. False = no session OR
-// the session's writer pump buffer is full / write goroutine wedged;
-// caller MUST treat false as "frame not delivered" and recover the
-// already-leased job (release the lease or rely on lease expiry +
-// REST-poll fallback). PR-4 P0 review fix: previously this returned
-// true unconditionally on the buffer-full path, so leased rows could
-// silently stall until lease expiry.
-func (h *Hub) SendJobToHelper(enrollmentID string, jobJSON json.RawMessage) bool {
-	h.mu.RLock()
-	sess := h.helperSessions[enrollmentID]
-	h.mu.RUnlock()
-	if sess == nil {
-		return false
-	}
-	frame, err := json.Marshal(map[string]any{
-		"type": "job",
-		"job":  jobJSON,
-	})
-	if err != nil {
-		return false
-	}
-	return sess.Send(frame)
-}
-
-// SendDirectiveToHelper queues a `{"type":"directive","code":...}`
-// frame to the helper session for the enrollment. Used by revoke /
-// uninstall paths to tell the daemon to stop and exit (systemd
-// Restart=on-failure will keep bouncing it until the credential is
-// rotated / new claim happens — same semantics as the prior REST
-// 403 + stale_credential path). Returns true iff queued; false = no
-// session or send-buffer full (the directive will be re-sent on next
-// reconnect via the connect-hook).
-func (h *Hub) SendDirectiveToHelper(enrollmentID, code string) bool {
-	h.mu.RLock()
-	sess := h.helperSessions[enrollmentID]
-	h.mu.RUnlock()
-	if sess == nil {
-		return false
-	}
-	frame, err := json.Marshal(map[string]any{
-		"type": "directive",
-		"code": code,
-	})
-	if err != nil {
-		return false
-	}
-	return sess.Send(frame)
-}
-
-// SetHelperConnectHook wires the on-connect callback invoked when a
-// new helper session registers. Called best-effort under no lock;
-// implementation must not block (production wires this to the helper
-// job repo's "scan queued jobs and push" path).
-func (h *Hub) SetHelperConnectHook(hook func(enrollmentID string)) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.helperConnectHook = hook
-}
-
-// invokeHelperConnectHook fires the on-connect callback if wired.
-// Reads under RLock + invokes outside the lock so a slow callback does
-// not pin hub.mu.
-func (h *Hub) invokeHelperConnectHook(enrollmentID string) {
-	h.mu.RLock()
-	hook := h.helperConnectHook
-	h.mu.RUnlock()
-	if hook != nil {
-		hook(enrollmentID)
-	}
-}
-
-// SnapshotHelperLastSeen returns a copy of the (enrollment_id →
-// lastSeenAt) map. Mirrors SnapshotPluginLastSeen so a future helper
-// liveness watchdog can plug in without rework.
-func (h *Hub) SnapshotHelperLastSeen() map[string]time.Time {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	out := make(map[string]time.Time, len(h.helperSessions))
-	for id, sess := range h.helperSessions {
-		out[id] = sess.LastSeen()
-	}
-	return out
-}
-
