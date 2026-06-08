@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -772,7 +773,7 @@ func TestAdapters(t *testing.T) {
 	if ra.IsNodeOnline("nonexistent") {
 		t.Fatal("expected false")
 	}
-	_, err := ra.ProxyRequest("nonexistent", "ls", map[string]string{"path": "/"})
+	_, err := ra.ProxyRequest("nonexistent", "ls", "/")
 	if err == nil {
 		t.Fatal("expected error for offline node")
 	}
@@ -928,5 +929,26 @@ func TestRateLimiterCleanup_TickFiresDelete(t *testing.T) {
 	}
 	if _, ok := rl.clients["fresh"]; !ok {
 		t.Fatal("expected fresh entry kept")
+	}
+}
+
+func TestBuildRequestData_FlatShape(t *testing.T) {
+	t.Parallel()
+	b, err := json.Marshal(buildRequestData("ls", "/x"))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	s := string(b)
+	if !strings.Contains(s, `"path"`) {
+		t.Errorf("frame data must contain \"path\"; got %s", s)
+	}
+	if !strings.Contains(s, `"/x"`) {
+		t.Errorf("frame data must carry the path value; got %s", s)
+	}
+	if strings.Contains(s, `"params"`) {
+		t.Errorf("frame data must NOT contain \"params\" (flat shape required); got %s", s)
+	}
+	if strings.Contains(s, `"action":"ls"`) == false {
+		t.Errorf("frame data must contain action verb; got %s", s)
 	}
 }

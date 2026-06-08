@@ -734,7 +734,7 @@ func (a *hubRemoteAdapter) IsNodeOnline(nodeID string) bool {
 }
 
 // buildRequestData shapes the WS proxy frame "data" body as flat
-// {"action":..., "path":...} (no "params" nesting). The in-field Node 0.3.5
+// {action, path} with no nested params object. The in-field Node 0.3.5
 // agent and the T3b Go daemon both read data.path flat
 // (packages/remote-agent/src/agent.ts:144). See t3c spec AC-2 / AC-4.
 func buildRequestData(action, path string) map[string]any {
