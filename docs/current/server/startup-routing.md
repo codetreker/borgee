@@ -51,15 +51,13 @@ Startup has three phases:
 2. Runtime composition: create hub, presence writer, data layer, server struct, routes, BPP dispatchers, push notifiers, and adapters.
 3. Service lifetime: wrap the mux in middleware, start HTTP serving, run background loops, and stop on process cancellation.
 
-The HTTP surface is a single mux with rail-specific protection. Public health/auth/manifest/static paths are intentionally limited. User REST paths are wrapped with user authentication and optional capability checks. Admin paths are wrapped with admin session authentication. WebSocket paths are mounted directly because their authentication must handle protocol-specific credential locations. Helper job enqueue is mounted only as a user-authenticated route at `POST /api/v1/helper/enrollments/{enrollmentId}/jobs`; Helper credential endpoints remain limited to claim/status/rotation/uninstall lifecycle calls.
+The HTTP surface is a single mux with rail-specific protection. Public health/auth/manifest/static paths are intentionally limited. User REST paths are wrapped with user authentication and optional capability checks. Admin paths are wrapped with admin session authentication. WebSocket paths are mounted directly because their authentication must handle protocol-specific credential locations.
 
 Middleware is a shell around the whole mux. Recovery sits outermost, request ID and logging wrap the request, CORS and security headers apply before route logic, and the rate limiter guards the final route execution. This keeps cross-cutting behavior uniform without embedding it into individual handlers.
 
 The rate limiter selects one of three token buckets per request: an `auth` bucket keyed by client IP for paths under `/api/v1/auth/` and `/admin-api/auth/` to defend against credential brute force, a `user` bucket keyed by user id for authenticated requests on other paths, and an `anon` bucket keyed by client IP for unauthenticated requests. Bucket sizes and refill rates are configured per tier in units of requests per second. To avoid a duplicate user lookup on authenticated requests, the rate limiter injects the resolved user into the request context so the downstream user-auth middleware short-circuits instead of re-parsing the session and re-reading the user record.
 
 Static hosting is part of routing but not a substitute for API errors. API-like and WebSocket-like paths must return API-shaped misses; browser routes can fall back to the SPA entrypoint.
-
-`BORGEE_PUBLIC_HELPER_ORIGIN` is an optional process-prerequisite env var loaded during phase 1 alongside other config knobs. When set it overrides the `r.Host`/`X-Forwarded-*` derivation in `helper_enrollments.go::handleCreate` so the `install_command` returned to the operator carries the address the helper VM must dial (e.g. `ws://borgee-server:4900` for the docker dev-stack, `wss://borgee.codetrek.cn` behind a reverse proxy that does not propagate `X-Forwarded-Host`). Validated once at boot in `config.Validate` (`ws://` or `wss://`, no path). Unset preserves the request-derived behavior — single-host on-prem deploys are unaffected.
 
 ## Key Flows
 
@@ -78,7 +76,6 @@ Shutdown flow: the process listens for termination signals, shuts down HTTP serv
 - The production process has one server composition root.
 - Schema and admin bootstrap complete before serving requests.
 - User and admin routes are mounted on separate rails with separate middleware.
-- Helper job enqueue is mounted on the user rail only. Helper poll, lease, result, ack, logs, service lifecycle, local policy, install, uninstall action execution, and Configure OpenClaw closure routes are not mounted by this enqueue step.
 - WebSocket endpoints authenticate inside the endpoint handler because their credentials may live in headers, subprotocols, query params, or cookies.
 - Plugin API proxying reuses the server handler; it does not create a second application stack.
 - Background jobs are tied to the server lifetime context.
@@ -94,7 +91,6 @@ Startup/routing does not define business authorization rules, migration contents
 - `packages/server-go/internal/server/server.go`
 - `packages/server-go/internal/server/middleware.go`
 - `packages/server-go/internal/api/auth.go`
-- `packages/server-go/internal/api/helper_jobs.go`
 - `packages/server-go/internal/admin/auth.go`
 - `packages/server-go/internal/admin/middleware.go`
 - `packages/server-go/internal/auth/middleware.go`
@@ -103,7 +99,7 @@ Startup/routing does not define business authorization rules, migration contents
 - `packages/server-go/internal/ws/remote.go`
 - `packages/server-go/internal/bpp/plugin_frame_dispatcher.go`
 - `packages/server-go/internal/bpp/heartbeat_watchdog.go`
-- `packages/server-go/internal/api/manifest_signing.go` — install-butler manifest ed25519 signing key + entry list loaders (see `docs/current/host-bridge/manifest-signing.md`)
+- `packages/server-go/internal/api/manifest_signing.go` — plugin manifest ed25519 signing key + entry list loaders
 - `packages/server-go/internal/datalayer/events_retention.go`
 - `packages/server-go/internal/datalayer/events_threshold.go`
 - `packages/server-go/internal/datalayer/events_archive_offloader.go`

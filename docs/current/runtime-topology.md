@@ -25,7 +25,6 @@ flowchart LR
   subgraph External
     openclaw[OpenClaw plugin]
     remote[remote-agent]
-    helper[borgee-helper]
   end
 
   user --> api
@@ -37,7 +36,6 @@ flowchart LR
   openclaw --> api
   openclaw --> hub
   remote --> hub
-  helper --> sqlite
 ```
 
 ## Runtime Roles
@@ -49,8 +47,6 @@ flowchart LR
 | server-go | Central coordinator | all runtimes, SQLite, filesystem | Does not host external runtimes in-process |
 | OpenClaw plugin | Bridges Borgee events into OpenClaw and sends replies | server-go event/API/plugin sockets | Does not own Borgee policy |
 | remote-agent | Performs user-machine file operations on request | server-go remote socket | Does not decide server ACL |
-| borgee-helper | Host bridge IPC daemon | installer, grants DB | Does not handle chat realtime |
-| installer | Fetches manifest and deploys helper/plugin artifacts | server-go manifest, platform service manager | Does not stay in the hot path |
 
 E2E and release validation start local processes for verification, but they are supporting architecture rather than product runtime roles.
 
@@ -58,7 +54,7 @@ E2E and release validation start local processes for verification, but they are 
 
 server-go loads environment configuration, opens SQLite, runs migrations, bootstraps admin auth, builds the server, then starts HTTP serving. During server construction it creates the Hub, wires presence, registers BPP frame handlers, and starts heartbeat/watchdog loops.
 
-Browser apps are static assets in production and Vite entries in development. OpenClaw, remote-agent, and borgee-helper are separate processes; they connect through public server contracts rather than sharing memory with server-go.
+Browser apps are static assets in production and Vite entries in development. OpenClaw and remote-agent are separate processes; they connect through public server contracts rather than sharing memory with server-go.
 
 ## Next Drill-Downs
 
@@ -67,7 +63,7 @@ Browser apps are static assets in production and Vite entries in development. Op
 | How startup wires routes, Hub, and rails | [Server startup and routing](server/startup-routing.md) |
 | How data moves between runtimes | [Cross-process flows](cross-process-flows.md) |
 | Browser process details | [Client](client/) and [admin SPA](admin/spa.md) |
-| External runtime details | [Plugin](plugin/), [remote-agent](remote-agent/), and [host-bridge](host-bridge/) |
+| External runtime details | [Plugin](plugin/) and [remote-agent](remote-agent/) |
 | Validation and release support, outside product runtime topology | [E2E / verification](e2e/) |
 
 ## Implementation Anchors
@@ -76,5 +72,5 @@ Browser apps are static assets in production and Vite entries in development. Op
 - Runtime configuration: `packages/server-go/internal/config/config.go`
 - Browser entries and dev proxy: `packages/client/src/main.tsx`, `packages/client/src/admin/main.tsx`, `packages/client/vite.config.ts`
 - Plugin runtime: `packages/plugins/openclaw/package.json`, `packages/plugins/openclaw/openclaw.plugin.json`, `packages/plugins/openclaw/src/index.ts`
-- Remote/helper/installer: `packages/remote-agent`, `packages/borgee-helper`, `packages/borgee-installer`
+- Remote agent daemon: `packages/borgee`
 - E2E startup: `packages/e2e/playwright.config.ts`

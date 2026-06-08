@@ -11,7 +11,7 @@ This top-level page is the global debt map, not the only detail list. Module-loc
 | Global realtime, BPP, plugin, and remote mismatches | This page | Cross-module assumptions that can affect more than one owner |
 | Admin privacy and server rail | [admin privacy/audit](admin/privacy-audit.md), [admin server rail](admin/server-rail.md) | Admin-only privacy, audit, and authorization constraints |
 | Remote-agent protocol and filesystem boundary | [remote-agent protocol](remote-agent/protocol.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md) | Remote request shape, filesystem scope, and user-machine IO assumptions |
-| Host bridge helper, installer, and grants | [helper daemon](host-bridge/helper-daemon.md), [installer](host-bridge/installer.md), [host grants](host-bridge/host-grants.md) | Local daemon deployment, IPC, and grants-backed access |
+| Remote node v1 limits | [remote-agent protocol](remote-agent/protocol.md), [remote filesystem boundary](remote-agent/filesystem-boundary.md) | Binding ACL, symlink containment, self-update, read-only scope |
 | Validation coverage | [E2E / verification](e2e/) | Harness coverage and release validation limits |
 
 ## Plugin WS Event Delivery
@@ -23,42 +23,6 @@ Architecture impact: SSE and poll are the reliable plugin event paths.
 Do not assume: `/ws/plugin` is a general event broadcast stream for OpenClaw.
 
 Relevant area: plugin transports, server realtime.
-
-## Validation Coverage Boundaries
-
-Current behavior: default PR CI covers server-side helper IPC primitive and host-grants/manifest anchors, plus static Helper service/plist/sandbox asset checks and daemon outbound prerequisite validation tests. It still does not run the real helper daemon runtime or sandbox integration by default. The docs sync guard is mapped-module only and currently misses the current helper, installer, and host-bridge docs paths. The installer gate is path-scoped or manual.
-
-Architecture impact: validation signals are reliable inside their stated boundaries, but they are not proof of full host-bridge runtime coverage.
-
-Do not assume: E2E or default CI has run the privileged helper daemon/sandbox path.
-
-Relevant area: [E2E / verification](e2e/), host bridge.
-
-## Helper Local Execution Not Implemented
-
-Current behavior: Helper job enqueue exists server-side, and the server exposes Helper-credential outbound poll/lease, ack, and result settlement routes. Poll atomically leases one queued job for the current Helper credential/device, returns a safe effective typed payload plus opaque lease token, and prevents duplicate active leases for the Helper. Ack records receipt only. Result upload accepts closed terminal statuses/failure codes, bounded redacted failure text, and small opaque audit/log references; matching replays are idempotent and conflicting terminal replays are rejected. Non-success terminal states require a reason code, and revoked, uninstalled, stale credential, TTL, and lease-loss cases fail closed or settle non-successfully. OpenClaw install/config enqueue is current for `openclaw.install_from_manifest` and `openclaw.configure_agent`: the server derives effective payloads and manifest/path or artifact/domain bindings, while rejecting client-supplied command, path, URL, manifest, artifact, service, config hash, credential, and TTL authority. The installed Helper service has outbound HTTPS address-family/sandbox prerequisites, exact public-origin startup validation that classifies literal host/IP input with `netip` and rejects localhost/private/link-local/metadata literal origins by default, and explicit Helper-owned queue/status/audit-handoff state roots. A pure Helper local job-policy evaluator exists for delivered server-owned job views: it validates strict typed payload schemas, local owner/org/enrollment/device/category/revocation/stale/expiry state, signed runtime manifest digests, artifact cache digests, declared path/domain/service bindings, and supplied sandbox/profile affordances. `openclaw.configure_agent` now requires signed manifest plus approved config path binding before policy can allow; `openclaw.install_from_manifest` requires signed manifest, artifact, approved path, and approved artifact-origin binding. Production assets use the exact `https://app.borgee.io` allowlist. The validator does not resolve allowed hostnames or guard against DNS answers/CNAMEs resolving to private, link-local, or metadata addresses. The Helper daemon still does not upload raw/bulk logs, wire local policy to transport/action execution, run OpenClaw actions, bind Borgee plugin channels, restart services, or use sudo cache.
-
-Architecture impact: the transport, settlement, OpenClaw job binding, service/sandbox/config, and pure local policy boundaries are ready for later action work, but job progress beyond receipt/terminal transport metadata and Configure OpenClaw success must not be inferred from these prerequisites.
-
-Do not assume: a leased Helper job passed local policy or executed on the host.
-
-Do not assume: a Helper terminal `succeeded` status proves Configure OpenClaw success until the later local policy/action task owns execution semantics.
-
-Do not assume: local policy decisions are uploaded, settled, or visible in job progress yet.
-
-Do not assume: Helper startup validation prevents DNS rebinding or private/link-local/metadata DNS resolution for an otherwise allowed hostname; that remains future hardening or runtime network-policy scope.
-
-Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), server Helper jobs.
-
-## Helper Policy Manifest Uses Static System Paths
-
-Current behavior: The installer now runs the main helper daemon as the installing user and stores the daemon binary, service file, credentials, and local state under that user's home/XDG paths. The server-side helper policy manifest still declares some Linux/macOS action roots as static system paths such as `/var/lib/borgee` and `/Library/Application Support/Borgee`.
-
-Architecture impact: The install/runtime identity model has moved to user-owned service state, but helper job action roots are not yet fully parameterized by the installed user's home/state/runtime roots.
-
-Do not assume: OpenClaw/config/state helper jobs can write user-home locations solely because the service itself now runs as the installing user. The manifest root model needs a follow-up dynamic-root design before those actions are treated as fully aligned with user-owned installation.
-
-Relevant area: [host bridge helper daemon](host-bridge/helper-daemon.md), helper policy manifest, server Helper jobs.
 
 ## Channel Management Mutations Not Implemented
 
@@ -100,16 +64,6 @@ Do not assume: heartbeat frames are the only liveness source.
 
 Relevant area: BPP internals and realtime Hub.
 
-## Remote-Agent Request Shape
-
-Current behavior: Server remote proxy wraps path data under `params`; the Node remote-agent reads `path` at the top level.
-
-Architecture impact: Remote file proxy behavior has a request-shape mismatch.
-
-Do not assume: remote `ls/read/stat` works end to end without checking the payload shape.
-
-Relevant area: remote-agent protocol.
-
 ## Event Stream Split
 
 Current behavior: Poll/SSE/backfill use the hot realtime cursor stream; the data-layer event bus is a separate audit/retention-oriented path.
@@ -150,10 +104,50 @@ Do not assume: users can manage per-channel agent attention from the client UI j
 
 Relevant area: channel management, client mention controls, and agent attention UX.
 
+## Remote Node Binding Channel ACL Not Enforced
+
+Current behavior: creating a channel-to-path binding is scoped to the remote node's owner, but the server does not verify that the caller is a member of the supplied `channel_id`. A node owner can bind their node's path to a channel without a channel-membership check.
+
+Architecture impact: remote bindings are not a hardened multi-user authorization boundary; node ownership is the only enforced scope at binding creation.
+
+Do not assume: a remote binding implies the binder has access to the bound channel, or that v1 remote node sharing is safe for multi-user channels.
+
+Relevant area: [remote-agent protocol](remote-agent/protocol.md), server remote bindings.
+
+## Remote Agent Symlink Containment Absent
+
+Current behavior: the daemon's path gate compares the resolved request path against the startup allowlist but does not realpath-resolve symlinks. A symlink inside an allowed directory that points outside it is not separately contained.
+
+Architecture impact: directory containment is path-prefix based, not filesystem-canonical; symlink escape is not defended at the daemon boundary.
+
+Do not assume: an allowed directory fully sandboxes reads to files physically under it.
+
+Relevant area: [remote filesystem boundary](remote-agent/filesystem-boundary.md), daemon path gate.
+
+## Daemon Self-Update Unavailable
+
+Current behavior: the `packages/borgee/internal/updatecheck` package is retained (per the redesign's CLI-compatibility note) but is unwired. It still targets the helper installed-versions endpoint (`/api/v1/helper/enrollments/{id}/installed-versions`) using an `EnrollmentID` + helper device id, and t1 removed that server route. The new opaque connection-token model has no `EnrollmentID`, so the package compiles but has no live server route to report versions to.
+
+Architecture impact: the daemon currently has no working self-update / version-report path; losing it is a known UX regression the redesign accepted to drop the helper rail.
+
+Do not assume: the daemon reports installed versions or self-updates today. Whether self-update is rewired onto the connection-token model or the package is dropped is an undecided product question, not a committed change.
+
+Relevant area: remote-agent daemon, `packages/borgee/internal/updatecheck`.
+
+## OpenClaw Dev-Infra Residue
+
+Current behavior: the server-go dev-artifacts producer (`packages/server-go/internal/devartifacts`) and the dev-stack plugin-artifact staging (`scripts/dev-stack/build-plugin-artifact.sh` plus its `dev-artifacts` compose mount) still exist, but t1 removed the helper delivery rail that consumed them. They are dead infrastructure.
+
+Architecture impact: these dev-only paths produce/stage artifacts nothing reads anymore; they are inert but not yet removed.
+
+Do not assume: the dev-artifacts producer or dev-stack staging serves a live delivery path. Coherent teardown is a follow-up code task outside this documentation change.
+
+Relevant area: server dev artifacts, dev-stack tooling.
+
 ## Implementation Anchors
 
 - Plugin transport/config: `packages/plugins/openclaw/src/ws-client.ts`, `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/config-schema.ts`, `packages/plugins/openclaw/src/types.ts`
 - Server plugin/BPP: `packages/server-go/internal/ws/plugin.go`, `packages/server-go/internal/bpp`
 - BPP SDK: `packages/server-go/sdk/bpp`
-- Remote-agent boundary: `packages/server-go/internal/ws/remote.go`, `packages/remote-agent/src/agent.ts`
+- Remote-agent boundary: `packages/server-go/internal/ws/remote.go`, `packages/borgee/internal/remotews`
 - Event streams: `packages/server-go/internal/api/poll.go`, `packages/server-go/internal/datalayer`
