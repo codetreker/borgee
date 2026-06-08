@@ -1,9 +1,8 @@
-// Regression test for issue #1055 — `setup` and `claim` are no longer
-// top-level subcommands; the dispatcher must route the remaining five
-// public subcommands and reject `setup` / `claim` with the standard
-// "unknown subcommand" error.
-//
-// Covers acceptance outcomes OUT-1, OUT-2, OUT-3, OUT-4.
+// Regression test for the public dispatch surface after t3a (binary strip)
+// removed the high-privilege subcommands. Only `install` and `daemon`
+// remain routed; `setup`, `claim`, `rootd`, `install-plugin`, and
+// `uninstall-host` must all be rejected with the standard "unknown
+// subcommand" error and must not appear in the usage banner.
 
 package main
 
@@ -15,10 +14,10 @@ import (
 )
 
 // TestDispatchPublicSubcommands locks in the public dispatch surface after
-// issue #1055 dropped `setup` and `claim` as top-level subcommands.
+// t3a (binary strip) dropped the high-privilege subcommands.
 func TestDispatchPublicSubcommands(t *testing.T) {
 	t.Run("removed_subcommands_return_unknown", func(t *testing.T) {
-		for _, sub := range []string{"setup", "claim"} {
+		for _, sub := range []string{"setup", "claim", "rootd", "install-plugin", "uninstall-host"} {
 			sub := sub
 			t.Run(sub, func(t *testing.T) {
 				var stdout, stderr bytes.Buffer
@@ -38,19 +37,15 @@ func TestDispatchPublicSubcommands(t *testing.T) {
 	})
 
 	t.Run("public_subcommands_route", func(t *testing.T) {
-		// Each of the five public subcommands must be routed to its
-		// own Run() — confirmed by the dispatcher NOT returning the
-		// "unknown subcommand" sentinel error. The downstream Run may
-		// itself return an error (e.g. flag.ErrHelp on `--help`, or a
-		// platform-fallback message on non-linux/darwin) — that is
-		// fine; what we are locking in is that dispatch routes the
-		// string at all.
+		// Each public subcommand must be routed to its own Run() —
+		// confirmed by the dispatcher NOT returning the "unknown
+		// subcommand" sentinel error. The downstream Run may itself
+		// return an error (e.g. the t3a fail-loud "not implemented"
+		// stub) — that is fine; what we are locking in is that
+		// dispatch routes the string at all.
 		for _, sub := range []string{
 			"install",
-			"uninstall-host",
 			"daemon",
-			"rootd",
-			"install-plugin",
 		} {
 			sub := sub
 			t.Run(sub, func(t *testing.T) {
@@ -93,20 +88,17 @@ func TestDispatchPublicSubcommands(t *testing.T) {
 		}
 	})
 
-	t.Run("usage_banner_lists_five_public_subcommands_no_setup_or_claim", func(t *testing.T) {
+	t.Run("usage_banner_lists_public_subcommands_no_removed_ones", func(t *testing.T) {
 		var buf bytes.Buffer
 		usage(&buf)
 		out := buf.String()
 		for _, want := range []string{
 			"install",
-			"uninstall-host",
 			"daemon",
-			"rootd",
-			"install-plugin",
 		} {
 			// Match the listed subcommand at the start of a banner
 			// line (two-space indent) so a substring like `install`
-			// doesn't false-positive on `install-plugin`'s prose.
+			// doesn't false-positive on prose.
 			marker := "\n  " + want + " "
 			if !strings.Contains("\n"+out, marker) {
 				t.Errorf("usage() missing subcommand %q; got:\n%s", want, out)
@@ -115,6 +107,9 @@ func TestDispatchPublicSubcommands(t *testing.T) {
 		for _, banned := range []string{
 			"\n  setup ",
 			"\n  claim ",
+			"\n  rootd ",
+			"\n  install-plugin ",
+			"\n  uninstall-host ",
 		} {
 			if strings.Contains("\n"+out, banned) {
 				t.Errorf("usage() still lists banned subcommand line %q; got:\n%s", strings.TrimSpace(banned), out)
