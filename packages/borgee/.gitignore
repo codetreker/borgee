@@ -1,0 +1,3 @@
+# Cross-compiled platform binaries, produced by scripts/build-borgee-binaries.sh
+# immediately before `pnpm pack` / publish. Build artifact — never committed.
+/bin/
