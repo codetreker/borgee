@@ -1,6 +1,6 @@
 // PageHeader — 通用页头, 左 ← 返回 / 右 × 关闭 / 中标题 / 右侧 actions.
 //
-// 旧三页 (SettingsPage / NodeManager / HelperStatusPanel) 都是手写 header
+// 旧多页 (SettingsPage / NodeManager 等) 都是手写 header
 // + 各自 className, 只有 ← 没 ×. 用 useNavigation hook 做真正的入栈/出栈
 // 后, 这个组件统一渲染. ← 调 back (栈空 fallback channel) / × 调 close
 // (永远清栈回 channel).
