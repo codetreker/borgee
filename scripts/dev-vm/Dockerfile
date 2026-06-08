@@ -34,12 +34,25 @@ RUN systemctl mask -- \
         systemd-firstboot.service \
     || true
 
-# Node 22 for both the helper installer (`npx @codetreker/borgee-remote-agent`)
+# Node 22 for both the borgee remote-agent daemon (installed globally from the
+# locally-packed @codetreker/borgee-remote-agent tarball, COPY'd in below)
 # AND the openclaw runtime below (openclaw@2026.5.5 requires Node.js >= 22.12).
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
+
+# Borgee remote-agent daemon, installed from the locally-packed npm tarball
+# (staged into this build context as borgee-remote-agent.tgz by
+# scripts/dev-vm/build-image.sh — see that script for the pack step). The
+# tarball carries all 4 platform `borgee` binaries under bin/platforms/; the
+# dispatcher resolves linux-x64 and chmod 0755's it before spawn (npm strips
+# the exec bit at pack). After this, `borgee-remote-agent install --server …
+# --token … --dirs …` brings a daemon online inside the VM — what T6's e2e drives.
+COPY borgee-remote-agent.tgz /tmp/borgee-remote-agent.tgz
+RUN npm install -g /tmp/borgee-remote-agent.tgz \
+ && rm -f /tmp/borgee-remote-agent.tgz \
+ && borgee-remote-agent --version
 
 # OpenClaw runtime (#1078 / #1050 run_7 — replaces the sentinel "echo &&
 # exit 0" shell script the dev-stack used to ship as the openclaw
