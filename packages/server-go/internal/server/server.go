@@ -276,24 +276,9 @@ func (s *Server) SetupRoutes() {
 	}
 	agentConfigHandler.RegisterRoutes(s.mux, authMw)
 
-	// HB-3.1 host_grants canonical REST endpoints. Owner-only ACL; admin API
-	// does not handle user-owned grant writes (ADM-0 §1.3). Audit log fields stay
-	// aligned with HB-1 / HB-2 / BPP-4.
-	hostGrantsHandler := &api.HostGrantsHandler{
-		Store:  s.store,
-		Logger: s.logger,
-	}
-	hostGrantsHandler.RegisterRoutes(s.mux, authMw)
-
-	// Helper enrollment/status foundation. User management routes use authMw;
-	// claim/status/uninstall use the distinct Helper credential rail.
-	helperEnrollmentHandler := &api.HelperEnrollmentHandler{Repo: s.dl.HelperEnrollmentRepo, JobRepo: s.dl.HelperJobRepo, Logger: s.logger, PublicHelperOrigin: s.cfg.PublicHelperOrigin}
-	helperEnrollmentHandler.RegisterRoutes(s.mux, authMw)
-	// PR-4 amend (#1033) — load BORGEE_MANIFEST_SIGNING_KEY here (earlier
-	// than the HB-1 plugin manifest handler below) so the helper-jobs
-	// handler can hold a HelperManifestProvider on the same key. The
-	// plugin manifest handler also reuses hb1SigningKey at its
-	// registration point further down — single read, two consumers, one
+	// Load BORGEE_MANIFEST_SIGNING_KEY once at startup; the same loaded
+	// key is consumed by the HB-1 plugin manifest handler (below) and by
+	// the dev-stack artifact handler — single read, two consumers, one
 	// trust root on the daemon side (BORGEE_MANIFEST_SIGNING_PUBKEY).
 	hb1SigningKey, hb1KeyErr := api.LoadSigningKey(s.logger)
 	if hb1KeyErr != nil && s.logger != nil {
@@ -302,31 +287,6 @@ func (s *Server) SetupRoutes() {
 			"error", hb1KeyErr.Error(),
 			"effect", "manifest entries served unsigned; install-butler will reject in production")
 	}
-	helperJobsHandler := &api.HelperJobsHandler{
-		Repo: s.dl.HelperJobRepo,
-		// #1049: list endpoint verifies enrollment ownership BEFORE
-		// returning rows so cross-owner returns 404 rather than 200+empty.
-		EnrollmentRepo: s.dl.HelperEnrollmentRepo,
-		// PR-4 amend (#1033): server emits the signed canonical helper-
-		// policy manifest body in every leased-job payload so the daemon
-		// can run jobpolicy.Evaluate against an actual signed manifest
-		// (binding's PathIDs/ServiceIDs are resolved against the manifest's
-		// authoritative declarations).
-		ManifestProvider: api.NewHelperManifestProvider(hb1SigningKey),
-		Logger:           s.logger,
-	}
-	// PR-4 final amend: wire the WS push adapter so handleEnqueue can
-	// push immediately to a connected daemon (sub-second job latency
-	// instead of REST poll's ~5s retry-after window). The adapter
-	// closes over *ws.Hub; api package stays import-clean of internal/ws.
-	helperJobsHandler.SetPushAdapter(&helperJobsPushAdapter{hub: s.hub})
-	// PR-4 final amend: on every daemon WS reconnect, drain any jobs
-	// that queued while it was disconnected. The hook fires once per
-	// RegisterHelper from internal/ws.HandleHelper.
-	s.hub.SetHelperConnectHook(func(enrollmentID string) {
-		helperJobsHandler.PushQueuedToHelper(context.Background(), enrollmentID)
-	})
-	helperJobsHandler.RegisterRoutes(s.mux, authMw)
 
 	// AL-1.4 agent state log — owner-only GET /api/v1/agents/:id/state-log
 	// (蓝图 §2.3 "故障可解释" — owner 看 agent state 历史轨迹查病因).
@@ -374,8 +334,8 @@ func (s *Server) SetupRoutes() {
 	// manifest data 走 LoadManifestEntries 三档 fallback (env JSON > env file
 	// > 内置默认), 立场 ② 0 schema 不变.
 	// 私钥 BORGEE_MANIFEST_SIGNING_KEY (base64 ed25519 seed, 32 字节解码后)
-	// 启动时一次性读取 (above, at helperJobsHandler init — same key for
-	// both manifest endpoints); 缺省 fall-soft (per-entry Signature 留空 +
+	// 启动时一次性读取 (above, at hb1SigningKey load — same key for
+	// plugin manifest + dev artifact handlers); 缺省 fall-soft (per-entry Signature 留空 +
 	// 顶层 signature 走 test placeholder), 日志 warn 一行. 生产由监控抓
 	// warn 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
 	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey}
@@ -676,14 +636,6 @@ func (s *Server) SetupRoutes() {
 	s.mux.HandleFunc("/ws", ws.HandleClient(s.hub))
 	s.mux.HandleFunc("/ws/plugin", ws.HandlePlugin(s.hub))
 	s.mux.HandleFunc("/ws/remote", ws.HandleRemote(s.hub))
-	// PR-2 #1038 host-bridge helper WS transport. Authenticates via the
-	// same Bearer credential + X-Helper-Device-Id pair the REST helper
-	// rail uses (UpdateLastSeen does the digest + device check + last-
-	// seen-at update under one DB write). The processor adapter routes
-	// daemon-sent ack/result frames through the same store mutations
-	// helper_jobs.go's REST handlers call.
-	helperAuthAdapter := &helperEnrollmentAuthAdapter{repo: s.dl.HelperEnrollmentRepo}
-	s.mux.HandleFunc("/ws/helper/{enrollmentId}", ws.HandleHelper(s.hub, helperAuthAdapter, helperJobsHandler))
 
 	s.mux.HandleFunc("/api/v1/", respondNotImplemented)
 
@@ -887,47 +839,6 @@ func (a *hubIterationAdapter) PushIterationStateChanged(
 
 type hubPluginAdapter struct {
 	hub *ws.Hub
-}
-
-// helperEnrollmentAuthAdapter — PR-2 #1038 host-bridge WS adapter. The
-// hub's HandleHelper takes a narrow `HelperEnrollmentAuthenticator`
-// interface (not the full repo) so unit tests can substitute a fake;
-// in production, we route the call through the SQLite repo's
-// UpdateLastSeen — same call the prior REST POST /status used to
-// validate credential + device id and bump last_seen_at.
-type helperEnrollmentAuthAdapter struct {
-	repo datalayer.HelperEnrollmentRepository
-}
-
-func (a *helperEnrollmentAuthAdapter) UpdateLastSeen(ctx context.Context, id, credential, helperDeviceID string, now time.Time) (*datalayer.HelperEnrollment, error) {
-	return a.repo.UpdateLastSeen(ctx, id, credential, helperDeviceID, now)
-}
-
-// helperJobsPushAdapter — PR-4 final amend host-bridge WS push
-// adapter. Closes over *ws.Hub so the api.HelperJobsHandler can push
-// frames without importing internal/ws (api → ws would cycle on
-// ws.HelperJobProcessor). The hub exposes session lookup + send via
-// concrete methods; this adapter forwards both.
-type helperJobsPushAdapter struct {
-	hub *ws.Hub
-}
-
-func (a *helperJobsPushAdapter) GetHelperSessionPlatform(enrollmentID string) (string, string, string, bool) {
-	if a == nil || a.hub == nil {
-		return "", "", "", false
-	}
-	sess := a.hub.GetHelper(enrollmentID)
-	if sess == nil {
-		return "", "", "", false
-	}
-	return string(sess.Platform()), sess.DeviceID(), sess.Credential(), true
-}
-
-func (a *helperJobsPushAdapter) SendJobFrameToHelper(enrollmentID string, jobJSON json.RawMessage) bool {
-	if a == nil || a.hub == nil {
-		return false
-	}
-	return a.hub.SendJobToHelper(enrollmentID, jobJSON)
 }
 
 func (a *hubPluginAdapter) ProxyPluginRequest(agentID string, method string, path string, body []byte) (int, []byte, error) {
