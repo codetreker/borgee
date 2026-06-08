@@ -184,12 +184,81 @@ jobs:
           E2E_SERVER_COMMAND: ./bin/collab-e2e
           E2E_TRACE_MODE: on-first-retry
           E2E_VIDEO_MODE: on-first-retry
-        run: pnpm --filter @borgee/e2e exec playwright test --fail-on-flaky-tests
+        run: pnpm --filter @borgee/e2e exec playwright test --project=chromium --fail-on-flaky-tests
       - name: Upload Playwright artifacts (on failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts
+          path: |
+            packages/e2e/test-results/
+            packages/e2e/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e-remote-node:
+    # Dedicated VM-dependent e2e: the remote-node browse spec (ls/read/stat
+    # through the real UI against a borgee daemon running inside a privileged
+    # systemd dev-vm container). Separate from the vanilla `e2e` job because it
+    # needs the dev-vm image + a privileged container; the vanilla job runs
+    # VM-less (--project=chromium). REQUIRED check (gates the PR) — runs for
+    # real or fails loud; NO silent skip.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: packages/server-go/go.sum
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile --filter @borgee/e2e --filter @borgee/client
+      - name: Install Playwright chromium
+        run: pnpm --filter @borgee/e2e exec playwright install chromium
+      - name: Install libsqlite3 headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev
+      - name: Build server-go e2e binary
+        run: cd packages/server-go && go build -tags 'sqlite_fts5 libsqlite3' -o bin/collab-e2e ./cmd/collab
+      - name: Ensure server-go e2e binary is executable
+        run: chmod +x packages/server-go/bin/collab-e2e
+      - name: Build dev-vm image (packs t4 tarball + docker build)
+        # scripts/dev-vm/build-image.sh: cross-compile platform binaries ->
+        # pnpm pack the @codetreker/borgee-remote-agent tarball into the build
+        # context -> docker build borgee-vm-base:latest (COPY + npm install -g +
+        # a build-time `borgee-remote-agent --version` smoke). A bare compose
+        # build would fail at the COPY — the wrapper is mandatory.
+        run: timeout 600 bash scripts/dev-vm/build-image.sh
+      - name: Run remote-node VM e2e
+        env:
+          E2E_SERVER_COMMAND: ./bin/collab-e2e
+          E2E_TRACE_MODE: on-first-retry
+          E2E_VIDEO_MODE: on-first-retry
+        # The spec's beforeAll brings up the dev-vm (compose up -d) + seeds the
+        # fixture; afterAll tears it down. ONLY the VM spec runs here.
+        run: timeout 600 pnpm --filter @borgee/e2e exec playwright test --project=remote-node-vm --fail-on-flaky-tests
+      - name: Tear down dev-vm (always)
+        if: always()
+        run: docker compose -f scripts/dev-vm/docker-compose.yml -f scripts/dev-vm/docker-compose.e2e.yml down -v || true
+      - name: Upload Playwright artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-remote-node
           path: |
             packages/e2e/test-results/
             packages/e2e/playwright-report/
