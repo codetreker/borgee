@@ -70,7 +70,7 @@ describe('PageHeader — 点击行为', () => {
   it('点 × 调 nav.close (清栈回 channel)', () => {
     const navRef = mount(<PageHeader title="子页" />, 'settings');
     act(() => navRef.current!.push('remote-nodes'));
-    act(() => navRef.current!.push('helper-status'));
+    act(() => navRef.current!.push('agents'));
     const close = container!.querySelector('.page-header-close') as HTMLButtonElement;
     act(() => close.click());
     expect(navRef.current!.current).toBe('channel');

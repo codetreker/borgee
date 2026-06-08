@@ -1,6 +1,6 @@
 // SettingsPage — 用户设置页骨架.
 //
-// 现有 tab: runtime (Remote Nodes / Helper Status 入口) + channels
+// 现有 tab: runtime (Remote Nodes 入口) + channels
 // (ChannelManagementSurface). 默认进 runtime.
 //
 // 反约束:
@@ -66,16 +66,6 @@ export default function SettingsPage() {
                 >
                   <span className="settings-runtime-entry-title">Remote Nodes</span>
                   <span className="settings-runtime-entry-meta">Remote Agent file proxy</span>
-                </button>
-                <button
-                  type="button"
-                  className="settings-runtime-entry"
-                  data-runtime-entry="helper-status"
-                  data-authority-rail="helper-actuator"
-                  onClick={() => nav.push('helper-status')}
-                >
-                  <span className="settings-runtime-entry-title">Helper Status</span>
-                  <span className="settings-runtime-entry-meta">Helper actuator enrollment</span>
                 </button>
               </div>
             </section>

@@ -16,7 +16,6 @@
 //   'invitations'  Agent 邀请收件箱
 //   'workspaces'   Workspace 管理页
 //   'remote-nodes' Remote nodes 管理页
-//   'helper-status' Helper status visibility
 //   'settings'     Settings 页
 //
 // 只有 'channel' 时才显 ChannelView; 其它都是 sidepane 独占主区域. 'channel'
@@ -28,7 +27,6 @@ export type MainView =
   | 'invitations'
   | 'workspaces'
   | 'remote-nodes'
-  | 'helper-status'
   | 'settings';
 
 export const MAIN_VIEW_DEFAULT: MainView = 'channel';
@@ -39,7 +37,6 @@ export const ALL_MAIN_VIEWS: ReadonlyArray<MainView> = [
   'invitations',
   'workspaces',
   'remote-nodes',
-  'helper-status',
   'settings',
 ];
 
