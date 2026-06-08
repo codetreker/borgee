@@ -81,7 +81,24 @@ export default defineConfig({
 
   projects: [
     {
+      // Vanilla project: every spec EXCEPT the VM-dependent remote-node browse
+      // spec. testIgnore keeps remote-node-browse.spec.ts out of the default
+      // (no-VM) run so the vanilla CI `e2e` job never sweeps it VM-less.
+      // NOTE: Playwright with no --project runs ALL projects, so the vanilla
+      // job MUST pass --project=chromium (else remote-node-vm's testMatch would
+      // re-include the VM spec). See .github/workflows/ci.yml.
       name: 'chromium',
+      testIgnore: /remote-node-browse\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // VM-dependent project: ONLY the remote-node browse spec. Runs in the
+      // dedicated `e2e-remote-node` CI job (which builds + brings up the
+      // dev-vm). Longer per-test budget — the spec also sets
+      // test.setTimeout(120_000).
+      name: 'remote-node-vm',
+      testMatch: /remote-node-browse\.spec\.ts$/,
+      timeout: 120_000,
       use: { ...devices['Desktop Chrome'] },
     },
   ],
