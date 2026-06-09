@@ -48,7 +48,7 @@ git -C /workspace/borgee branch -D fix/<slug>
 核心铁律 (skill 全文展开):
 - server-go 跑在**宿主**, 不在容器
 - dev-vm 是**干净 Ubuntu+systemd 容器**, 不预装 borgee/Node/openclaw 任何东西
-- server-go 跟 dev-vm **绝对禁止**塞同一 docker network (历史 `scripts/dev-stack/` 错例, 已删)
+- server-go 跟 dev-vm **绝对禁止**塞同一 docker network (历史 `scripts/dev-stack/` 同网骨架是错例, 已删)
 - e2e 你 = 用户, 所有命令 / token / origin **从 web UI 拿**, 不准 hardcode
 - dev-vm 是**一次性 fixture**, 跑完 `docker compose down -v` 删干净, 下次重起干净环境
 

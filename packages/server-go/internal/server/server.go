@@ -18,7 +18,6 @@ import (
 	"borgee-server/internal/bpp"
 	"borgee-server/internal/config"
 	"borgee-server/internal/datalayer"
-	"borgee-server/internal/devartifacts"
 	"borgee-server/internal/presence"
 	"borgee-server/internal/push"
 	"borgee-server/internal/store"
@@ -276,10 +275,9 @@ func (s *Server) SetupRoutes() {
 	}
 	agentConfigHandler.RegisterRoutes(s.mux, authMw)
 
-	// Load BORGEE_MANIFEST_SIGNING_KEY once at startup; the same loaded
-	// key is consumed by the HB-1 plugin manifest handler (below) and by
-	// the dev-stack artifact handler — single read, two consumers, one
-	// trust root on the daemon side (BORGEE_MANIFEST_SIGNING_PUBKEY).
+	// Load BORGEE_MANIFEST_SIGNING_KEY once at startup; the loaded key is
+	// consumed by the HB-1 plugin manifest handler (below) — one trust root
+	// on the daemon side (BORGEE_MANIFEST_SIGNING_PUBKEY).
 	hb1SigningKey, hb1KeyErr := api.LoadSigningKey(s.logger)
 	if hb1KeyErr != nil && s.logger != nil {
 		s.logger.Error("hb1.signing_key_invalid",
@@ -334,43 +332,11 @@ func (s *Server) SetupRoutes() {
 	// manifest data 走 LoadManifestEntries 三档 fallback (env JSON > env file
 	// > 内置默认), 立场 ② 0 schema 不变.
 	// 私钥 BORGEE_MANIFEST_SIGNING_KEY (base64 ed25519 seed, 32 字节解码后)
-	// 启动时一次性读取 (above, at hb1SigningKey load — same key for
-	// plugin manifest + dev artifact handlers); 缺省 fall-soft (per-entry Signature 留空 +
+	// 启动时一次性读取 (above, at hb1SigningKey load); 缺省 fall-soft (per-entry Signature 留空 +
 	// 顶层 signature 走 test placeholder), 日志 warn 一行. 生产由监控抓
 	// warn 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
 	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey}
 	hb1ManifestHandler.RegisterRoutes(s.mux, authMw)
-
-	// #1050 blocker #6 dev-stack artifact server. Only mounted when
-	// BORGEE_DEV_ARTIFACTS_DIR is set (production leaves it unset and
-	// these handlers are never registered). Serves the real
-	// @codetreker/borgee-openclaw-plugin tarball staged at
-	// scripts/dev-stack/artifacts/openclaw-plugin/<platform> by
-	// build-plugin-artifact.sh so a local docker-compose dev-stack can
-	// complete an end-to-end install_from_manifest job (and an openclaw
-	// plugins install inside the helper-vm) without reaching the
-	// unprovisioned production CDN. Signing key reuses hb1SigningKey
-	// so install-butler's ed25519 trust check passes byte-identical
-	// with prod. (Pre-run_7 dev-stacks served a 66-byte sentinel shell
-	// script — that fake was removed; the chain now delivers real
-	// plugin bytes.)
-	if devArtifactsDir := strings.TrimSpace(os.Getenv("BORGEE_DEV_ARTIFACTS_DIR")); devArtifactsDir != "" {
-		reg, err := devartifacts.LoadFromDir(devArtifactsDir, s.logger)
-		if err != nil {
-			s.logger.Error("devartifacts load failed", "err", err)
-		} else if len(reg.Entries()) > 0 {
-			devHandler := &devartifacts.Handler{
-				Registry:        reg,
-				SigningKey:      hb1SigningKey,
-				ManifestURLBase: strings.TrimSpace(os.Getenv("BORGEE_DEV_MANIFEST_ORIGIN_BASE")),
-				Logger:          s.logger,
-			}
-			devHandler.RegisterRoutes(s.mux)
-			s.logger.Info("devartifacts.mounted",
-				"dir", devArtifactsDir,
-				"entries", len(reg.Entries()))
-		}
-	}
 
 	// (DL-4.3 push gateway init moved earlier — line ~85 — to feed
 	// MentionDispatcher.PushNotifier.)

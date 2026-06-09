@@ -54,8 +54,7 @@ RUN npm install -g /tmp/borgee-remote-agent.tgz \
  && rm -f /tmp/borgee-remote-agent.tgz \
  && borgee-remote-agent --version
 
-# OpenClaw runtime (#1078 / #1050 run_7 — replaces the sentinel "echo &&
-# exit 0" shell script the dev-stack used to ship as the openclaw
+# OpenClaw runtime (#1078 / #1050 run_7 — installs the real openclaw CLI
 # binary). Pinned to 2026.5.5 to match the peer-dep range declared by
 # packages/plugins/openclaw/package.json (>=2026.4.15). The CLI binary
 # `openclaw` lands on PATH; `openclaw plugins list` works out of the
