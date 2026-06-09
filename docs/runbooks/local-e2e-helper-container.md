@@ -13,37 +13,6 @@ way — they need a real macOS host.
 - Smoke testing `borgee install / claim / daemon` against a staging or
   testing server (e.g. `testing-borgee.codetrek.cn`).
 
-## Full-stack local e2e (server + helper)
-
-When a PR needs to exercise both the server and the helper together —
-or when the testing environment is half-configured (e.g. missing
-manifest signing key) — bring up the paired stack under
-`scripts/dev-stack/`:
-
-```bash
-cd scripts/dev-stack
-./gen-keypair.sh > .env                                       # ed25519 seed + pubkey
-cat .env.example | grep -v '^BORGEE_MANIFEST_SIGNING_KEY' >> .env
-docker compose up -d
-```
-
-The compose file builds the server-go binary + the React client from
-the worktree and brings up a `borgee-server` container alongside the
-existing `borgee-vm` helper container on a shared `borgee-e2e` docker
-network. Helper boot is gated on the server's `/api/health`
-healthcheck. Volumes + secrets live in `scripts/dev-stack/`; the
-canonical config is the compose file itself — don't duplicate.
-
-The helper inside `borgee-vm` reaches the server at
-`ws://borgee-server:4900` (docker network name). Pass the
-`BORGEE_MANIFEST_SIGNING_PUBKEY` value emitted by `gen-keypair.sh`
-into the helper systemd drop-in so the daemon trusts manifests signed
-by this stack.
-
-Tear the stack down with `docker compose down --volumes`. The helper-
-only flow below remains the right entry point for cases that don't
-need a fresh server.
-
 ## Prerequisites
 
 - Docker 24+ with cgroup v2:

@@ -13,8 +13,8 @@
 # dev-vm image: a bare build would fail at `COPY borgee-remote-agent.tgz`
 # because the tarball is a generated artifact, not committed.
 #
-# Mirrors scripts/dev-stack/build-plugin-artifact.sh (pack-an-artifact-then-let
-# -the-build-consume-it). Wrap the docker build in a timeout when invoking, e.g.
+# Pack-an-artifact-then-let-the-build-consume-it. Wrap the docker build in a
+# timeout when invoking, e.g.
 #   timeout 600 bash scripts/dev-vm/build-image.sh
 set -euo pipefail
 

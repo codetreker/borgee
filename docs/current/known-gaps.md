@@ -124,26 +124,6 @@ Do not assume: an allowed directory fully sandboxes reads to files physically un
 
 Relevant area: [remote filesystem boundary](remote-agent/filesystem-boundary.md), daemon path gate.
 
-## Daemon Self-Update Unavailable
-
-Current behavior: the `packages/borgee/internal/updatecheck` package is retained (per the redesign's CLI-compatibility note) but is unwired. It still targets the helper installed-versions endpoint (`/api/v1/helper/enrollments/{id}/installed-versions`) using an `EnrollmentID` + helper device id, and t1 removed that server route. The new opaque connection-token model has no `EnrollmentID`, so the package compiles but has no live server route to report versions to.
-
-Architecture impact: the daemon currently has no working self-update / version-report path; losing it is a known UX regression the redesign accepted to drop the helper rail.
-
-Do not assume: the daemon reports installed versions or self-updates today. Whether self-update is rewired onto the connection-token model or the package is dropped is an undecided product question, not a committed change.
-
-Relevant area: remote-agent daemon, `packages/borgee/internal/updatecheck`.
-
-## OpenClaw Dev-Infra Residue
-
-Current behavior: the server-go dev-artifacts producer (`packages/server-go/internal/devartifacts`) and the dev-stack plugin-artifact staging (`scripts/dev-stack/build-plugin-artifact.sh` plus its `dev-artifacts` compose mount) still exist, but t1 removed the helper delivery rail that consumed them. They are dead infrastructure.
-
-Architecture impact: these dev-only paths produce/stage artifacts nothing reads anymore; they are inert but not yet removed.
-
-Do not assume: the dev-artifacts producer or dev-stack staging serves a live delivery path. Coherent teardown is a follow-up code task outside this documentation change.
-
-Relevant area: server dev artifacts, dev-stack tooling.
-
 ## Implementation Anchors
 
 - Plugin transport/config: `packages/plugins/openclaw/src/ws-client.ts`, `packages/plugins/openclaw/src/gateway.ts`, `packages/plugins/openclaw/src/config-schema.ts`, `packages/plugins/openclaw/src/types.ts`
