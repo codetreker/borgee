@@ -40,9 +40,6 @@ modules:
   - name: plugin-openclaw
     code_prefix: packages/plugins/
     docs_prefix: docs/current/plugin/
-  - name: helper
-    code_prefix: packages/helper/
-    docs_prefix: docs/current/helper/
   - name: remote-agent
     code_prefix: packages/borgee/
     docs_prefix: docs/current/remote-agent/
