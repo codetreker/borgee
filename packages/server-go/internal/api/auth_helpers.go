@@ -12,7 +12,7 @@
 //   anchors / auth / al_5_recover / al_1_4_state_log / bpp_8_lifecycle_list /
 //   channels / channel_helpers (legacy) / chn_10_description /
 //   chn_14_description_history / cv_15_comment_edit_history / commands /
-//   hb_3_v2_decay_list / layout / me_grants / poll / 余 ~30 文件
+//   agent_heartbeat_decay / layout / me_grants / poll / 余 ~30 文件
 //
 // Reverse-grep 锚 (refactor-2-spec.md §2):
 //   - `mustUser(` 单源 == 1 hit (本文件 func 定义)

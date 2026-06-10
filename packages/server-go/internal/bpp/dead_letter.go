@@ -14,10 +14,13 @@
 //     warning plus an audit hint, but do not queue it. After reconnect, the
 //     plugin uses RT-1.3 cursor replay to pull; the server does not proactively
 //     resend.
-//   - **dead-letter audit log schema matches HB-1/HB-2 audit**
-//     (5 fields: actor / action / target / when / scope). Any change must
-//     update three test locks, matching HB-4 §1.5 release gate line 4, which
-//     locks the audit log format.
+//   - **dead-letter audit log schema is self-contained** (5 fields:
+//     actor / action / target / when / scope). It was originally drafted to
+//     match the planned HB-1/HB-2 host-bridge audit structs, but that
+//     host-bridge/Helper rail was CUT (its tables dropped at migration v=54)
+//     and those audit structs were never built — so this schema now stands on
+//     its own. Any change must update the three test locks, matching HB-4 §1.5
+//     release gate line 4, which locks the audit log format.
 //
 // Negative constraints (acceptance §4.3):
 //   - Reverse grep `pendingAcks\|retryQueue\|deadLetterQueue\|ackTimeout.*resend`
@@ -32,15 +35,15 @@ import (
 	"log/slog"
 )
 
-// DeadLetterAuditEntry is the 5-field audit log schema, matching
-// HB-1 install-butler audit (docs/implementation/modules/hb-1-spec.md §4
-// negative constraint 7) and HB-2 host-bridge IPC audit
-// (docs/implementation/modules/hb-2-spec.md §4 negative constraint 5).
+// DeadLetterAuditEntry is the 5-field audit log schema. It was originally
+// drafted to share a shape with the planned HB-1 install-butler and HB-2
+// host-bridge IPC audit structs, but that host-bridge/Helper rail was CUT
+// (tables dropped at migration v=54) and neither audit struct was ever built,
+// so this schema is now standalone.
 //
-// Any change must update three places:
+// Any change must update:
 //  1. This struct's field names and JSON tags (BPP-4).
-//  2. The HB-1 install-butler audit struct (when HB-1 is implemented).
-//  3. The HB-2 host-bridge IPC audit struct (when HB-2 is implemented).
+//  2. The three BPP-4 test locks.
 //
 // HB-4 §1.5 release gate line 4 enforces the same contract: locked audit-log
 // JSON schema, including actor / action / target / when / scope.

@@ -1,6 +1,7 @@
 // CS-2 — inline repair action handler stub (蓝图 client-shape.md §1.3
 // "inline 修复, 不跳设置页"). v0 hook 占位, v1 接 plugin SDK + AL-2a /
-// HB-3 真路径.
+// agent heartbeat-decay 真路径 (agent-liveness 心跳衰减, 非已砍的
+// host_grants rail).
 //
 // 反约束 (cs-2-stance-checklist 设计 ② + content-lock §2):
 //   - 浮层 3 inline button 不跳设置页 (grep 检查 `navigate.*\/settings`
