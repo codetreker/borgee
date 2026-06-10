@@ -1,19 +1,25 @@
-// Package api — hb_3_v2_decay_list.go: HB-3 v2.2 GET endpoint for
-// heartbeat decay state (owner-only view).
+// Package api — agent_heartbeat_decay.go: agent heartbeat-decay view —
+// owner-only GET endpoint reporting an agent's liveness bucket
+// (fresh/stale/dead) derived from its last heartbeat.
+//
+// NOTE: this is the RETAINED agent-liveness machinery (heartbeat decay
+// from agent_runtimes.last_heartbeat_at), NOT the cut host_grants
+// high-priv rail. Do not conflate this heartbeat-decay path with the
+// dropped host_grants schema (table DROPPED at migration v=54). Sibling
+// pure logic lives in bpp/heartbeat_decay.go (DeriveDecayState).
 //
 // Path: GET /api/v1/agents/{agentId}/heartbeat-decay
 //
-// 设计 (跟 hb-3-v2-spec.md §0.3 + stance §3 byte-identical):
+// 设计:
 //   - **owner-only ACL** — agent.OwnerID == user.ID (跟 AL-2a /
 //     BPP-3.2 / AL-1 / AL-5 / DM-4 / CV-4 v2 / BPP-7 / BPP-8 owner-only
-//     8 处同模式; HB-3 v2 = 第 9 处).
+//     同模式).
 //   - **admin god-mode 不挂** — admin /admin-api/* rail 隔离 (ADM-0
 //     §1.3 红线).
 //   - response shape — derive decay state from agent_runtimes.last_
 //     heartbeat_at via bpp.DeriveDecayState (no schema change).
 //
 // 反约束:
-//   - grep 检查 `admin.*heartbeat.*decay\|admin.*HB3` 在 admin*.go 0 hit.
 //   - grep 检查 raw `last_heartbeat_at` 不出现在 response (sanitizer
 //     反向 — 仅返 derived state, 不漏底层时间戳).
 
@@ -28,14 +34,14 @@ import (
 	"borgee-server/internal/store"
 )
 
-// HostDecayListHandler serves GET /api/v1/agents/{agentId}/heartbeat-decay.
-type HostDecayListHandler struct {
+// AgentHeartbeatDecayHandler serves GET /api/v1/agents/{agentId}/heartbeat-decay.
+type AgentHeartbeatDecayHandler struct {
 	Store  *store.Store
 	Logger *slog.Logger
 }
 
 // RegisterRoutes wires the GET endpoint on the user rail.
-func (h *HostDecayListHandler) RegisterRoutes(mux *http.ServeMux,
+func (h *AgentHeartbeatDecayHandler) RegisterRoutes(mux *http.ServeMux,
 	authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/agents/{agentId}/heartbeat-decay",
 		authMw(http.HandlerFunc(h.handleDecay)))
@@ -43,7 +49,7 @@ func (h *HostDecayListHandler) RegisterRoutes(mux *http.ServeMux,
 
 // handleDecay returns {state: "fresh"|"stale"|"dead", agent_id: ...}
 // for the agent. Owner-only ACL (agent.OwnerID == user.ID).
-func (h *HostDecayListHandler) handleDecay(w http.ResponseWriter, r *http.Request) {
+func (h *AgentHeartbeatDecayHandler) handleDecay(w http.ResponseWriter, r *http.Request) {
 	user, ok := mustUser(w, r)
 	if !ok {
 		return

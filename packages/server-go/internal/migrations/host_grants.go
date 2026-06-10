@@ -6,6 +6,13 @@ import (
 
 // hostGrants is migration v=27 for the HB-3.1 host_grants schema.
 //
+// ⚠️ NOT LIVE SCHEMA: the host_grants table was DROPPED at migration v=54
+// (drop_helper_and_host_grants_rails). This CREATE source is retained in-tree
+// only to satisfy the forward-only replay contract — any DB that ran v=27..53
+// must still replay this CREATE before v=54 drops it. Do not treat host_grants
+// as a live table, and do not mistake this for the heartbeat-decay /
+// agent-liveness machinery (which is unrelated and retained).
+//
 // Blueprint出处: `host-bridge.md` §1.3 (情境化授权 4 类: install / exec /
 // filesystem / network) + §1.5 release gate 第 5 行 (撤销 grant → daemon
 // < 100ms 拒绝) + §2 信任五支柱第 3 条 (可审计日志).

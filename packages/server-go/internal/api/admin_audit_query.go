@@ -8,7 +8,7 @@
 //     反 inline 字面脱节 (跟 reasons.IsValid #496 / NAMING-1 / DL-2
 //     mustPersistKinds 同精神一致).
 //   - 0 schema 改 — UNION ALL 跨 4 源既有表 (audit_events / channel_events
-//     / global_events / host_bridge placeholder), query 层合并不拆表.
+//     / global_events / host_bridge 占位; host_bridge 源永久 0 行 — 见下), query 层合并不拆表.
 //   - admin god-mode 路径独立 — 仅 /admin-api/v1/audit/multi-source 暴露,
 //     反 user-rail 脱节 (ADM-0 §1.3 红线).
 //   - LIMIT 100 + ORDER BY ts DESC v1 简单兜底, 反 N+1 / 反 cross-source
@@ -136,8 +136,11 @@ func validAuditSource(s string) bool {
 // audit_events (server) — actor_id/action/target_user_id/metadata/created_at
 // audit_events with action like 'plugin.%' (plugin) — same table, kind 区分
 // channel_events / global_events (agent) — DL-2 #615 双流 (channel_id/kind/payload/created_at)
-// host_bridge — placeholder until HB-1 audit table lands (留 HB-1 后续,
-//               v1 0 行返回, 反空 UNION 跑空查反 SQL syntax err).
+// host_bridge — permanent 0-row placeholder. The host-bridge/Helper rail
+//               that would have backed this source was CUT (its tables
+//               dropped at migration v=54), so no host_bridge audit table
+//               will ever land; this source stays for enum/UNION shape only
+//               (v1 returns 0 rows, 反空 UNION 跑空查反 SQL syntax err).
 //
 // 设计 ② 单一来源 — 单 helper, 反多处散布.
 func MultiSourceAuditQuery(s *store.Store, f MultiSourceAuditFilter) ([]MultiSourceAuditRow, error) {
@@ -178,8 +181,9 @@ func MultiSourceAuditQuery(s *store.Store, f MultiSourceAuditFilter) ([]MultiSou
 		rows = append(rows, agentRows...)
 	}
 
-	// host_bridge: HB-1 audit table 未落 v1 (留 HB-1 后续, 反向约束:
-	// MultiSourceAuditQuery 不假设表存在). 当前 0 行, 占位反 4 源缺漏.
+	// host_bridge: 永久无表 — host-bridge/Helper rail 已 CUT (相关表在
+	// 迁移 v=54 DROP), host_bridge audit 表永不落地 (反向约束:
+	// MultiSourceAuditQuery 不假设表存在). 永远 0 行, 占位仅保 4 源 enum shape.
 	_ = include(AuditSourceHostBridge)
 
 	// Trim to LIMIT after merge (per-source LIMIT could miss recent rows

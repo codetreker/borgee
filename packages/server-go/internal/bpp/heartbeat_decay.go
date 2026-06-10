@@ -1,10 +1,15 @@
-// Package bpp — heartbeat_decay.go: HB-3 v2.1 helper for deriving the three
-// heartbeat decay buckets.
+// Package bpp — heartbeat_decay.go: pure helper for deriving the three
+// agent heartbeat-decay buckets (fresh / stale / dead) from an agent's
+// last heartbeat timestamp.
+//
+// NOTE: this is the RETAINED agent-liveness machinery. It is NOT the cut
+// host_grants high-priv rail (the host_grants table was DROPPED at
+// migration v=54). Do not conflate "heartbeat decay" here with that
+// dropped rail. The owner-facing endpoint that consumes this lives in
+// api/agent_heartbeat_decay.go.
 //
 // Blueprint reference: docs/blueprint/current/plugin-protocol.md §1.6
 // (disconnected is not a binary state).
-// Spec brief: docs/implementation/modules/hb-3-v2-spec.md §0.1 + §1
-// HB-3 v2.1.
 //
 // Design contract (matching the design checklist §1+§4):
 //
@@ -14,8 +19,8 @@
 //   - **threshold matches BPP-4** — StaleThreshold = 30 *
 //     time.Second, matching srvbpp/BPP-7 SDK HeartbeatInterval.
 //   - **enum literals have one source of truth** — DecayState const literals
-//     (`fresh / stale / dead`) are locked; reverse grep hardcode outside
-//     hb_3_v2*.go must return 0 hits.
+//     (`fresh / stale / dead`) are locked here; reverse grep for a hardcoded
+//     decay-bucket literal outside heartbeat_decay.go must return 0 hits.
 //
 // Negative constraints:
 //   - nil-safe: DeriveDecayState(now, 0) returns dead (never live); negative
@@ -78,7 +83,7 @@ func DeriveDecayState(now, lastHeartbeatAt int64) DecayState {
 }
 
 // IsCrossBucketTransition returns true iff the two states are in
-// different decay buckets — used by the watchdog wire (HB-3 v2.2) to
+// different decay buckets — used by the heartbeat-decay watchdog wire to
 // decide whether to fire BPP-8 RecordHeartbeatTimeout audit. Same-bucket
 // transitions are silently no-op (design ⑦: do not repeatedly fire within the
 // same bucket, which keeps high-frequency noise out of the audit log).
