@@ -250,7 +250,8 @@ test.describe('bf-AC-3 remote-node browse (UI create -> daemon-in-VM -> ls/read/
     // Test orchestration (operator-CLI half) — the browse below stays UI.
     // daemon-direct (not install + systemctl --user): the dev-vm masks logind
     // so there is no user session bus. Run detached so the test proceeds.
-    // --server ws://<host>:4901 -> the client appends /ws/remote?token=<token>.
+    // --server ws://<host>:4901 -> the client dials /ws/remote and sends the
+    // token on the Authorization: Bearer header (not in the URL).
     // host networking makes 127.0.0.1 the host harness from inside the VM.
     docker([
       'exec',

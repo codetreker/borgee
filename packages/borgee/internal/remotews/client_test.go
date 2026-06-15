@@ -686,3 +686,57 @@ func TestClient_Integration_Dial401Rejects(t *testing.T) {
 		t.Errorf("OnAuthRejected code = %d; want 401", gotCode)
 	}
 }
+
+// TestClient_Integration_AuthHeaderNotURL proves the migrated default dialer
+// carries the token on the Authorization: Bearer header and that the request
+// URI does NOT contain the token (no ?token= query) — the whole point of the
+// ws-auth-unify task-2 migration.
+func TestClient_Integration_AuthHeaderNotURL(t *testing.T) {
+	const token = "deadbeefcafe"
+	gotAuthCh := make(chan string, 1)
+	gotURICh := make(chan string, 1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case gotAuthCh <- r.Header.Get("Authorization"):
+		default:
+		}
+		select {
+		case gotURICh <- r.URL.RequestURI():
+		default:
+		}
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+		if err != nil {
+			t.Errorf("server accept: %v", err)
+			return
+		}
+		// Hold the connection open briefly so the client treats it as a clean
+		// open; the test only cares about the handshake request.
+		defer conn.Close(websocket.StatusNormalClosure, "")
+		_, _, _ = conn.Read(r.Context())
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	c := New(Config{ServerURL: wsURL, Token: token})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.Run(ctx)
+
+	select {
+	case gotAuth := <-gotAuthCh:
+		if gotAuth != "Bearer "+token {
+			t.Errorf("Authorization header = %q; want %q", gotAuth, "Bearer "+token)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("server never received the handshake")
+	}
+
+	gotURI := <-gotURICh
+	if strings.Contains(gotURI, "token") {
+		t.Errorf("request URI %q contains the token; it must ride the header only", gotURI)
+	}
+	if !strings.HasSuffix(gotURI, "/ws/remote") {
+		t.Errorf("request URI = %q; want it to end with /ws/remote (no query)", gotURI)
+	}
+}
