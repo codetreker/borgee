@@ -49,7 +49,14 @@ func HandlePlugin(hub *Hub) http.HandlerFunc {
 			apiKey = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 		if apiKey == "" {
-			apiKey = r.URL.Query().Get("apiKey")
+			// WS-auth-unify: the `?apiKey` query form is deprecated. Header
+			// Bearer auth is canonical; the query form lingers only for old
+			// npx-distributed plugin builds and is kept during the transition.
+			if qk := r.URL.Query().Get("apiKey"); qk != "" {
+				apiKey = qk
+				hub.logger.Warn("ws.plugin.deprecated_query_auth",
+					"detail", "?apiKey query param is deprecated; use Authorization: Bearer header")
+			}
 		}
 		if apiKey == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -61,9 +68,7 @@ func HandlePlugin(hub *Hub) http.HandlerFunc {
 			return
 		}
 
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			InsecureSkipVerify: true,
-		})
+		conn, err := websocket.Accept(w, r, wsAcceptOptions(hub.config))
 		if err != nil {
 			hub.logger.Error("plugin ws accept failed", "error", err)
 			return

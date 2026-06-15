@@ -194,9 +194,7 @@ func HandleClient(hub *Hub) http.HandlerFunc {
 			return
 		}
 
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			InsecureSkipVerify: true,
-		})
+		conn, err := websocket.Accept(w, r, wsAcceptOptions(hub.config))
 		if err != nil {
 			hub.logger.Error("ws accept failed", "error", err)
 			return
@@ -275,11 +273,12 @@ func authenticateWS(hub *Hub, r *http.Request) *store.User {
 		}
 	}
 
-	if token := r.URL.Query().Get("token"); token != "" {
-		if user, err := hub.store.GetUserByAPIKey(token); err == nil && user.DeletedAt == nil && !user.Disabled {
-			return user
-		}
-	}
+	// WS-auth-unify: the `?token=` apiKey query form on /ws is removed.
+	// Production browsers authenticate with the session cookie (below);
+	// process clients (Go/Node agents) use the Authorization / Sec-WebSocket-
+	// Protocol Bearer header above. Unlike plugin `?apiKey` / remote `?token`,
+	// /ws had no npx-distributed old-binary consumer of the query form, so it
+	// is dropped outright rather than deprecated.
 
 	if cookie, err := r.Cookie(auth.CookieName); err == nil {
 		if user := auth.ValidateJWT(hub.store, hub.config.JWTSecret, cookie.Value); user != nil {

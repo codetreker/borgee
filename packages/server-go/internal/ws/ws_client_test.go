@@ -189,8 +189,10 @@ func TestWSRegisterCommands(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?token=" + apiKey
-	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: http.Header{"Authorization": []string{"Bearer " + apiKey}},
+	})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -256,13 +258,12 @@ func TestWSAuthenticateWSExported(t *testing.T) {
 	apiKey, _ := store.GenerateAPIKey()
 	s.SetAPIKey(u.ID, apiKey)
 
+	// WS-auth-unify: the `?token=` apiKey query form is removed from /ws.
+	// A query token must no longer authenticate.
 	r, _ := http.NewRequest("GET", "/ws?token="+apiKey, nil)
 	user := ws.AuthenticateWS(hub, r)
-	if user == nil {
-		t.Fatal("expected user")
-	}
-	if user.ID != u.ID {
-		t.Fatalf("expected user %s, got %s", u.ID, user.ID)
+	if user != nil {
+		t.Fatal("expected nil — ?token= apiKey query form must be rejected on /ws")
 	}
 
 	r2, _ := http.NewRequest("GET", "/ws", nil)
@@ -270,6 +271,9 @@ func TestWSAuthenticateWSExported(t *testing.T) {
 	user2 := ws.AuthenticateWS(hub, r2)
 	if user2 == nil {
 		t.Fatal("expected user via bearer")
+	}
+	if user2.ID != u.ID {
+		t.Fatalf("expected user %s, got %s", u.ID, user2.ID)
 	}
 
 	r3, _ := http.NewRequest("GET", "/ws", nil)
