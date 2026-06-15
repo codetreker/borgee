@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -68,8 +67,8 @@ type FSOps interface {
 
 // Config configures a Client.
 type Config struct {
-	ServerURL   string   // ws(s)://host — Client appends /ws/remote?token=
-	Token       string   // opaque hex, round-tripped as-is
+	ServerURL   string   // ws(s)://host — Client appends /ws/remote (token rides the Authorization header)
+	Token       string   // opaque hex, sent as Authorization: Bearer <token> on the WS handshake
 	AllowedDirs []string // from --dirs, passed straight to fsops
 
 	OnFirstHandshake func(token string)            // persist-on-first-open seam
@@ -94,7 +93,12 @@ type Client struct {
 func New(cfg Config) *Client {
 	c := &Client{cfg: cfg, dial: cfg.Dial, clock: cfg.Clock, fs: cfg.FS}
 	if c.dial == nil {
-		c.dial = dialWebsocket
+		// Default dialer carries the token on the Authorization header (NOT in
+		// the URL); the DialFunc seam stays URL-only so test fakes are unchanged.
+		token := cfg.Token
+		c.dial = func(ctx context.Context, rawURL string) (Conn, *http.Response, error) {
+			return dialWebsocket(ctx, rawURL, token)
+		}
 	}
 	if c.clock == nil {
 		c.clock = realClock{}
@@ -330,7 +334,9 @@ func (c *Client) dialURL() (string, error) {
 	if base == "" {
 		return "", errors.New("remotews: empty server URL")
 	}
-	return base + "/ws/remote?token=" + url.QueryEscape(c.cfg.Token), nil
+	// Token is NOT in the URL — it rides the Authorization: Bearer header set by
+	// dialWebsocket, so it never leaks into proxy/access logs or referrers.
+	return base + "/ws/remote", nil
 }
 
 func nextBackoff(cur time.Duration) time.Duration {
@@ -401,10 +407,15 @@ func closeReason(err error) string {
 
 // ---- default seam implementations ----
 
-// dialWebsocket is the production DialFunc: it dials via coder/websocket and
+// dialWebsocket is the production DialFunc body: it dials via coder/websocket,
+// putting the token on the Authorization: Bearer header (never in the URL), and
 // adapts *websocket.Conn to the Conn interface.
-func dialWebsocket(ctx context.Context, rawURL string) (Conn, *http.Response, error) {
-	conn, resp, err := websocket.Dial(ctx, rawURL, &websocket.DialOptions{})
+func dialWebsocket(ctx context.Context, rawURL string, token string) (Conn, *http.Response, error) {
+	opts := &websocket.DialOptions{HTTPHeader: http.Header{}}
+	if token != "" {
+		opts.HTTPHeader.Set("Authorization", "Bearer "+token)
+	}
+	conn, resp, err := websocket.Dial(ctx, rawURL, opts)
 	if err != nil {
 		return nil, resp, err
 	}
