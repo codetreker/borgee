@@ -42,6 +42,13 @@ func (stubPusher) PushAgentTaskStateChanged(_ string, _ string, _ string, _ stri
 	return 1, true
 }
 
+// wireStubOwner satisfies OwnerResolver for the wire tests. These tests drive
+// the typed HandleStarted / HandleFinished entries (session-free), so the
+// resolver is never consulted; it only satisfies the non-nil ctor contract.
+type wireStubOwner struct{}
+
+func (wireStubOwner) OwnerOf(agentID string) (string, error) { return agentID, nil }
+
 // TestWire3_TaskStarted_PushFanoutPerMember covers the happy path:
 // 3 channel members → 3 NotifyAgentTask calls (minus agent self).
 func TestWire3_TaskStarted_PushFanoutPerMember(t *testing.T) {
