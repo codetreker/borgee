@@ -10,8 +10,9 @@
 // Test scope:
 //   - Owner registers, creates agent (REST seed).
 //   - Open SPA → AgentManager → verify initial dot = offline (cache empty).
-//   - Open a WS to /ws?token=<agent api_key> in this same test process. The
-//     server-go hub.go Register / client.go:210 emits
+//   - Open a WS to /ws/plugin?apiKey=<agent api_key> in this same test
+//     process (the production agent-runtime rail; /ws dropped its apiKey
+//     query form in WS-auth-unify). The server-go hub.go Register emits
 //     `{type:'presence', user_id:<agent.id>, status:'online'}` on connect.
 //   - Wait for the browser's own /ws to receive that broadcast frame → fix
 //     mirrors into markPresence() → PresenceDot flips to data-presence='online' + 在线.
@@ -39,7 +40,6 @@ test.describe('AL-3.x agent presence cache fill from `presence` frame', () => {
     test.setTimeout(60_000);
     const serverPort = process.env.E2E_SERVER_PORT ?? '4901';
     const serverURL = `http://127.0.0.1:${serverPort}`;
-    const wsURL = `ws://127.0.0.1:${serverPort}/ws`;
 
     // ── REST seed ────────────────────────────────────────────────────────
     const adminCtx = await apiRequest.newContext({ baseURL: serverURL });
@@ -115,12 +115,21 @@ test.describe('AL-3.x agent presence cache fill from `presence` frame', () => {
     await expect(badge).toContainText('已离线');
 
     // ── Connect WS as the agent (acts as the "runtime is up") ────────────
-    // Server-go `client.go:210` broadcasts `{type:'presence', user_id:<agent.id>,
-    // status:'online'}` on Register. Browser's own /ws is already open (the
-    // SPA established it on load), so it will receive this broadcast frame.
-    // Fix mirrors that into markPresence(agent.id, 'online'), and the SPA
-    // re-renders PresenceDot.
-    const agentWS = new WebSocket(`${wsURL}?token=${encodeURIComponent(agentAPIKey!)}`);
+    // Server-go broadcasts `{type:'presence', user_id:<agent.id>,
+    // status:'online'}` to ALL clients on Register — both the /ws rail
+    // (client.go) and the /ws/plugin rail (plugin.go) emit this identical
+    // frame. Browser's own /ws is already open (the SPA established it on
+    // load), so it will receive this broadcast frame. Fix mirrors that into
+    // markPresence(agent.id, 'online'), and the SPA re-renders PresenceDot.
+    //
+    // WS-auth-unify: /ws no longer accepts the `?token=` apiKey query form,
+    // and Node 22's built-in WebSocket cannot set an Authorization header.
+    // An agent runtime connects on the /ws/plugin rail in production anyway;
+    // its `?apiKey` query form stays accepted (deprecated) during the
+    // transition, and it produces the same presence broadcast the browser
+    // observes — so the #989 regression assertion is unchanged.
+    const pluginWSURL = `ws://127.0.0.1:${serverPort}/ws/plugin`;
+    const agentWS = new WebSocket(`${pluginWSURL}?apiKey=${encodeURIComponent(agentAPIKey!)}`);
     const opened = new Promise<void>((resolve, reject) => {
       agentWS.addEventListener('open', () => resolve(), { once: true });
       agentWS.addEventListener('error', () => reject(new Error('agent WS errored before open')), { once: true });

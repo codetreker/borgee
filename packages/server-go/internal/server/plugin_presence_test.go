@@ -18,6 +18,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -49,9 +50,11 @@ func TestPluginPresence_UpdateLastSeenAndBroadcast(t *testing.T) {
 
 	// Connect the human first so it is on the hub before the agent's
 	// presence-online broadcast fires. /ws (HandleClient) accepts the
-	// Authorization Bearer apiKey path via authenticateWS.
-	humanURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?token=" + humanKey
-	humanConn, _, err := websocket.DefaultDialer.Dial(humanURL, nil)
+	// Authorization Bearer apiKey path via authenticateWS. (WS-auth-unify
+	// removed the `?token=` apiKey query form from /ws.)
+	humanURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
+	humanHeader := http.Header{"Authorization": []string{"Bearer " + humanKey}}
+	humanConn, _, err := websocket.DefaultDialer.Dial(humanURL, humanHeader)
 	if err != nil {
 		t.Fatalf("dial human ws: %v", err)
 	}

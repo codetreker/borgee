@@ -33,7 +33,15 @@ func HandleRemote(hub *Hub) http.HandlerFunc {
 			token = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 		if token == "" {
-			token = r.URL.Query().Get("token")
+			// WS-auth-unify: the `?token` query form is deprecated. Header
+			// Bearer auth is canonical; the query form lingers only for old
+			// npx-distributed remote-agent builds and is kept during the
+			// transition.
+			if qt := r.URL.Query().Get("token"); qt != "" {
+				token = qt
+				hub.logger.Warn("ws.remote.deprecated_query_auth",
+					"detail", "?token query param is deprecated; use Authorization: Bearer header")
+			}
 		}
 		if token == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -48,9 +56,7 @@ func HandleRemote(hub *Hub) http.HandlerFunc {
 
 		hub.store.UpdateRemoteNodeLastSeen(node.ID)
 
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			InsecureSkipVerify: true,
-		})
+		conn, err := websocket.Accept(w, r, wsAcceptOptions(hub.config))
 		if err != nil {
 			hub.logger.Error("remote ws accept failed", "error", err)
 			return

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -337,6 +338,176 @@ func readRemoteSend(t *testing.T, rc *RemoteConn) map[string]any {
 		t.Fatal("timed out waiting for remote send")
 	}
 	return nil
+}
+
+// TestWSAcceptOptionsCSWSH proves the CSWSH (Cross-Site WebSocket Hijacking)
+// Origin defense on the shared accept-options helper:
+//   - development → InsecureSkipVerify (old permissive behavior, so the e2e
+//     Playwright browser + unit-test dials keep working);
+//   - production → OriginPatterns sourced from CORS_ORIGIN, never an
+//     unconditional skip.
+func TestWSAcceptOptionsCSWSH(t *testing.T) {
+	t.Parallel()
+
+	dev := &config.Config{NodeEnv: "development", JWTSecret: "x"}
+	devOpts := wsAcceptOptions(dev)
+	if !devOpts.InsecureSkipVerify {
+		t.Fatal("dev: expected InsecureSkipVerify=true (permissive dev/e2e path)")
+	}
+	if len(devOpts.OriginPatterns) != 0 {
+		t.Fatalf("dev: expected no OriginPatterns, got %v", devOpts.OriginPatterns)
+	}
+
+	prod := &config.Config{NodeEnv: "production", JWTSecret: "x", CORSOrigin: "https://app.example.com"}
+	prodOpts := wsAcceptOptions(prod)
+	if prodOpts.InsecureSkipVerify {
+		t.Fatal("prod: InsecureSkipVerify must NOT be unconditionally true")
+	}
+	if len(prodOpts.OriginPatterns) != 1 || prodOpts.OriginPatterns[0] != "https://app.example.com" {
+		t.Fatalf("prod: expected OriginPatterns=[CORS_ORIGIN], got %v", prodOpts.OriginPatterns)
+	}
+}
+
+// TestWSCSWSHHandshakeRejectsDisallowedOrigin drives a real handshake against
+// all three rails mounted with a PRODUCTION config (NodeEnv != development) and
+// asserts:
+//   - a disallowed cross-origin browser handshake → 403 (CSWSH blocked);
+//   - no Origin header (Go/Node/openclaw PROCESS clients) → upgrade allowed;
+//   - same-origin (request Host) → upgrade allowed;
+//   - the CORS_ORIGIN allow-listed Origin → upgrade allowed.
+//
+// It sends a hand-built WebSocket upgrade request via net/http so it can read
+// the raw handshake status code on each rail (coder/websocket's Dial hides it).
+func TestWSCSWSHHandshakeRejectsDisallowedOrigin(t *testing.T) {
+	t.Parallel()
+
+	s := store.MigratedStoreFromTemplate(t)
+	t.Cleanup(func() { s.Close() })
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	allowedOrigin := "https://app.example.com"
+	cfg := &config.Config{
+		NodeEnv:    "production",
+		JWTSecret:  "prod-secret",
+		CORSOrigin: allowedOrigin,
+	}
+	hub := NewHub(s, logger, cfg)
+
+	// Seed an agent + apiKey so each rail's auth gate passes and execution
+	// reaches the Origin check inside websocket.Accept.
+	apiKey, err := store.GenerateAPIKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent := &store.User{DisplayName: "CSWSHBot", Role: "agent", APIKey: &apiKey}
+	if err := s.CreateUser(agent); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	// A remote-node token so /ws/remote auth passes.
+	node, err := s.CreateRemoteNode(agent.ID, "cswsh-node")
+	if err != nil {
+		t.Fatalf("create remote node: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", HandleClient(hub))
+	mux.HandleFunc("/ws/plugin", HandlePlugin(hub))
+	mux.HandleFunc("/ws/remote", HandleRemote(hub))
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	host := strings.TrimPrefix(ts.URL, "http://")
+	wsBase := "ws://" + host
+
+	// rejectStatus sends a hand-built WS upgrade via net/http and returns the
+	// HTTP response status. Used for the disallowed-Origin path, which 403s
+	// before any hijack (so the http client sees a normal error response).
+	rejectStatus := func(t *testing.T, path, origin string, auth func(*http.Request)) int {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, ts.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Connection", "Upgrade")
+		req.Header.Set("Upgrade", "websocket")
+		req.Header.Set("Sec-WebSocket-Version", "13")
+		req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+		auth(req)
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("handshake %s origin=%q: %v", path, origin, err)
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	// dialOK dials the rail via coder/websocket with the given Origin and
+	// reports whether the upgrade succeeded. Used for the allow paths.
+	dialOK := func(t *testing.T, path, origin string, hdr http.Header) bool {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		h := http.Header{}
+		for k, v := range hdr {
+			h[k] = v
+		}
+		if origin != "" {
+			h.Set("Origin", origin)
+		}
+		conn, _, err := websocket.Dial(ctx, wsBase+path, &websocket.DialOptions{HTTPHeader: h})
+		if err != nil {
+			return false
+		}
+		conn.Close(websocket.StatusNormalClosure, "")
+		return true
+	}
+
+	rails := []struct {
+		path string
+		hdr  http.Header
+	}{
+		{"/ws", http.Header{"Authorization": []string{"Bearer " + apiKey}}},
+		{"/ws/plugin", http.Header{"Authorization": []string{"Bearer " + apiKey}}},
+		{"/ws/remote", http.Header{"Authorization": []string{"Bearer " + node.ConnectionToken}}},
+	}
+
+	for _, rail := range rails {
+		rail := rail
+		applyAuth := func(r *http.Request) {
+			for k, v := range rail.hdr {
+				r.Header[k] = v
+			}
+		}
+		t.Run(rail.path, func(t *testing.T) {
+			// Subtests are NOT t.Parallel() here: the parent's deferred
+			// ts.Close() would otherwise tear down the server before these
+			// run (parallel subtests execute after the parent returns).
+
+			// Disallowed cross-origin browser → 403 (CSWSH blocked).
+			if got := rejectStatus(t, rail.path, "https://evil.example.com", applyAuth); got != http.StatusForbidden {
+				t.Fatalf("%s disallowed origin: expected 403, got %d", rail.path, got)
+			}
+
+			// No Origin header (process clients) → upgrade allowed.
+			if !dialOK(t, rail.path, "", rail.hdr) {
+				t.Fatalf("%s no-origin: expected upgrade to succeed", rail.path)
+			}
+
+			// Same-origin (Origin host == request Host) → allowed.
+			if !dialOK(t, rail.path, "http://"+host, rail.hdr) {
+				t.Fatalf("%s same-origin: expected upgrade to succeed", rail.path)
+			}
+
+			// CORS_ORIGIN allow-listed Origin → allowed.
+			if !dialOK(t, rail.path, allowedOrigin, rail.hdr) {
+				t.Fatalf("%s allowed origin: expected upgrade to succeed", rail.path)
+			}
+		})
+	}
 }
 
 func TestInternalAuthenticateWSDevFallbacksAndHelpers(t *testing.T) {

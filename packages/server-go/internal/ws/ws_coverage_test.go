@@ -256,10 +256,14 @@ func TestWSAuthMethods(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?token=" + apiKey
-	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	// WS-auth-unify: /ws no longer accepts the `?token=` apiKey query form.
+	// Header Bearer is the canonical process-client auth path.
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: http.Header{"Authorization": []string{"Bearer " + apiKey}},
+	})
 	if err != nil {
-		t.Fatalf("ws dial with query token: %v", err)
+		t.Fatalf("ws dial with bearer header: %v", err)
 	}
 	conn.Close(websocket.StatusNormalClosure, "")
 }
