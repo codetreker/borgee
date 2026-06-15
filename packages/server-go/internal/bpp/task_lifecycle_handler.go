@@ -84,6 +84,23 @@ type AgentTaskPushNotifier interface {
 	NotifyAgentTask(targetUserID, agentID, state, subject, reason string, changedAt int64) int
 }
 
+// TaskErrCodeCrossOwnerReject — wire-level error code, named with the same
+// pattern as BPP-3 AckErrCodeCrossOwnerReject / BPP-6
+// ColdStartErrCodeCrossOwnerReject.
+const TaskErrCodeCrossOwnerReject = "bpp.task_lifecycle_cross_owner_reject"
+
+// errTaskCrossOwnerReject — cross-owner ACL failure on a task_started /
+// task_finished frame, matching the BPP-3 errAckCrossOwnerReject / BPP-6
+// errColdStartCrossOwnerReject pattern. Callers errors.Is against it to map
+// to the wire-level error code.
+var errTaskCrossOwnerReject = errors.New("bpp: task_lifecycle cross-owner reject")
+
+// IsTaskCrossOwnerReject — sentinel matcher, mirroring IsAckCrossOwnerReject /
+// IsColdStartCrossOwnerReject.
+func IsTaskCrossOwnerReject(err error) bool {
+	return errors.Is(err, errTaskCrossOwnerReject)
+}
+
 // TaskLifecycleHandler routes plugin-upstream task_started /
 // task_finished frames through the ValidateTask* single source of truth, then fans out
 // AgentTaskStateChangedFrame via the AgentTaskPusher seam.
@@ -97,6 +114,7 @@ type AgentTaskPushNotifier interface {
 // Fanout is nil-safe.
 type TaskLifecycleHandler struct {
 	pusher   AgentTaskPusher
+	resolver OwnerResolver         // cross-owner gate: OwnerOf(agent) == sess owner
 	members  ChannelMemberFetcher  // nil-safe: 跳 push fanout
 	notifier AgentTaskPushNotifier // nil-safe: 跳 push 调用
 	logger   *slog.Logger
@@ -104,11 +122,19 @@ type TaskLifecycleHandler struct {
 
 // NewTaskLifecycleHandler constructs the RT-3 server-side derived
 // fanout handler. logger may be nil (defaults to discard).
-func NewTaskLifecycleHandler(pusher AgentTaskPusher, logger *slog.Logger) *TaskLifecycleHandler {
+//
+// resolver is the cross-owner ACL gate (mirrors NewAckDispatcher /
+// NewColdStartHandler): both pusher and resolver MUST be non-nil; a nil
+// argument is a server boot bug (panics — defense-in-depth, prevents
+// 0-coverage routes from silently entering production).
+func NewTaskLifecycleHandler(pusher AgentTaskPusher, resolver OwnerResolver, logger *slog.Logger) *TaskLifecycleHandler {
 	if pusher == nil {
 		panic("bpp: NewTaskLifecycleHandler pusher must not be nil")
 	}
-	return &TaskLifecycleHandler{pusher: pusher, logger: logger}
+	if resolver == nil {
+		panic("bpp: NewTaskLifecycleHandler resolver must not be nil")
+	}
+	return &TaskLifecycleHandler{pusher: pusher, resolver: resolver, logger: logger}
 }
 
 // SetPushFanout wires WIRE-1 wire-3 push fanout through the DL-4 push gateway.
@@ -130,6 +156,32 @@ func (h *TaskLifecycleHandler) StartedAdapter() FrameDispatcher {
 // FinishedAdapter returns the BPP-3 FrameDispatcher for task_finished.
 func (h *TaskLifecycleHandler) FinishedAdapter() FrameDispatcher {
 	return &taskFinishedAdapter{handler: h}
+}
+
+// checkOwner enforces the cross-owner ACL gate for the adapter Dispatch path,
+// mirroring AgentConfigAckDispatcher:174-183 / ColdStartHandler:138-152: the
+// authenticated plugin owner (sess.OwnerUserID) must own agentID. OwnerOf err
+// is treated as a reject (frame for an unknown / disconnected agent). On
+// mismatch or err, returns errTaskCrossOwnerReject so the caller never reaches
+// HandleStarted / HandleFinished, push, or fanout. The typed HandleStarted /
+// HandleFinished entries stay session-free.
+func (h *TaskLifecycleHandler) checkOwner(agentID string, sess PluginSessionContext) error {
+	owner, err := h.resolver.OwnerOf(agentID)
+	if err != nil {
+		return fmt.Errorf("%w: agent_id=%q resolve failed: %v",
+			errTaskCrossOwnerReject, agentID, err)
+	}
+	if owner != sess.OwnerUserID {
+		if h.logger != nil {
+			h.logger.Warn(TaskErrCodeCrossOwnerReject,
+				"agent_id", agentID,
+				"owner", owner,
+				"sess_owner", sess.OwnerUserID)
+		}
+		return fmt.Errorf("%w: agent_id=%q owner=%q sess_owner=%q",
+			errTaskCrossOwnerReject, agentID, owner, sess.OwnerUserID)
+	}
+	return nil
 }
 
 // HandleStarted is the test-friendly typed entry. Validation errors
@@ -212,10 +264,16 @@ func (h *TaskLifecycleHandler) fanoutPush(agentID, channelID, state, subject, re
 // taskStartedAdapter implements FrameDispatcher for task_started.
 type taskStartedAdapter struct{ handler *TaskLifecycleHandler }
 
-func (a *taskStartedAdapter) Dispatch(raw json.RawMessage, _ PluginSessionContext) error {
+func (a *taskStartedAdapter) Dispatch(raw json.RawMessage, sess PluginSessionContext) error {
 	var frame TaskStartedFrame
 	if err := json.Unmarshal(raw, &frame); err != nil {
 		return fmt.Errorf("bpp.task_started_decode: %w", err)
+	}
+	// cross-owner gate (mirror AckDispatcher:174-183): the authenticated plugin
+	// owner (sess.OwnerUserID) must own frame.AgentID, else reject before any
+	// HandleStarted / push / fanout. OwnerOf err is treated as a reject.
+	if err := a.handler.checkOwner(frame.AgentID, sess); err != nil {
+		return err
 	}
 	if err := a.handler.HandleStarted(frame); err != nil {
 		// Surface sentinel for caller errors.Is mapping (e.g. log warn
@@ -234,10 +292,15 @@ func (a *taskStartedAdapter) Dispatch(raw json.RawMessage, _ PluginSessionContex
 // taskFinishedAdapter implements FrameDispatcher for task_finished.
 type taskFinishedAdapter struct{ handler *TaskLifecycleHandler }
 
-func (a *taskFinishedAdapter) Dispatch(raw json.RawMessage, _ PluginSessionContext) error {
+func (a *taskFinishedAdapter) Dispatch(raw json.RawMessage, sess PluginSessionContext) error {
 	var frame TaskFinishedFrame
 	if err := json.Unmarshal(raw, &frame); err != nil {
 		return fmt.Errorf("bpp.task_finished_decode: %w", err)
+	}
+	// cross-owner gate (mirror AckDispatcher:174-183): reject before any
+	// HandleFinished / push / fanout when sess owner != frame.AgentID owner.
+	if err := a.handler.checkOwner(frame.AgentID, sess); err != nil {
+		return err
 	}
 	return a.handler.HandleFinished(frame)
 }
