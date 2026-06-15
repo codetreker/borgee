@@ -46,7 +46,7 @@ func (stubPusher) PushAgentTaskStateChanged(_ string, _ string, _ string, _ stri
 // 3 channel members → 3 NotifyAgentTask calls (minus agent self).
 func TestWire3_TaskStarted_PushFanoutPerMember(t *testing.T) {
 	t.Parallel()
-	h := NewTaskLifecycleHandler(stubPusher{}, nil)
+	h := NewTaskLifecycleHandler(stubPusher{}, wireStubOwner{}, nil)
 	notifier := &stubPushNotifier{}
 	members := &stubMembers{userIDs: []string{"u-1", "u-2", "agent-A", ""}}
 	h.SetPushFanout(members, notifier)
@@ -79,7 +79,7 @@ func TestWire3_TaskStarted_PushFanoutPerMember(t *testing.T) {
 // TestWire3_TaskFinished_IdleFanout pins task_finished → idle state.
 func TestWire3_TaskFinished_IdleFanout(t *testing.T) {
 	t.Parallel()
-	h := NewTaskLifecycleHandler(stubPusher{}, nil)
+	h := NewTaskLifecycleHandler(stubPusher{}, wireStubOwner{}, nil)
 	notifier := &stubPushNotifier{}
 	h.SetPushFanout(&stubMembers{userIDs: []string{"u-1"}}, notifier)
 
@@ -107,7 +107,7 @@ func TestWire3_TaskFinished_IdleFanout(t *testing.T) {
 // TestWire3_NilFanout_NoOp pins SetPushFanout 未调 → fanout 跳 (反 panic).
 func TestWire3_NilFanout_NoOp(t *testing.T) {
 	t.Parallel()
-	h := NewTaskLifecycleHandler(stubPusher{}, nil)
+	h := NewTaskLifecycleHandler(stubPusher{}, wireStubOwner{}, nil)
 	// 不 SetPushFanout → members + notifier 均 nil.
 	frame := TaskStartedFrame{
 		Type: FrameTypeBPPTaskStarted, TaskID: "t", AgentID: "a", ChannelID: "c",
@@ -121,7 +121,7 @@ func TestWire3_NilFanout_NoOp(t *testing.T) {
 // TestWire3_MembersErr_Skipped pins fetch err → fanout 跳, 不 panic.
 func TestWire3_MembersErr_Skipped(t *testing.T) {
 	t.Parallel()
-	h := NewTaskLifecycleHandler(stubPusher{}, nil)
+	h := NewTaskLifecycleHandler(stubPusher{}, wireStubOwner{}, nil)
 	notifier := &stubPushNotifier{}
 	h.SetPushFanout(&stubMembers{err: errors.New("db closed")}, notifier)
 

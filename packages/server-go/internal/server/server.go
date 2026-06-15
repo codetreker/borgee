@@ -140,7 +140,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 	// BroadcastToChannel (P1MultiDeviceWebSocket #197 pattern). ValidateTask*
 	// enforces non-empty thinking subject, the 3-value outcome enum, and AL-1a reasons.
 	taskLifecycleHandler := bpp.NewTaskLifecycleHandler(
-		&hubAgentTaskPusherAdapter{hub: hub}, logger)
+		&hubAgentTaskPusherAdapter{hub: hub}, ownerResolver, logger)
 	// WIRE-1 wire-3 — DL-4 push gateway fanout (mobile background) via
 	// AgentTaskNotifier. Member lookup uses store.ListChannelMembers; notifier
 	// uses push.NewAgentTaskNotifier around pushGW. nil-safe: when pushGW is noop,
