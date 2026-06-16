@@ -253,12 +253,29 @@ func (h *PluginManifestHandler) signPayload(payload PluginManifestPayload) ([]by
 // canonicalJSON marshals payload with sorted map keys (struct fields are
 // already declared in canonical order). Returns deterministic bytes that
 // signing + verification consumers must reproduce byte-identical.
+//
+// PURE — never mutates the caller's slices (#1117). handleGet builds
+// signed[i] = e (a struct copy that copies the Platforms slice HEADER, not
+// the backing array), so every concurrently-signed entry's Platforms can
+// alias the SAME backing array held by LoadManifestEntries' shared built-in
+// default. An in-place sort.Strings on that shared array under two concurrent
+// GET /api/v1/plugin-manifest fetches is a DATA RACE. We therefore copy each
+// Platforms slice into a fresh backing array (and build a fresh Plugins slice,
+// so we never write the shared Plugins[i] struct field either) and sort only
+// the copy. The marshaled bytes are byte-identical to the previous in-place
+// form (platforms still sorted ascending) — the ed25519 signature and
+// install-butler's recomputed canonical form are unchanged.
 func canonicalJSON(payload PluginManifestPayload) ([]byte, error) {
 	// json.Marshal on struct emits fields in declared order. For nested
-	// platforms []string, sort to enforce determinism.
-	for i := range payload.Plugins {
-		sort.Strings(payload.Plugins[i].Platforms)
+	// platforms []string, sort a defensive copy to enforce determinism
+	// without mutating any (possibly shared) input backing array.
+	plugins := make([]PluginManifestEntry, len(payload.Plugins))
+	for i, p := range payload.Plugins {
+		p.Platforms = append([]string(nil), p.Platforms...) // defensive copy
+		sort.Strings(p.Platforms)
+		plugins[i] = p
 	}
+	payload.Plugins = plugins
 	return json.Marshal(payload)
 }
 
