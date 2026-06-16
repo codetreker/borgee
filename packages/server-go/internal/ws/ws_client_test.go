@@ -111,12 +111,62 @@ func TestWSSendMessageEdgeCases(t *testing.T) {
 	t.Run("ImageContentType", func(t *testing.T) {
 		writeMsg(t, ctx, conn, map[string]any{
 			"type": "send_message", "channel_id": generalID,
-			"content": "image.png", "content_type": "image",
+			"content": "https://example.com/image.png", "content_type": "image",
 			"client_id": uuid.NewString(),
 		})
 		msg := drainUntil(t, ctx, conn, "message_ack")
 		if msg["message_id"] == nil {
 			t.Fatal("expected message_id")
+		}
+	})
+
+	t.Run("ImageContentTypeRelativePathAllowed", func(t *testing.T) {
+		writeMsg(t, ctx, conn, map[string]any{
+			"type": "send_message", "channel_id": generalID,
+			"content": "/api/uploads/x.png", "content_type": "image",
+			"client_id": uuid.NewString(),
+		})
+		msg := drainUntil(t, ctx, conn, "message_ack")
+		if msg["message_id"] == nil {
+			t.Fatal("expected message_id")
+		}
+	})
+
+	// borgee #1108 F5: image content with a javascript:/data:/protocol-relative
+	// scheme must be rejected at write time with INVALID_CONTENT.
+	t.Run("ImageContentTypeRejectsJavascriptScheme", func(t *testing.T) {
+		writeMsg(t, ctx, conn, map[string]any{
+			"type": "send_message", "channel_id": generalID,
+			"content": "javascript:alert(1)", "content_type": "image",
+			"client_id": uuid.NewString(),
+		})
+		msg := drainUntil(t, ctx, conn, "message_nack")
+		if msg["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected INVALID_CONTENT, got %v", msg["code"])
+		}
+	})
+
+	t.Run("ImageContentTypeRejectsDataScheme", func(t *testing.T) {
+		writeMsg(t, ctx, conn, map[string]any{
+			"type": "send_message", "channel_id": generalID,
+			"content": "data:text/html,<script>alert(1)</script>", "content_type": "image",
+			"client_id": uuid.NewString(),
+		})
+		msg := drainUntil(t, ctx, conn, "message_nack")
+		if msg["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected INVALID_CONTENT, got %v", msg["code"])
+		}
+	})
+
+	t.Run("ImageContentTypeRejectsProtocolRelative", func(t *testing.T) {
+		writeMsg(t, ctx, conn, map[string]any{
+			"type": "send_message", "channel_id": generalID,
+			"content": "//evil.com/x.png", "content_type": "image",
+			"client_id": uuid.NewString(),
+		})
+		msg := drainUntil(t, ctx, conn, "message_nack")
+		if msg["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected INVALID_CONTENT, got %v", msg["code"])
 		}
 	})
 

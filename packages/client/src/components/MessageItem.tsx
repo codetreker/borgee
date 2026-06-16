@@ -298,6 +298,18 @@ function MessageTextWithFileLinks({ html, rawContent, agentId }: { html: string;
 function ImageContent({ url }: { url: string }) {
   const [error, setError] = React.useState(false);
 
+  // borgee #1108 F5: only render an <img src>/<a href> for URLs that pass the
+  // same allowlist the server enforces at write time — http(s):// (any case)
+  // OR a same-origin relative path with a single leading '/' (NOT '//', which
+  // is protocol-relative and unsafe). Anything else (javascript:, data:, etc.)
+  // is shown as inert plain text so a stored row can't become a phishing /
+  // script-anchor vector. Required regardless of the server guard because the
+  // server can't fix rows persisted before the fix.
+  const isSafe = /^https?:\/\//i.test(url) || /^\/(?!\/)/.test(url);
+  if (!isSafe) {
+    return <span className="message-image-unsafe">{url}</span>;
+  }
+
   if (error) {
     return (
       <div className="image-error">

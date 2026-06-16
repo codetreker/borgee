@@ -122,4 +122,66 @@ func TestMessageCRUD(t *testing.T) {
 			t.Fatalf("expected 400, got %d", resp.StatusCode)
 		}
 	})
+
+	// borgee #1108 F5: image content_type must carry an http(s) URL or a
+	// same-origin relative path. javascript:/data:/protocol-relative → 400
+	// INVALID_CONTENT; valid http(s) URL + leading-slash relative → 201.
+	t.Run("ImageContentRejectsJavascriptScheme", func(t *testing.T) {
+		resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      "javascript:alert(1)",
+			"content_type": "image",
+		})
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		}
+		if data["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected code INVALID_CONTENT, got %v", data["code"])
+		}
+	})
+
+	t.Run("ImageContentRejectsDataScheme", func(t *testing.T) {
+		resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      "data:text/html,<script>alert(1)</script>",
+			"content_type": "image",
+		})
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		}
+		if data["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected code INVALID_CONTENT, got %v", data["code"])
+		}
+	})
+
+	t.Run("ImageContentRejectsProtocolRelative", func(t *testing.T) {
+		resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      "//evil.com/x.png",
+			"content_type": "image",
+		})
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		}
+		if data["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected code INVALID_CONTENT, got %v", data["code"])
+		}
+	})
+
+	t.Run("ImageContentAcceptsHttpsURL", func(t *testing.T) {
+		resp, _ := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      "https://example.com/x.png",
+			"content_type": "image",
+		})
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("expected 201, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("ImageContentAcceptsRelativePath", func(t *testing.T) {
+		resp, _ := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      "/api/uploads/x.png",
+			"content_type": "image",
+		})
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("expected 201, got %d", resp.StatusCode)
+		}
+	})
 }

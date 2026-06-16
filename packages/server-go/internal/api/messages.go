@@ -221,6 +221,16 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// borgee #1108 F5: image content must be an http(s) URL or a same-origin
+	// relative path — reject javascript:/data:/protocol-relative at write time.
+	// Same allowlist as the WS rail (ws/client.go) and the client guard so all
+	// three layers agree. No server-side fetch (no SSRF) — this is a
+	// client-render phishing/inert-anchor guard, defense-in-depth.
+	if ct == "image" && !store.IsAllowedImageContentURL(content) {
+		writeJSONErrorCode(w, http.StatusBadRequest, "INVALID_CONTENT", "image content must be an http(s) URL or same-origin path")
+		return
+	}
+
 	// Validate channel exists
 	ch, err := h.Store.GetChannelByID(channelID)
 	if err != nil {

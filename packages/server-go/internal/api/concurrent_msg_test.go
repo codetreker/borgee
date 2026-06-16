@@ -33,7 +33,7 @@ func TestP2ConcurrentHumanAgentMessages(t *testing.T) {
 	cases := []postCase{
 		{token: memberToken, content: "human note for <@" + agentID + ">", contentType: "text", replyToID: rootID},
 		{token: agentKey, content: "agent command result for @Member", contentType: "command", replyToID: rootID},
-		{token: memberToken, content: "human image payload", contentType: "image"},
+		{token: memberToken, content: "https://example.com/human-image", contentType: "image"},
 		{token: agentKey, content: "agent plain response"},
 	}
 
