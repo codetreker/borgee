@@ -78,9 +78,16 @@ func (h *AgentRecoverHandler) handleRecover(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Optional payload — request_id pass-through; tolerate empty body.
+	// Body is capped at 1 MiB (#1108 F7+SK2). The cap only bounds size: an
+	// empty/small/absent body still decodes fine (EOF tolerated as before);
+	// only an oversized body trips *http.MaxBytesError → 413.
 	var payload AgentRecoverPayload
 	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&payload)
+		capJSONBody(w, r)
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && isBodyTooLarge(err) {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "Request body too large")
+			return
+		}
 	}
 	_ = payload // request_id not used in v1; reserved for future idempotency.
 

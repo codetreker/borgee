@@ -80,7 +80,12 @@ func (h *ChannelDescriptionHandler) handlePut(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var req chn10DescriptionRequest
+	capJSONBody(w, r)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if isBodyTooLarge(err) {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "Request body too large")
+			return
+		}
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}

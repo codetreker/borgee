@@ -30,7 +30,6 @@ import (
 
 	"borgee-server/internal/store"
 
-
 	"borgee-server/internal/idgen"
 )
 
@@ -83,7 +82,12 @@ func (h *PushSubscriptionsHandler) handleSubscribe(w http.ResponseWriter, r *htt
 	}
 
 	var req pushSubscribeRequest
+	capJSONBody(w, r)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if isBodyTooLarge(err) {
+			writeJSONErrorCode(w, http.StatusRequestEntityTooLarge, "push.endpoint_invalid", "request body too large")
+			return
+		}
 		writeJSONErrorCode(w, http.StatusBadRequest, "push.endpoint_invalid", "invalid JSON body")
 		return
 	}

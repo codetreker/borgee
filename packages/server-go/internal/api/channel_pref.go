@@ -7,10 +7,10 @@
 //   - bit 0 (=1) = collapsed state (CHN-3 existing)
 //   - bit 1 (=2) = muted state (CHN-7, #550)
 //   - bits 2-3 (mask 12 = 0b1100) = three notification preference states:
-//       0 = NotifPrefAll (default / current behavior unchanged)
-//       1 = NotifPrefMention (only @mention triggers push)
-//       2 = NotifPrefNone (no push notifications)
-//       3 = reserved/invalid (SetNotifPref rejects this input)
+//     0 = NotifPrefAll (default / current behavior unchanged)
+//     1 = NotifPrefMention (only @mention triggers push)
+//     2 = NotifPrefNone (no push notifications)
+//     3 = reserved/invalid (SetNotifPref rejects this input)
 //
 // Three-way invariant: server consts, client lib/notif_pref.ts NOTIF_PREF_*, and
 // bitmap expression `(collapsed >> NotifPrefShift) & NotifPrefMask` must remain
@@ -87,7 +87,13 @@ func (h *ChannelHandler) handleSetNotificationPref(w http.ResponseWriter, r *htt
 		return
 	}
 	var req chn8NotifPrefRequest
+	capJSONBody(w, r)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if isBodyTooLarge(err) {
+			writeJSONErrorCode(w, http.StatusRequestEntityTooLarge,
+				"notification_pref.invalid_value", "request body too large")
+			return
+		}
 		writeJSONErrorCode(w, http.StatusBadRequest,
 			"notification_pref.invalid_value", "invalid JSON body")
 		return
