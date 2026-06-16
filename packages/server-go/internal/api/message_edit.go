@@ -145,6 +145,19 @@ func (h *MessageEditHandler) handleEdit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// borgee #1108 F5 (DM-4.1 PATCH rail): editing an image-typed message must
+	// keep an http(s) URL or same-origin relative path. Store.UpdateMessage
+	// preserves content_type, so an edited image stays an image — without this
+	// gate a PATCH could persist javascript:/data:/protocol-relative past the
+	// create-rail guard, the same client-render phishing/inert-anchor vector.
+	// Same store.IsAllowedImageContentURL allowlist + INVALID_CONTENT 400 as
+	// the create rail (handleCreateMessage), the WS rail (ws/client.go), and
+	// the PUT edit rail (handleUpdateMessage).
+	if existing.ContentType == "image" && !store.IsAllowedImageContentURL(content) {
+		writeJSONErrorCode(w, http.StatusBadRequest, "INVALID_CONTENT", "image content must be an http(s) URL or same-origin path")
+		return
+	}
+
 	// 8. Update message via existing store helper (复用 messages.go 同
 	// 路径 — last-write-wins simplification, 设计 ⑥, 不挂 edit history audit).
 	msg, err := h.Store.UpdateMessage(messageID, content)

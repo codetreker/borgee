@@ -221,6 +221,16 @@ func (h *MessageHandler) handleCreateMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// borgee #1108 F5: image content must be an http(s) URL or a same-origin
+	// relative path — reject javascript:/data:/protocol-relative at write time.
+	// Same allowlist as the WS rail (ws/client.go) and the client guard so all
+	// three layers agree. No server-side fetch (no SSRF) — this is a
+	// client-render phishing/inert-anchor guard, defense-in-depth.
+	if ct == "image" && !store.IsAllowedImageContentURL(content) {
+		writeJSONErrorCode(w, http.StatusBadRequest, "INVALID_CONTENT", "image content must be an http(s) URL or same-origin path")
+		return
+	}
+
 	// Validate channel exists
 	ch, err := h.Store.GetChannelByID(channelID)
 	if err != nil {
@@ -426,6 +436,17 @@ func (h *MessageHandler) handleUpdateMessage(w http.ResponseWriter, r *http.Requ
 
 	if existing.SenderID != user.ID {
 		writeJSONError(w, http.StatusForbidden, "Can only edit your own messages")
+		return
+	}
+
+	// borgee #1108 F5: editing an image-typed message must keep an http(s)
+	// URL or same-origin relative path. UpdateMessage preserves content_type,
+	// so an edited image stays an image — without this gate an edit could
+	// persist javascript:/data:/protocol-relative past the create-rail guard.
+	// Same store.IsAllowedImageContentURL allowlist + INVALID_CONTENT 400 as
+	// the create rail (handleCreateMessage) and the WS rail (ws/client.go).
+	if existing.ContentType == "image" && !store.IsAllowedImageContentURL(content) {
+		writeJSONErrorCode(w, http.StatusBadRequest, "INVALID_CONTENT", "image content must be an http(s) URL or same-origin path")
 		return
 	}
 
