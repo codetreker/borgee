@@ -184,4 +184,98 @@ func TestMessageCRUD(t *testing.T) {
 			t.Fatalf("expected 201, got %d", resp.StatusCode)
 		}
 	})
+
+	// borgee #1108 F5 (edit rail): UpdateMessage preserves content_type, so an
+	// image message edited to a banned scheme would persist javascript:/data:
+	// past the create-rail guard. handleUpdateMessage must apply the same
+	// allowlist when existing.content_type == "image": reject with 400
+	// INVALID_CONTENT and leave the stored row UNCHANGED.
+	t.Run("EditImageRejectsJavascriptScheme", func(t *testing.T) {
+		// Create a valid image message.
+		const goodURL = "https://example.com/safe.png"
+		cResp, cData := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      goodURL,
+			"content_type": "image",
+		})
+		if cResp.StatusCode != http.StatusCreated {
+			t.Fatalf("create image: expected 201, got %d", cResp.StatusCode)
+		}
+		imgID := cData["message"].(map[string]any)["id"].(string)
+
+		// Edit its content to a banned javascript: scheme.
+		eResp, eData := testutil.JSON(t, "PUT", ts.URL+"/api/v1/messages/"+imgID, adminToken, map[string]string{
+			"content": "javascript:alert(1)",
+		})
+		if eResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("edit image to javascript:: expected 400, got %d", eResp.StatusCode)
+		}
+		if eData["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected code INVALID_CONTENT, got %v", eData["code"])
+		}
+
+		// Stored row must be unchanged: still the original https URL + image type.
+		_, lData := testutil.JSON(t, "GET", ts.URL+"/api/v1/channels/"+generalID+"/messages?limit=50", adminToken, nil)
+		msgs := lData["messages"].([]any)
+		var found map[string]any
+		for _, m := range msgs {
+			mm := m.(map[string]any)
+			if mm["id"] == imgID {
+				found = mm
+				break
+			}
+		}
+		if found == nil {
+			t.Fatalf("edited image message %s not found in listing", imgID)
+		}
+		if found["content"] != goodURL {
+			t.Fatalf("stored content changed: expected %q, got %v", goodURL, found["content"])
+		}
+		if found["content_type"] != "image" {
+			t.Fatalf("stored content_type changed: expected image, got %v", found["content_type"])
+		}
+	})
+
+	t.Run("EditImageRejectsProtocolRelative", func(t *testing.T) {
+		const goodURL = "https://example.com/safe2.png"
+		cResp, cData := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      goodURL,
+			"content_type": "image",
+		})
+		if cResp.StatusCode != http.StatusCreated {
+			t.Fatalf("create image: expected 201, got %d", cResp.StatusCode)
+		}
+		imgID := cData["message"].(map[string]any)["id"].(string)
+
+		eResp, eData := testutil.JSON(t, "PUT", ts.URL+"/api/v1/messages/"+imgID, adminToken, map[string]string{
+			"content": "//evil.com/x.png",
+		})
+		if eResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("edit image to protocol-relative: expected 400, got %d", eResp.StatusCode)
+		}
+		if eData["code"] != "INVALID_CONTENT" {
+			t.Fatalf("expected code INVALID_CONTENT, got %v", eData["code"])
+		}
+	})
+
+	t.Run("EditImageAcceptsHttpsURL", func(t *testing.T) {
+		cResp, cData := testutil.JSON(t, "POST", ts.URL+"/api/v1/channels/"+generalID+"/messages", adminToken, map[string]string{
+			"content":      "https://example.com/old.png",
+			"content_type": "image",
+		})
+		if cResp.StatusCode != http.StatusCreated {
+			t.Fatalf("create image: expected 201, got %d", cResp.StatusCode)
+		}
+		imgID := cData["message"].(map[string]any)["id"].(string)
+
+		const newURL = "https://cdn.example.com/new.png"
+		eResp, eData := testutil.JSON(t, "PUT", ts.URL+"/api/v1/messages/"+imgID, adminToken, map[string]string{
+			"content": newURL,
+		})
+		if eResp.StatusCode != http.StatusOK {
+			t.Fatalf("edit image to https: expected 200, got %d", eResp.StatusCode)
+		}
+		if eData["message"].(map[string]any)["content"] != newURL {
+			t.Fatalf("expected content %q, got %v", newURL, eData["message"].(map[string]any)["content"])
+		}
+	})
 }

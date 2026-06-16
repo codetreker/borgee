@@ -24,6 +24,18 @@ interface Props {
   onRetry?: (message: Message) => void;
 }
 
+// borgee #1108 F5: shared allowlist for image content_type bodies — http(s)://
+// (any case) OR a same-origin relative path with a single leading '/' (NOT '//',
+// which is protocol-relative and unsafe). Identical to the server guard
+// (store.IsAllowedImageContentURL). Used by both the render guard (ImageContent)
+// and the edit-save guard so the UI rejects editing an image message to a
+// javascript:/data:/protocol-relative scheme instead of sending it.
+export function isAllowedImageContentURL(content: string): boolean {
+  const s = content.trim();
+  if (!s) return false;
+  return /^https?:\/\//i.test(s) || /^\/(?!\/)/.test(s);
+}
+
 export default function MessageItem({ message, userMap, members, memberMap, currentUserId, currentUserRole, onRetry }: Props) {
   const { dispatch } = useAppContext();
   const isSystem = message.sender_id === 'system';
@@ -38,6 +50,7 @@ export default function MessageItem({ message, userMap, members, memberMap, curr
 
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
@@ -73,10 +86,12 @@ export default function MessageItem({ message, userMap, members, memberMap, curr
   const agentId = senderUser?.role === 'agent' ? message.sender_id : null;
 
   const startEdit = useCallback(() => {
+    setEditError(null);
     setEditing(true);
   }, []);
 
   const cancelEdit = useCallback(() => {
+    setEditError(null);
     setEditing(false);
   }, []);
 
@@ -86,6 +101,15 @@ export default function MessageItem({ message, userMap, members, memberMap, curr
       cancelEdit();
       return;
     }
+    // borgee #1108 F5 (edit rail): an image message must stay an http(s) URL or
+    // same-origin path — the server preserves content_type on edit and rejects
+    // a bad scheme with 400 INVALID_CONTENT. Mirror that guard here so the UI
+    // surfaces the error instead of round-tripping a doomed request.
+    if (message.content_type === 'image' && !isAllowedImageContentURL(trimmed)) {
+      setEditError('图片链接必须是 http(s):// 网址或同源路径');
+      return;
+    }
+    setEditError(null);
     setEditSaving(true);
     try {
       const updated = await api.editMessage(message.id, trimmed);
@@ -186,13 +210,18 @@ export default function MessageItem({ message, userMap, members, memberMap, curr
           {isDeleted ? (
             <div className="message-deleted">此消息已删除</div>
           ) : editing ? (
-            <EditEditor
-              initialContent={message.content}
-              onSave={saveEdit}
-              onCancel={cancelEdit}
-              disabled={editSaving}
-              users={members}
-            />
+            <>
+              <EditEditor
+                initialContent={message.content}
+                onSave={saveEdit}
+                onCancel={cancelEdit}
+                disabled={editSaving}
+                users={members}
+              />
+              {editError && (
+                <div className="message-edit-error" role="alert">{editError}</div>
+              )}
+            </>
           ) : message.content_type === 'command' && commandData ? (
             <div className="message-command">
               <div className="message-command-label">⚡ {commandData.command}{commandData.params ? ` ${commandData.params}` : ''}</div>
@@ -305,7 +334,7 @@ function ImageContent({ url }: { url: string }) {
   // is shown as inert plain text so a stored row can't become a phishing /
   // script-anchor vector. Required regardless of the server guard because the
   // server can't fix rows persisted before the fix.
-  const isSafe = /^https?:\/\//i.test(url) || /^\/(?!\/)/.test(url);
+  const isSafe = isAllowedImageContentURL(url);
   if (!isSafe) {
     return <span className="message-image-unsafe">{url}</span>;
   }

@@ -39,7 +39,24 @@ vi.mock('../hooks/useLongPress', () => ({
   useLongPress: () => ({}),
 }));
 
-import MessageItem from '../components/MessageItem';
+// Drive the edit-save guard without the real tiptap editor: replace EditEditor
+// with a stub that fires onSave with whatever content the test stashed. The
+// stub also exposes onCancel so the component's cancel path still works.
+let pendingEditContent = '';
+vi.mock('../components/EditEditor', () => ({
+  default: ({ onSave }: { onSave: (c: string) => void }) =>
+    React.createElement(
+      'button',
+      {
+        'data-test': 'edit-save',
+        onClick: () => onSave(pendingEditContent),
+      },
+      'save',
+    ),
+}));
+
+import MessageItem, { isAllowedImageContentURL } from '../components/MessageItem';
+import * as api from '../lib/api';
 import type { Message } from '../types';
 
 let container: HTMLDivElement | null = null;
@@ -148,5 +165,72 @@ describe('MessageItem ImageContent scheme guard — borgee #1108 F5', () => {
     const img = container!.querySelector('img.message-image') as HTMLImageElement | null;
     expect(img).not.toBeNull();
     expect(img!.getAttribute('src')).toBe(url);
+  });
+});
+
+// borgee #1108 F5 (edit rail): editing an image message to a banned scheme
+// must be rejected client-side (no PUT) and surface an error, mirroring the
+// server's 400 INVALID_CONTENT. Valid edits still go through.
+function makeOwnImageMsg(content: string): Message {
+  return {
+    id: 'm-own-img',
+    channel_id: 'ch-1',
+    sender_id: 'u-current',
+    content,
+    content_type: 'image',
+    created_at: 1700000000000,
+    reply_to_id: null,
+    edited_at: null,
+    reactions: [],
+  } as Message;
+}
+
+function startEditAndSave(message: Message, newContent: string) {
+  render(message);
+  // Click the ✏️ edit action to enter edit mode.
+  const editBtn = Array.from(container!.querySelectorAll('button')).find(
+    (b) => b.getAttribute('title') === '编辑',
+  ) as HTMLButtonElement | undefined;
+  if (!editBtn) throw new Error('edit button not found');
+  act(() => { editBtn.click(); });
+  // Stash the new content the stubbed EditEditor will pass to onSave, then save.
+  pendingEditContent = newContent;
+  const saveBtn = container!.querySelector('[data-test="edit-save"]') as HTMLButtonElement | null;
+  if (!saveBtn) throw new Error('stub save button not found');
+  act(() => { saveBtn.click(); });
+}
+
+describe('MessageItem edit-save image scheme guard — borgee #1108 F5', () => {
+  beforeEach(() => {
+    vi.mocked(api.editMessage).mockClear();
+    vi.mocked(api.editMessage).mockResolvedValue({ content: '', edited_at: 0 } as never);
+  });
+
+  it('exported allowlist matches server: rejects javascript:/data:/protocol-relative, accepts http(s)/relative', () => {
+    expect(isAllowedImageContentURL('javascript:alert(1)')).toBe(false);
+    expect(isAllowedImageContentURL('data:text/html,<script>')).toBe(false);
+    expect(isAllowedImageContentURL('//evil.com/x.png')).toBe(false);
+    expect(isAllowedImageContentURL('https://example.com/x.png')).toBe(true);
+    expect(isAllowedImageContentURL('HTTP://example.com/x.png')).toBe(true);
+    expect(isAllowedImageContentURL('/api/uploads/x.png')).toBe(true);
+    expect(isAllowedImageContentURL('')).toBe(false);
+  });
+
+  it('editing an image to javascript: → no PUT, error surfaced', () => {
+    startEditAndSave(makeOwnImageMsg('https://example.com/old.png'), 'javascript:alert(1)');
+    expect(vi.mocked(api.editMessage)).not.toHaveBeenCalled();
+    const err = container!.querySelector('.message-edit-error');
+    expect(err).not.toBeNull();
+  });
+
+  it('editing an image to protocol-relative //host → no PUT, error surfaced', () => {
+    startEditAndSave(makeOwnImageMsg('https://example.com/old.png'), '//evil.com/x.png');
+    expect(vi.mocked(api.editMessage)).not.toHaveBeenCalled();
+    expect(container!.querySelector('.message-edit-error')).not.toBeNull();
+  });
+
+  it('editing an image to a valid https URL → PUT sent (no regression)', () => {
+    startEditAndSave(makeOwnImageMsg('https://example.com/old.png'), 'https://cdn.example.com/new.png');
+    expect(vi.mocked(api.editMessage)).toHaveBeenCalledWith('m-own-img', 'https://cdn.example.com/new.png');
   });
 });
