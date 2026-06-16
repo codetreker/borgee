@@ -148,7 +148,12 @@ func (h *LayoutHandler) handlePutMyLayout(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var req layoutPutRequest
+	capJSONBody(w, r)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if isBodyTooLarge(err) {
+			writeJSONErrorCode(w, http.StatusRequestEntityTooLarge, "layout.invalid_payload", "request body too large")
+			return
+		}
 		writeJSONErrorCode(w, http.StatusBadRequest, "layout.invalid_payload", "invalid JSON body")
 		return
 	}

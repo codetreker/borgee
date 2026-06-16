@@ -65,7 +65,12 @@ func writeRetentionOverride(
 		return false
 	}
 	var req retentionOverrideRequest
+	capJSONBody(w, r)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if isBodyTooLarge(err) {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "Request body too large")
+			return false
+		}
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
 		return false
 	}

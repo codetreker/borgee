@@ -234,7 +234,16 @@ type loginRequest struct {
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var body loginRequest
+	// Cap the unauthenticated admin-login body at 1 MiB (#1108 F7+SK2): without
+	// this, json.NewDecoder buffers an attacker-controlled multi-GB body without
+	// bound → OOM DoS on an unauthenticated endpoint. Oversized → 413.
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
 		writeJSONError(w, http.StatusBadRequest, "invalid body")
 		return
 	}

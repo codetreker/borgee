@@ -202,7 +202,12 @@ func (h *AgentConfigHandler) handlePatchAgentConfig(w http.ResponseWriter, r *ht
 	}
 
 	var req agentConfigPatchRequest
+	capJSONBody(w, r)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if isBodyTooLarge(err) {
+			writeJSONErrorCode(w, http.StatusRequestEntityTooLarge, "agent_config.invalid_payload", "request body too large")
+			return
+		}
 		writeJSONErrorCode(w, http.StatusBadRequest, "agent_config.invalid_payload", "invalid JSON body")
 		return
 	}

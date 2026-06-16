@@ -84,6 +84,7 @@ Impersonation/audit flow: user-facing grant state lives on the user rail, while 
 - Plugin frames are not trusted merely because the socket is connected; protocol validation and owner checks still apply.
 - Remote-node tokens authenticate machines, not browser users or admins.
 - Admin metadata views must avoid content-bearing fields unless a route explicitly owns that disclosure.
+- Every JSON request-body decode (including the unauthenticated register / login / admin-login rails) is bounded to 1 MiB via `http.MaxBytesReader`; an over-limit body is rejected with 413 before it is buffered, so an unauthenticated caller cannot drive memory exhaustion with a giant body. This is the input-side DoS boundary — the app layer is the only enforcement point, as there is no edge proxy body limit.
 
 ## Non-Goals
 
@@ -96,6 +97,7 @@ Rails do not define every endpoint, replace domain-specific authorization, or me
 - `packages/server-go/internal/auth/permissions.go`
 - `packages/server-go/internal/auth/abac.go`
 - `packages/server-go/internal/admin/auth.go`
+- `packages/server-go/internal/api/request_helpers.go`
 - `packages/server-go/internal/admin/middleware.go`
 - `packages/server-go/internal/api/admin.go`
 - `packages/server-go/internal/api/admin_endpoints.go`
