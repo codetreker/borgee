@@ -281,6 +281,76 @@ func readPluginSend(t *testing.T, pc *PluginConn) map[string]any {
 	return nil
 }
 
+// TestInternalPluginAPIReqBucketBoundsSpawn is the #1108 F4 LAYER A red→green:
+// the per-PluginConn token bucket gates the api_request goroutine spawn. With
+// rate=0 (no refill mid-test) and max=3, the first 3 dispatch decisions must be
+// admitted and the 4th/5th must be rejected — and a rejection must emit a 429
+// api_response frame (status 429, body {"error":"rate limit exceeded"}, same
+// envelope as a real api_response). Before the fix the read loop spawned
+// handleAPIRequest unconditionally, so no bucket existed and no 429 frame was
+// ever produced.
+func TestInternalPluginAPIReqBucketBoundsSpawn(t *testing.T) {
+	t.Parallel()
+	pc := &PluginConn{
+		agentID: "agent-1",
+		send:    make(chan []byte, 8),
+		done:    make(chan struct{}),
+		pending: make(map[string]chan PluginResponse),
+		apiReqBucket: apiReqBucket{
+			tokens:   3,
+			max:      3,
+			rate:     0, // no refill: deterministic, exactly 3 admissions
+			lastTime: time.Now(),
+		},
+	}
+
+	// Drive the read loop's api_request gate decision 5 times. This mirrors
+	// plugin.go's `if !pc.allowAPIRequest() { pc.send429APIResponse(id); ... }`.
+	results := make([]bool, 5)
+	for i := 0; i < 5; i++ {
+		id := "req-" + string(rune('a'+i))
+		if pc.allowAPIRequest() {
+			results[i] = true
+			continue
+		}
+		pc.send429APIResponse(id)
+	}
+
+	if !results[0] || !results[1] || !results[2] {
+		t.Fatalf("first 3 api_requests should be admitted (max=3), got %v", results)
+	}
+	if results[3] || results[4] {
+		t.Fatalf("4th/5th api_requests should be rejected (bucket empty), got %v", results)
+	}
+
+	// Exactly two 429 frames should have been emitted (one per rejection),
+	// each with the over-rate envelope.
+	for i := 3; i <= 4; i++ {
+		msg := readPluginSend(t, pc)
+		if msg["type"] != "api_response" {
+			t.Fatalf("rejection %d: expected api_response frame, got %v", i, msg)
+		}
+		data, ok := msg["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("rejection %d: missing data object, got %v", i, msg)
+		}
+		if data["status"].(float64) != float64(http.StatusTooManyRequests) {
+			t.Fatalf("rejection %d: expected status 429, got %v", i, data["status"])
+		}
+		if data["body"] != `{"error":"rate limit exceeded"}` {
+			t.Fatalf("rejection %d: expected rate-limit body, got %v", i, data["body"])
+		}
+	}
+
+	// No extra frames: the 3 admissions did NOT emit anything here (their
+	// spawn path is exercised elsewhere); only rejections emit.
+	select {
+	case extra := <-pc.send:
+		t.Fatalf("unexpected extra frame after 2 rejections: %s", extra)
+	default:
+	}
+}
+
 func TestInternalRemoteConnRequestResponseBranches(t *testing.T) {
 	t.Parallel()
 	rc := &RemoteConn{

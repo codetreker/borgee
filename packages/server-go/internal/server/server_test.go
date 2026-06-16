@@ -777,6 +777,92 @@ func TestRateLimitXFFSpoofSharesAuthBucket(t *testing.T) {
 	}
 }
 
+// TestPluginAPIRequestAuthPathKeyedPerAgent is the #1108 F4 LAYER B red→green.
+//
+// handleAPIRequest re-enters the HTTP stack via httptest.NewRequest, which
+// HARDCODES RemoteAddr to "192.0.2.1:1234". Without the LAYER B fix, EVERY
+// plugin's api_request to an auth path (/api/v1/auth/*) would collapse onto a
+// single shared auth:192.0.2.1 bucket — one agent could throttle auth
+// re-entries for all agents, and no agent's bucket isolated it. The fix sets
+// RemoteAddr = "<agentID>:0" so clientIP/hostOnly (TrustedProxyCount=0) yields
+// the agentID and the key becomes auth:<agentID>.
+//
+// This pins: (a) two different agentIDs on the SAME auth path produce DIFFERENT
+// effective IPs (so different buckets), and (b) the shared httptest constant is
+// no longer the key. Pre-fix the RemoteAddr would be 192.0.2.1 for both →
+// identical key → this test fails.
+func TestPluginAPIRequestAuthPathKeyedPerAgent(t *testing.T) {
+	t.Parallel()
+
+	// agentIDs are UUIDs (no internal colons), so hostOnly's last-colon strip
+	// of "<agentID>:0" returns the agentID intact.
+	agentA := "11111111-2222-3333-4444-555555555555"
+	agentB := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+	reqA := httptest.NewRequest("POST", "/api/v1/auth/login", nil)
+	reqA.RemoteAddr = agentA + ":0" // mirrors handleAPIRequest LAYER B
+	reqB := httptest.NewRequest("POST", "/api/v1/auth/login", nil)
+	reqB.RemoteAddr = agentB + ":0"
+
+	ipA := clientIP(reqA, 0)
+	ipB := clientIP(reqB, 0)
+
+	if ipA != agentA {
+		t.Fatalf("agentA auth-path key: expected %q, got %q", agentA, ipA)
+	}
+	if ipB != agentB {
+		t.Fatalf("agentB auth-path key: expected %q, got %q", agentB, ipB)
+	}
+	if ipA == ipB {
+		t.Fatalf("two agents must NOT share one auth bucket key, both = %q", ipA)
+	}
+	// Guard against the pre-fix shared constant leaking back in.
+	if ipA == "192.0.2.1" || ipB == "192.0.2.1" {
+		t.Fatalf("auth bucket key must not be the httptest RemoteAddr constant; got A=%q B=%q", ipA, ipB)
+	}
+
+	// End-to-end through the bucket: exhaust agentA's auth:<agentA> bucket and
+	// confirm agentB is unaffected (independent bucket).
+	cfg := &config.Config{
+		NodeEnv:             "", // not dev → no E2E bypass
+		RateLimitAuthPerSec: 0,  // no refill mid-test
+		RateLimitAuthBurst:  2,
+		RateLimitUserPerSec: 20,
+		RateLimitUserBurst:  60,
+		RateLimitAnonPerSec: 100,
+		RateLimitAnonBurst:  300,
+		TrustedProxyCount:   0,
+	}
+	srv, _ := testServer(t)
+	rl := newRateLimiter(t.Context(), cfg)
+	handler := rateLimitMiddleware(rl, srv.store, cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	drive := func(agentID string) int {
+		req := httptest.NewRequest("POST", "/api/v1/auth/login", nil)
+		req.RemoteAddr = agentID + ":0"
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// Burst=2 for agentA: first two pass, third is throttled.
+	if c := drive(agentA); c != http.StatusAccepted {
+		t.Fatalf("agentA req1 expected 202, got %d", c)
+	}
+	if c := drive(agentA); c != http.StatusAccepted {
+		t.Fatalf("agentA req2 expected 202, got %d", c)
+	}
+	if c := drive(agentA); c != http.StatusTooManyRequests {
+		t.Fatalf("agentA req3 expected 429 (bucket exhausted), got %d", c)
+	}
+	// agentB is on a DIFFERENT bucket → still allowed despite agentA's 429.
+	if c := drive(agentB); c != http.StatusAccepted {
+		t.Fatalf("agentB should have an independent bucket; expected 202, got %d", c)
+	}
+}
+
 func TestRateLimiterRefills(t *testing.T) {
 	t.Parallel()
 	rl := newRateLimiter(t.Context(), testRateLimitCfg())

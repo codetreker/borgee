@@ -35,6 +35,65 @@ type PluginConn struct {
 
 	pendingMu sync.Mutex
 	pending   map[string]chan PluginResponse
+
+	// apiReqBucket: per-connection token bucket gating the api_request
+	// goroutine spawn (#1108 F4). Each inbound api_request must take a
+	// token BEFORE `go pc.handleAPIRequest` runs, so a single plugin
+	// connection cannot fire an unbounded number of concurrent
+	// goroutines (and concurrent re-entries into the HTTP stack). The
+	// math mirrors server/middleware.go rateLimiter.allow; kept
+	// self-contained here so internal/ws does not import internal/server.
+	apiReqBucket apiReqBucket
+}
+
+// apiReqBucket is a self-contained leaky-token bucket for api_request
+// admission. rate=tokens/sec refill, max=burst ceiling. The zero value is NOT
+// ready — HandlePlugin seeds tokens/max/rate/lastTime from config so a fresh
+// connection starts with a full burst.
+type apiReqBucket struct {
+	mu       sync.Mutex
+	tokens   float64
+	max      float64
+	rate     float64
+	lastTime time.Time
+}
+
+// allowAPIRequest takes one token from the per-connection bucket, refilling
+// by elapsed*rate (capped at max) first. Returns false when the bucket is
+// empty — the caller must then NOT spawn handleAPIRequest. Mirrors
+// server/middleware.go rateLimiter.allow.
+func (pc *PluginConn) allowAPIRequest() bool {
+	b := &pc.apiReqBucket
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	now := time.Now()
+	elapsed := now.Sub(b.lastTime).Seconds()
+	b.tokens += elapsed * b.rate
+	if b.tokens > b.max {
+		b.tokens = b.max
+	}
+	b.lastTime = now
+
+	if b.tokens < 1 {
+		return false
+	}
+	b.tokens--
+	return true
+}
+
+// send429APIResponse emits the over-rate api_response frame for a dropped
+// api_request (#1108 F4). Same envelope shape as handleAPIRequest's success
+// frame so the plugin's response demux handles it uniformly.
+func (pc *PluginConn) send429APIResponse(id string) {
+	pc.sendJSON(map[string]any{
+		"type": "api_response",
+		"id":   id,
+		"data": map[string]any{
+			"status": http.StatusTooManyRequests,
+			"body":   `{"error":"rate limit exceeded"}`,
+		},
+	})
 }
 
 type PluginResponse struct {
@@ -84,6 +143,12 @@ func HandlePlugin(hub *Hub) http.HandlerFunc {
 			alive:      true,
 			lastSeenAt: time.Now(),
 			pending:    make(map[string]chan PluginResponse),
+			apiReqBucket: apiReqBucket{
+				tokens:   float64(hub.config.RatePluginAPIReqBurst),
+				max:      float64(hub.config.RatePluginAPIReqBurst),
+				rate:     float64(hub.config.RatePluginAPIReqPerSec),
+				lastTime: time.Now(),
+			},
 		}
 
 		hub.RegisterPlugin(user.ID, pc)
@@ -140,6 +205,15 @@ func HandlePlugin(hub *Hub) http.HandlerFunc {
 			case "pong":
 				// alive already set
 			case "api_request":
+				// #1108 F4: bound the goroutine spawn per connection. The
+				// re-entry still passes rateLimitMiddleware (user:<userID>),
+				// but without this gate one plugin could spawn unbounded
+				// goroutines. Over-rate → emit a 429 api_response frame and
+				// drop the request (do NOT close the connection).
+				if !pc.allowAPIRequest() {
+					pc.send429APIResponse(msg.ID)
+					continue
+				}
 				go pc.handleAPIRequest(msg.ID, msg.Data)
 			case "api_response":
 				go pc.handleAPIResponse(msg.ID, msg.Data)
@@ -235,6 +309,16 @@ func (pc *PluginConn) handleAPIRequest(id string, data json.RawMessage) {
 	httpReq := httptest.NewRequest(method, req.Path, bodyReader)
 	httpReq.Header.Set("Authorization", "Bearer "+pc.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
+	// #1108 F4 LAYER B: httptest.NewRequest hardcodes RemoteAddr to
+	// "192.0.2.1:1234", so every plugin's api_request to an auth path
+	// (/api/v1/auth/*) would share one auth:192.0.2.1 brute-force bucket —
+	// one noisy agent could throttle auth re-entries for ALL agents, and a
+	// single agent's own bucket key wouldn't isolate it. Key the bucket per
+	// agent instead. clientIP/hostOnly (server/middleware.go) strips at the
+	// last ':' → yields the agentID (a UUID, no internal colons). With
+	// TrustedProxyCount default 0, XFF is ignored so this is not spoofable.
+	// Non-auth paths still key user:<userID> via AuthenticateFlexible.
+	httpReq.RemoteAddr = pc.agentID + ":0"
 
 	rec := httptest.NewRecorder()
 	pc.hub.handler.ServeHTTP(rec, httpReq)
