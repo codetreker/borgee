@@ -38,6 +38,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -129,8 +130,18 @@ var PluginManifestEntries = []PluginManifestEntry{
 type PluginManifestHandler struct {
 	Logger *slog.Logger
 	// SigningKey is the ed25519 private key used to sign the manifest payload.
-	// Nil leaves an empty signature placeholder for tests; production must set it.
+	// Nil + AllowUnsignedPlaceholder=true leaves a placeholder signature for
+	// dev/tests; nil in production (AllowUnsignedPlaceholder=false) fails closed
+	// with HTTP 500. Production must set this via env config.
 	SigningKey ed25519.PrivateKey
+	// AllowUnsignedPlaceholder gates the dev/test signing seam. When true AND
+	// SigningKey is nil, the handler emits the fixed placeholder signature
+	// (and empty per-entry signatures) so dev / unit tests need no crypto
+	// setup. When false (the safe production default) AND SigningKey is nil,
+	// the handler fails closed with a per-request HTTP 500 instead of serving
+	// a fake signature. server.go wires this to cfg.IsDevelopment().
+	// #1108 F3 — refusing to emit unsigned manifests in production.
+	AllowUnsignedPlaceholder bool
 	// NowMs is injected for test (default time.Now().UnixMilli when nil).
 	NowMs func() int64
 	// ExpiresInMs is the manifest validity window (default 24h).
@@ -175,6 +186,23 @@ func (h *PluginManifestHandler) handleGet(w http.ResponseWriter, r *http.Request
 	// (Signing key rotation still requires restart by design — keys live
 	// in env, read once at startup via server.go.)
 	entries := LoadManifestEntries(h.Logger)
+
+	// #1108 F3 — fail closed in production before signing. Without a signing
+	// key, SignEntry returns "" for every per-entry signature; serving those
+	// empty signatures (alongside the top-level placeholder) would leak a
+	// fake-but-200 manifest. Only the dev/test seam (AllowUnsignedPlaceholder)
+	// may serve unsigned entries. signPayload re-checks this for the top-level
+	// signature; this earlier guard keeps empty per-entry sigs from ever being
+	// built in production.
+	if h.SigningKey == nil && !h.AllowUnsignedPlaceholder {
+		if h.Logger != nil {
+			h.Logger.Error("hb1.unsigned_refused",
+				"reason", "manifest signing key not configured",
+				"effect", "refusing to emit unsigned manifest in production")
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Failed to sign manifest")
+		return
+	}
 
 	// Per-entry signing — each entry independently signed over canonical
 	// bytes (ID|Version|BinaryURL|SHA256). Rotating a single entry does
@@ -229,8 +257,11 @@ func (h *PluginManifestHandler) expiresInMs() int64 {
 
 // signPayload serializes payload as canonical JSON (sort keys, no extra
 // whitespace) and signs with ed25519. Returns the raw signature bytes.
-// When SigningKey is nil (test seam), returns a fixed test signature so
-// shape is preserved without crypto setup.
+// When SigningKey is nil: the dev/test seam (AllowUnsignedPlaceholder=true)
+// returns a fixed placeholder so shape is preserved without crypto setup;
+// in production (AllowUnsignedPlaceholder=false) it returns an error so the
+// caller fails closed with HTTP 500 rather than serving a fake signature
+// (#1108 F3).
 func (h *PluginManifestHandler) signPayload(payload PluginManifestPayload) ([]byte, error) {
 	// Build canonical JSON: marshal payload with empty Signature, sort
 	// per encoding/json default (Go map ordering insertion-stable on
@@ -242,7 +273,14 @@ func (h *PluginManifestHandler) signPayload(payload PluginManifestPayload) ([]by
 		return nil, err
 	}
 	if h.SigningKey == nil {
-		// Test seam — return deterministic 32-byte placeholder so signature
+		// #1108 F3 — fail closed in production. Without a signing key we
+		// previously returned a fixed placeholder that looks like a real
+		// signature to a naive consumer. Only the dev/test seam
+		// (AllowUnsignedPlaceholder) may emit it.
+		if !h.AllowUnsignedPlaceholder {
+			return nil, fmt.Errorf("manifest signing key not configured — refusing to emit unsigned manifest in production")
+		}
+		// Dev/test seam — return deterministic 32-byte placeholder so signature
 		// field is non-empty (REG-HB1-004 acceptance: signature non-empty).
 		// Production path must inject SigningKey via env config.
 		return []byte("test-signature-placeholder-32by"), nil

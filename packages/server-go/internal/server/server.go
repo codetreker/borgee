@@ -338,10 +338,11 @@ func (s *Server) SetupRoutes() {
 	// manifest data 走 LoadManifestEntries 三档 fallback (env JSON > env file
 	// > 内置默认), 立场 ② 0 schema 不变.
 	// 私钥 BORGEE_MANIFEST_SIGNING_KEY (base64 ed25519 seed, 32 字节解码后)
-	// 启动时一次性读取 (above, at hb1SigningKey load); 缺省 fall-soft (per-entry Signature 留空 +
-	// 顶层 signature 走 test placeholder), 日志 warn 一行. 生产由监控抓
-	// warn 强制配齐. 详 docs/current/host-bridge/manifest-signing.md.
-	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey}
+	// 启动时一次性读取 (above, at hb1SigningKey load). #1108 F3: AllowUnsignedPlaceholder
+	// = cfg.IsDevelopment() — dev 缺私钥时走 test placeholder (开发友好);
+	// 生产缺私钥时 fail-closed 每请求 HTTP 500, 不再发假签名. 生产 ops 必须
+	// 配齐 BORGEE_MANIFEST_SIGNING_KEY. 详 docs/current/host-bridge/manifest-signing.md.
+	hb1ManifestHandler := &api.PluginManifestHandler{Logger: s.logger, SigningKey: hb1SigningKey, AllowUnsignedPlaceholder: s.cfg.IsDevelopment()}
 	hb1ManifestHandler.RegisterRoutes(s.mux, authMw)
 
 	// (DL-4.3 push gateway init moved earlier — line ~85 — to feed

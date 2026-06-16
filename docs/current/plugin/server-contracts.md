@@ -65,6 +65,7 @@ BPP frame definitions and the Go SDK live in the server module. The OpenClaw Typ
 - Plugin outbound actions must tolerate WS RPC absence by using HTTP fallback.
 - Server-to-plugin local requests must stay behind plugin-local allow-lists.
 - Local file reads in the plugin are separate from remote-agent file reads.
+- `GET /api/v1/plugin-manifest` fails closed in production (HTTP 500, no placeholder signature) when `BORGEE_MANIFEST_SIGNING_KEY` is unset; the byte-identical placeholder signature is served only under a development config (`NodeEnv=development`). Wired in `server.go` as `AllowUnsignedPlaceholder: cfg.IsDevelopment()` (#1108 F3).
 
 ## Implementation Anchors
 
