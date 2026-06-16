@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -628,35 +629,92 @@ func TestRateLimitThreeTier_InvalidTokenFallsBackToAnon(t *testing.T) {
 	}
 }
 
+// TestClientIPSources pins the trusted-proxy-aware clientIP semantics (#1108 F2).
+//
+// This test was deliberately rewritten away from the OLD blind-trust behavior
+// (which returned X-Forwarded-For[0], then X-Real-IP). Under the new model the
+// default (trustedProxyCount=0) ignores those client-controlled headers entirely
+// and uses host(RemoteAddr); only trustedProxyCount>0 reads the XFF chain, and
+// then only the rightmost N trusted hops — an attacker's left-injected entries
+// are never returned.
 func TestClientIPSources(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name   string
-		setup  func(*http.Request)
-		remote string
-		want   string
+		name              string
+		setup             func(*http.Request)
+		remote            string
+		trustedProxyCount int
+		want              string
 	}{
 		{
-			name: "forwarded for trims first hop",
+			// Default (count=0): XFF must be IGNORED, RemoteAddr host wins.
+			name: "default ignores forwarded-for",
 			setup: func(r *http.Request) {
 				r.Header.Set("X-Forwarded-For", " 198.51.100.7, 198.51.100.8")
 			},
-			remote: "10.0.0.1:1111",
-			want:   "198.51.100.7",
+			remote:            "10.0.0.1:1111",
+			trustedProxyCount: 0,
+			want:              "10.0.0.1",
 		},
 		{
-			name: "real ip",
+			// Default (count=0): X-Real-IP must be IGNORED too (second bypass path).
+			name: "default ignores real-ip",
 			setup: func(r *http.Request) {
 				r.Header.Set("X-Real-IP", "198.51.100.9")
 			},
-			remote: "10.0.0.1:1111",
-			want:   "198.51.100.9",
+			remote:            "10.0.0.1:1111",
+			trustedProxyCount: 0,
+			want:              "10.0.0.1",
 		},
 		{
-			name:   "remote without port",
-			setup:  func(r *http.Request) {},
-			remote: "198.51.100.10",
-			want:   "198.51.100.10",
+			name:              "default remote without port",
+			setup:             func(r *http.Request) {},
+			remote:            "198.51.100.10",
+			trustedProxyCount: 0,
+			want:              "198.51.100.10",
+		},
+		{
+			// count=1: chain = [fake, realclient, proxy(XFF)] ++ [RemoteAddr].
+			// Trust rightmost 1 hop (RemoteAddr); idx=len-1-1 picks the proxy entry.
+			// Here the last XFF hop IS the real edge proxy and RemoteAddr is the LB.
+			name: "count=1 picks entry left of trusted hop, ignores left injection",
+			setup: func(r *http.Request) {
+				r.Header.Set("X-Forwarded-For", "1.1.1.1, 203.0.113.5, 70.70.70.70")
+			},
+			remote:            "10.0.0.1:1111",
+			trustedProxyCount: 1,
+			want:              "70.70.70.70",
+		},
+		{
+			// count=1 with a single real client hop in XFF:
+			// chain = [203.0.113.50] ++ [10.0.0.1]; idx=len-1-1=0 → real client.
+			// An attacker who prepends a fake left entry cannot reach this slot.
+			name: "count=1 single hop returns real client",
+			setup: func(r *http.Request) {
+				r.Header.Set("X-Forwarded-For", "203.0.113.50")
+			},
+			remote:            "10.0.0.1:1111",
+			trustedProxyCount: 1,
+			want:              "203.0.113.50",
+		},
+		{
+			// count exceeds chain length → clamp to chain[0] (safe degrade,
+			// never returns an arbitrary attacker-chosen value past the chain).
+			name: "count exceeds chain clamps to leftmost",
+			setup: func(r *http.Request) {
+				r.Header.Set("X-Forwarded-For", "203.0.113.60")
+			},
+			remote:            "10.0.0.1:1111",
+			trustedProxyCount: 9,
+			want:              "203.0.113.60",
+		},
+		{
+			// count>0 but no XFF at all → chain = [RemoteAddr]; clamp → RemoteAddr.
+			name:              "count=1 no xff falls back to remote",
+			setup:             func(r *http.Request) {},
+			remote:            "198.51.100.20:2222",
+			trustedProxyCount: 1,
+			want:              "198.51.100.20",
 		},
 	}
 
@@ -665,10 +723,57 @@ func TestClientIPSources(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			req.RemoteAddr = tt.remote
 			tt.setup(req)
-			if got := clientIP(req); got != tt.want {
+			if got := clientIP(req, tt.trustedProxyCount); got != tt.want {
 				t.Fatalf("expected %q, got %q", tt.want, got)
 			}
 		})
+	}
+}
+
+// TestRateLimitXFFSpoofSharesAuthBucket is the #1108 F2 red→green regression.
+//
+// With the safe default (TrustedProxyCount=0), an unauthenticated attacker who
+// sends >burst auth-path requests from the SAME RemoteAddr but a UNIQUE
+// X-Forwarded-For each MUST still hit a 429 — proving all requests collapse to a
+// single `auth:<remoteaddr>` bucket. On the OLD blind-trust code each unique XFF
+// got a fresh bucket and a 429 never appeared (the bypass). The auth rate is set
+// to 0 so the bucket never refills mid-test → deterministic, no token-refill flake.
+func TestRateLimitXFFSpoofSharesAuthBucket(t *testing.T) {
+	t.Parallel()
+	srv, _ := testServer(t)
+	cfg := &config.Config{
+		NodeEnv: "", // not dev → no E2E bypass
+		// auth rate 0 = no refill mid-test; burst 15 = 15 allowed then 429.
+		RateLimitAuthPerSec: 0,
+		RateLimitAuthBurst:  15,
+		RateLimitUserPerSec: 20,
+		RateLimitUserBurst:  60,
+		RateLimitAnonPerSec: 100,
+		RateLimitAnonBurst:  300,
+		TrustedProxyCount:   0, // safe default — XFF must not influence the key
+	}
+	rl := newRateLimiter(t.Context(), cfg)
+	handler := rateLimitMiddleware(rl, srv.store, cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	const burst = 15
+	saw429 := false
+	for i := 0; i < burst+5; i++ {
+		req := httptest.NewRequest("POST", "/api/v1/auth/login", nil)
+		req.RemoteAddr = "203.0.113.77:54321" // SAME source every request
+		// UNIQUE spoofed XFF per request — would defeat the OLD code.
+		req.Header.Set("X-Forwarded-For", fmt.Sprintf("198.18.0.%d", i))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code == http.StatusTooManyRequests {
+			saw429 = true
+			break
+		}
+	}
+	if !saw429 {
+		t.Fatalf("expected a 429 from the shared auth:<remoteaddr> bucket; "+
+			"per-XFF buckets (the #1108 F2 bypass) would never throttle (burst=%d)", burst)
 	}
 }
 

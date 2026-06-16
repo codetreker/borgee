@@ -245,7 +245,7 @@ func rateLimitMiddleware(rl *rateLimiter, s *store.Store, cfg *config.Config, ne
 			return
 		}
 
-		ip := clientIP(r)
+		ip := clientIP(r, cfg.TrustedProxyCount)
 
 		var key string
 		var rate, max float64
@@ -275,17 +275,44 @@ func rateLimitMiddleware(rl *rateLimiter, s *store.Store, cfg *config.Config, ne
 	})
 }
 
-func clientIP(r *http.Request) string {
+// clientIP derives the per-IP rate-limit key from the request, honoring a
+// configurable trusted-proxy count (#1108 F2).
+//
+//   - trustedProxyCount <= 0 (the safe default): use host(RemoteAddr) only and
+//     completely ignore X-Forwarded-For / X-Real-IP. Both are client-controlled
+//     and forgeable, so trusting them lets an unauthenticated attacker rotate a
+//     fresh `auth:<ip>` bucket per request and bypass login brute-force throttling.
+//   - trustedProxyCount = N (≥1): trust the rightmost N hops of
+//     `chain = X-Forwarded-For ++ [host(RemoteAddr)]` as proxies and pick the
+//     real client just left of them: chain[len-1-N] (lower-bound clamped to 0).
+//     XFF entries an attacker injects on the left fall outside the trusted
+//     window and are ignored. X-Real-IP is no longer special-cased (equally
+//     spoofable — it was a second bypass path).
+func clientIP(r *http.Request, trustedProxyCount int) string {
+	remote := hostOnly(r.RemoteAddr)
+	if trustedProxyCount <= 0 {
+		return remote
+	}
+
+	chain := make([]string, 0, 4)
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if parts := strings.SplitN(xff, ",", 2); len(parts) > 0 {
-			return strings.TrimSpace(parts[0])
+		for _, part := range strings.Split(xff, ",") {
+			if v := strings.TrimSpace(part); v != "" {
+				chain = append(chain, v)
+			}
 		}
 	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
+	chain = append(chain, remote)
+
+	idx := len(chain) - 1 - trustedProxyCount
+	if idx < 0 {
+		idx = 0
 	}
-	// Strip port from RemoteAddr
-	addr := r.RemoteAddr
+	return chain[idx]
+}
+
+// hostOnly strips the port from a host:port address (e.g. RemoteAddr).
+func hostOnly(addr string) string {
 	if idx := strings.LastIndex(addr, ":"); idx != -1 {
 		return addr[:idx]
 	}
