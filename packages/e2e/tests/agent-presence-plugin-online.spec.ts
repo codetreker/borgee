@@ -14,8 +14,9 @@
 // dials /ws, which always worked):
 //   - Owner registers + creates agent.
 //   - SPA → Agents tab → initial dot = offline.
-//   - Open a WebSocket to /ws/plugin?apiKey=<agent api_key> in this test
-//     process.
+//   - Open a WebSocket to /ws/plugin with the agent api_key on the
+//     Authorization: Bearer header in this test process (the `?apiKey=` query
+//     form was dropped in #1031 — header-only auth).
 //   - Wait for the SPA dot to flip to data-presence='online' (背景色 真测
 //     resolves to var(--success) RGB) + 在线 badge.
 //   - Close plugin WS → dot returns to offline.
@@ -109,9 +110,9 @@ test.describe('fix/agent-presence-online: agent runtime via /ws/plugin → Prese
     // BroadcastToAll(presence online) on register — the SPA's own /ws
     // mirrors that into markPresence(agent.id, 'online') and the dot
     // flips.
-    const pluginWS = new WebSocket(
-      `${pluginWSURL}?apiKey=${encodeURIComponent(agentAPIKey!)}`,
-    );
+    const pluginWS = new WebSocket(pluginWSURL, {
+      headers: { Authorization: `Bearer ${agentAPIKey!}` },
+    });
     await new Promise<void>((resolve, reject) => {
       pluginWS.addEventListener('open', () => resolve(), { once: true });
       pluginWS.addEventListener('error', () => reject(new Error('plugin WS errored before open')), { once: true });
