@@ -4,3 +4,6 @@ playwright-report/
 .playwright-data/
 blob-report/
 playwright/.cache/
+# #974 backend-off proof: generated JSON reports (scripts/e2e-backend-off-proof.sh)
+backend-off-report.json
+backend-off-list.json

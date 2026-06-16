@@ -70,28 +70,43 @@ async function createAgentAndOpenDM(user: { ctx: APIRequestContext; userId: stri
   const agentBody = (await agentRes.json()) as { agent: { id: string } };
   const agentId = agentBody.agent.id;
 
-  // Try to open DM with agent (endpoint may vary)
-  const dmAttempt1 = await user.ctx.post(`/api/v1/dm/${agentId}`);
-  if (!dmAttempt1.ok()) {
-    const dmAttempt2 = await user.ctx.post('/api/v1/channels', { data: { type: 'dm', with_user_id: agentId } });
-    if (!dmAttempt2.ok()) {
-      test.skip(true, `DM create endpoint not available: ${dmAttempt1.status()} / ${dmAttempt2.status()}`);
-    }
-  }
+  // Open a DM with the agent. The DM is created + returned by POST /api/v1/dm/{userId}
+  // ({ channel: {...} }); DMs are a SEPARATE list from GET /api/v1/channels (the
+  // store query is `type IN ('channel','system')`, so DMs never appear there).
+  //
+  // #974: this helper used to look for the DM in GET /api/v1/channels and, when it
+  // (always) found none, `test.skip(true, ...)` — which silently green-skipped the
+  // entire DM-sync proof in CI the whole time. That static skip is exactly the
+  // failure mode #974/#724 §3 calls out: a non-functional path looking delivered.
+  // We now (a) use the correct DM endpoints and (b) FAIL DYNAMICALLY (not skip) if
+  // the DM-create backend wiring is unreachable, so a backend-off condition is
+  // caught instead of hidden.
+  const dmRes = await user.ctx.post(`/api/v1/dm/${agentId}`);
+  expect(
+    dmRes.ok(),
+    `DM create backend wiring unreachable (POST /api/v1/dm/${agentId} -> ${dmRes.status()} ${await dmRes.text()}); ` +
+      `this proof must fail, not skip`,
+  ).toBe(true);
+  const dmBody = (await dmRes.json()) as { channel?: { id?: string; type?: string } };
+  const dmId = dmBody.channel?.id;
+  expect(
+    dmId,
+    'POST /api/v1/dm returned no channel.id — DM backend wiring is broken; must fail, not skip',
+  ).toBeTruthy();
 
-  // Find the newly created DM channel
-  const listRes = await user.ctx.get('/api/v1/channels');
-  expect(listRes.ok()).toBe(true);
-  const listBody = (await listRes.json()) as { channels: Array<{ id: string; type?: string }> };
-  const dm = (listBody.channels ?? []).find(c => c.type === 'dm');
-  if (!dm) {
-    test.skip(true, 'no DM channel after create attempt');
-  }
-  return dm!.id;
+  // Cross-check the DM is now discoverable through the real DM list endpoint
+  // (GET /api/v1/dm), the same source the sidebar renders from. A create that
+  // never surfaces in the list = broken wiring → fail dynamically.
+  const listRes = await user.ctx.get('/api/v1/dm');
+  expect(listRes.ok(), `list DMs: ${listRes.status()}`).toBe(true);
+  const listBody = (await listRes.json()) as { channels: Array<{ id: string }> };
+  const found = (listBody.channels ?? []).some(c => c.id === dmId);
+  expect(found, 'created DM not present in GET /api/v1/dm — DM backend wiring is broken; must fail, not skip').toBe(true);
+  return dmId!;
 }
 
 test.describe('direct message 多 tab 同步 — 单 owner 多 device 真渲染 + thinking 5-pattern 反向检查', () => {
-  test('case-1: tab A 真 UI 发消息 → tab B sidebar 真渲染该消息 (≤3s)', async ({ browser }) => {
+  test('case-1: tab A 真 UI 发消息 → tab B sidebar 真渲染该消息 (≤3s) @backend-required', async ({ browser }) => {
     const owner = await mintInviteAndRegister('case1-owner');
     const dmChannelId = await createAgentAndOpenDM(owner, `dm-sync-agent-${Date.now()}`);
 

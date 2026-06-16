@@ -196,6 +196,67 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  e2e-backend-off:
+    # #974: dynamic backend-off proof. Replaces the old static-skip gap (#724 §3).
+    # Boots ONLY the vite client (server-go backend genuinely OFF — playwright.config
+    # E2E_BACKEND_OFF=1 omits the server-go webServer entry), then runs the
+    # @backend-required tagged subset and asserts the run FAILED for
+    # backend-unreachability. The job is GREEN **iff** the tagged specs went RED:
+    # scripts/e2e-backend-off-proof.sh inverts the verdict via
+    # scripts/e2e-backend-off-assert.cjs.
+    #
+    # Why no server-go build here: the whole point is the backend is unreachable,
+    # so we never compile/boot it. The SPA still loads (vite serves it); the
+    # tagged specs fail because their REAL product assertions need backend DATA.
+    #
+    # Robustness (the crux #974 hammers — the asserter, not the exit code, is
+    # authoritative):
+    #   - fake-green catch:  a tagged spec that PASSES backend-off (doesn't really
+    #     depend on the backend) => asserter exits 1 => job RED.
+    #   - silent-skip catch: a tagged spec that SKIPS instead of failing => a skip
+    #     is NOT a pass => asserter exits 1 => job RED.
+    #   - count check:       EXPECTED_COUNT is derived from `--list` (never
+    #     hardcoded); the asserter verifies all N tagged tests produced a failing
+    #     result (0 passed, 0 skipped, 0 flaky).
+    # REQUIRED check — runs for real or fails loud; NO silent skip.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile --filter @borgee/e2e --filter @borgee/client
+      - name: Install Playwright chromium
+        run: pnpm --filter @borgee/e2e exec playwright install chromium
+      - name: Run #974 backend-off proof (job GREEN iff tagged specs RED)
+        # The driver boots vite-only (backend OFF), runs the @backend-required
+        # subset, and the asserter decides the verdict (run-and-fail, not skip).
+        run: timeout 480 bash scripts/e2e-backend-off-proof.sh
+      - name: Upload Playwright artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-backend-off
+          path: |
+            packages/e2e/backend-off-report.json
+            packages/e2e/backend-off-list.json
+            packages/e2e/test-results/
+            packages/e2e/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
   e2e-remote-node:
     # Dedicated VM-dependent e2e: the remote-node browse spec (ls/read/stat
     # through the real UI against a borgee daemon running inside a privileged
