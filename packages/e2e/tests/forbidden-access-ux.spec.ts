@@ -155,7 +155,7 @@ async function openChannelCanvas(page: Page, channelName: string): Promise<void>
 
 test.describe('#973 forbidden / access-denied UX — 3 surfaces (channel / DM / artifact)', () => {
   // ───────────────────────── ARTIFACT (the meaty one) ─────────────────────
-  test('artifact: member reaches Canvas via real clicks; non-member is fail-closed (no leak, no panel)', async ({ browser }) => {
+  test('artifact: member reaches Canvas via real clicks; non-member is fail-closed (no leak, no panel) @backend-required', async ({ browser }) => {
     const admin = await adminLogin();
     const invA = await mintInvite(admin, 'f973-art-A');
     const invB = await mintInvite(admin, 'f973-art-B');

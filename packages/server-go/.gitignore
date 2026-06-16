@@ -2,3 +2,5 @@
 coverage.out
 coverage.html
 coverage_*.out
+# locally-built e2e binary (CI builds bin/collab-e2e on the fly; see ci.yml)
+bin/

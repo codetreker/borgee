@@ -149,7 +149,7 @@ async function setupOwnerAndChannel(label: string): Promise<{
 test.describe('M3 Task4 production surface reverse proof', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('ArtifactComments production mount uses the real ArtifactPanel UI and comment API', async ({ browser }) => {
+  test('ArtifactComments production mount uses the real ArtifactPanel UI and comment API @backend-required', async ({ browser }) => {
     const { adminCtx, owner, channelName } = await setupOwnerAndChannel('m3t4-comments');
     const ctx = await browser.newContext();
     await attachToken(ctx, owner.token);

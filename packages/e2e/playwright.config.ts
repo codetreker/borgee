@@ -38,9 +38,25 @@ const SERVER_COMMAND =
   process.env.E2E_SERVER_COMMAND ?? 'go run -tags sqlite_fts5 ./cmd/collab';
 const TRACE_MODE = (process.env.E2E_TRACE_MODE ?? (process.env.CI ? 'retain-on-failure' : 'on-first-retry')) as TraceMode;
 const VIDEO_MODE = (process.env.E2E_VIDEO_MODE ?? 'retain-on-failure') as VideoMode;
-const WEB_SERVER_LOG_MODE = process.env.CI && process.env.E2E_WEB_SERVER_LOGS !== '1' ? 'ignore' : 'pipe';
+const WEB_SERVER_LOG_MODE: 'ignore' | 'pipe' =
+  process.env.CI && process.env.E2E_WEB_SERVER_LOGS !== '1' ? 'ignore' : 'pipe';
 const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`;
 const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
+
+// #974 backend-off proof: when E2E_BACKEND_OFF=1 the server-go webServer entry
+// is OMITTED — the backend is genuinely unreachable. Only vite (5174) boots, so
+// the SPA still LOADS (vite serves the HTML/JS) but every backend data fetch and
+// REST seed call hits a dead 4901 and fails. The `e2e-backend-off` CI job runs
+// the @backend-required tagged subset under this flag and asserts the tagged
+// tests RUN AND FAIL — proving they are genuinely backend-wired (a spec that
+// passed here would not depend on the backend = a fake-green surface).
+//
+// We must NOT keep the server-go webServer entry in this mode: Playwright
+// health-gates every webServer URL before running ANY test, so a /health gate
+// against a dead backend would abort the whole run before a single test
+// executes (an infra abort, not a test failure) and the "N tagged tests ran AND
+// failed" assertion could never be evaluated.
+const BACKEND_OFF = process.env.E2E_BACKEND_OFF === '1';
 
 // One temp data dir per run keeps the sqlite db from leaking between
 // suites; CI also wipes the runner's workspace, but local runs benefit.
@@ -106,50 +122,57 @@ export default defineConfig({
   // Order matters: server first (vite proxies to it). Playwright's
   // built-in `webServer` health check waits on each URL before starting
   // tests, so the server has to be reachable before the client tries
-  // to proxy.
+  // to proxy. In BACKEND_OFF mode the server-go entry is dropped so only
+  // vite boots (see BACKEND_OFF note above).
   webServer: [
-    {
-      // CI can provide a prebuilt binary to avoid paying go run compile/startup
-      // cost inside the Playwright webServer phase.
-      command: SERVER_COMMAND,
-      cwd: path.join(repoRoot, 'packages/server-go'),
-      url: `${SERVER_URL}/health`,
-      timeout: 60_000,
-      reuseExistingServer: !process.env.CI,
-      env: {
-        PORT: String(SERVER_PORT),
-        HOST: '127.0.0.1',
-        NODE_ENV: 'development',
-        DEV_AUTH_BYPASS: 'false',
-        DATABASE_PATH: path.join(dataDir, 'collab-e2e.db'),
-        SQLITE_TXLOCK: 'immediate',
-        UPLOAD_DIR: path.join(dataDir, 'uploads'),
-        WORKSPACE_DIR: path.join(dataDir, 'workspaces'),
-        CLIENT_DIST: path.join(repoRoot, 'packages/client/dist'),
-        JWT_SECRET: 'e2e-test-secret-not-for-prod',
-        ADMIN_USER: 'e2e-admin',
-        ADMIN_PASSWORD: 'e2e-admin-password-12345',
-        // ADM-0.1 bootstrap is intentionally fail-fast: missing env vars
-        // panic at startup. Without these the Playwright webServer
-        // panics on boot and downstream PRs' e2e jobs all fail. The
-        // password is bcrypt('e2e-admin-pass-12345', cost=10) — committed
-        // because this is e2e-only data, never reachable from prod
-        // (DATABASE_PATH is the .playwright-data tmp dir).
-        // See docs/current/e2e/README.md §3.
-        BORGEE_ADMIN_LOGIN: 'e2e-admin',
-        BORGEE_ADMIN_PASSWORD_HASH:
-          '$2a$10$4Qtu/ZynUPfAMPXPCtPa2uY7B04RVGK6V1gQfyihHgnW4LYvcY01i',
-        BORGEE_TEST_FAST_BCRYPT: '1',
-        BORGEE_TEST_FAST_ADMIN_PASSWORD: 'e2e-admin-pass-12345',
-      },
-      stdout: WEB_SERVER_LOG_MODE,
-      stderr: WEB_SERVER_LOG_MODE,
-    },
+    // server-go backend — OMITTED when E2E_BACKEND_OFF=1.
+    ...(BACKEND_OFF
+      ? []
+      : [
+          {
+            // CI can provide a prebuilt binary to avoid paying go run compile/startup
+            // cost inside the Playwright webServer phase.
+            command: SERVER_COMMAND,
+            cwd: path.join(repoRoot, 'packages/server-go'),
+            url: `${SERVER_URL}/health`,
+            timeout: 60_000,
+            reuseExistingServer: !process.env.CI,
+            env: {
+              PORT: String(SERVER_PORT),
+              HOST: '127.0.0.1',
+              NODE_ENV: 'development',
+              DEV_AUTH_BYPASS: 'false',
+              DATABASE_PATH: path.join(dataDir, 'collab-e2e.db'),
+              SQLITE_TXLOCK: 'immediate',
+              UPLOAD_DIR: path.join(dataDir, 'uploads'),
+              WORKSPACE_DIR: path.join(dataDir, 'workspaces'),
+              CLIENT_DIST: path.join(repoRoot, 'packages/client/dist'),
+              JWT_SECRET: 'e2e-test-secret-not-for-prod',
+              ADMIN_USER: 'e2e-admin',
+              ADMIN_PASSWORD: 'e2e-admin-password-12345',
+              // ADM-0.1 bootstrap is intentionally fail-fast: missing env vars
+              // panic at startup. Without these the Playwright webServer
+              // panics on boot and downstream PRs' e2e jobs all fail. The
+              // password is bcrypt('e2e-admin-pass-12345', cost=10) — committed
+              // because this is e2e-only data, never reachable from prod
+              // (DATABASE_PATH is the .playwright-data tmp dir).
+              // See docs/current/e2e/README.md §3.
+              BORGEE_ADMIN_LOGIN: 'e2e-admin',
+              BORGEE_ADMIN_PASSWORD_HASH:
+                '$2a$10$4Qtu/ZynUPfAMPXPCtPa2uY7B04RVGK6V1gQfyihHgnW4LYvcY01i',
+              BORGEE_TEST_FAST_BCRYPT: '1',
+              BORGEE_TEST_FAST_ADMIN_PASSWORD: 'e2e-admin-pass-12345',
+            },
+            stdout: WEB_SERVER_LOG_MODE,
+            stderr: WEB_SERVER_LOG_MODE,
+          },
+        ]),
     {
       // vite dev server with overridden proxy target. We can't edit
       // vite.config.ts at runtime, so we rely on the env var read by
       // vite.config.ts (added in this PR). Falls back to 4900 in normal
-      // dev so existing devs aren't broken.
+      // dev so existing devs aren't broken. In BACKEND_OFF mode vite still
+      // boots and serves the SPA; its /api proxy just hits a dead 4901.
       command: `pnpm --filter @borgee/client dev --host 127.0.0.1 --port ${CLIENT_PORT} --strictPort`,
       cwd: repoRoot,
       url: CLIENT_URL,
