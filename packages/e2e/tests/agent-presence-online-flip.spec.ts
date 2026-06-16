@@ -10,10 +10,12 @@
 // Test scope:
 //   - Owner registers, creates agent (REST seed).
 //   - Open SPA → AgentManager → verify initial dot = offline (cache empty).
-//   - Open a WS to /ws/plugin?apiKey=<agent api_key> in this same test
-//     process (the production agent-runtime rail; /ws dropped its apiKey
-//     query form in WS-auth-unify). The server-go hub.go Register emits
-//     `{type:'presence', user_id:<agent.id>, status:'online'}` on connect.
+//   - Open a WS to /ws/plugin with the agent api_key on the Authorization:
+//     Bearer header in this same test process (the production agent-runtime
+//     rail; the WS rails accept the credential only from the header — the
+//     `?apiKey=` query form was dropped in #1031). The server-go hub.go
+//     Register emits `{type:'presence', user_id:<agent.id>, status:'online'}`
+//     on connect.
 //   - Wait for the browser's own /ws to receive that broadcast frame → fix
 //     mirrors into markPresence() → PresenceDot flips to data-presence='online' + 在线.
 //   - Close the agent WS → server emits status='offline' broadcast → SPA
@@ -122,14 +124,18 @@ test.describe('AL-3.x agent presence cache fill from `presence` frame', () => {
     // load), so it will receive this broadcast frame. Fix mirrors that into
     // markPresence(agent.id, 'online'), and the SPA re-renders PresenceDot.
     //
-    // WS-auth-unify: /ws no longer accepts the `?token=` apiKey query form,
-    // and Node 22's built-in WebSocket cannot set an Authorization header.
-    // An agent runtime connects on the /ws/plugin rail in production anyway;
-    // its `?apiKey` query form stays accepted (deprecated) during the
-    // transition, and it produces the same presence broadcast the browser
-    // observes — so the #989 regression assertion is unchanged.
+    // #1031 concern-2: the WS rails (/ws, /ws/plugin, /ws/remote) accept the
+    // credential ONLY from the Authorization: Bearer header — the `?apiKey=` /
+    // `?token=` query forms were removed (an api_key in the URL leaks into
+    // access logs / proxies / referrers). An agent runtime connects on the
+    // /ws/plugin rail in production; Node's built-in WebSocket sends the
+    // Authorization header via the `headers` option, and the connect produces
+    // the same presence broadcast the browser observes — so the #989 regression
+    // assertion is unchanged.
     const pluginWSURL = `ws://127.0.0.1:${serverPort}/ws/plugin`;
-    const agentWS = new WebSocket(`${pluginWSURL}?apiKey=${encodeURIComponent(agentAPIKey!)}`);
+    const agentWS = new WebSocket(pluginWSURL, {
+      headers: { Authorization: `Bearer ${agentAPIKey!}` },
+    });
     const opened = new Promise<void>((resolve, reject) => {
       agentWS.addEventListener('open', () => resolve(), { once: true });
       agentWS.addEventListener('error', () => reject(new Error('agent WS errored before open')), { once: true });

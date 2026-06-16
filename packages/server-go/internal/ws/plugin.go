@@ -103,19 +103,15 @@ type PluginResponse struct {
 
 func HandlePlugin(hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// #1031 concern-2: plugin WS auth is `Authorization: Bearer <key>` ONLY.
+		// The deprecated `?apiKey=` query form was removed — an api_key in the
+		// URL leaks into access logs / proxies / referrers / browser history.
+		// The in-repo + published (@codetreker/borgee-openclaw-plugin 0.1.3)
+		// clients dial with the header, so this breaks only aged third-party
+		// builds still pinned to a query-dialing distribution.
 		var apiKey string
 		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
 			apiKey = strings.TrimPrefix(authHeader, "Bearer ")
-		}
-		if apiKey == "" {
-			// WS-auth-unify: the `?apiKey` query form is deprecated. Header
-			// Bearer auth is canonical; the query form lingers only for old
-			// npx-distributed plugin builds and is kept during the transition.
-			if qk := r.URL.Query().Get("apiKey"); qk != "" {
-				apiKey = qk
-				hub.logger.Warn("ws.plugin.deprecated_query_auth",
-					"detail", "?apiKey query param is deprecated; use Authorization: Bearer header")
-			}
 		}
 		if apiKey == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)

@@ -104,6 +104,36 @@ func TestPluginWSUnauthorized(t *testing.T) {
 	}
 }
 
+// TestPluginWSQueryAuthRejected pins the #1031 concern-2 fix: a valid API key
+// supplied ONLY in the deprecated `?apiKey=` query string (no Authorization
+// header) must be rejected. Putting the api_key in the URL leaks it into access
+// logs / proxies / referrers / history — header Bearer is the only accepted
+// path. Before the fix this dial succeeded; now it must 401 at the handshake.
+func TestPluginWSQueryAuthRejected(t *testing.T) {
+	t.Parallel()
+	ts, _, _ := testutil.NewTestServer(t)
+	adminToken := testutil.LoginAs(t, ts.URL, "owner@test.com", "password123")
+
+	resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/agents", adminToken, map[string]any{
+		"display_name": "QueryAuthBot",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("agent creation failed: %d %v", resp.StatusCode, data)
+	}
+	apiKey := data["agent"].(map[string]any)["api_key"].(string)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Valid key, but ONLY in the query string and no Authorization header.
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin?apiKey=" + apiKey
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err == nil {
+		conn.Close(websocket.StatusNormalClosure, "")
+		t.Fatal("expected ?apiKey query-string auth to be rejected on the plugin WS rail")
+	}
+}
+
 func TestRemoteWSUnauthorized(t *testing.T) {
 	t.Parallel()
 	ts, _, _ := testutil.NewTestServer(t)
@@ -115,6 +145,38 @@ func TestRemoteWSUnauthorized(t *testing.T) {
 	_, _, err := websocket.Dial(ctx, wsURL, nil)
 	if err == nil {
 		t.Fatal("expected error for unauthorized remote WS")
+	}
+}
+
+// TestRemoteWSQueryAuthRejected mirrors TestPluginWSQueryAuthRejected for the
+// /ws/remote rail: the connection token supplied ONLY in `?token=` (no header)
+// must be rejected. The in-repo remote client (remotews/client.go, #1112) dials
+// with the Authorization: Bearer header, so the query fallback was dead code.
+func TestRemoteWSQueryAuthRejected(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+
+	users, _ := s.ListUsers()
+	var adminID string
+	for _, u := range users {
+		if u.Email != nil && *u.Email == "owner@test.com" {
+			adminID = u.ID
+			break
+		}
+	}
+	node, err := s.CreateRemoteNode(adminID, "query-auth-remote")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/remote?token=" + node.ConnectionToken
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err == nil {
+		conn.Close(websocket.StatusNormalClosure, "")
+		t.Fatal("expected ?token query-string auth to be rejected on the remote WS rail")
 	}
 }
 

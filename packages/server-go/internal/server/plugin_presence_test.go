@@ -71,8 +71,8 @@ func TestPluginPresence_UpdateLastSeenAndBroadcast(t *testing.T) {
 	}
 
 	// Now dial the plugin path as the agent.
-	pluginURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin?apiKey=" + apiKey
-	pluginConn, _, err := websocket.DefaultDialer.Dial(pluginURL, nil)
+	pluginURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin"
+	pluginConn, _, err := websocket.DefaultDialer.Dial(pluginURL, http.Header{"Authorization": []string{"Bearer " + apiKey}})
 	if err != nil {
 		t.Fatalf("dial plugin ws: %v", err)
 	}

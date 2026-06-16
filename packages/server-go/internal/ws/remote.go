@@ -28,20 +28,14 @@ type RemoteConn struct {
 
 func HandleRemote(hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// #1031 concern-2: remote WS auth is `Authorization: Bearer <token>`
+		// ONLY. The deprecated `?token=` query form was removed for the same
+		// reason as the plugin rail — a token in the URL leaks into access logs
+		// / proxies / referrers. The in-repo remote client (remotews/client.go,
+		// #1112) dials with the header, so the query fallback was dead code.
 		token := ""
 		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
 			token = strings.TrimPrefix(authHeader, "Bearer ")
-		}
-		if token == "" {
-			// WS-auth-unify: the `?token` query form is deprecated. Header
-			// Bearer auth is canonical; the query form lingers only for old
-			// npx-distributed remote-agent builds and is kept during the
-			// transition.
-			if qt := r.URL.Query().Get("token"); qt != "" {
-				token = qt
-				hub.logger.Warn("ws.remote.deprecated_query_auth",
-					"detail", "?token query param is deprecated; use Authorization: Bearer header")
-			}
 		}
 		if token == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)

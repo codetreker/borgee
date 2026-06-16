@@ -103,8 +103,10 @@ func TestDMListAgentPeerIncludesOnlineState(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin?apiKey=" + agentKey
-	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin"
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: http.Header{"Authorization": []string{"Bearer " + agentKey}},
+	})
 	if err != nil {
 		t.Fatalf("dial plugin ws: %v", err)
 	}
