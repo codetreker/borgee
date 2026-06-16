@@ -116,12 +116,33 @@ func corsMiddleware(isDev bool, allowedOrigin string, next http.Handler) http.Ha
 	})
 }
 
-func securityHeadersMiddleware(next http.Handler) http.Handler {
+// contentSecurityPolicy is the single-line CSP served on every response
+// (#1108 frontend-F4). Notes on the directive choices:
+//   - style-src needs 'unsafe-inline': index.html/admin.html ship an inline
+//     <style> block and emoji-mart injects styles at runtime.
+//   - script-src 'self' suffices: vite emits external hashed module scripts,
+//     no inline <script>.
+//   - img-src https: covers user-supplied artifact images — KEEP IN SYNC with
+//     frontend-F5's image policy.
+//   - connect-src lists ws: wss: for the same-origin WebSocket.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' ws: wss:; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
+// permissionsPolicy disables browser feature APIs the app never uses.
+const permissionsPolicy = "accelerometer=(), camera=(), microphone=(), geolocation=(), gyroscope=(), magnetometer=(), payment=(), usb=(), interest-cohort=()"
+
+func securityHeadersMiddleware(isDev bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+		w.Header().Set("Permissions-Policy", permissionsPolicy)
+		// HSTS only outside development: dev runs over plain HTTP, and pinning
+		// HSTS on localhost would wedge browsers onto https://localhost.
+		if !isDev {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
 		next.ServeHTTP(w, r)
 	})
 }

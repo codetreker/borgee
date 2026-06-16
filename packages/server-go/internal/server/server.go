@@ -663,7 +663,7 @@ func (s *Server) Handler() http.Handler {
 
 	var handler http.Handler = s.mux
 	handler = rateLimitMiddleware(rl, s.store, s.cfg, handler)
-	handler = securityHeadersMiddleware(handler)
+	handler = securityHeadersMiddleware(s.cfg.IsDevelopment(), handler)
 	handler = corsMiddleware(s.cfg.IsDevelopment(), s.cfg.CORSOrigin, handler)
 	handler = loggerMiddleware(s.logger, handler)
 	handler = requestIDMiddleware(handler)

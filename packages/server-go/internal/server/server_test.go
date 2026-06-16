@@ -205,6 +205,106 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
+// nonDevServer builds a server whose config is NOT in development mode, so the
+// HSTS header (gated to non-dev) is emitted. Mirrors testServer otherwise.
+func nonDevServer(t *testing.T) *Server {
+	t.Helper()
+	s := store.MigratedStoreFromTemplate(t)
+	t.Cleanup(func() { s.Close() })
+
+	cfg := &config.Config{
+		JWTSecret:     "test-secret",
+		NodeEnv:       "production",
+		DevAuthBypass: false,
+		UploadDir:     t.TempDir(),
+		WorkspaceDir:  t.TempDir(),
+		ClientDist:    t.TempDir(),
+		CORSOrigin:    "https://example.test",
+
+		RateLimitAuthPerSec: 5,
+		RateLimitAuthBurst:  15,
+		RateLimitUserPerSec: 20,
+		RateLimitUserBurst:  60,
+		RateLimitAnonPerSec: 100,
+		RateLimitAnonBurst:  300,
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	return New(t.Context(), cfg, logger, s)
+}
+
+// TestSecurityHeadersCSP_HSTS asserts the #1108 frontend-F4 hardening headers:
+// Content-Security-Policy, Permissions-Policy, and HSTS (the last gated to
+// non-development mode).
+func TestSecurityHeadersCSP_HSTS(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-dev emits CSP, Permissions-Policy and HSTS", func(t *testing.T) {
+		t.Parallel()
+		srv := nonDevServer(t)
+		ts := httptest.NewServer(srv.Handler())
+		defer ts.Close()
+
+		resp, err := http.Get(ts.URL + "/health")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		csp := resp.Header.Get("Content-Security-Policy")
+		if csp == "" {
+			t.Fatal("expected non-empty Content-Security-Policy header")
+		}
+		for _, want := range []string{
+			"default-src 'self'",
+			"frame-ancestors 'none'",
+			"object-src 'none'",
+		} {
+			if !strings.Contains(csp, want) {
+				t.Fatalf("expected CSP to contain %q, got %q", want, csp)
+			}
+		}
+		if !strings.Contains(csp, "connect-src") || !strings.Contains(csp, "wss:") {
+			t.Fatalf("expected CSP connect-src to include wss:, got %q", csp)
+		}
+		if !strings.Contains(csp, "style-src") || !strings.Contains(csp, "'unsafe-inline'") {
+			t.Fatalf("expected CSP style-src to include 'unsafe-inline', got %q", csp)
+		}
+
+		pp := resp.Header.Get("Permissions-Policy")
+		if !strings.Contains(pp, "camera=()") || !strings.Contains(pp, "microphone=()") {
+			t.Fatalf("expected Permissions-Policy to disable camera and microphone, got %q", pp)
+		}
+
+		if got := resp.Header.Get("Strict-Transport-Security"); got != "max-age=31536000; includeSubDomains" {
+			t.Fatalf("expected HSTS max-age=31536000; includeSubDomains, got %q", got)
+		}
+	})
+
+	t.Run("dev omits HSTS but keeps CSP", func(t *testing.T) {
+		t.Parallel()
+		srv, _ := testServer(t) // testServer default is NodeEnv=development
+		if !srv.cfg.IsDevelopment() {
+			t.Fatal("precondition: testServer cfg must be development")
+		}
+		ts := httptest.NewServer(srv.Handler())
+		defer ts.Close()
+
+		resp, err := http.Get(ts.URL + "/health")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if csp := resp.Header.Get("Content-Security-Policy"); csp == "" {
+			t.Fatal("expected CSP to be present even in dev mode")
+		}
+		if got := resp.Header.Get("Strict-Transport-Security"); got != "" {
+			t.Fatalf("expected HSTS to be empty in dev mode, got %q", got)
+		}
+	})
+}
+
 func TestWriteJSON(t *testing.T) {
 	t.Parallel()
 	rec := httptest.NewRecorder()
