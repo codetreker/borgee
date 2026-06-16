@@ -57,6 +57,27 @@ describe('SearchResultList', () => {
     expect(snippet.innerHTML).toContain('<mark>Hello</mark>');
   });
 
+  it('renders attacker snippet inert — no HTML executes, highlight preserved (XSS #1030)', () => {
+    // Stored XSS vector: artifact body indexed verbatim by FTS5, wrapped in
+    // literal <mark>/</mark> by snippet(). Server never HTML-escapes, so an
+    // attacker body flows into the snippet. Walk-render must neutralize it.
+    render(<SearchResultList results={[{
+      ...baseResult,
+      snippet: '<mark>kickoff</mark> <img src=x onerror="alert(1)"> <script>alert(2)</script>',
+    }]} />);
+    const snippet = container!.querySelector('.search-result-snippet') as HTMLDivElement;
+    // No live HTML node may exist — attacker markup must be inert text.
+    expect(snippet.querySelector('img')).toBeNull();
+    expect(snippet.querySelector('script')).toBeNull();
+    // The attacker markup appears verbatim as escaped, inert text.
+    expect(snippet.textContent).toContain('<img src=x onerror="alert(1)">');
+    expect(snippet.textContent).toContain('<script>alert(2)</script>');
+    // Genuine server highlight is preserved as a real <mark> element.
+    const marks = snippet.querySelectorAll('mark');
+    expect(marks.length).toBe(1);
+    expect(marks[0].textContent).toBe('kickoff');
+  });
+
   it('renders multiple rows', () => {
     render(<SearchResultList results={[
       baseResult,
