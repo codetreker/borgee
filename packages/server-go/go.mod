@@ -2,6 +2,8 @@ module borgee-server
 
 go 1.25.0
 
+toolchain go1.25.11
+
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/coder/websocket v1.8.14

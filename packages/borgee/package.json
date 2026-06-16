@@ -1,6 +1,6 @@
 {
   "name": "@codetreker/borgee-remote-agent",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "private": false,
   "type": "commonjs",
   "files": [
