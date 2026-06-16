@@ -10,6 +10,8 @@ import (
 
 	"borgee-server/internal/config"
 	"borgee-server/internal/store"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func TestContextWithUser_RoundTrip(t *testing.T) {
@@ -73,6 +75,56 @@ func TestAuthMiddleware_ShortCircuitsOnCtxUser(t *testing.T) {
 	}
 	if seen == nil || seen.ID != user.ID {
 		t.Fatalf("expected handler to see ctx user %q, got %+v", user.ID, seen)
+	}
+}
+
+// TestValidateJWT_RejectsNonHS256 pins F5 (#1108): the JWT parser MUST pin the
+// signing algorithm to HS256. Pre-fix the keyfunc returns []byte(secret) for
+// ANY signing method, so a token forged with HS512 (using the same secret)
+// produces a structurally valid signature and ValidateJWT happily returns a
+// user — an attacker who learns the symmetric secret could also pivot through
+// algorithm confusion. After pinning via jwt.WithValidMethods([]{"HS256"}),
+// the parser rejects HS512 before the keyfunc result is trusted.
+//
+// 反 X: HS512 token 用同一 secret 签名 (签名本身有效) → 必须仍被拒 (返回 nil),
+// 证明拒绝来自算法 pin 而非签名校验. HS256 正常 token 不受影响 (无回归).
+func TestValidateJWT_RejectsNonHS256(t *testing.T) {
+	t.Parallel()
+	s := testStore(t)
+	user := &store.User{ID: "alg-user", DisplayName: "Alg", Role: "member"}
+	if err := s.CreateUser(user); err != nil {
+		t.Fatal(err)
+	}
+
+	const secret = "test-secret"
+	claims := &Claims{UserID: user.ID, Email: "alg@example.com"}
+
+	// RED: forge a token with HS512 using the SAME secret. The signature is
+	// valid under the keyfunc (which returns []byte(secret) regardless of alg),
+	// so pre-fix ValidateJWT returns the user; post-fix the parser errors with
+	// "signing method HS512 is invalid".
+	hs512Token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	hs512Str, err := hs512Token.SignedString([]byte(secret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ValidateJWT(s, secret, hs512Str); got != nil {
+		t.Fatalf("ValidateJWT accepted an HS512-signed token (alg confusion); got user %q, want nil", got.ID)
+	}
+
+	// GREEN companion: a normally-signed HS256 token still validates — no
+	// regression on the legitimate path.
+	hs256Token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	hs256Str, err := hs256Token.SignedString([]byte(secret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := ValidateJWT(s, secret, hs256Str)
+	if got == nil {
+		t.Fatal("ValidateJWT rejected a valid HS256 token; expected the user")
+	}
+	if got.ID != user.ID {
+		t.Fatalf("ValidateJWT: got user %q want %q", got.ID, user.ID)
 	}
 }
 

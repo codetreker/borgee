@@ -107,7 +107,7 @@ func ValidateJWT(s *store.Store, secret string, tokenStr string) *store.User {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
 		return []byte(secret), nil
-	})
+	}, jwt.WithValidMethods([]string{"HS256"}))
 	if err != nil || !token.Valid {
 		return nil
 	}
