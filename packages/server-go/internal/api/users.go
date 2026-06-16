@@ -26,6 +26,12 @@ type UserHandler struct {
 
 func (h *UserHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/me/permissions", authMw(http.HandlerFunc(h.handleMyPermissions)))
+	// AP-2 #970 — self-grant target for the BundleSelector caller-driven
+	// fan-out. The client expands a bundle to its capability tokens and
+	// dispatches one PUT per token; the server grants each (permission, scope)
+	// for the signed-in user. This reuses the AP-1 grant path — no bundle
+	// endpoint (reverse-grep bans POST /api/v1/bundles).
+	mux.Handle("PUT /api/v1/permissions", authMw(http.HandlerFunc(h.handleGrantSelfPermission)))
 	mux.Handle("GET /api/v1/online", authMw(http.HandlerFunc(h.handleOnlineUsers)))
 }
 
@@ -84,6 +90,87 @@ func (h *UserHandler) handleMyPermissions(w http.ResponseWriter, r *http.Request
 		"permissions":  permissions,
 		"details":      details,
 		"capabilities": capabilities,
+	})
+}
+
+// selfGrantRequest is the body of PUT /api/v1/permissions (AP-2 #970).
+// The BundleSelector fan-out sends one capability per request; scope
+// defaults to "*" so a confirmed bundle grants self-scope capabilities.
+type selfGrantRequest struct {
+	Permission string `json:"permission"`
+	Scope      string `json:"scope"`
+}
+
+// selfGrantScopePrefixes mirror the v1 three-level scope guard used by the
+// owner-rail me/grants endpoint (`*` wildcard or channel:/artifact: prefix).
+var selfGrantScopePrefixes = []string{"channel:", "artifact:"}
+
+func selfGrantScopeValid(scope string) bool {
+	if scope == "*" {
+		return true
+	}
+	for _, p := range selfGrantScopePrefixes {
+		if strings.HasPrefix(scope, p) && len(scope) > len(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// PUT /api/v1/permissions — self-grant a single capability for the signed-in
+// user. This is the caller-driven fan-out target for the AP-2 BundleSelector:
+// one request per selected capability token (no bundle endpoint; reuse the
+// AP-1 grant path). The handler validates the token against the 14-const
+// allowlist and the scope against the v1 three-level rule, then persists via
+// the idempotent store.GrantPermission (FirstOrCreate).
+func (h *UserHandler) handleGrantSelfPermission(w http.ResponseWriter, r *http.Request) {
+	user, ok := mustUser(w, r)
+	if !ok {
+		return
+	}
+
+	var req selfGrantRequest
+	if err := readJSON(r, &req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if strings.TrimSpace(req.Permission) == "" {
+		writeJSONError(w, http.StatusBadRequest, "field \"permission\" empty")
+		return
+	}
+	// Default scope to self-wildcard so a confirmed bundle grants the
+	// capability broadly for the signed-in user (matches the self-view).
+	if strings.TrimSpace(req.Scope) == "" {
+		req.Scope = "*"
+	}
+	// capability ∈ AP-1 14-const allowlist (reverse-grep banned literals).
+	if !auth.IsValidCapability(req.Permission) {
+		writeJSONError(w, http.StatusBadRequest,
+			fmt.Sprintf("permission %q not in capability allowlist", req.Permission))
+		return
+	}
+	if !selfGrantScopeValid(req.Scope) {
+		writeJSONError(w, http.StatusBadRequest,
+			fmt.Sprintf("scope %q invalid (v1: */channel:<id>/artifact:<id>)", req.Scope))
+		return
+	}
+
+	if err := h.Store.GrantPermission(&store.UserPermission{
+		UserID:     user.ID,
+		Permission: req.Permission,
+		Scope:      req.Scope,
+		GrantedBy:  &user.ID,
+	}); err != nil {
+		h.Logger.Error("self grant write failed", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	writeJSONResponse(w, http.StatusOK, map[string]any{
+		"granted":    true,
+		"user_id":    user.ID,
+		"permission": req.Permission,
+		"scope":      req.Scope,
 	})
 }
 
