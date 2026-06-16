@@ -6,6 +6,7 @@ import type { ChannelMember, Agent, AgentRuntimeState, AgentRuntimeReason } from
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import { useToast } from './Toast';
 import PresenceDot from './PresenceDot';
+import { RT3PresenceDot } from './RT3PresenceDot';
 import { usePresence } from '../hooks/usePresence';
 import { channelDisplayName } from '../lib/channelDisplay';
 
@@ -259,6 +260,12 @@ export default function ChannelMembersModal({ channelId, onClose }: { channelId:
                       fallbackReason={m.reason}
                     />
                   )}
+                  {/* RT-3 ⭐ (#971): human (non-agent) member rows get the
+                      multi-device presence dot. Agent rows keep the AL-3
+                      PresenceDot above; humans get the RT-3 dot here. Its data
+                      comes from the WS `presence` frame mirror in
+                      useWebSocket.ts → markRT3Presence. */}
+                  {m.role !== 'agent' && <RT3PresenceDot userID={m.user_id} />}
                   {m.role === 'agent' && m.silent && (
                     <span className="user-badge user-badge-silent" title="silent: 不计入 unread / mention 计数">🔕 silent</span>
                   )}
