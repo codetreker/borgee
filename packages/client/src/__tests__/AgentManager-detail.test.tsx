@@ -23,6 +23,7 @@ vi.mock('../lib/api', async () => {
     fetchAgentPermissions: vi.fn(),
     fetchAgentRuntime: vi.fn(),
     rotateAgentApiKey: vi.fn(),
+    revealAgentApiKey: vi.fn(),
     deleteAgent: vi.fn(),
     addAgentToChannel: vi.fn(),
     updateAgentPermissions: vi.fn(),
@@ -63,6 +64,10 @@ import * as api from '../lib/api';
 const TEST_KEY = 'bgr_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd';
 const TEST_LAST4 = 'abcd';
 
+// F7 (#1108): reads (fetchAgent / fetchAgents) carry only api_key_last4 — the
+// full plaintext key is NEVER in the read shape. The component must render the
+// mask from api_key_last4 and obtain the full key (for copy) via
+// revealAgentApiKey only.
 const mockAgent = {
   id: 'agent-1',
   display_name: 'Test Agent',
@@ -70,7 +75,7 @@ const mockAgent = {
   avatar_url: '',
   owner_id: 'user-owner',
   created_at: 1700000000000,
-  api_key: TEST_KEY,
+  api_key_last4: TEST_LAST4,
   state: 'online' as const,
 } as unknown as api.Agent;
 
@@ -90,6 +95,10 @@ beforeEach(() => {
   writeTextMock.mockClear();
   readTextMock.mockClear();
   mockShowToast.mockClear();
+  // F7 (#1108): clear api-mock call history so the per-test "not.toHaveBeenCalled"
+  // assertions are not polluted by a previous test's reveal/copy.
+  vi.mocked(api.revealAgentApiKey).mockClear();
+  vi.mocked(api.fetchAgent).mockClear();
 
   // jsdom navigator.clipboard 替 stub. 走 defineProperty 反原型链锁.
   Object.defineProperty(navigator, 'clipboard', {
@@ -102,6 +111,9 @@ beforeEach(() => {
   vi.mocked(api.fetchAgentPermissions).mockResolvedValue({ permissions: [], details: [] });
   vi.mocked(api.fetchAgentRuntime).mockResolvedValue(null);
   vi.mocked(api.rotateAgentApiKey).mockResolvedValue(TEST_KEY);
+  // F7 (#1108): copy fetches the full key via revealAgentApiKey (POST), not the
+  // redacted read.
+  vi.mocked(api.revealAgentApiKey).mockResolvedValue(TEST_KEY);
 });
 
 afterEach(() => {
@@ -199,8 +211,37 @@ describe('#684 — AgentManager Credentials 卡 (mask + 复制 + auto-clear)', (
     await act(async () => { copyBtn.click(); });
     await flush();
 
+    // F7 (#1108): copy MUST obtain the full key via revealAgentApiKey (POST),
+    // never via the redacted fetchAgent read.
+    expect(api.revealAgentApiKey).toHaveBeenCalledWith('agent-1');
     expect(writeTextMock).toHaveBeenCalledWith(TEST_KEY);
     expect(mockShowToast).toHaveBeenCalledWith('API Key 已复制, 60 秒后自动清空');
+  });
+
+  it('F7 (#1108) — mask 渲染只靠 api_key_last4, 展开时组件不收完整 key + 复制走 reveal', async () => {
+    // 读 shape 已脱敏: fetchAgent 返回的 mockAgent 不带 api_key, 只带
+    // api_key_last4. 展开后 mask 仍要 byte-identical 渲染, 且完整 key 不进 DOM.
+    await act(async () => {
+      root!.render(<AgentManager onBack={() => {}} />);
+    });
+    await flush();
+    const manageBtn = findManageButton();
+    await act(async () => { manageBtn.click(); });
+    await flush();
+
+    // mask 来自 api_key_last4.
+    const mask = container!.querySelector('[data-testid="agent-api-key-mask"]');
+    expect(mask!.textContent).toBe(`bgr_...${TEST_LAST4}`);
+    // 展开渲染期间不调 reveal (完整 key 不在展开时进组件).
+    expect(api.revealAgentApiKey).not.toHaveBeenCalled();
+    // 完整 plaintext 不进 DOM.
+    expect(container!.innerHTML).not.toContain(TEST_KEY);
+
+    // 点复制才走 reveal.
+    const copyBtn = container!.querySelector('button[aria-label="复制 API Key"]') as HTMLButtonElement;
+    await act(async () => { copyBtn.click(); });
+    await flush();
+    expect(api.revealAgentApiKey).toHaveBeenCalledWith('agent-1');
   });
 
   it('60s 后 auto-clear: readText 比对 + writeText("") + toast "剪贴板已清空"', async () => {

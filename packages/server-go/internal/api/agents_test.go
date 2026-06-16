@@ -49,6 +49,18 @@ func TestAgentsCRUD(t *testing.T) {
 		if len(agents) == 0 {
 			t.Fatal("expected at least 1 agent")
 		}
+		// F7 (#1108): list reads MUST redact the full key. Every row carries
+		// api_key_last4 (4-char string) and never the full api_key.
+		for _, a := range agents {
+			agent := a.(map[string]any)
+			if agent["api_key"] != nil {
+				t.Fatalf("list leaked full api_key: %v", agent["api_key"])
+			}
+			last4, ok := agent["api_key_last4"].(string)
+			if !ok || len(last4) != 4 {
+				t.Fatalf("expected api_key_last4 4-char string, got %v", agent["api_key_last4"])
+			}
+		}
 	})
 
 	t.Run("ListAgentsAsMember", func(t *testing.T) {
@@ -106,6 +118,71 @@ func TestAgentsCRUD(t *testing.T) {
 		agent := data["agent"].(map[string]any)
 		if agent["display_name"] != "TestBot" {
 			t.Fatalf("expected TestBot, got %v", agent["display_name"])
+		}
+		// F7 (#1108): GET read MUST redact. No full api_key; only the 4-char
+		// api_key_last4 mask source.
+		if agent["api_key"] != nil {
+			t.Fatalf("GET leaked full api_key: %v", agent["api_key"])
+		}
+		last4, ok := agent["api_key_last4"].(string)
+		if !ok || len(last4) != 4 {
+			t.Fatalf("expected api_key_last4 4-char string, got %v", agent["api_key_last4"])
+		}
+	})
+
+	t.Run("PatchAgentRedacted", func(t *testing.T) {
+		// F7 (#1108): the PATCH read-back MUST redact identically to list/get.
+		// A successful mutation (require_mention) returns the updated agent;
+		// that response carries only api_key_last4 (4-char string) and never
+		// the full api_key. Fails red if handlePatchAgent uses the full-key
+		// sanitizeAgentWithKey helper instead of the redacted sanitizeAgent.
+		resp, data := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID, adminToken, map[string]any{
+			"require_mention": true,
+		})
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %v", resp.StatusCode, data)
+		}
+		agent := data["agent"].(map[string]any)
+		if agent["require_mention"] != true {
+			t.Fatalf("expected require_mention=true after patch, got %v", agent["require_mention"])
+		}
+		if agent["api_key"] != nil {
+			t.Fatalf("PATCH leaked full api_key: %v", agent["api_key"])
+		}
+		last4, ok := agent["api_key_last4"].(string)
+		if !ok || len(last4) != 4 {
+			t.Fatalf("expected api_key_last4 4-char string, got %v", agent["api_key_last4"])
+		}
+	})
+
+	t.Run("RevealAPIKeyOwner", func(t *testing.T) {
+		// F7 (#1108): owner POSTs reveal-api-key → 200 + full api_key. The
+		// stored key is unchanged (reveal ≠ rotate), so the returned key's
+		// last4 must equal the redacted last4 from the GET read.
+		_, getData := testutil.JSON(t, "GET", ts.URL+"/api/v1/agents/"+agentID, adminToken, nil)
+		getAgent := getData["agent"].(map[string]any)
+		wantLast4 := getAgent["api_key_last4"].(string)
+
+		resp, data := testutil.JSON(t, "POST", ts.URL+"/api/v1/agents/"+agentID+"/reveal-api-key", adminToken, nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %v", resp.StatusCode, data)
+		}
+		key, ok := data["api_key"].(string)
+		if !ok || key == "" {
+			t.Fatalf("expected full api_key, got %v", data["api_key"])
+		}
+		if key[len(key)-4:] != wantLast4 {
+			t.Fatalf("reveal key last4 %q != GET mask last4 %q", key[len(key)-4:], wantLast4)
+		}
+	})
+
+	t.Run("RevealAPIKeyNonOwner", func(t *testing.T) {
+		// F7 (#1108): non-owner POST reveal-api-key → 403 (anti-IDOR, identical
+		// gate to rotate). Reuses the cross-owner memberToken fixture against
+		// the admin-owned agentID.
+		resp, _ := testutil.JSON(t, "POST", ts.URL+"/api/v1/agents/"+agentID+"/reveal-api-key", memberToken, nil)
+		if resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d", resp.StatusCode)
 		}
 	})
 
