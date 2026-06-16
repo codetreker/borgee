@@ -61,6 +61,8 @@ Chat is the only surface that writes messages through the realtime send path. It
 
 Mentions, slash commands, emoji, typing, reactions, edit/delete, and upload are chat capabilities layered around the same message stream. Public channel preview is read-only until join succeeds.
 
+Channel and DM access is enforced by membership-scoped server lists, so a forbidden channel or DM never enters the rail in the first place. When a selected id resolves to neither a known channel nor a known DM — a forbidden resource or a non-existent one — `ChannelView` renders a single non-leaking not-found state. Forbidden and non-existent are deliberately indistinguishable so the surface never reveals whether a resource exists; the not-found state carries a stable `data-channel-not-found` marker for test assertion without changing that copy.
+
 Sketch references: [ui/message.md](ui/message.md), [ui/dm.md](ui/dm.md), [ui/slash-commands.md](ui/slash-commands.md), and [ui/preview.md](ui/preview.md) show interaction shapes after this architecture boundary is understood.
 
 ## Artifact Canvas
