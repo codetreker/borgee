@@ -51,8 +51,12 @@ export function RT3PresenceDot({ userID, now }: RT3PresenceDotProps) {
       : attr === 'offline'
         ? '离线'
         : lastSeenLabel(lastSeenAt, t);
+  // 颜色 + 尺寸全部走 CSS 类 (index.css `.rt3-presence-dot*`) — dot 必须是有真
+  // bounding box 的可见圆点 (online 绿 / offline 灰 / recently-active 黄), 所有
+  // 态都可见, 不许 offline display:none / zero-size, 否则 #971 "活物感不可见"复发.
   return (
     <span
+      className={`rt3-presence-dot rt3-presence-dot-${attr}`}
       data-rt3-presence-dot={attr}
       data-rt3-last-seen={lastSeenAt}
       data-rt3-cursor-user={userID}
