@@ -134,9 +134,15 @@ export default function ChannelView({ channelId }: Props) {
   }, [channelId]);
 
   if (!channel && !isDm) {
+    // A forbidden channel/DM (not in the membership-scoped state lists) and a
+    // genuinely non-existent id BOTH land here. Conflating forbidden with
+    // not-found is the secure choice — the message must NOT reveal whether the
+    // resource exists (no existence leak). `data-channel-not-found` is a stable
+    // testability marker so the access-denied state is assertable in e2e; it
+    // does not change the (intentionally indistinguishable) user-facing copy.
     return (
       <div className="channel-view" style={keyboardHeight > 0 ? { height: `calc(100% - ${keyboardHeight}px)` } : undefined}>
-        <div className="channel-empty">
+        <div className="channel-empty" data-channel-not-found="true" role="status">
           频道未找到
         </div>
       </div>
