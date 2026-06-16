@@ -175,4 +175,67 @@ describe('ArtifactComments — CV-5.2 client', () => {
     });
     expect(listSpy).toHaveBeenCalledTimes(1);
   });
+
+  // CV-12 wiring: ArtifactComments mounts ArtifactCommentSearchBox with the
+  // virtual artifact channel UUID resolved from the server-stamped comment row.
+  it('CV-12 mounts the comment search box with the resolved artifactChannelId', async () => {
+    vi.spyOn(api, 'listArtifactComments').mockResolvedValue({
+      comments: [sampleHuman, sampleAgent],
+    });
+    await render(<ArtifactComments artifactId="art-X" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // The search box is mounted (visible in DOM).
+    const mount = container!.querySelector('[data-testid="cv12-search-mount"]');
+    expect(mount).not.toBeNull();
+    // Search input carries the artifactId anchor (proves the box rendered).
+    const input = container!.querySelector('[data-cv12-search-input]') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(input.getAttribute('data-cv12-search-input')).toBe('art-X');
+  });
+
+  it('CV-12 wires the search to the server-stamped channel_id (artifactChannelId)', async () => {
+    vi.spyOn(api, 'listArtifactComments').mockResolvedValue({
+      comments: [sampleHuman, sampleAgent], // both rows share channel_id 'ch-Y'
+    });
+    const searchSpy = vi
+      .spyOn(api, 'searchArtifactComments')
+      .mockResolvedValue({ messages: [] });
+    await render(<ArtifactComments artifactId="art-X" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const input = container!.querySelector('[data-cv12-search-input]') as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value',
+    )!.set!;
+    await act(async () => {
+      setter.call(input, 'good');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const submit = container!.querySelector('[data-testid="cv12-search-submit"]') as HTMLButtonElement;
+    await act(async () => {
+      submit.click();
+    });
+    for (let i = 0; i < 5; i++) {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+    // The resolved channel id (server-stamped 'ch-Y') is passed to the search API,
+    // NOT the artifactId. This is the load-bearing wiring assertion.
+    expect(searchSpy).toHaveBeenCalledWith('ch-Y', 'good');
+  });
+
+  it('CV-12 omits the search box when there are no comments (no channel to search)', async () => {
+    vi.spyOn(api, 'listArtifactComments').mockResolvedValue({ comments: [] });
+    await render(<ArtifactComments artifactId="art-X" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(container!.querySelector('[data-testid="cv12-search-mount"]')).toBeNull();
+    expect(container!.querySelector('[data-cv12-search-input]')).toBeNull();
+  });
 });
