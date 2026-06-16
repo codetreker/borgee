@@ -59,6 +59,8 @@ The default PR E2E gate is a single CI job, not a shard matrix. CI prebuilds the
 
 Client build/type safety remains owned by the separate `check` job. The E2E job installs the client and starts Vite for browser integration, but does not repeat `pnpm --filter @borgee/client build` locally inside the E2E job.
 
+A second, inverted E2E gate proves the tagged production surfaces are genuinely backend-wired rather than statically skipped or fake-green. The `e2e-backend-off` job boots ONLY the Vite client — the server process is deliberately omitted, so the harness reads `E2E_BACKEND_OFF=1` and drops the server `webServer` entry (keeping it would let Playwright's per-`webServer` health gate abort the whole run against a dead backend before any test executes). The SPA still loads because Vite serves it; backend data fetches and REST seeds fail because they hit a dead proxy target. The job then runs the `@backend-required` tagged subset and asserts the run failed FROM backend-unreachability. The decision is inverted: the job is green only when every tagged test ran AND failed. A dedicated asserter — not the process exit code — is authoritative, so it rejects a fake-green surface (a tagged test that passes backend-off because it does not really depend on the backend), a silent skip (a skip is treated as a proof failure, not a pass), a flaky result, and a count drift (the number of tests that produced a failing result must equal the count derived from `playwright test --list`, never a hardcoded number). The same tagged tests must still pass in the normal backend-on E2E gate, so the two jobs together prove the surfaces are reachable when wired and fail loudly when not.
+
 ```mermaid
 sequenceDiagram
   participant Browser as Playwright browser
@@ -117,6 +119,8 @@ E2E harness and test surface:
 - `packages/e2e/playwright.config.ts`
 - `packages/e2e/tests/`
 - `packages/e2e/tests/production-surface-reverse-proof.spec.ts`: focused product-surface reverse proof for ArtifactComments production mount, ArtifactComments/ArtifactPanel forbidden states, and Settings PermissionsView empty/forbidden/error states.
+- `scripts/e2e-backend-off-proof.sh`: backend-off driver — boots Vite only, runs the `@backend-required` tagged subset, and hands the result to the asserter.
+- `scripts/e2e-backend-off-assert.cjs`: authoritative asserter that makes the `e2e-backend-off` job green only when every tagged test ran AND failed (catches fake-green, silent skip, flaky, and count drift).
 
 Container and deployment release surface:
 
