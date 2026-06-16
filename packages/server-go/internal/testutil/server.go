@@ -84,6 +84,12 @@ func NewTestServer(t *testing.T) (*httptest.Server, *store.Store, *config.Config
 		RateLimitUserBurst:  60,
 		RateLimitAnonPerSec: 100,
 		RateLimitAnonBurst:  300,
+
+		// #1108 F4: per-PluginConn api_request spawn-gate bucket. Mirror
+		// config.Load() defaults so plugin WS tests that fire api_request
+		// frames aren't 429'd by a zero-value (empty) bucket.
+		RatePluginAPIReqPerSec: 20,
+		RatePluginAPIReqBurst:  60,
 	}
 
 	// ADM-0.3 (v=10): users.role enum collapsed to {'member', 'agent'}; admin

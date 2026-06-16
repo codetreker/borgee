@@ -281,6 +281,13 @@ func readPluginSend(t *testing.T, pc *PluginConn) map[string]any {
 	return nil
 }
 
+// LAYER A (#1108 F4) regression coverage now lives in
+// plugin_apireq_ratelimit_test.go::TestPluginWSReadLoopGatesAPIRequestSpawn,
+// which drives the REAL HandlePlugin read loop end-to-end (an isolated
+// allowAPIRequest/send429APIResponse call here could not detect removal of the
+// read-loop gate). The bucket-arithmetic unit edges below stay covered by
+// TestInternalPluginConnRequestResponseBranches and the WS harness test.
+
 func TestInternalRemoteConnRequestResponseBranches(t *testing.T) {
 	t.Parallel()
 	rc := &RemoteConn{

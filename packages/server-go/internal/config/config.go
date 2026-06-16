@@ -37,6 +37,14 @@ type Config struct {
 	RateLimitAnonPerSec int
 	RateLimitAnonBurst  int
 
+	// Plugin api_request 重入 HTTP 栈前的 per-PluginConn 令牌桶, 限制
+	// `go pc.handleAPIRequest` 的 goroutine 生成速率 (#1108 F4).
+	// 默认跟 user 桶同档 (20/s, burst 60): api_request 重入后照样过
+	// rateLimitMiddleware 的 user:<userID> 桶, 这里只是把 spawn 也压在同档,
+	// 防一条 plugin 连接无上限拉起 goroutine. 超额回 429 帧后 continue (不断连).
+	RatePluginAPIReqPerSec int
+	RatePluginAPIReqBurst  int
+
 	// TrustedProxyCount 控制 rate-limit client-IP 推导信任几跳反代.
 	// 默认 0 (安全默认): 只用 RemoteAddr, X-Forwarded-For / X-Real-IP 完全不参与
 	// → 攻击者无法靠伪造 header 旋转 per-IP 限速桶 key (#1108 F2).
@@ -69,6 +77,9 @@ func Load() (*Config, error) {
 		RateLimitUserBurst:  envInt("RATE_LIMIT_USER_BURST", 60),
 		RateLimitAnonPerSec: envInt("RATE_LIMIT_ANON_PER_SEC", 100),
 		RateLimitAnonBurst:  envInt("RATE_LIMIT_ANON_BURST", 300),
+
+		RatePluginAPIReqPerSec: envInt("RATE_LIMIT_PLUGIN_API_REQ_PER_SEC", 20),
+		RatePluginAPIReqBurst:  envInt("RATE_LIMIT_PLUGIN_API_REQ_BURST", 60),
 
 		TrustedProxyCount: envInt("TRUSTED_PROXY_COUNT", 0),
 	}
