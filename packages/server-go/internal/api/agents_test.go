@@ -130,6 +130,31 @@ func TestAgentsCRUD(t *testing.T) {
 		}
 	})
 
+	t.Run("PatchAgentRedacted", func(t *testing.T) {
+		// F7 (#1108): the PATCH read-back MUST redact identically to list/get.
+		// A successful mutation (require_mention) returns the updated agent;
+		// that response carries only api_key_last4 (4-char string) and never
+		// the full api_key. Fails red if handlePatchAgent uses the full-key
+		// sanitizeAgentWithKey helper instead of the redacted sanitizeAgent.
+		resp, data := testutil.JSON(t, "PATCH", ts.URL+"/api/v1/agents/"+agentID, adminToken, map[string]any{
+			"require_mention": true,
+		})
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %v", resp.StatusCode, data)
+		}
+		agent := data["agent"].(map[string]any)
+		if agent["require_mention"] != true {
+			t.Fatalf("expected require_mention=true after patch, got %v", agent["require_mention"])
+		}
+		if agent["api_key"] != nil {
+			t.Fatalf("PATCH leaked full api_key: %v", agent["api_key"])
+		}
+		last4, ok := agent["api_key_last4"].(string)
+		if !ok || len(last4) != 4 {
+			t.Fatalf("expected api_key_last4 4-char string, got %v", agent["api_key_last4"])
+		}
+	})
+
 	t.Run("RevealAPIKeyOwner", func(t *testing.T) {
 		// F7 (#1108): owner POSTs reveal-api-key → 200 + full api_key. The
 		// stored key is unchanged (reveal ≠ rotate), so the returned key's
