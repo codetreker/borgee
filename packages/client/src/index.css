@@ -630,6 +630,23 @@ body {
 .presence-dot.presence-online  { background: var(--success, #1a7f37); }
 .presence-dot.presence-offline { background: var(--text-secondary, #57606a); }
 .presence-dot.presence-error   { background: var(--danger, #cf222e); }
+
+/* RT-3 ⭐ (#971) — human multi-device presence dot. Must be a real, visibly
+   sized circle for EVERY state (online green / offline grey / recently-active
+   yellow) so it has a genuine bounding box — offline is NOT display:none /
+   zero-size, otherwise "活物感不可见" (#971) recurs and Playwright treats the
+   span as hidden. */
+.rt3-presence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-secondary, #57606a);
+}
+.rt3-presence-dot-online          { background: var(--success, #1a7f37); }
+.rt3-presence-dot-offline         { background: var(--text-secondary, #57606a); }
+.rt3-presence-dot-recently-active { background: var(--warning, #bf8700); }
 .presence-text {
   color: var(--text-secondary);
 }

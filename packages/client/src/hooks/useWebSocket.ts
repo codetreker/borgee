@@ -23,6 +23,7 @@ import type {
   ArtifactCommentAddedFrame,
 } from '../types/ws-frames';
 import { markPresence } from './usePresence';
+import { markRT3Presence } from './useRT3Presence';
 import type { AgentRuntimeReason, AgentRuntimeState } from '../lib/api';
 
 const PING_INTERVAL = 25_000;
@@ -308,6 +309,15 @@ export function useWebSocket(isAuthenticated = true) {
         // error / busy / idle remain on the 'presence.changed' frame.
         if (status === 'online' || status === 'offline') {
           markPresence(userId, status, undefined);
+          // RT-3 ⭐ (#971): feed the human multi-device presence store so the
+          // RT3PresenceDot (mounted on ChannelMembersModal human rows) reflects
+          // real presence instead of being permanently offline. The server
+          // broadcasts this `presence` frame for every WS user on connect /
+          // disconnect (server-go internal/ws/client.go), so online/offline here
+          // is the in-scope data source. The four-state away/thinking fanout is
+          // not emitted today; away is derived from last-seen inside
+          // useRT3Presence, and thinking has no server frame yet.
+          markRT3Presence(userId, status, undefined);
         }
         break;
       }
