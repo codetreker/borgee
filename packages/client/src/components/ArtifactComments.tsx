@@ -30,6 +30,7 @@ import {
 } from '../lib/api';
 import { useArtifactCommentAdded } from '../hooks/useWsHubFrames';
 import ArtifactCommentBody from './ArtifactCommentBody';
+import ArtifactCommentSearchBox from './ArtifactCommentSearchBox';
 
 interface ArtifactCommentsProps {
   artifactId: string;
@@ -131,8 +132,23 @@ export default function ArtifactComments({ artifactId }: ArtifactCommentsProps) 
     );
   }
 
+  // CV-12 wiring: the virtual `artifact:<artifactId>` namespace channel UUID is
+  // server-stamped onto every comment row (artifact_comments.go handleListComments
+  // → channel_id = ch.ID). Every row shares the same channel id, so the first row
+  // resolves it. The channel only exists once a comment has been posted; with zero
+  // comments there is nothing to search, so the search box is omitted (no guessed id).
+  const artifactChannelId = comments.length > 0 ? comments[0].channel_id : null;
+
   return (
     <div className="cv5-artifact-comments" data-testid="cv5-artifact-comments">
+      {artifactChannelId && (
+        <div className="cv5-artifact-comments-search" data-testid="cv12-search-mount">
+          <ArtifactCommentSearchBox
+            artifactId={artifactId}
+            artifactChannelId={artifactChannelId}
+          />
+        </div>
+      )}
       <div className="cv5-artifact-comments-list">
         {comments.length === 0 ? (
           <div className="cv5-artifact-comments-empty" data-testid="cv5-empty">
