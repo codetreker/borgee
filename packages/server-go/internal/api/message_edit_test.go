@@ -346,6 +346,82 @@ func TestDM_MessageInOtherChannel(t *testing.T) {
 	}
 }
 
+// TestDM_EditImageRejectsBadScheme — borgee #1108 F5 (DM-4.1 PATCH rail).
+// The create rails (REST POST + WS) and PUT /api/v1/messages/{id} already
+// reject non-allowlisted image URLs, but PATCH
+// /api/v1/channels/{channelId}/messages/{id} (handleEdit) did not.
+// Store.UpdateMessage preserves content_type, so an image message edited to
+// "javascript:alert(1)" would persist the banned scheme (content_type stays
+// "image") — the same client-render phishing/inert-anchor vector. handleEdit
+// must apply store.IsAllowedImageContentURL when the existing message's
+// content_type == "image": reject 400 INVALID_CONTENT and leave the stored
+// row UNCHANGED.
+func TestDM_EditImageRejectsBadScheme(t *testing.T) {
+	t.Parallel()
+	ts, s, _ := testutil.NewTestServer(t)
+	ownerToken, dmID, _ := dm4SetupOwnerAndDM(t, ts, s)
+
+	// Seed a valid image-typed message in the DM via the (already guarded)
+	// create rail — a real https URL passes the create guard.
+	const goodURL = "https://example.com/dm4-safe.png"
+	cResp, cData := testutil.JSON(t, "POST",
+		ts.URL+"/api/v1/channels/"+dmID+"/messages", ownerToken,
+		map[string]any{"content": goodURL, "content_type": "image"})
+	if cResp.StatusCode != http.StatusCreated && cResp.StatusCode != http.StatusOK {
+		t.Fatalf("seed image message: status %d body %v", cResp.StatusCode, cData)
+	}
+	imgID := cData["message"].(map[string]any)["id"].(string)
+	if imgID == "" {
+		t.Fatalf("seed image messageID empty: %v", cData)
+	}
+
+	// Each banned scheme: PATCH-edit the image message → must 400
+	// INVALID_CONTENT and NOT persist.
+	for _, bad := range []string{
+		"javascript:alert(1)",
+		"data:text/html,<script>alert(1)</script>",
+		"//evil.com/x.png",
+	} {
+		eResp, eData := testutil.JSON(t, "PATCH",
+			ts.URL+"/api/v1/channels/"+dmID+"/messages/"+imgID, ownerToken,
+			map[string]any{"content": bad})
+		if eResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("PATCH image to %q: expected 400, got %d (body=%v)", bad, eResp.StatusCode, eData)
+		}
+		if eData["code"] != "INVALID_CONTENT" {
+			t.Fatalf("PATCH image to %q: expected code INVALID_CONTENT, got %v", bad, eData["code"])
+		}
+
+		// Stored row must be UNCHANGED: still the original https URL + image type.
+		var stored store.Message
+		if err := s.DB().Where("id = ?", imgID).First(&stored).Error; err != nil {
+			t.Fatalf("reload image message: %v", err)
+		}
+		if stored.Content != goodURL {
+			t.Fatalf("stored content changed after rejected %q edit: expected %q, got %q", bad, goodURL, stored.Content)
+		}
+		if stored.ContentType != "image" {
+			t.Fatalf("stored content_type changed after rejected %q edit: expected image, got %q", bad, stored.ContentType)
+		}
+	}
+
+	// Positive control: a valid https edit on the same image message succeeds.
+	const newURL = "https://example.com/dm4-safe2.png"
+	okResp, okData := testutil.JSON(t, "PATCH",
+		ts.URL+"/api/v1/channels/"+dmID+"/messages/"+imgID, ownerToken,
+		map[string]any{"content": newURL})
+	if okResp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH image to valid https: expected 200, got %d (body=%v)", okResp.StatusCode, okData)
+	}
+	var afterOK store.Message
+	if err := s.DB().Where("id = ?", imgID).First(&afterOK).Error; err != nil {
+		t.Fatalf("reload after valid edit: %v", err)
+	}
+	if afterOK.Content != newURL {
+		t.Fatalf("valid https edit did not persist: expected %q, got %q", newURL, afterOK.Content)
+	}
+}
+
 // TestDM_CrossOrg403 — handleEdit step 6: REG-INV-002 默认拒绝
 // cross-org reject. Foreign-org caller logs in, finds DM in their own org
 // is impossible — so we instead place a message owned by a foreign-org
