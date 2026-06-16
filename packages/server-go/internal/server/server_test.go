@@ -258,7 +258,6 @@ func TestSecurityHeadersCSP_HSTS(t *testing.T) {
 		for _, want := range []string{
 			"default-src 'self'",
 			"frame-ancestors 'none'",
-			"object-src 'none'",
 		} {
 			if !strings.Contains(csp, want) {
 				t.Fatalf("expected CSP to contain %q, got %q", want, csp)
@@ -269,6 +268,20 @@ func TestSecurityHeadersCSP_HSTS(t *testing.T) {
 		}
 		if !strings.Contains(csp, "style-src") || !strings.Contains(csp, "'unsafe-inline'") {
 			t.Fatalf("expected CSP style-src to include 'unsafe-inline', got %q", csp)
+		}
+		// media-src must allow external https so external video_link artifacts
+		// (<video src="https://...">) render; mirrors img-src https:.
+		if !strings.Contains(csp, "media-src") || !strings.Contains(csp, "media-src 'self' blob: https:") {
+			t.Fatalf("expected CSP media-src to include https: for external video artifacts, got %q", csp)
+		}
+		// object-src must NOT be 'none': pdf_link renders <embed
+		// type="application/pdf"> which is governed by object-src. A future
+		// tightening back to 'none' re-breaks PDF previews — catch it here.
+		if strings.Contains(csp, "object-src 'none'") {
+			t.Fatalf("object-src must not be 'none' (breaks pdf_link <embed>), got %q", csp)
+		}
+		if !strings.Contains(csp, "object-src") || !strings.Contains(csp, "object-src 'self' https:") {
+			t.Fatalf("expected CSP object-src to allow self + https: for pdf embeds, got %q", csp)
 		}
 
 		pp := resp.Header.Get("Permissions-Policy")

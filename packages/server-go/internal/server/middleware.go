@@ -124,8 +124,14 @@ func corsMiddleware(isDev bool, allowedOrigin string, next http.Handler) http.Ha
 //     no inline <script>.
 //   - img-src https: covers user-supplied artifact images — KEEP IN SYNC with
 //     frontend-F5's image policy.
+//   - media-src 'self' blob: https:: mirrors img-src so external video_link
+//     artifacts (<video src="https://...">, MediaPreview.tsx) render.
+//   - object-src 'self' https:: pdf_link renders <embed type="application/pdf">
+//     (MediaPreview.tsx), governed by object-src; 'none' would block ALL PDF
+//     previews. Modern browsers sandbox the built-in PDF viewer (no
+//     Flash/plugin risk), so allowing same-origin + https embeds is acceptable.
 //   - connect-src lists ws: wss: for the same-origin WebSocket.
-const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' ws: wss:; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' ws: wss:; media-src 'self' blob: https:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'self' https:"
 
 // permissionsPolicy disables browser feature APIs the app never uses.
 const permissionsPolicy = "accelerometer=(), camera=(), microphone=(), geolocation=(), gyroscope=(), magnetometer=(), payment=(), usb=(), interest-cohort=()"
