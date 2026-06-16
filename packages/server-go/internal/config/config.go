@@ -36,6 +36,13 @@ type Config struct {
 	RateLimitUserBurst  int
 	RateLimitAnonPerSec int
 	RateLimitAnonBurst  int
+
+	// TrustedProxyCount 控制 rate-limit client-IP 推导信任几跳反代.
+	// 默认 0 (安全默认): 只用 RemoteAddr, X-Forwarded-For / X-Real-IP 完全不参与
+	// → 攻击者无法靠伪造 header 旋转 per-IP 限速桶 key (#1108 F2).
+	// N≥1: 信任 X-Forwarded-For 链最右 N 跳为可信代理, 取链中真实 client entry.
+	// 各环境真实跳数由运营者在各自 .env 配 TRUSTED_PROXY_COUNT.
+	TrustedProxyCount int
 }
 
 func Load() (*Config, error) {
@@ -62,6 +69,8 @@ func Load() (*Config, error) {
 		RateLimitUserBurst:  envInt("RATE_LIMIT_USER_BURST", 60),
 		RateLimitAnonPerSec: envInt("RATE_LIMIT_ANON_PER_SEC", 100),
 		RateLimitAnonBurst:  envInt("RATE_LIMIT_ANON_BURST", 300),
+
+		TrustedProxyCount: envInt("TRUSTED_PROXY_COUNT", 0),
 	}
 
 	if cfg.JWTSecret == "" && cfg.IsDevelopment() {
