@@ -571,7 +571,12 @@ export interface Agent {
   avatar_url: string | null;
   owner_id: string | null;
   created_at: number;
+  // F7 (#1108): reads (list/get/patch) NO LONGER carry the full plaintext key.
+  // `api_key` is populated ONLY on create / rotate / reveal. Read paths carry
+  // `api_key_last4` (last 4 chars) so the UI can render the `bgr_...{last4}`
+  // mask without the secret ever entering the response body / browser memory.
   api_key?: string;
+  api_key_last4?: string;
   disabled?: number;
   // Global "respond only on @mention" toggle. Default is true (mirrors
   // server users.require_mention DEFAULT true) — agent stays quiet unless
@@ -687,6 +692,20 @@ export async function deleteAgent(id: string): Promise<void> {
 
 export async function rotateAgentApiKey(id: string): Promise<string> {
   const data = await request<{ api_key: string }>(`/api/v1/agents/${id}/rotate-api-key`, {
+    method: 'POST',
+  });
+  return data.api_key;
+}
+
+// revealAgentApiKey — F7 (#1108) owner-rail POST /api/v1/agents/{id}/reveal-api-key.
+//
+// Returns the existing full plaintext key on demand (reveal ≠ rotate: the
+// stored key is unchanged). Reads (fetchAgent / fetchAgents) now redact the
+// key to api_key_last4, so copy-to-clipboard must call this to obtain the full
+// secret. POST (not GET) keeps the secret out of URLs / referer / proxy cache.
+// Caller MUST NOT retain the returned key beyond the clipboard write.
+export async function revealAgentApiKey(id: string): Promise<string> {
+  const data = await request<{ api_key: string }>(`/api/v1/agents/${id}/reveal-api-key`, {
     method: 'POST',
   });
   return data.api_key;

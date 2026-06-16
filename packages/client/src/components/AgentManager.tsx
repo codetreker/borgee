@@ -8,6 +8,7 @@ import {
   createAgent,
   deleteAgent,
   rotateAgentApiKey,
+  revealAgentApiKey,
   fetchAgentPermissions,
   updateAgentPermissions,
   updateAgentRequireMention,
@@ -192,16 +193,17 @@ function AgentCard({
     }
   }, [agent.id]);
 
-  // #684 — Load the API key mask on expand. Fetch the full key, store only the
-  // last four chars in state, and do not keep the full key anywhere after the
-  // closure exits.
+  // F7 (#1108) — Load the API key mask on expand. The read response now
+  // carries only api_key_last4 (the full key was removed from reads). Store
+  // that 4-char string directly; the full key never enters this component
+  // until the owner explicitly copies (revealAgentApiKey).
   const loadKeyMask = useCallback(async () => {
     setLoadingKey(true);
     try {
       const data = await fetchAgent(agent.id);
-      // Constraint: store only slice(-4), never the full key.
-      if (typeof data.api_key === 'string' && data.api_key.length >= 4) {
-        setLast4(data.api_key.slice(-4));
+      // Constraint: read api_key_last4 directly; reads no longer return the full key.
+      if (typeof data.api_key_last4 === 'string' && data.api_key_last4.length >= 4) {
+        setLast4(data.api_key_last4.slice(-4));
       } else {
         setLast4(null);
       }
@@ -233,15 +235,15 @@ function AgentCard({
     };
   }, []);
 
-  // #684 — Copy + auto-clear after 60s. The full key is held only inside this
-  // function closure. After setLast4, it falls out of scope. The timer clears
-  // the clipboard only if it still contains this exact key, so user changes made
-  // during the 60s window are preserved.
+  // #684 + F7 (#1108) — Copy + auto-clear after 60s. Reads no longer carry the
+  // full key, so copy fetches it via revealAgentApiKey (POST). The full key is
+  // held only inside this function closure. After setLast4, it falls out of
+  // scope. The timer clears the clipboard only if it still contains this exact
+  // key, so user changes made during the 60s window are preserved.
   const handleCopyKey = async () => {
     setCopying(true);
     try {
-      const data = await fetchAgent(agent.id);
-      const key = data.api_key;
+      const key = await revealAgentApiKey(agent.id);
       if (typeof key !== 'string' || key.length === 0) {
         showToast('复制失败, 请手动选择 mask 后的 key 复制片段');
         return;
@@ -273,8 +275,7 @@ function AgentCard({
       // document.execCommand is deprecated but remains the available fallback
       // here, avoiding an extra third-party dependency.
       try {
-        const data = await fetchAgent(agent.id);
-        const key = data.api_key ?? '';
+        const key = await revealAgentApiKey(agent.id);
         const ta = document.createElement('textarea');
         ta.value = key;
         ta.style.position = 'fixed';

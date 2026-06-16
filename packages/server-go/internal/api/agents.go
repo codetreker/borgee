@@ -75,6 +75,10 @@ func (h *AgentHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handl
 	mux.Handle("PATCH /api/v1/agents/{id}", wrap(h.handlePatchAgent))
 	mux.Handle("DELETE /api/v1/agents/{id}", wrap(h.handleDeleteAgent))
 	mux.Handle("POST /api/v1/agents/{id}/rotate-api-key", wrap(h.handleRotateAPIKey))
+	// F7 (#1108) — reveal full api_key on demand, owner-gated identically to
+	// rotate. POST (not GET) keeps the secret out of URLs / referer / proxy
+	// cache; reads (list/get/patch) now redact the key to api_key_last4.
+	mux.Handle("POST /api/v1/agents/{id}/reveal-api-key", wrap(h.handleRevealAPIKey))
 	mux.Handle("GET /api/v1/agents/{id}/permissions", wrap(h.handleGetPermissions))
 	mux.Handle("PUT /api/v1/agents/{id}/permissions", wrap(h.handleSetPermissions))
 	mux.Handle("GET /api/v1/agents/{id}/files", wrap(h.handleGetAgentFiles))
@@ -84,6 +88,12 @@ func (h *AgentHandler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handl
 	mux.Handle("PATCH /api/v1/agents/{id}/status", wrap(h.handleRejectStatusPatch))
 }
 
+// sanitizeAgent — F7 (#1108): redacted read shape. The full plaintext
+// api_key is NEVER emitted on a read (list/get/patch). Reads carry only
+// api_key_last4 (last 4 chars) so the UI can render a `bgr_...{last4}` mask
+// without the secret ever entering the response body / browser memory /
+// proxy cache. To obtain the full key, the owner must hit the explicit
+// reveal endpoint (POST .../reveal-api-key) or rotate.
 func sanitizeAgent(u *store.User) map[string]any {
 	m := map[string]any{
 		"id":              u.ID,
@@ -97,6 +107,20 @@ func sanitizeAgent(u *store.User) map[string]any {
 	if u.OwnerID != nil {
 		m["owner_id"] = *u.OwnerID
 	}
+	if u.APIKey != nil && len(*u.APIKey) >= 4 {
+		m["api_key_last4"] = (*u.APIKey)[len(*u.APIKey)-4:]
+	}
+	return m
+}
+
+// sanitizeAgentWithKey — F7 (#1108): the full-key shape, identical to the
+// previous sanitizeAgent behavior. The full plaintext api_key MUST only be
+// emitted by handleCreateAgent (the one moment the owner sees a freshly
+// minted key); every other read path uses the redacted sanitizeAgent.
+// Reverse-grep guard: the `m["api_key"] =` full-key assignment lives ONLY
+// in this helper.
+func sanitizeAgentWithKey(u *store.User) map[string]any {
+	m := sanitizeAgent(u)
 	if u.APIKey != nil {
 		m["api_key"] = *u.APIKey
 	}
@@ -203,7 +227,7 @@ func (h *AgentHandler) handleCreateAgent(w http.ResponseWriter, r *http.Request)
 
 	h.Store.AddUserToPublicChannels(agent.ID)
 
-	writeJSONResponse(w, http.StatusCreated, map[string]any{"agent": sanitizeAgent(agent)})
+	writeJSONResponse(w, http.StatusCreated, map[string]any{"agent": sanitizeAgentWithKey(agent)})
 }
 
 func (h *AgentHandler) handleListAgents(w http.ResponseWriter, r *http.Request) {
@@ -377,6 +401,40 @@ func (h *AgentHandler) handleRotateAPIKey(w http.ResponseWriter, r *http.Request
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]any{"api_key": apiKey})
+}
+
+// handleRevealAPIKey — F7 (#1108) owner-rail POST /api/v1/agents/{id}/reveal-api-key.
+//
+// Returns the existing full plaintext api_key on demand. Reads (list/get/
+// patch) redact the key to api_key_last4; the owner must explicitly POST
+// here (or rotate) to get the full secret back. POST (not GET) keeps the
+// secret out of URLs / referer headers / proxy caches.
+//
+// Authz (anti-IDOR — identical to rotate): login required + agent.OwnerID
+// must equal current user → else 403. Does not generate a new key (unlike
+// rotate); the stored key is unchanged.
+func (h *AgentHandler) handleRevealAPIKey(w http.ResponseWriter, r *http.Request) {
+	user, ok := mustUser(w, r)
+	if !ok {
+		return
+	}
+
+	agent, _, ok := loadAgentByPath(w, r, h.Store)
+	if !ok {
+		return
+	}
+
+	if agent.OwnerID == nil || *agent.OwnerID != user.ID {
+		writeJSONError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
+	if agent.APIKey == nil {
+		writeJSONError(w, http.StatusInternalServerError, "Agent has no API key")
+		return
+	}
+
+	writeJSONResponse(w, http.StatusOK, map[string]any{"api_key": *agent.APIKey})
 }
 
 func (h *AgentHandler) handleGetPermissions(w http.ResponseWriter, r *http.Request) {
