@@ -13,4 +13,6 @@ module borgee
 
 go 1.25.0
 
+toolchain go1.25.11
+
 require github.com/coder/websocket v1.8.14

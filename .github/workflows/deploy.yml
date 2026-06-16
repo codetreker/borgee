@@ -25,7 +25,7 @@ jobs:
           cache: pnpm
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.11'
       - run: pnpm install --frozen-lockfile --filter @borgee/client --filter borgee
       - run: pnpm --filter @borgee/client build
       - run: cd packages/server-go && go test -tags sqlite_fts5 ./... -count=1
