@@ -188,6 +188,176 @@ func TestCORSProductionAllowedOrigin(t *testing.T) {
 	}
 }
 
+// TestCORSOriginAllowlist locks in the #1023 fix: dev mode must NOT reflect
+// arbitrary origins, and Access-Control-Allow-Origin + Allow-Credentials must
+// only ever be emitted TOGETHER for an *allowed* origin. Dev gains a strict
+// loopback allowlist (localhost / 127.0.0.1 / ::1, any port) plus the
+// configured CORSOrigin; everything else is rejected (no ACAO, no credentials).
+func TestCORSOriginAllowlist(t *testing.T) {
+	t.Parallel()
+
+	const devCORSOrigin = "https://app.example"
+
+	cases := []struct {
+		name        string
+		isDev       bool
+		corsOrigin  string
+		origin      string
+		wantAllowed bool // expect ACAO == origin AND credentials true
+	}{
+		{
+			name:        "dev rejects arbitrary cross-origin (evil.com)",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "https://evil.com",
+			wantAllowed: false,
+		},
+		{
+			name:        "dev allows loopback localhost:5174",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://localhost:5174",
+			wantAllowed: true,
+		},
+		{
+			name:        "dev allows loopback 127.0.0.1:3000",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://127.0.0.1:3000",
+			wantAllowed: true,
+		},
+		{
+			name:        "dev allows loopback IPv6 ::1",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://[::1]:5173",
+			wantAllowed: true,
+		},
+		{
+			name:        "dev allows configured CORSOrigin",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      devCORSOrigin,
+			wantAllowed: true,
+		},
+		{
+			name:        "dev rejects loopback-lookalike host (localhost.evil.com)",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://localhost.evil.com",
+			wantAllowed: false,
+		},
+		{
+			name:        "dev rejects loopback-lookalike host (127.0.0.1.evil.com)",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://127.0.0.1.evil.com",
+			wantAllowed: false,
+		},
+		{
+			name:        "dev rejects notlocalhost prefix lookalike",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://notlocalhost",
+			wantAllowed: false,
+		},
+		{
+			name:        "dev rejects empty origin",
+			isDev:       true,
+			corsOrigin:  devCORSOrigin,
+			origin:      "",
+			wantAllowed: false,
+		},
+		{
+			name:        "prod allows configured CORSOrigin",
+			isDev:       false,
+			corsOrigin:  devCORSOrigin,
+			origin:      devCORSOrigin,
+			wantAllowed: true,
+		},
+		{
+			name:        "prod rejects arbitrary cross-origin (evil.com)",
+			isDev:       false,
+			corsOrigin:  devCORSOrigin,
+			origin:      "https://evil.com",
+			wantAllowed: false,
+		},
+		{
+			name:        "prod rejects loopback (no dev allowlist)",
+			isDev:       false,
+			corsOrigin:  devCORSOrigin,
+			origin:      "http://localhost:5174",
+			wantAllowed: false,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			handler := corsMiddleware(tc.isDev, tc.corsOrigin, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			handler.ServeHTTP(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			acac := rec.Header().Get("Access-Control-Allow-Credentials")
+
+			if tc.wantAllowed {
+				if acao != tc.origin {
+					t.Errorf("ACAO = %q, want echo of origin %q", acao, tc.origin)
+				}
+				if acac != "true" {
+					t.Errorf("Access-Control-Allow-Credentials = %q, want \"true\"", acac)
+				}
+			} else {
+				if acao != "" {
+					t.Errorf("ACAO = %q, want empty (origin must not be reflected)", acao)
+				}
+				// Credentials must never be emitted without a matching ACAO —
+				// the combo is what makes the cross-origin cookie read possible.
+				if acac != "" {
+					t.Errorf("Access-Control-Allow-Credentials = %q, want empty when origin not allowed", acac)
+				}
+			}
+		})
+	}
+}
+
+// TestCORSPreflightAllowed confirms OPTIONS preflight still returns 204 for an
+// allowed dev loopback origin and carries the credentialed CORS headers.
+func TestCORSPreflightAllowed(t *testing.T) {
+	t.Parallel()
+	nextCalled := false
+	handler := corsMiddleware(true, "https://app.example", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/channels", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("preflight status = %d, want 204", rec.Code)
+	}
+	if nextCalled {
+		t.Fatal("OPTIONS preflight must not call next handler")
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+		t.Errorf("preflight ACAO = %q, want loopback origin", got)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Errorf("preflight credentials = %q, want true", got)
+	}
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 	srv, _ := testServer(t)

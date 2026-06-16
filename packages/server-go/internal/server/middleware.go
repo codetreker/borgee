@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -88,23 +89,58 @@ func loggerMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
 	})
 }
 
+// isLoopbackOrigin reports whether origin is an http/https URL whose host is a
+// loopback address (localhost / 127.0.0.1 / ::1), on ANY port. The host match
+// is exact (u.Hostname()), so lookalikes like "localhost.evil.com",
+// "notlocalhost" or "127.0.0.1.evil.com" are rejected — no suffix/prefix/Contains
+// matching. Unparseable origins and non-http(s) schemes return false.
+//
+// This is the dev-mode allowlist that replaced blind Origin reflection (#1023):
+// reflecting an arbitrary Origin while also emitting Allow-Credentials let any
+// third-party page read authenticated responses cross-origin.
+func isLoopbackOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
+// corsMiddleware emits Access-Control-Allow-Origin + Access-Control-Allow-Credentials
+// only for an *allowed* request Origin — the two headers are always set together,
+// never the credentials flag alone (#1023). An origin is allowed when:
+//   - prod (!isDev): it exactly equals the configured allowedOrigin.
+//   - dev: it equals allowedOrigin OR is a loopback origin (localhost/127.0.0.1/::1,
+//     any port). Dev no longer reflects arbitrary origins.
+//
+// The vite dev stack proxies same-origin (browser → :5173 → server), and a direct
+// cross-origin dev client (e.g. :5174 → :4900) is loopback, so both stay allowed.
 func corsMiddleware(isDev bool, allowedOrigin string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 
-		if isDev {
-			if origin != "" {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-			}
-		} else {
-			if origin == allowedOrigin {
-				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-			}
+		allowed := origin != "" && origin == allowedOrigin
+		if !allowed && isDev {
+			allowed = isLoopbackOrigin(origin)
+		}
+
+		if allowed {
+			// ACAO echoes the specific origin (not "*") and is paired with
+			// credentials — only ever emitted together for an allowed origin.
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Dev-User-Id,Last-Event-ID")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Max-Age", "86400")
 
 		if r.Method == http.MethodOptions {
