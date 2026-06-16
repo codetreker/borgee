@@ -777,21 +777,19 @@ func TestRateLimitXFFSpoofSharesAuthBucket(t *testing.T) {
 	}
 }
 
-// TestPluginAPIRequestAuthPathKeyedPerAgent is the #1108 F4 LAYER B red→green.
+// TestRateLimitAuthBucketKeyedPerRemoteAddr is a middleware-keying unit test
+// (NOT the #1108 F4 LAYER B regression guard). It pins that rateLimitMiddleware
+// keys the auth bucket off clientIP/hostOnly: two distinct RemoteAddr hosts on
+// the SAME auth path land in independent buckets, and the httptest constant is
+// never the key.
 //
-// handleAPIRequest re-enters the HTTP stack via httptest.NewRequest, which
-// HARDCODES RemoteAddr to "192.0.2.1:1234". Without the LAYER B fix, EVERY
-// plugin's api_request to an auth path (/api/v1/auth/*) would collapse onto a
-// single shared auth:192.0.2.1 bucket — one agent could throttle auth
-// re-entries for all agents, and no agent's bucket isolated it. The fix sets
-// RemoteAddr = "<agentID>:0" so clientIP/hostOnly (TrustedProxyCount=0) yields
-// the agentID and the key becomes auth:<agentID>.
-//
-// This pins: (a) two different agentIDs on the SAME auth path produce DIFFERENT
-// effective IPs (so different buckets), and (b) the shared httptest constant is
-// no longer the key. Pre-fix the RemoteAddr would be 192.0.2.1 for both →
-// identical key → this test fails.
-func TestPluginAPIRequestAuthPathKeyedPerAgent(t *testing.T) {
+// The actual LAYER B regression guard — proving handleAPIRequest's
+// `httpReq.RemoteAddr = pc.agentID + ":0"` override drives this keying through
+// the REAL plugin read loop — lives in
+// internal/ws/plugin_apireq_ratelimit_test.go::
+// TestPluginWSAPIRequestKeysAuthBucketPerAgent. (This test hardcodes RemoteAddr
+// in the body, so it cannot detect removal of that production line.)
+func TestRateLimitAuthBucketKeyedPerRemoteAddr(t *testing.T) {
 	t.Parallel()
 
 	// agentIDs are UUIDs (no internal colons), so hostOnly's last-colon strip
