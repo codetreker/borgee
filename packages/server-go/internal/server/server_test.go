@@ -1277,8 +1277,8 @@ func TestHubPluginAdapterProxySuccess(t *testing.T) {
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin?apiKey=" + apiKey
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/plugin"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, http.Header{"Authorization": []string{"Bearer " + apiKey}})
 	if err != nil {
 		t.Fatalf("dial plugin ws: %v", err)
 	}

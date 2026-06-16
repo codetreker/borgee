@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
 
 	"borgee-server/internal/testutil"
@@ -22,7 +21,7 @@ func TestP1RemoteNodeBasics(t *testing.T) {
 		t.Fatalf("get remote node: %v", err)
 	}
 
-	remote := testutil.DialWS(t, ts.URL, "/ws/remote?token="+url.QueryEscape(node.ConnectionToken), "")
+	remote := testutil.DialWS(t, ts.URL, "/ws/remote", node.ConnectionToken)
 	testutil.WSWriteJSON(t, remote, map[string]string{"type": "ping"})
 	if msg := testutil.WSReadUntil(t, remote, "pong"); msg["type"] != "pong" {
 		t.Fatalf("expected remote pong, got %v", msg)
