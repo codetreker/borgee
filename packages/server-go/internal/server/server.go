@@ -154,6 +154,11 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, s *store.
 		&channelMemberFetcherAdapter{store: s},
 		agentTaskNotifier,
 	)
+	// #1110 strict channel-membership gate: reject task_started / task_finished
+	// frames whose agent is not an explicit member of frame.ChannelID before any
+	// push / fanout. Uses store.IsChannelMember (STRICT member), NOT
+	// CanAccessChannel (which is too weak — it allows any non-private channel).
+	taskLifecycleHandler.SetChannelMembership(&channelMembershipAdapter{store: s})
 	pfd.Register(bpp.FrameTypeBPPTaskStarted, taskLifecycleHandler.StartedAdapter())
 	pfd.Register(bpp.FrameTypeBPPTaskFinished, taskLifecycleHandler.FinishedAdapter())
 
@@ -912,4 +917,18 @@ func (a *channelMemberFetcherAdapter) ListChannelMemberUserIDs(channelID string)
 		out = append(out, m.UserID)
 	}
 	return out, nil
+}
+
+// channelMembershipAdapter wires *store.Store.IsChannelMember into the
+// bpp.ChannelMembershipChecker interface (#1110 — task_lifecycle cross-channel
+// gate, 跨 bpp ↛ store 包边界). Uses the STRICT member check
+// (store.IsChannelMember, queries.go:737), NOT CanAccessChannel — the latter
+// returns true for any non-private channel, too weak to stop cross-channel
+// injection.
+type channelMembershipAdapter struct {
+	store *store.Store
+}
+
+func (a *channelMembershipAdapter) IsChannelMember(channelID, agentID string) bool {
+	return a.store.IsChannelMember(channelID, agentID)
 }

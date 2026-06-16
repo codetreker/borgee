@@ -113,6 +113,21 @@ func TestChannelMemberFetcherAdapter_ListUserIDs(t *testing.T) {
 	}
 }
 
+// TestChannelMembershipAdapter_IsChannelMember covers the #1110
+// channelMembershipAdapter bridge (store.IsChannelMember →
+// bpp.ChannelMembershipChecker.IsChannelMember — the STRICT member check used
+// by the task_lifecycle cross-channel gate). An unknown channel/agent pair must
+// return false (fail-closed), mirroring TestChannelMemberFetcherAdapter_ListUserIDs.
+func TestChannelMembershipAdapter_IsChannelMember(t *testing.T) {
+	t.Parallel()
+	_, s := newCovTestHub(t)
+	adapter := &channelMembershipAdapter{store: s}
+
+	if adapter.IsChannelMember("nonexistent-channel", "ghost-agent") {
+		t.Errorf("strict membership adapter must return false for unknown channel/agent (fail-closed)")
+	}
+}
+
 // TestHubAgentTaskPusherAdapter_PushAgentTaskStateChanged covers the hub
 // agentTaskPusher bridge. When the hub has no client subscriber, push should be
 // a no-op (cursor==0 or a similar zero value, ok==false).

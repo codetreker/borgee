@@ -84,6 +84,20 @@ type AgentTaskPushNotifier interface {
 	NotifyAgentTask(targetUserID, agentID, state, subject, reason string, changedAt int64) int
 }
 
+// ChannelMembershipChecker is the test seam for the strict channel-membership
+// gate (#1110). Production wires *store.Store.IsChannelMember via a
+// server.go adapter; tests inject a stub. IsChannelMember(channelID, agentID)
+// MUST be the STRICT member check (i.e. store.IsChannelMember), NOT
+// CanAccessChannel — the latter returns true for any non-private channel,
+// which is too weak to stop cross-channel injection.
+//
+// Returns true only when agentID is an explicit member of channelID. Any
+// false (non-member or underlying lookup failure) fails closed: the gate
+// rejects with errTaskCrossChannelReject and pushes/fanout nothing.
+type ChannelMembershipChecker interface {
+	IsChannelMember(channelID, agentID string) bool
+}
+
 // TaskErrCodeCrossOwnerReject — wire-level error code, named with the same
 // pattern as BPP-3 AckErrCodeCrossOwnerReject / BPP-6
 // ColdStartErrCodeCrossOwnerReject.
@@ -101,6 +115,24 @@ func IsTaskCrossOwnerReject(err error) bool {
 	return errors.Is(err, errTaskCrossOwnerReject)
 }
 
+// TaskErrCodeCrossChannelReject — wire-level error code for the channel
+// membership gate (#1110), named with the same pattern as
+// TaskErrCodeCrossOwnerReject (#1029). Returned when the frame targets a
+// channel the agent is not a strict member of.
+const TaskErrCodeCrossChannelReject = "bpp.task_lifecycle_cross_channel_reject"
+
+// errTaskCrossChannelReject — cross-channel injection reject (#1110): a
+// task_started / task_finished frame whose agent is not a strict member of
+// frame.ChannelID. Sibling of errTaskCrossOwnerReject (#1029). Callers
+// errors.Is against it to map to the wire-level error code.
+var errTaskCrossChannelReject = errors.New("bpp: task_lifecycle cross-channel reject")
+
+// IsTaskCrossChannelReject — sentinel matcher, mirroring
+// IsTaskCrossOwnerReject.
+func IsTaskCrossChannelReject(err error) bool {
+	return errors.Is(err, errTaskCrossChannelReject)
+}
+
 // TaskLifecycleHandler routes plugin-upstream task_started /
 // task_finished frames through the ValidateTask* single source of truth, then fans out
 // AgentTaskStateChangedFrame via the AgentTaskPusher seam.
@@ -113,11 +145,12 @@ func IsTaskCrossOwnerReject(err error) bool {
 // ListChannelMembers + push.NewAgentTaskNotifier; tests can pass only pusher.
 // Fanout is nil-safe.
 type TaskLifecycleHandler struct {
-	pusher   AgentTaskPusher
-	resolver OwnerResolver         // cross-owner gate: OwnerOf(agent) == sess owner
-	members  ChannelMemberFetcher  // nil-safe: 跳 push fanout
-	notifier AgentTaskPushNotifier // nil-safe: 跳 push 调用
-	logger   *slog.Logger
+	pusher     AgentTaskPusher
+	resolver   OwnerResolver            // cross-owner gate: OwnerOf(agent) == sess owner
+	membership ChannelMembershipChecker // #1110 cross-channel gate: agent must be strict member of frame.ChannelID
+	members    ChannelMemberFetcher     // nil-safe: 跳 push fanout
+	notifier   AgentTaskPushNotifier    // nil-safe: 跳 push 调用
+	logger     *slog.Logger
 }
 
 // NewTaskLifecycleHandler constructs the RT-3 server-side derived
@@ -146,6 +179,18 @@ func NewTaskLifecycleHandler(pusher AgentTaskPusher, resolver OwnerResolver, log
 func (h *TaskLifecycleHandler) SetPushFanout(members ChannelMemberFetcher, notifier AgentTaskPushNotifier) {
 	h.members = members
 	h.notifier = notifier
+}
+
+// SetChannelMembership wires the #1110 strict channel-membership gate. Mirrors
+// the SetPushFanout setter pattern so NewTaskLifecycleHandler keeps its ≤3-arg
+// constructor (do NOT add a 4th constructor parameter). server.go injects a
+// channelMembershipAdapter backed by store.IsChannelMember (strict member).
+//
+// nil-safe by design: when membership is nil (test paths that don't exercise
+// the gate), checkChannelMembership skips the gate. Production MUST inject a
+// non-nil checker so the gate is always enforced on the wire path.
+func (h *TaskLifecycleHandler) SetChannelMembership(membership ChannelMembershipChecker) {
+	h.membership = membership
 }
 
 // StartedAdapter returns the BPP-3 FrameDispatcher for task_started.
@@ -184,6 +229,32 @@ func (h *TaskLifecycleHandler) checkOwner(agentID string, sess PluginSessionCont
 	return nil
 }
 
+// checkChannelMembership enforces the #1110 strict channel-membership gate: the
+// frame's agent must be an explicit member of frame.ChannelID before any push /
+// fanout. Uses the injected ChannelMembershipChecker (store.IsChannelMember in
+// production — STRICT member, not CanAccessChannel). A false result (non-member
+// or underlying lookup failure) fails closed: returns errTaskCrossChannelReject
+// so HandleStarted / HandleFinished never reach push or fanout.
+//
+// Sibling of checkOwner (#1029). nil-safe: when membership is unset (test paths
+// that don't exercise the gate) the gate is skipped. Production wires a non-nil
+// checker via SetChannelMembership so the gate is always live on the wire path.
+func (h *TaskLifecycleHandler) checkChannelMembership(agentID, channelID string) error {
+	if h.membership == nil {
+		return nil
+	}
+	if !h.membership.IsChannelMember(channelID, agentID) {
+		if h.logger != nil {
+			h.logger.Warn(TaskErrCodeCrossChannelReject,
+				"agent_id", agentID,
+				"channel_id", channelID)
+		}
+		return fmt.Errorf("%w: agent_id=%q channel_id=%q",
+			errTaskCrossChannelReject, agentID, channelID)
+	}
+	return nil
+}
+
 // HandleStarted is the test-friendly typed entry. Validation errors
 // are wrapped with errSubjectEmpty etc. (errors.Is compatible). On
 // success, fanout AgentTaskStateChangedFrame{state: 'busy', subject:
@@ -192,6 +263,12 @@ func (h *TaskLifecycleHandler) HandleStarted(frame TaskStartedFrame) error {
 	if err := ValidateTaskStarted(frame); err != nil {
 		// Design ②: thinking subject must be non-empty. Fail closed; do not push a fallback.
 		// Caller (FrameDispatcher) logs warn via the dispatcher boundary.
+		return err
+	}
+	// #1110 cross-channel gate: agent must be a strict member of frame.ChannelID
+	// before any push / fanout. Sibling of the #1029 owner gate (run in the
+	// adapter); placed here so both adapters and the typed entry fail closed.
+	if err := h.checkChannelMembership(frame.AgentID, frame.ChannelID); err != nil {
 		return err
 	}
 	// task_started → busy. Subject passes through from plugin upstream; the
@@ -217,6 +294,11 @@ func (h *TaskLifecycleHandler) HandleStarted(frame TaskStartedFrame) error {
 // → reason "" via ValidateTaskFinished dictionary-pollution guard).
 func (h *TaskLifecycleHandler) HandleFinished(frame TaskFinishedFrame) error {
 	if err := ValidateTaskFinished(frame); err != nil {
+		return err
+	}
+	// #1110 cross-channel gate: agent must be a strict member of frame.ChannelID
+	// before any push / fanout (sibling of the #1029 owner gate).
+	if err := h.checkChannelMembership(frame.AgentID, frame.ChannelID); err != nil {
 		return err
 	}
 	// task_finished → idle. Subject must be empty to avoid idle field pollution;
