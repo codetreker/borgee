@@ -4,7 +4,7 @@
 
 The server data model is the authoritative persisted memory of the product. It stores identity, channel collaboration, messages, permissions, admin audit, remote-node registration, artifacts, agent runtime descriptors, presence-backed reachability, and event streams. The store is not just a database wrapper; it defines which concepts are durable, which are live-only, and which are append-only audit records.
 
-Migrations define how that durable model evolves. The current architecture keeps an older baseline schema path and a numbered forward-only migration registry. The baseline keeps existing bootstraps and tests stable; the forward-only registry is the schema change mechanism for additive product work.
+Migrations define how that durable model evolves. The schema is established by a single consolidated baseline that reproduces the full current schema (the net result of the original baseline plus every forward-only migration through v54), held in the store layer. A numbered forward-only migration registry remains the mechanism for future additive product work, carrying one baseline entry today and growing from v2 onward.
 
 ```mermaid
 flowchart TB
@@ -54,9 +54,9 @@ Server API tests use the same route wiring as production but disable unrelated p
 
 Realtime channel fanout treats channel-scoped frames, including `new_message`, as reliable within a bounded send window instead of silently dropping them when a browser's websocket buffer is briefly full. Global presence-style frames remain best-effort.
 
-The baseline migration creates the original core tables, applies guarded column additions, creates indexes, performs backfills, and cleans up legacy direct-message state. It remains part of boot because the server still supports databases that were born before the numbered migration registry.
+The consolidated baseline creates the full current schema in one pass: all core tables, the FTS5 virtual table, indexes, the compatibility view, and triggers, exactly as they stood after the original baseline plus all forward-only migrations through v54. Schema creation runs with foreign keys disabled and uses `IF NOT EXISTS`, so it is a no-op on an existing database that already carries the schema. The baseline schema text is the verbatim captured schema and is regenerated only from a committed golden snapshot, gated by an equivalence test that diffs the freshly built schema against the golden by exact SQL over every schema object.
 
-The forward-only migration engine is the additive schema mechanism. Each migration has a positive unique version, a name, and an `Up` function. Applied versions are recorded so startup can safely run the registry more than once. There is no rollback path in the engine; corrections are expressed as later migrations.
+The forward-only migration engine is the additive schema mechanism for future work. Each migration has a positive unique version, a name, and an `Up` function. Applied versions are recorded so startup can safely run the registry more than once. There is no rollback path in the engine; corrections are expressed as later migrations. The registry currently holds a single baseline entry (version 1); new schema changes append as version 2 and onward and remain immutable once applied.
 
 Core aggregates are intentionally not normalized into one generic resource table. Users, channels, messages, remote nodes, artifacts, admin rows, and agent state each retain domain-specific tables because they carry different ownership, privacy, and retention rules.
 
@@ -64,7 +64,7 @@ Agent state is deliberately multi-part: runtime process metadata, plugin socket 
 
 ## Key Flows
 
-Boot migration flow: opening the store prepares SQLite runtime settings, baseline migration ensures the legacy schema shape, forward-only migrations apply additive schema, and backfills reconcile older rows with current invariants.
+Boot migration flow: opening the store prepares SQLite runtime settings, the consolidated baseline creates the full schema (a no-op on an existing database), the forward-only registry records or applies any pending versions, and the singleton `system` user is seeded so `sender_id='system'` messages satisfy their foreign key. The data-backfills that older boots ran to reconcile pre-existing rows are gone: every creation path now grants permissions, sets ownership, assigns positions, and deduplicates direct messages at write time, so there is nothing left to reconcile.
 
 Write flow: a handler validates the operation, writes one or more aggregate rows, and then chooses side effects such as hot event rows, WebSocket fanout, cold event publication, audit rows, or push notification. Persistence and fanout are related but not automatically coupled.
 
@@ -83,7 +83,7 @@ Admin audit flow: admin actions and impersonation grants are durable audit-orien
 ## Invariants
 
 - The SQLite store is the canonical persisted source for server-owned state.
-- Baseline migration may remain for compatibility, but additive schema belongs in numbered forward-only migrations.
+- The consolidated baseline establishes the full schema; additive schema belongs in numbered forward-only migrations (version 2+).
 - Forward migrations are immutable once applied; changes are made by appending a later migration.
 - Admin identity is stored outside the user aggregate.
 - Agents are users for ownership and API-key purposes, but agent runtime state is stored in separate runtime/state aggregates.
@@ -110,15 +110,9 @@ The data model does not model plugin-local runtime secrets, LLM provider configu
 - `packages/server-go/internal/store/agent_state_log.go`
 - `packages/server-go/internal/migrations/migrations.go`
 - `packages/server-go/internal/migrations/registry.go`
-- `packages/server-go/internal/migrations/admin_admins.go`
-- `packages/server-go/internal/migrations/admin_sessions.go`
-- `packages/server-go/internal/migrations/agent_runtimes.go`
-- `packages/server-go/internal/migrations/agent_state_log.go`
-- `packages/server-go/internal/migrations/canvas_artifacts.go`
-- `packages/server-go/internal/migrations/canvas_artifact_iterations.go`
-- `packages/server-go/internal/migrations/channel_events.go`
-- `packages/server-go/internal/migrations/global_events.go`
-- `packages/server-go/internal/migrations/channel_member_require_mention_policy.go`
+- `packages/server-go/internal/store/schema_baseline_gen.go`
+- `packages/server-go/internal/store/schema_baseline_test.go`
+- `packages/server-go/internal/store/testdata/schema_golden.json`
 - `packages/server-go/internal/datalayer/factory.go`
 - `packages/server-go/internal/datalayer/v1_sqlite.go`
 - `packages/server-go/internal/datalayer/events_store.go`

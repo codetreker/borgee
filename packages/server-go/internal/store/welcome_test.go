@@ -3,8 +3,6 @@ package store
 import (
 	"strings"
 	"testing"
-
-	"borgee-server/internal/migrations"
 )
 
 // TestCreateWelcomeChannelForUser_Success exercises the happy-path of
@@ -196,15 +194,7 @@ func TestListChannelsWithUnread_IncludesSystemWelcome(t *testing.T) {
 	}
 }
 
-// TestWelcomeConstantsMirrorMigrations protects the duplicated literal in
-// store/welcome.go from drifting away from migrations/cm_onboarding_welcome.go.
-// Per onboarding-journey.md §3 the copy is locked; both packages must agree.
-func TestWelcomeConstantsMirrorMigrations(t *testing.T) {
-	t.Parallel()
-	if WelcomeMessageBody != migrations.WelcomeMessageBody {
-		t.Fatalf("WelcomeMessageBody drift\n store: %q\n migr.: %q", WelcomeMessageBody, migrations.WelcomeMessageBody)
-	}
-	if WelcomeQuickActionJSON != migrations.WelcomeQuickActionJSON {
-		t.Fatalf("WelcomeQuickActionJSON drift")
-	}
-}
+// TestWelcomeConstantsMirrorMigrations was removed in the migration baseline
+// squash: the migrations/cm_onboarding_welcome.go copy it cross-checked against
+// no longer exists. store/welcome.go is now the single owner of the welcome
+// literals.

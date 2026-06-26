@@ -8,75 +8,40 @@ import "gorm.io/gorm"
 // Rules:
 //   - Version is strictly increasing. Never reuse or renumber.
 //   - Once a migration is on main, its body is immutable. To change schema,
-//     append a new migration.
-//   - Phase 0 / INFRA-1a ships with one "dummy" migration that proves the
-//     framework end-to-end. Real Phase 1 schema (organizations, users.org_id,
-//     ...) lands as version 2+.
+//     append a new migration (v2+).
+//
+// One-time re-baseline (migrations-baseline-squash): the forward-only chain
+// that previously ran from v1 (dummy marker) through v54 was collapsed into the
+// store-layer baseline schema (internal/store: createSchema /
+// schemaBaselineStatements), which now reproduces the exact post-v54 schema on
+// a fresh DB. The registry therefore carries a single baseline entry. This was
+// a deliberate, reviewed squash of already-shipped, immutable migrations — it
+// does not change any existing database: every existing DB already recorded
+// version 1 (the original always-applied dummy), so the baseline entry is a
+// skip/no-op on them, and the store baseline uses IF NOT EXISTS so re-running
+// schema creation on a populated DB changes nothing. The immutability /
+// forward-only rule is unchanged for everything from here on: new schema work
+// lands as v2+ here, never by editing this baseline. The baseline schema is
+// regenerated only from the committed golden snapshot, gated by the AC-1
+// equivalence test in internal/store.
 var All = []Migration{
 	{
 		Version: 1,
-		Name:    "infra_1a_dummy_marker",
+		Name:    "baseline_schema",
 		Up: func(tx *gorm.DB) error {
-			// G0.1 acceptance: prove the engine can run a migration that
-			// touches schema. Creating an inert marker table is enough to
-			// demonstrate forward-only behavior end-to-end without polluting
-			// the production schema. Subsequent migrations replace this with
-			// real DDL.
+			// The full schema is created by the store baseline
+			// (createSchema/schemaBaselineStatements) before this engine runs.
+			// This entry only records the baseline version in schema_migrations
+			// and ensures the inert marker table exists, so a fresh DB and an
+			// existing (already-migrated) DB converge on the same bookkeeping
+			// state. It is a no-op on existing DBs, which already have version 1
+			// recorded.
 			return tx.Exec(`CREATE TABLE IF NOT EXISTS _migrations_marker (
   version INTEGER PRIMARY KEY,
   note    TEXT
 )`).Error
 		},
 	},
-	organizations,
-	agentInvitations,
-	admins,
-	adminSessions,
-	// v=6 was originally reserved for ADM-0.3 but the slot was skipped after
-	// CM-onboarding (v=7) / AP-0-bis (v=8) / CM-3 (v=9) landed sequentially;
-	// ADM-0.3 took v=10 to keep the registry strictly increasing.
-	cmOnboardingWelcome,
-	bisMessageRead,
-	orgIDBackfill,
-	usersRoleCollapse,
-	channelsOrgScoped,
-	presenceSessions,
-	artifacts,
-	anchorComments,
-	messageMentions,
-	agentRuntimes,
-	artifactKinds,
-	artifactIterations,
-	userChannelLayout,
-	al2a1AgentConfigs,
-	adminActions,
-	impersonationGrants,
-	al1b1AgentStatus,
-	userPermissionsExpires,
-	agentStateLog,
-	webPushSubscriptions,
-	hostGrants,
-	cv2v2MediaPreview,
-	userPermissionsOrg,
-	userPermissionsRevoked,
-	adminActionsPluginActions,
-	cv3v2ArtifactThumbnail,
-	adminActionsArchivedAt,
-	messagesEditHistory,
-	agentStateLogArchivedAt,
-	artifactsFTS,
-	auditEventsRename,
-	channelsDescriptionEditHistory,
-	messagesPinnedAt,
-	channelEvents,
-	globalEvents,
-	capabilitiesDotNotationBackfill,
-	helperEnrollments,
-	helperCredentialRotation,
-	helperJobs,
-	channelMemberRequireMentionPolicy,
-	helperUpdatesAvailable,
-	helperAndHostGrantsRailDrop,
 }
 
 // Default returns an Engine wired to db with All registered.

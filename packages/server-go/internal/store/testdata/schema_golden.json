@@ -1,0 +1,860 @@
+[
+  {
+    "type": "index",
+    "name": "idx_admin_actions_actor_id_created_at",
+    "tbl_name": "audit_events",
+    "sql": "CREATE INDEX idx_admin_actions_actor_id_created_at\n\t\t\tON \"audit_events\"(actor_id, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_admin_actions_archived_at",
+    "tbl_name": "audit_events",
+    "sql": "CREATE INDEX idx_admin_actions_archived_at\n\t\t\tON \"audit_events\"(archived_at) WHERE archived_at IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_admin_actions_target_user_id_created_at",
+    "tbl_name": "audit_events",
+    "sql": "CREATE INDEX idx_admin_actions_target_user_id_created_at\n\t\t\tON \"audit_events\"(target_user_id, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_admin_sessions_admin_id",
+    "tbl_name": "admin_sessions",
+    "sql": "CREATE INDEX idx_admin_sessions_admin_id ON admin_sessions(admin_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_admin_sessions_expires_at",
+    "tbl_name": "admin_sessions",
+    "sql": "CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at)"
+  },
+  {
+    "type": "index",
+    "name": "idx_admins_login",
+    "tbl_name": "admins",
+    "sql": "CREATE UNIQUE INDEX idx_admins_login ON admins(login)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_configs_agent_id",
+    "tbl_name": "agent_configs",
+    "sql": "CREATE INDEX idx_agent_configs_agent_id\n\t\t\tON agent_configs(agent_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_invitations_agent_state",
+    "tbl_name": "agent_invitations",
+    "sql": "CREATE INDEX idx_agent_invitations_agent_state\n   ON agent_invitations(agent_id, state)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_invitations_channel_state",
+    "tbl_name": "agent_invitations",
+    "sql": "CREATE INDEX idx_agent_invitations_channel_state\n   ON agent_invitations(channel_id, state)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_invitations_requested_by",
+    "tbl_name": "agent_invitations",
+    "sql": "CREATE INDEX idx_agent_invitations_requested_by\n   ON agent_invitations(requested_by)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_runtimes_agent_id",
+    "tbl_name": "agent_runtimes",
+    "sql": "CREATE INDEX idx_agent_runtimes_agent_id\n\t\t\tON agent_runtimes(agent_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_state_log_agent_id_ts",
+    "tbl_name": "agent_state_log",
+    "sql": "CREATE INDEX idx_agent_state_log_agent_id_ts\n\t\t\tON agent_state_log(agent_id, ts DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_state_log_archived_at",
+    "tbl_name": "agent_state_log",
+    "sql": "CREATE INDEX idx_agent_state_log_archived_at\n\t\t\tON agent_state_log(archived_at) WHERE archived_at IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_agent_status_state",
+    "tbl_name": "agent_status",
+    "sql": "CREATE INDEX idx_agent_status_state\n\t\t\tON agent_status(state)"
+  },
+  {
+    "type": "index",
+    "name": "idx_anchor_comments_anchor",
+    "tbl_name": "anchor_comments",
+    "sql": "CREATE INDEX idx_anchor_comments_anchor\n\t\t\tON anchor_comments(anchor_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_anchors_artifact_version",
+    "tbl_name": "artifact_anchors",
+    "sql": "CREATE INDEX idx_anchors_artifact_version\n\t\t\tON artifact_anchors(artifact_version_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_artifact_versions_artifact_id",
+    "tbl_name": "artifact_versions",
+    "sql": "CREATE INDEX idx_artifact_versions_artifact_id\n\t\t\tON artifact_versions(artifact_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_artifacts_channel_id",
+    "tbl_name": "artifacts",
+    "sql": "CREATE INDEX idx_artifacts_channel_id\n\t\t\tON artifacts(channel_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channel_events_channel_lex",
+    "tbl_name": "channel_events",
+    "sql": "CREATE INDEX idx_channel_events_channel_lex\n\t\t\t\tON channel_events(channel_id, lex_id DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channel_events_kind_created",
+    "tbl_name": "channel_events",
+    "sql": "CREATE INDEX idx_channel_events_kind_created\n\t\t\t\tON channel_events(kind, created_at)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channel_groups_position",
+    "tbl_name": "channel_groups",
+    "sql": "CREATE INDEX idx_channel_groups_position ON channel_groups(position)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channel_members_org_at_join",
+    "tbl_name": "channel_members",
+    "sql": "CREATE INDEX idx_channel_members_org_at_join\n\t\t\tON channel_members(org_id_at_join)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channels_group",
+    "tbl_name": "channels",
+    "sql": "CREATE INDEX idx_channels_group ON channels(group_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channels_org_id",
+    "tbl_name": "channels",
+    "sql": "CREATE INDEX idx_channels_org_id        ON channels(org_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_channels_org_id_name",
+    "tbl_name": "channels",
+    "sql": "CREATE UNIQUE INDEX idx_channels_org_id_name\n\t\t\t\tON channels(org_id, name) WHERE deleted_at IS NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_channels_position",
+    "tbl_name": "channels",
+    "sql": "CREATE INDEX idx_channels_position ON channels(position)"
+  },
+  {
+    "type": "index",
+    "name": "idx_global_events_created",
+    "tbl_name": "global_events",
+    "sql": "CREATE INDEX idx_global_events_created\n\t\t\t\tON global_events(created_at)"
+  },
+  {
+    "type": "index",
+    "name": "idx_global_events_kind_lex",
+    "tbl_name": "global_events",
+    "sql": "CREATE INDEX idx_global_events_kind_lex\n\t\t\t\tON global_events(kind, lex_id DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_impersonation_grants_user_id_expires",
+    "tbl_name": "impersonation_grants",
+    "sql": "CREATE INDEX idx_impersonation_grants_user_id_expires\n\t\t\tON impersonation_grants(user_id, expires_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_invite_codes_used",
+    "tbl_name": "invite_codes",
+    "sql": "CREATE INDEX idx_invite_codes_used ON invite_codes(used_by)"
+  },
+  {
+    "type": "index",
+    "name": "idx_iterations_artifact_id_state",
+    "tbl_name": "artifact_iterations",
+    "sql": "CREATE INDEX idx_iterations_artifact_id_state\n\t\t\tON artifact_iterations(artifact_id, state)"
+  },
+  {
+    "type": "index",
+    "name": "idx_iterations_target_agent",
+    "tbl_name": "artifact_iterations",
+    "sql": "CREATE INDEX idx_iterations_target_agent\n\t\t\tON artifact_iterations(target_agent_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_mentions_user",
+    "tbl_name": "mentions",
+    "sql": "CREATE INDEX idx_mentions_user ON mentions(user_id, channel_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_message_mentions_target_user_id",
+    "tbl_name": "message_mentions",
+    "sql": "CREATE INDEX idx_message_mentions_target_user_id\n\t\t\tON message_mentions(target_user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_messages_channel_time",
+    "tbl_name": "messages",
+    "sql": "CREATE INDEX idx_messages_channel_time ON messages(channel_id, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_messages_org_id",
+    "tbl_name": "messages",
+    "sql": "CREATE INDEX idx_messages_org_id        ON messages(org_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_messages_pinned_at",
+    "tbl_name": "messages",
+    "sql": "CREATE INDEX idx_messages_pinned_at\n\t\t\tON messages(channel_id, pinned_at DESC) WHERE pinned_at IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_messages_sender",
+    "tbl_name": "messages",
+    "sql": "CREATE INDEX idx_messages_sender ON messages(sender_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_presence_sessions_agent_id",
+    "tbl_name": "presence_sessions",
+    "sql": "CREATE INDEX idx_presence_sessions_agent_id\n\t\t\tON presence_sessions(agent_id) WHERE agent_id IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_presence_sessions_user_id",
+    "tbl_name": "presence_sessions",
+    "sql": "CREATE INDEX idx_presence_sessions_user_id\n\t\t\tON presence_sessions(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_reactions_message",
+    "tbl_name": "message_reactions",
+    "sql": "CREATE INDEX idx_reactions_message ON message_reactions(message_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_reactions_unique",
+    "tbl_name": "message_reactions",
+    "sql": "CREATE UNIQUE INDEX idx_reactions_unique ON message_reactions(message_id, user_id, emoji)"
+  },
+  {
+    "type": "index",
+    "name": "idx_remote_nodes_org_id",
+    "tbl_name": "remote_nodes",
+    "sql": "CREATE INDEX idx_remote_nodes_org_id    ON remote_nodes(org_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_remote_nodes_user",
+    "tbl_name": "remote_nodes",
+    "sql": "CREATE INDEX idx_remote_nodes_user ON remote_nodes(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_channel_layout_user_id",
+    "tbl_name": "user_channel_layout",
+    "sql": "CREATE INDEX idx_user_channel_layout_user_id\n\t\t\tON user_channel_layout(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_permissions_expires",
+    "tbl_name": "user_permissions",
+    "sql": "CREATE INDEX idx_user_permissions_expires\n\t\t\tON user_permissions(expires_at) WHERE expires_at IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_permissions_lookup",
+    "tbl_name": "user_permissions",
+    "sql": "CREATE INDEX idx_user_permissions_lookup ON user_permissions(user_id, permission, scope)"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_permissions_org_id",
+    "tbl_name": "user_permissions",
+    "sql": "CREATE INDEX idx_user_permissions_org_id\n\t\t\tON user_permissions(org_id) WHERE org_id IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_permissions_revoked",
+    "tbl_name": "user_permissions",
+    "sql": "CREATE INDEX idx_user_permissions_revoked\n\t\t\t\tON user_permissions(revoked_at) WHERE revoked_at IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_permissions_user",
+    "tbl_name": "user_permissions",
+    "sql": "CREATE INDEX idx_user_permissions_user ON user_permissions(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_users_email",
+    "tbl_name": "users",
+    "sql": "CREATE UNIQUE INDEX idx_users_email ON users(email) WHERE email IS NOT NULL"
+  },
+  {
+    "type": "index",
+    "name": "idx_users_org_id",
+    "tbl_name": "users",
+    "sql": "CREATE INDEX idx_users_org_id           ON users(org_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_users_owner_id",
+    "tbl_name": "users",
+    "sql": "CREATE INDEX idx_users_owner_id ON users(owner_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_web_push_subscriptions_user_id",
+    "tbl_name": "web_push_subscriptions",
+    "sql": "CREATE INDEX idx_web_push_subscriptions_user_id\n\t\t\tON web_push_subscriptions(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_workspace_files_org_id",
+    "tbl_name": "workspace_files",
+    "sql": "CREATE INDEX idx_workspace_files_org_id ON workspace_files(org_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_workspace_files_parent",
+    "tbl_name": "workspace_files",
+    "sql": "CREATE INDEX idx_workspace_files_parent ON workspace_files(parent_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_workspace_files_user_channel",
+    "tbl_name": "workspace_files",
+    "sql": "CREATE INDEX idx_workspace_files_user_channel ON workspace_files(user_id, channel_id)"
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_admin_sessions_1",
+    "tbl_name": "admin_sessions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_admins_1",
+    "tbl_name": "admins",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_admins_2",
+    "tbl_name": "admins",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_agent_configs_1",
+    "tbl_name": "agent_configs",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_agent_invitations_1",
+    "tbl_name": "agent_invitations",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_agent_runtimes_1",
+    "tbl_name": "agent_runtimes",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_agent_runtimes_2",
+    "tbl_name": "agent_runtimes",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_agent_status_1",
+    "tbl_name": "agent_status",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_artifact_anchors_1",
+    "tbl_name": "artifact_anchors",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_artifact_iterations_1",
+    "tbl_name": "artifact_iterations",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_artifact_versions_1",
+    "tbl_name": "artifact_versions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_artifacts_1",
+    "tbl_name": "artifacts",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_audit_events_1",
+    "tbl_name": "audit_events",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_channel_events_1",
+    "tbl_name": "channel_events",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_channel_groups_1",
+    "tbl_name": "channel_groups",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_channel_members_1",
+    "tbl_name": "channel_members",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_channels_1",
+    "tbl_name": "channels",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_global_events_1",
+    "tbl_name": "global_events",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_impersonation_grants_1",
+    "tbl_name": "impersonation_grants",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_invite_codes_1",
+    "tbl_name": "invite_codes",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_mentions_1",
+    "tbl_name": "mentions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_message_mentions_1",
+    "tbl_name": "message_mentions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_message_reactions_1",
+    "tbl_name": "message_reactions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_messages_1",
+    "tbl_name": "messages",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_organizations_1",
+    "tbl_name": "organizations",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_presence_sessions_1",
+    "tbl_name": "presence_sessions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_remote_bindings_1",
+    "tbl_name": "remote_bindings",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_remote_bindings_2",
+    "tbl_name": "remote_bindings",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_remote_nodes_1",
+    "tbl_name": "remote_nodes",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_remote_nodes_2",
+    "tbl_name": "remote_nodes",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_user_channel_layout_1",
+    "tbl_name": "user_channel_layout",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_user_permissions_1",
+    "tbl_name": "user_permissions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_users_1",
+    "tbl_name": "users",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_users_2",
+    "tbl_name": "users",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_web_push_subscriptions_1",
+    "tbl_name": "web_push_subscriptions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_web_push_subscriptions_2",
+    "tbl_name": "web_push_subscriptions",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_workspace_files_1",
+    "tbl_name": "workspace_files",
+    "sql": null
+  },
+  {
+    "type": "index",
+    "name": "sqlite_autoindex_workspace_files_2",
+    "tbl_name": "workspace_files",
+    "sql": null
+  },
+  {
+    "type": "table",
+    "name": "_migrations_marker",
+    "tbl_name": "_migrations_marker",
+    "sql": "CREATE TABLE _migrations_marker (\n  version INTEGER PRIMARY KEY,\n  note    TEXT\n)"
+  },
+  {
+    "type": "table",
+    "name": "admin_sessions",
+    "tbl_name": "admin_sessions",
+    "sql": "CREATE TABLE admin_sessions (\n  token       TEXT PRIMARY KEY,\n  admin_id    TEXT NOT NULL,\n  created_at  INTEGER NOT NULL,\n  expires_at  INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "admins",
+    "tbl_name": "admins",
+    "sql": "CREATE TABLE admins (\n  id            TEXT PRIMARY KEY,\n  login         TEXT NOT NULL UNIQUE,\n  password_hash TEXT NOT NULL,\n  created_at    INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "agent_configs",
+    "tbl_name": "agent_configs",
+    "sql": "CREATE TABLE agent_configs (\n  agent_id       TEXT    NOT NULL,\n  schema_version INTEGER NOT NULL,\n  blob           TEXT    NOT NULL,\n  created_at     INTEGER NOT NULL,\n  updated_at     INTEGER NOT NULL,\n  PRIMARY KEY (agent_id)\n)"
+  },
+  {
+    "type": "table",
+    "name": "agent_invitations",
+    "tbl_name": "agent_invitations",
+    "sql": "CREATE TABLE agent_invitations (\n  id           TEXT PRIMARY KEY,\n  channel_id   TEXT NOT NULL,\n  agent_id     TEXT NOT NULL,\n  requested_by TEXT NOT NULL,\n  state        TEXT NOT NULL DEFAULT 'pending'\n                 CHECK (state IN ('pending','approved','rejected','expired')),\n  created_at   INTEGER NOT NULL,\n  decided_at   INTEGER,\n  expires_at   INTEGER\n)"
+  },
+  {
+    "type": "table",
+    "name": "agent_runtimes",
+    "tbl_name": "agent_runtimes",
+    "sql": "CREATE TABLE agent_runtimes (\n  id                 TEXT    PRIMARY KEY,\n  agent_id           TEXT    NOT NULL UNIQUE,\n  endpoint_url       TEXT    NOT NULL,\n  process_kind       TEXT    NOT NULL CHECK (process_kind IN ('openclaw','hermes')),\n  status             TEXT    NOT NULL CHECK (status IN ('registered','running','stopped','error')),\n  last_error_reason  TEXT,\n  last_heartbeat_at  INTEGER,\n  created_at         INTEGER NOT NULL,\n  updated_at         INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "agent_state_log",
+    "tbl_name": "agent_state_log",
+    "sql": "CREATE TABLE agent_state_log (\n  id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,\n  agent_id    TEXT    NOT NULL,\n  from_state  TEXT    NOT NULL,\n  to_state    TEXT    NOT NULL,\n  reason      TEXT    NOT NULL DEFAULT '',\n  task_id     TEXT    NOT NULL DEFAULT '',\n  ts          INTEGER NOT NULL\n, archived_at INTEGER)"
+  },
+  {
+    "type": "table",
+    "name": "agent_status",
+    "tbl_name": "agent_status",
+    "sql": "CREATE TABLE agent_status (\n  agent_id              TEXT    PRIMARY KEY,\n  state                 TEXT    NOT NULL CHECK (state IN ('busy','idle')),\n  last_task_id          TEXT,\n  last_task_started_at  INTEGER,\n  last_task_finished_at INTEGER,\n  created_at            INTEGER NOT NULL,\n  updated_at            INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "anchor_comments",
+    "tbl_name": "anchor_comments",
+    "sql": "CREATE TABLE anchor_comments (\n  id          INTEGER PRIMARY KEY AUTOINCREMENT,\n  anchor_id   TEXT    NOT NULL,\n  body        TEXT    NOT NULL DEFAULT '',\n  author_kind TEXT    NOT NULL CHECK (author_kind IN ('agent','human')),\n  author_id   TEXT    NOT NULL,\n  created_at  INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "artifact_anchors",
+    "tbl_name": "artifact_anchors",
+    "sql": "CREATE TABLE artifact_anchors (\n  id                  TEXT    PRIMARY KEY,\n  artifact_id         TEXT    NOT NULL,\n  artifact_version_id INTEGER NOT NULL,\n  start_offset        INTEGER NOT NULL,\n  end_offset          INTEGER NOT NULL,\n  created_by          TEXT    NOT NULL,\n  created_at          INTEGER NOT NULL,\n  resolved_at         INTEGER,\n  CHECK (end_offset \u003e= start_offset)\n)"
+  },
+  {
+    "type": "table",
+    "name": "artifact_iterations",
+    "tbl_name": "artifact_iterations",
+    "sql": "CREATE TABLE artifact_iterations (\n  id                          TEXT    PRIMARY KEY,\n  artifact_id                 TEXT    NOT NULL,\n  requested_by                TEXT    NOT NULL,\n  intent_text                 TEXT    NOT NULL,\n  target_agent_id             TEXT    NOT NULL,\n  state                       TEXT    NOT NULL CHECK (state IN ('pending','running','completed','failed')),\n  created_artifact_version_id INTEGER,\n  error_reason                TEXT,\n  created_at                  INTEGER NOT NULL,\n  completed_at                INTEGER\n)"
+  },
+  {
+    "type": "table",
+    "name": "artifact_versions",
+    "tbl_name": "artifact_versions",
+    "sql": "CREATE TABLE artifact_versions (\n  id                       INTEGER PRIMARY KEY AUTOINCREMENT,\n  artifact_id              TEXT    NOT NULL,\n  version                  INTEGER NOT NULL,\n  body                     TEXT    NOT NULL DEFAULT '',\n  committer_kind           TEXT    NOT NULL CHECK (committer_kind IN ('agent','human')),\n  committer_id             TEXT    NOT NULL,\n  created_at               INTEGER NOT NULL,\n  rolled_back_from_version INTEGER,\n  UNIQUE(artifact_id, version)\n)"
+  },
+  {
+    "type": "table",
+    "name": "artifacts",
+    "tbl_name": "artifacts",
+    "sql": "CREATE TABLE \"artifacts\" (\n  id                  TEXT    PRIMARY KEY,\n  channel_id          TEXT    NOT NULL,\n  type                TEXT    NOT NULL CHECK (type IN ('markdown','code','image_link','video_link','pdf_link')),\n  title               TEXT    NOT NULL,\n  body                TEXT    NOT NULL DEFAULT '',\n  current_version     INTEGER NOT NULL DEFAULT 1,\n  created_at          INTEGER NOT NULL,\n  archived_at         INTEGER,\n  lock_holder_user_id TEXT,\n  lock_acquired_at    INTEGER,\n  preview_url         TEXT\n, thumbnail_url TEXT)"
+  },
+  {
+    "type": "table",
+    "name": "artifacts_fts",
+    "tbl_name": "artifacts_fts",
+    "sql": "CREATE VIRTUAL TABLE artifacts_fts USING fts5(\n\t\t\ttitle, body,\n\t\t\tcontent='artifacts',\n\t\t\tcontent_rowid='rowid',\n\t\t\ttokenize='unicode61 remove_diacritics 2'\n\t\t)"
+  },
+  {
+    "type": "table",
+    "name": "artifacts_fts_config",
+    "tbl_name": "artifacts_fts_config",
+    "sql": "CREATE TABLE 'artifacts_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID"
+  },
+  {
+    "type": "table",
+    "name": "artifacts_fts_data",
+    "tbl_name": "artifacts_fts_data",
+    "sql": "CREATE TABLE 'artifacts_fts_data'(id INTEGER PRIMARY KEY, block BLOB)"
+  },
+  {
+    "type": "table",
+    "name": "artifacts_fts_docsize",
+    "tbl_name": "artifacts_fts_docsize",
+    "sql": "CREATE TABLE 'artifacts_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB)"
+  },
+  {
+    "type": "table",
+    "name": "artifacts_fts_idx",
+    "tbl_name": "artifacts_fts_idx",
+    "sql": "CREATE TABLE 'artifacts_fts_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID"
+  },
+  {
+    "type": "table",
+    "name": "audit_events",
+    "tbl_name": "audit_events",
+    "sql": "CREATE TABLE \"audit_events\" (\n  id              TEXT    NOT NULL PRIMARY KEY,\n  actor_id        TEXT    NOT NULL,\n  target_user_id  TEXT    NOT NULL,\n  action          TEXT    NOT NULL CHECK (action IN ('delete_channel','suspend_user','change_role','reset_password','start_impersonation','permission_expired','plugin_connect','plugin_disconnect','plugin_reconnect','plugin_cold_start','plugin_heartbeat_timeout','audit_retention_override')),\n  metadata        TEXT    NOT NULL DEFAULT '',\n  created_at      INTEGER NOT NULL,\n  archived_at     INTEGER\n)"
+  },
+  {
+    "type": "table",
+    "name": "channel_events",
+    "tbl_name": "channel_events",
+    "sql": "CREATE TABLE channel_events (\n  lex_id          TEXT    NOT NULL PRIMARY KEY,\n  channel_id      TEXT    NOT NULL,\n  kind            TEXT    NOT NULL,\n  payload         TEXT    NOT NULL DEFAULT '',\n  created_at      INTEGER NOT NULL,\n  retention_days  INTEGER\n)"
+  },
+  {
+    "type": "table",
+    "name": "channel_groups",
+    "tbl_name": "channel_groups",
+    "sql": "CREATE TABLE channel_groups (\n  id          TEXT PRIMARY KEY,\n  name        TEXT NOT NULL,\n  position    TEXT NOT NULL,\n  created_by  TEXT NOT NULL REFERENCES users(id),\n  created_at  INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "channel_members",
+    "tbl_name": "channel_members",
+    "sql": "CREATE TABLE channel_members (\n  channel_id    TEXT NOT NULL REFERENCES channels(id),\n  user_id       TEXT NOT NULL REFERENCES users(id),\n  joined_at     INTEGER NOT NULL,\n  last_read_at  INTEGER,\n  require_mention_policy TEXT NOT NULL DEFAULT 'inherit' CHECK (require_mention_policy IN ('inherit','on','off')), silent INTEGER NOT NULL DEFAULT 0, org_id_at_join TEXT NOT NULL DEFAULT '',\n  PRIMARY KEY (channel_id, user_id)\n)"
+  },
+  {
+    "type": "table",
+    "name": "channels",
+    "tbl_name": "channels",
+    "sql": "CREATE TABLE \"channels\" (\"id\" TEXT PRIMARY KEY, \"name\" TEXT NOT NULL, \"topic\" TEXT DEFAULT '', \"visibility\" TEXT DEFAULT 'public', \"created_at\" INTEGER NOT NULL, \"created_by\" TEXT NOT NULL, \"type\" TEXT DEFAULT 'channel', \"deleted_at\" INTEGER, \"position\" TEXT DEFAULT '0|aaaaaa', \"group_id\" TEXT, \"org_id\" TEXT NOT NULL DEFAULT '', \"archived_at\" INTEGER, description_edit_history TEXT)"
+  },
+  {
+    "type": "table",
+    "name": "events",
+    "tbl_name": "events",
+    "sql": "CREATE TABLE events (\n  cursor      INTEGER PRIMARY KEY AUTOINCREMENT,\n  kind        TEXT NOT NULL,\n  channel_id  TEXT NOT NULL,\n  payload     TEXT NOT NULL,\n  created_at  INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "global_events",
+    "tbl_name": "global_events",
+    "sql": "CREATE TABLE global_events (\n  lex_id          TEXT    NOT NULL PRIMARY KEY,\n  kind            TEXT    NOT NULL,\n  payload         TEXT    NOT NULL DEFAULT '',\n  created_at      INTEGER NOT NULL,\n  retention_days  INTEGER\n)"
+  },
+  {
+    "type": "table",
+    "name": "impersonation_grants",
+    "tbl_name": "impersonation_grants",
+    "sql": "CREATE TABLE impersonation_grants (\n  id          TEXT    NOT NULL PRIMARY KEY,\n  user_id     TEXT    NOT NULL,\n  granted_at  INTEGER NOT NULL,\n  expires_at  INTEGER NOT NULL,\n  revoked_at  INTEGER NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "invite_codes",
+    "tbl_name": "invite_codes",
+    "sql": "CREATE TABLE invite_codes (\n  code        TEXT PRIMARY KEY,\n  created_by  TEXT NOT NULL,\n  created_at  INTEGER NOT NULL,\n  expires_at  INTEGER,\n  used_by     TEXT REFERENCES users(id),\n  used_at     INTEGER,\n  note        TEXT\n)"
+  },
+  {
+    "type": "table",
+    "name": "mentions",
+    "tbl_name": "mentions",
+    "sql": "CREATE TABLE mentions (\n  id          TEXT PRIMARY KEY,\n  message_id  TEXT NOT NULL REFERENCES messages(id),\n  user_id     TEXT NOT NULL REFERENCES users(id),\n  channel_id  TEXT NOT NULL REFERENCES channels(id)\n)"
+  },
+  {
+    "type": "table",
+    "name": "message_mentions",
+    "tbl_name": "message_mentions",
+    "sql": "CREATE TABLE message_mentions (\n  id             INTEGER PRIMARY KEY AUTOINCREMENT,\n  message_id     TEXT    NOT NULL,\n  target_user_id TEXT    NOT NULL,\n  created_at     INTEGER NOT NULL,\n  UNIQUE(message_id, target_user_id)\n)"
+  },
+  {
+    "type": "table",
+    "name": "message_reactions",
+    "tbl_name": "message_reactions",
+    "sql": "CREATE TABLE message_reactions (\n  id          TEXT PRIMARY KEY,\n  message_id  TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,\n  user_id     TEXT NOT NULL REFERENCES users(id),\n  emoji       TEXT NOT NULL,\n  created_at  INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "messages",
+    "tbl_name": "messages",
+    "sql": "CREATE TABLE messages (\n  id            TEXT PRIMARY KEY,\n  channel_id    TEXT NOT NULL REFERENCES channels(id),\n  sender_id     TEXT NOT NULL REFERENCES users(id),\n  content       TEXT NOT NULL,\n  content_type  TEXT DEFAULT 'text',\n  reply_to_id   TEXT REFERENCES messages(id),\n  created_at    INTEGER NOT NULL,\n  edited_at     INTEGER\n, deleted_at INTEGER, org_id TEXT NOT NULL DEFAULT '', quick_action TEXT, edit_history TEXT, pinned_at INTEGER)"
+  },
+  {
+    "type": "table",
+    "name": "organizations",
+    "tbl_name": "organizations",
+    "sql": "CREATE TABLE organizations (\n  id         TEXT PRIMARY KEY,\n  name       TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "presence_sessions",
+    "tbl_name": "presence_sessions",
+    "sql": "CREATE TABLE presence_sessions (\n  id                INTEGER PRIMARY KEY AUTOINCREMENT,\n  session_id        TEXT    NOT NULL UNIQUE,\n  user_id           TEXT    NOT NULL,\n  agent_id          TEXT,\n  connected_at      INTEGER NOT NULL,\n  last_heartbeat_at INTEGER NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "remote_bindings",
+    "tbl_name": "remote_bindings",
+    "sql": "CREATE TABLE remote_bindings (\n  id TEXT PRIMARY KEY,\n  node_id TEXT NOT NULL REFERENCES remote_nodes(id) ON DELETE CASCADE,\n  channel_id TEXT NOT NULL REFERENCES channels(id),\n  path TEXT NOT NULL,\n  label TEXT,\n  created_at INTEGER NOT NULL DEFAULT 0,\n  UNIQUE(node_id, channel_id, path)\n)"
+  },
+  {
+    "type": "table",
+    "name": "remote_nodes",
+    "tbl_name": "remote_nodes",
+    "sql": "CREATE TABLE remote_nodes (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  machine_name TEXT NOT NULL,\n  connection_token TEXT NOT NULL UNIQUE,\n  last_seen_at INTEGER,\n  created_at INTEGER NOT NULL DEFAULT 0\n, org_id TEXT NOT NULL DEFAULT '')"
+  },
+  {
+    "type": "table",
+    "name": "schema_migrations",
+    "tbl_name": "schema_migrations",
+    "sql": "CREATE TABLE schema_migrations (\n  version    INTEGER PRIMARY KEY,\n  applied_at INTEGER NOT NULL,\n  name       TEXT NOT NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "sqlite_sequence",
+    "tbl_name": "sqlite_sequence",
+    "sql": "CREATE TABLE sqlite_sequence(name,seq)"
+  },
+  {
+    "type": "table",
+    "name": "user_channel_layout",
+    "tbl_name": "user_channel_layout",
+    "sql": "CREATE TABLE user_channel_layout (\n  user_id    TEXT    NOT NULL,\n  channel_id TEXT    NOT NULL,\n  collapsed  INTEGER NOT NULL DEFAULT 0,\n  position   REAL    NOT NULL,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  PRIMARY KEY (user_id, channel_id)\n)"
+  },
+  {
+    "type": "table",
+    "name": "user_permissions",
+    "tbl_name": "user_permissions",
+    "sql": "CREATE TABLE user_permissions (\n  id          INTEGER PRIMARY KEY AUTOINCREMENT,\n  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  permission  TEXT NOT NULL,\n  scope       TEXT NOT NULL DEFAULT '*',\n  granted_by  TEXT REFERENCES users(id),\n  granted_at  INTEGER NOT NULL, expires_at INTEGER, org_id TEXT, revoked_at INTEGER,\n  UNIQUE(user_id, permission, scope)\n)"
+  },
+  {
+    "type": "table",
+    "name": "users",
+    "tbl_name": "users",
+    "sql": "CREATE TABLE users (\n  id           TEXT PRIMARY KEY,\n  display_name TEXT NOT NULL,\n  role         TEXT DEFAULT 'member',\n  avatar_url   TEXT,\n  api_key      TEXT UNIQUE,\n  created_at   INTEGER NOT NULL\n, email TEXT, password_hash TEXT, last_seen_at INTEGER, require_mention INTEGER DEFAULT 1, owner_id TEXT REFERENCES users(id), deleted_at INTEGER, disabled INTEGER DEFAULT 0, org_id TEXT NOT NULL DEFAULT '')"
+  },
+  {
+    "type": "table",
+    "name": "web_push_subscriptions",
+    "tbl_name": "web_push_subscriptions",
+    "sql": "CREATE TABLE web_push_subscriptions (\n  id            TEXT    NOT NULL PRIMARY KEY,\n  user_id       TEXT    NOT NULL,\n  endpoint      TEXT    NOT NULL UNIQUE,\n  p256dh_key    TEXT    NOT NULL,\n  auth_key      TEXT    NOT NULL,\n  user_agent    TEXT    NOT NULL DEFAULT '',\n  created_at    INTEGER NOT NULL,\n  last_used_at  INTEGER NULL\n)"
+  },
+  {
+    "type": "table",
+    "name": "workspace_files",
+    "tbl_name": "workspace_files",
+    "sql": "CREATE TABLE workspace_files (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  channel_id TEXT NOT NULL REFERENCES channels(id),\n  parent_id TEXT REFERENCES workspace_files(id),\n  name TEXT NOT NULL,\n  is_directory INTEGER NOT NULL DEFAULT 0,\n  mime_type TEXT,\n  size_bytes INTEGER DEFAULT 0,\n  source TEXT DEFAULT 'upload',\n  source_message_id TEXT,\n  created_at INTEGER NOT NULL DEFAULT 0,\n  updated_at INTEGER NOT NULL DEFAULT 0, org_id TEXT NOT NULL DEFAULT '',\n  UNIQUE(user_id, channel_id, parent_id, name)\n)"
+  },
+  {
+    "type": "trigger",
+    "name": "admin_actions_insert",
+    "tbl_name": "admin_actions",
+    "sql": "CREATE TRIGGER admin_actions_insert\n\t\t\tINSTEAD OF INSERT ON admin_actions\n\t\t\tBEGIN\n\t\t\t\tINSERT INTO audit_events (id, actor_id, target_user_id, action, metadata, created_at, archived_at)\n\t\t\t\tVALUES (NEW.id, NEW.actor_id, NEW.target_user_id, NEW.action, NEW.metadata, NEW.created_at, NEW.archived_at);\n\t\t\tEND"
+  },
+  {
+    "type": "trigger",
+    "name": "admin_actions_update",
+    "tbl_name": "admin_actions",
+    "sql": "CREATE TRIGGER admin_actions_update\n\t\t\tINSTEAD OF UPDATE ON admin_actions\n\t\t\tBEGIN\n\t\t\t\tUPDATE audit_events SET archived_at = NEW.archived_at WHERE id = NEW.id;\n\t\t\tEND"
+  },
+  {
+    "type": "trigger",
+    "name": "artifacts_ad",
+    "tbl_name": "artifacts",
+    "sql": "CREATE TRIGGER artifacts_ad\n\t\t\tAFTER DELETE ON artifacts BEGIN\n\t\t\tINSERT INTO artifacts_fts(artifacts_fts, rowid, title, body)\n\t\t\tVALUES('delete', old.rowid, old.title, old.body);\n\t\tEND"
+  },
+  {
+    "type": "trigger",
+    "name": "artifacts_ai",
+    "tbl_name": "artifacts",
+    "sql": "CREATE TRIGGER artifacts_ai\n\t\t\tAFTER INSERT ON artifacts BEGIN\n\t\t\tINSERT INTO artifacts_fts(rowid, title, body) VALUES (new.rowid, new.title, new.body);\n\t\tEND"
+  },
+  {
+    "type": "trigger",
+    "name": "artifacts_au",
+    "tbl_name": "artifacts",
+    "sql": "CREATE TRIGGER artifacts_au\n\t\t\tAFTER UPDATE ON artifacts BEGIN\n\t\t\tINSERT INTO artifacts_fts(artifacts_fts, rowid, title, body)\n\t\t\tVALUES('delete', old.rowid, old.title, old.body);\n\t\t\tINSERT INTO artifacts_fts(rowid, title, body) VALUES (new.rowid, new.title, new.body);\n\t\tEND"
+  },
+  {
+    "type": "view",
+    "name": "admin_actions",
+    "tbl_name": "admin_actions",
+    "sql": "CREATE VIEW admin_actions AS SELECT * FROM audit_events"
+  }
+]

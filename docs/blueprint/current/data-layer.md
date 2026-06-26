@@ -159,6 +159,8 @@ cursor 协议同形（`kind + ulid`），客户端按订阅集合 merge。
 
 > ⚠️ **回滚策略与阶段挂钩**：v0（无外部用户）阶段直接删库重建；上线第一个外部用户后改为"备份 + 不可逆 forward-only"模式。详见 [`../implementation/README.md`](../implementation/README.md) 的阶段策略。
 
+> 实现说明（一次性 baseline 合并）：forward-only 链曾从 v1 累积到 v54。实现层把这条链一次性合并成一份合并 baseline schema（store 层 `createSchema` / `schemaBaselineStatements` 复现 v54 全量 schema），registry 只留单条 baseline 条目。这是对已发布、不可变迁移的一次性、经审阅的压缩：现有库都已记录 version 1，对它们是 skip/no-op；新 schema 变更仍按 forward-only 从 v2 起追加、合并后不可变。policy 本身（forward-only、不写 down、失败即停）不变。
+
 ### 3.3 Q10.4 — 存储：SQLite + 观察哨
 
 - v1 保留 SQLite 单机 + WAL

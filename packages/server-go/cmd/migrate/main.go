@@ -39,14 +39,13 @@ func main() {
 	}
 	defer s.Close()
 
-	// Run legacy createSchema first so v0 baseline tables (users, channels, ...)
-	// exist before forward-only migrations that reference them. cmd/collab does
-	// the same on startup; CLI must mirror that order or `up` on a fresh DB
-	// fails with "no such table: users" when CM-1.1+ migrations touch legacy
-	// tables. Tracked in v0 audit — when createSchema is decomposed into the
-	// migration registry (Phase 1+), this call goes away.
+	// Run the full boot path first: the consolidated schema baseline creates
+	// the schema (a no-op on an existing DB), the forward-only registry records
+	// the baseline version, and the system user is seeded. cmd/collab does the
+	// same on startup; this CLI mirrors it so `status` / `up` reflect the real
+	// boot state. The trailing engine.Run below is then idempotent.
 	if err := s.Migrate(); err != nil {
-		fmt.Fprintf(os.Stderr, "store.Migrate (legacy baseline): %v\n", err)
+		fmt.Fprintf(os.Stderr, "store.Migrate (schema baseline): %v\n", err)
 		os.Exit(1)
 	}
 
