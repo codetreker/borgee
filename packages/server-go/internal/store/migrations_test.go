@@ -80,44 +80,11 @@ func TestMigrateWithDMChannel(t *testing.T) {
 	}
 }
 
-func TestMigrateDefaultPermissions(t *testing.T) {
-	t.Parallel()
-	s := testStore(t)
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-
-	u := createUser(t, s, "permback", "member")
-	// Don't grant permissions yet
-	perms, _ := s.ListUserPermissions(u.ID)
-	if len(perms) != 0 {
-		t.Fatalf("expected 0 perms before backfill, got %d", len(perms))
-	}
-
-	// Re-migrate should backfill
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-
-	perms2, _ := s.ListUserPermissions(u.ID)
-	if len(perms2) == 0 {
-		t.Fatal("expected permissions after backfill")
-	}
-}
-
-func TestMigrateCreatorPermissions(t *testing.T) {
-	t.Parallel()
-	s := testStore(t)
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-
-	u := createUser(t, s, "creator", "member")
-	ch := &Channel{Name: "creator-ch", Visibility: "public", CreatedBy: u.ID, Type: "channel", Position: GenerateInitialRank()}
-	s.CreateChannel(ch)
-
-	// Re-migrate should backfill creator permissions
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-}
+// TestMigrateDefaultPermissions / TestMigrateCreatorPermissions were removed in
+// the migration baseline squash: they asserted that re-running Migrate()
+// backfilled permissions for store-level-created rows. Those data-backfills are
+// deleted (they were a one-time repair, now dead because every user-facing
+// creation path grants on creation — GrantDefaultPermissions in
+// api/auth.go|admin.go|agents.go, GrantCreatorPermissions in api/channels.go).
+// The replacement no-op guards live in backfill_noop_guard_test.go, which drives
+// the live creation path and asserts nothing is left to repair.

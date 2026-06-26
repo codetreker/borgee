@@ -16,23 +16,6 @@ func openMem(t *testing.T) *gorm.DB {
 	return db
 }
 
-// sqliteTableDDL returns the CREATE TABLE statement recorded in
-// sqlite_master for the named table. Shared across migration tests that
-// need to assert CHECK constraint literals (e.g. enum coverage). Defined
-// here after the helper-rail tests were removed in t1; channel_member_*
-// and others still depend on it.
-func sqliteTableDDL(t *testing.T, gdb *gorm.DB, name string) string {
-	t.Helper()
-	var ddl string
-	if err := gdb.Raw(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&ddl).Error; err != nil {
-		t.Fatalf("load table DDL %s: %v", name, err)
-	}
-	if ddl == "" {
-		t.Fatalf("missing table DDL for %s", name)
-	}
-	return ddl
-}
-
 func TestEnsureSchemaCreatesTable(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
@@ -204,46 +187,9 @@ func TestValidateRejectsBadInput(t *testing.T) {
 func TestDefaultRegistryRunsClean(t *testing.T) {
 	t.Parallel()
 	db := openMem(t)
-	// CM-1.1 ALTERs five legacy tables that store.createSchema normally
-	// builds. Recreate the minimum surface here so the migration package
-	// stays self-contained at test time.
-	for _, name := range []string{"users", "channels", "messages", "workspace_files", "remote_nodes"} {
-		if err := db.Exec("CREATE TABLE " + name + " (id TEXT PRIMARY KEY)").Error; err != nil {
-			t.Fatalf("create %s: %v", name, err)
-		}
-	}
-	// AP-0-bis (v=8) reads users.role/deleted_at and inserts into user_permissions.
-	// Add the columns the migration touches so the registry test stays self-
-	// contained without pulling in store.createSchema.
-	if err := db.Exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`).Error; err != nil {
-		t.Fatalf("add users.role: %v", err)
-	}
-	if err := db.Exec(`ALTER TABLE users ADD COLUMN deleted_at INTEGER`).Error; err != nil {
-		t.Fatalf("add users.deleted_at: %v", err)
-	}
-	if err := db.Exec(`CREATE TABLE user_permissions (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id TEXT NOT NULL,
-		permission TEXT NOT NULL,
-		scope TEXT NOT NULL DEFAULT '*',
-		granted_by TEXT,
-		granted_at INTEGER NOT NULL
-	)`).Error; err != nil {
-		t.Fatalf("create user_permissions: %v", err)
-	}
-	// CM-3 (v=9) backfills resource org_id from creator/sender/uploader columns.
-	// Add the foreign-key columns the UPDATE WHERE clauses reference so the
-	// registry test stays self-contained.
-	for _, alter := range []string{
-		`ALTER TABLE channels        ADD COLUMN created_by TEXT`,
-		`ALTER TABLE messages        ADD COLUMN sender_id  TEXT`,
-		`ALTER TABLE workspace_files ADD COLUMN user_id    TEXT`,
-		`ALTER TABLE remote_nodes    ADD COLUMN user_id    TEXT`,
-	} {
-		if err := db.Exec(alter).Error; err != nil {
-			t.Fatalf("alter for cm-3 backfill: %v", err)
-		}
-	}
+	// The store layer (createSchema) builds the real schema before the engine
+	// runs in production; the single baseline entry is inert (ensures the
+	// marker table), so the registry runs clean on a bare DB.
 	if err := Default(db).Run(0); err != nil {
 		t.Fatalf("default run: %v", err)
 	}
@@ -255,6 +201,10 @@ func TestDefaultRegistryRunsClean(t *testing.T) {
 		if _, ok := applied[m.Version]; !ok {
 			t.Fatalf("default registry did not apply v%d (%s)", m.Version, m.Name)
 		}
+	}
+	// Re-running is a no-op (idempotent on an already-baselined DB).
+	if err := Default(db).Run(0); err != nil {
+		t.Fatalf("default rerun: %v", err)
 	}
 }
 

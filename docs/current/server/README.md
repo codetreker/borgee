@@ -85,7 +85,7 @@ The server has two event planes. The hot plane serves user-facing realtime deliv
 
 ## Key Flows
 
-Process startup loads config, opens the store, runs baseline and forward-only migrations, bootstraps admin identity, builds the server runtime, and starts the HTTP server. Shutdown is coordinated through the HTTP server and the shared server lifetime context.
+Process startup loads config, opens the store, runs the consolidated schema baseline and the forward-only migration registry, bootstraps admin identity, builds the server runtime, and starts the HTTP server. Shutdown is coordinated through the HTTP server and the shared server lifetime context.
 
 User requests enter the user rail, authenticate as a user or agent, optionally pass capability checks, mutate or read canonical state, and may fan out through WebSocket, poll/SSE wakeups, cold events, or push notification depending on the operation.
 

@@ -243,36 +243,6 @@ func TestSoftDeleteChannel_WithMessages(t *testing.T) {
 	}
 }
 
-func TestNormalizeDMNameAndParse(t *testing.T) {
-	t.Parallel()
-	// parseDMUserIDs branches:
-	if got := parseDMUserIDs("foo:a_b"); got != nil {
-		t.Fatalf("parseDMUserIDs no-prefix: got %v", got)
-	}
-	if got := parseDMUserIDs("dm:_b"); got != nil {
-		t.Fatalf("parseDMUserIDs empty first: got %v", got)
-	}
-	if got := parseDMUserIDs("dm:a_"); got != nil {
-		t.Fatalf("parseDMUserIDs empty second: got %v", got)
-	}
-	if got := parseDMUserIDs("dm:a"); got != nil {
-		t.Fatalf("parseDMUserIDs no-underscore: got %v", got)
-	}
-	got := parseDMUserIDs("dm:b_a")
-	if len(got) != 2 || got[0] != "b" || got[1] != "a" {
-		t.Fatalf("parseDMUserIDs ok: got %v", got)
-	}
-
-	// normalizeDMName: invalid → returns input
-	if n := normalizeDMName("not-dm"); n != "not-dm" {
-		t.Fatalf("normalizeDMName invalid: got %q", n)
-	}
-	// normalizeDMName: valid → sorted prefix
-	if n := normalizeDMName("dm:zzz_aaa"); n != "dm:aaa_zzz" {
-		t.Fatalf("normalizeDMName valid: got %q", n)
-	}
-}
-
 func TestGetChannelReadonly_Branches(t *testing.T) {
 	t.Parallel()
 	s := migratedStore(t)

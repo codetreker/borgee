@@ -3,16 +3,23 @@
 //
 // Blueprint: data-layer §3.2 forward-only versioned migrations.
 //
-// This package coexists with the legacy big-bang Store.Migrate() flow during
-// v0. New schema changes (Phase 1+) should be added here as numbered, immutable
-// migrations rather than mutating the legacy createSchema/applyColumnMigrations
-// blob.
+// The schema is established by a one-time baseline: the store layer
+// (internal/store createSchema / schemaBaselineStatements) creates the full
+// schema on a fresh DB, and this registry carries a single baseline entry
+// (version 1). New schema changes are added here as numbered, immutable
+// migrations (v2+) rather than mutating the baseline.
 //
 // Contract:
 //   - Migrations are registered with a strictly increasing integer Version.
 //   - Once a migration is applied (its Version recorded in schema_migrations),
 //     its body MUST NOT be edited. Add a new migration instead.
-//   - There is no Down(). v0 is "delete db and rebuild"; v1+ relies on backups.
+//   - The single exception already taken: the v1..v54 chain was squashed once
+//     into the baseline (migrations-baseline-squash). That squash is schema-
+//     neutral on existing DBs (version 1 was always applied, so the baseline is
+//     a no-op on them) and is not a license to edit applied migrations going
+//     forward — v2+ remain forward-only and immutable.
+//   - There is no Down(). Recovery relies on backups; disposable dev DBs are
+//     rebuilt, not migrated.
 package migrations
 
 import (
